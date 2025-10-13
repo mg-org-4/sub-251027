@@ -4,19 +4,32 @@ on:
   # 可选手动触发（推荐用于一次性操作）
   workflow_dispatch:
 
-  # 或者在 push 到 main 分支且包含 flows.zip 时自动运行（可选）
+  # 或者在 push 到 master 分支且包含 flows.zip 时自动运行（可选）
   # push:
-  #   branches: [ main ]
+  #   branches: [ master ]
   #   paths:
   #     - 'comfy_flows_example/flows.zip'
+
+# 授予必要权限（GITHUB_TOKEN 自动获得 contents 权限）
+permissions:
+  contents: write
 
 jobs:
   unzip:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Your Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 保持与主同步 Action 一致
+
+      # 配置 Git 使用 GITHUB_TOKEN 进行推送（关键！与主 Action 完全一致）
+      - name: Configure Git credentials for push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/mg-org-1/ComfyUI.git
 
       - name: Check if flows.zip exists
         id: check_file
@@ -31,20 +44,14 @@ jobs:
       - name: Unzip and remove flows.zip
         if: steps.check_file.outputs.exists == 'true'
         run: |
-          # 进入目标目录
           cd comfy_flows_example
-          # 解压到当前目录（覆盖已有文件）
           unzip -o flows.zip
-          # 删除压缩包
           rm flows.zip
-          # 返回根目录
           cd ..
 
       - name: Commit and push changes
         if: steps.check_file.outputs.exists == 'true'
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add comfy_flows_example/
           git commit -m "Auto-unzip flows.zip and remove archive"
-          git push
+          git push origin master

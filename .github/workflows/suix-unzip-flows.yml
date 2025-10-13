@@ -41,14 +41,26 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Unzip and remove flows.zip
+      - name: Clean directory and unzip all files (flat, no folders)
         if: steps.check_file.outputs.exists == 'true'
         run: |
           cd comfy_flows_example
-          unzip -o flows.zip
-          rm flows.zip
+      
+          # 删除当前目录下除 flows.zip 外的所有内容（包括文件和子目录）
+          # 注意：必须保留 flows.zip，否则无法解压
+          find . -mindepth 1 ! -name 'flows.zip' -delete
+      
+          # 拍平解压：-j 表示 junk paths（丢弃所有目录结构）
+          unzip -j -o flows.zip -x "__MACOSX/*" -x "*/.DS_Store"
+      
+          # 删除原始 zip
+          rm -f flows.zip
+      
+          # 额外清理（虽然 -j 不会解压 __MACOSX，但以防万一）
+          rm -rf __MACOSX
+      
           cd ..
-
+          
       - name: Commit and push changes
         if: steps.check_file.outputs.exists == 'true'
         run: |

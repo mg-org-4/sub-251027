@@ -834,11 +834,11 @@ class WanVideoSampler:
         flashvsr_LQ_images = image_embeds.get("flashvsr_LQ_images", None)
         flashvsr_strength = image_embeds.get("flashvsr_strength", 1.0)
         if flashvsr_LQ_images is not None:
-            if flashvsr_LQ_images.shape[0] < num_frames + 4:
-                missing_frames = num_frames + 4 - flashvsr_LQ_images.shape[0]
-                last_frame = flashvsr_LQ_images[-1:].repeat(missing_frames, 1, 1, 1)
-                flashvsr_LQ_images = torch.cat([flashvsr_LQ_images, last_frame], dim=0)
-            LQ_images = flashvsr_LQ_images[:num_frames+4].unsqueeze(0).movedim(-1, 1).to(dtype) * 2 - 1
+            flashvsr_LQ_images = flashvsr_LQ_images[:num_frames]
+            first_frame = flashvsr_LQ_images[:1]
+            last_frame = flashvsr_LQ_images[-1:].repeat(3, 1, 1, 1)
+            flashvsr_LQ_images = torch.cat([first_frame, flashvsr_LQ_images, last_frame], dim=0)
+            LQ_images = flashvsr_LQ_images.unsqueeze(0).movedim(-1, 1).to(dtype) * 2 - 1
             if context_options is None:
                 flashvsr_LQ_latent = transformer.LQ_proj_in(LQ_images.to(device))
                 log.info(f"flashvsr_LQ_latent: {flashvsr_LQ_latent[0].shape}")
@@ -1296,6 +1296,12 @@ class WanVideoSampler:
                     else:
                         extra_channel_latents_input = extra_channel_latents.to(z)
                     z = torch.cat([z, extra_channel_latents_input])
+
+                if "rcm" in sample_scheduler.__class__.__name__.lower():
+                    c_in = 1 / (torch.cos(timestep) + torch.sin(timestep))
+                    c_noise = (torch.sin(timestep) / (torch.cos(timestep) + torch.sin(timestep))) * 1000
+                    z = z * c_in
+                    timestep = c_noise
 
                 base_params = {
                     'x': [z], # latent
@@ -2956,6 +2962,8 @@ class WanVideoSampler:
                             #    callback_latent = (latent_model_input[:,:-phantom_latents.shape[1]].to(device) - noise_pred[:,:-phantom_latents.shape[1]].to(device) * t.to(device) / 1000).detach()
                             elif humo_reference_count > 0:
                                 callback_latent = (latent_model_input[:,:-humo_reference_count].to(device) - noise_pred[:,:-humo_reference_count].to(device) * t.to(device) / 1000).detach()
+                            elif "rcm" in sample_scheduler.__class__.__name__.lower():
+                                callback_latent = (latent_model_input.to(device) - noise_pred.to(device) * t.to(device)).detach()
                             else:
                                 callback_latent = (latent_model_input.to(device) - noise_pred.to(device) * t.to(device) / 1000).detach()
                             callback(idx, callback_latent.permute(1,0,2,3), None, len(timesteps))

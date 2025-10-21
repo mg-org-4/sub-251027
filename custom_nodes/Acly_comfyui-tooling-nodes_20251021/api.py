@@ -15,6 +15,7 @@ import server
 
 from .translation import available_languages, translate
 from .krita import WorkflowExchange
+from .nodes import image_cache
 
 input_block_name = "model.diffusion_model.input_blocks.0.0.weight"
 
@@ -243,6 +244,13 @@ def has_invalid_filename(filename: str):
     return None
 
 
+async def image_sender(data: bytes):
+    mem = memoryview(data)
+    csize = 2**14
+    for i in range(0, len(mem), csize):
+        yield mem[i : i + csize]
+
+
 _server: server.PromptServer | None = getattr(server.PromptServer, "instance", None)
 if _server is not None:
     _workflow_exchange = WorkflowExchange(_server)
@@ -274,6 +282,39 @@ if _server is not None:
             text = request.match_info.get("text", "")
             result = translate(f"lang:{language} {text}")
             return web.json_response(result)
+        except Exception as e:
+            return web.json_response(dict(error=str(e)), status=500)
+
+    @_server.routes.get("/api/etn/image/{id}")
+    async def get_image(request: web.Request):
+        try:
+            id = request.match_info.get("id", "")
+            data, content_type = image_cache.get(id)
+            if data is None or content_type is None:
+                return web.json_response(dict(error="Image not found"), status=404)
+            response = web.Response(
+                body=image_sender(data),
+                content_type=content_type,
+                headers={"Content-Length": str(len(data))},
+            )
+            return response
+        except Exception as e:
+            return web.json_response(dict(error=str(e)), status=500)
+
+    @_server.routes.put("/api/etn/image/{id}")
+    async def put_image(request: web.Request):
+        try:
+            id = request.match_info.get("id", "")
+            if id in image_cache:
+                return web.json_response(dict(status="cached"), status=200)
+
+            content_type = request.headers.get("Content-Type", "application/octet-stream")
+            data = bytearray()
+            async for chunk, _ in request.content.iter_chunks():
+                data.extend(chunk)
+
+            image_cache.insert(id, bytes(data), content_type)
+            return web.json_response(dict(status="success"), status=201)
         except Exception as e:
             return web.json_response(dict(error=str(e)), status=500)
 

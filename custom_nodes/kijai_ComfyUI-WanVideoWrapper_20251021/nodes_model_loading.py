@@ -128,6 +128,8 @@ def standardize_lora_key_format(lora_sd):
             k = k.replace('pipe.dit.', 'diffusion_model.')
         if k.startswith('blocks.'):
             k = k.replace('blocks.', 'diffusion_model.blocks.')
+        if k.startswith('vace_blocks.'):
+            k = k.replace('vace_blocks.', 'diffusion_model.vace_blocks.')
         k = k.replace('.default.', '.')
 
         # Fun LoRA format
@@ -1000,6 +1002,7 @@ class WanVideoModelLoader:
                     "sageattn",
                     "sageattn_3",
                     "radial_sage_attention",
+                    "sageattn_compiled",
                     ], {"default": "sdpa"}),
                 "compile_args": ("WANCOMPILEARGS", ),
                 "block_swap_args": ("BLOCKSWAPARGS", ),
@@ -1110,6 +1113,8 @@ class WanVideoModelLoader:
 
         if "scaled_fp8" in sd and "scaled" not in quantization:
             raise ValueError("The model is a scaled fp8 model, please set quantization to '_scaled'")
+        elif "scaled_fp8" not in sd and "scaled" in quantization:
+            raise ValueError("The model is not a scaled fp8 model, please disable '_scaled' in quantization")
 
         if "vace_blocks.0.after_proj.weight" in sd and not "patch_embedding.weight" in sd:
             raise ValueError("You are attempting to load a VACE module as a WanVideo model, instead you should use the vace_model input and matching T2V base model")
@@ -1463,9 +1468,9 @@ class WanVideoModelLoader:
                 if k.endswith(".scale_weight"):
                     scale_weights[k] = v.to(device, base_dtype)
 
-        if quantization == "fp8_e4m3fn":
+        if quantization in ["fp8_e4m3fn", "fp8_e4m3fn_fast"]:
             weight_dtype = torch.float8_e4m3fn
-        elif quantization == "fp8_e5m2":
+        elif quantization in ["fp8_e5m2", "fp8_e5m2_fast"]:
             weight_dtype = torch.float8_e5m2
         else:
             weight_dtype = base_dtype

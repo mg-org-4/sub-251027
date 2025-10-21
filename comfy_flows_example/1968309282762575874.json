@@ -9,9 +9,9 @@
           "links": [
             123
           ],
-          "label": "模型",
+          "label": "MODEL",
           "type": "MODEL",
-          "localized_name": "模型"
+          "localized_name": "MODEL"
         }
       ],
       "size": [
@@ -29,17 +29,18 @@
         {
           "name": "model",
           "link": 150,
-          "label": "模型",
+          "label": "model",
           "type": "MODEL",
-          "localized_name": "模型"
+          "localized_name": "model"
         },
         {
           "widget": {
             "name": "shift"
           },
           "name": "shift",
+          "label": "shift",
           "type": "FLOAT",
-          "localized_name": "偏移"
+          "localized_name": "shift"
         }
       ],
       "flags": {},
@@ -59,9 +60,9 @@
           "links": [
             137
           ],
-          "label": "条件",
+          "label": "CONDITIONING",
           "type": "CONDITIONING",
-          "localized_name": "条件"
+          "localized_name": "CONDITIONING"
         }
       ],
       "size": [
@@ -79,7 +80,7 @@
         {
           "name": "clip",
           "link": 153,
-          "label": "CLIP",
+          "label": "clip",
           "type": "CLIP",
           "localized_name": "clip"
         },
@@ -88,8 +89,9 @@
             "name": "text"
           },
           "name": "text",
+          "label": "text",
           "type": "STRING",
-          "localized_name": "文本"
+          "localized_name": "text"
         }
       ],
       "flags": {},
@@ -111,7 +113,7 @@
           ],
           "label": "positive",
           "type": "CONDITIONING",
-          "localized_name": "正向"
+          "localized_name": "positive"
         },
         {
           "name": "negative",
@@ -120,7 +122,7 @@
           ],
           "label": "negative",
           "type": "CONDITIONING",
-          "localized_name": "负向"
+          "localized_name": "negative"
         },
         {
           "name": "latent",
@@ -136,7 +138,7 @@
           "links": [],
           "label": "trim_latent",
           "type": "INT",
-          "localized_name": "裁剪latent"
+          "localized_name": "trim_latent"
         }
       ],
       "size": [
@@ -160,14 +162,14 @@
           "link": 136,
           "label": "positive",
           "type": "CONDITIONING",
-          "localized_name": "正向"
+          "localized_name": "positive"
         },
         {
           "name": "negative",
           "link": 137,
           "label": "negative",
           "type": "CONDITIONING",
-          "localized_name": "负向"
+          "localized_name": "negative"
         },
         {
           "name": "vae",
@@ -182,14 +184,14 @@
           "link": 179,
           "label": "control_video",
           "type": "IMAGE",
-          "localized_name": "控制视频"
+          "localized_name": "control_video"
         },
         {
           "shape": 7,
           "name": "control_masks",
           "label": "control_masks",
           "type": "MASK",
-          "localized_name": "控制mask"
+          "localized_name": "control_masks"
         },
         {
           "shape": 7,
@@ -197,7 +199,7 @@
           "link": 178,
           "label": "reference_image",
           "type": "IMAGE",
-          "localized_name": "参考图像"
+          "localized_name": "reference_image"
         },
         {
           "widget": {
@@ -207,7 +209,7 @@
           "link": 180,
           "label": "width",
           "type": "INT",
-          "localized_name": "宽度"
+          "localized_name": "width"
         },
         {
           "widget": {
@@ -217,7 +219,7 @@
           "link": 183,
           "label": "height",
           "type": "INT",
-          "localized_name": "高度"
+          "localized_name": "height"
         },
         {
           "widget": {
@@ -227,7 +229,7 @@
           "link": 182,
           "label": "length",
           "type": "INT",
-          "localized_name": "长度"
+          "localized_name": "length"
         },
         {
           "widget": {
@@ -236,7 +238,7 @@
           "name": "batch_size",
           "label": "batch_size",
           "type": "INT",
-          "localized_name": "批量大小"
+          "localized_name": "batch_size"
         },
         {
           "widget": {
@@ -245,7 +247,7 @@
           "name": "strength",
           "label": "strength",
           "type": "FLOAT",
-          "localized_name": "强度"
+          "localized_name": "strength"
         }
       ],
       "flags": {},
@@ -260,123 +262,6 @@
       "order": 20
     },
     {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "LATENT",
-          "links": [
-            149
-          ],
-          "label": "Latent",
-          "type": "LATENT",
-          "localized_name": "Latent"
-        }
-      ],
-      "size": [
-        270,
-        262
-      ],
-      "pos": [
-        1192.7496337890625,
-        719.1505126953125
-      ],
-      "widgets_values": [
-        1062705250196444,
-        "randomize",
-        4,
-        1,
-        "ipndm",
-        "sgm_uniform",
-        1
-      ],
-      "inputs": [
-        {
-          "name": "model",
-          "link": 123,
-          "label": "模型",
-          "type": "MODEL",
-          "localized_name": "模型"
-        },
-        {
-          "name": "positive",
-          "link": 144,
-          "label": "正面条件",
-          "type": "CONDITIONING",
-          "localized_name": "正面条件"
-        },
-        {
-          "name": "negative",
-          "link": 145,
-          "label": "负面条件",
-          "type": "CONDITIONING",
-          "localized_name": "负面条件"
-        },
-        {
-          "name": "latent_image",
-          "link": 143,
-          "label": "Latent",
-          "type": "LATENT",
-          "localized_name": "Latent图像"
-        },
-        {
-          "widget": {
-            "name": "seed"
-          },
-          "name": "seed",
-          "type": "INT",
-          "localized_name": "随机种"
-        },
-        {
-          "widget": {
-            "name": "steps"
-          },
-          "name": "steps",
-          "type": "INT",
-          "localized_name": "步数"
-        },
-        {
-          "widget": {
-            "name": "cfg"
-          },
-          "name": "cfg",
-          "type": "FLOAT",
-          "localized_name": "CFG"
-        },
-        {
-          "widget": {
-            "name": "sampler_name"
-          },
-          "name": "sampler_name",
-          "type": "COMBO",
-          "localized_name": "采样器"
-        },
-        {
-          "widget": {
-            "name": "scheduler"
-          },
-          "name": "scheduler",
-          "type": "COMBO",
-          "localized_name": "调度器"
-        },
-        {
-          "widget": {
-            "name": "denoise"
-          },
-          "name": "denoise",
-          "type": "FLOAT",
-          "localized_name": "降噪"
-        }
-      ],
-      "flags": {},
-      "id": 8,
-      "type": "KSampler",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "KSampler"
-      },
-      "order": 21
-    },
-    {
       "outputs": [
         {
           "name": "IMAGE",
@@ -385,6 +270,7 @@
             174,
             184
           ],
+          "label": "IMAGE",
           "type": "IMAGE"
         }
       ],
@@ -396,6 +282,7 @@
         {
           "name": "IMAGE",
           "link": 172,
+          "label": "IMAGE",
           "type": "IMAGE"
         }
       ],
@@ -403,6 +290,7 @@
         "collapsed": true
       },
       "type": "SetNode",
+      "title": "Set_IMAGE",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
@@ -428,9 +316,9 @@
           "links": [
             172
           ],
-          "label": "图像",
+          "label": "IMAGE",
           "type": "IMAGE",
-          "localized_name": "图像"
+          "localized_name": "IMAGE"
         }
       ],
       "size": [
@@ -449,32 +337,34 @@
         {
           "name": "image1",
           "link": 170,
-          "label": "图像1",
+          "label": "image1",
           "type": "IMAGE",
-          "localized_name": "图像1"
+          "localized_name": "image1"
         },
         {
           "name": "image2",
           "link": 171,
-          "label": "图像2",
+          "label": "image2",
           "type": "IMAGE",
-          "localized_name": "图像2"
+          "localized_name": "image2"
         },
         {
           "widget": {
             "name": "blend_factor"
           },
           "name": "blend_factor",
+          "label": "blend_factor",
           "type": "FLOAT",
-          "localized_name": "系数"
+          "localized_name": "blend_factor"
         },
         {
           "widget": {
             "name": "blend_mode"
           },
           "name": "blend_mode",
+          "label": "blend_mode",
           "type": "COMBO",
-          "localized_name": "混合模式"
+          "localized_name": "blend_mode"
         }
       ],
       "flags": {
@@ -496,13 +386,13 @@
           "links": [
             170
           ],
-          "label": "图像",
+          "label": "IMAGE",
           "type": "IMAGE",
-          "localized_name": "图像"
+          "localized_name": "IMAGE"
         },
         {
           "name": "POSE_KEYPOINT",
-          "label": "姿态关键点",
+          "label": "POSE_KEYPOINT",
           "type": "POSE_KEYPOINT",
           "localized_name": "POSE_KEYPOINT"
         }
@@ -528,7 +418,7 @@
         {
           "name": "image",
           "link": 168,
-          "label": "图像",
+          "label": "image",
           "type": "IMAGE",
           "localized_name": "image"
         },
@@ -538,8 +428,9 @@
           },
           "shape": 7,
           "name": "detect_hand",
+          "label": "detect_hand",
           "type": "COMBO",
-          "localized_name": "检测手部"
+          "localized_name": "detect_hand"
         },
         {
           "widget": {
@@ -547,8 +438,9 @@
           },
           "shape": 7,
           "name": "detect_body",
+          "label": "detect_body",
           "type": "COMBO",
-          "localized_name": "检测身体"
+          "localized_name": "detect_body"
         },
         {
           "widget": {
@@ -556,8 +448,9 @@
           },
           "shape": 7,
           "name": "detect_face",
+          "label": "detect_face",
           "type": "COMBO",
-          "localized_name": "检测面部"
+          "localized_name": "detect_face"
         },
         {
           "widget": {
@@ -565,8 +458,9 @@
           },
           "shape": 7,
           "name": "resolution",
+          "label": "resolution",
           "type": "INT",
-          "localized_name": "分辨率"
+          "localized_name": "resolution"
         },
         {
           "widget": {
@@ -574,8 +468,9 @@
           },
           "shape": 7,
           "name": "bbox_detector",
+          "label": "bbox_detector",
           "type": "COMBO",
-          "localized_name": "BBox检测"
+          "localized_name": "bbox_detector"
         },
         {
           "widget": {
@@ -583,8 +478,9 @@
           },
           "shape": 7,
           "name": "pose_estimator",
+          "label": "pose_estimator",
           "type": "COMBO",
-          "localized_name": "姿态预估"
+          "localized_name": "pose_estimator"
         },
         {
           "widget": {
@@ -592,6 +488,7 @@
           },
           "shape": 7,
           "name": "scale_stick_for_xinsr_cn",
+          "label": "scale_stick_for_xinsr_cn",
           "type": "COMBO",
           "localized_name": "scale_stick_for_xinsr_cn"
         }
@@ -618,7 +515,7 @@
           ],
           "label": "IMAGE",
           "type": "IMAGE",
-          "localized_name": "图像"
+          "localized_name": "IMAGE"
         },
         {
           "name": "width",
@@ -655,7 +552,8 @@
         "0, 0, 0",
         "center",
         16,
-        "cpu"
+        "cpu",
+        "<tr><td>Output: </td><td><b>81</b> x <b>720</b> x <b>1280 | 854.30MB</b></td></tr>317454ff3b4a0f970e4c00854cd31283"
       ],
       "inputs": [
         {
@@ -769,15 +667,15 @@
           "links": [
             162
           ],
-          "label": "图像",
+          "label": "IMAGE",
           "type": "IMAGE",
-          "localized_name": "图像"
+          "localized_name": "IMAGE"
         },
         {
           "name": "MASK",
-          "label": "遮罩",
+          "label": "MASK",
           "type": "MASK",
-          "localized_name": "遮罩"
+          "localized_name": "MASK"
         }
       ],
       "color": "#2a363b",
@@ -791,16 +689,18 @@
             "name": "image"
           },
           "name": "image",
+          "label": "image",
           "type": "COMBO",
-          "localized_name": "图像"
+          "localized_name": "image"
         },
         {
           "widget": {
             "name": "upload"
           },
           "name": "upload",
+          "label": "upload",
           "type": "IMAGEUPLOAD",
-          "localized_name": "选择文件上传"
+          "localized_name": "choose file to upload"
         }
       ],
       "flags": {},
@@ -832,9 +732,9 @@
           "links": [
             136
           ],
-          "label": "条件",
+          "label": "CONDITIONING",
           "type": "CONDITIONING",
-          "localized_name": "条件"
+          "localized_name": "CONDITIONING"
         }
       ],
       "size": [
@@ -852,7 +752,7 @@
         {
           "name": "clip",
           "link": 152,
-          "label": "CLIP",
+          "label": "clip",
           "type": "CLIP",
           "localized_name": "clip"
         },
@@ -862,8 +762,9 @@
           },
           "name": "text",
           "link": 177,
+          "label": "text",
           "type": "STRING",
-          "localized_name": "文本"
+          "localized_name": "text"
         }
       ],
       "flags": {},
@@ -905,7 +806,7 @@
       "outputs": [
         {
           "name": "Filenames",
-          "label": "文件名",
+          "label": "Filenames",
           "type": "VHS_FILENAMES",
           "localized_name": "Filenames"
         }
@@ -930,11 +831,13 @@
           "paused": false,
           "hidden": false,
           "params": {
-            "filename": "aio-mega_00001_p84-audio_knocb_1758551569.mp4",
-            "workflow": "aio-mega_00001_p84.png",
-            "fullpath": "/data/ComfyUI/personal/dc555219c23018b8fa8b4774a3e25d14/output/aio-mega_00001_p84-audio.mp4",
+            "score": "0",
+            "filename": "aio-mega_00001_p83-audio_jifrc_1760360494.mp4",
+            "workflow": "aio-mega_00001_p83.png",
+            "fullpath": "/data/ComfyUI/personal/dc555219c23018b8fa8b4774a3e25d14/output/aio-mega_00001_p83-audio.mp4",
             "format": "video/h264-mp4",
             "subfolder": "",
+            "label": "Normal",
             "type": "output",
             "frame_rate": 16
           }
@@ -948,7 +851,7 @@
         {
           "name": "images",
           "link": 198,
-          "label": "图像",
+          "label": "images",
           "type": "IMAGE",
           "localized_name": "images"
         },
@@ -956,20 +859,21 @@
           "shape": 7,
           "name": "audio",
           "link": 188,
-          "label": "音频",
+          "label": "audio",
           "type": "AUDIO",
           "localized_name": "audio"
         },
         {
           "shape": 7,
           "name": "meta_batch",
-          "label": "批次管理",
+          "label": "meta_batch",
           "type": "VHS_BatchManager",
           "localized_name": "meta_batch"
         },
         {
           "shape": 7,
           "name": "vae",
+          "label": "vae",
           "type": "VAE",
           "localized_name": "vae"
         },
@@ -978,48 +882,54 @@
             "name": "frame_rate"
           },
           "name": "frame_rate",
+          "label": "frame_rate",
           "type": "FLOAT",
-          "localized_name": "帧率"
+          "localized_name": "frame_rate"
         },
         {
           "widget": {
             "name": "loop_count"
           },
           "name": "loop_count",
+          "label": "loop_count",
           "type": "INT",
-          "localized_name": "循环次数"
+          "localized_name": "loop_count"
         },
         {
           "widget": {
             "name": "filename_prefix"
           },
           "name": "filename_prefix",
+          "label": "filename_prefix",
           "type": "STRING",
-          "localized_name": "文件名前缀"
+          "localized_name": "filename_prefix"
         },
         {
           "widget": {
             "name": "format"
           },
           "name": "format",
+          "label": "format",
           "type": "COMBO",
-          "localized_name": "格式"
+          "localized_name": "format"
         },
         {
           "widget": {
             "name": "pingpong"
           },
           "name": "pingpong",
+          "label": "pingpong",
           "type": "BOOLEAN",
-          "localized_name": "Ping-Pong"
+          "localized_name": "pingpong"
         },
         {
           "widget": {
             "name": "save_output"
           },
           "name": "save_output",
+          "label": "save_output",
           "type": "BOOLEAN",
-          "localized_name": "保存到输出文件夹"
+          "localized_name": "save_output"
         },
         {
           "widget": {
@@ -1027,6 +937,7 @@
           },
           "shape": 7,
           "name": "no_preview",
+          "label": "no_preview",
           "type": "BOOLEAN",
           "localized_name": "no_preview"
         }
@@ -1045,7 +956,7 @@
       "outputs": [
         {
           "name": "Filenames",
-          "label": "文件名",
+          "label": "Filenames",
           "type": "VHS_FILENAMES",
           "localized_name": "Filenames"
         }
@@ -1070,11 +981,13 @@
           "paused": false,
           "hidden": false,
           "params": {
-            "filename": "aio-mega_00002_p84-audio_ejjah_1758551693.mp4",
-            "workflow": "aio-mega_00002_p84.png",
-            "fullpath": "/data/ComfyUI/personal/dc555219c23018b8fa8b4774a3e25d14/output/aio-mega_00002_p84-audio.mp4",
+            "score": "0",
+            "filename": "aio-mega_00002_p83-audio_nhjpj_1760360502.mp4",
+            "workflow": "aio-mega_00002_p83.png",
+            "fullpath": "/data/ComfyUI/personal/dc555219c23018b8fa8b4774a3e25d14/output/aio-mega_00002_p83-audio.mp4",
             "format": "video/h264-mp4",
             "subfolder": "",
+            "label": "Normal",
             "type": "output",
             "frame_rate": 16
           }
@@ -1088,7 +1001,7 @@
         {
           "name": "images",
           "link": 186,
-          "label": "图像",
+          "label": "images",
           "type": "IMAGE",
           "localized_name": "images"
         },
@@ -1096,20 +1009,21 @@
           "shape": 7,
           "name": "audio",
           "link": 187,
-          "label": "音频",
+          "label": "audio",
           "type": "AUDIO",
           "localized_name": "audio"
         },
         {
           "shape": 7,
           "name": "meta_batch",
-          "label": "批次管理",
+          "label": "meta_batch",
           "type": "VHS_BatchManager",
           "localized_name": "meta_batch"
         },
         {
           "shape": 7,
           "name": "vae",
+          "label": "vae",
           "type": "VAE",
           "localized_name": "vae"
         },
@@ -1118,48 +1032,54 @@
             "name": "frame_rate"
           },
           "name": "frame_rate",
+          "label": "frame_rate",
           "type": "FLOAT",
-          "localized_name": "帧率"
+          "localized_name": "frame_rate"
         },
         {
           "widget": {
             "name": "loop_count"
           },
           "name": "loop_count",
+          "label": "loop_count",
           "type": "INT",
-          "localized_name": "循环次数"
+          "localized_name": "loop_count"
         },
         {
           "widget": {
             "name": "filename_prefix"
           },
           "name": "filename_prefix",
+          "label": "filename_prefix",
           "type": "STRING",
-          "localized_name": "文件名前缀"
+          "localized_name": "filename_prefix"
         },
         {
           "widget": {
             "name": "format"
           },
           "name": "format",
+          "label": "format",
           "type": "COMBO",
-          "localized_name": "格式"
+          "localized_name": "format"
         },
         {
           "widget": {
             "name": "pingpong"
           },
           "name": "pingpong",
+          "label": "pingpong",
           "type": "BOOLEAN",
-          "localized_name": "Ping-Pong"
+          "localized_name": "pingpong"
         },
         {
           "widget": {
             "name": "save_output"
           },
           "name": "save_output",
+          "label": "save_output",
           "type": "BOOLEAN",
-          "localized_name": "保存到输出文件夹"
+          "localized_name": "save_output"
         },
         {
           "widget": {
@@ -1167,6 +1087,7 @@
           },
           "shape": 7,
           "name": "no_preview",
+          "label": "no_preview",
           "type": "BOOLEAN",
           "localized_name": "no_preview"
         }
@@ -1188,9 +1109,9 @@
           "links": [
             171
           ],
-          "label": "图像",
+          "label": "IMAGE",
           "type": "IMAGE",
-          "localized_name": "图像"
+          "localized_name": "IMAGE"
         }
       ],
       "size": [
@@ -1208,7 +1129,7 @@
         {
           "name": "image",
           "link": 169,
-          "label": "图像",
+          "label": "image",
           "type": "IMAGE",
           "localized_name": "image"
         },
@@ -1218,8 +1139,9 @@
           },
           "shape": 7,
           "name": "resolution",
+          "label": "resolution",
           "type": "INT",
-          "localized_name": "分辨率"
+          "localized_name": "resolution"
         }
       ],
       "flags": {},
@@ -1291,7 +1213,7 @@
             177,
             189
           ],
-          "label": "文本",
+          "label": "text",
           "type": "STRING",
           "localized_name": "text"
         }
@@ -1317,8 +1239,9 @@
             "name": "text_1"
           },
           "name": "text_1",
+          "label": "text_1",
           "type": "STRING",
-          "localized_name": "文本_1"
+          "localized_name": "text_1"
         },
         {
           "widget": {
@@ -1327,8 +1250,9 @@
           "shape": 7,
           "name": "text_2",
           "link": 176,
+          "label": "text_2",
           "type": "STRING",
-          "localized_name": "文本_2"
+          "localized_name": "text_2"
         },
         {
           "widget": {
@@ -1336,8 +1260,9 @@
           },
           "shape": 7,
           "name": "text_3",
+          "label": "text_3",
           "type": "STRING",
-          "localized_name": "文本_3"
+          "localized_name": "text_3"
         },
         {
           "widget": {
@@ -1345,8 +1270,9 @@
           },
           "shape": 7,
           "name": "text_4",
+          "label": "text_4",
           "type": "STRING",
-          "localized_name": "文本_4"
+          "localized_name": "text_4"
         }
       ],
       "flags": {},
@@ -1363,6 +1289,7 @@
       "outputs": [
         {
           "name": "output",
+          "label": "output",
           "type": "*",
           "localized_name": "output"
         }
@@ -1376,14 +1303,14 @@
         522.0932006835938
       ],
       "widgets_values": [
-        "1 chinese women dance, The image shows a young woman with long, blonde, lightly wavy hair. She is wearing a fitted, navy blue cropped tank top, paired with high-waisted dark blue jeans. The outfit accentuates her slim build and casual, modern style. She is standing in a well-lit exterior space, possibly near an industrial or modern architectural structure, as indicated by the visible beams and glass surfaces in the background. The lighting is natural, suggesting the image was taken outdoors during the day. The woman’s posture is relaxed yet confident, with one hand resting near her waist and the other hanging loosely by her side. Dust particles can be seen floating in the air, giving the scene a subtle ethereal quality. The overall mood of the image conveys simplicity, confidence, and a contemporary aesthetic."
+        "1 chinese women dance, The image shows a young woman with long, light blonde hair wearing a casual outfit. She is dressed in a dark navy-blue cropped tank top that fits snugly, exposing her midriff. Paired with this top are high-waisted medium-blue jeans, styled with a button and zipper closure, giving a classic denim look. Her posture is relaxed, with one arm resting by her side and the other hand lightly grasping the waistband of her jeans. The scene takes place in an industrial-like outdoor setting, with a backdrop consisting of metallic structural beams and large glass panels. Sunlight filters through the area, casting subtle highlights on the woman and faint specks in the air, adding a warm and natural ambiance. The overall image captures a modern, effortless aesthetic that blends fashion with a contemporary environment."
       ],
       "inputs": [
         {
           "shape": 7,
           "name": "anything",
           "link": 189,
-          "label": "输入任何",
+          "label": "anything",
           "type": "*",
           "localized_name": "anything"
         }
@@ -1402,7 +1329,7 @@
       "outputs": [
         {
           "name": "Filenames",
-          "label": "文件名",
+          "label": "Filenames",
           "type": "VHS_FILENAMES",
           "localized_name": "Filenames"
         }
@@ -1427,11 +1354,13 @@
           "paused": false,
           "hidden": false,
           "params": {
-            "filename": "control_00001_p84_peblu_1758551407.mp4",
-            "workflow": "control_00001_p84.png",
-            "fullpath": "/data/ComfyUI/personal/dc555219c23018b8fa8b4774a3e25d14/temp/control_00001_p84.mp4",
+            "score": "0",
+            "filename": "control_00001_p83_gyvzf_1760360329.mp4",
+            "workflow": "control_00001_p83.png",
+            "fullpath": "/data/ComfyUI/personal/dc555219c23018b8fa8b4774a3e25d14/temp/control_00001_p83.mp4",
             "format": "video/h264-mp4",
             "subfolder": "",
+            "label": "Normal",
             "type": "temp",
             "frame_rate": 16
           }
@@ -1445,27 +1374,28 @@
         {
           "name": "images",
           "link": 174,
-          "label": "图像",
+          "label": "images",
           "type": "IMAGE",
           "localized_name": "images"
         },
         {
           "shape": 7,
           "name": "audio",
-          "label": "音频",
+          "label": "audio",
           "type": "AUDIO",
           "localized_name": "audio"
         },
         {
           "shape": 7,
           "name": "meta_batch",
-          "label": "批次管理",
+          "label": "meta_batch",
           "type": "VHS_BatchManager",
           "localized_name": "meta_batch"
         },
         {
           "shape": 7,
           "name": "vae",
+          "label": "vae",
           "type": "VAE",
           "localized_name": "vae"
         },
@@ -1474,48 +1404,54 @@
             "name": "frame_rate"
           },
           "name": "frame_rate",
+          "label": "frame_rate",
           "type": "FLOAT",
-          "localized_name": "帧率"
+          "localized_name": "frame_rate"
         },
         {
           "widget": {
             "name": "loop_count"
           },
           "name": "loop_count",
+          "label": "loop_count",
           "type": "INT",
-          "localized_name": "循环次数"
+          "localized_name": "loop_count"
         },
         {
           "widget": {
             "name": "filename_prefix"
           },
           "name": "filename_prefix",
+          "label": "filename_prefix",
           "type": "STRING",
-          "localized_name": "文件名前缀"
+          "localized_name": "filename_prefix"
         },
         {
           "widget": {
             "name": "format"
           },
           "name": "format",
+          "label": "format",
           "type": "COMBO",
-          "localized_name": "格式"
+          "localized_name": "format"
         },
         {
           "widget": {
             "name": "pingpong"
           },
           "name": "pingpong",
+          "label": "pingpong",
           "type": "BOOLEAN",
-          "localized_name": "Ping-Pong"
+          "localized_name": "pingpong"
         },
         {
           "widget": {
             "name": "save_output"
           },
           "name": "save_output",
+          "label": "save_output",
           "type": "BOOLEAN",
-          "localized_name": "保存到输出文件夹"
+          "localized_name": "save_output"
         },
         {
           "widget": {
@@ -1523,6 +1459,7 @@
           },
           "shape": 7,
           "name": "no_preview",
+          "label": "no_preview",
           "type": "BOOLEAN",
           "localized_name": "no_preview"
         }
@@ -1546,7 +1483,7 @@
           "links": [
             179
           ],
-          "label": "图像",
+          "label": "image",
           "type": "IMAGE",
           "localized_name": "image"
         },
@@ -1555,7 +1492,7 @@
           "links": [
             180
           ],
-          "label": "宽度",
+          "label": "width",
           "type": "INT",
           "localized_name": "width"
         },
@@ -1564,7 +1501,7 @@
           "links": [
             183
           ],
-          "label": "高度",
+          "label": "height",
           "type": "INT",
           "localized_name": "height"
         },
@@ -1573,7 +1510,7 @@
           "links": [
             182
           ],
-          "label": "数量",
+          "label": "count",
           "type": "INT",
           "localized_name": "count"
         }
@@ -1591,7 +1528,7 @@
         {
           "name": "image",
           "link": 173,
-          "label": "图像",
+          "label": "image",
           "type": "IMAGE",
           "localized_name": "image"
         }
@@ -1615,13 +1552,13 @@
           "links": [
             165
           ],
-          "label": "图像",
+          "label": "IMAGE",
           "type": "IMAGE",
-          "localized_name": "图像"
+          "localized_name": "IMAGE"
         },
         {
           "name": "frame_count",
-          "label": "帧计数",
+          "label": "frame_count",
           "type": "INT",
           "localized_name": "frame_count"
         },
@@ -1631,13 +1568,13 @@
             187,
             188
           ],
-          "label": "音频",
+          "label": "audio",
           "type": "AUDIO",
           "localized_name": "audio"
         },
         {
           "name": "video_info",
-          "label": "视频信息",
+          "label": "video_info",
           "type": "VHS_VIDEOINFO",
           "localized_name": "video_info"
         }
@@ -1681,13 +1618,14 @@
         {
           "shape": 7,
           "name": "meta_batch",
-          "label": "批次管理",
+          "label": "meta_batch",
           "type": "VHS_BatchManager",
           "localized_name": "meta_batch"
         },
         {
           "shape": 7,
           "name": "vae",
+          "label": "vae",
           "type": "VAE",
           "localized_name": "vae"
         },
@@ -1696,30 +1634,34 @@
             "name": "video"
           },
           "name": "video",
+          "label": "video",
           "type": "STRING",
-          "localized_name": "视频"
+          "localized_name": "video"
         },
         {
           "widget": {
             "name": "force_rate"
           },
           "name": "force_rate",
+          "label": "force_rate",
           "type": "INT",
-          "localized_name": "强制帧率"
+          "localized_name": "force_rate"
         },
         {
           "widget": {
             "name": "force_size"
           },
           "name": "force_size",
+          "label": "force_size",
           "type": "COMBO",
-          "localized_name": "强制尺寸"
+          "localized_name": "force_size"
         },
         {
           "widget": {
             "name": "custom_width"
           },
           "name": "custom_width",
+          "label": "custom_width",
           "type": "INT",
           "localized_name": "custom_width"
         },
@@ -1728,6 +1670,7 @@
             "name": "custom_height"
           },
           "name": "custom_height",
+          "label": "custom_height",
           "type": "INT",
           "localized_name": "custom_height"
         },
@@ -1736,24 +1679,27 @@
             "name": "frame_load_cap"
           },
           "name": "frame_load_cap",
+          "label": "frame_load_cap",
           "type": "INT",
-          "localized_name": "帧数读取上限"
+          "localized_name": "frame_load_cap"
         },
         {
           "widget": {
             "name": "skip_first_frames"
           },
           "name": "skip_first_frames",
+          "label": "skip_first_frames",
           "type": "INT",
-          "localized_name": "跳过前X帧"
+          "localized_name": "skip_first_frames"
         },
         {
           "widget": {
             "name": "select_every_nth"
           },
           "name": "select_every_nth",
+          "label": "select_every_nth",
           "type": "INT",
-          "localized_name": "模选"
+          "localized_name": "select_every_nth"
         },
         {
           "widget": {
@@ -1761,6 +1707,7 @@
           },
           "shape": 7,
           "name": "format",
+          "label": "format",
           "type": "COMBO",
           "localized_name": "format"
         }
@@ -1786,7 +1733,7 @@
           ],
           "label": "INT",
           "type": "INT",
-          "localized_name": "整数"
+          "localized_name": "INT"
         }
       ],
       "size": [
@@ -1809,7 +1756,7 @@
           "name": "value",
           "label": "value",
           "type": "INT",
-          "localized_name": "数值"
+          "localized_name": "value"
         }
       ],
       "flags": {},
@@ -1831,7 +1778,7 @@
           ],
           "label": "INT",
           "type": "INT",
-          "localized_name": "整数"
+          "localized_name": "INT"
         }
       ],
       "size": [
@@ -1854,7 +1801,7 @@
           "name": "value",
           "label": "value",
           "type": "INT",
-          "localized_name": "数值"
+          "localized_name": "value"
         }
       ],
       "flags": {},
@@ -1878,7 +1825,7 @@
           ],
           "label": "IMAGE",
           "type": "IMAGE",
-          "localized_name": "图像"
+          "localized_name": "IMAGE"
         },
         {
           "name": "width",
@@ -1921,7 +1868,8 @@
         "0,0,0",
         "center",
         16,
-        "cpu"
+        "cpu",
+        "<tr><td>Output: </td><td><b>1</b> x <b>720</b> x <b>1280 | 10.55MB</b></td></tr>317454ff3b4a0f970e4c00854cd31283"
       ],
       "inputs": [
         {
@@ -2038,7 +1986,7 @@
           ],
           "label": "IMAGE",
           "type": "IMAGE",
-          "localized_name": "图像"
+          "localized_name": "IMAGE"
         }
       ],
       "size": [
@@ -2125,9 +2073,9 @@
           "links": [
             195
           ],
-          "label": "图像",
+          "label": "IMAGE",
           "type": "IMAGE",
-          "localized_name": "图像"
+          "localized_name": "IMAGE"
         }
       ],
       "size": [
@@ -2143,14 +2091,14 @@
         {
           "name": "samples",
           "link": 149,
-          "label": "Latent",
+          "label": "samples",
           "type": "LATENT",
-          "localized_name": "Latent"
+          "localized_name": "samples"
         },
         {
           "name": "vae",
           "link": 155,
-          "label": "VAE",
+          "label": "vae",
           "type": "VAE",
           "localized_name": "vae"
         }
@@ -2168,91 +2116,13 @@
       "mode": 0,
       "outputs": [
         {
-          "name": "image",
-          "links": [
-            198,
-            199
-          ],
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "image"
-        }
-      ],
-      "size": [
-        270,
-        126
-      ],
-      "pos": [
-        792.6390991210938,
-        1264.1629638671875
-      ],
-      "widgets_values": [
-        "mkl",
-        1,
-        true
-      ],
-      "inputs": [
-        {
-          "name": "image_ref",
-          "link": 197,
-          "label": "参考图像",
-          "type": "IMAGE",
-          "localized_name": "image_ref"
-        },
-        {
-          "name": "image_target",
-          "link": 195,
-          "label": "目标图像",
-          "type": "IMAGE",
-          "localized_name": "image_target"
-        },
-        {
-          "widget": {
-            "name": "method"
-          },
-          "name": "method",
-          "type": "COMBO",
-          "localized_name": "方法"
-        },
-        {
-          "widget": {
-            "name": "strength"
-          },
-          "shape": 7,
-          "name": "strength",
-          "type": "FLOAT",
-          "localized_name": "strength"
-        },
-        {
-          "widget": {
-            "name": "multithread"
-          },
-          "shape": 7,
-          "name": "multithread",
-          "type": "BOOLEAN",
-          "localized_name": "multithread"
-        }
-      ],
-      "flags": {},
-      "id": 62,
-      "type": "ColorMatch",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "ColorMatch"
-      },
-      "order": 23
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
           "name": "MODEL",
           "links": [
             150
           ],
-          "label": "模型",
+          "label": "MODEL",
           "type": "MODEL",
-          "localized_name": "模型"
+          "localized_name": "MODEL"
         },
         {
           "name": "CLIP",
@@ -2284,7 +2154,7 @@
         758.326416015625
       ],
       "widgets_values": [
-        "wan2.2-rapid-mega-aio-v3.safetensors"
+        "wan2.2-rapid-mega-aio-v7.safetensors"
       ],
       "inputs": [
         {
@@ -2292,8 +2162,9 @@
             "name": "ckpt_name"
           },
           "name": "ckpt_name",
+          "label": "ckpt_name",
           "type": "COMBO",
-          "localized_name": "Checkpoint名称"
+          "localized_name": "ckpt_name"
         }
       ],
       "flags": {},
@@ -2304,6 +2175,210 @@
         "Node name for S&R": "CheckpointLoaderSimple"
       },
       "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "LATENT",
+          "links": [
+            149
+          ],
+          "label": "LATENT",
+          "type": "LATENT",
+          "localized_name": "LATENT"
+        }
+      ],
+      "size": [
+        270,
+        262
+      ],
+      "pos": [
+        1192.7496337890625,
+        719.1505126953125
+      ],
+      "widgets_values": [
+        898073783774691,
+        "randomize",
+        4,
+        1,
+        "euler_ancestral",
+        "beta",
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 123,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "name": "positive",
+          "link": 144,
+          "label": "positive",
+          "type": "CONDITIONING",
+          "localized_name": "positive"
+        },
+        {
+          "name": "negative",
+          "link": 145,
+          "label": "negative",
+          "type": "CONDITIONING",
+          "localized_name": "negative"
+        },
+        {
+          "name": "latent_image",
+          "link": 143,
+          "label": "latent_image",
+          "type": "LATENT",
+          "localized_name": "latent_image"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "steps"
+          },
+          "name": "steps",
+          "label": "steps",
+          "type": "INT",
+          "localized_name": "steps"
+        },
+        {
+          "widget": {
+            "name": "cfg"
+          },
+          "name": "cfg",
+          "label": "cfg",
+          "type": "FLOAT",
+          "localized_name": "cfg"
+        },
+        {
+          "widget": {
+            "name": "sampler_name"
+          },
+          "name": "sampler_name",
+          "label": "sampler_name",
+          "type": "COMBO",
+          "localized_name": "sampler_name"
+        },
+        {
+          "widget": {
+            "name": "scheduler"
+          },
+          "name": "scheduler",
+          "label": "scheduler",
+          "type": "COMBO",
+          "localized_name": "scheduler"
+        },
+        {
+          "widget": {
+            "name": "denoise"
+          },
+          "name": "denoise",
+          "label": "denoise",
+          "type": "FLOAT",
+          "localized_name": "denoise"
+        }
+      ],
+      "flags": {},
+      "id": 8,
+      "type": "KSampler",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "KSampler"
+      },
+      "order": 21
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            198,
+            199
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "size": [
+        270,
+        126
+      ],
+      "pos": [
+        763.3702392578125,
+        1254.1278076171875
+      ],
+      "widgets_values": [
+        "mkl",
+        1,
+        true
+      ],
+      "inputs": [
+        {
+          "name": "image_ref",
+          "link": 197,
+          "label": "image_ref",
+          "type": "IMAGE",
+          "localized_name": "image_ref"
+        },
+        {
+          "name": "image_target",
+          "link": 195,
+          "label": "image_target",
+          "type": "IMAGE",
+          "localized_name": "image_target"
+        },
+        {
+          "widget": {
+            "name": "method"
+          },
+          "name": "method",
+          "label": "method",
+          "type": "COMBO",
+          "localized_name": "method"
+        },
+        {
+          "widget": {
+            "name": "strength"
+          },
+          "shape": 7,
+          "name": "strength",
+          "label": "strength",
+          "type": "FLOAT",
+          "localized_name": "strength"
+        },
+        {
+          "widget": {
+            "name": "multithread"
+          },
+          "shape": 7,
+          "name": "multithread",
+          "label": "multithread",
+          "type": "BOOLEAN",
+          "localized_name": "multithread"
+        }
+      ],
+      "flags": {},
+      "id": 62,
+      "type": "ColorMatch",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ColorMatch"
+      },
+      "order": 23
     }
   ],
   "extra": {
@@ -2321,10 +2396,10 @@
     "VHS_latentpreview": false,
     "ds": {
       "offset": [
-        772.758712977806,
-        -269.52720199592784
+        489.6882072162881,
+        -609.5796587193328
       ],
-      "scale": 0.6588450000000002
+      "scale": 0.7972024500000005
     }
   },
   "groups": [

@@ -256,7 +256,7 @@
       ],
       "color": "#332922",
       "widgets_values": [
-        808094124840976,
+        315168158095529,
         "randomize"
       ],
       "inputs": [
@@ -851,7 +851,7 @@
       ],
       "color": "#232",
       "widgets_values": [
-        221719651847564,
+        856706650459265,
         "randomize"
       ],
       "inputs": [
@@ -1256,12 +1256,12 @@
           {
             "name": "A",
             "selected": true,
-            "url": "/view?filename=rgthree.compare._temp_qrmni_00001_ocjjg_1759066762.jpg&type=temp&subfolder=&rand=0.24849084872959704&Rh-Comfy-Auth=eyJ1c2VySWQiOiJjNGUxNDI4MWMzMWZlM2UwMThjMWJkNWEzY2E0NzhhNyIsInNpZ25FeHBpcmUiOjE3NTk2NzA5ODk4ODAsInRzIjoxNzU5MDY2MTg5ODgwLCJzaWduIjoiNmM4NmY0ZjVlNzM0NzNiYWUxMjI2Y2ViYmU0MTJmMTUifQ==&Rh-Identify=c4e14281c31fe3e018c1bd5a3ca478a7"
+            "url": "/view?filename=rgthree.compare._temp_nnqer_00001_vibsk_1760367192.jpg&type=temp&subfolder=&rand=0.8518230209830225&Rh-Comfy-Auth=eyJ1c2VySWQiOiJjNGUxNDI4MWMzMWZlM2UwMThjMWJkNWEzY2E0NzhhNyIsInNpZ25FeHBpcmUiOjE3NjA5NzA1MjcxOTMsInRzIjoxNzYwMzY1NzI3MTkzLCJzaWduIjoiMTRmMDY0YzdlMGQxMGEzYmVlZWFiYTlkNzAyNDFkNDMifQ==&Rh-Identify=c4e14281c31fe3e018c1bd5a3ca478a7"
           },
           {
             "name": "B",
             "selected": true,
-            "url": "/view?filename=rgthree.compare._temp_qrmni_00002_fdbij_1759066764.jpg&type=temp&subfolder=&rand=0.09750931679878916&Rh-Comfy-Auth=eyJ1c2VySWQiOiJjNGUxNDI4MWMzMWZlM2UwMThjMWJkNWEzY2E0NzhhNyIsInNpZ25FeHBpcmUiOjE3NTk2NzA5ODk4ODAsInRzIjoxNzU5MDY2MTg5ODgwLCJzaWduIjoiNmM4NmY0ZjVlNzM0NzNiYWUxMjI2Y2ViYmU0MTJmMTUifQ==&Rh-Identify=c4e14281c31fe3e018c1bd5a3ca478a7"
+            "url": "/view?filename=rgthree.compare._temp_nnqer_00002_paoms_1760367194.jpg&type=temp&subfolder=&rand=0.9182666570006741&Rh-Comfy-Auth=eyJ1c2VySWQiOiJjNGUxNDI4MWMzMWZlM2UwMThjMWJkNWEzY2E0NzhhNyIsInNpZ25FeHBpcmUiOjE3NjA5NzA1MjcxOTMsInRzIjoxNzYwMzY1NzI3MTkzLCJzaWduIjoiMTRmMDY0YzdlMGQxMGEzYmVlZWFiYTlkNzAyNDFkNDMifQ==&Rh-Identify=c4e14281c31fe3e018c1bd5a3ca478a7"
           }
         ]
       ],
@@ -1479,9 +1479,7 @@
         }
       ],
       "color": "#323",
-      "widgets_values": [
-        "This image depicts a beautifully designed outdoor patio space surrounded by a backdrop of apartment buildings, as well as a quaint, Tudor-style building visible in the distance. The setting appears serene and inviting. The ground is paved with beige tiles that harmonize well with the earthy tones of the decor.\n\nTo the left of the frame, there is a white swing bench with an oval canopy. The swing has a woven texture and is adorned with cozy cushions, including one with a playful lion design and another draped with a decorative soft pink scarf or blanket, adding comfort and a personal touch. Below and near the swing are two circular woven rugs, with white fringe. They act as visual accents against the tiled floor and break up the monotony of the surface.\n\nThe center of the patio features a raised deck area with seating for relaxation. Two natural wood-toned chairs are positioned symmetrically, with plush white seat cushions for added comfort. Between the chairs sits a golden metallic side table, exhibiting a minimalist yet chic aesthetic. The deck is bordered with pebbles, creating a clean separation from the surrounding patio.\n\nFlanking the central deck, there is an abundance of plants, flowers, and greenery thoughtfully arranged throughout the space. A variety of potted plants, including hydrangeas in soft purples and blues, are visible, along with tropical leaves like monstera and banana plants in the corner. The greenery forms an intentional mixture of textures and colors, creating a fresh and vibrant atmosphere.\n\nAlong the fence in the background, fairy lights are strung delicately across, adding a festive and magical ambiance to the space, especially in the evening. A wooden privacy fence lines the perimeter of the patio, ensuring a sense of seclusion while complementing the natural theme.\n\nOn the far right side is a charming garden sink area labeled “Lily’s Garden.” This setup includes a white backdrop and counter decorated with small vases filled with flowers and gardening tools. Below the sink, a cloth hangs down, further enhancing the country-inspired charm of this small gardening corner. The clear organization and personalization make it feel like an intimate extension of the space.\n\nIn the background, the taller apartment buildings feature a combination of cream-colored facades and red-brick patterns, giving the area a refined, urban feel. The Tudor-style structure adds contrast and architectural depth, invoking a slightly whimsical tone.\n\nThe soft lighting suggests late afternoon, with the sun beginning to set, casting a warm glow over the patio. The image conveys a blend of practicality, beauty, and tranquility, ideal for unwinding or hosting gatherings."
-      ],
+      "widgets_values": [],
       "inputs": [
         {
           "name": "text",
@@ -1946,60 +1944,6 @@
     {
       "outputs": [
         {
-          "name": "describe",
-          "slot_index": 0,
-          "links": [
-            256
-          ],
-          "label": "describe",
-          "type": "STRING",
-          "localized_name": "describe"
-        }
-      ],
-      "color": "#323",
-      "widgets_values": [
-        "Please provide a detailed description of this image. If any characters in the image are familiar to you, such as celebrities, movie characters, or animated figures, please directly use their names. The description should be as detailed as possible, but should not exceed 500 words."
-      ],
-      "inputs": [
-        {
-          "name": "ref_image",
-          "link": 267,
-          "label": "ref_image",
-          "type": "IMAGE",
-          "localized_name": "ref_image"
-        },
-        {
-          "widget": {
-            "name": "prompt"
-          },
-          "name": "prompt",
-          "label": "prompt",
-          "type": "STRING",
-          "localized_name": "prompt"
-        }
-      ],
-      "flags": {},
-      "type": "RH_Captioner",
-      "mode": 0,
-      "bgcolor": "#535",
-      "size": [
-        382.0821533203125,
-        345.81158447265625
-      ],
-      "pos": [
-        -3050,
-        -2840
-      ],
-      "id": 115,
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "RH_Captioner"
-      },
-      "order": 22
-    },
-    {
-      "outputs": [
-        {
           "name": "SAMPLER",
           "links": [
             19
@@ -2051,12 +1995,12 @@
           {
             "name": "A",
             "selected": true,
-            "url": "/view?filename=rgthree.compare._temp_izxci_00005_jxgvp_1759067051.jpg&type=temp&subfolder=&rand=0.19816859584323887&Rh-Comfy-Auth=eyJ1c2VySWQiOiJjNGUxNDI4MWMzMWZlM2UwMThjMWJkNWEzY2E0NzhhNyIsInNpZ25FeHBpcmUiOjE3NTk2NzE2NzAyODgsInRzIjoxNzU5MDY2ODcwMjg4LCJzaWduIjoiYjdmYzViZGRiMWNjMTQzNmVkMjk0ZTQyYmY5NzUxNWUifQ==&Rh-Identify=c4e14281c31fe3e018c1bd5a3ca478a7"
+            "url": "/view?filename=rgthree.compare._temp_zqzfb_00001_sbpux_1760367132.jpg&type=temp&subfolder=&rand=0.7075649876049922&Rh-Comfy-Auth=eyJ1c2VySWQiOiJjNGUxNDI4MWMzMWZlM2UwMThjMWJkNWEzY2E0NzhhNyIsInNpZ25FeHBpcmUiOjE3NjA5NzA1MjcxOTMsInRzIjoxNzYwMzY1NzI3MTkzLCJzaWduIjoiMTRmMDY0YzdlMGQxMGEzYmVlZWFiYTlkNzAyNDFkNDMifQ==&Rh-Identify=c4e14281c31fe3e018c1bd5a3ca478a7"
           },
           {
             "name": "B",
             "selected": true,
-            "url": "/view?filename=rgthree.compare._temp_izxci_00006_sqepe_1759067053.jpg&type=temp&subfolder=&rand=0.5422328166676824&Rh-Comfy-Auth=eyJ1c2VySWQiOiJjNGUxNDI4MWMzMWZlM2UwMThjMWJkNWEzY2E0NzhhNyIsInNpZ25FeHBpcmUiOjE3NTk2NzE2NzAyODgsInRzIjoxNzU5MDY2ODcwMjg4LCJzaWduIjoiYjdmYzViZGRiMWNjMTQzNmVkMjk0ZTQyYmY5NzUxNWUifQ==&Rh-Identify=c4e14281c31fe3e018c1bd5a3ca478a7"
+            "url": "/view?filename=rgthree.compare._temp_zqzfb_00002_qnxhr_1760367134.jpg&type=temp&subfolder=&rand=0.5233036229141081&Rh-Comfy-Auth=eyJ1c2VySWQiOiJjNGUxNDI4MWMzMWZlM2UwMThjMWJkNWEzY2E0NzhhNyIsInNpZ25FeHBpcmUiOjE3NjA5NzA1MjcxOTMsInRzIjoxNzYwMzY1NzI3MTkzLCJzaWduIjoiMTRmMDY0YzdlMGQxMGEzYmVlZWFiYTlkNzAyNDFkNDMifQ==&Rh-Identify=c4e14281c31fe3e018c1bd5a3ca478a7"
           }
         ]
       ],
@@ -2339,59 +2283,6 @@
         "Node name for S&R": "easy cleanGpuUsed"
       },
       "order": 47
-    },
-    {
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "slot_index": 0,
-          "links": [
-            125,
-            351,
-            352,
-            355
-          ],
-          "label": "IMAGE",
-          "type": "IMAGE",
-          "localized_name": "IMAGE"
-        }
-      ],
-      "color": "#332922",
-      "widgets_values": [],
-      "inputs": [
-        {
-          "name": "samples",
-          "link": 24,
-          "label": "samples",
-          "type": "LATENT",
-          "localized_name": "samples"
-        },
-        {
-          "name": "vae",
-          "link": 271,
-          "label": "vae",
-          "type": "VAE",
-          "localized_name": "vae"
-        }
-      ],
-      "flags": {},
-      "type": "VAEDecode",
-      "mode": 0,
-      "bgcolor": "#593930",
-      "size": [
-        250.02696228027344,
-        46
-      ],
-      "pos": [
-        -1887,
-        -1464
-      ],
-      "id": 8,
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "VAEDecode"
-      },
-      "order": 43
     },
     {
       "outputs": [
@@ -2684,7 +2575,7 @@
       "color": "#223",
       "widgets_values": [
         "seedvr2_ema_3b_fp16.safetensors",
-        1247890448,
+        269146533,
         "randomize",
         1536,
         1
@@ -3091,97 +2982,6 @@
     {
       "outputs": [
         {
-          "name": "MODEL",
-          "slot_index": 0,
-          "links": [
-            262
-          ],
-          "label": "MODEL",
-          "type": "MODEL",
-          "localized_name": "MODEL"
-        },
-        {
-          "name": "CLIP",
-          "slot_index": 1,
-          "links": [
-            260
-          ],
-          "label": "CLIP",
-          "type": "CLIP",
-          "localized_name": "CLIP"
-        }
-      ],
-      "color": "#332922",
-      "widgets_values": [
-        "FLUX_MainhatHD_V1.safetensors",
-        0.5000000000000001,
-        1
-      ],
-      "inputs": [
-        {
-          "name": "model",
-          "link": 261,
-          "label": "model",
-          "type": "MODEL",
-          "localized_name": "model"
-        },
-        {
-          "name": "clip",
-          "link": 259,
-          "label": "clip",
-          "type": "CLIP",
-          "localized_name": "clip"
-        },
-        {
-          "widget": {
-            "name": "lora_name"
-          },
-          "name": "lora_name",
-          "label": "lora_name",
-          "type": "COMBO",
-          "localized_name": "lora_name"
-        },
-        {
-          "widget": {
-            "name": "strength_model"
-          },
-          "name": "strength_model",
-          "label": "strength_model",
-          "type": "FLOAT",
-          "localized_name": "strength_model"
-        },
-        {
-          "widget": {
-            "name": "strength_clip"
-          },
-          "name": "strength_clip",
-          "label": "strength_clip",
-          "type": "FLOAT",
-          "localized_name": "strength_clip"
-        }
-      ],
-      "flags": {},
-      "type": "LoraLoader",
-      "mode": 0,
-      "bgcolor": "#593930",
-      "size": [
-        324.5413513183594,
-        126
-      ],
-      "pos": [
-        -3035,
-        -1675
-      ],
-      "id": 119,
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "LoraLoader"
-      },
-      "order": 21
-    },
-    {
-      "outputs": [
-        {
           "name": "SIGMAS",
           "links": [
             298
@@ -3195,7 +2995,7 @@
       "widgets_values": [
         "simple",
         10,
-        0.6500000000000001
+        0.4000000000000001
       ],
       "inputs": [
         {
@@ -3253,6 +3053,113 @@
         "Node name for S&R": "BasicScheduler"
       },
       "order": 34
+    },
+    {
+      "outputs": [
+        {
+          "name": "describe",
+          "slot_index": 0,
+          "links": [
+            256
+          ],
+          "label": "describe",
+          "type": "STRING",
+          "localized_name": "describe"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "Please provide a detailed description of this image. If you are familiar with any scene in the image, such as lighting, composition, plants, materials, weather, architecture, landscape, etc., please describe them directly. The description should be as detailed as possible in natural language, but should not exceed 500 words.\n"
+      ],
+      "inputs": [
+        {
+          "name": "ref_image",
+          "link": 267,
+          "label": "ref_image",
+          "type": "IMAGE",
+          "localized_name": "ref_image"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        }
+      ],
+      "flags": {},
+      "type": "RH_Captioner",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        382.0821533203125,
+        345.81158447265625
+      ],
+      "pos": [
+        -3050,
+        -2840
+      ],
+      "id": 115,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Captioner"
+      },
+      "order": 22
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            125,
+            351,
+            352,
+            355
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "color": "#332922",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "samples",
+          "link": 24,
+          "label": "samples",
+          "type": "LATENT",
+          "localized_name": "samples"
+        },
+        {
+          "name": "vae",
+          "link": 271,
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        }
+      ],
+      "flags": {},
+      "type": "VAEDecode",
+      "mode": 0,
+      "bgcolor": "#593930",
+      "size": [
+        250.02696228027344,
+        46
+      ],
+      "pos": [
+        -1886.0802001953125,
+        -1464
+      ],
+      "id": 8,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAEDecode"
+      },
+      "order": 43
     },
     {
       "outputs": [
@@ -3393,6 +3300,97 @@
     {
       "outputs": [
         {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            262
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        },
+        {
+          "name": "CLIP",
+          "slot_index": 1,
+          "links": [
+            260
+          ],
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "CLIP"
+        }
+      ],
+      "color": "#332922",
+      "widgets_values": [
+        "中国古风庭院_建筑_场景_v1.0.safetensors",
+        0.4000000000000001,
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 261,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "name": "clip",
+          "link": 259,
+          "label": "clip",
+          "type": "CLIP",
+          "localized_name": "clip"
+        },
+        {
+          "widget": {
+            "name": "lora_name"
+          },
+          "name": "lora_name",
+          "label": "lora_name",
+          "type": "COMBO",
+          "localized_name": "lora_name"
+        },
+        {
+          "widget": {
+            "name": "strength_model"
+          },
+          "name": "strength_model",
+          "label": "strength_model",
+          "type": "FLOAT",
+          "localized_name": "strength_model"
+        },
+        {
+          "widget": {
+            "name": "strength_clip"
+          },
+          "name": "strength_clip",
+          "label": "strength_clip",
+          "type": "FLOAT",
+          "localized_name": "strength_clip"
+        }
+      ],
+      "flags": {},
+      "type": "LoraLoader",
+      "mode": 0,
+      "bgcolor": "#593930",
+      "size": [
+        324.5413513183594,
+        126
+      ],
+      "pos": [
+        -3035,
+        -1675
+      ],
+      "id": 119,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoraLoader"
+      },
+      "order": 21
+    },
+    {
+      "outputs": [
+        {
           "name": "IMAGE",
           "slot_index": 0,
           "links": [
@@ -3416,7 +3414,7 @@
       ],
       "color": "#332922",
       "widgets_values": [
-        "6e5f2ae629fde895e5992fa630ca1e1ecef14b3223348fc68a763ebf2d06b7e9.jpg",
+        "5f55ece374e028ecc8abc0fe9ed809259fab85b007d0affdd9f01e6b0f586f74.jpg",
         "image"
       ],
       "inputs": [
@@ -3448,8 +3446,8 @@
         523.4918212890625
       ],
       "pos": [
-        -2628.976806640625,
-        -2303.751220703125
+        -2643.489501953125,
+        -2295.457275390625
       ],
       "id": 40,
       "properties": {
@@ -3662,10 +3660,10 @@
     },
     "ds": {
       "offset": [
-        4341.297654842571,
-        2055.9779194905345
+        4740.526417282369,
+        2621.8335737092516
       ],
-      "scale": 0.544500000000007
+      "scale": 0.4950000000000004
     },
     "info": {
       "software": "ComfyUI",

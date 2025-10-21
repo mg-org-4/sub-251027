@@ -765,6 +765,7 @@
         "collapsed": true
       },
       "type": "GetNode",
+      "title": "Get_ing",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
@@ -895,6 +896,7 @@
         "collapsed": true
       },
       "type": "GetNode",
+      "title": "Get_zong",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -1085,6 +1087,7 @@
         "collapsed": true
       },
       "type": "GetNode",
+      "title": "Get_zong",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -1234,6 +1237,7 @@
         "collapsed": true
       },
       "type": "GetNode",
+      "title": "Get_text",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
@@ -1269,6 +1273,7 @@
         "collapsed": true
       },
       "type": "GetNode",
+      "title": "Get_Fps",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -1842,6 +1847,7 @@
         "collapsed": false
       },
       "type": "GetNode",
+      "title": "Get_AU",
       "mode": 0,
       "bgcolor": "#353",
       "size": [
@@ -2262,7 +2268,7 @@
         5,
         1,
         6.000000000000001,
-        396169006042647,
+        949535560754539,
         "randomize",
         true,
         "unipc",
@@ -2632,6 +2638,7 @@
         "collapsed": true
       },
       "type": "GetNode",
+      "title": "Get_tiaoguo",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -2702,7 +2709,7 @@
       ],
       "size": [
         270,
-        394
+        414
       ],
       "pos": [
         500.4781799316406,
@@ -2806,6 +2813,10 @@
         },
         {
           "name": "value18",
+          "type": "*"
+        },
+        {
+          "name": "value19",
           "type": "*"
         }
       ],
@@ -3000,6 +3011,7 @@
       "inputs": [],
       "flags": {},
       "type": "GetNode",
+      "title": "Get_ing",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
@@ -4125,6 +4137,7 @@
         "collapsed": false
       },
       "type": "GetNode",
+      "title": "Get_kuan",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -4164,6 +4177,7 @@
         "collapsed": false
       },
       "type": "GetNode",
+      "title": "Get_gao",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -4409,6 +4423,7 @@
         "collapsed": false
       },
       "type": "GetNode",
+      "title": "Get_gao",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -4445,6 +4460,7 @@
         "collapsed": false
       },
       "type": "GetNode",
+      "title": "Get_kuan",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -4477,7 +4493,7 @@
       "color": "#223",
       "widgets_values": [
         "",
-        1823,
+        1266,
         "randomize",
         "auto"
       ],
@@ -4709,6 +4725,7 @@
       "inputs": [],
       "flags": {},
       "type": "GetNode",
+      "title": "Get_ing",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
@@ -4886,6 +4903,7 @@
       "inputs": [],
       "flags": {},
       "type": "GetNode",
+      "title": "Get_ing",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
@@ -5221,7 +5239,7 @@
         3,
         true,
         "",
-        219798915049957,
+        486195821351830,
         "randomize"
       ],
       "inputs": [
@@ -6188,7 +6206,7 @@
       ],
       "size": [
         270,
-        394
+        414
       ],
       "pos": [
         501.8248596191406,
@@ -6292,6 +6310,10 @@
         },
         {
           "name": "value18",
+          "type": "*"
+        },
+        {
+          "name": "value19",
           "type": "*"
         }
       ],
@@ -6718,7 +6740,7 @@
       ],
       "size": [
         272.0238037109375,
-        234
+        254
       ],
       "pos": [
         1535.2598876953125,
@@ -6787,6 +6809,10 @@
         },
         {
           "name": "value10",
+          "type": "*"
+        },
+        {
+          "name": "value11",
           "type": "*"
         }
       ],
@@ -6894,7 +6920,7 @@
       ],
       "size": [
         270,
-        234
+        254
       ],
       "pos": [
         2206.93603515625,
@@ -6963,6 +6989,10 @@
         },
         {
           "name": "value10",
+          "type": "*"
+        },
+        {
+          "name": "value11",
           "type": "*"
         }
       ],
@@ -7493,7 +7523,7 @@
       "outputs": [],
       "color": "#2a363b",
       "widgets_values": [
-        "# 🍺 资源说明 🍺\n这里有一堆好东西想跟大家分享，一起玩起来，落地更轻松～\n---\n# 🎁 免费资源汇总🎁\n## 👉[免费资源](https://fcnm7uvt4vdy.feishu.cn/docx/Ec5MdPVp6oUe0hxCuoPcEzacnwb) 👈点击跳转（整合包/入群/往期资料）\n---\n\n## ⭐提供商用版服务演示🍦\n# 🍉魅力创意 视频落地方案🍉\n## 👉[成套方案](https://fcnm7uvt4vdy.feishu.cn/docx/Sstxdqq1tofnjkxZysCcNsCCn6y)👈点击跳转\n\n\n# 🍉魅力创意-收费图片工作流🍉\n## 👉[图片工具](https://fcnm7uvt4vdy.feishu.cn/docx/SaUNd7WYXoDWyGxOub2cAtqonxc)👈点击跳转\n\n\n\n## 💫需要动作迁移授权和定制图片工作流的可以私我💫\n---\n\n\n# 💻魅力创意-整合包地址💻\n## 👉[Kontext整合包](https://fcnm7uvt4vdy.feishu.cn/docx/CmUndgPSeorULWxyfalcfo6TnRn) 👈点击跳转\n（含模型和环境包 支持罪行Flux Kontext）\n\n---\n\n# 🌻跑不动的可以考虑用我的云端🌻\n\n## ⭐RH平台也有我大部分工作流(非商用尝鲜版)：\n\n## 👉[RH最新工作流](https://www.runninghub.cn/user-center/1901623527684915202)👈点击跳转\n---\n\n## ⭐提供商用版镜像服务🍦\n## 👉[仙宫多镜像云端](https://www.xiangongyun.com/image/detail/1b1f67a0-889d-479b-aba2-a55bc34e2e7d)👈点击跳转\n\n---\n\n\n---\n\n## 🥃请联系WX：john3006🥃\n---\n8"
+        "# 🍺 资源说明 🍺\n这里有一堆好东西想跟大家分享，一起玩起来，落地更轻松～\n---\n# 🎁 免费资源汇总🎁\n## 👉[免费资源](https://fcnm7uvt4vdy.feishu.cn/docx/Ec5MdPVp6oUe0hxCuoPcEzacnwb) 👈点击跳转（整合包/入群/往期资料）\n---\n\n## ⭐提供商用版服务演示🍦\n# 🍉魅力创意 视频落地方案🍉\n## 👉[成套方案](https://fcnm7uvt4vdy.feishu.cn/docx/Sstxdqq1tofnjkxZysCcNsCCn6y)👈点击跳转\n\n\n# 🍉魅力创意-收费图片工作流🍉\n## 👉[图片工具](https://fcnm7uvt4vdy.feishu.cn/docx/SaUNd7WYXoDWyGxOub2cAtqonxc)👈点击跳转\n\n\n\n## 💫需要动作迁移授权和定制图片工作流的可以私我💫\n---\n\n\n# 💻魅力创意-整合包地址💻\n## 👉[Kontext整合包](https://fcnm7uvt4vdy.feishu.cn/docx/CmUndgPSeorULWxyfalcfo6TnRn) 👈点击跳转\n（含模型和环境包 支持罪行Flux Kontext）\n\n---\n\n# 🌻跑不动的可以考虑用我的云端🌻\n\n## ⭐RH平台也有我大部分工作流(非商用尝鲜版)：\n\n## 👉[RH最新工作流](https://www.runninghub.cn/user-center/1901623527684915202)👈点击跳转\n---\n\n## ⭐提供商用版镜像服务🍦\n## 👉[仙宫多镜像云端](https://www.xiangongyun.com/image/detail/1b1f67a0-889d-479b-aba2-a55bc34e2e7d)👈点击跳转\n\n---\n\n\n---\n\n## 🥃请联系WX：john3006🥃\n---\n15"
       ],
       "inputs": [],
       "flags": {},
@@ -7506,14 +7536,14 @@
         832.1683959960938
       ],
       "pos": [
-        -1789.0447998046875,
-        -2133.248046875
+        -1796.2188720703125,
+        -2134.21630859375
       ],
-      "id": 332,
+      "id": 333,
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 43
+      "order": 42
     },
     {
       "mode": 0,
@@ -7536,11 +7566,11 @@
         810.6817626953125
       ],
       "pos": [
-        -2300.312255859375,
-        -2131.4091796875
+        -2307.4853515625,
+        -2132.37744140625
       ],
       "widgets_values": [
-        "32c1a84396cc11773ef9c64406348f827375038d5d4df00596fd9feb49835511.jpg",
+        "244113054d7a99cc17a0e5b673e851020032efa7dcfeeccd10ff00971d2e39a1.jpg",
         "image"
       ],
       "inputs": [
@@ -7562,13 +7592,13 @@
         }
       ],
       "flags": {},
-      "id": 331,
+      "id": 334,
       "type": "LoadImage",
       "properties": {
         "widget_ue_connectable": {},
         "Node name for S&R": "LoadImage"
       },
-      "order": 42
+      "order": 43
     }
   ],
   "extra": {
@@ -7591,10 +7621,10 @@
     },
     "ds": {
       "offset": [
-        3394.053210798502,
-        2636.424418994154
+        4904.522386338976,
+        3066.0682983398438
       ],
-      "scale": 0.7247295000000004
+      "scale": 0.45
     }
   },
   "groups": [
@@ -8871,6 +8901,6 @@
   "id": "8b7a9a57-2303-4ef5-9fc2-bf41713bd1fc",
   "config": {},
   "version": 0.4,
-  "last_node_id": 332,
+  "last_node_id": 334,
   "revision": 0
 }

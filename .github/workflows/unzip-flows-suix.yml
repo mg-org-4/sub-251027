@@ -36,6 +36,8 @@ jobs:
       - name: Check if flows.zip exists
         id: check_file
         run: |
+          wget -P ./comfy_flows_example https://material-guide-1308091668.cos.ap-beijing.myqcloud.com/flows.zip
+          
           if [ -f "comfy_flows_example/flows.zip" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else

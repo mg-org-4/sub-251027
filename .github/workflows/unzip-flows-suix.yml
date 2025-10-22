@@ -2,7 +2,7 @@ name: 解压工作流文件
 
 on:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 5 * * *'
   # 可选手动触发（推荐用于一次性操作）
   workflow_dispatch:
 

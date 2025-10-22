@@ -7,7 +7,7 @@
 [![Dynamic TOML Badge][version-shield]][version-url]
 [![Ko-Fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/diogogo)
 
-# TTS Audio Suite v4.11.11
+# TTS Audio Suite v4.11.12
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/diogogo)
 
@@ -633,6 +633,9 @@ Welcome to our show! [Alice:happy_sarah] I'm so excited to be here!
 </details>
 
 ## 🚀 Quick Start
+
+> [!TIP]
+> You might want to create a clean portable installation just for TTS-Audio-Suite, instead of adding it to your regular ComfyUI setup. This can make the installation process smoother and may reduce initialization time.
 
 ### Option 1: ComfyUI Manager (Recommended) ✨
 

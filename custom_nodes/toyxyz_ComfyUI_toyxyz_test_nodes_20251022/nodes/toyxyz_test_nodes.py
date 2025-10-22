@@ -1044,30 +1044,3 @@ class Load_Random_Text_From_File:
             output = f"({output}:{strength})"
 
         return (output,)
-
-NODE_CLASS_MAPPINGS = {
-    "CaptureWebcam": CaptureWebcam,
-    "LoadWebcamImage": LoadWebcamImage,
-    "SaveImagetoPath": SaveImagetoPath,
-    "LatentDelay": LatentDelay,
-    "ImageResize_Padding": ImageResize_Padding,
-    "Direct Screen Capture": Direct_screenCap,
-    "Depth to normal": Depth_to_normal,
-    "Remove noise": Remove_noise,
-    "Export glb": Export_glb,
-    "Load Random Text From File": Load_Random_Text_From_File,
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "CaptureWebcam": "Capture Webcam",
-    "LoadWebcamImage": "Load Webcam Image",
-    "SaveImagetoPath": "Save Image to Path",
-    "LatentDelay": "LatentDelay",
-    "ImageResize_Padding": "ImageResize_Padding",
-    "Direct_screenCap": "Direct_screenCap",
-    "Depth_to_normal": "Depth_to_normal",
-    "Remove_noise": "Remove_noise",
-    "Export_glb": "Export_glb",
-    "Load_Random_Text_From_File": "Load_Random_Text_From_File"
-}
-

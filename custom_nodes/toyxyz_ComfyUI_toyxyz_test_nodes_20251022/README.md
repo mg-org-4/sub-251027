@@ -10,6 +10,8 @@ https://github.com/toyxyz/ComfyUI_toyxyz_test_nodes/assets/8006000/8536e96a-514a
 
 Update 
 
+2025/10/21 - Add Openpose Editor Node, Pose Interpolation, ComfyCouple Region, ComfyCouple Mask
+
 2025/03/10 - Add Visual area mask node
 
 2024/11/14 - Add Load Random Text From File node
@@ -75,10 +77,30 @@ Direct Webcam capture workflow (without webcam app)
 
   strength: Strength of the selected area at area_id.
 
+  mask_overlap_method: default, subtract - Subtracts the masks from other regions from a single mask.
+
   Update outputs: Update nodes according to the number in area_number.
 
-  
-![image](https://github.com/user-attachments/assets/2d9de398-7e76-41d7-84fe-ffa75f476e7d)
+<img width="1576" height="1591" alt="image" src="https://github.com/user-attachments/assets/dcc54f06-7d5c-4a2c-844c-11f8ec8088ae" />
+
+## Openpose Editor Node
+
+  Modify each body part of OpenPose
+
+<img width="2140" height="1800" alt="image" src="https://github.com/user-attachments/assets/c54a6c62-a8aa-4418-a8b7-6bd65d5cce82" />
+
+## Pose Interpolation
+
+  Generate interpolated poses between two OpenPose poses.
+
+<img width="2408" height="1558" alt="image" src="https://github.com/user-attachments/assets/c76ae523-d09b-4d2a-b21f-447c76fdf36e" />
+
+## ComfyCouple Region / ComfyCouple Mask 
+
+  Regional Prompting Node. Supported models are SD 1.5, SDXL, and Flux. To disable Auto_inject_flux, you must free the model cache.
+
+<img width="2376" height="1818" alt="image" src="https://github.com/user-attachments/assets/d78d5d1d-67e7-4a0c-bc1f-26569cc638b6" />
+
 
 
 ## Load Random Text From File

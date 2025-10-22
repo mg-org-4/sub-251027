@@ -31,11 +31,18 @@ class VisualAreaMask:
                 "area_number": (
                     "INT", 
                     {
-                        "default": 2, 
-                        "min": 2, 
+                        "default": 1, 
+                        "min": 1, 
                         "max": cls.MAX_OUTPUTS, 
                         "step": 1,
                         "tooltip": "The number of areas/masks to return."
+                    }
+                ),
+                "mask_overlap_method": (
+                    ["default", "subtract"],
+                    {
+                        "default": "default",
+                        "tooltip": "How to handle overlapping masks. 'default': output masks as-is, 'subtract': subtract all other masks from each mask."
                     }
                 ),
             },
@@ -51,7 +58,7 @@ class VisualAreaMask:
     OUTPUT_NODE = False
     CATEGORY = "ToyxyzTestNodes"
 
-    def run_node(self, extra_pnginfo, unique_id, image_width, image_height, area_number, **kwargs):
+    def run_node(self, extra_pnginfo, unique_id, image_width, image_height, area_number, mask_overlap_method, **kwargs):
         # extra_pnginfo에서 현재 노드의 conditioning 영역값 추출
         conditioning_areas: list[list[float]] = []
         for node in extra_pnginfo["workflow"]["nodes"]:
@@ -89,17 +96,26 @@ class VisualAreaMask:
             mask[:, y:y_end, x:x_end] = strength
             masks.append(mask)
 
+        # subtract 모드 처리
+        if mask_overlap_method == "subtract":
+            subtracted_masks = []
+            for i in range(len(masks)):
+                # 현재 마스크에서 시작
+                result_mask = masks[i].clone()
+                
+                # 다른 모든 마스크를 빼기
+                for j in range(len(masks)):
+                    if i != j:
+                        # 마스크 값을 빼고, 음수가 되지 않도록 0으로 클램핑
+                        result_mask = torch.clamp(result_mask - masks[j], min=0.0)
+                
+                subtracted_masks.append(result_mask)
+            
+            masks = subtracted_masks
+
         # 최대 출력 개수만큼 튜플 생성, area_number 미만은 실제 마스크, 나머지는 None 할당
         outputs = tuple(masks[i] if i < len(masks) else None for i in range(self.MAX_OUTPUTS))
 
         return {
             "result": outputs
         }
-        
-NODE_CLASS_MAPPINGS = {
-    "VisualAreaMask": VisualAreaMask
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "VisualAreaMask": "Visual Area Mask"
-}

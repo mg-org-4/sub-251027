@@ -91,3 +91,17 @@ jobs:
           mkdir -p custom_nodes
           chmod +x ./sync_comfyui_cust_nodes_suix.sh
           ./sync_comfyui_cust_nodes_suix.sh --clean
+
+          # ======前端代码和文档======
+          # 强制覆盖 ComfyUI_frontend
+          rm -rf ComfyUI_frontend
+          git clone --depth 1 https://github.com/Comfy-Org/ComfyUI_frontend.git
+          rm -rf ComfyUI_frontend/.git   
+          
+          # 强制覆盖 embedded-docs
+          rm -rf embedded-docs
+          git clone --depth 1 https://github.com/Comfy-Org/embedded-docs.git
+          rm -rf embedded-docs/.git      ！
+          
+          # 添加到 Git
+          git add ComfyUI_frontend embedded-docs

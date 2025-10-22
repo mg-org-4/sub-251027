@@ -1,0 +1,33 @@
+import { isCloud } from '@/platform/distribution/types'
+
+import './clipspace'
+import './contextMenuFilter'
+import './dynamicPrompts'
+import './editAttention'
+import './electronAdapter'
+import './groupNode'
+import './groupNodeManage'
+import './groupOptions'
+import './load3d'
+import './maskeditor'
+import './nodeTemplates'
+import './noteNode'
+import './previewAny'
+import './rerouteNode'
+import './saveImageExtraOutput'
+import './saveMesh'
+import './selectionBorder'
+import './simpleTouchSupport'
+import './slotDefaults'
+import './uploadAudio'
+import './uploadImage'
+import './webcamCapture'
+import './widgetInputs'
+
+if (isCloud) {
+  import('./cloudBadge')
+
+  if (__BUILD_FLAGS__.REQUIRE_SUBSCRIPTION) {
+    import('./cloudSubscription')
+  }
+}

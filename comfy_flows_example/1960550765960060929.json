@@ -46,159 +46,6 @@
       "mode": 0,
       "outputs": [
         {
-          "name": "image",
-          "links": [
-            14
-          ],
-          "label": "image",
-          "type": "IMAGE",
-          "localized_name": "image"
-        }
-      ],
-      "size": [
-        400,
-        216
-      ],
-      "pos": [
-        -874.6270751953125,
-        171.5019073486328
-      ],
-      "widgets_values": [
-        "",
-        509841514,
-        "randomize"
-      ],
-      "inputs": [
-        {
-          "shape": 7,
-          "name": "images",
-          "link": 25,
-          "label": "images",
-          "type": "IMAGE",
-          "localized_name": "images"
-        },
-        {
-          "shape": 7,
-          "name": "image1",
-          "label": "image1",
-          "type": "IMAGE",
-          "localized_name": "image1"
-        },
-        {
-          "shape": 7,
-          "name": "image2",
-          "label": "image2",
-          "type": "IMAGE",
-          "localized_name": "image2"
-        },
-        {
-          "shape": 7,
-          "name": "image3",
-          "label": "image3",
-          "type": "IMAGE",
-          "localized_name": "image3"
-        },
-        {
-          "shape": 7,
-          "name": "image4",
-          "label": "image4",
-          "type": "IMAGE",
-          "localized_name": "image4"
-        },
-        {
-          "widget": {
-            "name": "prompt"
-          },
-          "name": "prompt",
-          "link": 16,
-          "label": "prompt",
-          "type": "STRING",
-          "localized_name": "prompt"
-        },
-        {
-          "widget": {
-            "name": "seed"
-          },
-          "shape": 7,
-          "name": "seed",
-          "label": "seed",
-          "type": "INT",
-          "localized_name": "seed"
-        }
-      ],
-      "flags": {},
-      "id": 1,
-      "type": "RH_Nano_Banana_Image2Image",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "RH_Nano_Banana_Image2Image"
-      },
-      "order": 3
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "links": [
-            24
-          ],
-          "label": "IMAGE",
-          "type": "IMAGE",
-          "localized_name": "IMAGE"
-        },
-        {
-          "name": "MASK",
-          "label": "MASK",
-          "type": "MASK",
-          "localized_name": "MASK"
-        }
-      ],
-      "size": [
-        321.3349609375,
-        326
-      ],
-      "pos": [
-        -2040,
-        90
-      ],
-      "widgets_values": [
-        "61a52873b2f16cf3734dad1d20f704d32ca5f1d77896847f27a1e1ee72eb626d.jpg",
-        "image"
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "image"
-          },
-          "name": "image",
-          "label": "image",
-          "type": "COMBO",
-          "localized_name": "image"
-        },
-        {
-          "widget": {
-            "name": "upload"
-          },
-          "name": "upload",
-          "label": "upload",
-          "type": "IMAGEUPLOAD",
-          "localized_name": "choose file to upload"
-        }
-      ],
-      "flags": {},
-      "id": 2,
-      "type": "LoadImage",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "LoadImage"
-      },
-      "order": 0
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
           "name": "translation",
           "links": [
             16
@@ -213,12 +60,12 @@
         375.4239501953125
       ],
       "pos": [
-        -1237.9752197265625,
-        271.9438171386719
+        -1229.1241455078125,
+        401.16619873046875
       ],
       "widgets_values": [
         "图中人物的1/7比例商业模型已制作完成，其风格写实，环境逼真。模型放置在带有圆形透明亚克力底座的电脑桌上。底座上没有任何文字。电脑屏幕上显示着模型的ZBrush建模过程。电脑屏幕旁边是一个BANDAI风格的玩具盒，上面印着原画。",
-        768,
+        206,
         "randomize",
         "force_english"
       ],
@@ -259,7 +106,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "RH_Translator"
       },
-      "order": 1
+      "order": 0
     },
     {
       "mode": 0,
@@ -291,8 +138,8 @@
         218
       ],
       "pos": [
-        -1620,
-        80
+        -1227.906982421875,
+        108.32273864746094
       ],
       "widgets_values": [
         1280,
@@ -373,6 +220,170 @@
         "Node name for S&R": "ImageResize+"
       },
       "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            24
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        },
+        {
+          "name": "MASK",
+          "label": "MASK",
+          "type": "MASK",
+          "localized_name": "MASK"
+        }
+      ],
+      "size": [
+        321.3349609375,
+        326
+      ],
+      "pos": [
+        -1608.078125,
+        113.01223754882812
+      ],
+      "widgets_values": [
+        "61a52873b2f16cf3734dad1d20f704d32ca5f1d77896847f27a1e1ee72eb626d.jpg",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "label": "image",
+          "type": "COMBO",
+          "localized_name": "image"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "choose file to upload"
+        }
+      ],
+      "flags": {},
+      "id": 2,
+      "type": "LoadImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            14
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "size": [
+        400,
+        240
+      ],
+      "pos": [
+        -874.6270751953125,
+        171.5019073486328
+      ],
+      "widgets_values": [
+        "",
+        1304941043,
+        "randomize",
+        "16:9"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "images",
+          "link": 25,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "image1",
+          "label": "image1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        },
+        {
+          "shape": 7,
+          "name": "image2",
+          "label": "image2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "shape": 7,
+          "name": "image3",
+          "label": "image3",
+          "type": "IMAGE",
+          "localized_name": "image3"
+        },
+        {
+          "shape": 7,
+          "name": "image4",
+          "label": "image4",
+          "type": "IMAGE",
+          "localized_name": "image4"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 16,
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "shape": 7,
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "aspectRatio"
+          },
+          "shape": 7,
+          "name": "aspectRatio",
+          "label": "aspectRatio",
+          "type": "COMBO",
+          "localized_name": "aspectRatio"
+        }
+      ],
+      "flags": {},
+      "id": 1,
+      "type": "RH_Nano_Banana_Image2Image",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Nano_Banana_Image2Image"
+      },
+      "order": 3
     }
   ],
   "extra": {
@@ -385,10 +396,10 @@
     ],
     "ds": {
       "offset": [
-        3577.608873155382,
-        204.72738308376734
+        1533.6482311817606,
+        -32.47514131157999
       ],
-      "scale": 0.45
+      "scale": 1.0610764609500023
     }
   },
   "groups": [

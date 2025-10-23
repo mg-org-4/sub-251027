@@ -1,8 +1,6 @@
 # ComfyUI_toyxyz_test_nodes
 
-This node was created to send a webcam/screen to ComfyUI in real time. 
-
-This node is recommended for use with LCM/SDXL turbo
+This is a custom node that collects the tools I use frequently.
 
 https://github.com/toyxyz/ComfyUI_toyxyz_test_nodes/assets/8006000/8536e96a-514a-48b2-b1aa-8eccbd3fa853
 
@@ -10,7 +8,7 @@ https://github.com/toyxyz/ComfyUI_toyxyz_test_nodes/assets/8006000/8536e96a-514a
 
 Update 
 
-2025/10/21 - Add Openpose Editor Node, Pose Interpolation, ComfyCouple Region, ComfyCouple Mask
+2025/10/21 - Add Openpose Editor Node, Pose Interpolation, ComfyCouple Region, ComfyCouple Mask, Comfy Couple Region Extractor
 
 2025/03/10 - Add Visual area mask node
 
@@ -100,6 +98,12 @@ Direct Webcam capture workflow (without webcam app)
   Regional Prompting Node. Supported models are SD 1.5, SDXL, and Flux. To disable Auto_inject_flux, you must free the model cache.
 
 <img width="2376" height="1818" alt="image" src="https://github.com/user-attachments/assets/d78d5d1d-67e7-4a0c-bc1f-26569cc638b6" />
+
+## Comfy Couple Region Extractor
+
+  Cut out the masked region from the couple region. It can be used in the face detailing workflow.
+
+<img width="2505" height="1667" alt="image" src="https://github.com/user-attachments/assets/5b8871f0-24db-46e8-b69a-4c0e8aa844cf" />
 
 
 

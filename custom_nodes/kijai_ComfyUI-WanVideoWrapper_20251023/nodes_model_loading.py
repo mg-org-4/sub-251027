@@ -131,6 +131,7 @@ def standardize_lora_key_format(lora_sd):
         if k.startswith('vace_blocks.'):
             k = k.replace('vace_blocks.', 'diffusion_model.vace_blocks.')
         k = k.replace('.default.', '.')
+        k = k.replace('.diff_m', '.modulation.diff')
 
         # Fun LoRA format
         if k.startswith('lora_unet__'):
@@ -328,7 +329,7 @@ class WanVideoTorchCompileSettings:
             },
             "optional": {
                 "dynamo_recompile_limit": ("INT", {"default": 128, "min": 0, "max": 1024, "step": 1, "tooltip": "torch._dynamo.config.recompile_limit"}),
-                "force_parameter_static_shapes": ("BOOLEAN", {"default": True, "tooltip": "torch._dynamo.config.force_parameter_static_shapes"}),
+                "force_parameter_static_shapes": ("BOOLEAN", {"default": False, "tooltip": "torch._dynamo.config.force_parameter_static_shapes"}),
             },
         }
     RETURN_TYPES = ("WANCOMPILEARGS",)

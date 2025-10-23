@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.11.16] - 2025-10-22
+
+### Changed
+
+- Improve model reuse reliability after VRAM management operations
+
+### Fixed
+
+- Fix ChatterBox CUDA device mismatch error on subsequent generation runs
+- Resolve 'tensors on different devices' error that occurs on second+ TTS generation with cached models
+- Fix tokens not being moved to GPU when models are reloaded after CPU offloading
+## [4.11.15] - 2025-10-22
+
+### Changed
+
+- Improve stability when switching between CPU and CUDA device placement
+
+### Fixed
+
+- Fix Higgs Audio cache errors in Memory Safe mode
+- Fix AttributeError when resetting DynamicCache in Memory Safe mode (CUDA Graphs OFF)
+- Fix cache not being recreated after model unload/reload cycle
+- Better error handling and logging for cache operations
+## [4.11.14] - 2025-10-22
+
+### Added
+
+- IndexTTS-2 uses fallback text processing on Windows (fully functional)
+- Add helpful note in installation summary explaining why
+
+### Changed
+
+- Improve Windows install experience for IndexTTS-2
+- User impact: Much cleaner install process on Windows with no confusing errors
+
+### Fixed
+
+- WeTextProcessing no longer shows confusing error messages on Windows install.
+- Windows users get clean installation without error spam
+## [4.11.13] - 2025-10-22
+
+### Fixed
+
+- Fix VibeVoice num_hidden_layers compatibility issue
+- Fix VibeVoice generation error: 'VibeVoiceConfig' object has no attribute 'num_hidden_layers'
+- Add compatibility patch for transformers 4.51.3+ DynamicCache initialization
+- Implements fix from wildminder/ComfyUI-VibeVoice v1.5.1 for FushionHub fork
 ## [4.11.12] - 2025-10-21
 
 ### Added

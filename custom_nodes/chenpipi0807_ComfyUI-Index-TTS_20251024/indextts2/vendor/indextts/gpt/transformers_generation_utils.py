@@ -30,7 +30,7 @@ from transformers.cache_utils import (
     DynamicCache,
     EncoderDecoderCache,
     OffloadedCache,
-    QuantizedCacheConfig,
+    # QuantizedCacheConfig,
     StaticCache,
 )
 from transformers.configuration_utils import PretrainedConfig
@@ -82,11 +82,12 @@ except Exception:
         # Return existing token_type_ids if available; else None
         return model_kwargs.get("token_type_ids", None)
 from transformers.generation.configuration_utils import (
-    NEED_SETUP_CACHE_CLASSES_MAPPING,
-    QUANT_BACKEND_CLASSES_MAPPING,
+    # NEED_SETUP_CACHE_CLASSES_MAPPING,
+    # QUANT_BACKEND_CLASSES_MAPPING,
     GenerationConfig,
     GenerationMode,
 )
+from .compatibility_patch import QuantizedCacheConfig, NEED_SETUP_CACHE_CLASSES_MAPPING, QUANT_BACKEND_CLASSES_MAPPING
 from transformers.generation.logits_process import (
     EncoderNoRepeatNGramLogitsProcessor,
     EncoderRepetitionPenaltyLogitsProcessor,

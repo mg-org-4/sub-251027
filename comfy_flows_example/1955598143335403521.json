@@ -1,5 +1,5 @@
 {
-  "last_link_id": 21106,
+  "last_link_id": 21114,
   "nodes": [
     {
       "mode": 0,
@@ -3003,268 +3003,6 @@
       "mode": 0,
       "outputs": [
         {
-          "name": "slg_args",
-          "links": [
-            369
-          ],
-          "label": "slg_args",
-          "type": "SLGARGS",
-          "localized_name": "slg_args"
-        }
-      ],
-      "size": [
-        312.2355041503906,
-        106
-      ],
-      "pos": [
-        5552.16064453125,
-        1504.2808837890625
-      ],
-      "widgets_values": [
-        "8",
-        0.20000000000000004,
-        0.7000000000000002
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "blocks"
-          },
-          "name": "blocks",
-          "label": "blocks",
-          "type": "STRING",
-          "localized_name": "blocks"
-        },
-        {
-          "widget": {
-            "name": "start_percent"
-          },
-          "name": "start_percent",
-          "label": "start_percent",
-          "type": "FLOAT",
-          "localized_name": "start_percent"
-        },
-        {
-          "widget": {
-            "name": "end_percent"
-          },
-          "name": "end_percent",
-          "label": "end_percent",
-          "type": "FLOAT",
-          "localized_name": "end_percent"
-        }
-      ],
-      "flags": {},
-      "id": 229,
-      "type": "WanVideoSLG",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "WanVideoSLG"
-      },
-      "order": 14
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "exp_args",
-          "links": [
-            370
-          ],
-          "label": "exp_args",
-          "type": "EXPERIMENTALARGS",
-          "localized_name": "exp_args"
-        }
-      ],
-      "size": [
-        327.5999755859375,
-        274
-      ],
-      "pos": [
-        5550.18701171875,
-        1812.67333984375
-      ],
-      "widgets_values": [
-        "",
-        true,
-        true,
-        0,
-        false,
-        0.9500000000000002,
-        1.1500000000000001,
-        20,
-        false,
-        0
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "video_attention_split_steps"
-          },
-          "name": "video_attention_split_steps",
-          "label": "video_attention_split_steps",
-          "type": "STRING",
-          "localized_name": "video_attention_split_steps"
-        },
-        {
-          "widget": {
-            "name": "cfg_zero_star"
-          },
-          "name": "cfg_zero_star",
-          "label": "cfg_zero_star",
-          "type": "BOOLEAN",
-          "localized_name": "cfg_zero_star"
-        },
-        {
-          "widget": {
-            "name": "use_zero_init"
-          },
-          "name": "use_zero_init",
-          "label": "use_zero_init",
-          "type": "BOOLEAN",
-          "localized_name": "use_zero_init"
-        },
-        {
-          "widget": {
-            "name": "zero_star_steps"
-          },
-          "name": "zero_star_steps",
-          "label": "zero_star_steps",
-          "type": "INT",
-          "localized_name": "zero_star_steps"
-        },
-        {
-          "widget": {
-            "name": "use_fresca"
-          },
-          "name": "use_fresca",
-          "label": "use_fresca",
-          "type": "BOOLEAN",
-          "localized_name": "use_fresca"
-        },
-        {
-          "widget": {
-            "name": "fresca_scale_low"
-          },
-          "name": "fresca_scale_low",
-          "label": "fresca_scale_low",
-          "type": "FLOAT",
-          "localized_name": "fresca_scale_low"
-        },
-        {
-          "widget": {
-            "name": "fresca_scale_high"
-          },
-          "name": "fresca_scale_high",
-          "label": "fresca_scale_high",
-          "type": "FLOAT",
-          "localized_name": "fresca_scale_high"
-        },
-        {
-          "widget": {
-            "name": "fresca_freq_cutoff"
-          },
-          "name": "fresca_freq_cutoff",
-          "label": "fresca_freq_cutoff",
-          "type": "INT",
-          "localized_name": "fresca_freq_cutoff"
-        },
-        {
-          "widget": {
-            "name": "use_tcfg"
-          },
-          "name": "use_tcfg",
-          "label": "use_tcfg",
-          "type": "BOOLEAN",
-          "localized_name": "use_tcfg"
-        },
-        {
-          "widget": {
-            "name": "raag_alpha"
-          },
-          "name": "raag_alpha",
-          "label": "raag_alpha",
-          "type": "FLOAT",
-          "localized_name": "raag_alpha"
-        }
-      ],
-      "flags": {},
-      "id": 230,
-      "type": "WanVideoExperimentalArgs",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "WanVideoExperimentalArgs"
-      },
-      "order": 15
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "feta_args",
-          "links": [
-            368
-          ],
-          "label": "feta_args",
-          "type": "FETAARGS",
-          "localized_name": "feta_args"
-        }
-      ],
-      "size": [
-        315,
-        106
-      ],
-      "pos": [
-        5551.19873046875,
-        1201.7991943359375
-      ],
-      "widgets_values": [
-        1.5000000000000002,
-        0.25000000000000006,
-        0.7500000000000001
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "weight"
-          },
-          "name": "weight",
-          "label": "weight",
-          "type": "FLOAT",
-          "localized_name": "weight"
-        },
-        {
-          "widget": {
-            "name": "start_percent"
-          },
-          "name": "start_percent",
-          "label": "start_percent",
-          "type": "FLOAT",
-          "localized_name": "start_percent"
-        },
-        {
-          "widget": {
-            "name": "end_percent"
-          },
-          "name": "end_percent",
-          "label": "end_percent",
-          "type": "FLOAT",
-          "localized_name": "end_percent"
-        }
-      ],
-      "flags": {},
-      "id": 228,
-      "type": "CogVideoEnhanceAVideo",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "CogVideoEnhanceAVideo"
-      },
-      "order": 16
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
           "name": "torch_compile_args",
           "links": [
             13631
@@ -3276,7 +3014,7 @@
       ],
       "size": [
         390.5999755859375,
-        202
+        226
       ],
       "pos": [
         2988.624755859375,
@@ -3289,7 +3027,8 @@
         false,
         64,
         true,
-        128
+        128,
+        true
       ],
       "inputs": [
         {
@@ -3355,6 +3094,16 @@
           "label": "dynamo_recompile_limit",
           "type": "INT",
           "localized_name": "dynamo_recompile_limit"
+        },
+        {
+          "widget": {
+            "name": "force_parameter_static_shapes"
+          },
+          "shape": 7,
+          "name": "force_parameter_static_shapes",
+          "label": "force_parameter_static_shapes",
+          "type": "BOOLEAN",
+          "localized_name": "force_parameter_static_shapes"
         }
       ],
       "flags": {},
@@ -3364,7 +3113,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "WanVideoTorchCompileSettings"
       },
-      "order": 17
+      "order": 14
     },
     {
       "mode": 0,
@@ -3429,7 +3178,7 @@
       ],
       "size": [
         471.1463928222656,
-        274
+        338
       ],
       "pos": [
         3526.36181640625,
@@ -3440,7 +3189,8 @@
         "bf16",
         "fp8_e4m3fn_scaled",
         "offload_device",
-        "sageattn"
+        "sageattn",
+        "default"
       ],
       "inputs": [
         {
@@ -3476,10 +3226,10 @@
         },
         {
           "shape": 7,
-          "name": "vace_model",
-          "label": "vace_model",
+          "name": "extra_model",
+          "label": "extra_model",
           "type": "VACEPATH",
-          "localized_name": "vace_model"
+          "localized_name": "extra_model"
         },
         {
           "shape": 7,
@@ -3494,6 +3244,13 @@
           "label": "multitalk_model",
           "type": "MULTITALKMODEL",
           "localized_name": "multitalk_model"
+        },
+        {
+          "shape": 7,
+          "name": "fantasyportrait_model",
+          "label": "fantasyportrait_model",
+          "type": "FANTASYPORTRAITMODEL",
+          "localized_name": "fantasyportrait_model"
         },
         {
           "widget": {
@@ -3540,6 +3297,23 @@
           "label": "attention_mode",
           "type": "COMBO",
           "localized_name": "attention_mode"
+        },
+        {
+          "widget": {
+            "name": "rms_norm_function"
+          },
+          "shape": 7,
+          "name": "rms_norm_function",
+          "label": "rms_norm_function",
+          "type": "COMBO",
+          "localized_name": "rms_norm_function"
+        },
+        {
+          "shape": 7,
+          "name": "vace_model",
+          "label": "vace_model",
+          "type": "VACEPATH",
+          "localized_name": "vace_model"
         }
       ],
       "flags": {},
@@ -3613,7 +3387,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "CogVideoEnhanceAVideo"
       },
-      "order": 18
+      "order": 15
     },
     {
       "mode": 4,
@@ -3677,7 +3451,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "WanVideoSLG"
       },
-      "order": 19
+      "order": 16
     },
     {
       "mode": 4,
@@ -3694,7 +3468,7 @@
       ],
       "size": [
         327.5999755859375,
-        274
+        370
       ],
       "pos": [
         4498.99658203125,
@@ -3710,7 +3484,11 @@
         1.1500000000000001,
         20,
         false,
-        0
+        0,
+        false,
+        false,
+        0.95,
+        1
       ],
       "inputs": [
         {
@@ -3802,6 +3580,42 @@
           "label": "raag_alpha",
           "type": "FLOAT",
           "localized_name": "raag_alpha"
+        },
+        {
+          "widget": {
+            "name": "bidirectional_sampling"
+          },
+          "name": "bidirectional_sampling",
+          "label": "bidirectional_sampling",
+          "type": "BOOLEAN",
+          "localized_name": "bidirectional_sampling"
+        },
+        {
+          "widget": {
+            "name": "temporal_score_rescaling"
+          },
+          "name": "temporal_score_rescaling",
+          "label": "temporal_score_rescaling",
+          "type": "BOOLEAN",
+          "localized_name": "temporal_score_rescaling"
+        },
+        {
+          "widget": {
+            "name": "tsr_k"
+          },
+          "name": "tsr_k",
+          "label": "tsr_k",
+          "type": "FLOAT",
+          "localized_name": "tsr_k"
+        },
+        {
+          "widget": {
+            "name": "tsr_sigma"
+          },
+          "name": "tsr_sigma",
+          "label": "tsr_sigma",
+          "type": "FLOAT",
+          "localized_name": "tsr_sigma"
         }
       ],
       "flags": {},
@@ -3811,7 +3625,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "WanVideoExperimentalArgs"
       },
-      "order": 20
+      "order": 17
     },
     {
       "mode": 0,
@@ -3828,7 +3642,7 @@
       ],
       "size": [
         390.5999755859375,
-        202
+        226
       ],
       "pos": [
         6959.6982421875,
@@ -3841,7 +3655,8 @@
         false,
         64,
         true,
-        128
+        128,
+        true
       ],
       "inputs": [
         {
@@ -3907,6 +3722,16 @@
           "label": "dynamo_recompile_limit",
           "type": "INT",
           "localized_name": "dynamo_recompile_limit"
+        },
+        {
+          "widget": {
+            "name": "force_parameter_static_shapes"
+          },
+          "shape": 7,
+          "name": "force_parameter_static_shapes",
+          "label": "force_parameter_static_shapes",
+          "type": "BOOLEAN",
+          "localized_name": "force_parameter_static_shapes"
         }
       ],
       "flags": {},
@@ -3916,7 +3741,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "WanVideoTorchCompileSettings"
       },
-      "order": 21
+      "order": 18
     },
     {
       "mode": 0,
@@ -4026,7 +3851,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "WanVideoBlockSwap"
       },
-      "order": 22
+      "order": 19
     },
     {
       "outputs": [
@@ -4062,7 +3887,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 23
+      "order": 20
     },
     {
       "mode": 0,
@@ -4095,11 +3920,13 @@
           "paused": false,
           "hidden": false,
           "params": {
-            "filename": "AnimateDiff_00001_hlvzt_1755189615.mp4",
-            "workflow": "AnimateDiff_00001.png",
-            "fullpath": "/data/ComfyUI/personal/05710eb46f60072c2b77ca2bb3e2bf79/output/AnimateDiff_00001.mp4",
+            "score": "0",
+            "filename": "AnimateDiff_00001_p86_puphd_1761096267.mp4",
+            "workflow": "AnimateDiff_00001_p86.png",
+            "fullpath": "/data/ComfyUI/personal/05710eb46f60072c2b77ca2bb3e2bf79/output/AnimateDiff_00001_p86.mp4",
             "format": "video/h264-mp4",
             "subfolder": "",
+            "label": "Normal",
             "type": "output",
             "frame_rate": 16
           }
@@ -4227,7 +4054,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 24
+      "order": 21
     },
     {
       "outputs": [],
@@ -4252,7 +4079,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 25
+      "order": 22
     },
     {
       "mode": 0,
@@ -4280,7 +4107,8 @@
         "bf16",
         "fp8_e4m3fn_scaled",
         "offload_device",
-        "sageattn"
+        "sageattn",
+        "default"
       ],
       "inputs": [
         {
@@ -4315,10 +4143,10 @@
         },
         {
           "shape": 7,
-          "name": "vace_model",
-          "label": "vace_model",
+          "name": "extra_model",
+          "label": "extra_model",
           "type": "VACEPATH",
-          "localized_name": "vace_model"
+          "localized_name": "extra_model"
         },
         {
           "shape": 7,
@@ -4333,6 +4161,13 @@
           "label": "multitalk_model",
           "type": "MULTITALKMODEL",
           "localized_name": "multitalk_model"
+        },
+        {
+          "shape": 7,
+          "name": "fantasyportrait_model",
+          "label": "fantasyportrait_model",
+          "type": "FANTASYPORTRAITMODEL",
+          "localized_name": "fantasyportrait_model"
         },
         {
           "widget": {
@@ -4379,6 +4214,23 @@
           "label": "attention_mode",
           "type": "COMBO",
           "localized_name": "attention_mode"
+        },
+        {
+          "widget": {
+            "name": "rms_norm_function"
+          },
+          "shape": 7,
+          "name": "rms_norm_function",
+          "label": "rms_norm_function",
+          "type": "COMBO",
+          "localized_name": "rms_norm_function"
+        },
+        {
+          "shape": 7,
+          "name": "vace_model",
+          "label": "vace_model",
+          "type": "VACEPATH",
+          "localized_name": "vace_model"
         }
       ],
       "flags": {},
@@ -4413,7 +4265,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 26
+      "order": 23
     },
     {
       "outputs": [],
@@ -4438,7 +4290,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 27
+      "order": 24
     },
     {
       "mode": 0,
@@ -4531,7 +4383,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "WanVideoLoraSelect"
       },
-      "order": 28
+      "order": 25
     },
     {
       "mode": 0,
@@ -4624,7 +4476,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "WanVideoLoraSelect"
       },
-      "order": 29
+      "order": 26
     },
     {
       "mode": 0,
@@ -4641,7 +4493,7 @@
       ],
       "size": [
         306.9058532714844,
-        212.63291931152344
+        228
       ],
       "pos": [
         4512.7216796875,
@@ -4653,7 +4505,8 @@
         4,
         "linear",
         0,
-        0.01
+        0.01,
+        "[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]b1a17ee4c33c71801141287a77217fd1"
       ],
       "inputs": [
         {
@@ -4746,7 +4599,7 @@
         8,
         1.0000000000000002,
         8.000000000000002,
-        443647047869098,
+        264880205653811,
         "randomize",
         true,
         "dpm++",
@@ -4767,18 +4620,19 @@
           "localized_name": "model"
         },
         {
-          "name": "text_embeds",
-          "link": 5109,
-          "label": "text_embeds",
-          "type": "WANVIDEOTEXTEMBEDS",
-          "localized_name": "text_embeds"
-        },
-        {
           "name": "image_embeds",
           "link": 371,
           "label": "image_embeds",
           "type": "WANVIDIMAGE_EMBEDS",
           "localized_name": "image_embeds"
+        },
+        {
+          "shape": 7,
+          "name": "text_embeds",
+          "link": 5109,
+          "label": "text_embeds",
+          "type": "WANVIDEOTEXTEMBEDS",
+          "localized_name": "text_embeds"
         },
         {
           "shape": 7,
@@ -5050,7 +4904,7 @@
         8,
         7.000000000000002,
         8.000000000000002,
-        946445537399970,
+        783151677911958,
         "randomize",
         true,
         "dpm++",
@@ -5071,18 +4925,19 @@
           "localized_name": "model"
         },
         {
-          "name": "text_embeds",
-          "link": 5100,
-          "label": "text_embeds",
-          "type": "WANVIDEOTEXTEMBEDS",
-          "localized_name": "text_embeds"
-        },
-        {
           "name": "image_embeds",
           "link": 11,
           "label": "image_embeds",
           "type": "WANVIDIMAGE_EMBEDS",
           "localized_name": "image_embeds"
+        },
+        {
+          "shape": 7,
+          "name": "text_embeds",
+          "link": 5100,
+          "label": "text_embeds",
+          "type": "WANVIDEOTEXTEMBEDS",
+          "localized_name": "text_embeds"
         },
         {
           "shape": 7,
@@ -5380,7 +5235,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "Int"
       },
-      "order": 30
+      "order": 27
     },
     {
       "outputs": [
@@ -5426,7 +5281,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "Int"
       },
-      "order": 31
+      "order": 28
     },
     {
       "outputs": [
@@ -5585,7 +5440,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "WanVideoVAELoader"
       },
-      "order": 32
+      "order": 29
     },
     {
       "outputs": [
@@ -5889,7 +5744,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "CR Text"
       },
-      "order": 33
+      "order": 30
     },
     {
       "outputs": [
@@ -5936,7 +5791,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "JWInteger"
       },
-      "order": 34
+      "order": 31
     },
     {
       "outputs": [
@@ -5997,7 +5852,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "LoadImage"
       },
-      "order": 35
+      "order": 32
     },
     {
       "mode": 0,
@@ -6047,7 +5902,7 @@
           "name": "input",
           "link": 21098,
           "type": "INT",
-          "localized_name": "input"
+          "localized_name": "输入"
         }
       ],
       "flags": {},
@@ -6063,11 +5918,13 @@
       "mode": 0,
       "outputs": [
         {
-          "name": "text_0",
+          "name": "p0",
           "links": [
             21096
           ],
-          "type": "STRING"
+          "label": "p0",
+          "type": "*",
+          "localized_name": "p0"
         }
       ],
       "size": [
@@ -6094,6 +5951,7 @@
         {
           "name": "ref_image_1",
           "link": 21097,
+          "label": "ref_image_1",
           "type": "IMAGE"
         }
       ],
@@ -6131,7 +5989,7 @@
           },
           "name": "value",
           "type": "INT",
-          "localized_name": "value"
+          "localized_name": "值"
         }
       ],
       "flags": {},
@@ -6151,7 +6009,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "Int"
       },
-      "order": 36
+      "order": 33
     },
     {
       "mode": 0,
@@ -6190,7 +6048,7 @@
           },
           "name": "text",
           "type": "STRING",
-          "localized_name": "text"
+          "localized_name": "文本"
         }
       ],
       "flags": {},
@@ -6200,7 +6058,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "CR Text"
       },
-      "order": 37
+      "order": 34
     },
     {
       "outputs": [],
@@ -6222,8 +6080,10 @@
         2049.31787109375
       ],
       "id": 310,
-      "properties": {},
-      "order": 38
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 35
     },
     {
       "outputs": [],
@@ -6245,8 +6105,10 @@
         1898.877197265625
       ],
       "id": 312,
-      "properties": {},
-      "order": 39
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 36
     },
     {
       "outputs": [],
@@ -6270,17 +6132,321 @@
         1268.17431640625
       ],
       "id": 313,
-      "properties": {},
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 37
+    },
+    {
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "exp_args",
+          "links": [
+            370
+          ],
+          "label": "exp_args",
+          "type": "EXPERIMENTALARGS",
+          "localized_name": "exp_args"
+        }
+      ],
+      "size": [
+        327.5999755859375,
+        370
+      ],
+      "pos": [
+        5550.18701171875,
+        1812.67333984375
+      ],
+      "widgets_values": [
+        "",
+        true,
+        true,
+        0,
+        false,
+        0.9500000000000002,
+        1.1500000000000001,
+        20,
+        false,
+        0,
+        false,
+        false,
+        0.95,
+        1
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "video_attention_split_steps"
+          },
+          "name": "video_attention_split_steps",
+          "label": "video_attention_split_steps",
+          "type": "STRING",
+          "localized_name": "video_attention_split_steps"
+        },
+        {
+          "widget": {
+            "name": "cfg_zero_star"
+          },
+          "name": "cfg_zero_star",
+          "label": "cfg_zero_star",
+          "type": "BOOLEAN",
+          "localized_name": "cfg_zero_star"
+        },
+        {
+          "widget": {
+            "name": "use_zero_init"
+          },
+          "name": "use_zero_init",
+          "label": "use_zero_init",
+          "type": "BOOLEAN",
+          "localized_name": "use_zero_init"
+        },
+        {
+          "widget": {
+            "name": "zero_star_steps"
+          },
+          "name": "zero_star_steps",
+          "label": "zero_star_steps",
+          "type": "INT",
+          "localized_name": "zero_star_steps"
+        },
+        {
+          "widget": {
+            "name": "use_fresca"
+          },
+          "name": "use_fresca",
+          "label": "use_fresca",
+          "type": "BOOLEAN",
+          "localized_name": "use_fresca"
+        },
+        {
+          "widget": {
+            "name": "fresca_scale_low"
+          },
+          "name": "fresca_scale_low",
+          "label": "fresca_scale_low",
+          "type": "FLOAT",
+          "localized_name": "fresca_scale_low"
+        },
+        {
+          "widget": {
+            "name": "fresca_scale_high"
+          },
+          "name": "fresca_scale_high",
+          "label": "fresca_scale_high",
+          "type": "FLOAT",
+          "localized_name": "fresca_scale_high"
+        },
+        {
+          "widget": {
+            "name": "fresca_freq_cutoff"
+          },
+          "name": "fresca_freq_cutoff",
+          "label": "fresca_freq_cutoff",
+          "type": "INT",
+          "localized_name": "fresca_freq_cutoff"
+        },
+        {
+          "widget": {
+            "name": "use_tcfg"
+          },
+          "name": "use_tcfg",
+          "label": "use_tcfg",
+          "type": "BOOLEAN",
+          "localized_name": "use_tcfg"
+        },
+        {
+          "widget": {
+            "name": "raag_alpha"
+          },
+          "name": "raag_alpha",
+          "label": "raag_alpha",
+          "type": "FLOAT",
+          "localized_name": "raag_alpha"
+        },
+        {
+          "widget": {
+            "name": "bidirectional_sampling"
+          },
+          "name": "bidirectional_sampling",
+          "label": "bidirectional_sampling",
+          "type": "BOOLEAN",
+          "localized_name": "bidirectional_sampling"
+        },
+        {
+          "widget": {
+            "name": "temporal_score_rescaling"
+          },
+          "name": "temporal_score_rescaling",
+          "label": "temporal_score_rescaling",
+          "type": "BOOLEAN",
+          "localized_name": "temporal_score_rescaling"
+        },
+        {
+          "widget": {
+            "name": "tsr_k"
+          },
+          "name": "tsr_k",
+          "label": "tsr_k",
+          "type": "FLOAT",
+          "localized_name": "tsr_k"
+        },
+        {
+          "widget": {
+            "name": "tsr_sigma"
+          },
+          "name": "tsr_sigma",
+          "label": "tsr_sigma",
+          "type": "FLOAT",
+          "localized_name": "tsr_sigma"
+        }
+      ],
+      "flags": {},
+      "id": 230,
+      "type": "WanVideoExperimentalArgs",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "WanVideoExperimentalArgs"
+      },
+      "order": 38
+    },
+    {
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "slg_args",
+          "links": [
+            369
+          ],
+          "label": "slg_args",
+          "type": "SLGARGS",
+          "localized_name": "slg_args"
+        }
+      ],
+      "size": [
+        312.2355041503906,
+        106
+      ],
+      "pos": [
+        5552.16064453125,
+        1504.2808837890625
+      ],
+      "widgets_values": [
+        "8",
+        0.20000000000000004,
+        0.7000000000000002
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "blocks"
+          },
+          "name": "blocks",
+          "label": "blocks",
+          "type": "STRING",
+          "localized_name": "blocks"
+        },
+        {
+          "widget": {
+            "name": "start_percent"
+          },
+          "name": "start_percent",
+          "label": "start_percent",
+          "type": "FLOAT",
+          "localized_name": "start_percent"
+        },
+        {
+          "widget": {
+            "name": "end_percent"
+          },
+          "name": "end_percent",
+          "label": "end_percent",
+          "type": "FLOAT",
+          "localized_name": "end_percent"
+        }
+      ],
+      "flags": {},
+      "id": 229,
+      "type": "WanVideoSLG",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "WanVideoSLG"
+      },
+      "order": 39
+    },
+    {
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "feta_args",
+          "links": [
+            368
+          ],
+          "label": "feta_args",
+          "type": "FETAARGS",
+          "localized_name": "feta_args"
+        }
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "pos": [
+        5551.19873046875,
+        1201.7991943359375
+      ],
+      "widgets_values": [
+        1.5000000000000002,
+        0.25000000000000006,
+        0.7500000000000001
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "weight"
+          },
+          "name": "weight",
+          "label": "weight",
+          "type": "FLOAT",
+          "localized_name": "weight"
+        },
+        {
+          "widget": {
+            "name": "start_percent"
+          },
+          "name": "start_percent",
+          "label": "start_percent",
+          "type": "FLOAT",
+          "localized_name": "start_percent"
+        },
+        {
+          "widget": {
+            "name": "end_percent"
+          },
+          "name": "end_percent",
+          "label": "end_percent",
+          "type": "FLOAT",
+          "localized_name": "end_percent"
+        }
+      ],
+      "flags": {},
+      "id": 228,
+      "type": "CogVideoEnhanceAVideo",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CogVideoEnhanceAVideo"
+      },
       "order": 40
     }
   ],
   "extra": {
     "VHS_KeepIntermediate": true,
     "links_added_by_ue": [
-      21103,
-      21104,
-      21105,
-      21106
+      21111,
+      21112,
+      21113,
+      21114
     ],
     "ue_links": [
       {
@@ -6610,10 +6776,10 @@
     },
     "ds": {
       "offset": [
-        -1271.453937078423,
-        459.38832186172823
+        -2060.2782782423606,
+        362.85760498546244
       ],
-      "scale": 0.1771561000000114
+      "scale": 0.20992832109438028
     }
   },
   "groups": [
@@ -6813,7 +6979,7 @@
       39,
       0,
       15,
-      2,
+      1,
       "WANVIDIMAGE_EMBEDS"
     ],
     [
@@ -7181,7 +7347,7 @@
       39,
       0,
       231,
-      2,
+      1,
       "WANVIDIMAGE_EMBEDS"
     ],
     [
@@ -7253,7 +7419,7 @@
       18,
       0,
       15,
-      1,
+      2,
       "WANVIDEOTEXTEMBEDS"
     ],
     [
@@ -7261,7 +7427,7 @@
       18,
       0,
       231,
-      1,
+      2,
       "WANVIDEOTEXTEMBEDS"
     ],
     [

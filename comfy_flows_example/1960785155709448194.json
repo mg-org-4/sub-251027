@@ -1,5 +1,5 @@
 {
-  "last_link_id": 65,
+  "last_link_id": 66,
   "nodes": [
     {
       "mode": 0,
@@ -19,9 +19,9 @@
         {
           "name": "images",
           "link": 62,
-          "label": "images",
+          "label": "图像",
           "type": "IMAGE",
-          "localized_name": "images"
+          "localized_name": "图片"
         },
         {
           "widget": {
@@ -30,7 +30,7 @@
           "name": "filename_prefix",
           "label": "filename_prefix",
           "type": "STRING",
-          "localized_name": "filename_prefix"
+          "localized_name": "文件名前缀"
         }
       ],
       "flags": {},
@@ -68,9 +68,9 @@
         {
           "name": "images",
           "link": 58,
-          "label": "images",
+          "label": "图像",
           "type": "IMAGE",
-          "localized_name": "images"
+          "localized_name": "图片"
         },
         {
           "widget": {
@@ -79,7 +79,7 @@
           "name": "filename_prefix",
           "label": "filename_prefix",
           "type": "STRING",
-          "localized_name": "filename_prefix"
+          "localized_name": "文件名前缀"
         }
       ],
       "flags": {},
@@ -110,7 +110,7 @@
           ],
           "label": "IMAGE",
           "type": "IMAGE",
-          "localized_name": "IMAGE"
+          "localized_name": "图像"
         }
       ],
       "size": [
@@ -179,9 +179,9 @@
             58,
             63
           ],
-          "label": "IMAGE",
+          "label": "图像",
           "type": "IMAGE",
-          "localized_name": "IMAGE"
+          "localized_name": "图像"
         }
       ],
       "size": [
@@ -200,14 +200,14 @@
         {
           "name": "image1",
           "link": 56,
-          "label": "image1",
+          "label": "图像_1",
           "type": "IMAGE",
           "localized_name": "image1"
         },
         {
           "name": "image2",
           "link": 61,
-          "label": "image2",
+          "label": "图像_2",
           "type": "IMAGE",
           "localized_name": "image2"
         },
@@ -218,7 +218,7 @@
           "name": "direction",
           "label": "direction",
           "type": "COMBO",
-          "localized_name": "direction"
+          "localized_name": "方向"
         },
         {
           "widget": {
@@ -256,15 +256,15 @@
           "links": [
             54
           ],
-          "label": "IMAGE",
+          "label": "图像",
           "type": "IMAGE",
-          "localized_name": "IMAGE"
+          "localized_name": "图像"
         },
         {
           "name": "MASK",
-          "label": "MASK",
+          "label": "遮罩",
           "type": "MASK",
-          "localized_name": "MASK"
+          "localized_name": "遮罩"
         }
       ],
       "size": [
@@ -287,7 +287,7 @@
           "name": "image",
           "label": "image",
           "type": "COMBO",
-          "localized_name": "image"
+          "localized_name": "图像"
         },
         {
           "widget": {
@@ -296,7 +296,7 @@
           "name": "upload",
           "label": "upload",
           "type": "IMAGEUPLOAD",
-          "localized_name": "choose file to upload"
+          "localized_name": "选择文件上传"
         }
       ],
       "flags": {},
@@ -315,7 +315,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "LoadImage"
       },
-      "order": 1
+      "order": 0
     },
     {
       "mode": 0,
@@ -325,7 +325,7 @@
           "links": [
             64
           ],
-          "label": "prompt",
+          "label": "提示词文本",
           "type": "STRING",
           "localized_name": "prompt"
         },
@@ -355,7 +355,7 @@
           "name": "prompt",
           "label": "prompt",
           "type": "STRING",
-          "localized_name": "prompt"
+          "localized_name": "提示词"
         }
       ],
       "flags": {},
@@ -365,7 +365,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "CR Prompt Text"
       },
-      "order": 2
+      "order": 1
     },
     {
       "outputs": [],
@@ -394,7 +394,7 @@
         },
         "widget_ue_connectable": {}
       },
-      "order": 3
+      "order": 2
     },
     {
       "mode": 0,
@@ -436,7 +436,7 @@
         1,
         0.95,
         "sk-FRuPFFpxsu3wl8QdxWHMDILR24F4CHFEuAN6P2V58N11Nmle",
-        278390055,
+        1272882644,
         "randomize",
         32768
       ],
@@ -515,7 +515,7 @@
           },
           "shape": 7,
           "name": "apikey",
-          "link": 65,
+          "link": 66,
           "label": "apikey",
           "type": "STRING",
           "localized_name": "apikey"
@@ -552,56 +552,6 @@
     },
     {
       "mode": 0,
-      "outputs": [
-        {
-          "name": "prompt",
-          "links": [
-            65
-          ],
-          "label": "prompt",
-          "type": "STRING",
-          "localized_name": "prompt"
-        },
-        {
-          "name": "show_help",
-          "label": "show_help",
-          "type": "STRING",
-          "localized_name": "show_help"
-        }
-      ],
-      "size": [
-        400,
-        200
-      ],
-      "pos": [
-        -2370.59521484375,
-        1737.6329345703125
-      ],
-      "widgets_values": [
-        "sk-AUrtk8zlNPmeHJVPHQ9HaKHFcjEYWJ6rXCHpANj3hWppWwTM"
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "prompt"
-          },
-          "name": "prompt",
-          "label": "prompt",
-          "type": "STRING",
-          "localized_name": "prompt"
-        }
-      ],
-      "flags": {},
-      "id": 95,
-      "type": "CR Prompt Text",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "CR Prompt Text"
-      },
-      "order": 4
-    },
-    {
-      "mode": 0,
       "outputs": [],
       "size": [
         844.9444580078125,
@@ -616,9 +566,9 @@
         {
           "name": "images",
           "link": 63,
-          "label": "images",
+          "label": "图像",
           "type": "IMAGE",
-          "localized_name": "images"
+          "localized_name": "图像"
         }
       ],
       "flags": {},
@@ -657,7 +607,72 @@
         },
         "widget_ue_connectable": {}
       },
-      "order": 0
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "apikey",
+          "links": [
+            66
+          ],
+          "label": "apikey",
+          "type": "STRING",
+          "localized_name": "apikey"
+        }
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "pos": [
+        -2389.598388671875,
+        1646.21923828125
+      ],
+      "widgets_values": [
+        "zhenzhen",
+        "",
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "api_base"
+          },
+          "name": "api_base",
+          "label": "api_base",
+          "type": "COMBO",
+          "localized_name": "api_base"
+        },
+        {
+          "widget": {
+            "name": "apikey"
+          },
+          "name": "apikey",
+          "label": "apikey",
+          "type": "STRING",
+          "localized_name": "apikey"
+        },
+        {
+          "widget": {
+            "name": "custom_ip"
+          },
+          "shape": 7,
+          "name": "custom_ip",
+          "label": "custom_ip",
+          "type": "STRING",
+          "localized_name": "custom_ip"
+        }
+      ],
+      "flags": {},
+      "id": 97,
+      "type": "Comfly_api_set",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Comfly_api_set"
+      },
+      "order": 4
     }
   ],
   "extra": {
@@ -675,10 +690,10 @@
     "VHS_latentpreview": false,
     "ds": {
       "offset": [
-        973.840613361916,
-        -3.8706478107563207
+        2982.012748588097,
+        -443.2255763833881
       ],
-      "scale": 1.1671841070450018
+      "scale": 0.8769226950000013
     }
   },
   "groups": [
@@ -762,8 +777,8 @@
       "STRING"
     ],
     [
-      65,
-      95,
+      66,
+      97,
       0,
       92,
       8,
@@ -773,6 +788,6 @@
   "id": "00000000-0000-0000-0000-000000000000",
   "config": {},
   "version": 0.4,
-  "last_node_id": 96,
+  "last_node_id": 97,
   "revision": 0
 }

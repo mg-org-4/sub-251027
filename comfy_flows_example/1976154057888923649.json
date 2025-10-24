@@ -22,7 +22,8 @@
         false,
         64,
         true,
-        128
+        128,
+        true
       ],
       "inputs": [
         {
@@ -88,6 +89,16 @@
           "label": "dynamo_recompile_limit",
           "type": "INT",
           "localized_name": "dynamo_recompile_limit"
+        },
+        {
+          "widget": {
+            "name": "force_parameter_static_shapes"
+          },
+          "shape": 7,
+          "name": "force_parameter_static_shapes",
+          "label": "force_parameter_static_shapes",
+          "type": "BOOLEAN",
+          "localized_name": "force_parameter_static_shapes"
         }
       ],
       "flags": {},
@@ -96,7 +107,7 @@
       "bgcolor": "#335",
       "size": [
         282.74609375,
-        202
+        226
       ],
       "pos": [
         -119.00843811035156,
@@ -623,7 +634,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "WanVideoDecode"
       },
-      "order": 45
+      "order": 44
     },
     {
       "mode": 0,
@@ -2732,19 +2743,19 @@
           "localized_name": "image"
         },
         {
-          "name": "416 width",
+          "name": "width",
           "label": "宽度",
           "type": "INT",
           "localized_name": "width"
         },
         {
-          "name": "720 height",
+          "name": "height",
           "label": "高度",
           "type": "INT",
           "localized_name": "height"
         },
         {
-          "name": "313 count",
+          "name": "count",
           "label": "数量",
           "type": "INT",
           "localized_name": "count"
@@ -2782,7 +2793,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "GetImageSizeAndCount"
       },
-      "order": 46
+      "order": 45
     },
     {
       "outputs": [
@@ -2900,153 +2911,6 @@
         "Node name for S&R": "WanVideoBlockSwap"
       },
       "order": 8
-    },
-    {
-      "mode": 4,
-      "outputs": [
-        {
-          "name": "Filenames",
-          "label": "文件名",
-          "type": "VHS_FILENAMES",
-          "localized_name": "Filenames"
-        }
-      ],
-      "size": [
-        300.01141357421875,
-        856.6351318359375
-      ],
-      "pos": [
-        1293.5697021484375,
-        -3081.8046875
-      ],
-      "widgets_values": {
-        "save_output": false,
-        "filename_prefix": "WanVideo2_1_T2V",
-        "loop_count": 0,
-        "pix_fmt": "yuv420p",
-        "save_metadata": false,
-        "crf": 19,
-        "trim_to_audio": false,
-        "videopreview": {
-          "paused": false,
-          "hidden": false,
-          "params": {
-            "filename": "WanVideo2_1_T2V_00002_p81_zyjfc_1759992878.mp4",
-            "workflow": "WanVideo2_1_T2V_00002_p81.png",
-            "fullpath": "/data/ComfyUI/personal/4f26eb99d4f3d0299340a4a8e82b174d/temp/WanVideo2_1_T2V_00002_p81.mp4",
-            "format": "video/h264-mp4",
-            "subfolder": "",
-            "type": "temp",
-            "frame_rate": 16
-          }
-        },
-        "format": "video/h264-mp4",
-        "no_preview": false,
-        "frame_rate": 16,
-        "pingpong": false
-      },
-      "inputs": [
-        {
-          "name": "images",
-          "link": 361,
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "images"
-        },
-        {
-          "shape": 7,
-          "name": "audio",
-          "label": "音频",
-          "type": "AUDIO",
-          "localized_name": "audio"
-        },
-        {
-          "shape": 7,
-          "name": "meta_batch",
-          "label": "批次管理",
-          "type": "VHS_BatchManager",
-          "localized_name": "meta_batch"
-        },
-        {
-          "shape": 7,
-          "name": "vae",
-          "type": "VAE",
-          "localized_name": "vae"
-        },
-        {
-          "widget": {
-            "name": "frame_rate"
-          },
-          "name": "frame_rate",
-          "link": 401,
-          "type": "FLOAT",
-          "localized_name": "帧率"
-        },
-        {
-          "widget": {
-            "name": "loop_count"
-          },
-          "name": "loop_count",
-          "type": "INT",
-          "localized_name": "循环次数"
-        },
-        {
-          "widget": {
-            "name": "filename_prefix"
-          },
-          "name": "filename_prefix",
-          "type": "STRING",
-          "localized_name": "文件名前缀"
-        },
-        {
-          "widget": {
-            "name": "format"
-          },
-          "name": "format",
-          "type": "COMBO",
-          "localized_name": "格式"
-        },
-        {
-          "widget": {
-            "name": "pingpong"
-          },
-          "name": "pingpong",
-          "type": "BOOLEAN",
-          "localized_name": "Ping-Pong"
-        },
-        {
-          "widget": {
-            "name": "save_output"
-          },
-          "name": "save_output",
-          "type": "BOOLEAN",
-          "localized_name": "保存到输出文件夹"
-        },
-        {
-          "widget": {
-            "name": "no_preview"
-          },
-          "shape": 7,
-          "name": "no_preview",
-          "type": "BOOLEAN",
-          "localized_name": "no_preview"
-        }
-      ],
-      "flags": {},
-      "id": 75,
-      "type": "VHS_VideoCombine",
-      "properties": {
-        "cnr_id": "comfyui-videohelpersuite",
-        "ver": "8e4d79471bf1952154768e8435a9300077b534fa",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "input_ue_unconnectable": {},
-          "version": "7.1"
-        },
-        "widget_ue_connectable": {},
-        "Node name for S&R": "VHS_VideoCombine"
-      },
-      "order": 43
     },
     {
       "mode": 0,
@@ -3512,85 +3376,6 @@
       "mode": 0,
       "outputs": [
         {
-          "name": "IMAGE",
-          "links": [
-            361,
-            412
-          ],
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "图像"
-        }
-      ],
-      "size": [
-        270,
-        102
-      ],
-      "pos": [
-        1301.8685302734375,
-        -3131.05810546875
-      ],
-      "widgets_values": [
-        0.5,
-        "normal"
-      ],
-      "inputs": [
-        {
-          "name": "image1",
-          "link": 359,
-          "label": "图像1",
-          "type": "IMAGE",
-          "localized_name": "图像1"
-        },
-        {
-          "name": "image2",
-          "link": 360,
-          "label": "图像2",
-          "type": "IMAGE",
-          "localized_name": "图像2"
-        },
-        {
-          "widget": {
-            "name": "blend_factor"
-          },
-          "name": "blend_factor",
-          "type": "FLOAT",
-          "localized_name": "系数"
-        },
-        {
-          "widget": {
-            "name": "blend_mode"
-          },
-          "name": "blend_mode",
-          "type": "COMBO",
-          "localized_name": "混合模式"
-        }
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "id": 188,
-      "type": "ImageBlend",
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.60",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "blend_mode": true,
-            "blend_factor": true
-          },
-          "input_ue_unconnectable": {},
-          "version": "7.1"
-        },
-        "widget_ue_connectable": {},
-        "Node name for S&R": "ImageBlend"
-      },
-      "order": 41
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
           "name": "output",
           "type": "*",
           "localized_name": "output"
@@ -3633,7 +3418,6 @@
           "name": "fps🟦",
           "links": [
             400,
-            401,
             402,
             403
           ],
@@ -3943,7 +3727,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "VHS_VideoCombine"
       },
-      "order": 47
+      "order": 46
     },
     {
       "mode": 0,
@@ -4034,7 +3818,7 @@
         },
         "widget_ue_connectable": {}
       },
-      "order": 44
+      "order": 43
     },
     {
       "mode": 0,
@@ -4112,7 +3896,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 48
+      "order": 47
     },
     {
       "mode": 0,
@@ -4262,7 +4046,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "VHS_VideoCombine"
       },
-      "order": 49
+      "order": 48
     },
     {
       "mode": 0,
@@ -5273,6 +5057,84 @@
         "Node name for S&R": "SeCModelLoader"
       },
       "order": 14
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            412
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "size": [
+        270,
+        102
+      ],
+      "pos": [
+        755.4586181640625,
+        -2601.3427734375
+      ],
+      "widgets_values": [
+        0.5,
+        "normal"
+      ],
+      "inputs": [
+        {
+          "name": "image1",
+          "link": 359,
+          "label": "图像1",
+          "type": "IMAGE",
+          "localized_name": "图像1"
+        },
+        {
+          "name": "image2",
+          "link": 360,
+          "label": "图像2",
+          "type": "IMAGE",
+          "localized_name": "图像2"
+        },
+        {
+          "widget": {
+            "name": "blend_factor"
+          },
+          "name": "blend_factor",
+          "type": "FLOAT",
+          "localized_name": "系数"
+        },
+        {
+          "widget": {
+            "name": "blend_mode"
+          },
+          "name": "blend_mode",
+          "type": "COMBO",
+          "localized_name": "混合模式"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "id": 188,
+      "type": "ImageBlend",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "blend_mode": true,
+            "blend_factor": true
+          },
+          "input_ue_unconnectable": {},
+          "version": "7.1"
+        },
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImageBlend"
+      },
+      "order": 41
     }
   ],
   "extra": {
@@ -5299,10 +5161,10 @@
     },
     "ds": {
       "offset": [
-        1455.0589308864608,
-        3480.5846536877325
+        126.35237604020223,
+        3317.716668005866
       ],
-      "scale": 0.5445000000000064
+      "scale": 0.6588450000000002
     }
   },
   "groups": [
@@ -5772,14 +5634,6 @@
       "IMAGE"
     ],
     [
-      361,
-      188,
-      0,
-      75,
-      0,
-      "IMAGE"
-    ],
-    [
       362,
       42,
       0,
@@ -5840,14 +5694,6 @@
       216,
       0,
       112,
-      4,
-      "FLOAT"
-    ],
-    [
-      401,
-      216,
-      0,
-      75,
       4,
       "FLOAT"
     ],

@@ -1,5 +1,5 @@
 {
-  "last_link_id": 796,
+  "last_link_id": 799,
   "nodes": [
     {
       "mode": 0,
@@ -80,141 +80,6 @@
       "order": 50
     },
     {
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "links": [
-            491
-          ],
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "图像"
-        }
-      ],
-      "color": "#2a363b",
-      "widgets_values": [
-        10,
-        2,
-        48,
-        32,
-        "white",
-        "black",
-        "FreeMono.ttf",
-        "control_video",
-        "up"
-      ],
-      "inputs": [
-        {
-          "name": "image",
-          "link": 470,
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "image"
-        },
-        {
-          "shape": 7,
-          "name": "caption",
-          "label": "caption",
-          "type": "STRING",
-          "localized_name": "caption"
-        },
-        {
-          "widget": {
-            "name": "text_x"
-          },
-          "name": "text_x",
-          "type": "INT",
-          "localized_name": "位置_X"
-        },
-        {
-          "widget": {
-            "name": "text_y"
-          },
-          "name": "text_y",
-          "type": "INT",
-          "localized_name": "位置_Y"
-        },
-        {
-          "widget": {
-            "name": "height"
-          },
-          "name": "height",
-          "type": "INT",
-          "localized_name": "高度"
-        },
-        {
-          "widget": {
-            "name": "font_size"
-          },
-          "name": "font_size",
-          "type": "INT",
-          "localized_name": "字体大小"
-        },
-        {
-          "widget": {
-            "name": "font_color"
-          },
-          "name": "font_color",
-          "type": "STRING",
-          "localized_name": "字体颜色"
-        },
-        {
-          "widget": {
-            "name": "label_color"
-          },
-          "name": "label_color",
-          "type": "STRING",
-          "localized_name": "背景颜色"
-        },
-        {
-          "widget": {
-            "name": "font"
-          },
-          "name": "font",
-          "type": "COMBO",
-          "localized_name": "字体"
-        },
-        {
-          "widget": {
-            "name": "text"
-          },
-          "name": "text",
-          "type": "STRING",
-          "localized_name": "文本"
-        },
-        {
-          "widget": {
-            "name": "direction"
-          },
-          "name": "direction",
-          "type": "COMBO",
-          "localized_name": "方向"
-        }
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "type": "AddLabel",
-      "mode": 0,
-      "bgcolor": "#3f5159",
-      "size": [
-        315,
-        294
-      ],
-      "pos": [
-        5652.50634765625,
-        1973.7021484375
-      ],
-      "id": 269,
-      "properties": {
-        "cnr_id": "comfyui-kjnodes",
-        "ver": "52c2e31a903fec2dd654fb614ea82ba2757d5028",
-        "widget_ue_connectable": {},
-        "Node name for S&R": "AddLabel"
-      },
-      "order": 35
-    },
-    {
       "mode": 0,
       "outputs": [
         {
@@ -263,7 +128,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "RH_Captioner"
       },
-      "order": 36
+      "order": 35
     },
     {
       "outputs": [
@@ -529,7 +394,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "SimpleMath+"
       },
-      "order": 47
+      "order": 46
     },
     {
       "outputs": [
@@ -566,141 +431,6 @@
         "widget_ue_connectable": {}
       },
       "order": 1
-    },
-    {
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "links": [
-            490
-          ],
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "图像"
-        }
-      ],
-      "color": "#2a363b",
-      "widgets_values": [
-        10,
-        2,
-        48,
-        32,
-        "white",
-        "black",
-        "FreeMono.ttf",
-        "reference image",
-        "up"
-      ],
-      "inputs": [
-        {
-          "name": "image",
-          "link": 471,
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "image"
-        },
-        {
-          "shape": 7,
-          "name": "caption",
-          "label": "caption",
-          "type": "STRING",
-          "localized_name": "caption"
-        },
-        {
-          "widget": {
-            "name": "text_x"
-          },
-          "name": "text_x",
-          "type": "INT",
-          "localized_name": "位置_X"
-        },
-        {
-          "widget": {
-            "name": "text_y"
-          },
-          "name": "text_y",
-          "type": "INT",
-          "localized_name": "位置_Y"
-        },
-        {
-          "widget": {
-            "name": "height"
-          },
-          "name": "height",
-          "type": "INT",
-          "localized_name": "高度"
-        },
-        {
-          "widget": {
-            "name": "font_size"
-          },
-          "name": "font_size",
-          "type": "INT",
-          "localized_name": "字体大小"
-        },
-        {
-          "widget": {
-            "name": "font_color"
-          },
-          "name": "font_color",
-          "type": "STRING",
-          "localized_name": "字体颜色"
-        },
-        {
-          "widget": {
-            "name": "label_color"
-          },
-          "name": "label_color",
-          "type": "STRING",
-          "localized_name": "背景颜色"
-        },
-        {
-          "widget": {
-            "name": "font"
-          },
-          "name": "font",
-          "type": "COMBO",
-          "localized_name": "字体"
-        },
-        {
-          "widget": {
-            "name": "text"
-          },
-          "name": "text",
-          "type": "STRING",
-          "localized_name": "文本"
-        },
-        {
-          "widget": {
-            "name": "direction"
-          },
-          "name": "direction",
-          "type": "COMBO",
-          "localized_name": "方向"
-        }
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "type": "AddLabel",
-      "mode": 0,
-      "bgcolor": "#3f5159",
-      "size": [
-        315,
-        294
-      ],
-      "pos": [
-        5758.3525390625,
-        1916.93994140625
-      ],
-      "id": 271,
-      "properties": {
-        "cnr_id": "comfyui-kjnodes",
-        "ver": "52c2e31a903fec2dd654fb614ea82ba2757d5028",
-        "widget_ue_connectable": {},
-        "Node name for S&R": "AddLabel"
-      },
-      "order": 34
     },
     {
       "outputs": [],
@@ -777,7 +507,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "RH_Captioner"
       },
-      "order": 37
+      "order": 36
     },
     {
       "mode": 0,
@@ -859,7 +589,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "ImpactSwitch"
       },
-      "order": 38
+      "order": 37
     },
     {
       "mode": 0,
@@ -1335,7 +1065,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "Florence2toCoordinates"
       },
-      "order": 64
+      "order": 63
     },
     {
       "outputs": [
@@ -1656,79 +1386,7 @@
         "ver": "52c2e31a903fec2dd654fb614ea82ba2757d5028",
         "widget_ue_connectable": {}
       },
-      "order": 45
-    },
-    {
-      "outputs": [
-        {
-          "name": "WANVAE",
-          "links": [
-            487
-          ],
-          "label": "WANVAE",
-          "type": "WANVAE"
-        }
-      ],
-      "color": "#2a363b",
-      "widgets_values": [
-        "WanVAE"
-      ],
-      "inputs": [],
-      "flags": {
-        "collapsed": true
-      },
-      "type": "GetNode",
-      "mode": 0,
-      "bgcolor": "#3f5159",
-      "size": [
-        210,
-        58
-      ],
-      "pos": [
-        5737.07177734375,
-        2148.333251953125
-      ],
-      "id": 277,
-      "properties": {
-        "widget_ue_connectable": {}
-      },
-      "order": 9
-    },
-    {
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "links": [
-            471
-          ],
-          "label": "IMAGE",
-          "type": "IMAGE"
-        }
-      ],
-      "color": "#2a363b",
-      "widgets_values": [
-        "reference_image"
-      ],
-      "inputs": [],
-      "flags": {
-        "collapsed": false
-      },
-      "type": "GetNode",
-      "mode": 0,
-      "bgcolor": "#3f5159",
-      "size": [
-        210,
-        58
-      ],
-      "pos": [
-        5348.51513671875,
-        1911.375244140625
-      ],
-      "id": 295,
-      "properties": {
-        "widget_ue_connectable": {}
-      },
-      "order": 10
+      "order": 49
     },
     {
       "outputs": [
@@ -1764,191 +1422,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 11
-    },
-    {
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "links": [
-            499
-          ],
-          "label": "IMAGE",
-          "type": "IMAGE"
-        }
-      ],
-      "color": "#2a363b",
-      "widgets_values": [
-        "reference_image"
-      ],
-      "inputs": [
-        {
-          "name": "IMAGE",
-          "link": 657,
-          "label": "IMAGE",
-          "type": "IMAGE"
-        }
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "type": "SetNode",
-      "mode": 0,
-      "bgcolor": "#3f5159",
-      "size": [
-        210,
-        58
-      ],
-      "pos": [
-        5036.1005859375,
-        2204.195556640625
-      ],
-      "id": 306,
-      "properties": {
-        "previousName": "",
-        "widget_ue_connectable": {}
-      },
-      "order": 67
-    },
-    {
-      "outputs": [
-        {
-          "name": "image",
-          "links": [
-            657
-          ],
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "image"
-        },
-        {
-          "name": "mask",
-          "label": "遮罩",
-          "type": "MASK",
-          "localized_name": "mask"
-        }
-      ],
-      "color": "#2a363b",
-      "widgets_values": [
-        "RMBG-2.0",
-        "Preview",
-        "ComfyUI",
-        false,
-        "white",
-        false
-      ],
-      "inputs": [
-        {
-          "name": "images",
-          "link": 656,
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "images"
-        },
-        {
-          "widget": {
-            "name": "rem_mode"
-          },
-          "name": "rem_mode",
-          "type": "COMBO",
-          "localized_name": "移除模式"
-        },
-        {
-          "widget": {
-            "name": "image_output"
-          },
-          "name": "image_output",
-          "type": "COMBO",
-          "localized_name": "图像输出"
-        },
-        {
-          "widget": {
-            "name": "save_prefix"
-          },
-          "name": "save_prefix",
-          "type": "STRING",
-          "localized_name": "save_prefix"
-        },
-        {
-          "widget": {
-            "name": "torchscript_jit"
-          },
-          "shape": 7,
-          "name": "torchscript_jit",
-          "type": "BOOLEAN",
-          "localized_name": "torchscript_jit"
-        },
-        {
-          "widget": {
-            "name": "add_background"
-          },
-          "shape": 7,
-          "name": "add_background",
-          "type": "COMBO",
-          "localized_name": "add_background"
-        },
-        {
-          "widget": {
-            "name": "refine_foreground"
-          },
-          "shape": 7,
-          "name": "refine_foreground",
-          "type": "BOOLEAN",
-          "localized_name": "refine_foreground"
-        }
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "type": "easy imageRemBg",
-      "mode": 0,
-      "bgcolor": "#3f5159",
-      "size": [
-        210,
-        126
-      ],
-      "pos": [
-        5036.9140625,
-        2060.15966796875
-      ],
-      "id": 390,
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "easy imageRemBg"
-      },
-      "order": 62
-    },
-    {
-      "outputs": [],
-      "color": "#2a363b",
-      "widgets_values": [],
-      "inputs": [
-        {
-          "name": "images",
-          "link": 588,
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "图像"
-        }
-      ],
-      "flags": {},
-      "type": "PreviewImage",
-      "mode": 0,
-      "bgcolor": "#3f5159",
-      "size": [
-        363.8044738769531,
-        706.4017333984375
-      ],
-      "pos": [
-        4912.923828125,
-        1900.166259765625
-      ],
-      "id": 350,
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "PreviewImage"
-      },
-      "order": 61
+      "order": 9
     },
     {
       "outputs": [
@@ -2019,7 +1493,7 @@
           "color": "#223"
         }
       },
-      "order": 12
+      "order": 10
     },
     {
       "outputs": [
@@ -2124,7 +1598,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 13
+      "order": 11
     },
     {
       "outputs": [
@@ -2192,7 +1666,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "ImageBlend"
       },
-      "order": 63
+      "order": 62
     },
     {
       "outputs": [
@@ -2274,7 +1748,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "DownloadAndLoadFlorence2Model"
       },
-      "order": 14
+      "order": 12
     },
     {
       "outputs": [
@@ -2417,7 +1891,7 @@
         3,
         true,
         "",
-        550708102276712,
+        107884819631214,
         "randomize"
       ],
       "inputs": [
@@ -2926,7 +2400,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 15
+      "order": 13
     },
     {
       "mode": 0,
@@ -2958,11 +2432,13 @@
           "paused": false,
           "hidden": false,
           "params": {
-            "filename": "WanVideoWrapper_I2V_00001_p80_pffay_1759929661.mp4",
-            "workflow": "WanVideoWrapper_I2V_00001_p80.png",
-            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/temp/WanVideoWrapper_I2V_00001_p80.mp4",
+            "score": "0",
+            "filename": "WanVideoWrapper_I2V_00002_p83_lxedx_1761107254.mp4",
+            "workflow": "WanVideoWrapper_I2V_00002_p83.png",
+            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/temp/WanVideoWrapper_I2V_00002_p83.mp4",
             "format": "video/h264-mp4",
             "subfolder": "",
+            "label": "Normal",
             "type": "temp",
             "frame_rate": 16
           }
@@ -3125,7 +2601,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "DownloadAndLoadDepthAnythingV2Model"
       },
-      "order": 16
+      "order": 14
     },
     {
       "outputs": [
@@ -3348,7 +2824,7 @@
           "color": "#223"
         }
       },
-      "order": 17
+      "order": 15
     },
     {
       "mode": 0,
@@ -3436,7 +2912,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "ImpactSwitch"
       },
-      "order": 65
+      "order": 64
     },
     {
       "mode": 4,
@@ -3514,7 +2990,7 @@
         4,
         1.0000000000000002,
         8.000000000000002,
-        456119785189911,
+        647583715067381,
         "randomize",
         true,
         "unipc",
@@ -3777,7 +3253,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "WanVideoSampler"
       },
-      "order": 18
+      "order": 16
     },
     {
       "outputs": [
@@ -3824,7 +3300,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "Primitive integer [Crystools]"
       },
-      "order": 19
+      "order": 17
     },
     {
       "outputs": [
@@ -3871,131 +3347,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "Primitive integer [Crystools]"
       },
-      "order": 20
-    },
-    {
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "links": [
-            588,
-            656
-          ],
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "图像"
-        },
-        {
-          "name": "width",
-          "links": [],
-          "label": "宽度",
-          "type": "INT",
-          "localized_name": "width"
-        },
-        {
-          "name": "height",
-          "label": "高度",
-          "type": "INT",
-          "localized_name": "height"
-        }
-      ],
-      "color": "#2a363b",
-      "widgets_values": [
-        640,
-        640,
-        "lanczos",
-        false,
-        2,
-        0
-      ],
-      "inputs": [
-        {
-          "name": "image",
-          "link": 473,
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "image"
-        },
-        {
-          "shape": 7,
-          "name": "get_image_size",
-          "link": 474,
-          "label": "参考图像",
-          "type": "IMAGE",
-          "localized_name": "get_image_size"
-        },
-        {
-          "widget": {
-            "name": "width"
-          },
-          "name": "width",
-          "type": "INT",
-          "localized_name": "宽度"
-        },
-        {
-          "widget": {
-            "name": "height"
-          },
-          "name": "height",
-          "type": "INT",
-          "localized_name": "高度"
-        },
-        {
-          "widget": {
-            "name": "upscale_method"
-          },
-          "name": "upscale_method",
-          "type": "COMBO",
-          "localized_name": "缩放方法"
-        },
-        {
-          "widget": {
-            "name": "keep_proportion"
-          },
-          "name": "keep_proportion",
-          "type": "BOOLEAN",
-          "localized_name": "固定宽高比"
-        },
-        {
-          "widget": {
-            "name": "divisible_by"
-          },
-          "name": "divisible_by",
-          "type": "INT",
-          "localized_name": "因数"
-        },
-        {
-          "widget": {
-            "name": "crop"
-          },
-          "shape": 7,
-          "name": "crop",
-          "type": "COMBO",
-          "localized_name": "裁剪"
-        }
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "type": "ImageResizeKJ",
-      "mode": 0,
-      "bgcolor": "#3f5159",
-      "size": [
-        315,
-        266
-      ],
-      "pos": [
-        4562.64892578125,
-        2233.681884765625
-      ],
-      "id": 274,
-      "properties": {
-        "cnr_id": "comfyui-kjnodes",
-        "ver": "0addfc6101f7a834c7fb6e0a1b26529360ab5350",
-        "widget_ue_connectable": {},
-        "Node name for S&R": "ImageResizeKJ"
-      },
-      "order": 54
+      "order": 18
     },
     {
       "mode": 0,
@@ -4027,11 +3379,13 @@
           "paused": false,
           "hidden": false,
           "params": {
-            "filename": "WanVideoWrapper_VACE_startendframe_00003-audio_mpfef_1757121003.mp4",
-            "workflow": "WanVideoWrapper_VACE_startendframe_00003.png",
-            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/output/WanVideoWrapper_VACE_startendframe_00003-audio.mp4",
+            "score": "0",
+            "filename": "WanVideoWrapper_VACE_startendframe_00002_p83-audio_qisyt_1761107573.mp4",
+            "workflow": "WanVideoWrapper_VACE_startendframe_00002_p83.png",
+            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/output/WanVideoWrapper_VACE_startendframe_00002_p83-audio.mp4",
             "format": "video/h264-mp4",
             "subfolder": "",
+            "label": "Normal",
             "type": "output",
             "frame_rate": 20
           }
@@ -4203,7 +3557,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "LoadImage"
       },
-      "order": 21
+      "order": 19
     },
     {
       "mode": 0,
@@ -4246,120 +3600,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "Text Multiline"
       },
-      "order": 22
-    },
-    {
-      "outputs": [
-        {
-          "name": "images",
-          "links": [
-            524
-          ],
-          "label": "images",
-          "type": "IMAGE",
-          "localized_name": "images"
-        }
-      ],
-      "color": "#2a363b",
-      "widgets_values": [
-        false,
-        272,
-        272,
-        144,
-        128,
-        "default"
-      ],
-      "inputs": [
-        {
-          "name": "vae",
-          "link": 487,
-          "label": "vae",
-          "type": "WANVAE",
-          "localized_name": "vae"
-        },
-        {
-          "name": "samples",
-          "link": 488,
-          "label": "samples",
-          "type": "LATENT",
-          "localized_name": "samples"
-        },
-        {
-          "widget": {
-            "name": "enable_vae_tiling"
-          },
-          "name": "enable_vae_tiling",
-          "label": "enable_vae_tiling",
-          "type": "BOOLEAN",
-          "localized_name": "enable_vae_tiling"
-        },
-        {
-          "widget": {
-            "name": "tile_x"
-          },
-          "name": "tile_x",
-          "label": "tile_x",
-          "type": "INT",
-          "localized_name": "tile_x"
-        },
-        {
-          "widget": {
-            "name": "tile_y"
-          },
-          "name": "tile_y",
-          "label": "tile_y",
-          "type": "INT",
-          "localized_name": "tile_y"
-        },
-        {
-          "widget": {
-            "name": "tile_stride_x"
-          },
-          "name": "tile_stride_x",
-          "label": "tile_stride_x",
-          "type": "INT",
-          "localized_name": "tile_stride_x"
-        },
-        {
-          "widget": {
-            "name": "tile_stride_y"
-          },
-          "name": "tile_stride_y",
-          "label": "tile_stride_y",
-          "type": "INT",
-          "localized_name": "tile_stride_y"
-        },
-        {
-          "widget": {
-            "name": "normalization"
-          },
-          "shape": 7,
-          "name": "normalization",
-          "label": "normalization",
-          "type": "COMBO",
-          "localized_name": "normalization"
-        }
-      ],
-      "flags": {},
-      "type": "WanVideoDecode",
-      "mode": 0,
-      "bgcolor": "#3f5159",
-      "size": [
-        315,
-        198
-      ],
-      "pos": [
-        5653.107421875,
-        1908.869140625
-      ],
-      "id": 296,
-      "properties": {
-        "cnr_id": "ComfyUI-WanVideoWrapper",
-        "ver": "d9b1f4d1a5aea91d101ae97a54714a5861af3f50",
-        "widget_ue_connectable": {},
-        "Node name for S&R": "WanVideoDecode"
-      },
-      "order": 80
+      "order": 20
     },
     {
       "outputs": [
@@ -4630,11 +3871,13 @@
           "paused": false,
           "hidden": false,
           "params": {
-            "filename": "WanVideoWrapper_VACE_startendframe_00004-audio_ncaxp_1757121046.mp4",
-            "workflow": "WanVideoWrapper_VACE_startendframe_00004.png",
-            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/output/WanVideoWrapper_VACE_startendframe_00004-audio.mp4",
+            "score": "0",
+            "filename": "WanVideoWrapper_VACE_startendframe_00001_p83-audio_shuqc_1761107557.mp4",
+            "workflow": "WanVideoWrapper_VACE_startendframe_00001_p83.png",
+            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/output/WanVideoWrapper_VACE_startendframe_00001_p83-audio.mp4",
             "format": "video/h264-mp4",
             "subfolder": "",
+            "label": "Normal",
             "type": "output",
             "frame_rate": 20
           }
@@ -5180,7 +4423,556 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "ImpactSwitch"
       },
-      "order": 46
+      "order": 45
+    },
+    {
+      "outputs": [
+        {
+          "name": "feta_args",
+          "links": [
+            729
+          ],
+          "label": "feta_args",
+          "type": "FETAARGS",
+          "localized_name": "feta_args"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [
+        2,
+        0,
+        1
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "weight"
+          },
+          "name": "weight",
+          "label": "weight",
+          "type": "FLOAT",
+          "localized_name": "weight"
+        },
+        {
+          "widget": {
+            "name": "start_percent"
+          },
+          "name": "start_percent",
+          "label": "start_percent",
+          "type": "FLOAT",
+          "localized_name": "start_percent"
+        },
+        {
+          "widget": {
+            "name": "end_percent"
+          },
+          "name": "end_percent",
+          "label": "end_percent",
+          "type": "FLOAT",
+          "localized_name": "end_percent"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "WanVideoEnhanceAVideo",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        277.0943298339844,
+        106
+      ],
+      "pos": [
+        5397.43701171875,
+        2237.99267578125
+      ],
+      "id": 407,
+      "properties": {
+        "cnr_id": "comfyui-wanvideowrapper",
+        "ver": "1.2.8",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "WanVideoEnhanceAVideo"
+      },
+      "order": 21
+    },
+    {
+      "outputs": [
+        {
+          "name": "*",
+          "label": "输出",
+          "type": "*"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "WanVAE"
+      ],
+      "inputs": [
+        {
+          "name": "WANVAE",
+          "link": 485,
+          "label": "WANVAE",
+          "type": "WANVAE"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "SetNode",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        4857.3603515625,
+        1183.6746826171875
+      ],
+      "id": 291,
+      "properties": {
+        "previousName": "",
+        "widget_ue_connectable": {}
+      },
+      "order": 38
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "vae",
+          "slot_index": 0,
+          "links": [
+            485,
+            749
+          ],
+          "label": "vae",
+          "type": "WANVAE",
+          "localized_name": "vae"
+        }
+      ],
+      "size": [
+        311.6885070800781,
+        95.98224639892578
+      ],
+      "pos": [
+        4710.69775390625,
+        1176.1046142578125
+      ],
+      "widgets_values": [
+        "Wan2_1_VAE_bf16.safetensors",
+        "bf16"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "compile_args",
+          "label": "compile_args",
+          "type": "WANCOMPILEARGS",
+          "localized_name": "compile_args"
+        },
+        {
+          "widget": {
+            "name": "model_name"
+          },
+          "name": "model_name",
+          "label": "model_name",
+          "type": "COMBO",
+          "localized_name": "model_name"
+        },
+        {
+          "widget": {
+            "name": "precision"
+          },
+          "shape": 7,
+          "name": "precision",
+          "label": "precision",
+          "type": "COMBO",
+          "localized_name": "precision"
+        }
+      ],
+      "flags": {},
+      "id": 293,
+      "type": "WanVideoVAELoader",
+      "properties": {
+        "cnr_id": "ComfyUI-WanVideoWrapper",
+        "ver": "3869b0482b615b6a8fd6f346467c5ef6627eed72",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "WanVideoVAELoader"
+      },
+      "order": 22
+    },
+    {
+      "outputs": [
+        {
+          "name": "*",
+          "label": "输出",
+          "type": "*"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "WanTextEncoder"
+      ],
+      "inputs": [
+        {
+          "name": "WANTEXTENCODER",
+          "link": 486,
+          "label": "WANTEXTENCODER",
+          "type": "WANTEXTENCODER"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "SetNode",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        4865.33154296875,
+        1344.8365478515625
+      ],
+      "id": 292,
+      "properties": {
+        "previousName": "",
+        "widget_ue_connectable": {}
+      },
+      "order": 39
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "wan_t5_model",
+          "slot_index": 0,
+          "links": [
+            486
+          ],
+          "label": "wan_t5_model",
+          "type": "WANTEXTENCODER",
+          "localized_name": "wan_t5_model"
+        }
+      ],
+      "size": [
+        304.67938232421875,
+        130
+      ],
+      "pos": [
+        4717.92724609375,
+        1326.699462890625
+      ],
+      "widgets_values": [
+        "umt5-xxl-enc-fp8_e4m3fn.safetensors",
+        "bf16",
+        "offload_device",
+        "fp8_e4m3fn"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "model_name"
+          },
+          "name": "model_name",
+          "label": "model_name",
+          "type": "COMBO",
+          "localized_name": "model_name"
+        },
+        {
+          "widget": {
+            "name": "precision"
+          },
+          "name": "precision",
+          "label": "precision",
+          "type": "COMBO",
+          "localized_name": "precision"
+        },
+        {
+          "widget": {
+            "name": "load_device"
+          },
+          "shape": 7,
+          "name": "load_device",
+          "label": "load_device",
+          "type": "COMBO",
+          "localized_name": "load_device"
+        },
+        {
+          "widget": {
+            "name": "quantization"
+          },
+          "shape": 7,
+          "name": "quantization",
+          "label": "quantization",
+          "type": "COMBO",
+          "localized_name": "quantization"
+        }
+      ],
+      "flags": {},
+      "id": 294,
+      "type": "LoadWanVideoT5TextEncoder",
+      "properties": {
+        "cnr_id": "ComfyUI-WanVideoWrapper",
+        "ver": "3869b0482b615b6a8fd6f346467c5ef6627eed72",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadWanVideoT5TextEncoder"
+      },
+      "order": 23
+    },
+    {
+      "outputs": [
+        {
+          "name": "int",
+          "links": [
+            575,
+            585
+          ],
+          "label": "整数",
+          "type": "INT",
+          "localized_name": "int"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        15
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "int"
+          },
+          "name": "int",
+          "type": "INT",
+          "localized_name": "整数"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "Primitive integer [Crystools]",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        4350.22705078125,
+        1075.209716796875
+      ],
+      "id": 343,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Primitive integer [Crystools]"
+      },
+      "order": 24
+    },
+    {
+      "outputs": [
+        {
+          "name": "selected_value",
+          "links": [
+            583
+          ],
+          "label": "值",
+          "type": "*",
+          "localized_name": "selected_value"
+        },
+        {
+          "name": "selected_label",
+          "label": "标签",
+          "type": "STRING",
+          "localized_name": "selected_label"
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "localized_name": "selected_index"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        2,
+        false
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "input1",
+          "link": 585,
+          "label": "输入1",
+          "type": "*",
+          "localized_name": "input1"
+        },
+        {
+          "widget": {
+            "name": "select"
+          },
+          "name": "select",
+          "type": "INT",
+          "localized_name": "选择"
+        },
+        {
+          "widget": {
+            "name": "sel_mode"
+          },
+          "name": "sel_mode",
+          "type": "BOOLEAN",
+          "localized_name": "选择模式"
+        },
+        {
+          "name": "input2",
+          "link": 586,
+          "label": "输入2",
+          "type": "INT"
+        },
+        {
+          "name": "input3",
+          "label": "输入3",
+          "type": "INT"
+        }
+      ],
+      "flags": {},
+      "type": "ImpactSwitch",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        315,
+        122
+      ],
+      "pos": [
+        4274.974609375,
+        1026.9127197265625
+      ],
+      "id": 344,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "order": 40
+    },
+    {
+      "outputs": [
+        {
+          "name": "int",
+          "links": [
+            586
+          ],
+          "label": "整数",
+          "type": "INT",
+          "localized_name": "int"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        6
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "int"
+          },
+          "name": "int",
+          "type": "INT",
+          "localized_name": "整数"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "Primitive integer [Crystools]",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        4298.76904296875,
+        1309.9046630859375
+      ],
+      "id": 345,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Primitive integer [Crystools]"
+      },
+      "order": 25
+    },
+    {
+      "outputs": [
+        {
+          "name": "INT",
+          "links": [],
+          "label": "整数",
+          "type": "INT",
+          "localized_name": "整数"
+        },
+        {
+          "name": "FLOAT",
+          "links": [
+            793
+          ],
+          "label": "浮点",
+          "type": "FLOAT",
+          "localized_name": "浮点"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "a"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "a",
+          "link": 789,
+          "type": "*",
+          "localized_name": "A"
+        },
+        {
+          "shape": 7,
+          "name": "b",
+          "type": "*",
+          "localized_name": "B"
+        },
+        {
+          "shape": 7,
+          "name": "c",
+          "type": "*",
+          "localized_name": "c"
+        },
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "type": "STRING",
+          "localized_name": "值"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "SimpleMath+",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        315,
+        98
+      ],
+      "pos": [
+        4715.0419921875,
+        1070.3985595703125
+      ],
+      "id": 431,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SimpleMath+"
+      },
+      "order": 41
     },
     {
       "mode": 0,
@@ -5188,20 +4980,28 @@
         {
           "name": "p0",
           "links": [
-            747
+            791
           ],
           "label": "p0",
           "type": "*",
           "localized_name": "p0"
+        },
+        {
+          "name": "model_1",
+          "links": [
+            792
+          ],
+          "label": "model_1",
+          "type": "WANVIDEOMODEL"
         }
       ],
       "size": [
         270,
-        98
+        78
       ],
       "pos": [
-        5333.0703125,
-        1940.8702392578125
+        4724.412109375,
+        1026.0521240234375
       ],
       "widgets_values": [
         ""
@@ -5217,34 +5017,437 @@
           "localized_name": "pwd"
         },
         {
-          "name": "embeds_1",
-          "link": 746,
-          "label": "embeds_1",
-          "type": "WANVIDIMAGE_EMBEDS"
-        },
-        {
-          "name": "image_2",
-          "link": 748,
-          "label": "image_2",
-          "type": "IMAGE"
-        },
-        {
-          "name": "vae_3",
-          "link": 749,
-          "label": "vae_3",
-          "type": "WANVAE"
+          "name": "strength_1",
+          "link": 793,
+          "label": "strength_1",
+          "type": "FLOAT"
         }
       ],
       "flags": {},
-      "id": 415,
+      "id": 432,
       "type": "RHHiddenNodes",
       "properties": {
         "widget_ue_connectable": {},
         "Node name for S&R": "RHHiddenNodes",
-        "info": "Z0FBQUFBQm9xRnVGYmM3RVJkNExTa1l5VHlIMjBXbmdrNUdGMTFEaEl2VGhMcFNDQ0xXbmp6d201RzFRMTJRUndkVGFtQ1NkT0NiMWUxUFFzT29yQlVIVTBCdlNPLXlJcDd6azA2Sm5lMFlqbU1fYllOOTVrZXROTmJ4bGVYZ0lWSkdDMDVNWFFHTW9vSGx3RmFxamRCaVpnWW15Qy1iWHdDZkRDazlnYllxVHh0ZXpSQ0VwTy1uNHByaWxpczcySV9pYUZzTWNUTzZxYms4X2ZLRlFjNk42SWFYV0RxTl92YUN4ME0tMXY4RnhUTE4xQUh6WGtKaHdUejFfM21OWlRlRF9uUVZDemxNMkN3R3NUMm5aX2FjV0FObW9ScnlDTEVEZWZHQno1aU5ZRVZQUGpKRld2VTdkdlBRX09iZG0wemJVZmJQMVZ5Vk0zaC1QRlMzX2txYlVndFBJb1RyaUdOSWZGMHd2TmpqeGJhdGdGV2lIeUJoQ0NyQUcybVNoR0p6ZV9jRWlveDdtM1Z1WW1fWXlEWmQyOGcxLUN6Q1V5OWZyRVFVRTc0LW4tZnVVTzl6NUdHS2VYMlpGMEpaUFNxSG5IX3FiUkVsRzJBRGNxMExXeHR0ZEptdkt3cWlxZS1hOHhVT0l6eFZPbXBNdUhBcm8wQmlsUUJydy1VUVRMNm5PYlFweU8wNGFoWkIzVDNhRElqVGtfOWo0d1N0YWN1NGxiemNQSWxpcGF6a1lhNlljOUl6Y1g5eEtqU0FFX3FmcXZOUXpWci1pckxUMFlYYWtjWEtDYmpvQUhGMWcwTmZRTEw1dU0wbkhza2ktRER6UFY3Ymo5M3ROQnhDQUdhcVJGMlp5eV83NzR2NHNiTzR6bVhRSDBrVnQ2bnNiVnlxaExrNXdOYmRvSTJ1V3dvNHlaZkRpQl9IcUVSOThmMW5qT19QaHpRWWpLR0dobU8wM0FqbWtaRTZiTzVlRlhGN0pxUldQcEtOaG5nRTBCMlVrSDkyNTQxZnZoRmtFRUhFVGFXb2dwNHl5TnBETFJGZkpkTEJDMmVYaHEwaXpYOGNZc053WkFVd2o2MWpwNU82MjhySzZVVmdkZ3E4T2pFUmYtOF9QTU5nd0lsV21XbnIwaGdYRlpmUlFYRUxtUUt1RkVTLXkwamN2R2h4UnBJS2s1MTBXV3VYdGw2azhHRlZ0LS00cHkzc0Q4bU9rNjZxdnVaeUtCNFBIU3o4eGlDUld5NGlPVlVlcXZObXduend6ZnpwWEJINUtCNWNQMVhxaGxZNHpfQXg2WXBQQXlMNWJHcFdxbGxhVTJjWUozaTZIVnF0V2tOU2x1cEFUeWVPS1pMNFFBUEVaUy0wUVJvODAzbUplTW9PaHRiNXVKdkI2ekgwU1NoejEyT2VaYUVKQXZBWVZoV1B5T3VaWWV1bW5ESHFuX3NNeEhjeENheFBDdkYxbl83bXgtTmdmbGZsQ1ROWDdVb2dTbVNoZzI1UTRhM3JFWDJJSzl5TDl6YU9WWnAzb1l4LWhXU0tLQTVHczh4c2pnU3NpTGlza2VLdkpTU2FqWUNTdGtXNEp6MjJOVkpSNUJBc1dPLVhfODN6enNkUnZYYzRNOHQ3bDU3VzBqZVE3LTl0ZjlmbURpUFNwMzRVSjBGNk5QM3dENEpzdldEQkRma2N1TllhQW9XYUV1eFdNTzFjZTlwNk5pTi1tbHFFaGprN2hWeHJxdDdQUS1NeDAzUWgzOXVTSjZ0VFZhYTVQVk5oVmlRWldOQVV3cXVLby00N1VHeXZVNVFtdXl4T3V4S0lBUEZiRHJfN2tiTC1NOTZxMjd0OGFNOHBzdUZ4anFmbUE5R20xQ0VqdjNaeU1IUVBCejVCNThGdVdLa0pEYlQ3UnF4MkNsVFNWYVRjcy1kT2xuZXdOQ0FvWFNpQXlyMnZCVUNRcHc1cnlfZGswUzNFd3ZKT1RWTWNHOGNEaEtOWG0weDkxRVRSeEFtaF9wNUZCUEt3ZFQ2NWttNnd2NmNvenNYQjFpc2o1aHhOUkVTOTkxTlBwTHRmaVJKVUhILWY3dm9pWUlrUmFkdF8tYXdZQWY1V19lQ3ZNMC1HQzh0XzNjeTVkRTJSc2JBMXpPc3MxVHZOaUl1OGItQlc3OXZvaVBVcmlZV195REE0QnRfUU0wSlZFcEdacEM2ZFZVY1BuT21SSmdOeWVmNW9fZHlYS0ZFUWdzOVowRU12VWJEbnVmYmxUd0g0NXZISHBQMDg5QVI2WE15enpFUnNWV2JZeFdSMTM5S0JmcEI4Q2FRX2lNakF0Ym95NS1NQy1TR3ZHV01udmk5c2U3bDB6d212ZzdaMHI0X0draU9leFRENHRyVlZLbnRQTWhJaW9scGdyb1VHOEtkLWhtUGFsVFhEV1hmRFA2OG9zTEo3VzQwVVhlSjhuQzROZ0ticEZXNDJpSl9jZ1cxMFB0dFVxSWZJTTlleGg0QWNlWXFXSjhWbmZpNEZIVkplZlppTW00X0RhU2JkazlyMlp5Z1RFbnE0akV0TU1WSldWcndaaXhfUFkxUHU2cFhsZncyWXJQYlVFUFpOUWRUQmxyckg2RDdaR2ROakFhazdaaTJsLVl5WkNkdW1HMkxsOGZvMktZcFZYR3h4SW1MLTlHNnIwV2Eyb0o0cTlXeGhXUUFOWEFXZFcxV1U4ekFFQVNVRXY2cUhKM0o0M3pkTVRIRXJtb3k2QjNPUkZtWkNoRko5UXppWk5HMS1yeE1pMGpqbUk1X29oQmt4NTFLWVVuNlo5VXRkVzIwMUhNV20zS3JKX3pSYnFlVnFtXzFBMXhIc1dnSzUzUjY0MThDa0RXMXlCU21XMlFyUlNxVklfb1I4dk1kdEduOGRKLTJhUEx6NU9TN1l4VDV4TmZDd2lSLXQwbE54LTZKVkJwLU15WmxSc2VVR2syMUlxOW85VDlUblM3ZjdFcXhvSDR0Yk9xc1JjMXR1QzZZV3FBMktLdXZjQy1XR0YtUWhpMktWZ0dETkNpSXlVTmdnM2RPcndxeHFqTmVHX3MwUERIS1o5SG5lRTl4a2M0bmlSVG0yTkgtbFJSRFktYWhIVlRBcDcwclFYdk1EbnJQSFNyQzlfem0zWFVDdk1RX0lDSlNKcV9aN2JsMXprOGRXMVk4QUdVWEdRWGJGNE1URHZ5ZW5XcFFHRzBrZ3RONEFUYlVNUkVHX0FVVGNGNVJBQW42azRjQzZEWThlcEJVTXhxT0RnWWZSR3ZaYzVneklwN09KRXBfNlV4WXpjNk1sbXl6dVhNRTVFWlNteFNkOThyY1VfWXJtMy15QUF3ZUhOMXVobGU5MEQzMXNCek8taVo3QjM3ZWZwNXBYOTN3V1h1VnFLRFhRdmctVmJPRWhQVFU1NVl6cUI3MWFjZ3EtLXhqWUUtZy1QOGE4bk5OQVdYeDZqMlZUVmtFSXVLT0JTQzg1YW0yOFBoUWlGQnpVMEw3dm1mVTU2ZWxJQ0JGQ2lrUzlRZmJYRGNHVEZPYXg1dk0yTlQ0Q3hjOTRrM0VUT19mNFcybzNneWM2UnotWGs3SHFZM1kyTjVibE0wM1hOX2djblg0d0d3VzYybmladWQyTlowOVhfdE9zU1JDUzZpanUybjYyWUJmSzRPRjQ3S2NXc0ZoMjA1ZGJicmtka1BYa0F5M3FXQ1B1ajFxMnd0WkFIRld6RGU5Sm94X3RseVBIN0JTNWktV2JSTWphUEFTaFM5UFNDbnJxTzd0X2FOSGQwSDR3UDJ0NWtyWmNOTVJrakhDeGpWbU5KOWNfdWw3NjFPeWhKY0VrV3MzQmwxQ1RfOTJXN0VCTS1aWlRLZUNMR19RRkpFbm5FN2dHUl9kTzUzWHczMGNzNmIxNUVBNjUxdXdEalB2M1RrclVzMXBUNG9CdDdpZXZobE44eURNc2J2V3hXdHZVZkhZMWZSQzdpX2pUem01S0RwMHlINlVkR2IzaTJVUnR5SEY2TnotZVRnSTEtSFVtSnVnNGVyTDZTVVhFVkVTd0ZaUkJHXzhZUlhWdVRwNU9icXZ1aXVZY2lJdHQxVkQ5c2Frb1RVd0NEYm1ET0tHd1VGTzc5NlRidnl0U3VCSFBiM1lnUGstZmpQN0FWU25lMlp0YzVhaG50TUZjN3hlb1ptaVlMWklZUGx4a0JHZGtXVUNQMklMWl9iWllxTF9zdVlodzBXakpXVHozdk5ITTZ2NzZXS2ZkWUFhUUM2QXQ2N3pMYW9RUGc4UDU1ei05cGRocGEtNGRsRnlCQmJqMUZaOGdvZnRJMER6UFYxcUJ4c2JMQWl1OVpvUEZqUHR4SGFyWEJCai1SV0tHd2dLZ2ltOEhqRzZtcWRkVDhTaEN5NGdQeU5EZ3F6MFI2QU13OWFycGl0N1N0UXdPTWZ1ZWZmZC04dFJQQjB2YmpTd20zMnZfTUhHNTBFeVM0dDExLUVJOXYwSm5SM3EyUlVHQnBMdkIxNVU1bWdLNU4xMnNYSHNQM0V2ck5nQjB1RUNReEJMb1F6cHctVVV6dFVHQm1yMTZpaDE4SFBOX2RsY1FSSU13eVpzSnJSTURaUzdkWTB6SkxWTjE1QktPQkV5S1FLN2VjSTVadjFqQ19SVkVLODVXNnhGaG9TZHF0bG1NQ2V0YUpDb2c5akJYZ2owd254NmNfMnEzVEI5LWlVTkRMdEZiMXVBVzJjX0dGWFVCZnI5UWlYSWpKWXVPTTF2Z1A4ckU2ZC1IZUpMR0IxZUs1c1drS2R4eFF4OHZocW9FbmRJOXl0RUdzVW5NT2ZJdFVJZkF0cy1zZk9sc0ZEVUhxZnV3UElXam5iQmxqcW9IWkJlMklvUFptWVJSa21wQjJETXYyN0FVSFpTLXI2MWk0U3pJZ19TclJldndSRlNFdXEyZlJMVTAyUjA2ZmU3NmJqckdxTHBuYm1NTWpGYmlkSTcxcVhrY3FfOWhDR0NMYzM2Y3k2dTZWQXNReVdrbkNVUURHZ2V6Mm1aM2c3WVVnVmRib0xDTlRURnhDVHo5d1dQT2VIS19CTDF2OG41b1RZaGx6RHp2Rlk4Y0JueEJtdkZ2Yk9qcWVxS29telctOF9OUk13UlEtVk5FN1RXdDZqeWw3V2VWbmpGY3NkSFhBZDN1WmZ1Z2xUaXJzdmR1aVhMMm1aQVZEdks5cjJndElMNUZ2eXR2dmV0M1I2dlpITGM5c2hVMWhYUTU4V2Y1VDVrLWhrY2dYdFdCZFFWMDNBaTVSUnkwS1VLZ0twaVpPYWgzRUtmSWJUSlJOZDhoODAyMlQ3WEZjWjBEQW4yWTRhb1pmaC1jWUptSnI5RnFBcDRrRndBYWRtUWZLT3l5aFRaUGpIRFpOWHVnNlJkdVZyaU13NERwYWJPMVg2ZkZWMHJNOUJMWk1ybnNMVjMybm4temRlMGpad045QzZYSFlUVXZCZmd4NWVIYV9OYUVKaHdjWjh3NW9ZLXRyM1NPLVVHTUhheFprcXVWaVNCZDJ6LUxKMjhwSmlxX2N0SXNuMHZMdkhKX19CZm5OM3FUMFRiM3djUlNFVmVicnNCbjhvZ05scVppcEpBSHlUb211RFVkUFI2N1pRaFptNDNHN0l3U203di1Cc1RZYlB3NEM1enRUNS1FeUQxZE1halFHLWs3ZnFfZkVIWG00cjVBRGZSYXJBR2FwaEdPUElNbjRfelViZU8yNHRzUEJEZnFCTVF2RUNiZnowRXZyTWZsLVdPOEM2S3QtNF9OekF4UUkzX2JYU1VfVENGbXNiN0dVUWlvOHhxQkN4Y252NklDVWFSaHpaZnM3YktMRk1rbGZSRzQ4My1SeHJib1FNSXdweDQ1dVkxYTdDSVJyM21yY1c5aWtIcUhCVF9mNUJJTHhENXNWZHVUM0xGUWlXeWdvNW55VjdjTkdGUDB5X1lGb1Y1c296OGNNLVNOajA1N0FtXzVyNC0yU1BBN2FDQzFrTTRtUXhVTXNQRktrWHZkSHNMVk1vM2twaTEtcGR0MU1aUk9tcnd3bzBZNElIRFZraWpYMW1rMGJqYnVhLTBOSzF4ZzFMcS1Uazl2enRkejJfOWhUU2EyYko4NlB1cTREZHhtZ3liMElUWWFLTXN5dDg5ZXhoQktlZV9FUjJvcVV1TmpOM1RFcGhJR1pMTWtSYksyRVUzWFkxMV85YlZDZWMxQmZmcW81dzhfOGh0YWx2eW9Cc0Z0cG9XM3FhTnE5M1M5V0pkQ0plTlBERUZMRVB6LTU5WGl5cUIxT0pJeUYyUHFEV2ZSRjVnOW9ESUpWSDRNd1l2MHZFSG0wRUEtYXhpWi1lYl90U1JlU3FKSFpTS2FDejAxNnppNFJQSTRhazJCRGJVakdndVpVcTVsWnJhMmI0SjN5aEVjY0xZaEZiYWdxY3dvU21qd0diUDBwdDV4V3IwdUNuSTFNbW9zNWliUjdJcGlDQkpZM3BFM2hWd2xYUlRHaU9hNGJhWDRVaGV6cjF4ZGdUalVKOEZrVnNLb2JUd2steUNXVHVyeklNYW9TNklZb3ZxX0tRVnFIX2JLeF9qaFZmNFhIeG9LNUNLbEVuVFVEYVZ3TEI0MnBqMVNKb3NvSHhYUnVRT0ZhM0RTaXM4MmNtZFR4d3NJQjUyNlBZX0daV3U2b29ZaU9lbEZQbkRxSXhIbE1OdHJnbVJnVWdHTDd4dmxZX2xTSVlIR0U1aC1MTS1Cc3FnNk1palYybTZ2TU84aWJkUk10YldPN1NBZlBFRnlhdU5fV0Z6VnVpdTFRaFdibDhodUlWM09scV9ZcHl6TnNTY0VsejRlRkJCbnV2TWdMUlNvblU0ZDg5ajFmQUNvdTN4UXo=",
-        "ref_info": "Z0FBQUFBQm9xRnVGdkg0S2pDNy1nYmROT2E4SW41THJnbXFjMzJlTGkxWW1MYnkzSEktR0U1Zk5FVEtfcFNCeEhlT3VCOXo0Q21sd0VJMGhMcjdJM0hFb2dNTHQ1OXB3c3QyaWtLMF9mVXlHMDc2ZDZvM0hTWmw5d3l2MXd3MUJfRG1TcFZEZDZ2aTg="
+        "info": "Z0FBQUFBQm91NFlzRzVaaHBPNFFGOFA2QmFZc1pXNW5sb1NXMzVSdmVtQ0VRanBTaWVIb2RNamVJSXJMWlMwYl9wRGdwYjNIWUNIak9nS2Q3YVVfb0pQWWFrVlF2aWZpcmg4TDdBYkI3Tjljenp1NVdOcHFPVEFrQVJaRllxX01QUTFSTkVlX2xJOFpsTGN1MkFQZ3YyeGZqY3ZJRDVDcjh2dGFjcVc4cVNoZ3VzMUpIWnNBTFd1bTkxYWNkMThiUUV6SFpRMnJ2TzlMcDJKQm91TVI2bDJuaTFSVllmeC1qeUp2VF9aZDRndzZMNXh4bUVRWHdwQWFRb1BKZVdhem9vczMyX3Rublp3cmNuV2RHc1hRdFc4cEpKbjVpMEhyVENBVm83R3ExYVJVUUhveElnMVNZV3BxLVRtazhtclNnSFIxc0FzR1ZnRU0xOTRnU1pzMG5jN1p5VXBra3ZPVnd2WWtOX21BVkdwaTRBbXNUcDVMck1rdTZqbEJHNFhyM3ViYkQ5Q1NIWW9BVkwxb0tkMXNOVXk1Z2I0eWY0YlJRWDlYYWZsenNxRWVBTHpQR0NHa0I5bGE2NjlCQUNTOHQyZUJNZWR6d2ptYzlRUDdld2JaaTJmVnJqTXdDZmRwMnZtS0ZWbDAyLWtZZFVwLXdJa1ZxVWpJLVF4TWYxQWpaQldDUEJ0aXBnZ2NiakdJd3RHVEIxZFJmNTBRQmVWajFoWS1mYVRKdl9NT295SzhmaVpnd0I1QW5ESzlyRThPd1RVREhMOVUwajhnU1BXdm9iekJGMEZMNWl5bEZNMTl6SVRwOWdtMmxIalpFZ0R5MTRLSENIdnpDQ0w5ald3SzVnWUpWa1ZaU3lhRHhvbjB6alhwWHRzV19xRm1GenNGSXBKU2VvOWo2TGJETVpveERiTkFuTEdJWHhzZXRzX3VxS2FfLXl1aDdOZ29PdDdaeUlUVkxsVTZCUENFREVWRk8zb2VGNmNvcko5b1pBckJfZWFRSFZUTFExa2Vva3FyVExPREN6N2N3QUpjU2xqWWNrNllNN2hnR2JhNUNYMC1MRHJ4S253clkzbVQ5OHJzRHRDcXdFQ0o3UW5hWWxlODd6cWU0WWkzSDdvVmJLQ1dwby04QmMtYzhIMldYZTVfNjRTSDA4Q3IwbGFOcHJWTjcxc19BaVI2S2FmWW1LZVZlMUpGNVpXLTc4SXU4WHp5ZFZwUVUwQ0dUTHM5YVdKb0xRY3hxVnVob2xoMWRFWWdaRExxVWlDbXJCZWs0bkh3YTl6ZzFKN2cycDU0QVp4aFZ5STVLQWE2d0I2cGNqcm5SVGg5YnFfWmthUHlSZHh5eGIwQ21iLWtzZHVnR0pFaUFpT1BDUHViZUZmT1NjamVPc2JzeV93dEg1NEg1MjhhOTZTcHlQVUFNcGhpamVSYm1Va2I2NGtpdUk4QzNMMXlrbElCaWZoSzB0bHpLTXE0cjZLbnNiSVU0TUhSbHhDM2JOYmpwbjNPdmxUZDZGYkJDNXZGaUEyZTVkNFBBS0sySlkwbVR3M3JJVDFsSDRncHZMaURiR1Z6aWxwT3Q0WFQ3MzhVN1hPTXpsVGRfaFE2NkdhVFRyMHRndmFRT003cklYY0JKZXU5ODZoaE5MMUpfekI2WEcyb2cyZmZ1TjBmVzBuSXJQWDAtVk42Q2FmRmJSckltWXBGTEt5UzEtdkJTZE5EQmh1UEJ6YkZoY0tpMWZfbjVKc1J3R3hENVo2SG5PaGU5WHlkMlkyTmFTNmN4WDlrZ1JwLVA2RElua2M3ZjlzZC1aQjdfejA3ejJZaFNxSEljSDNZbGljTU9sQ0luZnRvRFM1WVgwX2VrQ1hFLS1EdE1QWjczWW5GbVZNcVRyN1dveWxYV3R4R3F6by0zLW9YMF9KZjY0ckJQZ0lHYU1FaHVPbDZlRjkybTMtbmJURE52MGhSU3phcnBseHl6eE1oZHFPOURqMEtDSU9RM0xVVW1yZ0tJTFNMSDlmcGw3UkZ1TkNEZV9OOVh3ZTQyN1JsbVV6Tnk3ZEpzZm5SZ2lUMTFaRUJEQTRvRXVGZFB3d001R21mVkktM25RcFVqZVROMmJZQ2ZBX3JfSU1FdnVqclFjSWFlUTVfRE9UT05sWVhnX1JCUmRscE1tcjc4Q2pPU2w5MWhROTFtWmNNeDhZRnFVc0tUVDdsemttZjRNNWJlMmxpemVybXZxeDhaYWtWV28tX1BlejdNMnBZdUcybGlRdjBoUjBBc2sxbTJ1R1lKWUFGMFgtdnZKeUJKbDJsaV8wMjd1SWRLek5sTTgwTmp3eXdydG5xekJxNmYwZjA2WHJ6bm1EN0JWUmotMjdhZDdCY1llUkJrT1k5aUtlZ002OW5DRnJHWkJkaWFjM3FLaHRJZVotRVFWc0VpWkdlVGJsbVRuS2U1cjdreGhKSjFfbUd0Ykdwa0Nud3BHbzY3c0ZvVGJ3a2EyWE5Xc19WMmVhc0lZUm00Z2RRQndHNC1ROG44bkhxTGVRTW1QWllQMnhVdk5rRXMza2FORG5SODJpeUo4U0luSmg0MHhXR2xyRTNLLTlwM1ZoSV9yYXpaeS15WXB1RGFBOU9NeV9yMGxvUHJxaUw2Vk5QS0pGV2ZpOWUzbU5XbXBBUEszckJXZGNVZUNGemFkR042NGNvVnYzOEFxemNHM3ZVRHBqT3BERkMwOWhZSkdaN2NoM0xRdFFnUGZXZkdXRFJMTXBTaDEyV00xT3psSVRFOXp1bTZabGtTS0ZCWDVYVUhwQmxjdUpXNWQ2aldpTGt0czczNkU3c0ZFQjQ3NFREN3pfR0pfdG1XUHkxTHpPb0tjbXNiOGgydmRueEhhZFlZZ3V2OGpaRVpzaC10RDc4YXBQS2pENF8wWU14djh1ZWxZX3hHdmNyY1dzdk1xaW1JVjRfM0NSTS1RbXFMVnpaN29VWlozclc3Z3UwNXJpMGo2T0ZIXzZEekRpSnVBUnZjOUgzRVFMVjQ4RjRTRVRrMkVPY2ptTDZKQ0JIc1RrYUs3b1B2SjVMN21CSjNmRlpRTUhUb3VyaFg2UUc1QVREbXJuaUNTbU5SWG9VazAwUGhoOFpCRE1nV3B1bXdraWM0ZXNvQU96SkFWMTJJQXZ5aEg0MUktRmtiQUlXRm1USkd5NUlmXzhORlNYYkt0SVJFaUhmbWpHLTQtMVh1cGxzTjdKRnc2Rm1qT1pmY1hYdS0tcG9IaElMbGZRaUo2alA0VEQ2T2lINHFjcGN3cXJNRjhoa2lRRXR0ZkY3SXVRNFl3MGlLaTdkNlFfVEVGaENVR3YtVkg2VUUwa0VlQ20tV3NKWW8yMnVMSlM1NG0zWGZ0QWtSWWpySkRVUlZLN25JSl9GRHlzWnlvWUJpbW5JSTZHX0k3emtVMDBhc2g3ZVFsb3JOaDVoMV9DSWo0a183NklhQ0dVQlN6VTJuY3Z0S1poZkVmZnhSdXptTTdSYlg4eTlhMTQ2cll2c0Y5cGZ3eG53TVpaTHVCMkYxaU9nZE50SWdFNUlkUVZKRmpTcjhqQU93TFF2djNLSDdldDc4dXBIOTlSTzVZZXdIblJiVlNONWJxaEdja0c1RFhpQXpCLXFaa1RLU0o3YkkyeHF2ci1aMzlOTDBJQm9IREthNmVGdmlNN1NVYXU0U21wajI3Y0JjazZBTnpqT1c5U0xlMkd2TzhNNmZtd0hITGt0WkJtZTFSaXQ2UUlRR3dZZm51d0NpYmJPMHo5UGR0RUl4R0g4YnllUXdydGJxTFJadzN5R1o1bXJoY1ZPRFkxNHJzM05aZnZ1Umh0MS1MWXJTWnFkSHpTY2xvbHFlSmZJaEY4cDFDQTc0T3JoaXJhWWpKeDd1bHB2UHhQZ0xzT2NBU1J0MEptdS0zM2J4UmtKcEhadWoyVF9UOHFaSF9UNTg0cmgtS2N1a2d3VjZvQWxoWEp4ekZ1eWpfWTI0R2pEWmEtVzY1UjdjM01hMjR2Rzd4c0pEMndEUGFfWG56U2FSZTdfckJPUUdkb21hN2M4aFpfY1FXS3pyNG9OUjNwUFQ2RkowOW5EZ1dURjJ4TV9Fa2FWajRWMmJ4bDJrV0ZGd3pTa192WXE3YWZoMTBFcm9WSGh0RDR3UHNpX1ZGTEZnaVB6LVFmNjZqdzhmMU1tSHZIV1VkbHI0NDFUTGxHN0RkcTdyT0Rib0lmVHBwTFZEWXUyVHN3VkJfb1Y5WEhvTHppMWJ3MHNka2dLMWFvdm04TjdHMFFqUk1kd3B0UFN5V09nM195ZDRsNXdwblYtQ2s4Si1wR0FrOWY0LTBFTHlSNVNSdTBRd184M0tNbVRvZzJDZDNTQzhhcGFzbF9NV1ZvbGtkZUhHdGtpLTFQQnQ5REhnNzM1bENfTC0tYWtLYzVlX2p2U1V0US1wb3UwaXBMMkhZLVhGdlR6MG5qUWtTWWZXdzlnUExOOGItdlh4bHVwdGFwRC1kSUxNWHBwXzU5bHJwZUVQQll5ZWQzV2pvZzM1elVUenVMM0pOeXFweGlyZ3BkODdVeC1udV8yMWtmZ2lYUGFxX1NnTUphdXRadi1YeW00aktlN3BxRFVWbWtiUTFEZ3djbHdMV3NOSDY0eFFSVzdSbWc2TjJxd0VsUFZGOWlnTnRGUUtVYXJlLXFFTFYzbHNqUUZvYXY0Y3RzYlNIMnNJNGgtRWhscGxaX2l3Tkp0ZHc2blVvVC1YcTdKcFVDSlFtdm5RTV80blg1QkFlRldCd3h3bG9UNTIzeDlaZHhmcnhMQjlwOFJkcTBidVdJNUJPV1BEUElDNjZQZWRtcHFTSnRTcTFHVWR6Y0V0MHdzUG9PakQ0VV9zZU5SSGNhOHFIdC1XTmtrLXM1cVBmQkNXekVURTMtakdJNmM4WlhjU0ZqdENhUGEwd1RYUWFWYmlEZEYtYWpMNGE2Tl9lUlk3VTZLTUtRWndrc20yVWhaNDVrRXJzM01pMi14MXNKZFFKaUE0M2dvZlRkeElTWGJOb014UDFaeU90VlRjSEpVc3JER1ljTTlMUUZJVmgwZjZ1OFo5RmRRTGV4ZmdMZjJIU0RBYzdHSTV6LThyUkhNclVHT1Z2TU1VQ3dkeXFyUTNQNEFmdDVfOUtJcDVTcG1tNXktVG5QX1k3c21vQmNJazRwZDExdkpvZXVad3RTT0FOSzNGN2hxRENiazRFQlh2ZllMU0xpNk0zTHJJZUlVTGdEdHROU2dOZExHVktiTi1uZnl2MkNJUnlSbEZKeDI3OC13Y2NFUmJ5cU9UNjJ5MDIzbUp2NUJlblFRaURUQThfNXBha2pNTHdhMV9BeHZaWE5EeW1PWVpkNnVFb1YxSXVib094dDBtTkMwdjR3b3Mxa0ItMWxFU2ZhckNUMHVnOGFtek1vUVpqeUdFMlNNM0I3WXVPTE9QaFA3YnlJT184X2lOLXBRWU9pbmROejN2NktGOGpWNjRpblRuY1BpRnhJWTk4ZEpndTV1MnRoQnVnaU5kbXVWNWpFeTF4a0E2empxeVkyTTU2aURQbnBOZjV3LU9aSGxZUk0zY0ZfM2ZkX3dmdVVYX2RTS3Nlc3NILTBpbjdxRUJBZ0NvcTFKaElPWTBDREJHd1E5SjFWSkg5N2NFTldDYmFjTXJ3a1hNR1laMDdEdDg5cGo1NUFiaFdyRi1SWm9fR3dSanVXbUU0NDlTeGZpenRSWDNacFE4dzR5ODZiNEZnZW9VcGNqYXFZcG5xU1g1TmFxR204Z2NaaXBlbzhPVjRGMDF2dTlXaUplX3Y5Tlo3dDZNRWs0NVhHbnNoWVM3ZW1lbXJIU1VZdnJoaUNEVXlOQXlNQnBIeUtIQjMxamRJUmJyWlpidW5ZUTdpeS12Y2hOZFI0U19laU9KbkcwZWl0M284a0JiNFhjRE9Wek5hSTQ1czhScmhMWl9lYUlSWEE0SE04VjhSZ2pUQzItM1FPaGRROU9HbDVWdzlDTFd1WmJpdUllWGZXMXo4clh1WWNlWmZZdFp3U2lhS1h1V3lRM0pxYTE4UzNCMG9CWFdYMmxRaldoM0UtejN5dWJXeHd6bS1TaC1wbzhGUFhQMTV1X3NkOVEtYWc5bEtULURHTmR0WTFVOVdMSE1uWG1ZWkJtMEtLb0dFZldFa2Jab0dZakRobmJ6a0FWTlotb3AzQ2xtSXRjLUFRN1hoM1RYOWZJV2xGbGxEQzFuQmRYS2dBTW1LZkgtRHQxVmFpVnlIaDN0RW04b3B3dHJNSVZDQVV3OFNEWWJ1VkszNGlibUltRXVRWXpzVFl3d0RWd1hueVZZa0ZLUHRDa0RqVGRUUHo4anZTVzBTSlBPdG1MWG1Ua1pwMjhPTU1IWi1HT1dvNVFwMUZTR0c0OEVpMEtMVlk1bWZJRDdPNy1WYzNwX2xzNV91TWJCUHRkZmljNWI1cXpGeHVVTXJnNEJHRV84S0FzeGxJYzNWOUJpcUYtRWFYOG1kQmRvUkpscUpfOFR6OExSWm5td2c3UExKS0VDTHJIUWM2M3hpWTVfSlZ0SmphZ0VkVjVILXlkdkdLM1hLMVFyQnpjb0pSalE3NTh6VjUwcmxBbVFoY1ZGSEhrdnVER1pWb2xkQVdYNEpNMUdMd2FwYm9UMlBFQ0VHMHpwR2RKTjlMYjNBMDFnZFlfM3QyaFFVY01jMTdqV0NVVDQxbkhBenNEZUZqSzRQOFFHV0RMUlhtZC13U2MyU0xxRWloUlctRHpWc3BhdG5jWkYwNm1hMmNObGpGX0tLLTIzVzA5VFkyQ1pmMnNPVmtwSnZ4QVQ3MGJBdGhfWFIwRk9mOXdsa2ZyVlVTMjhWWEp0OG90RHVMRjVHdDZLcVhXdEhGT2xGUnNpM0ZLTzU4U19mSGt2NnpnMzVWY1NnMi1Id2gySjRfSmpNd1dQRUtyYS1tNXJ2OERZZW5fYnp3LVRnbHNWNUM1NlQyNDdRT01LblQ3RmdvVkpYdTVrTWx4eWctRGc2cFRSN2loTTRKRjh1MGpqNlNBc1pRNTZtaFYzUHMyX2ZVQWVIMWlXYlVwek1hQzZhRzBRSlJ4enN2R01UU3JVbUZpSlZMb3FYWjY1VjRrUjg5ZW13MXVGajhsdnJZU19ydXB1T3N0U2pROEd4Mk83RUhvWFUxUWRoZE9ZRjJNNTJaWVdaXzFTcmJSazRHMnVNMjNLcDJrb2lCb0ZGNnhsRC0yM045dHMtZzl2V0FTMV9LeXJDellWZWMzb2dXY3Q1S3BwUUR2UXVPNDBCcjduRzZ2MlYwdTJsdnRSd1FUS0tYSmJqZHBFaEFieDFGRGlraTR5S0JIUUVKRFBnNVpwcC1xdnctTVFER0hYNVpUTWVCTk5vbUVmRHY1eFM2WHNPM0RGMlFZSHZKeWIzV3NTX1d4azcxbFo5ME5xbVk2aUxyLTlWLWdnZVVFeFZMeEJ6cWZ3Y0dzNUM5MmUtVEx4ZGdIRmZuUThuMlMtNkxJR052a04wOGlqWXM2QlB3azJQSk9TLXI2Zmt2cHJMaUl2Zmxnams0Y3RqNGVTVmdXVnNCTkJYVEMxaFJRdWVuY21FbzdkeUJwaTdlZUN4aEdpMGJQWVhOZWQ3V0NvOGNNbDhITTBmWklFc0lxZkNLeklxc3RKdDdPSFhkZkdnQ0d4cEVRelVPcFhxc1ZFdTNwR1BYTXlDekJBTWp0TXNWNzFvTEFIdzJSYTdya2gwZjI3RkpDeTFoS0luUktDZFVJekZiZE1tbnRWUE53NDg3dHcxUTJSZE5VR3ZmcE8zWUc5NVBGRDUxNFVUMEpJX1d6Mnp5R3dGU2dlMlNqM0pmUEdaMDRkYmwzbXo1R21GMXlmVDlMTHkybDRMWVlzZWt3VTJ5V2NBb1dUTTY4LXp5NDBBbkpKbU1tUllGdUk0UEZiYXY5YXptSXU4dG5XQUVYdkNQVVc0OVlYbHZvQURscDI1S2ljVVBmMFRHc003cnRncGVoRFFqNXJaNVJXR2pnMVdvTS1MamkyVFM4bzZEQ3NPNFdlS2NLSXh5WnBERDBZckhnd0xPOGoyVndGZkM0cjRsLTFSMUJyQ2xwMHc9PQ==",
+        "ref_info": "Z0FBQUFBQm91NFlzck1aWWIyTm84Ty1PNWdhUlk3ZDlpUWR4YTM5TzJBQUFLRmZFeWJrUFN3R2VlN0hqc0V6M1dMOGZtaXZSUjJBTUpkWmdWZ3pESktqR3J4YjhYSlZ4NURpMTZtNXFoVTc1YWRzNVo2bWVtVUJMdlZhbWxRM0FHYkw2VU4ydkhOUzA="
       },
-      "order": 78
+      "order": 47
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            474,
+            489,
+            620,
+            646,
+            651,
+            652,
+            699,
+            714,
+            720
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "width",
+          "label": "宽度",
+          "type": "INT",
+          "localized_name": "width"
+        },
+        {
+          "name": "height",
+          "label": "高度",
+          "type": "INT",
+          "localized_name": "height"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [
+        480,
+        848,
+        "lanczos",
+        false,
+        8,
+        0
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 594,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "get_image_size",
+          "label": "参考图像",
+          "type": "IMAGE",
+          "localized_name": "get_image_size"
+        },
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "width",
+          "link": 506,
+          "label": "width",
+          "type": "INT",
+          "localized_name": "宽度"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "link": 507,
+          "label": "height",
+          "type": "INT",
+          "localized_name": "高度"
+        },
+        {
+          "widget": {
+            "name": "upscale_method"
+          },
+          "name": "upscale_method",
+          "type": "COMBO",
+          "localized_name": "缩放方法"
+        },
+        {
+          "widget": {
+            "name": "keep_proportion"
+          },
+          "name": "keep_proportion",
+          "type": "BOOLEAN",
+          "localized_name": "固定宽高比"
+        },
+        {
+          "widget": {
+            "name": "divisible_by"
+          },
+          "name": "divisible_by",
+          "type": "INT",
+          "localized_name": "因数"
+        },
+        {
+          "widget": {
+            "name": "crop"
+          },
+          "shape": 7,
+          "name": "crop",
+          "type": "COMBO",
+          "localized_name": "裁剪"
+        }
+      ],
+      "flags": {},
+      "type": "ImageResizeKJ",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        315,
+        266
+      ],
+      "pos": [
+        4556.4658203125,
+        1932.7939453125
+      ],
+      "id": 308,
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "0addfc6101f7a834c7fb6e0a1b26529360ab5350",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImageResizeKJ"
+      },
+      "order": 51
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "p0",
+          "links": [
+            795
+          ],
+          "label": "p0",
+          "type": "*",
+          "localized_name": "p0"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        6023.001953125,
+        2661.952880859375
+      ],
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "pwd"
+          },
+          "name": "pwd",
+          "label": "pwd",
+          "type": "STRING",
+          "localized_name": "pwd"
+        },
+        {
+          "name": "images_1",
+          "link": 796,
+          "label": "images_1",
+          "type": "IMAGE"
+        }
+      ],
+      "flags": {},
+      "id": 433,
+      "type": "RHHiddenNodes",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RHHiddenNodes",
+        "info": "Z0FBQUFBQm91NDNNblozQUxKQjNVMU1GRm1jVnJiRHpGZEN2T0k4NkQycU43dkNTQ3N5RTFzZDZndjJKaXhTNWhsV3VWMGY3S1BhNlUyTHlEbWtnMGdjOV9wS0dQeUh4OWxrZTBKRlpKOWx4Szc4QUYzTzhmRFV0ZTZBMkVFT25Wb0JQS2lPeXJxUXJCdG82dXRaa05LLXJBcDVKaW1XalFPU19HTHp3TzNnT0VLdFVlSTd5Y1lpWU9qUDloWE1VSWkzc2N3UjZoSmVUUDZ2a0dvd1hsbkpkbVFuTGdCV1Y0SERBcWs4NXhodG1uVkhPc092VGR5eXM1OFBDbTdtR1FXNkYzZV9VVVM4NEdQeTFEVGlvX25Ud21FdlJjZHNPUU9xQkx0WGRlSkxfbHRoSDN6ZXJIOFZFT01OSmZMX09OVDV0Z2x1NHhNTkJ5SktqaTBGNjdLa01lQWg2WGtWVjZGUF9wVWViYzJwWUZnb3NSTEVKbzZNRGZGaEtNRnhGWXB0UDA3NkFmSEloNHlycUZ5NVo4MzhOYmpLNktGV09RNGMxSE4tcUFUTW5aUUZzRl8xSkxsaE9vTGtSOGN3QnA1YkdMTlhVTnliQzBYRXNxTnR1QWZzcVBWN2dfN1FYVzJQUXlSVUF5YnhjRGxxQkc2WG5XVWExMnNWTVJxQ1BYdjRlU0E1U3pkNTlvekktWHBqakdpUmVqbmphbkl6Y2EzTTQ5VFpwRjZuWGFCRUl5LW9kRlJhMXlURlFlb1pCQW5SRjJjSF9SSWhUbERwVE5VTTlEMTRWTWx1MVRpbE9WZ0s5LUVFa195TUM1WVJadWlSZUNnTXFheWNKVDU0SDFsbTJFV2RGZDFVZmZzXzhrUVdMYUZEcW5KSzllUFpnX2hIanNLWjRLa3hHeFVjaXVCTDM0bmVIQVNsWWlRLTNwYU5KSm5jMUdlQnREa1RQNkZQSy12d1pJaWdmTjZDWWM1VFp6Y1dObkpfTEhVWU1KemFGRjZHTlZJMFdTWnljaC1XY2Iybl9yLTU2ODhXR2F2MGJoNG5CMHlpYmtxaGRHdXJlSUV1eFRKbXpOcDBOeUhBbXRfUXdRYkRRdEpRZlFwUmdSU3RJeUhqX3l2SUI4T2dUaTc3bDNqNzVCaFpTZTBGdTI0c2E3R2FlMS1fZjFqVDlvNDQyTEFIN25CNzhzc2kzZ0FGQTFOMlR2cUt4QmNIbTFpTkxZdWIyM0VZczd6ZGVKd1VsbFppN2lLWFotcXZQai1TTUpFQU85YUx2ZmhENllPeUlyamNsS0pnQmExZ0YxSFJIOXk5bWRvekRoYUNOT0JYWXRjdjZLT2c1RXExaU5LSzlYV0tpSnVlV1I4ZlVXTnNqcnF4aUk0a29FV3hkQTZHMDFuNVk5MHpqUktkT2xhdkc0N3BVMWphOUViQ1pRejAwWGVzYVVKcTkwN08wNUdSa0gzTG1aRTJZTGp6TzR0cUNzdzdSUUNTMTB1dlRiM1V5UER3VmE5S25VX29LT1JaQnZwLWlWS2FzVTZyNEhFdGcwZEZaM0hhTkpRUUJpRExGTGFaUzZMS3dwLWpPcWZ2VTcwSVpCamtRQ29PNm92Q3pGZ1h0NWdIVUJ0OHc1TW9RYzZ6Y1Z6Y0Z1Mmtja0VTdEZwS1NzUXFGdDdEcGtmTmFDcUFEOHV6NGJwOHVDMGs5Y25Nb0NUOUVwZDBZa0FvRjdVWU5SN2U3al9aT3o4Ni1HOGNZdTFVZTE3Wk9HY2U3c0lQaDFvMVpYMEI4dzBEZDVITlc4OGJ6UTAxZ2l4ZG5YRVl0ZzlWVDJxSjM0WmNpWW1wZEx2QmtoaS1IdXRBV1oyMHNwYmlCLVlhRUhZVVVpVDFmN1dwMXFoSG5mdkoyc2UyektrRUpjaVRYN2tuUXVlcElxcU1tQUtNeWlORUEtOHhJblF6UWFRUFBlTXI2dDNPWU1jU1RkdUJ3S0hJQjRLMDhCWjdQeUxpSWY3Wmt6NUNzSkRSR05qOGJGdWV6YVQwYW1zelFEOGpRd2VMaFVtVnc4NXhwSzVXTGM0YTBkZDNoRlJmWVZHOWlHeDI3T25pX09uYmdIaVl2QjdXX3ZrZkE1aWVZblFxOVVQQlBpbG9ab1VRa21jYVlFWmdfYnBOeHN0UnVwanM5WVJuTzY1aWpFRGxsRGtNXzFodklGSHhiM3BQSDhsc1dFQm42UGNCY3lldUZ1NU90U212RE8xelBtQV9LS1pBTW5Mc2NHbFd1YUMwc1V3VTcxdmdlOHhRX3pkR3E1OFlpYmJYcFVJUXVHUGlYV0VzYWdSZF9LRDVKZFBxTW14YjlfRzRUdWFyNTU5TTRDVklMVnNEUWhHVi1JeDYwb1NZaXFzc1BQeG9fWmtpaGdvaVZwX19MYTdXQ09tX0JXRHlHbllraXg1WW1BdWExOWxmeXJxM0p4Mkc3LUpMNWtqVk52dkZuNHhKSEFYZkJWOVkxdUJzNmQyaFAxNHV6Y0VHdmw3eUhGSDZfWjNvMHVJZVpaRnRyOUZMSU1aZ0Q4R2ZqN1F5cjJjblRJLUcxSFU3OTc3WFR0ZkFIVzh2Q09lOEM4Y3NqM080VzFhOEFrNXcwOHVScE4wT3Nvc2VYU2dYY0E1MGJiczFRZVgzTnp5bnJMQjR1NGJyU3JOdVVVckljWEpuTkU5R3NoVDJQWG5ZNGpib245TWllOHptdnZab3RWQ19HSjFLelpuX0JsMER5U3A5bkNBWnhmRUpHRFRYSWNqV0FDZVhHZGQ0TE9IbFRiSXk2M3h1N2hqWDNUTGUxcXk0UHdsTk9kZWljUmVUQkZ6YjlYLVA5dDYzWDZxRloxZEp6aDdXWmxQUGpvd3Vmb0c5UnBFaS1XZWZrWDdwdHFrNENfX0RlaXNVOTFSRnplVVFmZG94UHhWY0hzOXdwcEFmWVVCQ2tNd3QtY1ZpUTkxQlRtMTREV2Z0VmNSVnBjMDdydC01cmo1dmFENF9CY2ZzbjVXWjR4d21jczUyQXdTSDlkTlBGTFRGZXNfdFpGVmZDeGNrR0JxQkdwbUUxNHRtXzFOSU52RVpDRVhIZVExeE4ycURxdEY1TEVTb1JLLUtmdzBjLWx6VGwxQlBHczF0U1ZmX0ZpUFJ1RW1XMk5GTzJfUUkxcXg1QTNWbDFlM1Z2Nm1LS05ZTVdheEF5LXo1cWFNaFBXMGNubXRuTm44WmhLaFdPa3BhX3ZqUUtwREFSNllVREZvQXpweWRIenJ4V2ZNSzVTTU9BRnAwdXJLQWk0RWNFcjlWZUlubFpEUVlOa0czUFQ2azktbUFJYk41eWU1NnlmandWQ0tmS3Q0TUhRbnBoOEdkSk1PbEpwOUxENmpHazFKMmwydlV5V0JJUjlGaGI0bHg4Q2VyZktDNlFKZjBKVUszRW5YelBZZEhXYXFrWlNlUjQ4WDdhZGpXNHVleVJqbm9JcEV1bVhOUl9lS2hTSjF4azNZNFlQbUFSVUNzbEw3bWo5c0FHZjFjX0NOcUlKeWVfZ3lNRVdna3VxYzZrcXZXenFISU9xZi1EMENhYlJvQnlONGlwZkRoNUdDVWlrMVJQZmUxdFVPanI2bVVyOXhTSzY4RktvZ1N4eTZwVlhWdnpxY1g3TkNYZ0szVElhSDJDWk9CMkQtSUNiaTBTWG9sMjlGeS1WUmRjRnNNVHhKMUNsbkVId0M5M0VPd3NrV3lNUkE9PQ==",
+        "ref_info": "Z0FBQUFBQm91NDNNZFNaSFg2VTl3cU5fYlEtUjhrbzk1YUtkcmxjMDdjTVRoUjVxQllVRnhkMnhhVWxUTTV0ZzFRRGtfaE43TTVSM2lUeDQ2Mkg5Ri0wdW9QYWR0VWtTU1MzOHJPV1F1a0liaWVOVk53c3pmYjVOaTZnUy1TVUVfTWNMeDhSOFQ5eko="
+      },
+      "order": 83
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "float",
+          "links": [
+            789
+          ],
+          "label": "浮点",
+          "type": "FLOAT",
+          "localized_name": "float"
+        }
+      ],
+      "size": [
+        269.23980712890625,
+        60.280704498291016
+      ],
+      "pos": [
+        4801.54052734375,
+        1049.9210205078125
+      ],
+      "widgets_values": [
+        1.8000000000000003
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "float"
+          },
+          "name": "float",
+          "type": "FLOAT",
+          "localized_name": "浮点"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "id": 430,
+      "type": "Primitive float [Crystools]",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Primitive float [Crystools]"
+      },
+      "order": 26
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            592,
+            718
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [
+        "DWPreprocessor",
+        512
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 620,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "widget": {
+            "name": "preprocessor"
+          },
+          "shape": 7,
+          "name": "preprocessor",
+          "type": "COMBO",
+          "localized_name": "预处理器"
+        },
+        {
+          "widget": {
+            "name": "resolution"
+          },
+          "shape": 7,
+          "name": "resolution",
+          "type": "INT",
+          "localized_name": "分辨率"
+        }
+      ],
+      "flags": {},
+      "type": "AIO_Preprocessor",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        315,
+        82
+      ],
+      "pos": [
+        4219.95263671875,
+        2790.066650390625
+      ],
+      "id": 273,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "AIO_Preprocessor"
+      },
+      "order": 56
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            797
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "width",
+          "links": [],
+          "label": "宽度",
+          "type": "INT",
+          "localized_name": "width"
+        },
+        {
+          "name": "height",
+          "label": "高度",
+          "type": "INT",
+          "localized_name": "height"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [
+        640,
+        640,
+        "lanczos",
+        false,
+        2,
+        0
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 473,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "get_image_size",
+          "link": 474,
+          "label": "参考图像",
+          "type": "IMAGE",
+          "localized_name": "get_image_size"
+        },
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "width",
+          "type": "INT",
+          "localized_name": "宽度"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "type": "INT",
+          "localized_name": "高度"
+        },
+        {
+          "widget": {
+            "name": "upscale_method"
+          },
+          "name": "upscale_method",
+          "type": "COMBO",
+          "localized_name": "缩放方法"
+        },
+        {
+          "widget": {
+            "name": "keep_proportion"
+          },
+          "name": "keep_proportion",
+          "type": "BOOLEAN",
+          "localized_name": "固定宽高比"
+        },
+        {
+          "widget": {
+            "name": "divisible_by"
+          },
+          "name": "divisible_by",
+          "type": "INT",
+          "localized_name": "因数"
+        },
+        {
+          "widget": {
+            "name": "crop"
+          },
+          "shape": 7,
+          "name": "crop",
+          "type": "COMBO",
+          "localized_name": "裁剪"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "ImageResizeKJ",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        315,
+        266
+      ],
+      "pos": [
+        4562.64892578125,
+        2233.681884765625
+      ],
+      "id": 274,
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "0addfc6101f7a834c7fb6e0a1b26529360ab5350",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImageResizeKJ"
+      },
+      "order": 54
     },
     {
       "outputs": [
@@ -5343,8 +5546,8 @@
         234
       ],
       "pos": [
-        5297.3154296875,
-        1890.269287109375
+        6348.650390625,
+        2034.9671630859375
       ],
       "id": 299,
       "properties": {
@@ -5353,77 +5556,690 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "WanVideoTextEncode"
       },
+      "order": 65
+    },
+    {
+      "outputs": [
+        {
+          "name": "int",
+          "links": [
+            572
+          ],
+          "label": "整数",
+          "type": "INT",
+          "localized_name": "int"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        5
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "int"
+          },
+          "name": "int",
+          "type": "INT",
+          "localized_name": "整数"
+        }
+      ],
+      "flags": {},
+      "type": "Primitive integer [Crystools]",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        4007.40673828125,
+        1017.4012451171875
+      ],
+      "id": 339,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Primitive integer [Crystools]"
+      },
+      "order": 29
+    },
+    {
+      "outputs": [
+        {
+          "name": "WANVAE",
+          "links": [
+            487
+          ],
+          "label": "WANVAE",
+          "type": "WANVAE"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [
+        "WanVAE"
+      ],
+      "inputs": [],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "GetNode",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        5737.07177734375,
+        2148.333251953125
+      ],
+      "id": 277,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 30
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            499
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [
+        "reference_image"
+      ],
+      "inputs": [
+        {
+          "name": "IMAGE",
+          "link": 798,
+          "label": "IMAGE",
+          "type": "IMAGE"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "SetNode",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        5036.1005859375,
+        2204.195556640625
+      ],
+      "id": 306,
+      "properties": {
+        "previousName": "",
+        "widget_ue_connectable": {}
+      },
       "order": 66
     },
     {
       "outputs": [
         {
-          "name": "feta_args",
+          "name": "IMAGE",
           "links": [
-            729
+            798,
+            799
           ],
-          "label": "feta_args",
-          "type": "FETAARGS",
-          "localized_name": "feta_args"
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "MASK",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        },
+        {
+          "name": "MASK_IMAGE",
+          "label": "MASK_IMAGE",
+          "type": "IMAGE",
+          "localized_name": "MASK_IMAGE"
         }
       ],
-      "color": "#2a363b",
+      "color": "#222e40",
       "widgets_values": [
-        2,
+        "RMBG-2.0",
+        1,
+        1024,
         0,
-        1
+        0,
+        false,
+        false,
+        "Color",
+        "#ffffff"
       ],
       "inputs": [
         {
-          "widget": {
-            "name": "weight"
-          },
-          "name": "weight",
-          "label": "weight",
-          "type": "FLOAT",
-          "localized_name": "weight"
+          "name": "image",
+          "link": 797,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
         },
         {
           "widget": {
-            "name": "start_percent"
+            "name": "model"
           },
-          "name": "start_percent",
-          "label": "start_percent",
-          "type": "FLOAT",
-          "localized_name": "start_percent"
+          "name": "model",
+          "label": "model",
+          "type": "COMBO",
+          "localized_name": "model"
         },
         {
           "widget": {
-            "name": "end_percent"
+            "name": "sensitivity"
           },
-          "name": "end_percent",
-          "label": "end_percent",
+          "shape": 7,
+          "name": "sensitivity",
+          "label": "sensitivity",
           "type": "FLOAT",
-          "localized_name": "end_percent"
+          "localized_name": "sensitivity"
+        },
+        {
+          "widget": {
+            "name": "process_res"
+          },
+          "shape": 7,
+          "name": "process_res",
+          "label": "process_res",
+          "type": "INT",
+          "localized_name": "process_res"
+        },
+        {
+          "widget": {
+            "name": "mask_blur"
+          },
+          "shape": 7,
+          "name": "mask_blur",
+          "label": "mask_blur",
+          "type": "INT",
+          "localized_name": "mask_blur"
+        },
+        {
+          "widget": {
+            "name": "mask_offset"
+          },
+          "shape": 7,
+          "name": "mask_offset",
+          "label": "mask_offset",
+          "type": "INT",
+          "localized_name": "mask_offset"
+        },
+        {
+          "widget": {
+            "name": "invert_output"
+          },
+          "shape": 7,
+          "name": "invert_output",
+          "label": "invert_output",
+          "type": "BOOLEAN",
+          "localized_name": "invert_output"
+        },
+        {
+          "widget": {
+            "name": "refine_foreground"
+          },
+          "shape": 7,
+          "name": "refine_foreground",
+          "label": "refine_foreground",
+          "type": "BOOLEAN",
+          "localized_name": "refine_foreground"
+        },
+        {
+          "widget": {
+            "name": "background"
+          },
+          "shape": 7,
+          "name": "background",
+          "label": "background",
+          "type": "COMBO",
+          "localized_name": "background"
+        },
+        {
+          "widget": {
+            "name": "background_color"
+          },
+          "shape": 7,
+          "name": "background_color",
+          "label": "background_color",
+          "type": "COLOR",
+          "localized_name": "background_color"
         }
       ],
       "flags": {
         "collapsed": true
       },
-      "type": "WanVideoEnhanceAVideo",
+      "type": "RMBG",
+      "mode": 0,
+      "bgcolor": "#364254",
+      "size": [
+        340,
+        302
+      ],
+      "pos": [
+        4995.18310546875,
+        1947.6605224609375
+      ],
+      "id": 444,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RMBG"
+      },
+      "order": 61
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            491
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [
+        10,
+        2,
+        48,
+        32,
+        "white",
+        "black",
+        "FreeMono.ttf",
+        "control_video",
+        "up"
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 470,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "caption",
+          "label": "caption",
+          "type": "STRING",
+          "localized_name": "caption"
+        },
+        {
+          "widget": {
+            "name": "text_x"
+          },
+          "name": "text_x",
+          "type": "INT",
+          "localized_name": "位置_X"
+        },
+        {
+          "widget": {
+            "name": "text_y"
+          },
+          "name": "text_y",
+          "type": "INT",
+          "localized_name": "位置_Y"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "type": "INT",
+          "localized_name": "高度"
+        },
+        {
+          "widget": {
+            "name": "font_size"
+          },
+          "name": "font_size",
+          "type": "INT",
+          "localized_name": "字体大小"
+        },
+        {
+          "widget": {
+            "name": "font_color"
+          },
+          "name": "font_color",
+          "type": "STRING",
+          "localized_name": "字体颜色"
+        },
+        {
+          "widget": {
+            "name": "label_color"
+          },
+          "name": "label_color",
+          "type": "STRING",
+          "localized_name": "背景颜色"
+        },
+        {
+          "widget": {
+            "name": "font"
+          },
+          "name": "font",
+          "type": "COMBO",
+          "localized_name": "字体"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "type": "STRING",
+          "localized_name": "文本"
+        },
+        {
+          "widget": {
+            "name": "direction"
+          },
+          "name": "direction",
+          "type": "COMBO",
+          "localized_name": "方向"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "AddLabel",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
-        277.0943298339844,
-        106
+        315,
+        294
       ],
       "pos": [
-        5397.43701171875,
-        2237.99267578125
+        5652.50634765625,
+        1973.7021484375
       ],
-      "id": 407,
+      "id": 269,
       "properties": {
-        "cnr_id": "comfyui-wanvideowrapper",
-        "ver": "1.2.8",
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "52c2e31a903fec2dd654fb614ea82ba2757d5028",
         "widget_ue_connectable": {},
-        "Node name for S&R": "WanVideoEnhanceAVideo"
+        "Node name for S&R": "AddLabel"
       },
-      "order": 23
+      "order": 34
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            490
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [
+        10,
+        2,
+        48,
+        32,
+        "white",
+        "black",
+        "FreeMono.ttf",
+        "reference image",
+        "up"
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 471,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "caption",
+          "label": "caption",
+          "type": "STRING",
+          "localized_name": "caption"
+        },
+        {
+          "widget": {
+            "name": "text_x"
+          },
+          "name": "text_x",
+          "type": "INT",
+          "localized_name": "位置_X"
+        },
+        {
+          "widget": {
+            "name": "text_y"
+          },
+          "name": "text_y",
+          "type": "INT",
+          "localized_name": "位置_Y"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "type": "INT",
+          "localized_name": "高度"
+        },
+        {
+          "widget": {
+            "name": "font_size"
+          },
+          "name": "font_size",
+          "type": "INT",
+          "localized_name": "字体大小"
+        },
+        {
+          "widget": {
+            "name": "font_color"
+          },
+          "name": "font_color",
+          "type": "STRING",
+          "localized_name": "字体颜色"
+        },
+        {
+          "widget": {
+            "name": "label_color"
+          },
+          "name": "label_color",
+          "type": "STRING",
+          "localized_name": "背景颜色"
+        },
+        {
+          "widget": {
+            "name": "font"
+          },
+          "name": "font",
+          "type": "COMBO",
+          "localized_name": "字体"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "type": "STRING",
+          "localized_name": "文本"
+        },
+        {
+          "widget": {
+            "name": "direction"
+          },
+          "name": "direction",
+          "type": "COMBO",
+          "localized_name": "方向"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "AddLabel",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        315,
+        294
+      ],
+      "pos": [
+        5672.34326171875,
+        1906.8204345703125
+      ],
+      "id": 271,
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "52c2e31a903fec2dd654fb614ea82ba2757d5028",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "AddLabel"
+      },
+      "order": 43
+    },
+    {
+      "outputs": [],
+      "color": "#2a363b",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 799,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "flags": {},
+      "type": "PreviewImage",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        363.8044738769531,
+        706.4017333984375
+      ],
+      "pos": [
+        4907.86279296875,
+        1917.3682861328125
+      ],
+      "id": 350,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewImage"
+      },
+      "order": 67
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            471
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [
+        "reference_image"
+      ],
+      "inputs": [],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "GetNode",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        5331.3125,
+        1904.2919921875
+      ],
+      "id": 295,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 31
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "p0",
+          "links": [
+            747
+          ],
+          "label": "p0",
+          "type": "*",
+          "localized_name": "p0"
+        }
+      ],
+      "size": [
+        270,
+        98
+      ],
+      "pos": [
+        5316.05224609375,
+        2191.446044921875
+      ],
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "pwd"
+          },
+          "name": "pwd",
+          "label": "pwd",
+          "type": "STRING",
+          "localized_name": "pwd"
+        },
+        {
+          "name": "embeds_1",
+          "link": 746,
+          "label": "embeds_1",
+          "type": "WANVIDIMAGE_EMBEDS"
+        },
+        {
+          "name": "image_2",
+          "link": 748,
+          "label": "image_2",
+          "type": "IMAGE"
+        },
+        {
+          "name": "vae_3",
+          "link": 749,
+          "label": "vae_3",
+          "type": "WANVAE"
+        }
+      ],
+      "flags": {},
+      "id": 415,
+      "type": "RHHiddenNodes",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RHHiddenNodes",
+        "info": "Z0FBQUFBQm9xRnVGYmM3RVJkNExTa1l5VHlIMjBXbmdrNUdGMTFEaEl2VGhMcFNDQ0xXbmp6d201RzFRMTJRUndkVGFtQ1NkT0NiMWUxUFFzT29yQlVIVTBCdlNPLXlJcDd6azA2Sm5lMFlqbU1fYllOOTVrZXROTmJ4bGVYZ0lWSkdDMDVNWFFHTW9vSGx3RmFxamRCaVpnWW15Qy1iWHdDZkRDazlnYllxVHh0ZXpSQ0VwTy1uNHByaWxpczcySV9pYUZzTWNUTzZxYms4X2ZLRlFjNk42SWFYV0RxTl92YUN4ME0tMXY4RnhUTE4xQUh6WGtKaHdUejFfM21OWlRlRF9uUVZDemxNMkN3R3NUMm5aX2FjV0FObW9ScnlDTEVEZWZHQno1aU5ZRVZQUGpKRld2VTdkdlBRX09iZG0wemJVZmJQMVZ5Vk0zaC1QRlMzX2txYlVndFBJb1RyaUdOSWZGMHd2TmpqeGJhdGdGV2lIeUJoQ0NyQUcybVNoR0p6ZV9jRWlveDdtM1Z1WW1fWXlEWmQyOGcxLUN6Q1V5OWZyRVFVRTc0LW4tZnVVTzl6NUdHS2VYMlpGMEpaUFNxSG5IX3FiUkVsRzJBRGNxMExXeHR0ZEptdkt3cWlxZS1hOHhVT0l6eFZPbXBNdUhBcm8wQmlsUUJydy1VUVRMNm5PYlFweU8wNGFoWkIzVDNhRElqVGtfOWo0d1N0YWN1NGxiemNQSWxpcGF6a1lhNlljOUl6Y1g5eEtqU0FFX3FmcXZOUXpWci1pckxUMFlYYWtjWEtDYmpvQUhGMWcwTmZRTEw1dU0wbkhza2ktRER6UFY3Ymo5M3ROQnhDQUdhcVJGMlp5eV83NzR2NHNiTzR6bVhRSDBrVnQ2bnNiVnlxaExrNXdOYmRvSTJ1V3dvNHlaZkRpQl9IcUVSOThmMW5qT19QaHpRWWpLR0dobU8wM0FqbWtaRTZiTzVlRlhGN0pxUldQcEtOaG5nRTBCMlVrSDkyNTQxZnZoRmtFRUhFVGFXb2dwNHl5TnBETFJGZkpkTEJDMmVYaHEwaXpYOGNZc053WkFVd2o2MWpwNU82MjhySzZVVmdkZ3E4T2pFUmYtOF9QTU5nd0lsV21XbnIwaGdYRlpmUlFYRUxtUUt1RkVTLXkwamN2R2h4UnBJS2s1MTBXV3VYdGw2azhHRlZ0LS00cHkzc0Q4bU9rNjZxdnVaeUtCNFBIU3o4eGlDUld5NGlPVlVlcXZObXduend6ZnpwWEJINUtCNWNQMVhxaGxZNHpfQXg2WXBQQXlMNWJHcFdxbGxhVTJjWUozaTZIVnF0V2tOU2x1cEFUeWVPS1pMNFFBUEVaUy0wUVJvODAzbUplTW9PaHRiNXVKdkI2ekgwU1NoejEyT2VaYUVKQXZBWVZoV1B5T3VaWWV1bW5ESHFuX3NNeEhjeENheFBDdkYxbl83bXgtTmdmbGZsQ1ROWDdVb2dTbVNoZzI1UTRhM3JFWDJJSzl5TDl6YU9WWnAzb1l4LWhXU0tLQTVHczh4c2pnU3NpTGlza2VLdkpTU2FqWUNTdGtXNEp6MjJOVkpSNUJBc1dPLVhfODN6enNkUnZYYzRNOHQ3bDU3VzBqZVE3LTl0ZjlmbURpUFNwMzRVSjBGNk5QM3dENEpzdldEQkRma2N1TllhQW9XYUV1eFdNTzFjZTlwNk5pTi1tbHFFaGprN2hWeHJxdDdQUS1NeDAzUWgzOXVTSjZ0VFZhYTVQVk5oVmlRWldOQVV3cXVLby00N1VHeXZVNVFtdXl4T3V4S0lBUEZiRHJfN2tiTC1NOTZxMjd0OGFNOHBzdUZ4anFmbUE5R20xQ0VqdjNaeU1IUVBCejVCNThGdVdLa0pEYlQ3UnF4MkNsVFNWYVRjcy1kT2xuZXdOQ0FvWFNpQXlyMnZCVUNRcHc1cnlfZGswUzNFd3ZKT1RWTWNHOGNEaEtOWG0weDkxRVRSeEFtaF9wNUZCUEt3ZFQ2NWttNnd2NmNvenNYQjFpc2o1aHhOUkVTOTkxTlBwTHRmaVJKVUhILWY3dm9pWUlrUmFkdF8tYXdZQWY1V19lQ3ZNMC1HQzh0XzNjeTVkRTJSc2JBMXpPc3MxVHZOaUl1OGItQlc3OXZvaVBVcmlZV195REE0QnRfUU0wSlZFcEdacEM2ZFZVY1BuT21SSmdOeWVmNW9fZHlYS0ZFUWdzOVowRU12VWJEbnVmYmxUd0g0NXZISHBQMDg5QVI2WE15enpFUnNWV2JZeFdSMTM5S0JmcEI4Q2FRX2lNakF0Ym95NS1NQy1TR3ZHV01udmk5c2U3bDB6d212ZzdaMHI0X0draU9leFRENHRyVlZLbnRQTWhJaW9scGdyb1VHOEtkLWhtUGFsVFhEV1hmRFA2OG9zTEo3VzQwVVhlSjhuQzROZ0ticEZXNDJpSl9jZ1cxMFB0dFVxSWZJTTlleGg0QWNlWXFXSjhWbmZpNEZIVkplZlppTW00X0RhU2JkazlyMlp5Z1RFbnE0akV0TU1WSldWcndaaXhfUFkxUHU2cFhsZncyWXJQYlVFUFpOUWRUQmxyckg2RDdaR2ROakFhazdaaTJsLVl5WkNkdW1HMkxsOGZvMktZcFZYR3h4SW1MLTlHNnIwV2Eyb0o0cTlXeGhXUUFOWEFXZFcxV1U4ekFFQVNVRXY2cUhKM0o0M3pkTVRIRXJtb3k2QjNPUkZtWkNoRko5UXppWk5HMS1yeE1pMGpqbUk1X29oQmt4NTFLWVVuNlo5VXRkVzIwMUhNV20zS3JKX3pSYnFlVnFtXzFBMXhIc1dnSzUzUjY0MThDa0RXMXlCU21XMlFyUlNxVklfb1I4dk1kdEduOGRKLTJhUEx6NU9TN1l4VDV4TmZDd2lSLXQwbE54LTZKVkJwLU15WmxSc2VVR2syMUlxOW85VDlUblM3ZjdFcXhvSDR0Yk9xc1JjMXR1QzZZV3FBMktLdXZjQy1XR0YtUWhpMktWZ0dETkNpSXlVTmdnM2RPcndxeHFqTmVHX3MwUERIS1o5SG5lRTl4a2M0bmlSVG0yTkgtbFJSRFktYWhIVlRBcDcwclFYdk1EbnJQSFNyQzlfem0zWFVDdk1RX0lDSlNKcV9aN2JsMXprOGRXMVk4QUdVWEdRWGJGNE1URHZ5ZW5XcFFHRzBrZ3RONEFUYlVNUkVHX0FVVGNGNVJBQW42azRjQzZEWThlcEJVTXhxT0RnWWZSR3ZaYzVneklwN09KRXBfNlV4WXpjNk1sbXl6dVhNRTVFWlNteFNkOThyY1VfWXJtMy15QUF3ZUhOMXVobGU5MEQzMXNCek8taVo3QjM3ZWZwNXBYOTN3V1h1VnFLRFhRdmctVmJPRWhQVFU1NVl6cUI3MWFjZ3EtLXhqWUUtZy1QOGE4bk5OQVdYeDZqMlZUVmtFSXVLT0JTQzg1YW0yOFBoUWlGQnpVMEw3dm1mVTU2ZWxJQ0JGQ2lrUzlRZmJYRGNHVEZPYXg1dk0yTlQ0Q3hjOTRrM0VUT19mNFcybzNneWM2UnotWGs3SHFZM1kyTjVibE0wM1hOX2djblg0d0d3VzYybmladWQyTlowOVhfdE9zU1JDUzZpanUybjYyWUJmSzRPRjQ3S2NXc0ZoMjA1ZGJicmtka1BYa0F5M3FXQ1B1ajFxMnd0WkFIRld6RGU5Sm94X3RseVBIN0JTNWktV2JSTWphUEFTaFM5UFNDbnJxTzd0X2FOSGQwSDR3UDJ0NWtyWmNOTVJrakhDeGpWbU5KOWNfdWw3NjFPeWhKY0VrV3MzQmwxQ1RfOTJXN0VCTS1aWlRLZUNMR19RRkpFbm5FN2dHUl9kTzUzWHczMGNzNmIxNUVBNjUxdXdEalB2M1RrclVzMXBUNG9CdDdpZXZobE44eURNc2J2V3hXdHZVZkhZMWZSQzdpX2pUem01S0RwMHlINlVkR2IzaTJVUnR5SEY2TnotZVRnSTEtSFVtSnVnNGVyTDZTVVhFVkVTd0ZaUkJHXzhZUlhWdVRwNU9icXZ1aXVZY2lJdHQxVkQ5c2Frb1RVd0NEYm1ET0tHd1VGTzc5NlRidnl0U3VCSFBiM1lnUGstZmpQN0FWU25lMlp0YzVhaG50TUZjN3hlb1ptaVlMWklZUGx4a0JHZGtXVUNQMklMWl9iWllxTF9zdVlodzBXakpXVHozdk5ITTZ2NzZXS2ZkWUFhUUM2QXQ2N3pMYW9RUGc4UDU1ei05cGRocGEtNGRsRnlCQmJqMUZaOGdvZnRJMER6UFYxcUJ4c2JMQWl1OVpvUEZqUHR4SGFyWEJCai1SV0tHd2dLZ2ltOEhqRzZtcWRkVDhTaEN5NGdQeU5EZ3F6MFI2QU13OWFycGl0N1N0UXdPTWZ1ZWZmZC04dFJQQjB2YmpTd20zMnZfTUhHNTBFeVM0dDExLUVJOXYwSm5SM3EyUlVHQnBMdkIxNVU1bWdLNU4xMnNYSHNQM0V2ck5nQjB1RUNReEJMb1F6cHctVVV6dFVHQm1yMTZpaDE4SFBOX2RsY1FSSU13eVpzSnJSTURaUzdkWTB6SkxWTjE1QktPQkV5S1FLN2VjSTVadjFqQ19SVkVLODVXNnhGaG9TZHF0bG1NQ2V0YUpDb2c5akJYZ2owd254NmNfMnEzVEI5LWlVTkRMdEZiMXVBVzJjX0dGWFVCZnI5UWlYSWpKWXVPTTF2Z1A4ckU2ZC1IZUpMR0IxZUs1c1drS2R4eFF4OHZocW9FbmRJOXl0RUdzVW5NT2ZJdFVJZkF0cy1zZk9sc0ZEVUhxZnV3UElXam5iQmxqcW9IWkJlMklvUFptWVJSa21wQjJETXYyN0FVSFpTLXI2MWk0U3pJZ19TclJldndSRlNFdXEyZlJMVTAyUjA2ZmU3NmJqckdxTHBuYm1NTWpGYmlkSTcxcVhrY3FfOWhDR0NMYzM2Y3k2dTZWQXNReVdrbkNVUURHZ2V6Mm1aM2c3WVVnVmRib0xDTlRURnhDVHo5d1dQT2VIS19CTDF2OG41b1RZaGx6RHp2Rlk4Y0JueEJtdkZ2Yk9qcWVxS29telctOF9OUk13UlEtVk5FN1RXdDZqeWw3V2VWbmpGY3NkSFhBZDN1WmZ1Z2xUaXJzdmR1aVhMMm1aQVZEdks5cjJndElMNUZ2eXR2dmV0M1I2dlpITGM5c2hVMWhYUTU4V2Y1VDVrLWhrY2dYdFdCZFFWMDNBaTVSUnkwS1VLZ0twaVpPYWgzRUtmSWJUSlJOZDhoODAyMlQ3WEZjWjBEQW4yWTRhb1pmaC1jWUptSnI5RnFBcDRrRndBYWRtUWZLT3l5aFRaUGpIRFpOWHVnNlJkdVZyaU13NERwYWJPMVg2ZkZWMHJNOUJMWk1ybnNMVjMybm4temRlMGpad045QzZYSFlUVXZCZmd4NWVIYV9OYUVKaHdjWjh3NW9ZLXRyM1NPLVVHTUhheFprcXVWaVNCZDJ6LUxKMjhwSmlxX2N0SXNuMHZMdkhKX19CZm5OM3FUMFRiM3djUlNFVmVicnNCbjhvZ05scVppcEpBSHlUb211RFVkUFI2N1pRaFptNDNHN0l3U203di1Cc1RZYlB3NEM1enRUNS1FeUQxZE1halFHLWs3ZnFfZkVIWG00cjVBRGZSYXJBR2FwaEdPUElNbjRfelViZU8yNHRzUEJEZnFCTVF2RUNiZnowRXZyTWZsLVdPOEM2S3QtNF9OekF4UUkzX2JYU1VfVENGbXNiN0dVUWlvOHhxQkN4Y252NklDVWFSaHpaZnM3YktMRk1rbGZSRzQ4My1SeHJib1FNSXdweDQ1dVkxYTdDSVJyM21yY1c5aWtIcUhCVF9mNUJJTHhENXNWZHVUM0xGUWlXeWdvNW55VjdjTkdGUDB5X1lGb1Y1c296OGNNLVNOajA1N0FtXzVyNC0yU1BBN2FDQzFrTTRtUXhVTXNQRktrWHZkSHNMVk1vM2twaTEtcGR0MU1aUk9tcnd3bzBZNElIRFZraWpYMW1rMGJqYnVhLTBOSzF4ZzFMcS1Uazl2enRkejJfOWhUU2EyYko4NlB1cTREZHhtZ3liMElUWWFLTXN5dDg5ZXhoQktlZV9FUjJvcVV1TmpOM1RFcGhJR1pMTWtSYksyRVUzWFkxMV85YlZDZWMxQmZmcW81dzhfOGh0YWx2eW9Cc0Z0cG9XM3FhTnE5M1M5V0pkQ0plTlBERUZMRVB6LTU5WGl5cUIxT0pJeUYyUHFEV2ZSRjVnOW9ESUpWSDRNd1l2MHZFSG0wRUEtYXhpWi1lYl90U1JlU3FKSFpTS2FDejAxNnppNFJQSTRhazJCRGJVakdndVpVcTVsWnJhMmI0SjN5aEVjY0xZaEZiYWdxY3dvU21qd0diUDBwdDV4V3IwdUNuSTFNbW9zNWliUjdJcGlDQkpZM3BFM2hWd2xYUlRHaU9hNGJhWDRVaGV6cjF4ZGdUalVKOEZrVnNLb2JUd2steUNXVHVyeklNYW9TNklZb3ZxX0tRVnFIX2JLeF9qaFZmNFhIeG9LNUNLbEVuVFVEYVZ3TEI0MnBqMVNKb3NvSHhYUnVRT0ZhM0RTaXM4MmNtZFR4d3NJQjUyNlBZX0daV3U2b29ZaU9lbEZQbkRxSXhIbE1OdHJnbVJnVWdHTDd4dmxZX2xTSVlIR0U1aC1MTS1Cc3FnNk1palYybTZ2TU84aWJkUk10YldPN1NBZlBFRnlhdU5fV0Z6VnVpdTFRaFdibDhodUlWM09scV9ZcHl6TnNTY0VsejRlRkJCbnV2TWdMUlNvblU0ZDg5ajFmQUNvdTN4UXo=",
+        "ref_info": "Z0FBQUFBQm9xRnVGdkg0S2pDNy1nYmROT2E4SW41THJnbXFjMzJlTGkxWW1MYnkzSEktR0U1Zk5FVEtfcFNCeEhlT3VCOXo0Q21sd0VJMGhMcjdJM0hFb2dNTHQ1OXB3c3QyaWtLMF9mVXlHMDc2ZDZvM0hTWmw5d3l2MXd3MUJfRG1TcFZEZDZ2aTg="
+      },
+      "order": 78
     },
     {
       "outputs": [
@@ -5563,8 +6379,8 @@
         334
       ],
       "pos": [
-        5289.6728515625,
-        2174.614013671875
+        5279.552734375,
+        2119.97265625
       ],
       "id": 305,
       "properties": {
@@ -5578,676 +6394,6 @@
         "Node name for S&R": "WanVideoVACEEncode"
       },
       "order": 77
-    },
-    {
-      "outputs": [
-        {
-          "name": "*",
-          "label": "输出",
-          "type": "*"
-        }
-      ],
-      "color": "#322",
-      "widgets_values": [
-        "WanVAE"
-      ],
-      "inputs": [
-        {
-          "name": "WANVAE",
-          "link": 485,
-          "label": "WANVAE",
-          "type": "WANVAE"
-        }
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "type": "SetNode",
-      "mode": 0,
-      "bgcolor": "#533",
-      "size": [
-        210,
-        58
-      ],
-      "pos": [
-        4857.3603515625,
-        1183.6746826171875
-      ],
-      "id": 291,
-      "properties": {
-        "previousName": "",
-        "widget_ue_connectable": {}
-      },
-      "order": 39
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "vae",
-          "slot_index": 0,
-          "links": [
-            485,
-            749
-          ],
-          "label": "vae",
-          "type": "WANVAE",
-          "localized_name": "vae"
-        }
-      ],
-      "size": [
-        311.6885070800781,
-        95.98224639892578
-      ],
-      "pos": [
-        4710.69775390625,
-        1176.1046142578125
-      ],
-      "widgets_values": [
-        "Wan2_1_VAE_bf16.safetensors",
-        "bf16"
-      ],
-      "inputs": [
-        {
-          "shape": 7,
-          "name": "compile_args",
-          "label": "compile_args",
-          "type": "WANCOMPILEARGS",
-          "localized_name": "compile_args"
-        },
-        {
-          "widget": {
-            "name": "model_name"
-          },
-          "name": "model_name",
-          "label": "model_name",
-          "type": "COMBO",
-          "localized_name": "model_name"
-        },
-        {
-          "widget": {
-            "name": "precision"
-          },
-          "shape": 7,
-          "name": "precision",
-          "label": "precision",
-          "type": "COMBO",
-          "localized_name": "precision"
-        }
-      ],
-      "flags": {},
-      "id": 293,
-      "type": "WanVideoVAELoader",
-      "properties": {
-        "cnr_id": "ComfyUI-WanVideoWrapper",
-        "ver": "3869b0482b615b6a8fd6f346467c5ef6627eed72",
-        "widget_ue_connectable": {},
-        "Node name for S&R": "WanVideoVAELoader"
-      },
-      "order": 24
-    },
-    {
-      "outputs": [
-        {
-          "name": "*",
-          "label": "输出",
-          "type": "*"
-        }
-      ],
-      "color": "#432",
-      "widgets_values": [
-        "WanTextEncoder"
-      ],
-      "inputs": [
-        {
-          "name": "WANTEXTENCODER",
-          "link": 486,
-          "label": "WANTEXTENCODER",
-          "type": "WANTEXTENCODER"
-        }
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "type": "SetNode",
-      "mode": 0,
-      "bgcolor": "#653",
-      "size": [
-        210,
-        58
-      ],
-      "pos": [
-        4865.33154296875,
-        1344.8365478515625
-      ],
-      "id": 292,
-      "properties": {
-        "previousName": "",
-        "widget_ue_connectable": {}
-      },
-      "order": 40
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "wan_t5_model",
-          "slot_index": 0,
-          "links": [
-            486
-          ],
-          "label": "wan_t5_model",
-          "type": "WANTEXTENCODER",
-          "localized_name": "wan_t5_model"
-        }
-      ],
-      "size": [
-        304.67938232421875,
-        130
-      ],
-      "pos": [
-        4717.92724609375,
-        1326.699462890625
-      ],
-      "widgets_values": [
-        "umt5-xxl-enc-fp8_e4m3fn.safetensors",
-        "bf16",
-        "offload_device",
-        "fp8_e4m3fn"
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "model_name"
-          },
-          "name": "model_name",
-          "label": "model_name",
-          "type": "COMBO",
-          "localized_name": "model_name"
-        },
-        {
-          "widget": {
-            "name": "precision"
-          },
-          "name": "precision",
-          "label": "precision",
-          "type": "COMBO",
-          "localized_name": "precision"
-        },
-        {
-          "widget": {
-            "name": "load_device"
-          },
-          "shape": 7,
-          "name": "load_device",
-          "label": "load_device",
-          "type": "COMBO",
-          "localized_name": "load_device"
-        },
-        {
-          "widget": {
-            "name": "quantization"
-          },
-          "shape": 7,
-          "name": "quantization",
-          "label": "quantization",
-          "type": "COMBO",
-          "localized_name": "quantization"
-        }
-      ],
-      "flags": {},
-      "id": 294,
-      "type": "LoadWanVideoT5TextEncoder",
-      "properties": {
-        "cnr_id": "ComfyUI-WanVideoWrapper",
-        "ver": "3869b0482b615b6a8fd6f346467c5ef6627eed72",
-        "widget_ue_connectable": {},
-        "Node name for S&R": "LoadWanVideoT5TextEncoder"
-      },
-      "order": 25
-    },
-    {
-      "outputs": [
-        {
-          "name": "int",
-          "links": [
-            575,
-            585
-          ],
-          "label": "整数",
-          "type": "INT",
-          "localized_name": "int"
-        }
-      ],
-      "color": "#432",
-      "widgets_values": [
-        15
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "int"
-          },
-          "name": "int",
-          "type": "INT",
-          "localized_name": "整数"
-        }
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "type": "Primitive integer [Crystools]",
-      "mode": 0,
-      "bgcolor": "#653",
-      "size": [
-        210,
-        58
-      ],
-      "pos": [
-        4350.22705078125,
-        1075.209716796875
-      ],
-      "id": 343,
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "Primitive integer [Crystools]"
-      },
-      "order": 26
-    },
-    {
-      "outputs": [
-        {
-          "name": "selected_value",
-          "links": [
-            583
-          ],
-          "label": "值",
-          "type": "*",
-          "localized_name": "selected_value"
-        },
-        {
-          "name": "selected_label",
-          "label": "标签",
-          "type": "STRING",
-          "localized_name": "selected_label"
-        },
-        {
-          "name": "selected_index",
-          "type": "INT",
-          "localized_name": "selected_index"
-        }
-      ],
-      "color": "#432",
-      "widgets_values": [
-        2,
-        false
-      ],
-      "inputs": [
-        {
-          "shape": 7,
-          "name": "input1",
-          "link": 585,
-          "label": "输入1",
-          "type": "*",
-          "localized_name": "input1"
-        },
-        {
-          "widget": {
-            "name": "select"
-          },
-          "name": "select",
-          "type": "INT",
-          "localized_name": "选择"
-        },
-        {
-          "widget": {
-            "name": "sel_mode"
-          },
-          "name": "sel_mode",
-          "type": "BOOLEAN",
-          "localized_name": "选择模式"
-        },
-        {
-          "name": "input2",
-          "link": 586,
-          "label": "输入2",
-          "type": "INT"
-        },
-        {
-          "name": "input3",
-          "label": "输入3",
-          "type": "INT"
-        }
-      ],
-      "flags": {},
-      "type": "ImpactSwitch",
-      "mode": 0,
-      "bgcolor": "#653",
-      "size": [
-        315,
-        122
-      ],
-      "pos": [
-        4274.974609375,
-        1026.9127197265625
-      ],
-      "id": 344,
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "ImpactSwitch"
-      },
-      "order": 41
-    },
-    {
-      "outputs": [
-        {
-          "name": "int",
-          "links": [
-            586
-          ],
-          "label": "整数",
-          "type": "INT",
-          "localized_name": "int"
-        }
-      ],
-      "color": "#432",
-      "widgets_values": [
-        6
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "int"
-          },
-          "name": "int",
-          "type": "INT",
-          "localized_name": "整数"
-        }
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "type": "Primitive integer [Crystools]",
-      "mode": 0,
-      "bgcolor": "#653",
-      "size": [
-        210,
-        58
-      ],
-      "pos": [
-        4298.76904296875,
-        1309.9046630859375
-      ],
-      "id": 345,
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "Primitive integer [Crystools]"
-      },
-      "order": 27
-    },
-    {
-      "outputs": [
-        {
-          "name": "INT",
-          "links": [],
-          "label": "整数",
-          "type": "INT",
-          "localized_name": "整数"
-        },
-        {
-          "name": "FLOAT",
-          "links": [
-            793
-          ],
-          "label": "浮点",
-          "type": "FLOAT",
-          "localized_name": "浮点"
-        }
-      ],
-      "color": "#432",
-      "widgets_values": [
-        "a"
-      ],
-      "inputs": [
-        {
-          "shape": 7,
-          "name": "a",
-          "link": 789,
-          "type": "*",
-          "localized_name": "A"
-        },
-        {
-          "shape": 7,
-          "name": "b",
-          "type": "*",
-          "localized_name": "B"
-        },
-        {
-          "shape": 7,
-          "name": "c",
-          "type": "*",
-          "localized_name": "c"
-        },
-        {
-          "widget": {
-            "name": "value"
-          },
-          "name": "value",
-          "type": "STRING",
-          "localized_name": "值"
-        }
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "type": "SimpleMath+",
-      "mode": 0,
-      "bgcolor": "#653",
-      "size": [
-        315,
-        98
-      ],
-      "pos": [
-        4715.0419921875,
-        1070.3985595703125
-      ],
-      "id": 431,
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "SimpleMath+"
-      },
-      "order": 43
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "p0",
-          "links": [
-            791
-          ],
-          "label": "p0",
-          "type": "*",
-          "localized_name": "p0"
-        },
-        {
-          "name": "model_1",
-          "links": [
-            792
-          ],
-          "label": "model_1",
-          "type": "WANVIDEOMODEL"
-        }
-      ],
-      "size": [
-        270,
-        78
-      ],
-      "pos": [
-        4724.412109375,
-        1026.0521240234375
-      ],
-      "widgets_values": [
-        ""
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "pwd"
-          },
-          "name": "pwd",
-          "label": "pwd",
-          "type": "STRING",
-          "localized_name": "pwd"
-        },
-        {
-          "name": "strength_1",
-          "link": 793,
-          "label": "strength_1",
-          "type": "FLOAT"
-        }
-      ],
-      "flags": {},
-      "id": 432,
-      "type": "RHHiddenNodes",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "RHHiddenNodes",
-        "info": "Z0FBQUFBQm91NFlzRzVaaHBPNFFGOFA2QmFZc1pXNW5sb1NXMzVSdmVtQ0VRanBTaWVIb2RNamVJSXJMWlMwYl9wRGdwYjNIWUNIak9nS2Q3YVVfb0pQWWFrVlF2aWZpcmg4TDdBYkI3Tjljenp1NVdOcHFPVEFrQVJaRllxX01QUTFSTkVlX2xJOFpsTGN1MkFQZ3YyeGZqY3ZJRDVDcjh2dGFjcVc4cVNoZ3VzMUpIWnNBTFd1bTkxYWNkMThiUUV6SFpRMnJ2TzlMcDJKQm91TVI2bDJuaTFSVllmeC1qeUp2VF9aZDRndzZMNXh4bUVRWHdwQWFRb1BKZVdhem9vczMyX3Rublp3cmNuV2RHc1hRdFc4cEpKbjVpMEhyVENBVm83R3ExYVJVUUhveElnMVNZV3BxLVRtazhtclNnSFIxc0FzR1ZnRU0xOTRnU1pzMG5jN1p5VXBra3ZPVnd2WWtOX21BVkdwaTRBbXNUcDVMck1rdTZqbEJHNFhyM3ViYkQ5Q1NIWW9BVkwxb0tkMXNOVXk1Z2I0eWY0YlJRWDlYYWZsenNxRWVBTHpQR0NHa0I5bGE2NjlCQUNTOHQyZUJNZWR6d2ptYzlRUDdld2JaaTJmVnJqTXdDZmRwMnZtS0ZWbDAyLWtZZFVwLXdJa1ZxVWpJLVF4TWYxQWpaQldDUEJ0aXBnZ2NiakdJd3RHVEIxZFJmNTBRQmVWajFoWS1mYVRKdl9NT295SzhmaVpnd0I1QW5ESzlyRThPd1RVREhMOVUwajhnU1BXdm9iekJGMEZMNWl5bEZNMTl6SVRwOWdtMmxIalpFZ0R5MTRLSENIdnpDQ0w5ald3SzVnWUpWa1ZaU3lhRHhvbjB6alhwWHRzV19xRm1GenNGSXBKU2VvOWo2TGJETVpveERiTkFuTEdJWHhzZXRzX3VxS2FfLXl1aDdOZ29PdDdaeUlUVkxsVTZCUENFREVWRk8zb2VGNmNvcko5b1pBckJfZWFRSFZUTFExa2Vva3FyVExPREN6N2N3QUpjU2xqWWNrNllNN2hnR2JhNUNYMC1MRHJ4S253clkzbVQ5OHJzRHRDcXdFQ0o3UW5hWWxlODd6cWU0WWkzSDdvVmJLQ1dwby04QmMtYzhIMldYZTVfNjRTSDA4Q3IwbGFOcHJWTjcxc19BaVI2S2FmWW1LZVZlMUpGNVpXLTc4SXU4WHp5ZFZwUVUwQ0dUTHM5YVdKb0xRY3hxVnVob2xoMWRFWWdaRExxVWlDbXJCZWs0bkh3YTl6ZzFKN2cycDU0QVp4aFZ5STVLQWE2d0I2cGNqcm5SVGg5YnFfWmthUHlSZHh5eGIwQ21iLWtzZHVnR0pFaUFpT1BDUHViZUZmT1NjamVPc2JzeV93dEg1NEg1MjhhOTZTcHlQVUFNcGhpamVSYm1Va2I2NGtpdUk4QzNMMXlrbElCaWZoSzB0bHpLTXE0cjZLbnNiSVU0TUhSbHhDM2JOYmpwbjNPdmxUZDZGYkJDNXZGaUEyZTVkNFBBS0sySlkwbVR3M3JJVDFsSDRncHZMaURiR1Z6aWxwT3Q0WFQ3MzhVN1hPTXpsVGRfaFE2NkdhVFRyMHRndmFRT003cklYY0JKZXU5ODZoaE5MMUpfekI2WEcyb2cyZmZ1TjBmVzBuSXJQWDAtVk42Q2FmRmJSckltWXBGTEt5UzEtdkJTZE5EQmh1UEJ6YkZoY0tpMWZfbjVKc1J3R3hENVo2SG5PaGU5WHlkMlkyTmFTNmN4WDlrZ1JwLVA2RElua2M3ZjlzZC1aQjdfejA3ejJZaFNxSEljSDNZbGljTU9sQ0luZnRvRFM1WVgwX2VrQ1hFLS1EdE1QWjczWW5GbVZNcVRyN1dveWxYV3R4R3F6by0zLW9YMF9KZjY0ckJQZ0lHYU1FaHVPbDZlRjkybTMtbmJURE52MGhSU3phcnBseHl6eE1oZHFPOURqMEtDSU9RM0xVVW1yZ0tJTFNMSDlmcGw3UkZ1TkNEZV9OOVh3ZTQyN1JsbVV6Tnk3ZEpzZm5SZ2lUMTFaRUJEQTRvRXVGZFB3d001R21mVkktM25RcFVqZVROMmJZQ2ZBX3JfSU1FdnVqclFjSWFlUTVfRE9UT05sWVhnX1JCUmRscE1tcjc4Q2pPU2w5MWhROTFtWmNNeDhZRnFVc0tUVDdsemttZjRNNWJlMmxpemVybXZxeDhaYWtWV28tX1BlejdNMnBZdUcybGlRdjBoUjBBc2sxbTJ1R1lKWUFGMFgtdnZKeUJKbDJsaV8wMjd1SWRLek5sTTgwTmp3eXdydG5xekJxNmYwZjA2WHJ6bm1EN0JWUmotMjdhZDdCY1llUkJrT1k5aUtlZ002OW5DRnJHWkJkaWFjM3FLaHRJZVotRVFWc0VpWkdlVGJsbVRuS2U1cjdreGhKSjFfbUd0Ykdwa0Nud3BHbzY3c0ZvVGJ3a2EyWE5Xc19WMmVhc0lZUm00Z2RRQndHNC1ROG44bkhxTGVRTW1QWllQMnhVdk5rRXMza2FORG5SODJpeUo4U0luSmg0MHhXR2xyRTNLLTlwM1ZoSV9yYXpaeS15WXB1RGFBOU9NeV9yMGxvUHJxaUw2Vk5QS0pGV2ZpOWUzbU5XbXBBUEszckJXZGNVZUNGemFkR042NGNvVnYzOEFxemNHM3ZVRHBqT3BERkMwOWhZSkdaN2NoM0xRdFFnUGZXZkdXRFJMTXBTaDEyV00xT3psSVRFOXp1bTZabGtTS0ZCWDVYVUhwQmxjdUpXNWQ2aldpTGt0czczNkU3c0ZFQjQ3NFREN3pfR0pfdG1XUHkxTHpPb0tjbXNiOGgydmRueEhhZFlZZ3V2OGpaRVpzaC10RDc4YXBQS2pENF8wWU14djh1ZWxZX3hHdmNyY1dzdk1xaW1JVjRfM0NSTS1RbXFMVnpaN29VWlozclc3Z3UwNXJpMGo2T0ZIXzZEekRpSnVBUnZjOUgzRVFMVjQ4RjRTRVRrMkVPY2ptTDZKQ0JIc1RrYUs3b1B2SjVMN21CSjNmRlpRTUhUb3VyaFg2UUc1QVREbXJuaUNTbU5SWG9VazAwUGhoOFpCRE1nV3B1bXdraWM0ZXNvQU96SkFWMTJJQXZ5aEg0MUktRmtiQUlXRm1USkd5NUlmXzhORlNYYkt0SVJFaUhmbWpHLTQtMVh1cGxzTjdKRnc2Rm1qT1pmY1hYdS0tcG9IaElMbGZRaUo2alA0VEQ2T2lINHFjcGN3cXJNRjhoa2lRRXR0ZkY3SXVRNFl3MGlLaTdkNlFfVEVGaENVR3YtVkg2VUUwa0VlQ20tV3NKWW8yMnVMSlM1NG0zWGZ0QWtSWWpySkRVUlZLN25JSl9GRHlzWnlvWUJpbW5JSTZHX0k3emtVMDBhc2g3ZVFsb3JOaDVoMV9DSWo0a183NklhQ0dVQlN6VTJuY3Z0S1poZkVmZnhSdXptTTdSYlg4eTlhMTQ2cll2c0Y5cGZ3eG53TVpaTHVCMkYxaU9nZE50SWdFNUlkUVZKRmpTcjhqQU93TFF2djNLSDdldDc4dXBIOTlSTzVZZXdIblJiVlNONWJxaEdja0c1RFhpQXpCLXFaa1RLU0o3YkkyeHF2ci1aMzlOTDBJQm9IREthNmVGdmlNN1NVYXU0U21wajI3Y0JjazZBTnpqT1c5U0xlMkd2TzhNNmZtd0hITGt0WkJtZTFSaXQ2UUlRR3dZZm51d0NpYmJPMHo5UGR0RUl4R0g4YnllUXdydGJxTFJadzN5R1o1bXJoY1ZPRFkxNHJzM05aZnZ1Umh0MS1MWXJTWnFkSHpTY2xvbHFlSmZJaEY4cDFDQTc0T3JoaXJhWWpKeDd1bHB2UHhQZ0xzT2NBU1J0MEptdS0zM2J4UmtKcEhadWoyVF9UOHFaSF9UNTg0cmgtS2N1a2d3VjZvQWxoWEp4ekZ1eWpfWTI0R2pEWmEtVzY1UjdjM01hMjR2Rzd4c0pEMndEUGFfWG56U2FSZTdfckJPUUdkb21hN2M4aFpfY1FXS3pyNG9OUjNwUFQ2RkowOW5EZ1dURjJ4TV9Fa2FWajRWMmJ4bDJrV0ZGd3pTa192WXE3YWZoMTBFcm9WSGh0RDR3UHNpX1ZGTEZnaVB6LVFmNjZqdzhmMU1tSHZIV1VkbHI0NDFUTGxHN0RkcTdyT0Rib0lmVHBwTFZEWXUyVHN3VkJfb1Y5WEhvTHppMWJ3MHNka2dLMWFvdm04TjdHMFFqUk1kd3B0UFN5V09nM195ZDRsNXdwblYtQ2s4Si1wR0FrOWY0LTBFTHlSNVNSdTBRd184M0tNbVRvZzJDZDNTQzhhcGFzbF9NV1ZvbGtkZUhHdGtpLTFQQnQ5REhnNzM1bENfTC0tYWtLYzVlX2p2U1V0US1wb3UwaXBMMkhZLVhGdlR6MG5qUWtTWWZXdzlnUExOOGItdlh4bHVwdGFwRC1kSUxNWHBwXzU5bHJwZUVQQll5ZWQzV2pvZzM1elVUenVMM0pOeXFweGlyZ3BkODdVeC1udV8yMWtmZ2lYUGFxX1NnTUphdXRadi1YeW00aktlN3BxRFVWbWtiUTFEZ3djbHdMV3NOSDY0eFFSVzdSbWc2TjJxd0VsUFZGOWlnTnRGUUtVYXJlLXFFTFYzbHNqUUZvYXY0Y3RzYlNIMnNJNGgtRWhscGxaX2l3Tkp0ZHc2blVvVC1YcTdKcFVDSlFtdm5RTV80blg1QkFlRldCd3h3bG9UNTIzeDlaZHhmcnhMQjlwOFJkcTBidVdJNUJPV1BEUElDNjZQZWRtcHFTSnRTcTFHVWR6Y0V0MHdzUG9PakQ0VV9zZU5SSGNhOHFIdC1XTmtrLXM1cVBmQkNXekVURTMtakdJNmM4WlhjU0ZqdENhUGEwd1RYUWFWYmlEZEYtYWpMNGE2Tl9lUlk3VTZLTUtRWndrc20yVWhaNDVrRXJzM01pMi14MXNKZFFKaUE0M2dvZlRkeElTWGJOb014UDFaeU90VlRjSEpVc3JER1ljTTlMUUZJVmgwZjZ1OFo5RmRRTGV4ZmdMZjJIU0RBYzdHSTV6LThyUkhNclVHT1Z2TU1VQ3dkeXFyUTNQNEFmdDVfOUtJcDVTcG1tNXktVG5QX1k3c21vQmNJazRwZDExdkpvZXVad3RTT0FOSzNGN2hxRENiazRFQlh2ZllMU0xpNk0zTHJJZUlVTGdEdHROU2dOZExHVktiTi1uZnl2MkNJUnlSbEZKeDI3OC13Y2NFUmJ5cU9UNjJ5MDIzbUp2NUJlblFRaURUQThfNXBha2pNTHdhMV9BeHZaWE5EeW1PWVpkNnVFb1YxSXVib094dDBtTkMwdjR3b3Mxa0ItMWxFU2ZhckNUMHVnOGFtek1vUVpqeUdFMlNNM0I3WXVPTE9QaFA3YnlJT184X2lOLXBRWU9pbmROejN2NktGOGpWNjRpblRuY1BpRnhJWTk4ZEpndTV1MnRoQnVnaU5kbXVWNWpFeTF4a0E2empxeVkyTTU2aURQbnBOZjV3LU9aSGxZUk0zY0ZfM2ZkX3dmdVVYX2RTS3Nlc3NILTBpbjdxRUJBZ0NvcTFKaElPWTBDREJHd1E5SjFWSkg5N2NFTldDYmFjTXJ3a1hNR1laMDdEdDg5cGo1NUFiaFdyRi1SWm9fR3dSanVXbUU0NDlTeGZpenRSWDNacFE4dzR5ODZiNEZnZW9VcGNqYXFZcG5xU1g1TmFxR204Z2NaaXBlbzhPVjRGMDF2dTlXaUplX3Y5Tlo3dDZNRWs0NVhHbnNoWVM3ZW1lbXJIU1VZdnJoaUNEVXlOQXlNQnBIeUtIQjMxamRJUmJyWlpidW5ZUTdpeS12Y2hOZFI0U19laU9KbkcwZWl0M284a0JiNFhjRE9Wek5hSTQ1czhScmhMWl9lYUlSWEE0SE04VjhSZ2pUQzItM1FPaGRROU9HbDVWdzlDTFd1WmJpdUllWGZXMXo4clh1WWNlWmZZdFp3U2lhS1h1V3lRM0pxYTE4UzNCMG9CWFdYMmxRaldoM0UtejN5dWJXeHd6bS1TaC1wbzhGUFhQMTV1X3NkOVEtYWc5bEtULURHTmR0WTFVOVdMSE1uWG1ZWkJtMEtLb0dFZldFa2Jab0dZakRobmJ6a0FWTlotb3AzQ2xtSXRjLUFRN1hoM1RYOWZJV2xGbGxEQzFuQmRYS2dBTW1LZkgtRHQxVmFpVnlIaDN0RW04b3B3dHJNSVZDQVV3OFNEWWJ1VkszNGlibUltRXVRWXpzVFl3d0RWd1hueVZZa0ZLUHRDa0RqVGRUUHo4anZTVzBTSlBPdG1MWG1Ua1pwMjhPTU1IWi1HT1dvNVFwMUZTR0c0OEVpMEtMVlk1bWZJRDdPNy1WYzNwX2xzNV91TWJCUHRkZmljNWI1cXpGeHVVTXJnNEJHRV84S0FzeGxJYzNWOUJpcUYtRWFYOG1kQmRvUkpscUpfOFR6OExSWm5td2c3UExKS0VDTHJIUWM2M3hpWTVfSlZ0SmphZ0VkVjVILXlkdkdLM1hLMVFyQnpjb0pSalE3NTh6VjUwcmxBbVFoY1ZGSEhrdnVER1pWb2xkQVdYNEpNMUdMd2FwYm9UMlBFQ0VHMHpwR2RKTjlMYjNBMDFnZFlfM3QyaFFVY01jMTdqV0NVVDQxbkhBenNEZUZqSzRQOFFHV0RMUlhtZC13U2MyU0xxRWloUlctRHpWc3BhdG5jWkYwNm1hMmNObGpGX0tLLTIzVzA5VFkyQ1pmMnNPVmtwSnZ4QVQ3MGJBdGhfWFIwRk9mOXdsa2ZyVlVTMjhWWEp0OG90RHVMRjVHdDZLcVhXdEhGT2xGUnNpM0ZLTzU4U19mSGt2NnpnMzVWY1NnMi1Id2gySjRfSmpNd1dQRUtyYS1tNXJ2OERZZW5fYnp3LVRnbHNWNUM1NlQyNDdRT01LblQ3RmdvVkpYdTVrTWx4eWctRGc2cFRSN2loTTRKRjh1MGpqNlNBc1pRNTZtaFYzUHMyX2ZVQWVIMWlXYlVwek1hQzZhRzBRSlJ4enN2R01UU3JVbUZpSlZMb3FYWjY1VjRrUjg5ZW13MXVGajhsdnJZU19ydXB1T3N0U2pROEd4Mk83RUhvWFUxUWRoZE9ZRjJNNTJaWVdaXzFTcmJSazRHMnVNMjNLcDJrb2lCb0ZGNnhsRC0yM045dHMtZzl2V0FTMV9LeXJDellWZWMzb2dXY3Q1S3BwUUR2UXVPNDBCcjduRzZ2MlYwdTJsdnRSd1FUS0tYSmJqZHBFaEFieDFGRGlraTR5S0JIUUVKRFBnNVpwcC1xdnctTVFER0hYNVpUTWVCTk5vbUVmRHY1eFM2WHNPM0RGMlFZSHZKeWIzV3NTX1d4azcxbFo5ME5xbVk2aUxyLTlWLWdnZVVFeFZMeEJ6cWZ3Y0dzNUM5MmUtVEx4ZGdIRmZuUThuMlMtNkxJR052a04wOGlqWXM2QlB3azJQSk9TLXI2Zmt2cHJMaUl2Zmxnams0Y3RqNGVTVmdXVnNCTkJYVEMxaFJRdWVuY21FbzdkeUJwaTdlZUN4aEdpMGJQWVhOZWQ3V0NvOGNNbDhITTBmWklFc0lxZkNLeklxc3RKdDdPSFhkZkdnQ0d4cEVRelVPcFhxc1ZFdTNwR1BYTXlDekJBTWp0TXNWNzFvTEFIdzJSYTdya2gwZjI3RkpDeTFoS0luUktDZFVJekZiZE1tbnRWUE53NDg3dHcxUTJSZE5VR3ZmcE8zWUc5NVBGRDUxNFVUMEpJX1d6Mnp5R3dGU2dlMlNqM0pmUEdaMDRkYmwzbXo1R21GMXlmVDlMTHkybDRMWVlzZWt3VTJ5V2NBb1dUTTY4LXp5NDBBbkpKbU1tUllGdUk0UEZiYXY5YXptSXU4dG5XQUVYdkNQVVc0OVlYbHZvQURscDI1S2ljVVBmMFRHc003cnRncGVoRFFqNXJaNVJXR2pnMVdvTS1MamkyVFM4bzZEQ3NPNFdlS2NLSXh5WnBERDBZckhnd0xPOGoyVndGZkM0cjRsLTFSMUJyQ2xwMHc9PQ==",
-        "ref_info": "Z0FBQUFBQm91NFlzck1aWWIyTm84Ty1PNWdhUlk3ZDlpUWR4YTM5TzJBQUFLRmZFeWJrUFN3R2VlN0hqc0V6M1dMOGZtaXZSUjJBTUpkWmdWZ3pESktqR3J4YjhYSlZ4NURpMTZtNXFoVTc1YWRzNVo2bWVtVUJMdlZhbWxRM0FHYkw2VU4ydkhOUzA="
-      },
-      "order": 49
-    },
-    {
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "links": [
-            474,
-            489,
-            620,
-            646,
-            651,
-            652,
-            699,
-            714,
-            720
-          ],
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "图像"
-        },
-        {
-          "name": "width",
-          "label": "宽度",
-          "type": "INT",
-          "localized_name": "width"
-        },
-        {
-          "name": "height",
-          "label": "高度",
-          "type": "INT",
-          "localized_name": "height"
-        }
-      ],
-      "color": "#2a363b",
-      "widgets_values": [
-        480,
-        848,
-        "lanczos",
-        false,
-        8,
-        0
-      ],
-      "inputs": [
-        {
-          "name": "image",
-          "link": 594,
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "image"
-        },
-        {
-          "shape": 7,
-          "name": "get_image_size",
-          "label": "参考图像",
-          "type": "IMAGE",
-          "localized_name": "get_image_size"
-        },
-        {
-          "widget": {
-            "name": "width"
-          },
-          "name": "width",
-          "link": 506,
-          "label": "width",
-          "type": "INT",
-          "localized_name": "宽度"
-        },
-        {
-          "widget": {
-            "name": "height"
-          },
-          "name": "height",
-          "link": 507,
-          "label": "height",
-          "type": "INT",
-          "localized_name": "高度"
-        },
-        {
-          "widget": {
-            "name": "upscale_method"
-          },
-          "name": "upscale_method",
-          "type": "COMBO",
-          "localized_name": "缩放方法"
-        },
-        {
-          "widget": {
-            "name": "keep_proportion"
-          },
-          "name": "keep_proportion",
-          "type": "BOOLEAN",
-          "localized_name": "固定宽高比"
-        },
-        {
-          "widget": {
-            "name": "divisible_by"
-          },
-          "name": "divisible_by",
-          "type": "INT",
-          "localized_name": "因数"
-        },
-        {
-          "widget": {
-            "name": "crop"
-          },
-          "shape": 7,
-          "name": "crop",
-          "type": "COMBO",
-          "localized_name": "裁剪"
-        }
-      ],
-      "flags": {},
-      "type": "ImageResizeKJ",
-      "mode": 0,
-      "bgcolor": "#3f5159",
-      "size": [
-        315,
-        266
-      ],
-      "pos": [
-        4556.4658203125,
-        1932.7939453125
-      ],
-      "id": 308,
-      "properties": {
-        "cnr_id": "comfyui-kjnodes",
-        "ver": "0addfc6101f7a834c7fb6e0a1b26529360ab5350",
-        "widget_ue_connectable": {},
-        "Node name for S&R": "ImageResizeKJ"
-      },
-      "order": 51
     },
     {
       "outputs": [
@@ -6542,8 +6688,8 @@
         804.8956298828125
       ],
       "pos": [
-        5657.44140625,
-        2154.767578125
+        5644.10009765625,
+        2138.577880859375
       ],
       "id": 312,
       "properties": {
@@ -6557,208 +6703,115 @@
     {
       "outputs": [
         {
-          "name": "int",
+          "name": "images",
           "links": [
-            572
+            524
           ],
-          "label": "整数",
-          "type": "INT",
-          "localized_name": "int"
-        }
-      ],
-      "color": "#432",
-      "widgets_values": [
-        10
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "int"
-          },
-          "name": "int",
-          "type": "INT",
-          "localized_name": "整数"
-        }
-      ],
-      "flags": {},
-      "type": "Primitive integer [Crystools]",
-      "mode": 0,
-      "bgcolor": "#653",
-      "size": [
-        210,
-        58
-      ],
-      "pos": [
-        4007.40673828125,
-        1017.4012451171875
-      ],
-      "id": 339,
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "Primitive integer [Crystools]"
-      },
-      "order": 28
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "p0",
-          "links": [
-            795
-          ],
-          "label": "p0",
-          "type": "*",
-          "localized_name": "p0"
-        }
-      ],
-      "size": [
-        270,
-        58
-      ],
-      "pos": [
-        6023.001953125,
-        2661.952880859375
-      ],
-      "widgets_values": [
-        ""
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "pwd"
-          },
-          "name": "pwd",
-          "label": "pwd",
-          "type": "STRING",
-          "localized_name": "pwd"
-        },
-        {
-          "name": "images_1",
-          "link": 796,
-          "label": "images_1",
-          "type": "IMAGE"
-        }
-      ],
-      "flags": {},
-      "id": 433,
-      "type": "RHHiddenNodes",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "RHHiddenNodes",
-        "info": "Z0FBQUFBQm91NDNNblozQUxKQjNVMU1GRm1jVnJiRHpGZEN2T0k4NkQycU43dkNTQ3N5RTFzZDZndjJKaXhTNWhsV3VWMGY3S1BhNlUyTHlEbWtnMGdjOV9wS0dQeUh4OWxrZTBKRlpKOWx4Szc4QUYzTzhmRFV0ZTZBMkVFT25Wb0JQS2lPeXJxUXJCdG82dXRaa05LLXJBcDVKaW1XalFPU19HTHp3TzNnT0VLdFVlSTd5Y1lpWU9qUDloWE1VSWkzc2N3UjZoSmVUUDZ2a0dvd1hsbkpkbVFuTGdCV1Y0SERBcWs4NXhodG1uVkhPc092VGR5eXM1OFBDbTdtR1FXNkYzZV9VVVM4NEdQeTFEVGlvX25Ud21FdlJjZHNPUU9xQkx0WGRlSkxfbHRoSDN6ZXJIOFZFT01OSmZMX09OVDV0Z2x1NHhNTkJ5SktqaTBGNjdLa01lQWg2WGtWVjZGUF9wVWViYzJwWUZnb3NSTEVKbzZNRGZGaEtNRnhGWXB0UDA3NkFmSEloNHlycUZ5NVo4MzhOYmpLNktGV09RNGMxSE4tcUFUTW5aUUZzRl8xSkxsaE9vTGtSOGN3QnA1YkdMTlhVTnliQzBYRXNxTnR1QWZzcVBWN2dfN1FYVzJQUXlSVUF5YnhjRGxxQkc2WG5XVWExMnNWTVJxQ1BYdjRlU0E1U3pkNTlvekktWHBqakdpUmVqbmphbkl6Y2EzTTQ5VFpwRjZuWGFCRUl5LW9kRlJhMXlURlFlb1pCQW5SRjJjSF9SSWhUbERwVE5VTTlEMTRWTWx1MVRpbE9WZ0s5LUVFa195TUM1WVJadWlSZUNnTXFheWNKVDU0SDFsbTJFV2RGZDFVZmZzXzhrUVdMYUZEcW5KSzllUFpnX2hIanNLWjRLa3hHeFVjaXVCTDM0bmVIQVNsWWlRLTNwYU5KSm5jMUdlQnREa1RQNkZQSy12d1pJaWdmTjZDWWM1VFp6Y1dObkpfTEhVWU1KemFGRjZHTlZJMFdTWnljaC1XY2Iybl9yLTU2ODhXR2F2MGJoNG5CMHlpYmtxaGRHdXJlSUV1eFRKbXpOcDBOeUhBbXRfUXdRYkRRdEpRZlFwUmdSU3RJeUhqX3l2SUI4T2dUaTc3bDNqNzVCaFpTZTBGdTI0c2E3R2FlMS1fZjFqVDlvNDQyTEFIN25CNzhzc2kzZ0FGQTFOMlR2cUt4QmNIbTFpTkxZdWIyM0VZczd6ZGVKd1VsbFppN2lLWFotcXZQai1TTUpFQU85YUx2ZmhENllPeUlyamNsS0pnQmExZ0YxSFJIOXk5bWRvekRoYUNOT0JYWXRjdjZLT2c1RXExaU5LSzlYV0tpSnVlV1I4ZlVXTnNqcnF4aUk0a29FV3hkQTZHMDFuNVk5MHpqUktkT2xhdkc0N3BVMWphOUViQ1pRejAwWGVzYVVKcTkwN08wNUdSa0gzTG1aRTJZTGp6TzR0cUNzdzdSUUNTMTB1dlRiM1V5UER3VmE5S25VX29LT1JaQnZwLWlWS2FzVTZyNEhFdGcwZEZaM0hhTkpRUUJpRExGTGFaUzZMS3dwLWpPcWZ2VTcwSVpCamtRQ29PNm92Q3pGZ1h0NWdIVUJ0OHc1TW9RYzZ6Y1Z6Y0Z1Mmtja0VTdEZwS1NzUXFGdDdEcGtmTmFDcUFEOHV6NGJwOHVDMGs5Y25Nb0NUOUVwZDBZa0FvRjdVWU5SN2U3al9aT3o4Ni1HOGNZdTFVZTE3Wk9HY2U3c0lQaDFvMVpYMEI4dzBEZDVITlc4OGJ6UTAxZ2l4ZG5YRVl0ZzlWVDJxSjM0WmNpWW1wZEx2QmtoaS1IdXRBV1oyMHNwYmlCLVlhRUhZVVVpVDFmN1dwMXFoSG5mdkoyc2UyektrRUpjaVRYN2tuUXVlcElxcU1tQUtNeWlORUEtOHhJblF6UWFRUFBlTXI2dDNPWU1jU1RkdUJ3S0hJQjRLMDhCWjdQeUxpSWY3Wmt6NUNzSkRSR05qOGJGdWV6YVQwYW1zelFEOGpRd2VMaFVtVnc4NXhwSzVXTGM0YTBkZDNoRlJmWVZHOWlHeDI3T25pX09uYmdIaVl2QjdXX3ZrZkE1aWVZblFxOVVQQlBpbG9ab1VRa21jYVlFWmdfYnBOeHN0UnVwanM5WVJuTzY1aWpFRGxsRGtNXzFodklGSHhiM3BQSDhsc1dFQm42UGNCY3lldUZ1NU90U212RE8xelBtQV9LS1pBTW5Mc2NHbFd1YUMwc1V3VTcxdmdlOHhRX3pkR3E1OFlpYmJYcFVJUXVHUGlYV0VzYWdSZF9LRDVKZFBxTW14YjlfRzRUdWFyNTU5TTRDVklMVnNEUWhHVi1JeDYwb1NZaXFzc1BQeG9fWmtpaGdvaVZwX19MYTdXQ09tX0JXRHlHbllraXg1WW1BdWExOWxmeXJxM0p4Mkc3LUpMNWtqVk52dkZuNHhKSEFYZkJWOVkxdUJzNmQyaFAxNHV6Y0VHdmw3eUhGSDZfWjNvMHVJZVpaRnRyOUZMSU1aZ0Q4R2ZqN1F5cjJjblRJLUcxSFU3OTc3WFR0ZkFIVzh2Q09lOEM4Y3NqM080VzFhOEFrNXcwOHVScE4wT3Nvc2VYU2dYY0E1MGJiczFRZVgzTnp5bnJMQjR1NGJyU3JOdVVVckljWEpuTkU5R3NoVDJQWG5ZNGpib245TWllOHptdnZab3RWQ19HSjFLelpuX0JsMER5U3A5bkNBWnhmRUpHRFRYSWNqV0FDZVhHZGQ0TE9IbFRiSXk2M3h1N2hqWDNUTGUxcXk0UHdsTk9kZWljUmVUQkZ6YjlYLVA5dDYzWDZxRloxZEp6aDdXWmxQUGpvd3Vmb0c5UnBFaS1XZWZrWDdwdHFrNENfX0RlaXNVOTFSRnplVVFmZG94UHhWY0hzOXdwcEFmWVVCQ2tNd3QtY1ZpUTkxQlRtMTREV2Z0VmNSVnBjMDdydC01cmo1dmFENF9CY2ZzbjVXWjR4d21jczUyQXdTSDlkTlBGTFRGZXNfdFpGVmZDeGNrR0JxQkdwbUUxNHRtXzFOSU52RVpDRVhIZVExeE4ycURxdEY1TEVTb1JLLUtmdzBjLWx6VGwxQlBHczF0U1ZmX0ZpUFJ1RW1XMk5GTzJfUUkxcXg1QTNWbDFlM1Z2Nm1LS05ZTVdheEF5LXo1cWFNaFBXMGNubXRuTm44WmhLaFdPa3BhX3ZqUUtwREFSNllVREZvQXpweWRIenJ4V2ZNSzVTTU9BRnAwdXJLQWk0RWNFcjlWZUlubFpEUVlOa0czUFQ2azktbUFJYk41eWU1NnlmandWQ0tmS3Q0TUhRbnBoOEdkSk1PbEpwOUxENmpHazFKMmwydlV5V0JJUjlGaGI0bHg4Q2VyZktDNlFKZjBKVUszRW5YelBZZEhXYXFrWlNlUjQ4WDdhZGpXNHVleVJqbm9JcEV1bVhOUl9lS2hTSjF4azNZNFlQbUFSVUNzbEw3bWo5c0FHZjFjX0NOcUlKeWVfZ3lNRVdna3VxYzZrcXZXenFISU9xZi1EMENhYlJvQnlONGlwZkRoNUdDVWlrMVJQZmUxdFVPanI2bVVyOXhTSzY4RktvZ1N4eTZwVlhWdnpxY1g3TkNYZ0szVElhSDJDWk9CMkQtSUNiaTBTWG9sMjlGeS1WUmRjRnNNVHhKMUNsbkVId0M5M0VPd3NrV3lNUkE9PQ==",
-        "ref_info": "Z0FBQUFBQm91NDNNZFNaSFg2VTl3cU5fYlEtUjhrbzk1YUtkcmxjMDdjTVRoUjVxQllVRnhkMnhhVWxUTTV0ZzFRRGtfaE43TTVSM2lUeDQ2Mkg5Ri0wdW9QYWR0VWtTU1MzOHJPV1F1a0liaWVOVk53c3pmYjVOaTZnUy1TVUVfTWNMeDhSOFQ5eko="
-      },
-      "order": 83
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "float",
-          "links": [
-            789
-          ],
-          "label": "浮点",
-          "type": "FLOAT",
-          "localized_name": "float"
-        }
-      ],
-      "size": [
-        269.23980712890625,
-        60.280704498291016
-      ],
-      "pos": [
-        4801.54052734375,
-        1049.9210205078125
-      ],
-      "widgets_values": [
-        1.8000000000000003
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "float"
-          },
-          "name": "float",
-          "type": "FLOAT",
-          "localized_name": "浮点"
-        }
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "id": 430,
-      "type": "Primitive float [Crystools]",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "Primitive float [Crystools]"
-      },
-      "order": 29
-    },
-    {
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "links": [
-            592,
-            718
-          ],
-          "label": "图像",
+          "label": "images",
           "type": "IMAGE",
-          "localized_name": "图像"
+          "localized_name": "images"
         }
       ],
       "color": "#2a363b",
       "widgets_values": [
-        "DWPreprocessor",
-        512
+        false,
+        272,
+        272,
+        144,
+        128,
+        "default"
       ],
       "inputs": [
         {
-          "name": "image",
-          "link": 620,
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "image"
+          "name": "vae",
+          "link": 487,
+          "label": "vae",
+          "type": "WANVAE",
+          "localized_name": "vae"
+        },
+        {
+          "name": "samples",
+          "link": 488,
+          "label": "samples",
+          "type": "LATENT",
+          "localized_name": "samples"
         },
         {
           "widget": {
-            "name": "preprocessor"
+            "name": "enable_vae_tiling"
           },
-          "shape": 7,
-          "name": "preprocessor",
-          "type": "COMBO",
-          "localized_name": "预处理器"
+          "name": "enable_vae_tiling",
+          "label": "enable_vae_tiling",
+          "type": "BOOLEAN",
+          "localized_name": "enable_vae_tiling"
         },
         {
           "widget": {
-            "name": "resolution"
+            "name": "tile_x"
           },
-          "shape": 7,
-          "name": "resolution",
+          "name": "tile_x",
+          "label": "tile_x",
           "type": "INT",
-          "localized_name": "分辨率"
+          "localized_name": "tile_x"
+        },
+        {
+          "widget": {
+            "name": "tile_y"
+          },
+          "name": "tile_y",
+          "label": "tile_y",
+          "type": "INT",
+          "localized_name": "tile_y"
+        },
+        {
+          "widget": {
+            "name": "tile_stride_x"
+          },
+          "name": "tile_stride_x",
+          "label": "tile_stride_x",
+          "type": "INT",
+          "localized_name": "tile_stride_x"
+        },
+        {
+          "widget": {
+            "name": "tile_stride_y"
+          },
+          "name": "tile_stride_y",
+          "label": "tile_stride_y",
+          "type": "INT",
+          "localized_name": "tile_stride_y"
+        },
+        {
+          "widget": {
+            "name": "normalization"
+          },
+          "shape": 7,
+          "name": "normalization",
+          "label": "normalization",
+          "type": "COMBO",
+          "localized_name": "normalization"
         }
       ],
       "flags": {},
-      "type": "AIO_Preprocessor",
+      "type": "WanVideoDecode",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
-        315,
-        82
+        304.8812255859375,
+        198
       ],
       "pos": [
-        4219.95263671875,
-        2790.066650390625
+        5646.8544921875,
+        1893.231201171875
       ],
-      "id": 273,
+      "id": 296,
       "properties": {
+        "cnr_id": "ComfyUI-WanVideoWrapper",
+        "ver": "d9b1f4d1a5aea91d101ae97a54714a5861af3f50",
         "widget_ue_connectable": {},
-        "Node name for S&R": "AIO_Preprocessor"
+        "Node name for S&R": "WanVideoDecode"
       },
-      "order": 56
+      "order": 80
     },
     {
       "mode": 0,
@@ -6785,7 +6838,7 @@
         953.3436889648438
       ],
       "widgets_values": [
-        "244113054d7a99cc17a0e5b673e851020032efa7dcfeeccd10ff00971d2e39a1.jpg",
+        "5efc42edc4487dbeb46f7c4b2a6801935074d055beb995fb4ccf246b3dfb5639.jpg",
         "image"
       ],
       "inputs": [
@@ -6813,13 +6866,13 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "LoadImage"
       },
-      "order": 31
+      "order": 27
     },
     {
       "outputs": [],
       "color": "#2a363b",
       "widgets_values": [
-        "# 🍺 资源说明 🍺\n这里有一堆好东西想跟大家分享，一起玩起来，落地更轻松～\n---\n# 🎁 免费资源汇总🎁\n## 👉[免费资源](https://fcnm7uvt4vdy.feishu.cn/docx/Ec5MdPVp6oUe0hxCuoPcEzacnwb) 👈点击跳转（整合包/入群/往期资料）\n---\n\n## ⭐提供商用版服务演示🍦\n# 🍉魅力创意 视频落地方案🍉\n## 👉[成套方案](https://fcnm7uvt4vdy.feishu.cn/docx/Sstxdqq1tofnjkxZysCcNsCCn6y)👈点击跳转\n\n\n# 🍉魅力创意-收费图片工作流🍉\n## 👉[图片工具](https://fcnm7uvt4vdy.feishu.cn/docx/SaUNd7WYXoDWyGxOub2cAtqonxc)👈点击跳转\n\n\n\n## 💫需要动作迁移授权和定制图片工作流的可以私我💫\n---\n\n\n# 💻魅力创意-整合包地址💻\n## 👉[Kontext整合包](https://fcnm7uvt4vdy.feishu.cn/docx/CmUndgPSeorULWxyfalcfo6TnRn) 👈点击跳转\n（含模型和环境包 支持罪行Flux Kontext）\n\n---\n\n# 🌻跑不动的可以考虑用我的云端🌻\n\n## ⭐RH平台也有我大部分工作流(非商用尝鲜版)：\n\n## 👉[RH最新工作流](https://www.runninghub.cn/user-center/1901623527684915202)👈点击跳转\n---\n\n## ⭐提供商用版镜像服务🍦\n## 👉[仙宫多镜像云端](https://www.xiangongyun.com/image/detail/1b1f67a0-889d-479b-aba2-a55bc34e2e7d)👈点击跳转\n\n---\n\n\n---\n\n## 🥃请联系WX：john3006🥃\n---\n15"
+        "# 🍺 资源说明 🍺\n这里有一堆好东西想跟大家分享，一起玩起来，落地更轻松～\n---\n# 🎁 免费资源汇总🎁\n## 👉[免费资源](https://fcnm7uvt4vdy.feishu.cn/docx/Ec5MdPVp6oUe0hxCuoPcEzacnwb) 👈点击跳转（整合包/入群/往期资料）\n---\n\n## ⭐提供商用版服务演示🍦\n# 🍉魅力创意 视频落地方案🍉\n## 👉[成套方案](https://fcnm7uvt4vdy.feishu.cn/docx/Sstxdqq1tofnjkxZysCcNsCCn6y)👈点击跳转\n\n\n# 🍉魅力创意-收费图片工作流🍉\n## 👉[图片工具](https://fcnm7uvt4vdy.feishu.cn/docx/SaUNd7WYXoDWyGxOub2cAtqonxc)👈点击跳转\n\n\n\n## 💫需要动作迁移授权和定制图片工作流的可以私我💫\n---\n\n\n# 💻魅力创意-整合包地址💻\n## 👉[Kontext整合包](https://fcnm7uvt4vdy.feishu.cn/docx/CmUndgPSeorULWxyfalcfo6TnRn) 👈点击跳转\n（含模型和环境包 支持罪行Flux Kontext）\n\n---\n\n# 🌻跑不动的可以考虑用我的云端🌻\n\n## ⭐RH平台也有我大部分工作流(非商用尝鲜版)：\n\n## 👉[RH最新工作流](https://www.runninghub.cn/user-center/1901623527684915202)👈点击跳转\n---\n\n## ⭐提供商用版镜像服务🍦\n## 👉[仙宫多镜像云端](https://www.xiangongyun.com/image/detail/1b1f67a0-889d-479b-aba2-a55bc34e2e7d)👈点击跳转\n\n---\n\n\n---\n\n## 🥃请联系WX：john3006🥃\n---\n30"
       ],
       "inputs": [],
       "flags": {},
@@ -6839,7 +6892,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 30
+      "order": 28
     }
   ],
   "extra": {
@@ -6869,8 +6922,8 @@
     },
     "ds": {
       "offset": [
-        -579.0980032145922,
-        -462.8246943173881
+        -1622.4301421229582,
+        -435.35181375905427
       ],
       "scale": 0.6588450000000002
     },
@@ -7483,14 +7536,6 @@
       "INT"
     ],
     [
-      588,
-      274,
-      0,
-      350,
-      0,
-      "IMAGE"
-    ],
-    [
       592,
       273,
       0,
@@ -7688,22 +7733,6 @@
       0,
       380,
       1,
-      "IMAGE"
-    ],
-    [
-      656,
-      274,
-      0,
-      390,
-      0,
-      "IMAGE"
-    ],
-    [
-      657,
-      390,
-      0,
-      306,
-      0,
       "IMAGE"
     ],
     [
@@ -7945,11 +7974,35 @@
       433,
       1,
       "IMAGE"
+    ],
+    [
+      797,
+      274,
+      0,
+      444,
+      0,
+      "IMAGE"
+    ],
+    [
+      798,
+      444,
+      0,
+      306,
+      0,
+      "IMAGE"
+    ],
+    [
+      799,
+      444,
+      0,
+      350,
+      0,
+      "IMAGE"
     ]
   ],
   "id": "c6e410bc-5e2c-460b-ae81-c91b6094fbb1",
   "config": {},
   "version": 0.4,
-  "last_node_id": 443,
+  "last_node_id": 444,
   "revision": 0
 }

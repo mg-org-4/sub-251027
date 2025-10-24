@@ -765,7 +765,6 @@
         "collapsed": true
       },
       "type": "GetNode",
-      "title": "Get_ing",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
@@ -896,7 +895,6 @@
         "collapsed": true
       },
       "type": "GetNode",
-      "title": "Get_zong",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -1087,7 +1085,6 @@
         "collapsed": true
       },
       "type": "GetNode",
-      "title": "Get_zong",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -1237,7 +1234,6 @@
         "collapsed": true
       },
       "type": "GetNode",
-      "title": "Get_text",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
@@ -1273,7 +1269,6 @@
         "collapsed": true
       },
       "type": "GetNode",
-      "title": "Get_Fps",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -1847,7 +1842,6 @@
         "collapsed": false
       },
       "type": "GetNode",
-      "title": "Get_AU",
       "mode": 0,
       "bgcolor": "#353",
       "size": [
@@ -2638,7 +2632,6 @@
         "collapsed": true
       },
       "type": "GetNode",
-      "title": "Get_tiaoguo",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -3011,7 +3004,6 @@
       "inputs": [],
       "flags": {},
       "type": "GetNode",
-      "title": "Get_ing",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
@@ -4137,7 +4129,6 @@
         "collapsed": false
       },
       "type": "GetNode",
-      "title": "Get_kuan",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -4177,7 +4168,6 @@
         "collapsed": false
       },
       "type": "GetNode",
-      "title": "Get_gao",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -4423,7 +4413,6 @@
         "collapsed": false
       },
       "type": "GetNode",
-      "title": "Get_gao",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -4460,7 +4449,6 @@
         "collapsed": false
       },
       "type": "GetNode",
-      "title": "Get_kuan",
       "mode": 0,
       "bgcolor": "#29699c",
       "size": [
@@ -4725,7 +4713,6 @@
       "inputs": [],
       "flags": {},
       "type": "GetNode",
-      "title": "Get_ing",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
@@ -4903,7 +4890,6 @@
       "inputs": [],
       "flags": {},
       "type": "GetNode",
-      "title": "Get_ing",
       "mode": 0,
       "bgcolor": "#3f5159",
       "size": [
@@ -6740,7 +6726,7 @@
       ],
       "size": [
         272.0238037109375,
-        254
+        274
       ],
       "pos": [
         1535.2598876953125,
@@ -6813,6 +6799,10 @@
         },
         {
           "name": "value11",
+          "type": "*"
+        },
+        {
+          "name": "value12",
           "type": "*"
         }
       ],
@@ -6920,7 +6910,7 @@
       ],
       "size": [
         270,
-        254
+        274
       ],
       "pos": [
         2206.93603515625,
@@ -6993,6 +6983,10 @@
         },
         {
           "name": "value11",
+          "type": "*"
+        },
+        {
+          "name": "value12",
           "type": "*"
         }
       ],
@@ -7520,32 +7514,6 @@
       "order": 93
     },
     {
-      "outputs": [],
-      "color": "#2a363b",
-      "widgets_values": [
-        "# 🍺 资源说明 🍺\n这里有一堆好东西想跟大家分享，一起玩起来，落地更轻松～\n---\n# 🎁 免费资源汇总🎁\n## 👉[免费资源](https://fcnm7uvt4vdy.feishu.cn/docx/Ec5MdPVp6oUe0hxCuoPcEzacnwb) 👈点击跳转（整合包/入群/往期资料）\n---\n\n## ⭐提供商用版服务演示🍦\n# 🍉魅力创意 视频落地方案🍉\n## 👉[成套方案](https://fcnm7uvt4vdy.feishu.cn/docx/Sstxdqq1tofnjkxZysCcNsCCn6y)👈点击跳转\n\n\n# 🍉魅力创意-收费图片工作流🍉\n## 👉[图片工具](https://fcnm7uvt4vdy.feishu.cn/docx/SaUNd7WYXoDWyGxOub2cAtqonxc)👈点击跳转\n\n\n\n## 💫需要动作迁移授权和定制图片工作流的可以私我💫\n---\n\n\n# 💻魅力创意-整合包地址💻\n## 👉[Kontext整合包](https://fcnm7uvt4vdy.feishu.cn/docx/CmUndgPSeorULWxyfalcfo6TnRn) 👈点击跳转\n（含模型和环境包 支持罪行Flux Kontext）\n\n---\n\n# 🌻跑不动的可以考虑用我的云端🌻\n\n## ⭐RH平台也有我大部分工作流(非商用尝鲜版)：\n\n## 👉[RH最新工作流](https://www.runninghub.cn/user-center/1901623527684915202)👈点击跳转\n---\n\n## ⭐提供商用版镜像服务🍦\n## 👉[仙宫多镜像云端](https://www.xiangongyun.com/image/detail/1b1f67a0-889d-479b-aba2-a55bc34e2e7d)👈点击跳转\n\n---\n\n\n---\n\n## 🥃请联系WX：john3006🥃\n---\n15"
-      ],
-      "inputs": [],
-      "flags": {},
-      "type": "MarkdownNote",
-      "title": "魅力创意工作流使用说明",
-      "mode": 0,
-      "bgcolor": "#3f5159",
-      "size": [
-        420.87884521484375,
-        832.1683959960938
-      ],
-      "pos": [
-        -1796.2188720703125,
-        -2134.21630859375
-      ],
-      "id": 333,
-      "properties": {
-        "widget_ue_connectable": {}
-      },
-      "order": 42
-    },
-    {
       "mode": 0,
       "outputs": [
         {
@@ -7566,11 +7534,11 @@
         810.6817626953125
       ],
       "pos": [
-        -2307.4853515625,
-        -2132.37744140625
+        -2305.768798828125,
+        -2111.123046875
       ],
       "widgets_values": [
-        "244113054d7a99cc17a0e5b673e851020032efa7dcfeeccd10ff00971d2e39a1.jpg",
+        "5efc42edc4487dbeb46f7c4b2a6801935074d055beb995fb4ccf246b3dfb5639.jpg",
         "image"
       ],
       "inputs": [
@@ -7592,11 +7560,37 @@
         }
       ],
       "flags": {},
-      "id": 334,
+      "id": 335,
       "type": "LoadImage",
       "properties": {
         "widget_ue_connectable": {},
         "Node name for S&R": "LoadImage"
+      },
+      "order": 42
+    },
+    {
+      "outputs": [],
+      "color": "#2a363b",
+      "widgets_values": [
+        "# 🍺 资源说明 🍺\n这里有一堆好东西想跟大家分享，一起玩起来，落地更轻松～\n---\n# 🎁 免费资源汇总🎁\n## 👉[免费资源](https://fcnm7uvt4vdy.feishu.cn/docx/Ec5MdPVp6oUe0hxCuoPcEzacnwb) 👈点击跳转（整合包/入群/往期资料）\n---\n\n## ⭐提供商用版服务演示🍦\n# 🍉魅力创意 视频落地方案🍉\n## 👉[成套方案](https://fcnm7uvt4vdy.feishu.cn/docx/Sstxdqq1tofnjkxZysCcNsCCn6y)👈点击跳转\n\n\n# 🍉魅力创意-收费图片工作流🍉\n## 👉[图片工具](https://fcnm7uvt4vdy.feishu.cn/docx/SaUNd7WYXoDWyGxOub2cAtqonxc)👈点击跳转\n\n\n\n## 💫需要动作迁移授权和定制图片工作流的可以私我💫\n---\n\n\n# 💻魅力创意-整合包地址💻\n## 👉[Kontext整合包](https://fcnm7uvt4vdy.feishu.cn/docx/CmUndgPSeorULWxyfalcfo6TnRn) 👈点击跳转\n（含模型和环境包 支持罪行Flux Kontext）\n\n---\n\n# 🌻跑不动的可以考虑用我的云端🌻\n\n## ⭐RH平台也有我大部分工作流(非商用尝鲜版)：\n\n## 👉[RH最新工作流](https://www.runninghub.cn/user-center/1901623527684915202)👈点击跳转\n---\n\n## ⭐提供商用版镜像服务🍦\n## 👉[仙宫多镜像云端](https://www.xiangongyun.com/image/detail/1b1f67a0-889d-479b-aba2-a55bc34e2e7d)👈点击跳转\n\n---\n\n\n---\n\n## 🥃请联系WX：john3006🥃\n---\n30"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "MarkdownNote",
+      "title": "魅力创意工作流使用说明",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        420.87884521484375,
+        832.1683959960938
+      ],
+      "pos": [
+        -1794.50341796875,
+        -2112.9619140625
+      ],
+      "id": 336,
+      "properties": {
+        "widget_ue_connectable": {}
       },
       "order": 43
     }
@@ -7621,8 +7615,8 @@
     },
     "ds": {
       "offset": [
-        4904.522386338976,
-        3066.0682983398438
+        4911.695482042101,
+        3067.0365600585938
       ],
       "scale": 0.45
     }
@@ -8901,6 +8895,6 @@
   "id": "8b7a9a57-2303-4ef5-9fc2-bf41713bd1fc",
   "config": {},
   "version": 0.4,
-  "last_node_id": 334,
+  "last_node_id": 336,
   "revision": 0
 }

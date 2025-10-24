@@ -1,5 +1,5 @@
 {
-  "last_link_id": 12,
+  "last_link_id": 13,
   "nodes": [
     {
       "outputs": [
@@ -8,15 +8,15 @@
           "links": [
             6
           ],
-          "label": "IMAGE",
+          "label": "图像",
           "type": "IMAGE",
-          "localized_name": "IMAGE"
+          "localized_name": "图像"
         },
         {
           "name": "MASK",
-          "label": "MASK",
+          "label": "遮罩",
           "type": "MASK",
-          "localized_name": "MASK"
+          "localized_name": "遮罩"
         }
       ],
       "color": "#332922",
@@ -32,7 +32,7 @@
           "name": "image",
           "label": "image",
           "type": "COMBO",
-          "localized_name": "image"
+          "localized_name": "图像"
         },
         {
           "widget": {
@@ -41,7 +41,7 @@
           "name": "upload",
           "label": "upload",
           "type": "IMAGEUPLOAD",
-          "localized_name": "choose file to upload"
+          "localized_name": "选择文件上传"
         }
       ],
       "flags": {},
@@ -78,9 +78,9 @@
         {
           "name": "images",
           "link": 6,
-          "label": "images",
+          "label": "图像",
           "type": "IMAGE",
-          "localized_name": "images"
+          "localized_name": "图片"
         },
         {
           "widget": {
@@ -89,7 +89,7 @@
           "name": "filename_prefix",
           "label": "filename_prefix",
           "type": "STRING",
-          "localized_name": "filename_prefix"
+          "localized_name": "文件名前缀"
         }
       ],
       "flags": {},
@@ -189,7 +189,7 @@
           "shape": 7,
           "name": "anything",
           "link": 3,
-          "label": "anything",
+          "label": "输入任何",
           "type": "*",
           "localized_name": "anything"
         }
@@ -236,7 +236,7 @@
           "shape": 7,
           "name": "anything",
           "link": 4,
-          "label": "anything",
+          "label": "输入任何",
           "type": "*",
           "localized_name": "anything"
         }
@@ -287,7 +287,7 @@
           "link": 9,
           "label": "video",
           "type": "VIDEO",
-          "localized_name": "video"
+          "localized_name": "视频"
         },
         {
           "widget": {
@@ -296,7 +296,7 @@
           "name": "filename_prefix",
           "label": "filename_prefix",
           "type": "STRING",
-          "localized_name": "filename_prefix"
+          "localized_name": "文件名前缀"
         },
         {
           "widget": {
@@ -305,7 +305,7 @@
           "name": "format",
           "label": "format",
           "type": "COMBO",
-          "localized_name": "format"
+          "localized_name": "格式"
         },
         {
           "widget": {
@@ -314,7 +314,7 @@
           "name": "codec",
           "label": "codec",
           "type": "COMBO",
-          "localized_name": "codec"
+          "localized_name": "编码器"
         }
       ],
       "flags": {},
@@ -352,173 +352,6 @@
       "order": 1
     },
     {
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "links": [
-            8
-          ],
-          "label": "IMAGE",
-          "type": "IMAGE",
-          "localized_name": "IMAGE"
-        },
-        {
-          "name": "MASK",
-          "label": "MASK",
-          "type": "MASK",
-          "localized_name": "MASK"
-        }
-      ],
-      "color": "#332922",
-      "widgets_values": [
-        "b380efb064e7ab085ae97648660bfacb10042b932dbe63553ee48d6512a51439.png",
-        "image"
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "image"
-          },
-          "name": "image",
-          "label": "image",
-          "type": "COMBO",
-          "localized_name": "image"
-        },
-        {
-          "widget": {
-            "name": "upload"
-          },
-          "name": "upload",
-          "label": "upload",
-          "type": "IMAGEUPLOAD",
-          "localized_name": "choose file to upload"
-        }
-      ],
-      "flags": {},
-      "type": "LoadImage",
-      "mode": 0,
-      "bgcolor": "#593930",
-      "size": [
-        315,
-        314
-      ],
-      "pos": [
-        192.46116638183594,
-        688.9906005859375
-      ],
-      "id": 14,
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "LoadImage",
-        "ttNbgOverride": {
-          "bgcolor": "#593930",
-          "groupcolor": "#b06634",
-          "color": "#332922"
-        }
-      },
-      "order": 2
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "prompt",
-          "links": [
-            10
-          ],
-          "label": "prompt",
-          "type": "STRING",
-          "localized_name": "prompt"
-        },
-        {
-          "name": "show_help",
-          "label": "show_help",
-          "type": "STRING",
-          "localized_name": "show_help"
-        }
-      ],
-      "size": [
-        400,
-        200
-      ],
-      "pos": [
-        -53.706642150878906,
-        1360.021240234375
-      ],
-      "widgets_values": [
-        ""
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "prompt"
-          },
-          "name": "prompt",
-          "label": "prompt",
-          "type": "STRING",
-          "localized_name": "prompt"
-        }
-      ],
-      "flags": {},
-      "id": 18,
-      "type": "CR Prompt Text",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "CR Prompt Text"
-      },
-      "order": 3
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "prompt",
-          "links": [
-            11
-          ],
-          "label": "prompt",
-          "type": "STRING",
-          "localized_name": "prompt"
-        },
-        {
-          "name": "show_help",
-          "label": "show_help",
-          "type": "STRING",
-          "localized_name": "show_help"
-        }
-      ],
-      "size": [
-        400,
-        200
-      ],
-      "pos": [
-        34.59483337402344,
-        1074.080078125
-      ],
-      "widgets_values": [
-        "A woman is speaking in front of the camera, smiling and taking a selfie with her phone in one hand. The phone cannot be seen in the camera, only her hand can be seen, and the other hand makes natural movements as she speak,Staring at the lens,\na scene with a person dressed in traditional attire, likely inspired by East Asian culture\nThe individual is wearing ornate jewelry and a detailed headpiece, suggesting a historical or fantasy setting\nIn the background, there is a scenic landscape with lush greenery, flowers, and a pathway leading to a body of water surrounded by mountains\nSeveral people are walking along the path, some holding lanterns, which adds to the serene and mystical atmosphere of the scene\nThe overall ambiance is tranquil and picturesque, evoking a sense of adventure or exploration."
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "prompt"
-          },
-          "name": "prompt",
-          "label": "prompt",
-          "type": "STRING",
-          "localized_name": "prompt"
-        }
-      ],
-      "flags": {},
-      "id": 17,
-      "type": "CR Prompt Text",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "CR Prompt Text"
-      },
-      "order": 4
-    },
-    {
       "outputs": [],
       "color": "#432",
       "widgets_values": [
@@ -541,7 +374,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 5
+      "order": 2
     },
     {
       "outputs": [],
@@ -566,7 +399,7 @@
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 6
+      "order": 3
     },
     {
       "outputs": [
@@ -605,18 +438,31 @@
         false,
         "16:9",
         1068739786,
-        862959387,
+        1823757728,
         "randomize",
         false
       ],
       "inputs": [
         {
           "shape": 7,
-          "name": "image",
-          "link": 8,
-          "label": "image",
+          "name": "image1",
+          "label": "image1",
           "type": "IMAGE",
-          "localized_name": "image"
+          "localized_name": "image1"
+        },
+        {
+          "shape": 7,
+          "name": "image2",
+          "label": "image2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "shape": 7,
+          "name": "image3",
+          "label": "image3",
+          "type": "IMAGE",
+          "localized_name": "image3"
         },
         {
           "widget": {
@@ -662,7 +508,7 @@
           },
           "shape": 7,
           "name": "apikey",
-          "link": 10,
+          "link": 13,
           "label": "apikey",
           "type": "STRING",
           "localized_name": "apikey"
@@ -686,6 +532,14 @@
           "label": "enable_upsample",
           "type": "BOOLEAN",
           "localized_name": "enable_upsample"
+        },
+        {
+          "shape": 7,
+          "name": "image",
+          "link": 8,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
         }
       ],
       "flags": {},
@@ -743,9 +597,191 @@
       "flags": {},
       "id": 20,
       "type": "PrimitiveNode",
-      "title": "aspect_ratio",
       "properties": {
+        "widget_ue_connectable": {},
         "Run widget replace on values": false
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            11
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "label": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        32.2911491394043,
+        1074.080078125
+      ],
+      "widgets_values": [
+        "A woman is speaking in front of the camera, smiling and taking a selfie with her phone in one hand. The phone cannot be seen in the camera, only her hand can be seen, and the other hand makes natural movements as she speak,Staring at the lens,\na scene with a person dressed in traditional attire, likely inspired by East Asian culture\nThe individual is wearing ornate jewelry and a detailed headpiece, suggesting a historical or fantasy setting\nIn the background, there is a scenic landscape with lush greenery, flowers, and a pathway leading to a body of water surrounded by mountains\nSeveral people are walking along the path, some holding lanterns, which adds to the serene and mystical atmosphere of the scene\nThe overall ambiance is tranquil and picturesque, evoking a sense of adventure or exploration."
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "提示词"
+        }
+      ],
+      "flags": {},
+      "id": 17,
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "apikey",
+          "links": [
+            13
+          ],
+          "label": "apikey",
+          "type": "STRING",
+          "localized_name": "apikey"
+        }
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "pos": [
+        207.4981689453125,
+        1354.414794921875
+      ],
+      "widgets_values": [
+        "zhenzhen",
+        "",
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "api_base"
+          },
+          "name": "api_base",
+          "label": "api_base",
+          "type": "COMBO",
+          "localized_name": "api_base"
+        },
+        {
+          "widget": {
+            "name": "apikey"
+          },
+          "name": "apikey",
+          "label": "apikey",
+          "type": "STRING",
+          "localized_name": "apikey"
+        },
+        {
+          "widget": {
+            "name": "custom_ip"
+          },
+          "shape": 7,
+          "name": "custom_ip",
+          "label": "custom_ip",
+          "type": "STRING",
+          "localized_name": "custom_ip"
+        }
+      ],
+      "flags": {},
+      "id": 21,
+      "type": "Comfly_api_set",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Comfly_api_set"
+      },
+      "order": 6
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            8
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "color": "#332922",
+      "widgets_values": [
+        "b380efb064e7ab085ae97648660bfacb10042b932dbe63553ee48d6512a51439.png",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "label": "image",
+          "type": "COMBO",
+          "localized_name": "图像"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "type": "LoadImage",
+      "mode": 0,
+      "bgcolor": "#593930",
+      "size": [
+        315,
+        314
+      ],
+      "pos": [
+        201.33050537109375,
+        668.717529296875
+      ],
+      "id": 14,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage",
+        "ttNbgOverride": {
+          "bgcolor": "#593930",
+          "groupcolor": "#b06634",
+          "color": "#332922"
+        }
       },
       "order": 7
     }
@@ -764,10 +800,10 @@
     "VHS_latentpreview": false,
     "ds": {
       "offset": [
-        136.95617319710504,
-        -906.4333741996816
+        1184.0933463111965,
+        177.3463470761786
       ],
-      "scale": 1.1671841070450024
+      "scale": 0.5989500000000004
     }
   },
   "groups": [
@@ -836,7 +872,7 @@
       14,
       0,
       1,
-      0,
+      10,
       "IMAGE"
     ],
     [
@@ -848,19 +884,11 @@
       "VIDEO"
     ],
     [
-      10,
-      18,
-      0,
-      1,
-      5,
-      "STRING"
-    ],
-    [
       11,
       17,
       0,
       1,
-      1,
+      3,
       "STRING"
     ],
     [
@@ -868,13 +896,21 @@
       20,
       0,
       1,
-      4,
+      6,
       "COMBO"
+    ],
+    [
+      13,
+      21,
+      0,
+      1,
+      7,
+      "STRING"
     ]
   ],
   "id": "3c8bae95-dcfe-4ec1-8b0f-138d05bf1549",
   "config": {},
   "version": 0.4,
-  "last_node_id": 20,
+  "last_node_id": 21,
   "revision": 0
 }

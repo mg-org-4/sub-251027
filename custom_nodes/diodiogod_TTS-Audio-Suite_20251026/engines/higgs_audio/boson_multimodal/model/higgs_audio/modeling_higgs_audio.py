@@ -1253,6 +1253,7 @@ class HiggsAudioModel(HiggsAudioPreTrainedModel, GenerationMixin):
         cache_audio_discrete_codes_mask: Optional[torch.LongTensor] = None,
         past_key_values_buckets: Optional[OrderedDict[int, Cache]] = None,
         reward: Optional[torch.FloatTensor] = None,
+        **kwargs  # Compatibility: transformers 4.57.1+ passes tokenizer to forward()
     ):
         """Forward pass for the Higgs-Audio model.
 
@@ -2407,7 +2408,7 @@ class HiggsAudioModel(HiggsAudioPreTrainedModel, GenerationMixin):
         splitted_model = super().from_pretrained(
             checkpoint_dir,
             *model_args,
-            torch_dtype=torch.bfloat16,
+            dtype=torch.bfloat16,  # Changed from torch_dtype (deprecated in transformers 4.57.1+)
             device_map="cpu",
             **{**kwargs, "state_dict": None},  # Prevent auto-loading state_dict
         )
@@ -2474,11 +2475,13 @@ class HiggsAudioModel(HiggsAudioPreTrainedModel, GenerationMixin):
                 batch_size = 1
                 hidden_dim = self.config.hidden_size
 
+                # Use self.dtype instead of self.config.torch_dtype (deprecated in transformers 4.57.1+)
+                model_dtype = getattr(self, 'dtype', getattr(self.config, 'dtype', torch.float32))
                 hidden_states = torch.zeros(
-                    (batch_size, 1, hidden_dim), dtype=self.config.torch_dtype, device=self.device
+                    (batch_size, 1, hidden_dim), dtype=model_dtype, device=self.device
                 )
                 causal_mask = torch.ones(
-                    (batch_size, 1, 1, kv_cache_length), dtype=self.config.torch_dtype, device=self.device
+                    (batch_size, 1, 1, kv_cache_length), dtype=model_dtype, device=self.device
                 )
                 position_ids = torch.zeros((batch_size, 1), dtype=torch.long, device=self.device)
                 audio_discrete_codes_mask = torch.tensor(

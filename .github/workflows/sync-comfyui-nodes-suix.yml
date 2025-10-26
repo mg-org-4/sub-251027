@@ -88,7 +88,7 @@ jobs:
           python -m venv venv
           source venv/bin/activate
           pip install requests
-          mkdir -p custom_nodes
+          mkdir -p mg_custom_nodes
           chmod +x ./sync_comfyui_cust_nodes_suix.sh
           ./sync_comfyui_cust_nodes_suix.sh --clean
 

@@ -7,18 +7,18 @@ from comfy.utils import ProgressBar
 import folder_paths
 
 
-class FL_FILM:
+class FL_RIFE:
     """
-    FILM (Frame Interpolation for Large Motion) frame interpolation node.
-    Generates intermediate frames between input frames, especially good for large motion.
-    Downloads model to cache folder on first use.
+    RIFE (Real-Time Intermediate Flow Estimation) frame interpolation node.
+    Generates intermediate frames between input frames for smooth slow-motion effects.
+    Downloads models to cache folder on first use.
     """
 
-    MODEL_CONFIG = {
-        "film_net": {
-            "url": "https://huggingface.co/lividtm/RIFE/resolve/main/film_net_fp32.pt",
-            "file": "film_net_fp32.pt"
-        }
+    # Model version to architecture version mapping
+    # Using direct .pth downloads from HuggingFace (faster, no extraction needed)
+    CKPT_CONFIGS = {
+        "rife47": {"arch": "4.7", "url": "https://huggingface.co/lividtm/RIFE/resolve/main/rife47.pth", "file": "rife47.pth"},
+        "rife49": {"arch": "4.7", "url": "https://huggingface.co/lividtm/RIFE/resolve/main/rife49.pth", "file": "rife49.pth"},
     }
 
     @classmethod
@@ -26,6 +26,7 @@ class FL_FILM:
         return {
             "required": {
                 "images": ("IMAGE",),
+                "ckpt_name": (list(cls.CKPT_CONFIGS.keys()), {"default": "rife47"}),
                 "multiplier": ("INT", {
                     "default": 2,
                     "min": 2,
@@ -33,6 +34,10 @@ class FL_FILM:
                     "step": 1,
                     "display": "number",
                     "tooltip": "Number of frames to generate between each pair (2 = 2x frames)"
+                }),
+                "ensemble": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Use ensemble for better quality (slower, runs model twice and averages results)"
                 }),
             },
         }
@@ -42,24 +47,32 @@ class FL_FILM:
     CATEGORY = "🏵️Fill Nodes/Video"
 
     def __init__(self):
-        self.cache_dir = Path(__file__).parent.parent / "cache" / "film_models"
+        self.cache_dir = Path(__file__).parent.parent / "cache" / "rife_models"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.model = None
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.current_ckpt = None
 
-    def download_model(self):
-        """Download FILM model weights to cache from HuggingFace"""
+        # Device selection: CUDA > MPS (Apple Silicon) > CPU
+        if torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+        else:
+            self.device = torch.device("cpu")
+
+    def download_model(self, ckpt_name):
+        """Download RIFE model weights to cache from HuggingFace"""
         import requests
 
-        config = self.MODEL_CONFIG["film_net"]
+        config = self.CKPT_CONFIGS[ckpt_name]
         model_path = self.cache_dir / config["file"]
 
         # Check if already downloaded
         if model_path.exists():
-            print(f"✓ FILM model already downloaded")
+            print(f"✓ RIFE model {ckpt_name} already downloaded")
             return model_path
 
-        print(f"📥 Downloading FILM model from HuggingFace...")
+        print(f"📥 Downloading RIFE model {ckpt_name} from HuggingFace...")
         print(f"   URL: {config['url']}")
 
         try:
@@ -77,50 +90,66 @@ class FL_FILM:
                         progress = (downloaded / total_size) * 100
                         print(f"   Progress: {progress:.1f}%", end='\r')
 
-            print(f"\n✅ FILM model downloaded successfully to cache!")
+            print(f"\n✅ RIFE model {ckpt_name} downloaded successfully to cache!")
             print(f"   Size: {model_path.stat().st_size / (1024*1024):.1f} MB")
             return model_path
 
         except Exception as e:
             if model_path.exists():
                 model_path.unlink()
-            raise RuntimeError(f"Failed to download FILM model: {e}")
+            raise RuntimeError(f"Failed to download RIFE model: {e}")
 
-    def load_model(self):
-        """Load FILM model"""
-        if self.model is not None:
+    def load_model(self, ckpt_name):
+        """Load RIFE model"""
+        if self.model is not None and self.current_ckpt == ckpt_name:
             return self.model
 
-        model_path = self.download_model()
+        config = self.CKPT_CONFIGS[ckpt_name]
+        model_path = self.download_model(ckpt_name)
 
-        print(f"🔄 Loading FILM model on {self.device}...")
+        print(f"🔄 Loading RIFE model {ckpt_name} (arch {config['arch']}) on {self.device}...")
 
         try:
-            # Load TorchScript model directly
-            self.model = torch.jit.load(str(model_path), map_location=self.device)
-            self.model.eval()
+            # Lazy import to avoid loading architecture at module import time
+            from ..rife_arch import IFNet
 
-            print(f"✅ FILM model loaded successfully!")
+            # Initialize model with correct architecture
+            self.model = IFNet(arch_ver=config["arch"])
+
+            # Load state dict
+            state_dict = torch.load(str(model_path), map_location=self.device)
+            self.model.load_state_dict(state_dict)
+            self.model.eval()
+            self.model.to(self.device)
+
+            self.current_ckpt = ckpt_name
+            print(f"✅ Model loaded successfully!")
             return self.model
 
         except Exception as e:
             self.model = None
-            raise RuntimeError(f"Failed to load FILM model: {e}")
+            raise RuntimeError(f"Failed to load RIFE model: {e}")
 
-    def make_inference(self, model, img0, img1, timestep):
-        """Run FILM inference"""
+    def make_inference(self, model, img0, img1, timestep, ensemble):
+        """Run RIFE inference with hardcoded optimal settings for v4.7"""
+        # Hardcoded scale_factor=1.0 for full quality
+        scale_list = [8.0, 4.0, 2.0, 1.0]
+
         with torch.no_grad():
-            # FILM expects timestep as a batch tensor
-            batch_size = img0.shape[0]
-            batch_dt = torch.full((batch_size, 1), timestep, dtype=img0.dtype, device=self.device)
-
-            # Run FILM inference
-            output = model(img0, img1, batch_dt)
+            output = model(
+                img0,
+                img1,
+                timestep=timestep,
+                scale_list=scale_list,
+                training=False,
+                fastmode=True,  # Hardcoded (no effect on v4.7)
+                ensemble=ensemble
+            )
 
         return output
 
-    def interpolate_frames(self, images, multiplier):
-        """Interpolate frames using FILM"""
+    def interpolate_frames(self, images, ckpt_name, multiplier, ensemble):
+        """Interpolate frames using RIFE"""
 
         batch_size = images.shape[0]
 
@@ -130,14 +159,14 @@ class FL_FILM:
 
         # Load model
         try:
-            model = self.load_model()
+            model = self.load_model(ckpt_name)
         except Exception as e:
-            print(f"❌ Error loading FILM model: {e}")
+            print(f"❌ Error loading RIFE model: {e}")
             print("   Returning input images without interpolation")
             return (images,)
 
         print(f"🎬 Interpolating {batch_size} frames with {multiplier}x multiplier...")
-        print(f"   Using FILM (Frame Interpolation for Large Motion)")
+        print(f"   Settings: ensemble={ensemble}, scale=1.0 (full quality)")
 
         output_frames = []
         pbar = ProgressBar(batch_size - 1)
@@ -151,7 +180,7 @@ class FL_FILM:
             # Add first frame
             output_frames.append(frame0)
 
-            # Convert to FILM format (B, C, H, W)
+            # Convert to RIFE format (B, C, H, W)
             img0 = frame0.permute(0, 3, 1, 2).to(self.device)
             img1 = frame1.permute(0, 3, 1, 2).to(self.device)
 
@@ -160,8 +189,8 @@ class FL_FILM:
                 timestep = j / multiplier
 
                 try:
-                    # Run FILM inference
-                    pred = self.make_inference(model, img0, img1, timestep)
+                    # Run RIFE inference
+                    pred = self.make_inference(model, img0, img1, timestep, ensemble)
 
                     # Convert back to ComfyUI format (B, H, W, C)
                     pred = pred.permute(0, 2, 3, 1).cpu()

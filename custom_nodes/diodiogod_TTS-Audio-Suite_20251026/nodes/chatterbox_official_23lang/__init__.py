@@ -1,1 +1,0 @@
-# ChatterBox Official 23-Lang nodes package - Multilingual processors

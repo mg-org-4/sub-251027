@@ -1,6 +1,0 @@
-.vscode
-.env
-.dev
-__pycache__
-
-safetychecker/*.safetensors

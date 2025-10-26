@@ -1,5 +1,0 @@
-small
-medium
-large
-skinny
-athletic

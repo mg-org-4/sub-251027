@@ -64,10 +64,15 @@ jobs:
           rm -rf __MACOSX
       
           cd ..
-          
-      - name: Commit and push changes
+
+      - name: Commit and push changes (only if changes exist)
         if: steps.check_file.outputs.exists == 'true'
         run: |
           git add comfy_flows_example/
-          git commit -m "Auto-unzip flows.zip and remove archive"
-          git push origin master
+          # 检查是否有 staged changes
+          if ! git diff --cached --quiet; then
+            git commit -m "Auto-unzip flows.zip and remove archive"
+            git push origin master
+          else
+            echo "No changes detected after unzip. Skipping commit."
+          fi

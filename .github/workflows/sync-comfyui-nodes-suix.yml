@@ -98,16 +98,12 @@ jobs:
           git clone --depth 1 https://github.com/Comfy-Org/ComfyUI_frontend.git
           rm -rf ComfyUI_frontend/.git   
           
-          # 强制覆盖 embedded-docs
-          rm -rf embedded-docs
-          git clone --depth 1 https://github.com/Comfy-Org/embedded-docs.git
-          rm -rf embedded-docs/.git      ！
           
           # 添加到 Git
-          git add ComfyUI_frontend embedded-docs
+          git add ComfyUI_frontend
 
           if ! git diff --quiet --cached; then
-            git commit -m "Update ComfyUI_frontend and embedded-docs to latest"
+            git commit -m "Update ComfyUI_frontend to latest"
             git push origin master
           else
             echo "No changes in sub-repos."

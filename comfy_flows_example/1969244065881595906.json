@@ -2349,210 +2349,6 @@
       "order": 7
     },
     {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "image_embeds",
-          "links": [
-            127
-          ],
-          "label": "image_embeds",
-          "type": "WANVIDIMAGE_EMBEDS",
-          "localized_name": "image_embeds"
-        }
-      ],
-      "size": [
-        274.2164001464844,
-        370
-      ],
-      "pos": [
-        3555.13671875,
-        3480.677001953125
-      ],
-      "widgets_values": [
-        512,
-        912,
-        81,
-        false,
-        77,
-        "disabled",
-        1.1000000000000003,
-        0,
-        false
-      ],
-      "inputs": [
-        {
-          "name": "vae",
-          "link": 128,
-          "label": "vae",
-          "type": "WANVAE",
-          "localized_name": "vae"
-        },
-        {
-          "shape": 7,
-          "name": "clip_embeds",
-          "link": 129,
-          "label": "clip_embeds",
-          "type": "WANVIDIMAGE_CLIPEMBEDS",
-          "localized_name": "clip_embeds"
-        },
-        {
-          "shape": 7,
-          "name": "ref_images",
-          "link": 139,
-          "label": "ref_images",
-          "type": "IMAGE",
-          "localized_name": "ref_images"
-        },
-        {
-          "shape": 7,
-          "name": "pose_images",
-          "link": 137,
-          "label": "pose_images",
-          "type": "IMAGE",
-          "localized_name": "pose_images"
-        },
-        {
-          "shape": 7,
-          "name": "face_images",
-          "link": 138,
-          "label": "face_images",
-          "type": "IMAGE",
-          "localized_name": "face_images"
-        },
-        {
-          "shape": 7,
-          "name": "bg_images",
-          "label": "bg_images",
-          "type": "IMAGE",
-          "localized_name": "bg_images"
-        },
-        {
-          "shape": 7,
-          "name": "mask",
-          "label": "mask",
-          "type": "MASK",
-          "localized_name": "mask"
-        },
-        {
-          "widget": {
-            "name": "width"
-          },
-          "name": "width",
-          "link": 135,
-          "label": "width",
-          "type": "INT",
-          "localized_name": "width"
-        },
-        {
-          "widget": {
-            "name": "height"
-          },
-          "name": "height",
-          "link": 136,
-          "label": "height",
-          "type": "INT",
-          "localized_name": "height"
-        },
-        {
-          "widget": {
-            "name": "num_frames"
-          },
-          "name": "num_frames",
-          "link": 134,
-          "label": "num_frames",
-          "type": "INT",
-          "localized_name": "num_frames"
-        },
-        {
-          "widget": {
-            "name": "force_offload"
-          },
-          "name": "force_offload",
-          "label": "force_offload",
-          "type": "BOOLEAN",
-          "localized_name": "force_offload"
-        },
-        {
-          "widget": {
-            "name": "frame_window_size"
-          },
-          "name": "frame_window_size",
-          "label": "frame_window_size",
-          "type": "INT",
-          "localized_name": "frame_window_size"
-        },
-        {
-          "widget": {
-            "name": "colormatch"
-          },
-          "name": "colormatch",
-          "label": "colormatch",
-          "type": "COMBO",
-          "localized_name": "colormatch"
-        },
-        {
-          "widget": {
-            "name": "pose_strength"
-          },
-          "name": "pose_strength",
-          "link": 180,
-          "label": "pose_strength",
-          "type": "FLOAT",
-          "localized_name": "pose_strength"
-        },
-        {
-          "widget": {
-            "name": "face_strength"
-          },
-          "name": "face_strength",
-          "link": 177,
-          "label": "face_strength",
-          "type": "FLOAT",
-          "localized_name": "face_strength"
-        },
-        {
-          "widget": {
-            "name": "tiled_vae"
-          },
-          "shape": 7,
-          "name": "tiled_vae",
-          "label": "tiled_vae",
-          "type": "BOOLEAN",
-          "localized_name": "tiled_vae"
-        }
-      ],
-      "flags": {},
-      "id": 84,
-      "type": "WanVideoAnimateEmbeds",
-      "properties": {
-        "cnr_id": "ComfyUI-WanVideoWrapper",
-        "ver": "761b1d191e50d589465e31dc0d40ff7c59b1b7b0",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "width": true,
-            "num_frames": true,
-            "height": true
-          },
-          "input_ue_unconnectable": {},
-          "version": "7.1"
-        },
-        "widget_ue_connectable": {
-          "pose_strength": true,
-          "tiled_vae": true,
-          "width": true,
-          "num_frames": true,
-          "colormatch": true,
-          "force_offload": true,
-          "face_strength": true,
-          "frame_window_size": true,
-          "height": true
-        },
-        "Node name for S&R": "WanVideoAnimateEmbeds"
-      },
-      "order": 38
-    },
-    {
       "outputs": [
         {
           "name": "AUDIO",
@@ -3404,7 +3200,7 @@
           "localized_name": "text"
         }
       ],
-      "color": "#223",
+      "color": "#432",
       "widgets_values": [
         0.5000000000000001
       ],
@@ -3425,7 +3221,7 @@
       "type": "ttN float",
       "title": "脸部权重0-1",
       "mode": 0,
-      "bgcolor": "#335",
+      "bgcolor": "#653",
       "size": [
         248.2296600341797,
         98
@@ -3608,9 +3404,9 @@
           "localized_name": "text"
         }
       ],
-      "color": "#223",
+      "color": "#323",
       "widgets_values": [
-        1.1000000000000003
+        1.0000000000000002
       ],
       "inputs": [
         {
@@ -3629,7 +3425,7 @@
       "type": "ttN float",
       "title": "动作权重0-1.5",
       "mode": 0,
-      "bgcolor": "#335",
+      "bgcolor": "#535",
       "size": [
         248.2296600341797,
         98
@@ -3868,6 +3664,7 @@
       "order": 24
     },
     {
+      "mode": 0,
       "outputs": [
         {
           "name": "float",
@@ -3895,7 +3692,14 @@
           "localized_name": "text"
         }
       ],
-      "color": "#223",
+      "size": [
+        248.2296600341797,
+        98
+      ],
+      "pos": [
+        2580,
+        4850
+      ],
       "widgets_values": [
         30.000000000000007
       ],
@@ -3913,19 +3717,9 @@
       "flags": {
         "pinned": true
       },
+      "id": 115,
       "type": "ttN float",
       "title": "帧率",
-      "mode": 0,
-      "bgcolor": "#335",
-      "size": [
-        248.2296600341797,
-        98
-      ],
-      "pos": [
-        2580,
-        4850
-      ],
-      "id": 115,
       "properties": {
         "ttNnodeVersion": "1.0.0",
         "widget_ue_connectable": {},
@@ -3945,7 +3739,7 @@
           "localized_name": "INT"
         }
       ],
-      "color": "#223",
+      "color": "#232",
       "widgets_values": [
         7,
         "fixed"
@@ -3967,7 +3761,7 @@
       "type": "PrimitiveInt",
       "title": "秒数",
       "mode": 0,
-      "bgcolor": "#335",
+      "bgcolor": "#353",
       "size": [
         253.7215118408203,
         82
@@ -3982,6 +3776,210 @@
         "Node name for S&R": "PrimitiveInt"
       },
       "order": 18
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image_embeds",
+          "links": [
+            127
+          ],
+          "label": "image_embeds",
+          "type": "WANVIDIMAGE_EMBEDS",
+          "localized_name": "image_embeds"
+        }
+      ],
+      "size": [
+        274.2164001464844,
+        370
+      ],
+      "pos": [
+        3555.13671875,
+        3480.677001953125
+      ],
+      "widgets_values": [
+        512,
+        912,
+        81,
+        false,
+        81,
+        "disabled",
+        1.1000000000000003,
+        0,
+        false
+      ],
+      "inputs": [
+        {
+          "name": "vae",
+          "link": 128,
+          "label": "vae",
+          "type": "WANVAE",
+          "localized_name": "vae"
+        },
+        {
+          "shape": 7,
+          "name": "clip_embeds",
+          "link": 129,
+          "label": "clip_embeds",
+          "type": "WANVIDIMAGE_CLIPEMBEDS",
+          "localized_name": "clip_embeds"
+        },
+        {
+          "shape": 7,
+          "name": "ref_images",
+          "link": 139,
+          "label": "ref_images",
+          "type": "IMAGE",
+          "localized_name": "ref_images"
+        },
+        {
+          "shape": 7,
+          "name": "pose_images",
+          "link": 137,
+          "label": "pose_images",
+          "type": "IMAGE",
+          "localized_name": "pose_images"
+        },
+        {
+          "shape": 7,
+          "name": "face_images",
+          "link": 138,
+          "label": "face_images",
+          "type": "IMAGE",
+          "localized_name": "face_images"
+        },
+        {
+          "shape": 7,
+          "name": "bg_images",
+          "label": "bg_images",
+          "type": "IMAGE",
+          "localized_name": "bg_images"
+        },
+        {
+          "shape": 7,
+          "name": "mask",
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        },
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "width",
+          "link": 135,
+          "label": "width",
+          "type": "INT",
+          "localized_name": "width"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "link": 136,
+          "label": "height",
+          "type": "INT",
+          "localized_name": "height"
+        },
+        {
+          "widget": {
+            "name": "num_frames"
+          },
+          "name": "num_frames",
+          "link": 134,
+          "label": "num_frames",
+          "type": "INT",
+          "localized_name": "num_frames"
+        },
+        {
+          "widget": {
+            "name": "force_offload"
+          },
+          "name": "force_offload",
+          "label": "force_offload",
+          "type": "BOOLEAN",
+          "localized_name": "force_offload"
+        },
+        {
+          "widget": {
+            "name": "frame_window_size"
+          },
+          "name": "frame_window_size",
+          "label": "frame_window_size",
+          "type": "INT",
+          "localized_name": "frame_window_size"
+        },
+        {
+          "widget": {
+            "name": "colormatch"
+          },
+          "name": "colormatch",
+          "label": "colormatch",
+          "type": "COMBO",
+          "localized_name": "colormatch"
+        },
+        {
+          "widget": {
+            "name": "pose_strength"
+          },
+          "name": "pose_strength",
+          "link": 180,
+          "label": "pose_strength",
+          "type": "FLOAT",
+          "localized_name": "pose_strength"
+        },
+        {
+          "widget": {
+            "name": "face_strength"
+          },
+          "name": "face_strength",
+          "link": 177,
+          "label": "face_strength",
+          "type": "FLOAT",
+          "localized_name": "face_strength"
+        },
+        {
+          "widget": {
+            "name": "tiled_vae"
+          },
+          "shape": 7,
+          "name": "tiled_vae",
+          "label": "tiled_vae",
+          "type": "BOOLEAN",
+          "localized_name": "tiled_vae"
+        }
+      ],
+      "flags": {},
+      "id": 84,
+      "type": "WanVideoAnimateEmbeds",
+      "properties": {
+        "cnr_id": "ComfyUI-WanVideoWrapper",
+        "ver": "761b1d191e50d589465e31dc0d40ff7c59b1b7b0",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "width": true,
+            "num_frames": true,
+            "height": true
+          },
+          "input_ue_unconnectable": {},
+          "version": "7.1"
+        },
+        "widget_ue_connectable": {
+          "pose_strength": true,
+          "tiled_vae": true,
+          "width": true,
+          "num_frames": true,
+          "colormatch": true,
+          "force_offload": true,
+          "face_strength": true,
+          "frame_window_size": true,
+          "height": true
+        },
+        "Node name for S&R": "WanVideoAnimateEmbeds"
+      },
+      "order": 38
     }
   ],
   "extra": {
@@ -3999,10 +3997,10 @@
     "VHS_latentpreview": false,
     "ds": {
       "offset": [
-        -1458.044335449049,
-        -4124.8152993634185
+        -2426.628178160841,
+        -3348.143718655144
       ],
-      "scale": 0.7247295000000004
+      "scale": 0.7972024500000008
     }
   },
   "groups": [

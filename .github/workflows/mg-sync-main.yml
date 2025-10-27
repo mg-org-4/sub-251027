@@ -1,0 +1,100 @@
+name: 同步mg主库
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+# 授予必要权限（GITHUB_TOKEN 自动获得 contents + workflows 权限）
+permissions:
+  contents: write
+
+jobs:
+  sync-nodes:
+    runs-on: ubuntu-latest
+    steps:
+
+      # 检出主仓库（使用默认 GITHUB_TOKEN，不指定 token）
+      - name: Checkout Your Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史以便 merge
+
+      # 配置 Git 使用 GITHUB_TOKEN 进行推送（关键！）
+      - name: Configure Git credentials for push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # 将 origin URL 改为带 GITHUB_TOKEN 的 HTTPS 格式
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+      # 设置 Python 环境
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # 执行同步脚本
+      - name: Run sync script
+        run: |
+          git remote add upstream https://github.com/mg-org-1/ComfyUI.git 2>/dev/null || true
+          git fetch upstream
+          git checkout master
+
+          # === 备份本地关键文件 ===
+          LOCAL_README_EXIST=0
+          if [ -f "README.md" ]; then
+            cp README.md /tmp/README.md.backup
+            LOCAL_README_EXIST=1
+          fi
+
+          if [ -d ".github/workflows" ]; then
+            cp -r .github/workflows /tmp/workflows.backup
+            LOCAL_WORKFLOWS_EXIST=1
+          else
+            LOCAL_WORKFLOWS_EXIST=0
+          fi
+
+          # === 合并上游 ===
+          if ! git merge -s recursive -X theirs upstream/master; then
+            echo "Merge conflict detected. Resolving by taking upstream version..."
+            git checkout --theirs .
+            git add .
+            git commit -m "Merge upstream/master (auto-resolved in favor of upstream)"
+          fi
+
+          # === 恢复本地 README.md ===
+          if [ "$LOCAL_README_EXIST" = "1" ]; then
+            cp /tmp/README.md.backup README.md
+            git add README.md
+            echo "Restored local README.md"
+          else
+            rm -f README.md
+            git add README.md 2>/dev/null || true
+            echo "Removed upstream README.md (not present locally)"
+          fi
+
+          # === 恢复本地 workflows ===
+          if [ "$LOCAL_WORKFLOWS_EXIST" = "1" ]; then
+            rm -rf .github/workflows
+            cp -r /tmp/workflows.backup .github/workflows
+            git add .github/workflows
+            echo "Restored local .github/workflows"
+          else
+            rm -rf .github/workflows 2>/dev/null || true
+            git add .github 2>/dev/null || true
+            echo "Removed upstream .github/workflows (not present locally)"
+          fi
+
+          # 清理空的 .github 目录
+          if [ -d ".github" ] && [ -z "$(ls -A .github)" ]; then
+            rmdir .github
+            git add -A
+          fi
+
+          # 提交变更（如果有的话）
+          if ! git diff --quiet --cached; then
+            git commit -m "Revert workflows and README.md to local state after upstream merge"
+            git push origin master
+          else
+            echo "No changes to commit."
+          fi

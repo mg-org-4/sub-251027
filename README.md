@@ -424,4 +424,4 @@ This will use a snapshot of the legacy frontend preserved in the [ComfyUI Legacy
 
 [See this page for some recommendations](https://github.com/comfyanonymous/ComfyUI/wiki/Which-GPU-should-I-buy-for-ComfyUI)
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/mg-org-4/sub-251027)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/mg-org-1/ComfyUI)

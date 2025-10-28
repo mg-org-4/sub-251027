@@ -1,223 +1,6 @@
 {
-  "last_link_id": 14,
+  "last_link_id": 78,
   "nodes": [
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "links": [
-            11
-          ],
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "图像"
-        },
-        {
-          "name": "MASK",
-          "label": "遮罩",
-          "type": "MASK",
-          "localized_name": "遮罩"
-        }
-      ],
-      "size": [
-        256.1623229980469,
-        460.1365661621094
-      ],
-      "pos": [
-        1024.2767333984375,
-        255.1325225830078
-      ],
-      "widgets_values": [
-        "ceed264b46dfa83a442f8b74509af2cd57e8edf224b6919fc735a9e2afa0ab41.png",
-        "image"
-      ],
-      "inputs": [
-        {
-          "widget": {
-            "name": "image"
-          },
-          "name": "image",
-          "label": "image",
-          "type": "COMBO",
-          "localized_name": "图像"
-        },
-        {
-          "widget": {
-            "name": "upload"
-          },
-          "name": "upload",
-          "label": "upload",
-          "type": "IMAGEUPLOAD",
-          "localized_name": "选择文件上传"
-        }
-      ],
-      "flags": {},
-      "id": 2,
-      "type": "LoadImage",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "LoadImage"
-      },
-      "order": 0
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "image",
-          "links": [
-            4,
-            6
-          ],
-          "label": "image",
-          "type": "IMAGE",
-          "localized_name": "image"
-        },
-        {
-          "name": "image_url",
-          "label": "image_url",
-          "type": "STRING"
-        },
-        {
-          "name": "response",
-          "label": "response",
-          "type": "STRING"
-        }
-      ],
-      "size": [
-        269.52392578125,
-        376.9344787597656
-      ],
-      "pos": [
-        1306.619384765625,
-        329.0354309082031
-      ],
-      "widgets_values": [
-        "让这两个女孩一起坐在长椅子上，背景是一个写字楼前，全身照",
-        1375790294,
-        "randomize"
-      ],
-      "inputs": [
-        {
-          "shape": 7,
-          "name": "images",
-          "link": 12,
-          "label": "images",
-          "type": "IMAGE",
-          "localized_name": "images"
-        },
-        {
-          "widget": {
-            "name": "prompt"
-          },
-          "name": "prompt",
-          "label": "prompt",
-          "type": "STRING",
-          "localized_name": "prompt"
-        },
-        {
-          "widget": {
-            "name": "seed"
-          },
-          "shape": 7,
-          "name": "seed",
-          "label": "seed",
-          "type": "INT",
-          "localized_name": "seed"
-        }
-      ],
-      "flags": {},
-      "id": 1,
-      "type": "RH_Nano_Banana_Image2Image",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "RH_Nano_Banana_Image2Image"
-      },
-      "order": 5
-    },
-    {
-      "mode": 0,
-      "outputs": [],
-      "size": [
-        516.018310546875,
-        440.88897705078125
-      ],
-      "pos": [
-        1591.9649658203125,
-        259.79351806640625
-      ],
-      "widgets_values": [
-        "ComfyUI"
-      ],
-      "inputs": [
-        {
-          "name": "images",
-          "link": 4,
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "图片"
-        },
-        {
-          "widget": {
-            "name": "filename_prefix"
-          },
-          "name": "filename_prefix",
-          "label": "filename_prefix",
-          "type": "STRING",
-          "localized_name": "文件名前缀"
-        }
-      ],
-      "flags": {},
-      "id": 5,
-      "type": "SaveImage",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "SaveImage"
-      },
-      "order": 6
-    },
-    {
-      "mode": 0,
-      "outputs": [],
-      "size": [
-        522.7207641601562,
-        330.4463195800781
-      ],
-      "pos": [
-        1607.2650146484375,
-        781.8076782226562
-      ],
-      "widgets_values": [
-        "ComfyUI"
-      ],
-      "inputs": [
-        {
-          "name": "images",
-          "link": 9,
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "图片"
-        },
-        {
-          "widget": {
-            "name": "filename_prefix"
-          },
-          "name": "filename_prefix",
-          "label": "filename_prefix",
-          "type": "STRING",
-          "localized_name": "文件名前缀"
-        }
-      ],
-      "flags": {},
-      "id": 9,
-      "type": "SaveImage",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "SaveImage"
-      },
-      "order": 8
-    },
     {
       "mode": 0,
       "outputs": [
@@ -276,7 +59,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "LoadImage"
       },
-      "order": 1
+      "order": 0
     },
     {
       "mode": 0,
@@ -284,78 +67,7 @@
         {
           "name": "IMAGE",
           "links": [
-            9
-          ],
-          "label": "图像",
-          "type": "IMAGE",
-          "localized_name": "图像"
-        }
-      ],
-      "size": [
-        263.58660888671875,
-        397.3422546386719
-      ],
-      "pos": [
-        1315.8939208984375,
-        268.29364013671875
-      ],
-      "widgets_values": [
-        "right",
-        true
-      ],
-      "inputs": [
-        {
-          "name": "image1",
-          "link": 13,
-          "label": "图像_1",
-          "type": "IMAGE",
-          "localized_name": "image1"
-        },
-        {
-          "name": "image2",
-          "link": 6,
-          "label": "图像_2",
-          "type": "IMAGE",
-          "localized_name": "image2"
-        },
-        {
-          "widget": {
-            "name": "direction"
-          },
-          "name": "direction",
-          "label": "direction",
-          "type": "COMBO",
-          "localized_name": "方向"
-        },
-        {
-          "widget": {
-            "name": "match_image_size"
-          },
-          "name": "match_image_size",
-          "label": "match_image_size",
-          "type": "BOOLEAN",
-          "localized_name": "match_image_size"
-        }
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "id": 6,
-      "type": "ImageConcanate",
-      "properties": {
-        "widget_ue_connectable": {},
-        "Node name for S&R": "ImageConcanate"
-      },
-      "order": 7
-    },
-    {
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "links": [
-            12,
-            13
+            12
           ],
           "label": "图像",
           "type": "IMAGE",
@@ -417,7 +129,7 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "ImageConcanate"
       },
-      "order": 4
+      "order": 6
     },
     {
       "mode": 0,
@@ -473,7 +185,59 @@
         "widget_ue_connectable": {},
         "Node name for S&R": "LoadImage"
       },
-      "order": 2
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        519.7813720703125,
+        316.109375
+      ],
+      "pos": [
+        1607.28125,
+        777.0650024414062
+      ],
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/view?filename=rgthree.compare._temp_vxezu_00001_qobpk_1761560546.jpg&type=temp&subfolder=&rand=0.9023356550760371&Rh-Comfy-Auth=eyJ1c2VySWQiOiI3YjM3YzBiYmI3ZWQ3NzIyZGY0MmI4MDVjZWM5YTg4MCIsInNpZ25FeHBpcmUiOjE3NjIxNjUxMzk4MjIsInRzIjoxNzYxNTYwMzM5ODIyLCJzaWduIjoiMDcyMzUwNmRjNTYxNDU5ZDI2ZDliZjNiNzhhMjkxYjkifQ==&Rh-Identify=7b37c0bbb7ed7722df42b805cec9a880"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/view?filename=rgthree.compare._temp_vxezu_00002_dvxsj_1761560550.jpg&type=temp&subfolder=&rand=0.21056321615355966&Rh-Comfy-Auth=eyJ1c2VySWQiOiI3YjM3YzBiYmI3ZWQ3NzIyZGY0MmI4MDVjZWM5YTg4MCIsInNpZ25FeHBpcmUiOjE3NjIxNjUxMzk4MjIsInRzIjoxNzYxNTYwMzM5ODIyLCJzaWduIjoiMDcyMzUwNmRjNTYxNDU5ZDI2ZDliZjNiNzhhMjkxYjkifQ==&Rh-Identify=7b37c0bbb7ed7722df42b805cec9a880"
+          }
+        ]
+      ],
+      "inputs": [
+        {
+          "name": "image_a",
+          "link": 68,
+          "label": "图像_A",
+          "dir": 3,
+          "type": "IMAGE"
+        },
+        {
+          "name": "image_b",
+          "link": 66,
+          "label": "图像_B",
+          "dir": 3,
+          "type": "IMAGE"
+        }
+      ],
+      "flags": {},
+      "id": 45,
+      "type": "Image Comparer (rgthree)",
+      "properties": {
+        "cnr_id": "rgthree-comfy",
+        "ver": "b775441a4c5ae2853d4ff6b97a137f7f7d11e597",
+        "comparer_mode": "Slide",
+        "widget_ue_connectable": {}
+      },
+      "order": 9
     },
     {
       "mode": 0,
@@ -486,11 +250,11 @@
       ],
       "size": [
         516.1498413085938,
-        92.2811508178711
+        130
       ],
       "pos": [
-        1613.228759765625,
-        1156.1944580078125
+        1610.42431640625,
+        1128.4556884765625
       ],
       "inputs": [],
       "flags": {},
@@ -505,7 +269,440 @@
         "showNav": true,
         "toggleRestriction": "default"
       },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "block_swap_config",
+          "links": [
+            64
+          ],
+          "label": "block_swap_config",
+          "type": "block_swap_config",
+          "localized_name": "block_swap_config"
+        }
+      ],
+      "size": [
+        227.7833251953125,
+        123.43926239013672
+      ],
+      "pos": [
+        1620.402587890625,
+        257.607666015625
+      ],
+      "widgets_values": [
+        36,
+        true,
+        false
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "blocks_to_swap"
+          },
+          "name": "blocks_to_swap",
+          "label": "blocks_to_swap",
+          "type": "INT",
+          "localized_name": "blocks_to_swap"
+        },
+        {
+          "widget": {
+            "name": "use_non_blocking"
+          },
+          "name": "use_non_blocking",
+          "label": "use_non_blocking",
+          "type": "BOOLEAN",
+          "localized_name": "use_non_blocking"
+        },
+        {
+          "widget": {
+            "name": "offload_io_components"
+          },
+          "name": "offload_io_components",
+          "label": "offload_io_components",
+          "type": "BOOLEAN",
+          "localized_name": "offload_io_components"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "id": 48,
+      "type": "SeedVR2BlockSwap",
+      "properties": {
+        "ver": "5ee7d749f7d0682142bfd9d83df43236f5fa0ab5",
+        "widget_ue_connectable": {},
+        "aux_id": "numz/ComfyUI-SeedVR2_VideoUpscaler",
+        "Node name for S&R": "SeedVR2BlockSwap"
+      },
       "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            11
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "size": [
+        268.96697998046875,
+        490.6707458496094
+      ],
+      "pos": [
+        1024.2767333984375,
+        228.53826904296875
+      ],
+      "widgets_values": [
+        "138daef1804a4802f486f9c60f7660ececa9aa8875bf969f37e4007c973f5aa0.png",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "label": "image",
+          "type": "COMBO",
+          "localized_name": "图像"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "id": 2,
+      "type": "LoadImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            68,
+            70
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "image_url",
+          "label": "image_url",
+          "type": "STRING"
+        },
+        {
+          "name": "response",
+          "label": "response",
+          "type": "STRING"
+        }
+      ],
+      "size": [
+        301.0430603027344,
+        490.2063903808594
+      ],
+      "pos": [
+        1305.6343994140625,
+        235.46298217773438
+      ],
+      "widgets_values": [
+        "让这两个女孩一起坐在长椅子上，背景是春天的半山腰，开满了各种鲜花，全身照",
+        2019368191,
+        "randomize",
+        "16:9"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "images",
+          "link": 12,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "image1",
+          "label": "image1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        },
+        {
+          "shape": 7,
+          "name": "image2",
+          "label": "image2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "shape": 7,
+          "name": "image3",
+          "label": "image3",
+          "type": "IMAGE",
+          "localized_name": "image3"
+        },
+        {
+          "shape": 7,
+          "name": "image4",
+          "label": "image4",
+          "type": "IMAGE",
+          "localized_name": "image4"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "shape": 7,
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "aspectRatio"
+          },
+          "shape": 7,
+          "name": "aspectRatio",
+          "label": "aspectRatio",
+          "type": "COMBO",
+          "localized_name": "aspectRatio"
+        }
+      ],
+      "flags": {},
+      "id": 1,
+      "type": "RH_Nano_Banana_Image2Image",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Nano_Banana_Image2Image"
+      },
+      "order": 7
+    },
+    {
+      "outputs": [
+        {
+          "name": "int",
+          "links": [
+            77
+          ],
+          "label": "整数",
+          "type": "INT",
+          "localized_name": "int"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        1800
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "type": "INT",
+          "localized_name": "值"
+        }
+      ],
+      "flags": {},
+      "type": "easy int",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        481.321533203125,
+        58
+      ],
+      "pos": [
+        1628.22412109375,
+        306.5940246582031
+      ],
+      "id": 56,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy int"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            66,
+            78
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "size": [
+        287.30010986328125,
+        352.7690124511719
+      ],
+      "pos": [
+        1869.4207763671875,
+        253.2796173095703
+      ],
+      "widgets_values": [
+        "seedvr2_ema_7b_fp16.safetensors",
+        1255119751,
+        "randomize",
+        1600,
+        1
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 70,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "block_swap_config",
+          "link": 64,
+          "label": "block_swap_config",
+          "type": "block_swap_config",
+          "localized_name": "block_swap_config"
+        },
+        {
+          "shape": 7,
+          "name": "extra_args",
+          "label": "extra_args",
+          "type": "extra_args",
+          "localized_name": "extra_args"
+        },
+        {
+          "widget": {
+            "name": "model"
+          },
+          "name": "model",
+          "label": "model",
+          "type": "COMBO",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "new_resolution"
+          },
+          "name": "new_resolution",
+          "link": 77,
+          "label": "new_resolution",
+          "type": "INT",
+          "localized_name": "new_resolution"
+        },
+        {
+          "widget": {
+            "name": "batch_size"
+          },
+          "name": "batch_size",
+          "label": "batch_size",
+          "type": "INT",
+          "localized_name": "batch_size"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "id": 44,
+      "type": "SeedVR2",
+      "properties": {
+        "ver": "5ee7d749f7d0682142bfd9d83df43236f5fa0ab5",
+        "widget_ue_connectable": {
+          "batch_size": false,
+          "new_resolution": false
+        },
+        "aux_id": "numz/ComfyUI-SeedVR2_VideoUpscaler",
+        "Node name for S&R": "SeedVR2"
+      },
+      "order": 8
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        478.5932312011719,
+        319.36981201171875
+      ],
+      "pos": [
+        1629.316650390625,
+        407.3470153808594
+      ],
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 78,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "id": 57,
+      "type": "SaveImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 10
     }
   ],
   "extra": {
@@ -523,10 +720,10 @@
     "VHS_latentpreview": false,
     "ds": {
       "offset": [
-        134.25187513563355,
-        -270.1128111945259
+        -1069.5101913368737,
+        -212.48695853074958
       ],
-      "scale": 0.45
+      "scale": 1.7088742511245891
     }
   },
   "groups": [
@@ -559,30 +756,6 @@
   ],
   "links": [
     [
-      4,
-      1,
-      0,
-      5,
-      0,
-      "IMAGE"
-    ],
-    [
-      6,
-      1,
-      0,
-      6,
-      1,
-      "IMAGE"
-    ],
-    [
-      9,
-      6,
-      0,
-      9,
-      0,
-      "IMAGE"
-    ],
-    [
       10,
       11,
       0,
@@ -607,10 +780,50 @@
       "IMAGE"
     ],
     [
-      13,
-      12,
+      64,
+      48,
       0,
-      6,
+      44,
+      1,
+      "block_swap_config"
+    ],
+    [
+      66,
+      44,
+      0,
+      45,
+      1,
+      "IMAGE"
+    ],
+    [
+      68,
+      1,
+      0,
+      45,
+      0,
+      "IMAGE"
+    ],
+    [
+      70,
+      1,
+      0,
+      44,
+      0,
+      "IMAGE"
+    ],
+    [
+      77,
+      56,
+      0,
+      44,
+      5,
+      "INT"
+    ],
+    [
+      78,
+      44,
+      0,
+      57,
       0,
       "IMAGE"
     ]
@@ -618,6 +831,6 @@
   "id": "1b5ce4cc-5f73-4ae3-9344-cfbe84c61f5a",
   "config": {},
   "version": 0.4,
-  "last_node_id": 15,
+  "last_node_id": 57,
   "revision": 0
 }

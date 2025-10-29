@@ -74,9 +74,9 @@ from videox_fun.data.dataset_image_video import (ImageVideoControlDataset,
                                                  padding_image,
                                                  process_pose_file,
                                                  process_pose_params)
-from videox_fun.models import (AutoencoderKLWan, CLIPModel, AutoencoderKLWan3_8,
+from videox_fun.models import (AutoencoderKLWan, CLIPModel,
                                VaceWanTransformer3DModel, WanT5EncoderModel)
-from videox_fun.pipeline import Wan2_2VaceFunPipeline
+from videox_fun.pipeline import WanVacePipeline
 from videox_fun.utils.discrete_sampler import DiscreteSampling
 from videox_fun.utils.lora_utils import (create_network, merge_lora,
                                          unmerge_lora)
@@ -117,56 +117,20 @@ def log_validation(vae, text_encoder, tokenizer, clip_image_encoder, transformer
     try:
         logger.info("Running validation... ")
 
-        if args.boundary_type == "full":
-            sub_path = config['transformer_additional_kwargs'].get('transformer_low_noise_model_subpath', 'transformer')
-
-            transformer3d_val = Wan2_2Transformer3DModel.from_pretrained(
-                os.path.join(args.pretrained_model_name_or_path, sub_path),
-                transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
-            ).to(weight_dtype)
-            transformer3d_val.load_state_dict(accelerator.unwrap_model(transformer3d).state_dict())
-            
-            transformer3d_2_val = None
-        else:
-            if args.boundary_type == "low":
-                sub_path = config['transformer_additional_kwargs'].get('transformer_low_noise_model_subpath', 'transformer')
-
-                transformer3d_val = Wan2_2Transformer3DModel.from_pretrained(
-                    os.path.join(args.pretrained_model_name_or_path, sub_path),
-                    transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
-                ).to(weight_dtype)
-                transformer3d_val.load_state_dict(accelerator.unwrap_model(transformer3d).state_dict())
-
-                sub_path = config['transformer_additional_kwargs'].get('transformer_high_noise_model_subpath', 'transformer')
-                transformer3d_2_val = Wan2_2Transformer3DModel.from_pretrained(
-                    os.path.join(args.pretrained_model_name_or_path, sub_path),
-                    transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
-                ).to(weight_dtype)
-            else:
-                sub_path = config['transformer_additional_kwargs'].get('transformer_low_noise_model_subpath', 'transformer')
-
-                transformer3d_val = Wan2_2Transformer3DModel.from_pretrained(
-                    os.path.join(args.pretrained_model_name_or_path, sub_path),
-                    transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
-                ).to(weight_dtype)
-
-                sub_path = config['transformer_additional_kwargs'].get('transformer_high_noise_model_subpath', 'transformer')
-                transformer3d_2_val = Wan2_2Transformer3DModel.from_pretrained(
-                    os.path.join(args.pretrained_model_name_or_path, sub_path),
-                    transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
-                ).to(weight_dtype)
-                transformer3d_2_val.load_state_dict(accelerator.unwrap_model(transformer3d).state_dict())
-        
+        transformer3d_val = VaceWanTransformer3DModel.from_pretrained(
+            os.path.join(args.pretrained_model_name_or_path, config['transformer_additional_kwargs'].get('transformer_subpath', 'transformer')),
+            transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
+        ).to(weight_dtype)
+        transformer3d_val.load_state_dict(accelerator.unwrap_model(transformer3d).state_dict())
         scheduler = FlowMatchEulerDiscreteScheduler(
             **filter_kwargs(FlowMatchEulerDiscreteScheduler, OmegaConf.to_container(config['scheduler_kwargs']))
         )
 
-        pipeline = Wan2_2VaceFunPipeline(
+        pipeline = WanVacePipeline(
             vae=accelerator.unwrap_model(vae).to(weight_dtype), 
             text_encoder=accelerator.unwrap_model(text_encoder),
             tokenizer=tokenizer,
             transformer=transformer3d_val,
-            transformer_2=transformer3d_2_val,
             scheduler=scheduler,
             clip_image_encoder=clip_image_encoder,
         )
@@ -617,14 +581,6 @@ def parse_args():
         "--low_vram", action="store_true", help="Whether enable low_vram mode."
     )
     parser.add_argument(
-        "--boundary_type",
-        type=str,
-        default="low",
-        help=(
-            'The format of training data. Support `"low"` and `"high"`'
-        ),
-    )
-    parser.add_argument(
         "--abnormal_norm_clip_start",
         type=int,
         default=1000,
@@ -683,6 +639,8 @@ def parse_args():
 
 def main():
     args = parse_args()
+    if args.train_batch_size >= 2:
+        raise ValueError("This code does not support args.train_batch_size >= 2 now.")
 
     if args.report_to == "wandb" and args.hub_token is not None:
         raise ValueError(
@@ -828,23 +786,15 @@ def main():
         )
         text_encoder = text_encoder.eval()
         # Get Vae
-        Chosen_AutoencoderKL = {
-            "AutoencoderKLWan": AutoencoderKLWan,
-            "AutoencoderKLWan3_8": AutoencoderKLWan3_8
-        }[config['vae_kwargs'].get('vae_type', 'AutoencoderKLWan')]
-        vae = Chosen_AutoencoderKL.from_pretrained(
+        vae = AutoencoderKLWan.from_pretrained(
             os.path.join(args.pretrained_model_name_or_path, config['vae_kwargs'].get('vae_subpath', 'vae')),
             additional_kwargs=OmegaConf.to_container(config['vae_kwargs']),
         )
         vae.eval()
             
     # Get Transformer
-    if args.boundary_type == "low" or args.boundary_type == "full":
-        sub_path = config['transformer_additional_kwargs'].get('transformer_low_noise_model_subpath', 'transformer')
-    else:
-        sub_path = config['transformer_additional_kwargs'].get('transformer_high_noise_model_subpath', 'transformer')
     transformer3d = VaceWanTransformer3DModel.from_pretrained(
-        os.path.join(args.pretrained_model_name_or_path, sub_path),
+        os.path.join(args.pretrained_model_name_or_path, config['transformer_additional_kwargs'].get('transformer_subpath', 'transformer')),
         transformer_additional_kwargs=OmegaConf.to_container(config['transformer_additional_kwargs']),
     ).to(weight_dtype)
 
@@ -1075,8 +1025,7 @@ def main():
 
     # Get the training dataset
     sample_n_frames_bucket_interval = vae.config.temporal_compression_ratio
-    spatial_compression_ratio = vae.config.spatial_compression_ratio
-
+    
     if args.fix_sample_size is not None and args.enable_bucket:
         args.video_sample_size = max(max(args.fix_sample_size), args.video_sample_size)
         args.image_sample_size = max(max(args.fix_sample_size), args.image_sample_size)
@@ -1239,7 +1188,7 @@ def main():
                 aspect_ratio_random_crop_sample_size = {key : [x / 512 * args.video_sample_size / random_downsample_ratio for x in ASPECT_RATIO_RANDOM_CROP_512[key]] for key in ASPECT_RATIO_RANDOM_CROP_512.keys()}
 
             if args.fix_sample_size is not None:
-                fix_sample_size = [int(x / spatial_compression_ratio / 2) * spatial_compression_ratio * 2 for x in args.fix_sample_size]
+                fix_sample_size = [int(x / 16) * 16 for x in args.fix_sample_size]
             elif args.random_ratio_crop:
                 if rng is None:
                     random_sample_size = aspect_ratio_random_crop_sample_size[
@@ -1249,10 +1198,10 @@ def main():
                     random_sample_size = aspect_ratio_random_crop_sample_size[
                         rng.choice(list(aspect_ratio_random_crop_sample_size.keys()), p = ASPECT_RATIO_RANDOM_CROP_PROB)
                     ]
-                random_sample_size = [int(x / spatial_compression_ratio / 2) * spatial_compression_ratio * 2 for x in random_sample_size]
+                random_sample_size = [int(x / 16) * 16 for x in random_sample_size]
             else:
                 closest_size, closest_ratio = get_closest_ratio(h, w, ratios=aspect_ratio_sample_size)
-                closest_size = [int(x / spatial_compression_ratio / 2) * spatial_compression_ratio * 2 for x in closest_size]
+                closest_size = [int(x / 16) * 16 for x in closest_size]
 
             for example in examples:
                 # To 0~1
@@ -1445,13 +1394,9 @@ def main():
 
     if fsdp_stage != 0:
         from functools import partial
-
         from videox_fun.dist import set_multi_gpus_devices, shard_model
         shard_fn = partial(shard_model, device_id=accelerator.device, param_dtype=weight_dtype)
         text_encoder = shard_fn(text_encoder)
-
-        # shard_fn = partial(shard_model, device_id=accelerator.device, param_dtype=weight_dtype)
-        # transformer3d = shard_fn(transformer3d)
 
     if args.use_ema:
         ema_transformer3d.to(accelerator.device)
@@ -1472,10 +1417,10 @@ def main():
     # The trackers initializes automatically on the main process.
     if accelerator.is_main_process:
         tracker_config = dict(vars(args))
-        tracker_config.pop("validation_prompts")
-        tracker_config.pop("trainable_modules")
-        tracker_config.pop("trainable_modules_low_learning_rate")
-        tracker_config.pop("fix_sample_size")
+        keys_to_pop = [k for k, v in tracker_config.items() if isinstance(v, list)]
+        for k in keys_to_pop:
+            tracker_config.pop(k)
+            print(f"Removed tracker_config['{k}']")
         accelerator.init_trackers(args.tracker_project_name, tracker_config)
 
     # Function for unwrapping if model was compiled with `torch.compile`.
@@ -1549,21 +1494,7 @@ def main():
         vae_stream_2 = None
 
     # Calculate the index we need
-    boundary        = config['transformer_additional_kwargs'].get('boundary', 0.900)
-    split_timesteps = args.train_sampling_steps * boundary
-    differences     = torch.abs(noise_scheduler.timesteps - split_timesteps)
-    closest_index   = torch.argmin(differences).item()
-    print(f"The boundary is {boundary} and the boundary_type is {args.boundary_type}. The closest_index we calculate is {closest_index}")
-    if args.boundary_type == "high":
-        start_num_idx = 0
-        train_sampling_steps = closest_index
-    elif args.boundary_type == "low":
-        start_num_idx = closest_index
-        train_sampling_steps = args.train_sampling_steps - closest_index
-    else:
-        start_num_idx = 0
-        train_sampling_steps = args.train_sampling_steps
-    idx_sampling = DiscreteSampling(train_sampling_steps, start_num_idx=start_num_idx, uniform_sampling=args.uniform_sampling)
+    idx_sampling = DiscreteSampling(args.train_sampling_steps, start_num_idx=0, uniform_sampling=args.uniform_sampling)
 
     for epoch in range(first_epoch, args.num_train_epochs):
         train_loss = 0.0
@@ -1861,7 +1792,7 @@ def main():
                         vace_latents = vace_encode_frames(control_pixel_values, subject_ref_images, mask)
                         mask = torch.ones_like(mask)
 
-                    mask_latents = vace_encode_masks(mask, subject_ref_images, vae_stride=[4, spatial_compression_ratio, spatial_compression_ratio])
+                    mask_latents = vace_encode_masks(mask, subject_ref_images)
                     vace_context = torch.stack(vace_latent(vace_latents, mask_latents))
                     
                     if subject_ref_images is not None:

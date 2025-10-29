@@ -1485,6 +1485,8 @@ def main():
                             batch['encoder_attention_mask'] = torch.tile(batch['encoder_attention_mask'], (4, 1))
                         else:
                             batch['text'] = batch['text'] * 4
+                        audio = audio * 4
+                        sample_rate = sample_rate * 4
                     elif args.video_sample_n_frames * args.token_sample_size * args.token_sample_size // 4 >= pixel_values.size()[1] * pixel_values.size()[3] * pixel_values.size()[4]:
                         pixel_values = torch.tile(pixel_values, (2, 1, 1, 1, 1))
                         if args.enable_text_encoder_in_dataloader:
@@ -1492,7 +1494,9 @@ def main():
                             batch['encoder_attention_mask'] = torch.tile(batch['encoder_attention_mask'], (2, 1))
                         else:
                             batch['text'] = batch['text'] * 2
-                
+                        audio = audio * 2
+                        sample_rate = sample_rate * 2
+
                 clip_pixel_values = batch["clip_pixel_values"].to(weight_dtype)
                 mask_pixel_values = batch["mask_pixel_values"].to(weight_dtype)
                 mask = batch["mask"].to(weight_dtype)

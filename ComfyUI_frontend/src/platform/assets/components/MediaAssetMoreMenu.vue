@@ -3,7 +3,7 @@
     <IconTextButton
       v-if="asset?.kind !== '3D'"
       type="transparent"
-      class="dark-theme:text-white"
+      class="text-base-foreground"
       label="Inspect asset"
       @click="handleInspect"
     >
@@ -15,7 +15,7 @@
     <IconTextButton
       v-if="showWorkflowOptions"
       type="transparent"
-      class="dark-theme:text-white"
+      class="text-base-foreground"
       label="Add to current workflow"
       @click="handleAddToWorkflow"
     >
@@ -26,7 +26,7 @@
 
     <IconTextButton
       type="transparent"
-      class="dark-theme:text-white"
+      class="text-base-foreground"
       label="Download"
       @click="handleDownload"
     >
@@ -40,7 +40,7 @@
     <IconTextButton
       v-if="showWorkflowOptions"
       type="transparent"
-      class="dark-theme:text-white"
+      class="text-base-foreground"
       label="Open as workflow in new tab"
       @click="handleOpenWorkflow"
     >
@@ -52,7 +52,7 @@
     <IconTextButton
       v-if="showWorkflowOptions"
       type="transparent"
-      class="dark-theme:text-white"
+      class="text-base-foreground"
       label="Export workflow"
       @click="handleExportWorkflow"
     >
@@ -66,7 +66,7 @@
     <IconTextButton
       v-if="showCopyJobId"
       type="transparent"
-      class="dark-theme:text-white"
+      class="text-base-foreground"
       label="Copy job ID"
       @click="handleCopyJobId"
     >
@@ -75,12 +75,12 @@
       </template>
     </IconTextButton>
 
-    <MediaAssetButtonDivider v-if="showCopyJobId && showDeleteButton" />
+    <MediaAssetButtonDivider v-if="showCopyJobId && shouldShowDeleteButton" />
 
     <IconTextButton
-      v-if="showDeleteButton"
+      v-if="shouldShowDeleteButton"
       type="transparent"
-      class="dark-theme:text-white"
+      class="text-base-foreground"
       label="Delete"
       @click="handleDelete"
     >
@@ -101,8 +101,9 @@ import { useMediaAssetActions } from '../composables/useMediaAssetActions'
 import { MediaAssetKey } from '../schemas/mediaAssetSchema'
 import MediaAssetButtonDivider from './MediaAssetButtonDivider.vue'
 
-const { close } = defineProps<{
+const { close, showDeleteButton } = defineProps<{
   close: () => void
+  showDeleteButton?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -124,13 +125,12 @@ const showCopyJobId = computed(() => {
   return assetType.value !== 'input'
 })
 
-// Delete button should be shown for:
-// - All output files (can be deleted via history)
-// - Input files only in cloud environment
-const showDeleteButton = computed(() => {
-  return (
+const shouldShowDeleteButton = computed(() => {
+  const propAllows = showDeleteButton ?? true
+  const typeAllows =
     assetType.value === 'output' || (assetType.value === 'input' && isCloud)
-  )
+
+  return propAllows && typeAllows
 })
 
 const handleInspect = () => {

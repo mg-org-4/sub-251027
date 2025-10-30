@@ -1472,6 +1472,7 @@
     "failedToApplyTexture": "Failed to apply texture",
     "no3dSceneToExport": "No 3D scene to export",
     "failedToExportModel": "Failed to export model as {format}",
+    "exportSuccess": "Successfully exported model as {format}",
     "fileLoadError": "Unable to find workflow in {fileName}",
     "dropFileError": "Unable to process dropped item: {error}",
     "interrupted": "Execution has been interrupted",
@@ -1653,18 +1654,24 @@
     "renewsDate": "Renews {date}",
     "expiresDate": "Expires {date}",
     "manageSubscription": "Manage subscription",
-    "apiNodesBalance": "\"API Nodes\" Credit Balance",
-    "apiNodesDescription": "For running commercial/proprietary models",
+    "partnerNodesBalance": "\"Partner Nodes\" Credit Balance",
+    "partnerNodesDescription": "For running commercial/proprietary models",
     "totalCredits": "Total credits",
     "viewUsageHistory": "View usage history",
     "addApiCredits": "Add API credits",
+    "addCredits": "Add credits",
+    "monthlyCreditsRollover": "These credits will rollover to the next month",
+    "monthlyBonusDescription": "Monthly credit bonus",
+    "prepaidDescription": "Pre-paid credits",
+    "prepaidCreditsInfo": "Credits purchased separately that don't expire",
+    "nextBillingCycle": "next billing cycle",
     "yourPlanIncludes": "Your plan includes:",
     "viewMoreDetails": "View more details",
     "learnMore": "Learn more",
     "messageSupport": "Message support",
     "invoiceHistory": "Invoice history",
     "benefits": {
-      "benefit1": "$10 in monthly credits for API models — top up when needed",
+      "benefit1": "Monthly credits for Partner Nodes — top up when needed",
       "benefit2": "Up to 30 min runtime per job"
     },
     "required": {
@@ -1779,6 +1786,8 @@
   "mediaAsset": {
     "deleteAssetTitle": "Delete this asset?",
     "deleteAssetDescription": "This asset will be permanently removed.",
+    "deleteSelectedTitle": "Delete selected assets?",
+    "deleteSelectedDescription": "{count} asset(s) will be permanently removed.",
     "assetDeletedSuccessfully": "Asset deleted successfully",
     "deletingImportedFilesCloudOnly": "Deleting imported files is only supported in cloud version",
     "failedToDeleteAsset": "Failed to delete asset",
@@ -1787,6 +1796,16 @@
       "jobIdCopyFailed": "Failed to copy Job ID",
       "copied": "Copied",
       "error": "Error"
+    },
+    "selection": {
+      "selectedCount": "Assets Selected: {count}",
+      "deselectAll": "Deselect all",
+      "downloadSelected": "Download",
+      "deleteSelected": "Delete",
+      "downloadStarted": "Downloading {count} files...",
+      "downloadsStarted": "Started downloading {count} file(s)",
+      "assetsDeletedSuccessfully": "{count} asset(s) deleted successfully",
+      "failedToDeleteAssets": "Failed to delete selected assets"
     }
   },
   "actionbar": {

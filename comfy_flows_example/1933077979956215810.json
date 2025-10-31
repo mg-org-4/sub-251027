@@ -1863,7 +1863,7 @@
           "localized_name": "image"
         },
         {
-          "name": "width",
+          "name": "512 width",
           "links": [
             500
           ],
@@ -1872,7 +1872,7 @@
           "localized_name": "width"
         },
         {
-          "name": "height",
+          "name": "920 height",
           "links": [
             501
           ],
@@ -1881,7 +1881,7 @@
           "localized_name": "height"
         },
         {
-          "name": "count",
+          "name": "90 count",
           "links": [
             502
           ],
@@ -2144,13 +2144,13 @@
           "localized_name": "image"
         },
         {
-          "name": "width",
+          "name": "512 width",
           "label": "宽度",
           "type": "INT",
           "localized_name": "width"
         },
         {
-          "name": "height",
+          "name": "912 height",
           "links": [
             475
           ],
@@ -2159,7 +2159,7 @@
           "localized_name": "height"
         },
         {
-          "name": "count",
+          "name": "89 count",
           "label": "数量",
           "type": "INT",
           "localized_name": "count"
@@ -2917,7 +2917,7 @@
       ],
       "size": [
         504.3517150878906,
-        358
+        1233.0697021484375
       ],
       "pos": [
         5589.33935546875,
@@ -2935,11 +2935,13 @@
           "paused": false,
           "hidden": false,
           "params": {
-            "filename": "WanVideoWrapper_VACE_startendframe_00001-audio_odrgs_1755828191.mp4",
-            "workflow": "WanVideoWrapper_VACE_startendframe_00001.png",
-            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/output/WanVideoWrapper_VACE_startendframe_00001-audio.mp4",
+            "score": "0",
+            "filename": "WanVideoWrapper_VACE_startendframe_00001_p81-audio_qscch_1761840291.mp4",
+            "workflow": "WanVideoWrapper_VACE_startendframe_00001_p81.png",
+            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/output/WanVideoWrapper_VACE_startendframe_00001_p81-audio.mp4",
             "format": "video/h264-mp4",
             "subfolder": "",
+            "label": "Normal",
             "type": "output",
             "frame_rate": 30
           }
@@ -3062,7 +3064,7 @@
       ],
       "size": [
         1234.5399169921875,
-        358
+        1245.5491943359375
       ],
       "pos": [
         6101.3330078125,
@@ -3080,11 +3082,13 @@
           "paused": false,
           "hidden": false,
           "params": {
-            "filename": "WanVideoWrapper_VACE_startendframe_00002-audio_vzztx_1755828209.mp4",
-            "workflow": "WanVideoWrapper_VACE_startendframe_00002.png",
-            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/output/WanVideoWrapper_VACE_startendframe_00002-audio.mp4",
+            "score": "0",
+            "filename": "WanVideoWrapper_VACE_startendframe_00002_p81-audio_esbqi_1761840304.mp4",
+            "workflow": "WanVideoWrapper_VACE_startendframe_00002_p81.png",
+            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/output/WanVideoWrapper_VACE_startendframe_00002_p81-audio.mp4",
             "format": "video/h264-mp4",
             "subfolder": "",
+            "label": "Normal",
             "type": "output",
             "frame_rate": 30
           }
@@ -5210,11 +5214,13 @@
           "paused": false,
           "hidden": false,
           "params": {
-            "filename": "WanVideoWrapper_VACE_startendframe_00001_fddky_1755827869.mp4",
-            "workflow": "WanVideoWrapper_VACE_startendframe_00001.png",
-            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/temp/WanVideoWrapper_VACE_startendframe_00001.mp4",
+            "score": "0",
+            "filename": "WanVideoWrapper_VACE_startendframe_00001_p81_ryarl_1761840022.mp4",
+            "workflow": "WanVideoWrapper_VACE_startendframe_00001_p81.png",
+            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/temp/WanVideoWrapper_VACE_startendframe_00001_p81.mp4",
             "format": "video/h264-mp4",
             "subfolder": "",
+            "label": "Normal",
             "type": "temp",
             "frame_rate": 30
           }
@@ -5460,7 +5466,7 @@
       "outputs": [],
       "color": "#2a363b",
       "widgets_values": [
-        "# 🍺 资源说明 🍺\n这里有一堆好东西想跟大家分享，一起玩起来，落地更轻松～\n---\n# 🎁 免费资源汇总🎁\n## 👉[免费资源](https://fcnm7uvt4vdy.feishu.cn/docx/Ec5MdPVp6oUe0hxCuoPcEzacnwb) 👈点击跳转（整合包/入群/往期资料）\n---\n\n## ⭐提供商用版服务演示🍦\n# 🍉魅力创意 视频落地方案🍉\n## 👉[成套方案](https://fcnm7uvt4vdy.feishu.cn/docx/Sstxdqq1tofnjkxZysCcNsCCn6y)👈点击跳转\n\n\n# 🍉魅力创意-收费图片工作流🍉\n## 👉[图片工具](https://fcnm7uvt4vdy.feishu.cn/docx/SaUNd7WYXoDWyGxOub2cAtqonxc)👈点击跳转\n\n\n\n## 💫需要动作迁移授权和定制图片工作流的可以私我💫\n---\n\n\n# 💻魅力创意-整合包地址💻\n## 👉[Kontext整合包](https://fcnm7uvt4vdy.feishu.cn/docx/CmUndgPSeorULWxyfalcfo6TnRn) 👈点击跳转\n（含模型和环境包 支持罪行Flux Kontext）\n\n---\n\n# 🌻跑不动的可以考虑用我的云端🌻\n\n## ⭐RH平台也有我大部分工作流(非商用尝鲜版)：\n\n## 👉[RH最新工作流](https://www.runninghub.cn/user-center/1901623527684915202)👈点击跳转\n---\n\n## ⭐提供商用版镜像服务🍦\n## 👉[仙宫多镜像云端](https://www.xiangongyun.com/image/detail/1b1f67a0-889d-479b-aba2-a55bc34e2e7d)👈点击跳转\n\n---\n\n\n---\n\n## 🥃请联系WX：john3006🥃\n---\n30"
+        "# 🍺 资源说明 🍺\n这里有一堆好东西想跟大家分享，一起玩起来，落地更轻松～\n---\n# 🎁 免费资源汇总🎁\n## 👉[免费资源](https://fcnm7uvt4vdy.feishu.cn/docx/Ec5MdPVp6oUe0hxCuoPcEzacnwb) 👈点击跳转（整合包/入群/往期资料）\n---\n\n## ⭐提供商用版服务演示🍦\n# 🍉魅力创意 视频落地方案🍉\n## 👉[成套方案](https://fcnm7uvt4vdy.feishu.cn/docx/Sstxdqq1tofnjkxZysCcNsCCn6y)👈点击跳转\n\n\n# 🍉魅力创意-收费图片工作流🍉\n## 👉[图片工具](https://fcnm7uvt4vdy.feishu.cn/docx/SaUNd7WYXoDWyGxOub2cAtqonxc)👈点击跳转\n\n\n\n## 💫需要动作迁移授权和定制图片工作流的可以私我💫\n---\n\n\n# 💻魅力创意-整合包地址💻\n## 👉[Kontext整合包](https://fcnm7uvt4vdy.feishu.cn/docx/CmUndgPSeorULWxyfalcfo6TnRn) 👈点击跳转\n（含模型和环境包 支持罪行Flux Kontext）\n\n---\n\n# 🌻跑不动的可以考虑用我的云端🌻\n\n## ⭐RH平台也有我大部分工作流(非商用尝鲜版)：\n\n## 👉[RH最新工作流](https://www.runninghub.cn/user-center/1901623527684915202)👈点击跳转\n---\n\n## ⭐提供商用版镜像服务🍦\n## 👉[仙宫多镜像云端](https://www.xiangongyun.com/image/detail/1b1f67a0-889d-479b-aba2-a55bc34e2e7d)👈点击跳转\n\n---\n\n\n---\n\n## 🥃请联系WX：john3006🥃\n---\n6"
       ],
       "inputs": [],
       "flags": {},
@@ -5473,14 +5479,14 @@
         832.1683959960938
       ],
       "pos": [
-        2590.15380859375,
-        1131.242919921875
+        2526.68408203125,
+        1148.0521240234375
       ],
-      "id": 370,
+      "id": 372,
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 31
+      "order": 30
     },
     {
       "mode": 0,
@@ -5503,11 +5509,11 @@
         810.6817626953125
       ],
       "pos": [
-        2078.88720703125,
-        1133.081787109375
+        2015.418212890625,
+        1149.8909912109375
       ],
       "widgets_values": [
-        "5efc42edc4487dbeb46f7c4b2a6801935074d055beb995fb4ccf246b3dfb5639.jpg",
+        "63d6e7e79dc6400586a4a4daca98d9f2c44df327043d5cb2324a1f292e0faece.jpg",
         "image"
       ],
       "inputs": [
@@ -5529,13 +5535,13 @@
         }
       ],
       "flags": {},
-      "id": 369,
+      "id": 371,
       "type": "LoadImage",
       "properties": {
         "widget_ue_connectable": {},
         "Node name for S&R": "LoadImage"
       },
-      "order": 30
+      "order": 31
     }
   ],
   "extra": {
@@ -5561,8 +5567,8 @@
     },
     "ds": {
       "offset": [
-        519.6320054796006,
-        -189.02069091796875
+        -328.0104098849827,
+        -500.64489067925354
       ],
       "scale": 0.45
     }
@@ -6386,6 +6392,6 @@
   "id": "c6e410bc-5e2c-460b-ae81-c91b6094fbb1",
   "config": {},
   "version": 0.4,
-  "last_node_id": 370,
+  "last_node_id": 372,
   "revision": 0
 }

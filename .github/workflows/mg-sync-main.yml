@@ -36,6 +36,9 @@ jobs:
       # 执行同步脚本
       - name: Run sync script
         run: |
+          # 设置环境变量跳过 LFS 下载
+          export GIT_LFS_SKIP_SMUDGE=1
+          
           git remote add upstream https://github.com/mg-org-1/ComfyUI.git 2>/dev/null || true
           git fetch upstream
           git checkout master

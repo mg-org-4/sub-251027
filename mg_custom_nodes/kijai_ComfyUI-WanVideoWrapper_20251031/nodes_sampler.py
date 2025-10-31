@@ -995,12 +995,11 @@ class WanVideoSampler:
         # Experimental args
         use_cfg_zero_star = use_tangential = use_fresca = bidirectional_sampling = use_tsr = False
         raag_alpha = 0.0
+        transformer.video_attention_split_steps = []
         if experimental_args is not None:
             video_attention_split_steps = experimental_args.get("video_attention_split_steps", [])
             if video_attention_split_steps:
-                transformer.video_attention_split_steps = [int(x.strip()) for x in video_attention_split_steps.split(",")]
-            else:
-                transformer.video_attention_split_steps = []
+                transformer.video_attention_split_steps = [int(x.strip()) for x in video_attention_split_steps.split(",")]                
 
             use_zero_init = experimental_args.get("use_zero_init", True)
             use_cfg_zero_star = experimental_args.get("cfg_zero_star", False)
@@ -1396,6 +1395,7 @@ class WanVideoSampler:
                     "ovi_negative_text_embeds": ovi_negative_text_embeds, # Audio latent model negative text embeds for Ovi
                     "flashvsr_LQ_latent": flashvsr_LQ_latent, # FlashVSR LQ latent for upsampling
                     "flashvsr_strength": flashvsr_strength, # FlashVSR strength
+                    "num_cond_latents": len(all_indices) if transformer.is_longcat else None # number of cond latents LongCat to separate attention
                 }
 
                 batch_size = 1
@@ -1695,7 +1695,7 @@ class WanVideoSampler:
                     current_step_percentage = idx / len(timesteps)
 
                     timestep = torch.tensor([t]).to(device)
-                    if is_pusa or (is_5b and all_indices):
+                    if is_pusa or ((is_5b or transformer.is_longcat) and all_indices):
                         orig_timestep = timestep
                         timestep = timestep.unsqueeze(1).repeat(1, latent_video_length)
                         if extra_latents is not None:
@@ -2958,7 +2958,10 @@ class WanVideoSampler:
                         if use_tsr:
                             noise_pred = temporal_score_rescaling(noise_pred, latent, timestep, tsr_k, tsr_sigma)
 
-                        if len(timestep.shape) != 1 and not is_pusa: #5b
+                        if transformer.is_longcat:
+                            noise_pred = -noise_pred
+
+                        if len(timestep.shape) != 1 and not is_pusa: #5b and longcat
                             # all_indices is a list of indices to skip
                             total_indices = list(range(latent.shape[1]))
                             process_indices = [i for i in total_indices if i not in all_indices]

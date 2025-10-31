@@ -278,7 +278,7 @@ class WanVideoBlockSwap:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "blocks_to_swap": ("INT", {"default": 20, "min": 0, "max": 40, "step": 1, "tooltip": "Number of transformer blocks to swap, the 14B model has 40, while the 1.3B model has 30 blocks"}),
+                "blocks_to_swap": ("INT", {"default": 20, "min": 0, "max": 48, "step": 1, "tooltip": "Number of transformer blocks to swap, the 14B model has 40, while the 1.3B and 5B models have 30 blocks. LongCat-video has 48"}),
                 "offload_img_emb": ("BOOLEAN", {"default": False, "tooltip": "Offload img_emb to offload_device"}),
                 "offload_txt_emb": ("BOOLEAN", {"default": False, "tooltip": "Offload time_emb to offload_device"}),
             },
@@ -878,10 +878,12 @@ def load_weights(transformer, sd=None, weight_dtype=None, base_dtype=None,
             scale_key = key.replace(".weight", ".scale_weight")
             if scale_key in sd:
                 dtype_to_use = value.dtype
-            if "modulation" in name or "norm" in name or "bias" in name or "img_emb" in name:
+            if "bias" in name or "img_emb" in name:
                 dtype_to_use = base_dtype
             if "patch_embedding" in name or "motion_encoder" in name:
                 dtype_to_use = torch.float32
+            if "modulation" in name or "norm" in name:
+                dtype_to_use = value.dtype if value.dtype == torch.float32 else base_dtype
 
         load_device = transformer_load_device
         if block_swap_args is not None:
@@ -1174,8 +1176,13 @@ class WanVideoModelLoader:
         in_features = sd["blocks.0.self_attn.k.weight"].shape[1]
         out_features = sd["blocks.0.self_attn.k.weight"].shape[0]
         log.info(f"Detected model in_channels: {in_channels}")
-        ffn_dim = sd["blocks.0.ffn.0.bias"].shape[0]
-        ffn2_dim = sd["blocks.0.ffn.2.weight"].shape[1]
+
+        if "blocks.0.ffn.0.bias" in sd:
+            ffn_dim = sd["blocks.0.ffn.0.bias"].shape[0]
+            ffn2_dim = sd["blocks.0.ffn.2.weight"].shape[1]
+        else:
+            ffn_dim = sd["blocks.0.ffn.w1.weight"].shape[0]
+            ffn2_dim = sd["blocks.0.ffn.w1.weight"].shape[1]
 
         patch_size=(1, 2, 2)
         if "patch_embedding.0.weight" in sd:
@@ -1222,6 +1229,9 @@ class WanVideoModelLoader:
             num_layers = 30
             out_dim = 48
             model_type = "t2v" #5B no img crossattn
+        elif dim == 4096: #longcat
+            num_heads = 32
+            num_layers = 48
         else: #1.3B
             num_heads = 12
             num_layers = 30
@@ -1335,6 +1345,7 @@ class WanVideoModelLoader:
             "rms_norm_function": rms_norm_function,
             "lynx_ip_layers": lynx_ip_layers,
             "lynx_ref_layers": lynx_ref_layers,
+            "is_longcat": dim == 4096,
 
         }
 

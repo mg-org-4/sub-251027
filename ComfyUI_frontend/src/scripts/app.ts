@@ -18,6 +18,7 @@ import type { Vector2 } from '@/lib/litegraph/src/litegraph'
 import type { IBaseWidget } from '@/lib/litegraph/src/types/widgets'
 import { isCloud } from '@/platform/distribution/types'
 import { useSettingStore } from '@/platform/settings/settingStore'
+import { useTelemetry } from '@/platform/telemetry'
 import { useToastStore } from '@/platform/updates/common/toastStore'
 import { useWorkflowService } from '@/platform/workflow/core/services/workflowService'
 import { ComfyWorkflow } from '@/platform/workflow/management/stores/workflowStore'
@@ -98,6 +99,7 @@ import { $el, ComfyUI } from './ui'
 import { ComfyAppMenu } from './ui/menu/index'
 import { clone } from './utils'
 import { type ComfyWidgetConstructor } from './widgets'
+import { ensureCorrectLayoutScale } from '@/renderer/extensions/vueNodes/layout/ensureCorrectLayoutScale'
 
 export const ANIM_PREVIEW_WIDGET = '$$comfy_animation_preview'
 
@@ -1181,6 +1183,9 @@ export class ComfyApp {
     try {
       // @ts-expect-error Discrepancies between zod and litegraph - in progress
       this.graph.configure(graphData)
+
+      ensureCorrectLayoutScale()
+
       if (
         restore_view &&
         useSettingStore().get('Comfy.EnableWorkflowViewRestore')
@@ -1267,6 +1272,14 @@ export class ComfyApp {
       'afterConfigureGraph',
       missingNodeTypes
     )
+
+    // Track workflow import with missing node information
+    useTelemetry()?.trackWorkflowImported({
+      missing_node_count: missingNodeTypes.length,
+      missing_node_types: missingNodeTypes.map((node) =>
+        typeof node === 'string' ? node : node.type
+      )
+    })
     await useWorkflowService().afterLoadNewGraph(
       workflow,
       this.graph.serialize() as unknown as ComfyWorkflowJSON

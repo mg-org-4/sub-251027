@@ -85,13 +85,13 @@
           "localized_name": "image"
         },
         {
-          "name": "width",
+          "name": "512 width",
           "label": "宽度",
           "type": "INT",
           "localized_name": "width"
         },
         {
-          "name": "height",
+          "name": "896 height",
           "links": [
             475
           ],
@@ -100,7 +100,7 @@
           "localized_name": "height"
         },
         {
-          "name": "count",
+          "name": "149 count",
           "label": "数量",
           "type": "INT",
           "localized_name": "count"
@@ -1334,11 +1334,13 @@
           "paused": false,
           "hidden": false,
           "params": {
-            "filename": "WanVideoWrapper_VACE_startendframe_00002_p81-audio_jhnkm_1758290204.mp4",
-            "workflow": "WanVideoWrapper_VACE_startendframe_00002_p81.png",
-            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/output/WanVideoWrapper_VACE_startendframe_00002_p81-audio.mp4",
+            "score": "0",
+            "filename": "WanVideoWrapper_VACE_startendframe_00001_p83-audio_rpbbz_1761840260.mp4",
+            "workflow": "WanVideoWrapper_VACE_startendframe_00001_p83.png",
+            "fullpath": "/data/ComfyUI/personal/8eed36271f26fa9d6ed8c9e4a90ccaed/output/WanVideoWrapper_VACE_startendframe_00001_p83-audio.mp4",
             "format": "video/h264-mp4",
             "subfolder": "",
+            "label": "Normal",
             "type": "output",
             "frame_rate": 20
           }
@@ -1984,7 +1986,7 @@
           "localized_name": "image"
         },
         {
-          "name": "width",
+          "name": "512 width",
           "links": [
             500
           ],
@@ -1993,7 +1995,7 @@
           "localized_name": "width"
         },
         {
-          "name": "height",
+          "name": "905 height",
           "links": [
             501
           ],
@@ -2002,7 +2004,7 @@
           "localized_name": "height"
         },
         {
-          "name": "count",
+          "name": "152 count",
           "links": [
             502
           ],
@@ -4025,7 +4027,7 @@
       ],
       "widgets_values": [
         "并且面对着我双手放下",
-        1517,
+        866,
         "randomize",
         "auto"
       ],
@@ -4232,7 +4234,7 @@
       ],
       "widgets_values": [
         "人物改变成正面对着镜头，保持人物比例",
-        104,
+        1884,
         "randomize",
         "auto"
       ],
@@ -4300,7 +4302,7 @@
         1032.922607421875
       ],
       "widgets_values": [
-        434293512890784,
+        133191311294682,
         "randomize",
         25,
         1,
@@ -5696,7 +5698,7 @@
       ],
       "size": [
         1234.5399169921875,
-        1226.181884765625
+        358
       ],
       "pos": [
         4942.90283203125,
@@ -6120,7 +6122,9 @@
         5976.74365234375,
         1643.9892578125
       ],
-      "widgets_values": [],
+      "widgets_values": [
+        "2D，A girl,vibrant eyes，, The image features a female figure dressed in a uniform resembling that of a security guard or police officer. The outfit consists of a crisp white button-up shirt adorned with a dark tie and various insignias, including a name tag and a badge on the chest and the sleeves, signifying authority. She wears a short dark pleated skirt, black sheer stockings, and black closed-toe shoes. Accessories such as handcuffs and keyrings are attached to her belt, enhancing the law enforcement aesthetic. Her long, dark brown hair flows freely in soft waves past her shoulders, with a striking white flower tucked into the side, adding a delicate touch to her appearance. The setting appears to be indoors; there is a closed door on her left, a window in the background diffusing natural light, and various items such as a chair and a table with miscellaneous objects behind her. The scene conveys a juxtaposition of professional and feminine elements."
+      ],
       "inputs": [
         {
           "name": "text",
@@ -6882,7 +6886,7 @@
       "color": "#232",
       "widgets_values": [
         "人物动作不变，换成手冢治虫画风\n",
-        1080,
+        633,
         "randomize",
         "auto"
       ],
@@ -7959,7 +7963,7 @@
       ],
       "size": [
         282.0702209472656,
-        814.1248779296875
+        813.902587890625
       ],
       "pos": [
         3089.65771484375,
@@ -8196,7 +8200,7 @@
       "outputs": [],
       "color": "#2a363b",
       "widgets_values": [
-        "# 🍺 资源说明 🍺\n这里有一堆好东西想跟大家分享，一起玩起来，落地更轻松～\n---\n# 🎁 免费资源汇总🎁\n## 👉[免费资源](https://fcnm7uvt4vdy.feishu.cn/docx/Ec5MdPVp6oUe0hxCuoPcEzacnwb) 👈点击跳转（整合包/入群/往期资料）\n---\n\n## ⭐提供商用版服务演示🍦\n# 🍉魅力创意 视频落地方案🍉\n## 👉[成套方案](https://fcnm7uvt4vdy.feishu.cn/docx/Sstxdqq1tofnjkxZysCcNsCCn6y)👈点击跳转\n\n\n# 🍉魅力创意-收费图片工作流🍉\n## 👉[图片工具](https://fcnm7uvt4vdy.feishu.cn/docx/SaUNd7WYXoDWyGxOub2cAtqonxc)👈点击跳转\n\n\n\n## 💫需要动作迁移授权和定制图片工作流的可以私我💫\n---\n\n\n# 💻魅力创意-整合包地址💻\n## 👉[Kontext整合包](https://fcnm7uvt4vdy.feishu.cn/docx/CmUndgPSeorULWxyfalcfo6TnRn) 👈点击跳转\n（含模型和环境包 支持罪行Flux Kontext）\n\n---\n\n# 🌻跑不动的可以考虑用我的云端🌻\n\n## ⭐RH平台也有我大部分工作流(非商用尝鲜版)：\n\n## 👉[RH最新工作流](https://www.runninghub.cn/user-center/1901623527684915202)👈点击跳转\n---\n\n## ⭐提供商用版镜像服务🍦\n## 👉[仙宫多镜像云端](https://www.xiangongyun.com/image/detail/1b1f67a0-889d-479b-aba2-a55bc34e2e7d)👈点击跳转\n\n---\n\n\n---\n\n## 🥃请联系WX：john3006🥃\n---\n30"
+        "# 🍺 资源说明 🍺\n这里有一堆好东西想跟大家分享，一起玩起来，落地更轻松～\n---\n# 🎁 免费资源汇总🎁\n## 👉[免费资源](https://fcnm7uvt4vdy.feishu.cn/docx/Ec5MdPVp6oUe0hxCuoPcEzacnwb) 👈点击跳转（整合包/入群/往期资料）\n---\n\n## ⭐提供商用版服务演示🍦\n# 🍉魅力创意 视频落地方案🍉\n## 👉[成套方案](https://fcnm7uvt4vdy.feishu.cn/docx/Sstxdqq1tofnjkxZysCcNsCCn6y)👈点击跳转\n\n\n# 🍉魅力创意-收费图片工作流🍉\n## 👉[图片工具](https://fcnm7uvt4vdy.feishu.cn/docx/SaUNd7WYXoDWyGxOub2cAtqonxc)👈点击跳转\n\n\n\n## 💫需要动作迁移授权和定制图片工作流的可以私我💫\n---\n\n\n# 💻魅力创意-整合包地址💻\n## 👉[Kontext整合包](https://fcnm7uvt4vdy.feishu.cn/docx/CmUndgPSeorULWxyfalcfo6TnRn) 👈点击跳转\n（含模型和环境包 支持罪行Flux Kontext）\n\n---\n\n# 🌻跑不动的可以考虑用我的云端🌻\n\n## ⭐RH平台也有我大部分工作流(非商用尝鲜版)：\n\n## 👉[RH最新工作流](https://www.runninghub.cn/user-center/1901623527684915202)👈点击跳转\n---\n\n## ⭐提供商用版镜像服务🍦\n## 👉[仙宫多镜像云端](https://www.xiangongyun.com/image/detail/1b1f67a0-889d-479b-aba2-a55bc34e2e7d)👈点击跳转\n\n---\n\n\n---\n\n## 🥃请联系WX：john3006🥃\n---\n6"
       ],
       "inputs": [],
       "flags": {},
@@ -8209,14 +8213,14 @@
         832.1683959960938
       ],
       "pos": [
-        2599.859130859375,
-        963.6624755859375
+        2554.1669921875,
+        924.175537109375
       ],
-      "id": 475,
+      "id": 477,
       "properties": {
         "widget_ue_connectable": {}
       },
-      "order": 62
+      "order": 61
     },
     {
       "mode": 0,
@@ -8239,11 +8243,11 @@
         810.6817626953125
       ],
       "pos": [
-        2088.592529296875,
-        965.5013427734375
+        2042.90087890625,
+        926.014404296875
       ],
       "widgets_values": [
-        "5efc42edc4487dbeb46f7c4b2a6801935074d055beb995fb4ccf246b3dfb5639.jpg",
+        "63d6e7e79dc6400586a4a4daca98d9f2c44df327043d5cb2324a1f292e0faece.jpg",
         "image"
       ],
       "inputs": [
@@ -8265,13 +8269,13 @@
         }
       ],
       "flags": {},
-      "id": 474,
+      "id": 476,
       "type": "LoadImage",
       "properties": {
         "widget_ue_connectable": {},
         "Node name for S&R": "LoadImage"
       },
-      "order": 61
+      "order": 62
     }
   ],
   "extra": {
@@ -8301,8 +8305,8 @@
     },
     "ds": {
       "offset": [
-        418.0743611653643,
-        -40.6993408203125
+        -1524.382534450955,
+        -170.10146077473956
       ],
       "scale": 0.45
     },
@@ -9698,6 +9702,6 @@
   "id": "c6e410bc-5e2c-460b-ae81-c91b6094fbb1",
   "config": {},
   "version": 0.4,
-  "last_node_id": 475,
+  "last_node_id": 477,
   "revision": 0
 }

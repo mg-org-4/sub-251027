@@ -38,66 +38,76 @@ jobs:
         run: |
           # 设置环境变量跳过 LFS 下载
           export GIT_LFS_SKIP_SMUDGE=1
-          
+                    
           git remote add upstream https://github.com/mg-org-1/ComfyUI.git 2>/dev/null || true
           git fetch upstream
           git checkout master
-
+          
           # === 备份本地关键文件 ===
           LOCAL_README_EXIST=0
           if [ -f "README.md" ]; then
             cp README.md /tmp/README.md.backup
             LOCAL_README_EXIST=1
           fi
-
+          
+          LOCAL_WORKFLOWS_EXIST=0
           if [ -d ".github/workflows" ]; then
             cp -r .github/workflows /tmp/workflows.backup
             LOCAL_WORKFLOWS_EXIST=1
-          else
-            LOCAL_WORKFLOWS_EXIST=0
           fi
-
+          
           # === 合并上游 ===
-          if ! git merge -s recursive -X theirs upstream/master; then
+          # --no-ff 确保总是创建一个合并提交，--no-commit 阻止自动提交
+          if ! git merge --no-ff --no-commit upstream/master; then
             echo "Merge conflict detected. Resolving by taking upstream version..."
+            # 如果有冲突, 用 'theirs' (上游) 版本解决 *所有* 冲突
             git checkout --theirs .
             git add .
-            git commit -m "Merge upstream/master (auto-resolved in favor of upstream)"
+            # 注意：这里我们也不 commit
           fi
-
-          # === 恢复本地 README.md ===
+          
+          # 此时，所有上游更改都在暂存区 (staged)，但未提交
+          
+          # === 恢复本地文件 ===
+          # 现在恢复你的本地文件，这将覆盖暂存区中的上游版本
           if [ "$LOCAL_README_EXIST" = "1" ]; then
             cp /tmp/README.md.backup README.md
             git add README.md
             echo "Restored local README.md"
           else
+            # 如果本地没有，就删除上游的
             rm -f README.md
             git add README.md 2>/dev/null || true
             echo "Removed upstream README.md (not present locally)"
           fi
-
-          # === 恢复本地 workflows ===
+          
           if [ "$LOCAL_WORKFLOWS_EXIST" = "1" ]; then
             rm -rf .github/workflows
             cp -r /tmp/workflows.backup .github/workflows
             git add .github/workflows
             echo "Restored local .github/workflows"
           else
+            # 如果本地没有，就删除上游的
             rm -rf .github/workflows 2>/dev/null || true
             git add .github 2>/dev/null || true
             echo "Removed upstream .github/workflows (not present locally)"
           fi
-
+          
           # 清理空的 .github 目录
           if [ -d ".github" ] && [ -z "$(ls -A .github)" ]; then
             rmdir .github
             git add -A
           fi
-
-          # 提交变更（如果有的话）
-          if ! git diff --quiet --cached; then
-            git commit -m "Revert workflows and README.md to local state after upstream merge"
-            git push origin master
+          # === 统一提交 ===
+          # 检查暂存区是否有任何更改。
+          # 如果上游没有新内容，且本地文件也无变化，则暂存区是空的
+          if ! git diff --cached --quiet; then
+            echo "Committing merged changes and local file restorations..."
+            git commit -m "Sync with upstream/master and restore local files (README.md, .github/workflows)"
           else
-            echo "No changes to commit."
+            echo "No new changes from upstream to commit."
           fi
+          
+          # === 推送 ===
+          echo "Pushing changes to origin master..."
+          git push origin master

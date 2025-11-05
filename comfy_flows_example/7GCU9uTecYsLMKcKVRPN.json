@@ -1,0 +1,1638 @@
+{
+  "last_node_id": 179,
+  "last_link_id": 221,
+  "nodes": [
+    {
+      "id": 73,
+      "type": "BiRefNet_Zho",
+      "pos": [
+        -2110,
+        5300
+      ],
+      "size": {
+        "0": 241.79998779296875,
+        "1": 46
+      },
+      "flags": {},
+      "order": 15,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "birefnetmodel",
+          "type": "BRNMODEL",
+          "link": 124,
+          "label": "birefnetmodel",
+          "slot_index": 0
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 161,
+          "label": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            199
+          ],
+          "shape": 3,
+          "label": "image",
+          "slot_index": 0
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [],
+          "shape": 3,
+          "label": "mask",
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BiRefNet_Zho"
+      }
+    },
+    {
+      "id": 88,
+      "type": "BRIA_RMBG_Zho",
+      "pos": [
+        -3000,
+        5320
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {},
+      "order": 16,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "rmbgmodel",
+          "type": "RMBGMODEL",
+          "link": 144,
+          "label": "rmbgmodel",
+          "slot_index": 0
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 162,
+          "label": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            198
+          ],
+          "shape": 3,
+          "label": "image",
+          "slot_index": 0
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [],
+          "shape": 3,
+          "label": "mask",
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BRIA_RMBG_Zho"
+      }
+    },
+    {
+      "id": 84,
+      "type": "Image Rembg (Remove Background)",
+      "pos": [
+        -5645.62165798611,
+        5170
+      ],
+      "size": {
+        "0": 315,
+        "1": 250
+      },
+      "flags": {},
+      "order": 17,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 164,
+          "label": "images"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            195
+          ],
+          "shape": 3,
+          "label": "images",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Image Rembg (Remove Background)"
+      },
+      "widgets_values": [
+        true,
+        "u2net",
+        false,
+        false,
+        false,
+        240,
+        10,
+        10,
+        "none"
+      ]
+    },
+    {
+      "id": 121,
+      "type": "BRIA_RMBG_ModelLoader_Zho",
+      "pos": [
+        -3000,
+        5230
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "rmbgmodel",
+          "type": "RMBGMODEL",
+          "links": [
+            144
+          ],
+          "shape": 3,
+          "label": "rmbgmodel"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BRIA_RMBG_ModelLoader_Zho"
+      }
+    },
+    {
+      "id": 79,
+      "type": "SAMModelLoader (segment anything)",
+      "pos": [
+        -4108,
+        5088
+      ],
+      "size": {
+        "0": 277.20001220703125,
+        "1": 58
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "SAM_MODEL",
+          "type": "SAM_MODEL",
+          "links": [
+            100
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "SAM_MODEL"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SAMModelLoader (segment anything)"
+      },
+      "widgets_values": [
+        "sam_vit_b (375MB)"
+      ]
+    },
+    {
+      "id": 119,
+      "type": "DF_Image_scale_to_side",
+      "pos": [
+        -5045,
+        3167
+      ],
+      "size": {
+        "0": 315,
+        "1": 130
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 200,
+          "label": "image",
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            156,
+            161,
+            162,
+            164,
+            189,
+            217,
+            219,
+            220
+          ],
+          "shape": 3,
+          "label": "IMAGE",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DF_Image_scale_to_side"
+      },
+      "widgets_values": [
+        768,
+        "Longest",
+        "nearest-exact",
+        "disabled"
+      ]
+    },
+    {
+      "id": 98,
+      "type": "BiRefNet_ModelLoader_Zho",
+      "pos": [
+        -2128,
+        5169
+      ],
+      "size": {
+        "0": 257.2131652832031,
+        "1": 58
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "birefnetmodel",
+          "type": "BRNMODEL",
+          "links": [
+            124
+          ],
+          "shape": 3,
+          "label": "birefnetmodel",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BiRefNet_ModelLoader_Zho"
+      },
+      "widgets_values": [
+        "BiRefNet-DIS_ep580.pth"
+      ]
+    },
+    {
+      "id": 81,
+      "type": "GroundingDinoModelLoader (segment anything)",
+      "pos": [
+        -4112,
+        5193
+      ],
+      "size": {
+        "0": 361.20001220703125,
+        "1": 58
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "GROUNDING_DINO_MODEL",
+          "type": "GROUNDING_DINO_MODEL",
+          "links": [
+            101
+          ],
+          "shape": 3,
+          "label": "GROUNDING_DINO_MODEL",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GroundingDinoModelLoader (segment anything)"
+      },
+      "widgets_values": [
+        "GroundingDINO_SwinB (938MB)"
+      ]
+    },
+    {
+      "id": 142,
+      "type": "PreviewImage",
+      "pos": [
+        -5852,
+        4173
+      ],
+      "size": {
+        "0": 753.7954711914062,
+        "1": 784.6202392578125
+      },
+      "flags": {},
+      "order": 23,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 195,
+          "label": "images",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 143,
+      "type": "PreviewImage",
+      "pos": [
+        -4985,
+        4195
+      ],
+      "size": {
+        "0": 753.7954711914062,
+        "1": 784.6202392578125
+      },
+      "flags": {},
+      "order": 24,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 196,
+          "label": "images",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 147,
+      "type": "PreviewImage",
+      "pos": [
+        -4142,
+        4171
+      ],
+      "size": {
+        "0": 753.7954711914062,
+        "1": 784.6202392578125
+      },
+      "flags": {},
+      "order": 29,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 197,
+          "label": "images",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 144,
+      "type": "PreviewImage",
+      "pos": [
+        -3313,
+        4164
+      ],
+      "size": {
+        "0": 753.7954711914062,
+        "1": 784.6202392578125
+      },
+      "flags": {},
+      "order": 22,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 198,
+          "label": "images",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 136,
+      "type": "InspyrenetRembg",
+      "pos": [
+        -4799,
+        5269
+      ],
+      "size": {
+        "0": 315,
+        "1": 78
+      },
+      "flags": {},
+      "order": 18,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 189,
+          "label": "image",
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            196
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "IMAGE"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [],
+          "shape": 3,
+          "slot_index": 1,
+          "label": "MASK"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InspyrenetRembg"
+      },
+      "widgets_values": [
+        "default"
+      ]
+    },
+    {
+      "id": 80,
+      "type": "GroundingDinoSAMSegment (segment anything)",
+      "pos": [
+        -4108,
+        5308
+      ],
+      "size": {
+        "0": 352.79998779296875,
+        "1": 129.4801025390625
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "sam_model",
+          "type": "SAM_MODEL",
+          "link": 100,
+          "label": "sam_model"
+        },
+        {
+          "name": "grounding_dino_model",
+          "type": "GROUNDING_DINO_MODEL",
+          "link": 101,
+          "slot_index": 1,
+          "label": "grounding_dino_model"
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 156,
+          "slot_index": 2,
+          "label": "image"
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 102,
+          "widget": {
+            "name": "prompt"
+          },
+          "slot_index": 3,
+          "label": "prompt"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            119
+          ],
+          "shape": 3,
+          "label": "IMAGE",
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            122
+          ],
+          "shape": 3,
+          "slot_index": 1,
+          "label": "MASK"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GroundingDinoSAMSegment (segment anything)"
+      },
+      "widgets_values": [
+        "cat",
+        0.3
+      ]
+    },
+    {
+      "id": 146,
+      "type": "PreviewImage",
+      "pos": [
+        -2410,
+        4166
+      ],
+      "size": {
+        "0": 753.7954711914062,
+        "1": 784.6202392578125
+      },
+      "flags": {},
+      "order": 21,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 199,
+          "label": "images",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 95,
+      "type": "JoinImageWithAlpha",
+      "pos": [
+        -3697,
+        5302
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {},
+      "order": 27,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 119,
+          "label": "image",
+          "slot_index": 0
+        },
+        {
+          "name": "alpha",
+          "type": "MASK",
+          "link": 123,
+          "label": "alpha",
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            197
+          ],
+          "shape": 3,
+          "label": "IMAGE",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JoinImageWithAlpha"
+      }
+    },
+    {
+      "id": 97,
+      "type": "InvertMask",
+      "pos": [
+        -3697,
+        5395
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 20,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 122,
+          "label": "mask"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            123
+          ],
+          "shape": 3,
+          "label": "MASK",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InvertMask"
+      }
+    },
+    {
+      "id": 171,
+      "type": "PreviewImage",
+      "pos": [
+        -1273,
+        4153
+      ],
+      "size": {
+        "0": 753.7954711914062,
+        "1": 784.6202392578125
+      },
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 218,
+          "label": "images",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 71,
+      "type": "LoadImage",
+      "pos": [
+        -5851,
+        3162
+      ],
+      "size": {
+        "0": 792.101318359375,
+        "1": 845.2660522460938
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            200
+          ],
+          "shape": 3,
+          "label": "IMAGE",
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "MASK"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "0 (9).png",
+        "image"
+      ]
+    },
+    {
+      "id": 172,
+      "type": "Note",
+      "pos": [
+        -5034,
+        3787
+      ],
+      "size": [
+        342.31502026324506,
+        208.14590918263002
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "这个节点是在使用SAM以及SAM2的时候开启的，以便精确选择并分离出你希望保留的图像主体部分。\n\nThis node is turned on when using SAM and SAM2 to accurately select and isolate the main part of the image that you wish to retain."
+      ],
+      "color": "#c09430"
+    },
+    {
+      "id": 162,
+      "type": "Note",
+      "pos": [
+        -6267,
+        4087
+      ],
+      "size": {
+        "0": 346.4214172363281,
+        "1": 305.0873718261719
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "具体测评结果可以看我自媒体视频：\n\nB站：JasonSt0ne\nhttps://www.bilibili.com/video/BV1Uw4m1k78r\n\nYoutube：Jason Stone\nhttps://youtu.be/KTYKVTFc8OA\n\nUP的个人qq号：1379736478\n需要定制工作流等商业合作请＋VX号:Gent1e0411（备注来意）\n\n"
+      ],
+      "color": "#c09430"
+    },
+    {
+      "id": 165,
+      "type": "Florence2Run",
+      "pos": [
+        -1510,
+        5230
+      ],
+      "size": [
+        334.4335772687473,
+        300.5961149008044
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 219,
+          "slot_index": 0,
+          "label": "image"
+        },
+        {
+          "name": "florence2_model",
+          "type": "FL2MODEL",
+          "link": 206,
+          "slot_index": 1,
+          "label": "florence2_model"
+        },
+        {
+          "name": "text_input",
+          "type": "STRING",
+          "link": 211,
+          "widget": {
+            "name": "text_input"
+          },
+          "slot_index": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            207
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "image"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [],
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "caption",
+          "type": "STRING",
+          "links": [],
+          "shape": 3,
+          "slot_index": 2,
+          "label": "caption"
+        },
+        {
+          "name": "data",
+          "type": "JSON",
+          "links": [
+            208
+          ],
+          "shape": 3,
+          "slot_index": 3,
+          "label": "data"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Florence2Run"
+      },
+      "widgets_values": [
+        "red bus",
+        "caption_to_phrase_grounding",
+        true,
+        false,
+        1024,
+        3,
+        true,
+        ""
+      ]
+    },
+    {
+      "id": 166,
+      "type": "DownloadAndLoadFlorence2Model",
+      "pos": [
+        -1520,
+        5030
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 7,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "florence2_model",
+          "type": "FL2MODEL",
+          "links": [
+            206
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "florence2_model"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DownloadAndLoadFlorence2Model"
+      },
+      "widgets_values": [
+        "microsoft/Florence-2-large-ft",
+        "fp16",
+        "sdpa"
+      ]
+    },
+    {
+      "id": 178,
+      "type": "Note",
+      "pos": [
+        -1160,
+        5380
+      ],
+      "size": [
+        386.95970062820277,
+        155.49527373969704
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "在Florence2 Coordinates节点中的index指的是Preview Image中的物体序号，如果你希望选择序号为0的物体，请在此参数中填入0。\n\nFlorence2 coordinates node refers to the object serial number in the preview image. If you want to select the object with serial number 0, please fill in 0 in this parameter."
+      ],
+      "color": "#c09430"
+    },
+    {
+      "id": 173,
+      "type": "DownloadAndLoadSAM2Model",
+      "pos": [
+        -760,
+        5000
+      ],
+      "size": {
+        "0": 300.4176025390625,
+        "1": 130
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "sam2_model",
+          "type": "SAM2MODEL",
+          "links": [
+            212
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "sam2_model"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DownloadAndLoadSAM2Model"
+      },
+      "widgets_values": [
+        "sam2_hiera_base_plus.safetensors",
+        "single_image",
+        "cuda",
+        "bf16"
+      ]
+    },
+    {
+      "id": 174,
+      "type": "Sam2Segmentation",
+      "pos": [
+        -760,
+        5360
+      ],
+      "size": [
+        312.8231395983771,
+        174.04055519963913
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "sam2_model",
+          "type": "SAM2MODEL",
+          "link": 212,
+          "label": "sam2_model"
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 220,
+          "label": "image",
+          "slot_index": 1
+        },
+        {
+          "name": "coordinates_positive",
+          "type": "STRING",
+          "link": 216,
+          "widget": {
+            "name": "coordinates_positive"
+          },
+          "slot_index": 2,
+          "label": "coordinates_positive"
+        },
+        {
+          "name": "coordinates_negative",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "coordinates_negative"
+          },
+          "slot_index": 3,
+          "label": "coordinates_negative"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            215
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "mask"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sam2Segmentation"
+      },
+      "widgets_values": [
+        "",
+        true,
+        "",
+        true
+      ]
+    },
+    {
+      "id": 177,
+      "type": "InvertMask",
+      "pos": [
+        -380,
+        5500
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 215,
+          "label": "mask"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            213
+          ],
+          "shape": 3,
+          "label": "MASK",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InvertMask"
+      }
+    },
+    {
+      "id": 175,
+      "type": "JoinImageWithAlpha",
+      "pos": [
+        -380,
+        5380
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 217,
+          "label": "image",
+          "slot_index": 0
+        },
+        {
+          "name": "alpha",
+          "type": "MASK",
+          "link": 213,
+          "label": "alpha",
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            218
+          ],
+          "shape": 3,
+          "label": "IMAGE",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JoinImageWithAlpha"
+      }
+    },
+    {
+      "id": 167,
+      "type": "PreviewImage",
+      "pos": [
+        -1160,
+        4990
+      ],
+      "size": [
+        384.74840537434693,
+        248.1660891660049
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 207,
+          "label": "images"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 163,
+      "type": "Note",
+      "pos": [
+        -6266,
+        4449
+      ],
+      "size": {
+        "0": 346.4214172363281,
+        "1": 305.0873718261719
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "V2.0:新增Segment Anything 2（比Segment Anything更快、更强）\n\n你是否经常苦于被ComfyUI中层出不穷的RemBG插件搞得一头雾水，不知如何取舍？提供五种主流抠图方法，你可以快速选取你想要的效果模块整合入你自己的工作流中。\n\nV2.0: Added Segment Anything 2 (faster and stronger than Segment Anything)\n\nAre you often confused by the endless RemBG plug-ins in ComfyUI and don’t know which one to choose? Five mainstream cutout methods are provided, and you can quickly select the effect module you want and integrate it into your own workflow.\n\n"
+      ],
+      "color": "#c09430"
+    },
+    {
+      "id": 164,
+      "type": "Fast Groups Bypasser (rgthree)",
+      "pos": {
+        "0": -5042,
+        "1": 3340,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0
+      },
+      "size": {
+        "0": 306.4214172363281,
+        "1": 226
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null,
+          "label": "OPT_CONNECTION"
+        }
+      ],
+      "properties": {
+        "matchColors": "",
+        "matchTitle": "",
+        "showNav": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default"
+      }
+    },
+    {
+      "id": 168,
+      "type": "Florence2toCoordinates",
+      "pos": [
+        -1155,
+        5288
+      ],
+      "size": [
+        383.10462348987653,
+        58
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "data",
+          "type": "JSON",
+          "link": 208,
+          "label": "data"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "coordinates",
+          "type": "STRING",
+          "links": [
+            216
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "coordinates"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Florence2toCoordinates"
+      },
+      "widgets_values": [
+        "0"
+      ]
+    },
+    {
+      "id": 82,
+      "type": "easy positive",
+      "pos": [
+        -5029,
+        3622
+      ],
+      "size": {
+        "0": 316.887939453125,
+        "1": 111.42469787597656
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "STRING",
+          "links": [
+            102,
+            211
+          ],
+          "shape": 3,
+          "label": "positive",
+          "slot_index": 0
+        }
+      ],
+      "title": "Prompt for SAM and SAM2",
+      "properties": {
+        "Node name for S&R": "easy positive"
+      },
+      "widgets_values": [
+        "1girl, "
+      ],
+      "color": "#346434"
+    }
+  ],
+  "links": [
+    [
+      100,
+      79,
+      0,
+      80,
+      0,
+      "SAM_MODEL"
+    ],
+    [
+      101,
+      81,
+      0,
+      80,
+      1,
+      "GROUNDING_DINO_MODEL"
+    ],
+    [
+      102,
+      82,
+      0,
+      80,
+      3,
+      "STRING"
+    ],
+    [
+      119,
+      80,
+      0,
+      95,
+      0,
+      "IMAGE"
+    ],
+    [
+      122,
+      80,
+      1,
+      97,
+      0,
+      "MASK"
+    ],
+    [
+      123,
+      97,
+      0,
+      95,
+      1,
+      "MASK"
+    ],
+    [
+      124,
+      98,
+      0,
+      73,
+      0,
+      "BRNMODEL"
+    ],
+    [
+      144,
+      121,
+      0,
+      88,
+      0,
+      "RMBGMODEL"
+    ],
+    [
+      156,
+      119,
+      0,
+      80,
+      2,
+      "IMAGE"
+    ],
+    [
+      161,
+      119,
+      0,
+      73,
+      1,
+      "IMAGE"
+    ],
+    [
+      162,
+      119,
+      0,
+      88,
+      1,
+      "IMAGE"
+    ],
+    [
+      164,
+      119,
+      0,
+      84,
+      0,
+      "IMAGE"
+    ],
+    [
+      189,
+      119,
+      0,
+      136,
+      0,
+      "IMAGE"
+    ],
+    [
+      195,
+      84,
+      0,
+      142,
+      0,
+      "IMAGE"
+    ],
+    [
+      196,
+      136,
+      0,
+      143,
+      0,
+      "IMAGE"
+    ],
+    [
+      197,
+      95,
+      0,
+      147,
+      0,
+      "IMAGE"
+    ],
+    [
+      198,
+      88,
+      0,
+      144,
+      0,
+      "IMAGE"
+    ],
+    [
+      199,
+      73,
+      0,
+      146,
+      0,
+      "IMAGE"
+    ],
+    [
+      200,
+      71,
+      0,
+      119,
+      0,
+      "IMAGE"
+    ],
+    [
+      206,
+      166,
+      0,
+      165,
+      1,
+      "FL2MODEL"
+    ],
+    [
+      207,
+      165,
+      0,
+      167,
+      0,
+      "IMAGE"
+    ],
+    [
+      208,
+      165,
+      3,
+      168,
+      0,
+      "JSON"
+    ],
+    [
+      211,
+      82,
+      0,
+      165,
+      2,
+      "STRING"
+    ],
+    [
+      212,
+      173,
+      0,
+      174,
+      0,
+      "SAM2MODEL"
+    ],
+    [
+      213,
+      177,
+      0,
+      175,
+      1,
+      "MASK"
+    ],
+    [
+      215,
+      174,
+      0,
+      177,
+      0,
+      "MASK"
+    ],
+    [
+      216,
+      168,
+      0,
+      174,
+      2,
+      "STRING"
+    ],
+    [
+      217,
+      119,
+      0,
+      175,
+      0,
+      "IMAGE"
+    ],
+    [
+      218,
+      175,
+      0,
+      171,
+      0,
+      "IMAGE"
+    ],
+    [
+      219,
+      119,
+      0,
+      165,
+      0,
+      "IMAGE"
+    ],
+    [
+      220,
+      119,
+      0,
+      174,
+      1,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "Segment Anything",
+      "bounding": [
+        -4174,
+        4057,
+        824,
+        1512
+      ],
+      "color": "#8A8",
+      "font_size": 24,
+      "locked": false
+    },
+    {
+      "title": "BiRefNet",
+      "bounding": [
+        -2477,
+        4064,
+        896,
+        1511
+      ],
+      "color": "#b58b2a",
+      "font_size": 24,
+      "locked": false
+    },
+    {
+      "title": "RMBGV1.4",
+      "bounding": [
+        -3335,
+        4060,
+        844,
+        1511
+      ],
+      "color": "#d26060",
+      "font_size": 24,
+      "locked": false
+    },
+    {
+      "title": "U2net",
+      "bounding": [
+        -5903,
+        4055,
+        879,
+        1512
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "locked": false
+    },
+    {
+      "title": "Inspyrenet",
+      "bounding": [
+        -5010,
+        4053,
+        818,
+        1516
+      ],
+      "color": "#955f91",
+      "font_size": 25,
+      "locked": false
+    },
+    {
+      "title": "Sagment Anything 2",
+      "bounding": [
+        -1570,
+        4064,
+        1426,
+        1512
+      ],
+      "color": "#55d93a",
+      "font_size": 24,
+      "locked": false
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.17715610000001314,
+      "offset": [
+        8106.475368800684,
+        -1595.288113238381
+      ]
+    }
+  },
+  "version": 0.4
+}

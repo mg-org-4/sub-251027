@@ -1,0 +1,7956 @@
+{
+  "last_node_id": 353,
+  "last_link_id": 610,
+  "nodes": [
+    {
+      "id": 76,
+      "type": "GetNode",
+      "pos": [
+        -7388.0966796875,
+        65.92691040039062
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            90,
+            92
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Get_Input_IMG",
+      "properties": {},
+      "widgets_values": [
+        "Input_IMG"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 270,
+      "type": "Scheduler Selector",
+      "pos": [
+        -7109.6826171875,
+        -459.453125
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "scheduler",
+          "type": "COMBO",
+          "links": [
+            470,
+            476
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Scheduler Flux",
+      "properties": {
+        "Node name for S&R": "Scheduler Selector",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "beta"
+      ],
+      "color": "#143eff",
+      "bgcolor": "#002aff",
+      "shape": 1
+    },
+    {
+      "id": 273,
+      "type": "Float",
+      "pos": [
+        -7080.607421875,
+        -200.1969451904297
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [
+            468,
+            478
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "CFG XL",
+      "properties": {
+        "Node name for S&R": "Float",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "1.5"
+      ],
+      "color": "#ffff14",
+      "bgcolor": "#fff700",
+      "shape": 1
+    },
+    {
+      "id": 267,
+      "type": "Sampler Selector",
+      "pos": [
+        -7080.95703125,
+        -249.0356903076172
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "links": [
+            466,
+            472
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Sampler XL",
+      "properties": {
+        "Node name for S&R": "Sampler Selector",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "dpmpp_2s_ancestral_cfg_pp"
+      ],
+      "color": "#ffff28",
+      "bgcolor": "#ffff14",
+      "shape": 1
+    },
+    {
+      "id": 269,
+      "type": "Scheduler Selector",
+      "pos": [
+        -7082.59619140625,
+        -290
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "scheduler",
+          "type": "COMBO",
+          "links": [
+            467,
+            475
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Scheduler XL",
+      "properties": {
+        "Node name for S&R": "Scheduler Selector",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "normal"
+      ],
+      "color": "#ffff28",
+      "bgcolor": "#ffff14",
+      "shape": 1
+    },
+    {
+      "id": 272,
+      "type": "Float",
+      "pos": [
+        -7094.2744140625,
+        -371.4835205078125
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [
+            471,
+            479
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "CFG Flux",
+      "properties": {
+        "Node name for S&R": "Float",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "1"
+      ],
+      "color": "#2852ff",
+      "bgcolor": "#143eff",
+      "shape": 1
+    },
+    {
+      "id": 271,
+      "type": "Sampler Selector",
+      "pos": [
+        -7096.1044921875,
+        -410.544921875
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "links": [
+            469,
+            473
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Sampler Flux",
+      "properties": {
+        "Node name for S&R": "Sampler Selector",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "euler"
+      ],
+      "color": "#2852ff",
+      "bgcolor": "#143eff",
+      "shape": 1
+    },
+    {
+      "id": 274,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -6958.72509765625,
+        -461.72882080078125
+      ],
+      "size": [
+        140,
+        106
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 62,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "COMBO",
+          "link": 472,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "COMBO",
+          "link": 473,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "COMBO",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "COMBO",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "COMBO",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "COMBO",
+          "links": [
+            474,
+            497
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "COMBO"
+        }
+      ],
+      "title": "Sampler Switch",
+      "properties": {},
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 286,
+      "type": "SetNode",
+      "pos": [
+        -6807.94287109375,
+        -466.6827392578125
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 83,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "COMBO",
+          "type": "COMBO",
+          "link": 497
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "title": "Set_Sampler",
+      "properties": {
+        "previousName": "Sampler"
+      },
+      "widgets_values": [
+        "Sampler"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 276,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -6950.109375,
+        -415.7663879394531
+      ],
+      "size": [
+        140,
+        106
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 60,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "COMBO",
+          "link": 475,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "COMBO",
+          "link": 476,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "COMBO",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "COMBO",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "COMBO",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "COMBO",
+          "links": [
+            495
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "COMBO"
+        }
+      ],
+      "title": "Scheduler Switch",
+      "properties": {},
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 284,
+      "type": "SetNode",
+      "pos": [
+        -6963.32958984375,
+        -373.2751770019531
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 80,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "COMBO",
+          "type": "COMBO",
+          "link": 495
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "title": "Set_Scheduler",
+      "properties": {
+        "previousName": "Scheduler"
+      },
+      "widgets_values": [
+        "Scheduler"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 278,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -6936.220703125,
+        -317.817138671875
+      ],
+      "size": [
+        140,
+        106
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 61,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "FLOAT",
+          "link": 478,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "FLOAT",
+          "link": 479,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "FLOAT",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "FLOAT",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "FLOAT",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "FLOAT",
+          "links": [
+            499
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "FLOAT"
+        }
+      ],
+      "title": "CFG Switch",
+      "properties": {},
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 292,
+      "type": "Label (rgthree)",
+      "pos": [
+        -9200.3486328125,
+        90.12493896484375
+      ],
+      "size": [
+        78.708984375,
+        12
+      ],
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "fontSize": 12,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "left",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 5,
+      "type": "LoraLoader",
+      "pos": [
+        -7106.43359375,
+        -341.4161682128906
+      ],
+      "size": [
+        296.98712158203125,
+        126
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 65,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 4
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            433,
+            448
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "sdxl_lightning_8step_lora.safetensors",
+        1.06,
+        1
+      ],
+      "shape": 1
+    },
+    {
+      "id": 252,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        -6940.572265625,
+        -281.7252502441406
+      ],
+      "size": [
+        210,
+        82
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 64,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 428
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            431,
+            455
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Flux\\flux_turbo_v1_1.safetensors",
+        1
+      ],
+      "shape": 1
+    },
+    {
+      "id": 256,
+      "type": "DualCLIPLoader",
+      "pos": [
+        -6944.1611328125,
+        -214.67510986328125
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            440,
+            449
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Clip XL",
+      "properties": {
+        "Node name for S&R": "DualCLIPLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "clip_g.safetensors",
+        "long_clip\\ViT-L-14-TEXT-detail-improved-hiT-GmP-HF.safetensors",
+        "sdxl"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 255,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -6793.39892578125,
+        -504.2288818359375
+      ],
+      "size": [
+        140,
+        106
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 76,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "CLIP",
+          "link": 440,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "CLIP",
+          "link": 442,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "CLIP",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "CLIP",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "CLIP",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "CLIP",
+          "links": [
+            441
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "CLIP"
+        }
+      ],
+      "title": "Clip",
+      "properties": {},
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 258,
+      "type": "ControlNetLoader",
+      "pos": [
+        -6800.533203125,
+        -171.7582550048828
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 9,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONTROL_NET",
+          "type": "CONTROL_NET",
+          "links": [
+            444,
+            456
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ControlNetLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "FLUX.1\\Shakker-Labs-ControlNet-Union-Pro\\diffusion_pytorch_model.safetensors"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 239,
+      "type": "GetImageSize+",
+      "pos": [
+        -6690.1474609375,
+        118.34947967529297
+      ],
+      "size": [
+        214.20001220703125,
+        66
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 78,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 407
+        }
+      ],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            404
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            406
+          ]
+        },
+        {
+          "name": "count",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GetImageSize+",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 50,
+      "type": "SetNode",
+      "pos": [
+        -7690,
+        120
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 96,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "link": 379
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "title": "Set_Input_IMG",
+      "properties": {
+        "previousName": "Input_IMG"
+      },
+      "widgets_values": [
+        "Input_IMG"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 30,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -6950.13671875,
+        -117.5153579711914
+      ],
+      "size": [
+        210,
+        59
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 116,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 28,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            593
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Negative",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        true
+      ],
+      "shape": 1
+    },
+    {
+      "id": 250,
+      "type": "VAELoader",
+      "pos": [
+        -6835.42822265625,
+        -106.72721099853516
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 10,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            424,
+            454
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "FLUX1\\ae.safetensors"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 289,
+      "type": "GetNode",
+      "pos": [
+        -6668.36279296875,
+        296.4912414550781
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [
+            500
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Get_CFG",
+      "properties": {},
+      "widgets_values": [
+        "CFG"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 285,
+      "type": "GetNode",
+      "pos": [
+        -6684.44482421875,
+        261.3451232910156
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "COMBO",
+          "type": "COMBO",
+          "links": [
+            496
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Get_Scheduler",
+      "properties": {},
+      "widgets_values": [
+        "Scheduler"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 260,
+      "type": "Mute / Bypass Repeater (rgthree)",
+      "pos": [
+        -6583.3759765625,
+        -159.35012817382812
+      ],
+      "size": [
+        268.79998779296875,
+        46
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 107,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "Load Checkpoint",
+          "type": "*",
+          "link": 451,
+          "dir": 4,
+          "has_old_label": true,
+          "label": " "
+        },
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 4,
+          "has_old_label": true,
+          "label": " "
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": [
+            459
+          ],
+          "slot_index": 0,
+          "color_on": "#Fc0",
+          "color_off": "#a80",
+          "dir": 3,
+          "has_old_label": true,
+          "label": " "
+        }
+      ],
+      "title": "Used XL Models",
+      "properties": {
+        "connections_layout": [
+          "Right",
+          "Left"
+        ]
+      },
+      "shape": 1
+    },
+    {
+      "id": 36,
+      "type": "ControlNetLoader",
+      "pos": [
+        -6618.54931640625,
+        -111.17500305175781
+      ],
+      "size": [
+        297.721923828125,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONTROL_NET",
+          "type": "CONTROL_NET",
+          "links": [
+            445,
+            450
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ControlNetLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "SDXL\\Xinsir\\Promax_aio.safetensors"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 298,
+      "type": "Anything Everywhere",
+      "pos": [
+        -6583.95556640625,
+        -348.48016357421875
+      ],
+      "size": [
+        239.40000915527344,
+        26
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 102,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "MASK",
+          "type": "*",
+          "link": 510,
+          "shape": 7,
+          "color_on": "#81C784"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 300,
+      "type": "Anything Everywhere?",
+      "pos": [
+        -7720,
+        370
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 68,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "FLOAT",
+          "type": "*",
+          "link": 511,
+          "shape": 7,
+          "color_on": ""
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere?",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": [
+        "Apply Control Net.*",
+        "strength.*",
+        "Tranfer to realistic.*"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 251,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -6689.18896484375,
+        -497.51397705078125
+      ],
+      "size": [
+        140,
+        106
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 85,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "MODEL",
+          "link": 433,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "MODEL",
+          "link": 431,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "MODEL",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "MODEL",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "MODEL",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "MODEL",
+          "links": [
+            503
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "MODEL"
+        }
+      ],
+      "title": "Model",
+      "properties": {},
+      "widgets_values": [],
+      "color": "#323",
+      "bgcolor": "#535",
+      "shape": 1
+    },
+    {
+      "id": 249,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -6944.3173828125,
+        -501.4890441894531
+      ],
+      "size": [
+        140,
+        106
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 66,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "VAE",
+          "link": 425,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "VAE",
+          "link": 424,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "VAE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "VAE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "VAE",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "VAE",
+          "links": [
+            426
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "VAE"
+        }
+      ],
+      "title": "VAE",
+      "properties": {},
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 257,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -6919.32763671875,
+        -257.4656982421875
+      ],
+      "size": [
+        152.8000030517578,
+        106
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 63,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "CONTROL_NET",
+          "link": 445,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "CONTROL_NET",
+          "link": 444,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "CONTROL_NET",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "CONTROL_NET",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "CONTROL_NET",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "CONTROL_NET",
+          "links": [
+            446
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "CONTROL_NET"
+        }
+      ],
+      "title": "CN",
+      "properties": {},
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 37,
+      "type": "SetNode",
+      "pos": [
+        -6716.0390625,
+        -111.69644927978516
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 84,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "CONTROL_NET",
+          "type": "CONTROL_NET",
+          "link": 446
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "title": "Set_UNION_CN",
+      "properties": {
+        "previousName": "UNION_CN"
+      },
+      "widgets_values": [
+        "UNION_CN"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 264,
+      "type": "SimpleMathInt+",
+      "pos": [
+        -6565.92236328125,
+        -317.6669006347656
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            461,
+            463
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SimpleMathInt+",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        150
+      ],
+      "shape": 1
+    },
+    {
+      "id": 288,
+      "type": "SetNode",
+      "pos": [
+        -6600.66015625,
+        -395.9888610839844
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 81,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "link": 499
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "title": "Set_CFG",
+      "properties": {
+        "previousName": "CFG"
+      },
+      "widgets_values": [
+        "CFG"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 275,
+      "type": "Anything Everywhere?",
+      "pos": [
+        -6784.0654296875,
+        -327.9643859863281
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 82,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "COMBO",
+          "type": "*",
+          "link": 474,
+          "shape": 7,
+          "color_on": ""
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere?",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": [
+        ".*",
+        "sampler_name.*",
+        "Tranfer to realistic.*"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 261,
+      "type": "Mute / Bypass Repeater (rgthree)",
+      "pos": [
+        -6739.95751953125,
+        -277.77972412109375
+      ],
+      "size": [
+        268.79998779296875,
+        46
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 121,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "Load VAE",
+          "type": "*",
+          "link": 458,
+          "dir": 4,
+          "label": " ",
+          "has_old_label": true,
+          "old_label": ""
+        },
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 4,
+          "has_old_label": true,
+          "label": " "
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": [
+            460
+          ],
+          "slot_index": 0,
+          "color_on": "#Fc0",
+          "color_off": "#a80",
+          "dir": 3,
+          "has_old_label": true,
+          "label": " "
+        }
+      ],
+      "title": "Used Flux Models",
+      "properties": {
+        "connections_layout": [
+          "Right",
+          "Left"
+        ]
+      },
+      "shape": 1
+    },
+    {
+      "id": 244,
+      "type": "Anything Everywhere3",
+      "pos": [
+        -6607.17626953125,
+        -241.8224334716797
+      ],
+      "size": [
+        252,
+        66
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 94,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "MODEL",
+          "type": "*",
+          "link": 503,
+          "shape": 7,
+          "color_on": "#B39DDB"
+        },
+        {
+          "name": "CLIP",
+          "type": "*",
+          "link": 441,
+          "shape": 7,
+          "color_on": "#FFD500"
+        },
+        {
+          "name": "VAE",
+          "type": "*",
+          "link": 426,
+          "shape": 7,
+          "color_on": "#FF6E6E"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere3",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 263,
+      "type": "Fast Bypasser (rgthree)",
+      "pos": [
+        -7926.36474609375,
+        -543.6347045898438
+      ],
+      "size": [
+        438.4243469238281,
+        122
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 123,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "Used XL Models",
+          "type": "*",
+          "link": 459,
+          "dir": 4,
+          "has_old_label": true,
+          "label": " "
+        },
+        {
+          "name": "Used Flux Models",
+          "type": "*",
+          "link": 460,
+          "dir": 4,
+          "has_old_label": true,
+          "label": " "
+        },
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 4,
+          "has_old_label": true,
+          "label": " "
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null,
+          "dir": 3,
+          "has_old_label": true,
+          "label": " "
+        }
+      ],
+      "title": "Select Models",
+      "properties": {
+        "toggleRestriction": "always one",
+        "connections_layout": [
+          "Right",
+          "Left"
+        ]
+      },
+      "color": "#232",
+      "bgcolor": "#353",
+      "shape": 1
+    },
+    {
+      "id": 331,
+      "type": "Fast Bypasser (rgthree)",
+      "pos": [
+        -8264.2880859375,
+        -543.6346435546875
+      ],
+      "size": [
+        337.83221435546875,
+        126
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 88,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "1024 Relolusion",
+          "type": "*",
+          "link": 550,
+          "dir": 4,
+          "has_old_label": true,
+          "label": " "
+        },
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 4,
+          "has_old_label": true,
+          "label": " "
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null,
+          "dir": 3,
+          "has_old_label": true,
+          "label": " "
+        }
+      ],
+      "title": "Select Relolusion of input image",
+      "properties": {
+        "toggleRestriction": "always one",
+        "connections_layout": [
+          "Right",
+          "Left"
+        ]
+      },
+      "color": "#232",
+      "bgcolor": "#353",
+      "shape": 1
+    },
+    {
+      "id": 248,
+      "type": "UNETLoader",
+      "pos": [
+        -7462.37939453125,
+        -254.1961212158203
+      ],
+      "size": [
+        357.2154846191406,
+        149.45584106445312
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            428
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "FLUX1\\flux1-dev-fp8.safetensors",
+        "default"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 1,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -7467.89453125,
+        -475.370849609375
+      ],
+      "size": [
+        342.2923278808594,
+        175.10865783691406
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            4,
+            447
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            5
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            425
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "SDXL\\Realistic\\juggernautXL_juggXIByRundiffusion.safetensors"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 287,
+      "type": "GetNode",
+      "pos": [
+        -6689.73291015625,
+        163.78668212890625
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "COMBO",
+          "type": "COMBO",
+          "links": [
+            498
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Get_Sampler",
+      "properties": {},
+      "widgets_values": [
+        "Sampler"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 234,
+      "type": "ImageInvert",
+      "pos": [
+        -6687.31201171875,
+        3.370595932006836
+      ],
+      "size": [
+        210,
+        26
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 77,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 387
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            390,
+            504
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageInvert",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 55,
+      "type": "VAEDecode",
+      "pos": [
+        -6052.97802734375,
+        80.8561019897461
+      ],
+      "size": [
+        198.25100708007812,
+        46
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 105,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 61
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            410,
+            420
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 53,
+      "type": "EmptyLatentImage",
+      "pos": [
+        -6217.37255859375,
+        74.07794189453125
+      ],
+      "size": [
+        210,
+        78
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 92,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 404,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 406,
+          "widget": {
+            "name": "height"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            57
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        512,
+        512,
+        1
+      ],
+      "shape": 1
+    },
+    {
+      "id": 35,
+      "type": "GetNode",
+      "pos": [
+        -6687.177734375,
+        203.95008850097656
+      ],
+      "size": [
+        276.5980529785156,
+        58
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONTROL_NET",
+          "type": "CONTROL_NET",
+          "links": [
+            66
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Get_UNION_CN",
+      "properties": {},
+      "widgets_values": [
+        "UNION_CN"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 81,
+      "type": "Miaoshouai_Tagger",
+      "pos": [
+        -7470.6044921875,
+        -9.091805458068848
+      ],
+      "size": [
+        318.25738525390625,
+        391
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 93,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 92,
+          "shape": 7
+        },
+        {
+          "name": "filenames",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "filenames"
+          },
+          "shape": 7
+        },
+        {
+          "name": "captions",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "captions"
+          },
+          "shape": 7
+        },
+        {
+          "name": "max_new_tokens",
+          "type": "INT",
+          "link": 494,
+          "widget": {
+            "name": "max_new_tokens"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6
+        },
+        {
+          "name": "filenames",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        },
+        {
+          "name": "captions",
+          "type": "STRING",
+          "links": [
+            392
+          ],
+          "slot_index": 2,
+          "shape": 6
+        },
+        {
+          "name": "folder_path",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "batch_size",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Miaoshouai_Tagger",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "promptgen_large_v2.0",
+        "Path to your image folder",
+        "detailed",
+        150,
+        1,
+        "never",
+        "",
+        "",
+        "",
+        "",
+        "replace_tags eg:search1:replace1;search2:replace2",
+        true,
+        true,
+        true
+      ],
+      "shape": 1
+    },
+    {
+      "id": 299,
+      "type": "EG_RY_HT",
+      "pos": [
+        -8269.9892578125,
+        363.95843505859375
+      ],
+      "size": [
+        781.3479614257812,
+        65.7982177734375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [
+            511
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Keep the layout similar to the sketch",
+      "properties": {
+        "Node name for S&R": "EG_RY_HT",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        0.9
+      ],
+      "color": "#145051",
+      "bgcolor": "#003c3d",
+      "shape": 1
+    },
+    {
+      "id": 322,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 20,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            536,
+            560
+          ]
+        }
+      ],
+      "title": "Southwestern",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Southwestern"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 321,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 21,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            537,
+            561
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "French Country",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "French Country"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 303,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 22,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            512,
+            562
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Minimalism",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Minimalism"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 304,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 23,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            513,
+            563
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Contemporary",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Contemporary"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 320,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 24,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            534,
+            568
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Japanese",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Japanese"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 319,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 25,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            533,
+            567
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Hollywood Regency",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Hollywood Regency"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 318,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 26,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            532,
+            566
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Transitional",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Transitional"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 317,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 27,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            531,
+            565
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Eclectic",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Eclectic"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 315,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 28,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            528,
+            569
+          ]
+        }
+      ],
+      "title": "Coastal/Nautical",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Coastal/Nautical"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 316,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 29,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            530,
+            570
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Mediterranean",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Mediterranean"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 314,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 30,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            529,
+            571
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Shabby Chic",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Minimalism"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 313,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 31,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            527,
+            572
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Farmhouse",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Farmhouse"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 312,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 32,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            524,
+            573
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Art Deco",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Art Deco"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 311,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 33,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            521,
+            558
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Rustic",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Rustic"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 310,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 34,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            520,
+            557
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Mid-Century Modern",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Mid-Century Modern"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 308,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 35,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            517,
+            559
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Tropical",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Tropical"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 307,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 36,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            516,
+            555
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Traditional",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Traditional"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 306,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 37,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            515,
+            554
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Scandinavian",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Scandinavian"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 305,
+      "type": "DF_Text",
+      "pos": [
+        -8514.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 38,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            514,
+            564
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Industrial",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Industrial"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 309,
+      "type": "DF_Text",
+      "pos": [
+        -8494.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 39,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            519,
+            556
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Bohemian",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Bohemian"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 324,
+      "type": "Node Collector (rgthree)",
+      "pos": [
+        -8494.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        201.60000610351562,
+        426
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 69,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "Minimalism",
+          "type": "*",
+          "link": 512,
+          "dir": 3
+        },
+        {
+          "name": "Contemporary",
+          "type": "*",
+          "link": 513,
+          "dir": 3
+        },
+        {
+          "name": "Industrial",
+          "type": "*",
+          "link": 514,
+          "dir": 3
+        },
+        {
+          "name": "Scandinavian",
+          "type": "*",
+          "link": 515,
+          "dir": 3
+        },
+        {
+          "name": "Traditional",
+          "type": "*",
+          "link": 516,
+          "dir": 3
+        },
+        {
+          "name": "Tropical",
+          "type": "*",
+          "link": 517,
+          "dir": 3
+        },
+        {
+          "name": "Bohemian",
+          "type": "*",
+          "link": 519,
+          "dir": 3
+        },
+        {
+          "name": "Mid-Century Modern",
+          "type": "*",
+          "link": 520,
+          "dir": 3
+        },
+        {
+          "name": "Rustic",
+          "type": "*",
+          "link": 521,
+          "dir": 3
+        },
+        {
+          "name": "Art Deco",
+          "type": "*",
+          "link": 524,
+          "dir": 3
+        },
+        {
+          "name": "Coastal/Nautical",
+          "type": "*",
+          "link": 528,
+          "dir": 3
+        },
+        {
+          "name": "Farmhouse",
+          "type": "*",
+          "link": 527,
+          "dir": 3
+        },
+        {
+          "name": "Shabby Chic",
+          "type": "*",
+          "link": 529,
+          "dir": 3
+        },
+        {
+          "name": "Mediterranean",
+          "type": "*",
+          "link": 530,
+          "dir": 3
+        },
+        {
+          "name": "Eclectic",
+          "type": "*",
+          "link": 531,
+          "dir": 3
+        },
+        {
+          "name": "Transitional",
+          "type": "*",
+          "link": 532,
+          "dir": 3
+        },
+        {
+          "name": "Hollywood Regency",
+          "type": "*",
+          "link": 533,
+          "dir": 3
+        },
+        {
+          "name": "Japanese",
+          "type": "*",
+          "link": 534,
+          "dir": 3
+        },
+        {
+          "name": "Southwestern",
+          "type": "*",
+          "link": 536,
+          "dir": 3
+        },
+        {
+          "name": "French Country",
+          "type": "*",
+          "link": 537,
+          "dir": 3
+        },
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Output",
+          "type": "*",
+          "links": [
+            518
+          ],
+          "slot_index": 0,
+          "dir": 4
+        }
+      ],
+      "properties": {},
+      "shape": 1
+    },
+    {
+      "id": 246,
+      "type": "SimpleMathInt+",
+      "pos": [
+        -8060,
+        -130
+      ],
+      "size": [
+        343.6470031738281,
+        124.78076934814453
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 40,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            545,
+            575
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "1024 Relolusion",
+      "properties": {
+        "Node name for S&R": "SimpleMathInt+",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        1024
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "shape": 1
+    },
+    {
+      "id": 328,
+      "type": "SimpleMathInt+",
+      "pos": [
+        -8060,
+        -130
+      ],
+      "size": [
+        343.6470031738281,
+        124.78076934814453
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 41,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            546,
+            576
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "1536 Relolusion",
+      "properties": {
+        "Node name for S&R": "SimpleMathInt+",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        1536
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "shape": 1
+    },
+    {
+      "id": 329,
+      "type": "SimpleMathInt+",
+      "pos": [
+        -8060,
+        -130
+      ],
+      "size": [
+        343.6470031738281,
+        124.78076934814453
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 42,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            549,
+            577
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "2048 Relolusion",
+      "properties": {
+        "Node name for S&R": "SimpleMathInt+",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        2048
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "shape": 1
+    },
+    {
+      "id": 330,
+      "type": "Node Collector (rgthree)",
+      "pos": [
+        -8060,
+        -130
+      ],
+      "size": [
+        343.6470031738281,
+        86
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 71,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "1024 Relolusion",
+          "type": "*",
+          "link": 545,
+          "dir": 3
+        },
+        {
+          "name": "1536 Relolusion",
+          "type": "*",
+          "link": 546,
+          "dir": 3
+        },
+        {
+          "name": "2048 Relolusion",
+          "type": "*",
+          "link": 549,
+          "dir": 3
+        },
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Output",
+          "type": "*",
+          "links": [
+            550
+          ],
+          "slot_index": 0,
+          "dir": 4
+        }
+      ],
+      "properties": {},
+      "shape": 1
+    },
+    {
+      "id": 334,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -8060,
+        -130
+      ],
+      "size": [
+        168,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 72,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "INT",
+          "link": 575,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "INT",
+          "link": 576,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "INT",
+          "link": 577,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "INT",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "INT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "INT",
+          "links": [
+            578,
+            579
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "INT"
+        }
+      ],
+      "properties": {},
+      "widgets_values": []
+    },
+    {
+      "id": 9,
+      "type": "ConstrainImage|pysssss",
+      "pos": [
+        -7849.39599609375,
+        -134.28041076660156
+      ],
+      "size": [
+        315,
+        154
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 89,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 8
+        },
+        {
+          "name": "max_width",
+          "type": "INT",
+          "link": 578,
+          "widget": {
+            "name": "max_width"
+          }
+        },
+        {
+          "name": "max_height",
+          "type": "INT",
+          "link": 579,
+          "widget": {
+            "name": "max_height"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            379
+          ],
+          "slot_index": 0,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConstrainImage|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        0,
+        0,
+        "no"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 8,
+      "type": "LoadImage",
+      "pos": [
+        -8268.8994140625,
+        -379.150634765625
+      ],
+      "size": [
+        785.1187133789062,
+        585.6908569335938
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 43,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            8
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "1000_F_298202822_7F24lrhPuB6Y0NZzNsnpLPz2xYx2qFRn.jpg",
+        "image"
+      ],
+      "color": "#223",
+      "bgcolor": "#335",
+      "shape": 1
+    },
+    {
+      "id": 333,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -8464.84765625,
+        111.70465850830078
+      ],
+      "size": [
+        168,
+        426
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 70,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "STRING",
+          "link": 554,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "STRING",
+          "link": 555,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "STRING",
+          "link": 556,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "STRING",
+          "link": 557,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "STRING",
+          "link": 558,
+          "dir": 3
+        },
+        {
+          "name": "any_06",
+          "type": "STRING",
+          "link": 559,
+          "dir": 3
+        },
+        {
+          "name": "any_07",
+          "type": "STRING",
+          "link": 560,
+          "dir": 3
+        },
+        {
+          "name": "any_08",
+          "type": "STRING",
+          "link": 561,
+          "dir": 3
+        },
+        {
+          "name": "any_09",
+          "type": "STRING",
+          "link": 562,
+          "dir": 3
+        },
+        {
+          "name": "any_10",
+          "type": "STRING",
+          "link": 563,
+          "dir": 3
+        },
+        {
+          "name": "any_11",
+          "type": "STRING",
+          "link": 564,
+          "dir": 3
+        },
+        {
+          "name": "any_12",
+          "type": "STRING",
+          "link": 565,
+          "dir": 3
+        },
+        {
+          "name": "any_13",
+          "type": "STRING",
+          "link": 566,
+          "dir": 3
+        },
+        {
+          "name": "any_14",
+          "type": "STRING",
+          "link": 567,
+          "dir": 3
+        },
+        {
+          "name": "any_15",
+          "type": "STRING",
+          "link": 568,
+          "dir": 3
+        },
+        {
+          "name": "any_16",
+          "type": "STRING",
+          "link": 569,
+          "dir": 3
+        },
+        {
+          "name": "any_17",
+          "type": "STRING",
+          "link": 570,
+          "dir": 3
+        },
+        {
+          "name": "any_18",
+          "type": "STRING",
+          "link": 571,
+          "dir": 3
+        },
+        {
+          "name": "any_19",
+          "type": "STRING",
+          "link": 572,
+          "dir": 3
+        },
+        {
+          "name": "any_20",
+          "type": "STRING",
+          "link": 573,
+          "dir": 3
+        },
+        {
+          "name": "any_21",
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "STRING",
+          "links": [
+            584
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "STRING"
+        }
+      ],
+      "properties": {},
+      "widgets_values": []
+    },
+    {
+      "id": 325,
+      "type": "Fast Bypasser (rgthree)",
+      "pos": [
+        -8677.228515625,
+        -105.48381042480469
+      ],
+      "size": [
+        405.62054443359375,
+        534
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 86,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "Minimalism",
+          "type": "*",
+          "link": 518,
+          "dir": 4,
+          "has_old_label": true,
+          "label": " "
+        },
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 4,
+          "has_old_label": true,
+          "label": " "
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null,
+          "dir": 3,
+          "has_old_label": true,
+          "label": " "
+        }
+      ],
+      "title": "Select style of interior ?",
+      "properties": {
+        "toggleRestriction": "always one",
+        "connections_layout": [
+          "Right",
+          "Left"
+        ]
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "shape": 1
+    },
+    {
+      "id": 262,
+      "type": "Node Collector (rgthree)",
+      "pos": [
+        -6470.83154296875,
+        -409.68243408203125
+      ],
+      "size": [
+        201.60000610351562,
+        186
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 119,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "Load VAE",
+          "type": "*",
+          "link": 454,
+          "dir": 3
+        },
+        {
+          "name": "LoraLoaderModelOnly",
+          "type": "*",
+          "link": 455,
+          "dir": 3
+        },
+        {
+          "name": "Load ControlNet Model",
+          "type": "*",
+          "link": 456,
+          "dir": 3
+        },
+        {
+          "name": "🔧 Simple Math Int",
+          "type": "*",
+          "link": 465,
+          "dir": 3
+        },
+        {
+          "name": "Sampler Flux",
+          "type": "*",
+          "link": 469,
+          "dir": 3
+        },
+        {
+          "name": "Scheduler Flux",
+          "type": "*",
+          "link": 470,
+          "dir": 3
+        },
+        {
+          "name": "CFG Flux",
+          "type": "*",
+          "link": 471,
+          "dir": 3
+        },
+        {
+          "name": "FluxGuidance",
+          "type": "*",
+          "link": 487,
+          "dir": 3
+        },
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Output",
+          "type": "*",
+          "links": [
+            458
+          ],
+          "slot_index": 0,
+          "dir": 4
+        }
+      ],
+      "title": "Flux Models",
+      "properties": {},
+      "shape": 1
+    },
+    {
+      "id": 259,
+      "type": "Node Collector (rgthree)",
+      "pos": [
+        -6682.890625,
+        -437.5912170410156
+      ],
+      "size": [
+        201.60000610351562,
+        226
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 104,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "Load Checkpoint",
+          "type": "*",
+          "link": 447,
+          "dir": 3
+        },
+        {
+          "name": "Load LoRA",
+          "type": "*",
+          "link": 448,
+          "dir": 3
+        },
+        {
+          "name": "Clip XL",
+          "type": "*",
+          "link": 449,
+          "dir": 3
+        },
+        {
+          "name": "Load ControlNet Model",
+          "type": "*",
+          "link": 450,
+          "dir": 3
+        },
+        {
+          "name": "🔧 Simple Math Int",
+          "type": "*",
+          "link": 461,
+          "dir": 3
+        },
+        {
+          "name": "Sampler XL",
+          "type": "*",
+          "link": 466,
+          "dir": 3
+        },
+        {
+          "name": "Scheduler XL",
+          "type": "*",
+          "link": 467,
+          "dir": 3
+        },
+        {
+          "name": "CFG XL",
+          "type": "*",
+          "link": 468,
+          "dir": 3
+        },
+        {
+          "name": "LayerMask: MaskGrow",
+          "type": "*",
+          "link": 581,
+          "dir": 3
+        },
+        {
+          "name": "Convert Image to Mask",
+          "type": "*",
+          "link": 582,
+          "dir": 3
+        },
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Output",
+          "type": "*",
+          "links": [
+            451
+          ],
+          "slot_index": 0,
+          "dir": 4
+        }
+      ],
+      "title": "XL Models",
+      "properties": {},
+      "shape": 1
+    },
+    {
+      "id": 295,
+      "type": "ImageToMask",
+      "pos": [
+        -6477.08837890625,
+        -118.51039123535156
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 91,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 504
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            505,
+            582
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageToMask",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "red"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 245,
+      "type": "SaveImage",
+      "pos": [
+        -6399.708984375,
+        -22.10735511779785
+      ],
+      "size": [
+        1092.618408203125,
+        636.3334350585938
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 109,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 420
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "NHFOTO"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 335,
+      "type": "MaskPreview+",
+      "pos": [
+        -6243.56640625,
+        -540.2981567382812
+      ],
+      "size": [
+        954.4539184570312,
+        440.08203125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 103,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 580
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MaskPreview+",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 339,
+      "type": "Label (rgthree)",
+      "pos": [
+        -8270,
+        -690
+      ],
+      "size": [
+        807.12890625,
+        15
+      ],
+      "flags": {
+        "pinned": true,
+        "allow_interaction": false
+      },
+      "order": 44,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "For custom workflow development and achieving the highest quality output, please contact us using the information below",
+      "properties": {
+        "fontSize": 15,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "left",
+        "backgroundColor": "",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#ffffff",
+      "bgcolor": "#ffffff",
+      "shape": 1
+    },
+    {
+      "id": 336,
+      "type": "Label (rgthree)",
+      "pos": [
+        -7690.53369140625,
+        -621.1703491210938
+      ],
+      "size": [
+        217.82958984375,
+        15
+      ],
+      "flags": {
+        "pinned": true,
+        "allow_interaction": false
+      },
+      "order": 45,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Mail: Nhathoangfoto@gmail.com",
+      "properties": {
+        "fontSize": 15,
+        "fontFamily": "Arial",
+        "fontColor": "#fffc09",
+        "textAlign": "left",
+        "backgroundColor": "",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0",
+      "shape": 1
+    },
+    {
+      "id": 337,
+      "type": "Label (rgthree)",
+      "pos": [
+        -8090,
+        -621.1703491210938
+      ],
+      "size": [
+        352.71240234375,
+        15
+      ],
+      "flags": {
+        "pinned": true,
+        "allow_interaction": false
+      },
+      "order": 46,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Facebook: https://www.facebook.com/nhathoangfoto/",
+      "properties": {
+        "fontSize": 15,
+        "fontFamily": "Arial",
+        "fontColor": "#fffc09",
+        "textAlign": "left",
+        "backgroundColor": "",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0",
+      "shape": 1
+    },
+    {
+      "id": 340,
+      "type": "Label (rgthree)",
+      "pos": [
+        -8270,
+        -654
+      ],
+      "size": [
+        855.30029296875,
+        15
+      ],
+      "flags": {
+        "pinned": true,
+        "allow_interaction": false
+      },
+      "order": 47,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Nhu cầu phát triển workflow theo nhu cầu và hoàn thiện đầu ra sản phẩm chất lượng cao nhất vui lòng liên hệ theo info dưới đây",
+      "properties": {
+        "fontSize": 15,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "left",
+        "backgroundColor": "",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#ffffff",
+      "bgcolor": "#ffffff",
+      "shape": 1
+    },
+    {
+      "id": 338,
+      "type": "Label (rgthree)",
+      "pos": [
+        -8273.634765625,
+        -621.1703491210938
+      ],
+      "size": [
+        155.10498046875,
+        15
+      ],
+      "flags": {
+        "pinned": true,
+        "allow_interaction": false
+      },
+      "order": 48,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Discord: nhathoangfoto",
+      "properties": {
+        "fontSize": 15,
+        "fontFamily": "Arial",
+        "fontColor": "#fffc09",
+        "textAlign": "left",
+        "backgroundColor": "",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#322",
+      "bgcolor": "#533",
+      "shape": 1
+    },
+    {
+      "id": 341,
+      "type": "Label (rgthree)",
+      "pos": [
+        -8274.4755859375,
+        -759.7242431640625
+      ],
+      "size": [
+        364.013671875,
+        50
+      ],
+      "flags": {
+        "pinned": true,
+        "allow_interaction": false
+      },
+      "order": 49,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Contact for work",
+      "properties": {
+        "fontSize": 50,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "left",
+        "backgroundColor": "Green",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0",
+      "shape": 1
+    },
+    {
+      "id": 344,
+      "type": "Fast Bypasser (rgthree)",
+      "pos": [
+        -8669.6044921875,
+        -387.28271484375
+      ],
+      "size": [
+        386.8371276855469,
+        78
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 73,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "To use your own style",
+          "type": "*",
+          "link": 586,
+          "dir": 3,
+          "label": "."
+        },
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null,
+          "dir": 4,
+          "label": "."
+        }
+      ],
+      "title": "Manual Style",
+      "properties": {
+        "toggleRestriction": "default"
+      },
+      "shape": 1
+    },
+    {
+      "id": 343,
+      "type": "ttN text",
+      "pos": [
+        -8673.3857421875,
+        -265.77215576171875
+      ],
+      "size": [
+        391.8322448730469,
+        117.06535339355469
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 50,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [
+            585,
+            586
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "To use your own style",
+      "properties": {
+        "Node name for S&R": "ttN text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ttNnodeVersion": "1.0.0"
+      },
+      "widgets_values": [
+        "",
+        [
+          false,
+          true
+        ]
+      ],
+      "shape": 1
+    },
+    {
+      "id": 57,
+      "type": "PreviewImage",
+      "pos": [
+        -7473.1650390625,
+        667.8170776367188
+      ],
+      "size": [
+        2182.436279296875,
+        866.738525390625
+      ],
+      "flags": {},
+      "order": 111,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 411
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 79,
+      "type": "StringFunction|pysssss",
+      "pos": [
+        -7245.037109375,
+        501.1191101074219
+      ],
+      "size": [
+        320,
+        330
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 99,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text_b",
+          "type": "STRING",
+          "link": 392,
+          "widget": {
+            "name": "text_b"
+          },
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            393
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringFunction|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "append",
+        "no",
+        "Here is a prompt describing a sketch empty interior room: \"",
+        "",
+        "\"\n Let's turn it into a prompt that describes a \nrealistic interior room filled with furniture in an interior style: ",
+        true,
+        true,
+        true,
+        "Here is a prompt describing a sketch empty interior room: \"A minimalist, modern minimalist bedroom with a minimalist design, featuring a single line drawing of a bedroom with minimalist elements. The room has a simple, minimalist interior with a bed, a nightstand with a lamp, and a TV on a cabinet. The walls are plain and white, with two framed pictures on the wall. The bed is covered with a white bed sheet and pillows, and the nightstand has a lamp on it. The floor is also plain and unadorned. The drawing is in a single point of view, with no visible signs of any other objects. The overall style is clean and minimalistic, with a focus on minimalistic decor.\"\n Let's turn it into a prompt that describes a \nrealistic interior room filled with furniture in an interior style: "
+      ],
+      "shape": 1
+    },
+    {
+      "id": 242,
+      "type": "Anything Everywhere?",
+      "pos": [
+        -8151.46142578125,
+        282.04681396484375
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 74,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "STRING",
+          "type": "*",
+          "link": 413,
+          "shape": 7,
+          "color_on": ""
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere?",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": [
+        "Final_Input_Prompt.*",
+        "text2.*",
+        "Automatic prompt.*"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 84,
+      "type": "DF_Text",
+      "pos": [
+        -8266.4931640625,
+        244.2555389404297
+      ],
+      "size": [
+        377.0310974121094,
+        83.73029327392578
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 51,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            413,
+            598
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "What room is this?",
+      "properties": {
+        "Node name for S&R": "DF_Text",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        " bedroom"
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "shape": 1
+    },
+    {
+      "id": 77,
+      "type": "OllamaVision",
+      "pos": [
+        -7143.5576171875,
+        133.1735382080078
+      ],
+      "size": [
+        409.5050354003906,
+        243.25010681152344
+      ],
+      "flags": {},
+      "order": 112,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 90
+        },
+        {
+          "name": "query",
+          "type": "STRING",
+          "link": 96,
+          "widget": {
+            "name": "query"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "description",
+          "type": "STRING",
+          "links": [
+            97
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OllamaVision",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "enable",
+        "http://127.0.0.1:11434",
+        "qwen2.5:14b",
+        5,
+        "text",
+        1340446394,
+        "fixed",
+        true
+      ],
+      "shape": 1
+    },
+    {
+      "id": 82,
+      "type": "CR Text Concatenate",
+      "pos": [
+        -7134.0654296875,
+        0.3249344825744629
+      ],
+      "size": [
+        397.8206481933594,
+        84.86613464355469
+      ],
+      "flags": {},
+      "order": 110,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text1",
+          "type": "STRING",
+          "link": 395,
+          "widget": {
+            "name": "text1"
+          },
+          "shape": 7
+        },
+        {
+          "name": "text2",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "text2"
+          },
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "*",
+          "links": [
+            96
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Final_Input_Prompt",
+      "properties": {
+        "Node name for S&R": "CR Text Concatenate",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "",
+        ""
+      ],
+      "shape": 1
+    },
+    {
+      "id": 301,
+      "type": "Note",
+      "pos": [
+        -8676.3935546875,
+        481.0357360839844
+      ],
+      "size": [
+        1187.97802734375,
+        716.1849365234375
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 52,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Interior styles",
+      "properties": {},
+      "widgets_values": [
+        "**Beautiful Interior Design Styles**\n\n**1. Minimalism:** This style embraces simplicity, clean lines, and a neutral color palette. It's all about 'less is more,' creating a clutter-free and serene environment.\n\n**2. Contemporary:** Constantly evolving, this style reflects the now. Think smooth, curved lines, a neutral base with bold pops of color, and materials like metal and glass.\n\n**3. Industrial:** Inspired by old factories and warehouses, this style features exposed brick, concrete, and steel beams. It's a raw, edgy aesthetic that combines wood and metal for a powerful, unique look.\n\n**4. Scandinavian:** This style emphasizes simplicity, functionality, and a connection to nature. Light colors, natural wood, and eco-friendly materials create a warm and inviting atmosphere.\n\n**5. Traditional:** Drawing inspiration from 18th and 19th-century Europe, this style features ornate details, intricate patterns, classic furniture, and rich materials like oak, leather, and velvet, exuding elegance and sophistication.\n\n**6. Tropical:** This style brings the outdoors in with bright colors, botanical prints, and natural materials like rattan, bamboo, and wood. It creates a relaxing, nature-infused vibe.\n\n**7. Bohemian:** This style is all about free-spirited expression and individuality. It incorporates a vibrant mix of colors, patterns, textures, and decor from various cultures, resulting in a unique and artistic living space.\n\n**8. Mid-Century Modern:** Popular from the 1940s to the 1970s, this style is characterized by simple, organic lines, a blend of form and function, and materials like wood, plastic, and metal. It's a timeless, elegant aesthetic.\n\n**9. Rustic:** This style embodies a simple, natural beauty. It utilizes raw materials like wood, stone, and rough metals, combined with warm colors, creating a cozy and welcoming ambiance.\n\n**10. Art Deco:** Originating in the 1920s and 1930s, this style is defined by bold geometric shapes, symmetrical lines, zigzag patterns, and luxurious materials like chrome, glass, and lacquered wood, creating a glamorous and opulent look.\n\n**11. Farmhouse:** This style blends rustic charm with modern comfort. Think exposed wooden beams, vintage furniture, shiplap walls, and a neutral color palette with pops of color, creating a cozy and inviting atmosphere.\n\n**12. Shabby Chic:** This style is characterized by a soft, feminine, and romantic aesthetic. It features vintage furniture with a distressed look, pastel colors, floral patterns, and delicate fabrics like lace and linen.\n\n**13. Coastal/Nautical:** Inspired by the sea, this style uses light and airy colors like blue, white, and beige. It incorporates nautical elements like stripes, anchors, and seashells, creating a relaxed and breezy atmosphere.\n\n**14. Mediterranean:** This style draws inspiration from the countries surrounding the Mediterranean Sea. It features warm colors like terracotta and ochre, natural materials like stone and wood, and often includes arched doorways and wrought-iron details, creating a warm and inviting ambiance.\n\n**15. Eclectic:** This style is all about mixing and matching different styles, periods, and textures. It's a curated approach that allows for personal expression and creates a unique, one-of-a-kind space. There's not really a clear definition of this style, it's more of a mix and match of other styles, but in a way that works well together.\n\n**16. Transitional:** This style bridges the gap between traditional and contemporary design. It combines classic elements with modern touches, creating a balanced and timeless look. It usually utilizes a neutral color scheme to serve as a backdrop for pops of color used as accents, often in accessories like lamps, flowers, throws, and books.\n\n**17. Hollywood Regency:** This is a style born in the Golden Age of Hollywood. It's dramatic, luxurious, and all about glamour. Think bold colors, metallic accents, mirrored furniture, and luxurious fabrics like velvet and fur.\n\n**18. Japanese:** Zen-like and minimalist, Japanese interior design emphasizes natural materials, such as wood and bamboo. Sliding doors (fusuma), tatami mats, and a neutral color palette create a tranquil environment.\n\n**19. French Country:** This style combines rustic elements with elegant details. Picture a charming countryside cottage with exposed wooden beams, stone floors, toile fabrics, and antique furniture, creating a warm and inviting atmosphere.\n\n**20. Southwestern:** This style, inspired by the American Southwest, incorporates earthy tones, Native American-inspired patterns, and natural materials like adobe, terra cotta, and leather, creating a warm and inviting atmosphere with a strong connection to nature."
+      ],
+      "color": "#ad1414",
+      "bgcolor": "#990000",
+      "shape": 1
+    },
+    {
+      "id": 346,
+      "type": "Bookmark (rgthree)",
+      "pos": [
+        -8721.484375,
+        -729.3142700195312
+      ],
+      "size": [
+        226.8000030517578,
+        62
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 53,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "🔖Load load image & setting",
+      "properties": {},
+      "widgets_values": [
+        "1",
+        0.8
+      ]
+    },
+    {
+      "id": 253,
+      "type": "DualCLIPLoader",
+      "pos": [
+        -7093.0126953125,
+        -155.34722900390625
+      ],
+      "size": [
+        535.9173583984375,
+        106.47201538085938
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 54,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            442
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Clip Flux",
+      "properties": {
+        "Node name for S&R": "DualCLIPLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "t5xxl_fp8_e4m3fn.safetensors",
+        "long_clip\\ViT-L-14-TEXT-detail-improved-hiT-GmP-HF.safetensors",
+        "flux"
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "shape": 1
+    },
+    {
+      "id": 231,
+      "type": "GetNode",
+      "pos": [
+        -6682.93017578125,
+        53.837547302246094
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 55,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            387,
+            407,
+            409
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Get_Input_IMG",
+      "properties": {},
+      "widgets_values": [
+        "Input_IMG"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 28,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -7088.482421875,
+        -116.06694030761719
+      ],
+      "size": [
+        210,
+        59
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 114,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 27,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            485,
+            589
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Positive",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        true
+      ],
+      "shape": 1
+    },
+    {
+      "id": 282,
+      "type": "FluxGuidance",
+      "pos": [
+        -6954.79638671875,
+        -175.81777954101562
+      ],
+      "size": [
+        317.4000244140625,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 117,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 485
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            487,
+            590
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FluxGuidance",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        3.5
+      ],
+      "shape": 1
+    },
+    {
+      "id": 283,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -6786.33203125,
+        -232.08148193359375
+      ],
+      "size": [
+        168,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 120,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "CONDITIONING",
+          "link": 590,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "CONDITIONING",
+          "link": 589,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "CONDITIONING",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "CONDITIONING",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "CONDITIONING",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "CONDITIONING",
+          "links": [
+            591
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "CONDITIONING"
+        }
+      ],
+      "title": "Cond+ Switch",
+      "properties": {},
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 347,
+      "type": "SetNode",
+      "pos": [
+        -6404.56103515625,
+        -261.018798828125
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 122,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "link": 591
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "title": "Set_Cond+",
+      "properties": {
+        "previousName": "Cond+"
+      },
+      "widgets_values": [
+        "Cond+"
+      ]
+    },
+    {
+      "id": 349,
+      "type": "SetNode",
+      "pos": [
+        -6393.2275390625,
+        -314.7297668457031
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 118,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "link": 593
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "title": "Set_Cond-",
+      "properties": {
+        "previousName": "Cond-"
+      },
+      "widgets_values": [
+        "Cond-"
+      ]
+    },
+    {
+      "id": 348,
+      "type": "GetNode",
+      "pos": [
+        -6670.53564453125,
+        57.03065872192383
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 56,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            592
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Get_Cond+",
+      "properties": {},
+      "widgets_values": [
+        "Cond+"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 350,
+      "type": "GetNode",
+      "pos": [
+        -6627.37890625,
+        169.53939819335938
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 57,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            594
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Get_Cond-",
+      "properties": {},
+      "widgets_values": [
+        "Cond-"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 39,
+      "type": "ACN_AdvancedControlNetApply",
+      "pos": [
+        -6700.12890625,
+        7.6933088302612305
+      ],
+      "size": [
+        279.74609375,
+        282
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 90,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 592
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 594
+        },
+        {
+          "name": "control_net",
+          "type": "CONTROL_NET",
+          "link": 65
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 390
+        },
+        {
+          "name": "mask_optional",
+          "type": "MASK",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "timestep_kf",
+          "type": "TIMESTEP_KEYFRAME",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "latent_kf_override",
+          "type": "LATENT_KEYFRAME",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "weights_override",
+          "type": "CONTROL_NET_WEIGHTS",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "model_optional",
+          "type": "MODEL",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "vae_optional",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "strength",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "strength"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            400
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            399
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "model_opt",
+          "type": "MODEL",
+          "links": null
+        }
+      ],
+      "title": "Apply Control Net",
+      "properties": {
+        "Node name for S&R": "ACN_AdvancedControlNetApply",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        0.4,
+        0,
+        1
+      ],
+      "shape": 1
+    },
+    {
+      "id": 41,
+      "type": "SetUnionControlNetType",
+      "pos": [
+        -6706.5009765625,
+        -14.874957084655762
+      ],
+      "size": [
+        284.427001953125,
+        74.72521209716797
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 67,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "control_net",
+          "type": "CONTROL_NET",
+          "link": 66
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONTROL_NET",
+          "type": "CONTROL_NET",
+          "links": [
+            65
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SetUnionControlNetType",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "hed/pidi/scribble/ted"
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "shape": 1
+    },
+    {
+      "id": 236,
+      "type": "StringFunction|pysssss",
+      "pos": [
+        -7450.74658203125,
+        466.7667236328125
+      ],
+      "size": [
+        400,
+        229
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 106,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text_a",
+          "type": "STRING",
+          "link": 393,
+          "widget": {
+            "name": "text_a"
+          },
+          "shape": 7
+        },
+        {
+          "name": "text_b",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "text_b"
+          },
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            395
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "StringFunction",
+      "properties": {
+        "Node name for S&R": "StringFunction|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "append",
+        "yes",
+        "",
+        "",
+        "\n ,Only displays results, Do not mention words like pencil, sketch, drawing , know that this room is ",
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        "Here is a prompt describing a sketch empty interior room: \"A minimalist, modern minimalist bedroom with a minimalist design, featuring a single line drawing of a bedroom with minimalist elements. The room has a simple, minimalist interior with a bed, a nightstand with a lamp, and a TV on a cabinet. The walls are plain and white, with two framed pictures on the wall. The bed is covered with a white bed sheet and pillows, and the nightstand has a lamp on it. The floor is also plain and unadorned. The drawing is in a single point of view, with no visible signs of any other objects. The overall style is clean and minimalistic, with a focus on minimalistic decor.\" Let's turn it into a prompt that describes a realistic interior room filled with furniture in an interior style:, Scandinavian,Only displays results, Do not mention words like pencil, sketch, drawing, know that this room is"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 29,
+      "type": "SDXLPromptStyler",
+      "pos": [
+        -7140.35888671875,
+        441.770751953125
+      ],
+      "size": [
+        340.03509521484375,
+        416.99560546875
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 113,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text_positive",
+          "type": "STRING",
+          "link": 97,
+          "widget": {
+            "name": "text_positive"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text_positive",
+          "type": "STRING",
+          "links": [
+            27,
+            396
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "text_negative",
+          "type": "STRING",
+          "links": [
+            28
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SDXLPromptStyler",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "drawing, painting, crayon, sketch, graphite, impressionist, noisy, blurry, soft, deformed, ugly, low quality, bad anatomy, normal quality, monochrome, watermark, cropped, bad proportions, out of focus, signature, NSFW, lowres, sketches, grayscale, worst quality, illustration, cartoon, 3d render, anime, unrealistic, surreal, abstract, doll, plastic, fake, text, letters, tiling, repetition, boring, unreal, noise, tiling, poorly drawn, bokeh, bad perspective, inaccurate, wrong size, bad lighting",
+        "base",
+        "No",
+        true,
+        true,
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ]
+      ],
+      "shape": 1
+    },
+    {
+      "id": 265,
+      "type": "SimpleMathInt+",
+      "pos": [
+        -6647.98681640625,
+        -468.98748779296875
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 58,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            464,
+            465
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SimpleMathInt+",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        1024
+      ],
+      "shape": 1
+    },
+    {
+      "id": 266,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -6558.55517578125,
+        -443.1346130371094
+      ],
+      "size": [
+        168,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 79,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "INT",
+          "link": 463,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "INT",
+          "link": 464,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "INT",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "INT",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "INT",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "INT",
+          "links": [
+            494
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "INT"
+        }
+      ],
+      "properties": {},
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 238,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -7460.09912109375,
+        423.1849670410156
+      ],
+      "size": [
+        720.055908203125,
+        180.2918701171875
+      ],
+      "flags": {},
+      "order": 115,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 396,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "A minimalist, modern Scandinavian bedroom featuring a simple and clean design. The room includes a comfortable bed covered with a white bedsheet and pillows, a nightstand with a small lamp for reading, and a TV mounted on a sleek cabinet. The walls are painted plain white, adorned only by two framed pictures that complement the space's simplicity. The flooring is kept bare, contributing to the uncluttered aesthetic. This bedroom emphasizes minimalistic decor, creating a serene and tranquil environment."
+      ],
+      "shape": 1
+    },
+    {
+      "id": 342,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -7853.4462890625,
+        318.7241516113281
+      ],
+      "size": [
+        168,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 87,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "STRING",
+          "link": 585,
+          "dir": 3
+        },
+        {
+          "name": "any_02",
+          "type": "STRING",
+          "link": 584,
+          "dir": 3
+        },
+        {
+          "name": "any_03",
+          "type": "STRING",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_04",
+          "type": "STRING",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "any_05",
+          "type": "STRING",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "STRING",
+          "links": [
+            587
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4,
+          "label": "STRING"
+        }
+      ],
+      "properties": {},
+      "widgets_values": []
+    },
+    {
+      "id": 352,
+      "type": "Anything Everywhere?",
+      "pos": [
+        -7841.35693359375,
+        279.638916015625
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 101,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "STRING",
+          "type": "*",
+          "link": 597,
+          "shape": 7,
+          "color_on": "#7CBB1A"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere?",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": [
+        "FinalImage.*",
+        "text1.*",
+        "Tranfer to realistic.*"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 243,
+      "type": "Anything Everywhere?",
+      "pos": [
+        -7735.28271484375,
+        264.8302307128906
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 100,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "STRING",
+          "type": "*",
+          "link": 583,
+          "shape": 7,
+          "color_on": ""
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere?",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": [
+        "StringFunction.*",
+        "text_b.*",
+        "Automatic prompt.*"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 353,
+      "type": "Anything Everywhere?",
+      "pos": [
+        -7850.36328125,
+        310.8039245605469
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 75,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "STRING",
+          "type": "*",
+          "link": 598,
+          "shape": 7,
+          "color_on": "#7CBB1A"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere?",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": [
+        "FinalImage.*",
+        "text2.*",
+        "Tranfer to realistic.*"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 327,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -7884.43359375,
+        247.3677978515625
+      ],
+      "size": [
+        390.6891174316406,
+        82.8022232055664
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 95,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 587,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            583,
+            597
+          ],
+          "slot_index": 0,
+          "shape": 6
+        }
+      ],
+      "title": "Style of interior",
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "Scandinavian"
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "shape": 1
+    },
+    {
+      "id": 351,
+      "type": "concat",
+      "pos": [
+        -6656.3349609375,
+        412.870849609375
+      ],
+      "size": [
+        243.44300842285156,
+        76.4710464477539
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 59,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text1",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "text1"
+          }
+        },
+        {
+          "name": "text2",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "text2"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            595
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "FinalImage",
+      "properties": {
+        "Node name for S&R": "concat",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Hello",
+        "Room"
+      ]
+    },
+    {
+      "id": 240,
+      "type": "CR Simple Image Compare",
+      "pos": [
+        -6672.19091796875,
+        455.0990295410156
+      ],
+      "size": [
+        296.05328369140625,
+        341.4303894042969
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 108,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image1",
+          "type": "IMAGE",
+          "link": 409,
+          "shape": 7
+        },
+        {
+          "name": "image2",
+          "type": "IMAGE",
+          "link": 410,
+          "shape": 7
+        },
+        {
+          "name": "text2",
+          "type": "STRING",
+          "link": 595,
+          "widget": {
+            "name": "text2"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            411
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CR Simple Image Compare",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Sketch",
+        "Image",
+        100,
+        "Roboto-Regular.ttf",
+        50,
+        "dark",
+        50,
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ]
+      ],
+      "shape": 1
+    },
+    {
+      "id": 31,
+      "type": "KSampler",
+      "pos": [
+        -6692.4951171875,
+        322.6385192871094
+      ],
+      "size": [
+        268.6948547363281,
+        273.0579833984375
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 98,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 400
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 399
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 57
+        },
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "link": 498,
+          "widget": {
+            "name": "sampler_name"
+          }
+        },
+        {
+          "name": "scheduler",
+          "type": "COMBO",
+          "link": 496,
+          "widget": {
+            "name": "scheduler"
+          }
+        },
+        {
+          "name": "cfg",
+          "type": "FLOAT",
+          "link": 500,
+          "widget": {
+            "name": "cfg"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            61
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        12,
+        "fixed",
+        8,
+        1,
+        "euler",
+        "sgm_uniform",
+        1
+      ],
+      "shape": 1
+    },
+    {
+      "id": 296,
+      "type": "LayerMask: MaskGrow",
+      "pos": [
+        -6570.89599609375,
+        -204.09072875976562
+      ],
+      "size": [
+        210,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 97,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 505
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            510,
+            580,
+            581
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: MaskGrow",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        false,
+        10,
+        0
+      ],
+      "color": "rgba(27, 80, 119, 0.7)",
+      "shape": 1
+    }
+  ],
+  "links": [
+    [
+      4,
+      1,
+      0,
+      5,
+      0,
+      "MODEL"
+    ],
+    [
+      5,
+      1,
+      1,
+      5,
+      1,
+      "CLIP"
+    ],
+    [
+      8,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      27,
+      29,
+      0,
+      28,
+      1,
+      "STRING"
+    ],
+    [
+      28,
+      29,
+      1,
+      30,
+      1,
+      "STRING"
+    ],
+    [
+      57,
+      53,
+      0,
+      31,
+      3,
+      "LATENT"
+    ],
+    [
+      61,
+      31,
+      0,
+      55,
+      0,
+      "LATENT"
+    ],
+    [
+      65,
+      41,
+      0,
+      39,
+      2,
+      "CONTROL_NET"
+    ],
+    [
+      66,
+      35,
+      0,
+      41,
+      0,
+      "CONTROL_NET"
+    ],
+    [
+      90,
+      76,
+      0,
+      77,
+      0,
+      "IMAGE"
+    ],
+    [
+      92,
+      76,
+      0,
+      81,
+      0,
+      "IMAGE"
+    ],
+    [
+      96,
+      82,
+      0,
+      77,
+      1,
+      "STRING"
+    ],
+    [
+      97,
+      77,
+      0,
+      29,
+      0,
+      "STRING"
+    ],
+    [
+      379,
+      9,
+      0,
+      50,
+      0,
+      "IMAGE"
+    ],
+    [
+      387,
+      231,
+      0,
+      234,
+      0,
+      "IMAGE"
+    ],
+    [
+      390,
+      234,
+      0,
+      39,
+      3,
+      "IMAGE"
+    ],
+    [
+      392,
+      81,
+      2,
+      79,
+      0,
+      "STRING"
+    ],
+    [
+      393,
+      79,
+      0,
+      236,
+      0,
+      "STRING"
+    ],
+    [
+      395,
+      236,
+      0,
+      82,
+      0,
+      "STRING"
+    ],
+    [
+      396,
+      29,
+      0,
+      238,
+      0,
+      "STRING"
+    ],
+    [
+      399,
+      39,
+      1,
+      31,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      400,
+      39,
+      0,
+      31,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      404,
+      239,
+      0,
+      53,
+      0,
+      "INT"
+    ],
+    [
+      406,
+      239,
+      1,
+      53,
+      1,
+      "INT"
+    ],
+    [
+      407,
+      231,
+      0,
+      239,
+      0,
+      "IMAGE"
+    ],
+    [
+      409,
+      231,
+      0,
+      240,
+      0,
+      "IMAGE"
+    ],
+    [
+      410,
+      55,
+      0,
+      240,
+      1,
+      "IMAGE"
+    ],
+    [
+      411,
+      240,
+      0,
+      57,
+      0,
+      "IMAGE"
+    ],
+    [
+      413,
+      84,
+      0,
+      242,
+      0,
+      "STRING"
+    ],
+    [
+      420,
+      55,
+      0,
+      245,
+      0,
+      "IMAGE"
+    ],
+    [
+      424,
+      250,
+      0,
+      249,
+      1,
+      "*"
+    ],
+    [
+      425,
+      1,
+      2,
+      249,
+      0,
+      "VAE"
+    ],
+    [
+      426,
+      249,
+      0,
+      244,
+      2,
+      "VAE"
+    ],
+    [
+      428,
+      248,
+      0,
+      252,
+      0,
+      "MODEL"
+    ],
+    [
+      431,
+      252,
+      0,
+      251,
+      1,
+      "MODEL"
+    ],
+    [
+      433,
+      5,
+      0,
+      251,
+      0,
+      "MODEL"
+    ],
+    [
+      440,
+      256,
+      0,
+      255,
+      0,
+      "CLIP"
+    ],
+    [
+      441,
+      255,
+      0,
+      244,
+      1,
+      "CLIP"
+    ],
+    [
+      442,
+      253,
+      0,
+      255,
+      1,
+      "CLIP"
+    ],
+    [
+      444,
+      258,
+      0,
+      257,
+      1,
+      "*"
+    ],
+    [
+      445,
+      36,
+      0,
+      257,
+      0,
+      "CONTROL_NET"
+    ],
+    [
+      446,
+      257,
+      0,
+      37,
+      0,
+      "CONTROL_NET"
+    ],
+    [
+      447,
+      1,
+      0,
+      259,
+      0,
+      "*"
+    ],
+    [
+      448,
+      5,
+      0,
+      259,
+      1,
+      "*"
+    ],
+    [
+      449,
+      256,
+      0,
+      259,
+      2,
+      "*"
+    ],
+    [
+      450,
+      36,
+      0,
+      259,
+      3,
+      "*"
+    ],
+    [
+      451,
+      259,
+      0,
+      260,
+      0,
+      "*"
+    ],
+    [
+      454,
+      250,
+      0,
+      262,
+      0,
+      "*"
+    ],
+    [
+      455,
+      252,
+      0,
+      262,
+      1,
+      "*"
+    ],
+    [
+      456,
+      258,
+      0,
+      262,
+      2,
+      "*"
+    ],
+    [
+      458,
+      262,
+      0,
+      261,
+      0,
+      "*"
+    ],
+    [
+      459,
+      260,
+      0,
+      263,
+      0,
+      "*"
+    ],
+    [
+      460,
+      261,
+      0,
+      263,
+      1,
+      "*"
+    ],
+    [
+      461,
+      264,
+      0,
+      259,
+      4,
+      "*"
+    ],
+    [
+      463,
+      264,
+      0,
+      266,
+      0,
+      "*"
+    ],
+    [
+      464,
+      265,
+      0,
+      266,
+      1,
+      "INT"
+    ],
+    [
+      465,
+      265,
+      0,
+      262,
+      3,
+      "*"
+    ],
+    [
+      466,
+      267,
+      0,
+      259,
+      5,
+      "*"
+    ],
+    [
+      467,
+      269,
+      0,
+      259,
+      6,
+      "*"
+    ],
+    [
+      468,
+      273,
+      0,
+      259,
+      7,
+      "*"
+    ],
+    [
+      469,
+      271,
+      0,
+      262,
+      4,
+      "*"
+    ],
+    [
+      470,
+      270,
+      0,
+      262,
+      5,
+      "*"
+    ],
+    [
+      471,
+      272,
+      0,
+      262,
+      6,
+      "*"
+    ],
+    [
+      472,
+      267,
+      0,
+      274,
+      0,
+      "*"
+    ],
+    [
+      473,
+      271,
+      0,
+      274,
+      1,
+      "COMBO"
+    ],
+    [
+      474,
+      274,
+      0,
+      275,
+      0,
+      "COMBO"
+    ],
+    [
+      475,
+      269,
+      0,
+      276,
+      0,
+      "*"
+    ],
+    [
+      476,
+      270,
+      0,
+      276,
+      1,
+      "COMBO"
+    ],
+    [
+      478,
+      273,
+      0,
+      278,
+      0,
+      "*"
+    ],
+    [
+      479,
+      272,
+      0,
+      278,
+      1,
+      "FLOAT"
+    ],
+    [
+      485,
+      28,
+      0,
+      282,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      487,
+      282,
+      0,
+      262,
+      7,
+      "*"
+    ],
+    [
+      494,
+      266,
+      0,
+      81,
+      3,
+      "INT"
+    ],
+    [
+      495,
+      276,
+      0,
+      284,
+      0,
+      "*"
+    ],
+    [
+      496,
+      285,
+      0,
+      31,
+      5,
+      "COMBO"
+    ],
+    [
+      497,
+      274,
+      0,
+      286,
+      0,
+      "*"
+    ],
+    [
+      498,
+      287,
+      0,
+      31,
+      4,
+      "COMBO"
+    ],
+    [
+      499,
+      278,
+      0,
+      288,
+      0,
+      "*"
+    ],
+    [
+      500,
+      289,
+      0,
+      31,
+      6,
+      "FLOAT"
+    ],
+    [
+      503,
+      251,
+      0,
+      244,
+      0,
+      "MODEL"
+    ],
+    [
+      504,
+      234,
+      0,
+      295,
+      0,
+      "IMAGE"
+    ],
+    [
+      505,
+      295,
+      0,
+      296,
+      0,
+      "MASK"
+    ],
+    [
+      510,
+      296,
+      0,
+      298,
+      0,
+      "MASK"
+    ],
+    [
+      511,
+      299,
+      0,
+      300,
+      0,
+      "FLOAT"
+    ],
+    [
+      512,
+      303,
+      0,
+      324,
+      0,
+      "*"
+    ],
+    [
+      513,
+      304,
+      0,
+      324,
+      1,
+      "*"
+    ],
+    [
+      514,
+      305,
+      0,
+      324,
+      2,
+      "*"
+    ],
+    [
+      515,
+      306,
+      0,
+      324,
+      3,
+      "*"
+    ],
+    [
+      516,
+      307,
+      0,
+      324,
+      4,
+      "*"
+    ],
+    [
+      517,
+      308,
+      0,
+      324,
+      5,
+      "*"
+    ],
+    [
+      518,
+      324,
+      0,
+      325,
+      0,
+      "*"
+    ],
+    [
+      519,
+      309,
+      0,
+      324,
+      6,
+      "*"
+    ],
+    [
+      520,
+      310,
+      0,
+      324,
+      7,
+      "*"
+    ],
+    [
+      521,
+      311,
+      0,
+      324,
+      8,
+      "*"
+    ],
+    [
+      524,
+      312,
+      0,
+      324,
+      9,
+      "*"
+    ],
+    [
+      527,
+      313,
+      0,
+      324,
+      11,
+      "*"
+    ],
+    [
+      528,
+      315,
+      0,
+      324,
+      10,
+      "*"
+    ],
+    [
+      529,
+      314,
+      0,
+      324,
+      12,
+      "*"
+    ],
+    [
+      530,
+      316,
+      0,
+      324,
+      13,
+      "*"
+    ],
+    [
+      531,
+      317,
+      0,
+      324,
+      14,
+      "*"
+    ],
+    [
+      532,
+      318,
+      0,
+      324,
+      15,
+      "*"
+    ],
+    [
+      533,
+      319,
+      0,
+      324,
+      16,
+      "*"
+    ],
+    [
+      534,
+      320,
+      0,
+      324,
+      17,
+      "*"
+    ],
+    [
+      536,
+      322,
+      0,
+      324,
+      18,
+      "*"
+    ],
+    [
+      537,
+      321,
+      0,
+      324,
+      19,
+      "*"
+    ],
+    [
+      545,
+      246,
+      0,
+      330,
+      0,
+      "*"
+    ],
+    [
+      546,
+      328,
+      0,
+      330,
+      1,
+      "*"
+    ],
+    [
+      549,
+      329,
+      0,
+      330,
+      2,
+      "*"
+    ],
+    [
+      550,
+      330,
+      0,
+      331,
+      0,
+      "*"
+    ],
+    [
+      554,
+      306,
+      0,
+      333,
+      0,
+      "*"
+    ],
+    [
+      555,
+      307,
+      0,
+      333,
+      1,
+      "STRING"
+    ],
+    [
+      556,
+      309,
+      0,
+      333,
+      2,
+      "STRING"
+    ],
+    [
+      557,
+      310,
+      0,
+      333,
+      3,
+      "STRING"
+    ],
+    [
+      558,
+      311,
+      0,
+      333,
+      4,
+      "STRING"
+    ],
+    [
+      559,
+      308,
+      0,
+      333,
+      5,
+      "STRING"
+    ],
+    [
+      560,
+      322,
+      0,
+      333,
+      6,
+      "STRING"
+    ],
+    [
+      561,
+      321,
+      0,
+      333,
+      7,
+      "STRING"
+    ],
+    [
+      562,
+      303,
+      0,
+      333,
+      8,
+      "STRING"
+    ],
+    [
+      563,
+      304,
+      0,
+      333,
+      9,
+      "STRING"
+    ],
+    [
+      564,
+      305,
+      0,
+      333,
+      10,
+      "STRING"
+    ],
+    [
+      565,
+      317,
+      0,
+      333,
+      11,
+      "STRING"
+    ],
+    [
+      566,
+      318,
+      0,
+      333,
+      12,
+      "STRING"
+    ],
+    [
+      567,
+      319,
+      0,
+      333,
+      13,
+      "STRING"
+    ],
+    [
+      568,
+      320,
+      0,
+      333,
+      14,
+      "STRING"
+    ],
+    [
+      569,
+      315,
+      0,
+      333,
+      15,
+      "STRING"
+    ],
+    [
+      570,
+      316,
+      0,
+      333,
+      16,
+      "STRING"
+    ],
+    [
+      571,
+      314,
+      0,
+      333,
+      17,
+      "STRING"
+    ],
+    [
+      572,
+      313,
+      0,
+      333,
+      18,
+      "STRING"
+    ],
+    [
+      573,
+      312,
+      0,
+      333,
+      19,
+      "STRING"
+    ],
+    [
+      575,
+      246,
+      0,
+      334,
+      0,
+      "*"
+    ],
+    [
+      576,
+      328,
+      0,
+      334,
+      1,
+      "INT"
+    ],
+    [
+      577,
+      329,
+      0,
+      334,
+      2,
+      "INT"
+    ],
+    [
+      578,
+      334,
+      0,
+      9,
+      1,
+      "INT"
+    ],
+    [
+      579,
+      334,
+      0,
+      9,
+      2,
+      "INT"
+    ],
+    [
+      580,
+      296,
+      0,
+      335,
+      0,
+      "MASK"
+    ],
+    [
+      581,
+      296,
+      0,
+      259,
+      8,
+      "*"
+    ],
+    [
+      582,
+      295,
+      0,
+      259,
+      9,
+      "*"
+    ],
+    [
+      583,
+      327,
+      0,
+      243,
+      0,
+      "STRING"
+    ],
+    [
+      584,
+      333,
+      0,
+      342,
+      1,
+      "*"
+    ],
+    [
+      585,
+      343,
+      0,
+      342,
+      0,
+      "STRING"
+    ],
+    [
+      586,
+      343,
+      0,
+      344,
+      0,
+      "*"
+    ],
+    [
+      587,
+      342,
+      0,
+      327,
+      0,
+      "STRING"
+    ],
+    [
+      589,
+      28,
+      0,
+      283,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      590,
+      282,
+      0,
+      283,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      591,
+      283,
+      0,
+      347,
+      0,
+      "*"
+    ],
+    [
+      592,
+      348,
+      0,
+      39,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      593,
+      30,
+      0,
+      349,
+      0,
+      "*"
+    ],
+    [
+      594,
+      350,
+      0,
+      39,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      595,
+      351,
+      0,
+      240,
+      2,
+      "STRING"
+    ],
+    [
+      597,
+      327,
+      0,
+      352,
+      0,
+      "STRING"
+    ],
+    [
+      598,
+      84,
+      0,
+      353,
+      0,
+      "STRING"
+    ],
+    [
+      599,
+      255,
+      0,
+      30,
+      0,
+      "CLIP"
+    ],
+    [
+      600,
+      249,
+      0,
+      55,
+      1,
+      "VAE"
+    ],
+    [
+      601,
+      84,
+      0,
+      82,
+      1,
+      "STRING"
+    ],
+    [
+      602,
+      255,
+      0,
+      28,
+      0,
+      "CLIP"
+    ],
+    [
+      603,
+      296,
+      0,
+      39,
+      4,
+      "MASK"
+    ],
+    [
+      604,
+      251,
+      0,
+      39,
+      8,
+      "MODEL"
+    ],
+    [
+      605,
+      249,
+      0,
+      39,
+      9,
+      "VAE"
+    ],
+    [
+      606,
+      299,
+      0,
+      39,
+      10,
+      "FLOAT"
+    ],
+    [
+      607,
+      327,
+      0,
+      236,
+      1,
+      "STRING"
+    ],
+    [
+      608,
+      327,
+      0,
+      351,
+      0,
+      "STRING"
+    ],
+    [
+      609,
+      84,
+      0,
+      351,
+      1,
+      "STRING"
+    ],
+    [
+      610,
+      251,
+      0,
+      31,
+      0,
+      "MODEL"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 4,
+      "title": "Models",
+      "bounding": [
+        -7479.10400390625,
+        -575.4100341796875,
+        1228.888427734375,
+        471.32177734375
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Automatic prompt",
+      "bounding": [
+        -7483.6455078125,
+        -93.33506774902344,
+        762.4459228515625,
+        713.1732177734375
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 1,
+      "title": "Tranfer to realistic",
+      "bounding": [
+        -6710.5068359375,
+        -89.62647247314453,
+        1417.560546875,
+        720.4014892578125
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.7247295000000082,
+      "offset": [
+        9093.313473080376,
+        143.7638587659057
+      ]
+    },
+    "groupNodes": {},
+    "ue_links": [
+      {
+        "downstream": 30,
+        "downstream_slot": 0,
+        "upstream": "255",
+        "upstream_slot": 0,
+        "controller": 244,
+        "type": "CLIP"
+      },
+      {
+        "downstream": 55,
+        "downstream_slot": 1,
+        "upstream": "249",
+        "upstream_slot": 0,
+        "controller": 244,
+        "type": "VAE"
+      },
+      {
+        "downstream": 82,
+        "downstream_slot": 1,
+        "upstream": "84",
+        "upstream_slot": 0,
+        "controller": 242,
+        "type": "STRING"
+      },
+      {
+        "downstream": 28,
+        "downstream_slot": 0,
+        "upstream": "255",
+        "upstream_slot": 0,
+        "controller": 244,
+        "type": "CLIP"
+      },
+      {
+        "downstream": 39,
+        "downstream_slot": 4,
+        "upstream": "296",
+        "upstream_slot": 0,
+        "controller": 298,
+        "type": "MASK"
+      },
+      {
+        "downstream": 39,
+        "downstream_slot": 8,
+        "upstream": "251",
+        "upstream_slot": 0,
+        "controller": 244,
+        "type": "MODEL"
+      },
+      {
+        "downstream": 39,
+        "downstream_slot": 9,
+        "upstream": "249",
+        "upstream_slot": 0,
+        "controller": 244,
+        "type": "VAE"
+      },
+      {
+        "downstream": 39,
+        "downstream_slot": 10,
+        "upstream": "299",
+        "upstream_slot": 0,
+        "controller": 300,
+        "type": "FLOAT"
+      },
+      {
+        "downstream": 236,
+        "downstream_slot": 1,
+        "upstream": "327",
+        "upstream_slot": 0,
+        "controller": 243,
+        "type": "STRING"
+      },
+      {
+        "downstream": 351,
+        "downstream_slot": 0,
+        "upstream": "327",
+        "upstream_slot": 0,
+        "controller": 352,
+        "type": "STRING"
+      },
+      {
+        "downstream": 351,
+        "downstream_slot": 1,
+        "upstream": "84",
+        "upstream_slot": 0,
+        "controller": 353,
+        "type": "STRING"
+      },
+      {
+        "downstream": 31,
+        "downstream_slot": 0,
+        "upstream": "251",
+        "upstream_slot": 0,
+        "controller": 244,
+        "type": "MODEL"
+      }
+    ]
+  },
+  "version": 0.4
+}

@@ -1,0 +1,2127 @@
+{
+  "last_node_id": 226,
+  "last_link_id": 291,
+  "nodes": [
+    {
+      "id": 141,
+      "type": "BasicGuider",
+      "pos": [
+        1310,
+        -1510
+      ],
+      "size": {
+        "0": 241.79998779296875,
+        "1": 46
+      },
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 172,
+          "slot_index": 0,
+          "label": "模型"
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 173,
+          "slot_index": 1,
+          "label": "条件"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            167
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "引导"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicGuider"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 144,
+      "type": "CLIPTextEncodeFlux",
+      "pos": [
+        780,
+        -1510
+      ],
+      "size": {
+        "0": 441.3853759765625,
+        "1": 348.4978332519531
+      },
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 175,
+          "label": "clip"
+        },
+        {
+          "name": "clip_l",
+          "type": "STRING",
+          "link": 237,
+          "widget": {
+            "name": "clip_l"
+          },
+          "label": "clip_l"
+        },
+        {
+          "name": "t5xxl",
+          "type": "STRING",
+          "link": 196,
+          "widget": {
+            "name": "t5xxl"
+          },
+          "label": "t5xxl"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            173
+          ],
+          "shape": 3,
+          "label": "CONDITIONING",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeFlux"
+      },
+      "widgets_values": [
+        "medium full shot of awe-inspiring snake with muscular body, amber eyes, bronze brown armored scales, venomous fangs, coiling tail, gemstone-studded scales frills, set in  a barren desert wasteland, with cracked earth and the remains of ancient structures, a place of mystery and danger, at dawn, ,Masterpiece,best quality, raw photo, realistic, very aesthetic, dark",
+        "In a stunning medium full shot, an awe-inspiring snake with a muscular body and piercing amber eyes is captured in all its glory. Its bronzed brown scales shimmer like armor, each one a miniature shield protecting its formidable form. Venomous fangs gleam menacingly as the snake opens its mouth, revealing the lethal weaponry that has earned it a fearsome reputation. Its coiling tail wraps around itself, a testament to the creature's power and grace.\n\nGemstone-studded scales form frills along its body, adding an element of mystique and wonder. These scales catch the light, reflecting hues of precious stones that adorn its form, creating a mesmerizing display of color and texture.\n\nThe snake is set against the backdrop of a barren desert wasteland, where the cracked earth stretches out endlessly under the first light of dawn. Ancient ruins dot the landscape, their weathered stones hinting at a forgotten civilization. The remains of these structures stand as silent sentinels, bearing witness to the mysteries and dangers that lie within this desolate place.\n\nAs the sun begins to rise, the sky fills with a palette of deep purples and rich oranges, casting long shadows that play across the rugged terrain. The contrast between the dark, brooding landscape and the vibrant colors of the snake creates a striking composition, evoking a sense of both beauty and peril.\n\nThis masterpiece is captured in the best possible quality, offering a raw and realistic photograph that is both aesthetically pleasing and deeply compelling. The image conveys a sense of the unknown, inviting viewers to ponder the secrets that this ancient land and its magnificent serpent might hold.",
+        2.5
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 140,
+      "type": "BasicScheduler",
+      "pos": [
+        1290,
+        -1180
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 171,
+          "slot_index": 0,
+          "label": "模型"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            169
+          ],
+          "shape": 3,
+          "label": "Sigmas"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicScheduler"
+      },
+      "widgets_values": [
+        "sgm_uniform",
+        30,
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 139,
+      "type": "KSamplerSelect",
+      "pos": [
+        1280,
+        -1300
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            168
+          ],
+          "shape": 3,
+          "label": "采样器"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "dpmpp_2m"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 208,
+      "type": "SUPIR_first_stage",
+      "pos": [
+        -630,
+        280
+      ],
+      "size": {
+        "0": 330,
+        "1": 170
+      },
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "SUPIR_VAE",
+          "type": "SUPIRVAE",
+          "link": 256,
+          "label": "SUPIR_VAE"
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 257,
+          "label": "图像"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SUPIR_VAE",
+          "type": "SUPIRVAE",
+          "links": [
+            258
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "SUPIR_VAE"
+        },
+        {
+          "name": "denoised_image",
+          "type": "IMAGE",
+          "links": [
+            259,
+            268
+          ],
+          "shape": 3,
+          "slot_index": 1,
+          "label": "图像"
+        },
+        {
+          "name": "denoised_latents",
+          "type": "LATENT",
+          "links": [
+            261
+          ],
+          "shape": 3,
+          "slot_index": 2,
+          "label": "Latent"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SUPIR_first_stage"
+      },
+      "widgets_values": [
+        true,
+        512,
+        512,
+        "fp32"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 209,
+      "type": "SUPIR_encode",
+      "pos": [
+        -630,
+        520
+      ],
+      "size": {
+        "0": 312.02203369140625,
+        "1": 175.50796508789062
+      },
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "SUPIR_VAE",
+          "type": "SUPIRVAE",
+          "link": 258,
+          "label": "SUPIR_VAE"
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 259,
+          "label": "图像"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            273
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "Latent"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SUPIR_encode"
+      },
+      "widgets_values": [
+        true,
+        512,
+        "fp32"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 196,
+      "type": "SDXLPromptStyler",
+      "pos": [
+        -1090,
+        -1510
+      ],
+      "size": {
+        "0": 512.0592651367188,
+        "1": 477.758544921875
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text_positive",
+          "type": "STRING",
+          "links": [
+            236,
+            237
+          ],
+          "shape": 3,
+          "label": "正面条件",
+          "slot_index": 0
+        },
+        {
+          "name": "text_negative",
+          "type": "STRING",
+          "links": null,
+          "shape": 3,
+          "label": "负面条件"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SDXLPromptStyler"
+      },
+      "widgets_values": [
+        "Science fiction spaceship",
+        "",
+        "futuristic-sci-fi",
+        true,
+        true,
+        true
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 164,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -190,
+        -1370
+      ],
+      "size": {
+        "0": 490.4422607421875,
+        "1": 452.6797790527344
+      },
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 195,
+          "widget": {
+            "name": "text"
+          },
+          "label": "文本"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            196
+          ],
+          "shape": 6,
+          "label": "字符串",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "",
+        " In a vast, unexplored galaxy, a group of advanced beings embark on an intergalactic voyage aboard their state-of-the-art spaceship. As they journey through the depths of space, they encounter countless otherworldly planets, each more fascinating and mysterious than the last. From the icy, desolate landscapes of distant moons to the swirling, vibrant nebulae, the universe is a wonder to behold.\n\nThe spaceship's sleek design and cutting-edge technology are evident in every aspect of its operation. The crew, made up of some of the most brilliant minds in existence, work tirelessly to navigate through the uncharted territories of space. As they travel, they are met with various challenges and dangers, but their determination and courage never falter.\n\nThe atmosphere aboard the spaceship is one of excitement, anticipation, and awe. The mood is often tinged with a sense of wonder and curiosity, as the crew members can't help but marvel at the beauty and complexity of the universe around them. Despite the many threats they encounter, there is an underlying tone of optimism and hope, as they know that their journey will lead them to new discoveries and knowledge.\n\nAs they venture further into space, the lighting aboard the ship becomes more intense, illuminating the vast, dark expanse beyond the windows. The stars outside seem closer, almost tangible, and the crew can't help but feel a sense of wonder and awe at the vastness of their surroundings. Despite the many dangers they face, they know that their journey will lead them to new discoveries and knowledge, and that they are part of something truly remarkable and extraordinary. "
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 137,
+      "type": "UNETLoader",
+      "pos": [
+        390,
+        -1290
+      ],
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            174
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "模型"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "flux1-dev.sft",
+        "fp8_e5m2"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 136,
+      "type": "DualCLIPLoader",
+      "pos": [
+        370,
+        -1510
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            175
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "CLIP"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DualCLIPLoader"
+      },
+      "widgets_values": [
+        "t5xxl_fp16.safetensors",
+        "clip_l.safetensors",
+        "flux"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 220,
+      "type": "Reroute",
+      "pos": [
+        210,
+        -350
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 283
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            264,
+            269,
+            276
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 160,
+      "type": "OllamaGenerate",
+      "pos": [
+        -170,
+        -820
+      ],
+      "size": {
+        "0": 400,
+        "1": 220.00001525878906
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 192,
+          "widget": {
+            "name": "prompt"
+          },
+          "label": "prompt"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "response",
+          "type": "STRING",
+          "links": [
+            195
+          ],
+          "shape": 3,
+          "label": "response",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OllamaGenerate"
+      },
+      "widgets_values": [
+        "What is Art?",
+        "enable",
+        "http://127.0.0.1:11434",
+        "llava:latest",
+        438160505089686,
+        "fixed",
+        "0"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 138,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        1680,
+        -1510
+      ],
+      "size": {
+        "0": 355.20001220703125,
+        "1": 326
+      },
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 166,
+          "slot_index": 0,
+          "label": "噪波生成"
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 167,
+          "slot_index": 1,
+          "label": "引导"
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 168,
+          "slot_index": 2,
+          "label": "采样器"
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 169,
+          "slot_index": 3,
+          "label": "Sigmas"
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 178,
+          "slot_index": 4,
+          "label": "Latent"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            164
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "输出"
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3,
+          "label": "降噪输出"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 134,
+      "type": "VAEDecode",
+      "pos": [
+        1730,
+        -1020
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 164,
+          "label": "Latent"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 165,
+          "label": "VAE"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            176,
+            282,
+            283
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 135,
+      "type": "VAELoader",
+      "pos": [
+        1300,
+        -890
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            165
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "ae.sft"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 193,
+      "type": "CR SDXL Aspect Ratio",
+      "pos": [
+        490,
+        -1090
+      ],
+      "size": {
+        "0": 315,
+        "1": 278
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            226,
+            228
+          ],
+          "shape": 3,
+          "label": "宽度",
+          "slot_index": 0
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            227,
+            229
+          ],
+          "shape": 3,
+          "label": "高度",
+          "slot_index": 1
+        },
+        {
+          "name": "upscale_factor",
+          "type": "FLOAT",
+          "links": null,
+          "shape": 3,
+          "label": "放大系数"
+        },
+        {
+          "name": "batch_size",
+          "type": "INT",
+          "links": null,
+          "shape": 3,
+          "label": "批次大小"
+        },
+        {
+          "name": "empty_latent",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CR SDXL Aspect Ratio"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        "21:9 landscape 1536x640",
+        "Off",
+        1,
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 143,
+      "type": "ModelSamplingFlux",
+      "pos": [
+        820,
+        -1090
+      ],
+      "size": {
+        "0": 315,
+        "1": 130
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 174,
+          "label": "model"
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 228,
+          "widget": {
+            "name": "width"
+          },
+          "label": "width"
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 229,
+          "widget": {
+            "name": "height"
+          },
+          "label": "height"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            171,
+            172
+          ],
+          "shape": 3,
+          "label": "MODEL",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelSamplingFlux"
+      },
+      "widgets_values": [
+        1.2,
+        1,
+        1032,
+        1024
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 148,
+      "type": "EmptyLatentImage",
+      "pos": [
+        820,
+        -910
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 226,
+          "widget": {
+            "name": "width"
+          },
+          "label": "宽度"
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 227,
+          "widget": {
+            "name": "height"
+          },
+          "label": "高度"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            178
+          ],
+          "shape": 3,
+          "label": "Latent"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 142,
+      "type": "RandomNoise",
+      "pos": [
+        1290,
+        -1030
+      ],
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            166
+          ],
+          "shape": 3,
+          "label": "噪波生成"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise"
+      },
+      "widgets_values": [
+        316710259747826,
+        "randomize"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 211,
+      "type": "SUPIR_decode",
+      "pos": [
+        -170,
+        500
+      ],
+      "size": {
+        "0": 315,
+        "1": 102
+      },
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "SUPIR_VAE",
+          "type": "SUPIRVAE",
+          "link": 262,
+          "label": "SUPIR_VAE"
+        },
+        {
+          "name": "latents",
+          "type": "LATENT",
+          "link": 263,
+          "label": "Latent",
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            265
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SUPIR_decode"
+      },
+      "widgets_values": [
+        true,
+        512
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 214,
+      "type": "PreviewImage",
+      "pos": [
+        -170,
+        680
+      ],
+      "size": {
+        "0": 244.89064025878906,
+        "1": 246
+      },
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 268,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 216,
+      "type": "PreviewImage",
+      "pos": [
+        -170,
+        990
+      ],
+      "size": {
+        "0": 249.59390258789062,
+        "1": 246
+      },
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 270,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 219,
+      "type": "ImageScaleBy",
+      "pos": [
+        -1090,
+        760
+      ],
+      "size": {
+        "0": 359.1089172363281,
+        "1": 110.11559295654297
+      },
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 276,
+          "label": "图像"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            257
+          ],
+          "shape": 3,
+          "label": "图像",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageScaleBy"
+      },
+      "widgets_values": [
+        "nearest-exact",
+        2
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 210,
+      "type": "SUPIR_conditioner",
+      "pos": [
+        -1090,
+        980
+      ],
+      "size": {
+        "0": 356.25299072265625,
+        "1": 265.1324157714844
+      },
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "SUPIR_model",
+          "type": "SUPIRMODEL",
+          "link": 260
+        },
+        {
+          "name": "latents",
+          "type": "LATENT",
+          "link": 261,
+          "label": "Latent"
+        },
+        {
+          "name": "captions",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "captions"
+          },
+          "label": "captions"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "SUPIR_cond_pos",
+          "links": [
+            274
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "正面条件"
+        },
+        {
+          "name": "negative",
+          "type": "SUPIR_cond_neg",
+          "links": [
+            275
+          ],
+          "shape": 3,
+          "slot_index": 1,
+          "label": "负面条件"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SUPIR_conditioner"
+      },
+      "widgets_values": [
+        "((highest resolution)),(best quality),((extremely sharp focus)),high quality, detailed",
+        "bad quality, blurry, messy",
+        ""
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 218,
+      "type": "SUPIR_sample",
+      "pos": [
+        -630,
+        1010
+      ],
+      "size": {
+        "0": 378.131103515625,
+        "1": 454
+      },
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "SUPIR_model",
+          "type": "SUPIRMODEL",
+          "link": 272,
+          "label": "SUPIR模型"
+        },
+        {
+          "name": "latents",
+          "type": "LATENT",
+          "link": 273,
+          "label": "Latent"
+        },
+        {
+          "name": "positive",
+          "type": "SUPIR_cond_pos",
+          "link": 274,
+          "label": "正面条件"
+        },
+        {
+          "name": "negative",
+          "type": "SUPIR_cond_neg",
+          "link": 275,
+          "label": "负面条件"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            263
+          ],
+          "shape": 3,
+          "label": "Latent"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SUPIR_sample"
+      },
+      "widgets_values": [
+        91770578765479,
+        "randomize",
+        40,
+        7,
+        7,
+        5,
+        1.003,
+        1,
+        1,
+        1,
+        5,
+        false,
+        "RestoreEDMSampler",
+        1024,
+        512
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 215,
+      "type": "SUPIR_tiles",
+      "pos": [
+        -630,
+        800
+      ],
+      "size": {
+        "0": 315,
+        "1": 122
+      },
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 269,
+          "label": "图像"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image_tiles",
+          "type": "IMAGE",
+          "links": [
+            270
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "分块图像"
+        },
+        {
+          "name": "tile_size",
+          "type": "INT",
+          "links": null,
+          "shape": 3,
+          "label": "分块尺寸"
+        },
+        {
+          "name": "tile_stride",
+          "type": "INT",
+          "links": null,
+          "shape": 3,
+          "label": "分块步长"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SUPIR_tiles"
+      },
+      "widgets_values": [
+        512,
+        256
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 212,
+      "type": "ColorMatch",
+      "pos": [
+        -170,
+        320
+      ],
+      "size": {
+        "0": 315,
+        "1": 102
+      },
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_ref",
+          "type": "IMAGE",
+          "link": 264,
+          "label": "参考图像"
+        },
+        {
+          "name": "image_target",
+          "type": "IMAGE",
+          "link": 265,
+          "label": "目标图像"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            267,
+            271
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ColorMatch"
+      },
+      "widgets_values": [
+        "mkl",
+        1
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 207,
+      "type": "SUPIR_model_loader_v2",
+      "pos": [
+        -1090,
+        480
+      ],
+      "size": [
+        356.48468596384146,
+        193.67405051812432
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 287,
+          "label": "模型"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 288,
+          "label": "CLIP"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 289,
+          "label": "VAE"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SUPIR_model",
+          "type": "SUPIRMODEL",
+          "links": [
+            260,
+            272
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "SUPIR_VAE",
+          "type": "SUPIRVAE",
+          "links": [
+            256,
+            262
+          ],
+          "shape": 3,
+          "slot_index": 1,
+          "label": "SUPIR_VAE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SUPIR_model_loader_v2"
+      },
+      "widgets_values": [
+        "SUPIR\\SUPIR-v0F.ckpt",
+        false,
+        "auto",
+        false
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 226,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -1090,
+        280
+      ],
+      "size": [
+        353.0636318423035,
+        98.3230446920088
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            287
+          ],
+          "shape": 3,
+          "label": "模型",
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            288
+          ],
+          "shape": 3,
+          "label": "CLIP",
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            289
+          ],
+          "shape": 3,
+          "label": "VAE",
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "leosamsHelloworldXL_helloworldXL70.safetensors"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 163,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -1070,
+        -470
+      ],
+      "size": [
+        491.28441068646293,
+        353.12969361887485
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 194,
+          "widget": {
+            "name": "text"
+          },
+          "label": "文本"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            192
+          ],
+          "shape": 6,
+          "label": "字符串",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "",
+        "You are creating a prompt for Stable Diffusion to generate an image. understand the input and generate a text prompt for the input,only respond in English,And extreme details added to the description include \"atmosphere, mood and tone and lighting.\" Write the description as if it were a storyboard for a science fiction movieJust give me the final result without any prefix or suffix，No need to say something like \"Here is the generated text prompt:\"The following text is used as input:, sci-fi style Science fiction spaceship . futuristic, technological, alien worlds, space themes, advanced civilizations"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 145,
+      "type": "SaveImage",
+      "pos": [
+        380,
+        -710
+      ],
+      "size": {
+        "0": 1661.57177734375,
+        "1": 935.0104370117188
+      },
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 176,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 213,
+      "type": "Image Comparer (rgthree)",
+      "pos": {
+        "0": 260,
+        "1": 310,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0
+      },
+      "size": {
+        "0": 1798.7415771484375,
+        "1": 1191.8482666015625
+      },
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 282,
+          "dir": 3,
+          "label": "图像_A"
+        },
+        {
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 267,
+          "dir": 3,
+          "label": "图像_B"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "comparer_mode": "Slide"
+      },
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/view?filename=rgthree.compare._temp_ijpjr_00003_.png&type=temp&subfolder=&rand=0.4748747803814648"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/view?filename=rgthree.compare._temp_ijpjr_00004_.png&type=temp&subfolder=&rand=0.26725147252053194"
+          }
+        ]
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 217,
+      "type": "SaveImage",
+      "pos": [
+        -453,
+        -369
+      ],
+      "size": {
+        "0": 744.2041625976562,
+        "1": 535.0993041992188
+      },
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 271,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 161,
+      "type": "StringFunction|pysssss",
+      "pos": [
+        -1080,
+        -990
+      ],
+      "size": [
+        503.9221317343479,
+        439.66105932645166
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text_b",
+          "type": "STRING",
+          "link": 236,
+          "widget": {
+            "name": "text_b"
+          },
+          "label": "文本_B"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            194
+          ],
+          "shape": 3,
+          "label": "字符串",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringFunction|pysssss"
+      },
+      "widgets_values": [
+        "append",
+        "yes",
+        "You are creating a prompt for Stable Diffusion to generate an image.   understand the input and generate a text prompt for the input,only respond in English,And extreme details added to the description include \"atmosphere, mood and tone and lighting.\"  Write the description as if it were a storyboard for a science fiction movieJust give me the final result without any prefix or suffix，No need to say something like \"Here is the generated text prompt:\"The following text is used as input:",
+        "",
+        "",
+        "You are creating a prompt for Stable Diffusion to generate an image. understand the input and generate a text prompt for the input,only respond in English,And extreme details added to the description include \"atmosphere, mood and tone and lighting.\" Write the description as if it were a storyboard for a science fiction movieJust give me the final result without any prefix or suffix，No need to say something like \"Here is the generated text prompt:\"The following text is used as input:, sci-fi style Science fiction spaceship . futuristic, technological, alien worlds, space themes, advanced civilizations"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    }
+  ],
+  "links": [
+    [
+      164,
+      138,
+      0,
+      134,
+      0,
+      "LATENT"
+    ],
+    [
+      165,
+      135,
+      0,
+      134,
+      1,
+      "VAE"
+    ],
+    [
+      166,
+      142,
+      0,
+      138,
+      0,
+      "NOISE"
+    ],
+    [
+      167,
+      141,
+      0,
+      138,
+      1,
+      "GUIDER"
+    ],
+    [
+      168,
+      139,
+      0,
+      138,
+      2,
+      "SAMPLER"
+    ],
+    [
+      169,
+      140,
+      0,
+      138,
+      3,
+      "SIGMAS"
+    ],
+    [
+      171,
+      143,
+      0,
+      140,
+      0,
+      "MODEL"
+    ],
+    [
+      172,
+      143,
+      0,
+      141,
+      0,
+      "MODEL"
+    ],
+    [
+      173,
+      144,
+      0,
+      141,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      174,
+      137,
+      0,
+      143,
+      0,
+      "MODEL"
+    ],
+    [
+      175,
+      136,
+      0,
+      144,
+      0,
+      "CLIP"
+    ],
+    [
+      176,
+      134,
+      0,
+      145,
+      0,
+      "IMAGE"
+    ],
+    [
+      178,
+      148,
+      0,
+      138,
+      4,
+      "LATENT"
+    ],
+    [
+      192,
+      163,
+      0,
+      160,
+      0,
+      "STRING"
+    ],
+    [
+      194,
+      161,
+      0,
+      163,
+      0,
+      "STRING"
+    ],
+    [
+      195,
+      160,
+      0,
+      164,
+      0,
+      "STRING"
+    ],
+    [
+      196,
+      164,
+      0,
+      144,
+      2,
+      "STRING"
+    ],
+    [
+      226,
+      193,
+      0,
+      148,
+      0,
+      "INT"
+    ],
+    [
+      227,
+      193,
+      1,
+      148,
+      1,
+      "INT"
+    ],
+    [
+      228,
+      193,
+      0,
+      143,
+      1,
+      "INT"
+    ],
+    [
+      229,
+      193,
+      1,
+      143,
+      2,
+      "INT"
+    ],
+    [
+      236,
+      196,
+      0,
+      161,
+      0,
+      "STRING"
+    ],
+    [
+      237,
+      196,
+      0,
+      144,
+      1,
+      "STRING"
+    ],
+    [
+      256,
+      207,
+      1,
+      208,
+      0,
+      "SUPIRVAE"
+    ],
+    [
+      257,
+      219,
+      0,
+      208,
+      1,
+      "IMAGE"
+    ],
+    [
+      258,
+      208,
+      0,
+      209,
+      0,
+      "SUPIRVAE"
+    ],
+    [
+      259,
+      208,
+      1,
+      209,
+      1,
+      "IMAGE"
+    ],
+    [
+      260,
+      207,
+      0,
+      210,
+      0,
+      "SUPIRMODEL"
+    ],
+    [
+      261,
+      208,
+      2,
+      210,
+      1,
+      "LATENT"
+    ],
+    [
+      262,
+      207,
+      1,
+      211,
+      0,
+      "SUPIRVAE"
+    ],
+    [
+      263,
+      218,
+      0,
+      211,
+      1,
+      "LATENT"
+    ],
+    [
+      264,
+      220,
+      0,
+      212,
+      0,
+      "IMAGE"
+    ],
+    [
+      265,
+      211,
+      0,
+      212,
+      1,
+      "IMAGE"
+    ],
+    [
+      267,
+      212,
+      0,
+      213,
+      1,
+      "IMAGE"
+    ],
+    [
+      268,
+      208,
+      1,
+      214,
+      0,
+      "IMAGE"
+    ],
+    [
+      269,
+      220,
+      0,
+      215,
+      0,
+      "IMAGE"
+    ],
+    [
+      270,
+      215,
+      0,
+      216,
+      0,
+      "IMAGE"
+    ],
+    [
+      271,
+      212,
+      0,
+      217,
+      0,
+      "IMAGE"
+    ],
+    [
+      272,
+      207,
+      0,
+      218,
+      0,
+      "SUPIRMODEL"
+    ],
+    [
+      273,
+      209,
+      0,
+      218,
+      1,
+      "LATENT"
+    ],
+    [
+      274,
+      210,
+      0,
+      218,
+      2,
+      "SUPIR_cond_pos"
+    ],
+    [
+      275,
+      210,
+      1,
+      218,
+      3,
+      "SUPIR_cond_neg"
+    ],
+    [
+      276,
+      220,
+      0,
+      219,
+      0,
+      "IMAGE"
+    ],
+    [
+      282,
+      134,
+      0,
+      213,
+      0,
+      "IMAGE"
+    ],
+    [
+      283,
+      134,
+      0,
+      220,
+      0,
+      "*"
+    ],
+    [
+      287,
+      226,
+      0,
+      207,
+      0,
+      "MODEL"
+    ],
+    [
+      288,
+      226,
+      1,
+      207,
+      1,
+      "CLIP"
+    ],
+    [
+      289,
+      226,
+      2,
+      207,
+      2,
+      "VAE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "Flux",
+      "bounding": [
+        -1160,
+        -1660,
+        3291,
+        3198
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "locked": false
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.2794145953766235,
+      "offset": [
+        2140.171428138307,
+        1481.4911415517963
+      ]
+    }
+  },
+  "version": 0.4
+}

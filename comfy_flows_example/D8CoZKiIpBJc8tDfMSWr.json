@@ -1,0 +1,845 @@
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "revision": 0,
+  "last_node_id": 102,
+  "last_link_id": 176,
+  "nodes": [
+    {
+      "id": 12,
+      "type": "VAELoader",
+      "pos": [
+        550,
+        630
+      ],
+      "size": [
+        460.0072021484375,
+        58
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            98
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.47",
+        "Node name for S&R": "VAELoader",
+        "ue_properties": {
+          "version": "7.0.1",
+          "widget_ue_connectable": {}
+        }
+      },
+      "widgets_values": [
+        "wan_2.1_vae.safetensors"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 4,
+      "type": "UNETLoader",
+      "pos": [
+        550,
+        350
+      ],
+      "size": [
+        463.5205993652344,
+        82
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            170
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.47",
+        "Node name for S&R": "UNETLoader",
+        "ue_properties": {
+          "version": "7.0.1",
+          "widget_ue_connectable": {}
+        }
+      },
+      "widgets_values": [
+        "Magic-Wan-Image-V1-fp8_scaled.safetensors",
+        "default"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 16,
+      "type": "CLIPLoader",
+      "pos": [
+        550,
+        480
+      ],
+      "size": [
+        461.68414306640625,
+        106.50265502929688
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            113,
+            114
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.47",
+        "Node name for S&R": "CLIPLoader",
+        "ue_properties": {
+          "version": "7.0.1",
+          "widget_ue_connectable": {}
+        }
+      },
+      "widgets_values": [
+        "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "wan",
+        "default"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 97,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        1060,
+        490
+      ],
+      "size": [
+        333.06781005859375,
+        82
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 172
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            174
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "version": "7.0.1",
+          "widget_ue_connectable": {}
+        }
+      },
+      "widgets_values": [
+        "WAN22/ultra_real.safetensors",
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 96,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        1060,
+        630
+      ],
+      "size": [
+        333.06781005859375,
+        82
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 170
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            172
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "version": "7.0.1",
+          "widget_ue_connectable": {}
+        }
+      },
+      "widgets_values": [
+        "WAN22/LIGHTNING_128.safetensors",
+        1
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 15,
+      "type": "ModelSamplingSD3",
+      "pos": [
+        1520,
+        360
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 175
+        }
+      ],
+      "outputs": [
+        {
+          "label": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            26
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "Node name for S&R": "ModelSamplingSD3",
+        "ue_properties": {
+          "version": "7.0.1",
+          "widget_ue_connectable": {}
+        }
+      },
+      "widgets_values": [
+        3
+      ]
+    },
+    {
+      "id": 21,
+      "type": "KSampler",
+      "pos": [
+        1900,
+        500
+      ],
+      "size": [
+        265.5632629394531,
+        280.8020935058594
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 26
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 27
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 28
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 29
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            97
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.47",
+        "Node name for S&R": "KSampler",
+        "ue_properties": {
+          "version": "7.0.1",
+          "widget_ue_connectable": {}
+        }
+      },
+      "widgets_values": [
+        560370674903466,
+        "randomize",
+        8,
+        1,
+        "dpmpp_2m",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 69,
+      "type": "VAEDecode",
+      "pos": [
+        1910,
+        380
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 97
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 98
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            176
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.56",
+        "Node name for S&R": "VAEDecode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.0.1"
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 98,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        1060,
+        350
+      ],
+      "size": [
+        333.06781005859375,
+        82
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 174
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            175
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "version": "7.0.1",
+          "widget_ue_connectable": {}
+        }
+      },
+      "widgets_values": [
+        "WAN22/riley_gomez.safetensors",
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 7,
+      "type": "EmptyLatentImage",
+      "pos": [
+        794.5263671875,
+        745.4736328125
+      ],
+      "size": [
+        210,
+        124.09484100341797
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            29
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.47",
+        "Node name for S&R": "EmptyLatentImage",
+        "ue_properties": {
+          "version": "7.0.1",
+          "widget_ue_connectable": {}
+        }
+      },
+      "widgets_values": [
+        960,
+        1152,
+        1
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 100,
+      "type": "Label (rgthree)",
+      "pos": [
+        559.2781982421875,
+        925.3203125
+      ],
+      "size": [
+        271.7138671875,
+        30
+      ],
+      "flags": {
+        "allow_interaction": false,
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "DOWNLOAD LINKS",
+      "properties": {
+        "fontSize": 30,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "left",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 8,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1440,
+        830
+      ],
+      "size": [
+        402.2342224121094,
+        139.84336853027344
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 113
+        }
+      ],
+      "outputs": [
+        {
+          "label": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            28
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "Node name for S&R": "CLIPTextEncode",
+        "ue_properties": {
+          "version": "7.0.1",
+          "widget_ue_connectable": {}
+        }
+      },
+      "widgets_values": [
+        "Vibrant colors, overexposure, static, blurred details, subtitles, style, artwork, painting, still image, overall grayness, worst quality, low quality, JPEG compression residue, ugly, mutilated, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, malformed limbs, fused fingers, still image, cluttered background, three legs, crowded background, walking backwards"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 102,
+      "type": "SaveImage",
+      "pos": [
+        2193.420166015625,
+        373.5809020996094
+      ],
+      "size": [
+        549.2133178710938,
+        747.4634399414062
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 176
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.58",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "WAN22_MAGIC/wan22magic"
+      ]
+    },
+    {
+      "id": 99,
+      "type": "Note",
+      "pos": [
+        554.2515869140625,
+        993.3186645507812
+      ],
+      "size": [
+        816.7284545898438,
+        178.80447387695312
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "INSTRUCTIONS",
+      "properties": {},
+      "widgets_values": [
+        "\nMODEL DIRECT DOWNLOAD:\n\nhttps://huggingface.co/wikeeyang/Magic-Wan-Image-v1.0/resolve/main/Magic-Wan-Image-V1-fp8_scaled.safetensors\n\n\nFOR THE LORAS: use any wan2.1.  They all work as long as they are text to image.\n\nThis is the Huggingface link for UK users.\n\nhttps://huggingface.co/models?search=wan2.1%20lora\n\n\n"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 101,
+      "type": "Note",
+      "pos": [
+        1905.5576171875,
+        837.9239501953125
+      ],
+      "size": [
+        257.89056396484375,
+        129.91183471679688
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "For best results:\n8 steps\ncfg 1.0\nres_multistep or euler or dpmpp_sde\nsimple \nshift 3.00\n\nNegative prompt is ignored at cfg 1\nexperiment with higher weights."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 13,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1430,
+        500
+      ],
+      "size": [
+        415.0815124511719,
+        269.424072265625
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 114
+        }
+      ],
+      "outputs": [
+        {
+          "label": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            27
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "Node name for S&R": "CLIPTextEncode",
+        "ue_properties": {
+          "version": "7.0.1",
+          "widget_ue_connectable": {}
+        }
+      },
+      "widgets_values": [
+        "Photographic masterpiece. 8K resolution. hyper realistic. 35mm camera shot.\n\nM digital illustration of an onion logo, rendered in gleaming gold, representing a powerful and abstract tribal design. The onion head is composed of interconnected, flowing lines and intricate geometric patterns, creating a symmetrical form that suggests both strength and beauty of nature with a prominent stem-like structure. The logo is set against a dark grey granite background, allowing the gold details to shimmer and stand out, conveying a sense of luxury and authority. Subtle, stylized shadows enhance the three-dimensionality of the design, solidifying the brand name '@ONION' beneath the logo.\n"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    }
+  ],
+  "links": [
+    [
+      26,
+      15,
+      0,
+      21,
+      0,
+      "MODEL"
+    ],
+    [
+      27,
+      13,
+      0,
+      21,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      28,
+      8,
+      0,
+      21,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      29,
+      7,
+      0,
+      21,
+      3,
+      "LATENT"
+    ],
+    [
+      97,
+      21,
+      0,
+      69,
+      0,
+      "LATENT"
+    ],
+    [
+      98,
+      12,
+      0,
+      69,
+      1,
+      "VAE"
+    ],
+    [
+      113,
+      16,
+      0,
+      8,
+      0,
+      "CLIP"
+    ],
+    [
+      114,
+      16,
+      0,
+      13,
+      0,
+      "CLIP"
+    ],
+    [
+      170,
+      4,
+      0,
+      96,
+      0,
+      "MODEL"
+    ],
+    [
+      172,
+      96,
+      0,
+      97,
+      0,
+      "MODEL"
+    ],
+    [
+      174,
+      97,
+      0,
+      98,
+      0,
+      "MODEL"
+    ],
+    [
+      175,
+      98,
+      0,
+      15,
+      0,
+      "MODEL"
+    ],
+    [
+      176,
+      69,
+      0,
+      102,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "WAN2.2 ALL IN ONE",
+      "bounding": [
+        516.8843994140625,
+        254.55690002441406,
+        2255.5556640625,
+        945.185302734375
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      }
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "ds": {
+      "scale": 0.7247295000000034,
+      "offset": [
+        -272.5408433434319,
+        -189.7582731729008
+      ]
+    },
+    "frontendVersion": "1.25.11",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

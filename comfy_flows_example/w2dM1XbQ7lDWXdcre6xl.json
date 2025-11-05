@@ -1,0 +1,3804 @@
+{
+  "last_node_id": 188,
+  "last_link_id": 540,
+  "nodes": [
+    {
+      "id": 105,
+      "type": "CLIPTextEncodeSDXL",
+      "pos": [
+        860,
+        530
+      ],
+      "size": {
+        "0": 407.3830261230469,
+        "1": 218
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 450
+        },
+        {
+          "name": "text_g",
+          "type": "STRING",
+          "link": 357,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        },
+        {
+          "name": "text_l",
+          "type": "STRING",
+          "link": 358,
+          "widget": {
+            "name": "text_l",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_L"
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "link": 428,
+          "widget": {
+            "name": "target_width",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "link": 427,
+          "widget": {
+            "name": "target_height",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            364
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXL"
+      },
+      "widgets_values": [
+        4096,
+        4096,
+        0,
+        0,
+        832,
+        1216,
+        "Night, dimly lit, a cerulean blue Bombette firework, and an amber comet firework, overhead, ethereal light, {lightning bolt to ground|Moonbow|Fire Orbs|Plasma Orbs},",
+        "Night, dimly lit, a cerulean blue Bombette firework, and an amber comet firework, overhead, ethereal light, {lightning bolt to ground|Moonbow|Fire Orbs|Plasma Orbs},"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 111,
+      "type": "VAEDecode",
+      "pos": [
+        1300,
+        680
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 375
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 362
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            361
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 99,
+      "type": "VAEDecode",
+      "pos": [
+        2570,
+        -659.2275286841718
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {
+        "pinned": false
+      },
+      "order": 47,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 413
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 445
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            418,
+            420
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 110,
+      "type": "VAEEncode",
+      "pos": [
+        1300,
+        770
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 361
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 363
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            376,
+            439
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncode"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 127,
+      "type": "CLIPTextEncodeSDXL",
+      "pos": [
+        870,
+        1060
+      ],
+      "size": {
+        "0": 407.3830261230469,
+        "1": 218
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 452
+        },
+        {
+          "name": "text_g",
+          "type": "STRING",
+          "link": 391,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        },
+        {
+          "name": "text_l",
+          "type": "STRING",
+          "link": 392,
+          "widget": {
+            "name": "text_l",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_L"
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "link": 424,
+          "widget": {
+            "name": "target_width",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "link": 423,
+          "widget": {
+            "name": "target_height",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            397
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXL"
+      },
+      "widgets_values": [
+        4096,
+        4096,
+        0,
+        0,
+        832,
+        1216,
+        "Deep dark burnt umber, wispy transparent specters of beautiful streaks of smoke, with thin streaks of crimson light, dimly lit, swirls of vibrant, white-gold light, in the upper third of the image, swirls of indigo-white and deep orange and pastel yellow smoke, in the center, and bronze-gold smoke, in the lower third of the image, ethereal lighting,\n",
+        "Deep dark burnt umber, wispy transparent specters of beautiful streaks of smoke, with thin streaks of crimson light, dimly lit, swirls of vibrant, white-gold light, in the upper third of the image, swirls of indigo-white and deep orange and pastel yellow smoke, in the center, and bronze-gold smoke, in the lower third of the image, ethereal lighting,\n"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 130,
+      "type": "CLIPTextEncodeSDXL",
+      "pos": [
+        870,
+        1320
+      ],
+      "size": {
+        "0": 414.3628845214844,
+        "1": 218
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 453
+        },
+        {
+          "name": "text_g",
+          "type": "STRING",
+          "link": 393,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        },
+        {
+          "name": "text_l",
+          "type": "STRING",
+          "link": 394,
+          "widget": {
+            "name": "text_l",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_L"
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "link": 422,
+          "widget": {
+            "name": "target_width",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "link": 421,
+          "widget": {
+            "name": "target_height",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            398
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXL"
+      },
+      "widgets_values": [
+        4096,
+        4096,
+        0,
+        0,
+        832,
+        1216,
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,",
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 108,
+      "type": "CLIPTextEncodeSDXL",
+      "pos": [
+        860,
+        790
+      ],
+      "size": {
+        "0": 414.3628845214844,
+        "1": 218
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 451
+        },
+        {
+          "name": "text_g",
+          "type": "STRING",
+          "link": 359,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        },
+        {
+          "name": "text_l",
+          "type": "STRING",
+          "link": 360,
+          "widget": {
+            "name": "text_l",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_L"
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "link": 426,
+          "widget": {
+            "name": "target_width",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "link": 425,
+          "widget": {
+            "name": "target_height",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            366
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXL"
+      },
+      "widgets_values": [
+        4096,
+        4096,
+        0,
+        0,
+        832,
+        1216,
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,",
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 133,
+      "type": "KSampler",
+      "pos": [
+        1540,
+        1060
+      ],
+      "size": [
+        315,
+        474.00003814697266
+      ],
+      "flags": {
+        "pinned": false
+      },
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 449
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 397
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 398
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 439
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            402
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "title": "KSampler Illumination Refiner",
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        372532411426251,
+        "randomize",
+        4,
+        7,
+        "dpmpp_sde_gpu",
+        "exponential",
+        0.9199999999999999
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 138,
+      "type": "VAEDecode",
+      "pos": [
+        2170,
+        530
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 410
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 412
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            411,
+            419
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 107,
+      "type": "PrimitiveNode",
+      "pos": [
+        530,
+        790
+      ],
+      "size": {
+        "0": 308.142822265625,
+        "1": 201.28250122070312
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            359,
+            360
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 88,
+      "type": "PrimitiveNode",
+      "pos": [
+        850,
+        90.77247131582823
+      ],
+      "size": {
+        "0": 308.142822265625,
+        "1": 201.28250122070312
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            326,
+            327,
+            335
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 113,
+      "type": "KSampler",
+      "pos": [
+        1530,
+        530
+      ],
+      "size": {
+        "0": 315,
+        "1": 474
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 448,
+          "slot_index": 0
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 364
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 366
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 376
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            403
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "title": "KSampler Illumination Refiner",
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        597519495467418,
+        "randomize",
+        4,
+        7,
+        "dpmpp_sde_gpu",
+        "exponential",
+        0.9199999999999999
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 137,
+      "type": "PreviewImage",
+      "pos": [
+        1910,
+        810
+      ],
+      "size": {
+        "0": 476.543212890625,
+        "1": 717.6958618164062
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 411
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 135,
+      "type": "LatentBlend",
+      "pos": [
+        1900,
+        530
+      ],
+      "size": {
+        "0": 210,
+        "1": 78
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples1",
+          "type": "LATENT",
+          "link": 403
+        },
+        {
+          "name": "samples2",
+          "type": "LATENT",
+          "link": 402
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            410,
+            518
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LatentBlend"
+      },
+      "widgets_values": [
+        0.5
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 91,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1300,
+        530
+      ],
+      "size": {
+        "0": 210,
+        "1": 106
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 437,
+          "widget": {
+            "name": "width",
+            "config": [
+              "INT",
+              {
+                "default": 512,
+                "min": 16,
+                "max": 8192,
+                "step": 8
+              }
+            ]
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 438,
+          "widget": {
+            "name": "height",
+            "config": [
+              "INT",
+              {
+                "default": 512,
+                "min": 16,
+                "max": 8192,
+                "step": 8
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            375
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        832,
+        1216,
+        1
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 104,
+      "type": "SaveImage",
+      "pos": [
+        1980,
+        -569.2275286841718
+      ],
+      "size": {
+        "0": 588.6583251953125,
+        "1": 902.03466796875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 46,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 356
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 141,
+      "type": "PreviewImage",
+      "pos": [
+        2590,
+        -569.2275286841718
+      ],
+      "size": {
+        "0": 594.28369140625,
+        "1": 900.03466796875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 420
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 139,
+      "type": "Image Save",
+      "pos": [
+        3250,
+        -569.2275286841718
+      ],
+      "size": [
+        315,
+        558.0000295639038
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 418
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Image Save"
+      },
+      "widgets_values": [
+        "E:\\Stable Diffusion Output Images\\ComfyUI SD AI Anime\\[time(%Y-%m-%d)]",
+        "My_Anime_",
+        "_",
+        4,
+        "false",
+        "png",
+        100,
+        "false",
+        "false",
+        "false",
+        "true",
+        "true",
+        "true"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 92,
+      "type": "VAEDecode",
+      "pos": [
+        1980,
+        -659.2275286841718
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 44,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 345
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 377
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            356
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 95,
+      "type": "CLIPTextEncodeSDXLRefiner",
+      "pos": [
+        1190,
+        -719.2275286841718
+      ],
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 456
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 334,
+          "widget": {
+            "name": "text",
+            "config": [
+              "STRING",
+              {
+                "multiline": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 436,
+          "widget": {
+            "name": "width",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 435,
+          "widget": {
+            "name": "height",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            415
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXLRefiner"
+      },
+      "widgets_values": [
+        7.5,
+        832,
+        1216,
+        "8k, high detail, Golden Ratio, fantasy, neoclassical fine art, photorealistic portrait, of a fierce ancient warrior king and warrior queen, dynamic action fight poses,\n\nWith long black hair, a fit muscular body, wearing a cobalt blue linen tunic, and battle-scarred full armor that is a synthesis of Roman and Shogun Armor,\n\nPlatinum gladiator boots and platinum armor decorations,\n\nAt night, 8k resolution high detail, cinematic volumetric and foreboding chiaroscuro preternatural lighting, dark ethereal fantasy, in an ancient alpine mountain temple,\n\nHighly detailed, Digital Art,"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 129,
+      "type": "PrimitiveNode",
+      "pos": [
+        530,
+        1280
+      ],
+      "size": {
+        "0": 308.142822265625,
+        "1": 201.28250122070312
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            393,
+            394
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 86,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        490.0000000000001,
+        200.77247131582837
+      ],
+      "size": {
+        "0": 315,
+        "1": 98
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            344
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            321,
+            325
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "sd_xl_base_1.0.safetensors"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 94,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        490.0000000000001,
+        50.77247131582828
+      ],
+      "size": {
+        "0": 315,
+        "1": 98
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            446
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            447
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "sd_xl_refiner_1.0.safetensors"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 96,
+      "type": "CLIPTextEncodeSDXLRefiner",
+      "pos": [
+        1190,
+        -489.22752868417183
+      ],
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 455
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 335,
+          "widget": {
+            "name": "text",
+            "config": [
+              "STRING",
+              {
+                "multiline": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 434,
+          "widget": {
+            "name": "width",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 433,
+          "widget": {
+            "name": "height",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            416
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXLRefiner"
+      },
+      "widgets_values": [
+        1.75,
+        832,
+        1216,
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 89,
+      "type": "CLIPTextEncodeSDXL",
+      "pos": [
+        1190,
+        50.77247131582828
+      ],
+      "size": {
+        "0": 400,
+        "1": 270
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 325
+        },
+        {
+          "name": "text_g",
+          "type": "STRING",
+          "link": 326,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        },
+        {
+          "name": "text_l",
+          "type": "STRING",
+          "link": 327,
+          "widget": {
+            "name": "text_l",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_L"
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "link": 430,
+          "widget": {
+            "name": "target_width",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "link": 429,
+          "widget": {
+            "name": "target_height",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            329
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXL"
+      },
+      "widgets_values": [
+        4096,
+        4096,
+        0,
+        0,
+        832,
+        1216,
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,",
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 85,
+      "type": "CLIPTextEncodeSDXL",
+      "pos": [
+        1190,
+        -249.2275286841719
+      ],
+      "size": {
+        "0": 400,
+        "1": 270
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 321
+        },
+        {
+          "name": "text_g",
+          "type": "STRING",
+          "link": 322,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        },
+        {
+          "name": "text_l",
+          "type": "STRING",
+          "link": 324,
+          "widget": {
+            "name": "text_l",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_L"
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "link": 432,
+          "widget": {
+            "name": "target_width",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "link": 431,
+          "widget": {
+            "name": "target_height",
+            "config": [
+              "INT",
+              {
+                "default": 1024,
+                "min": 0,
+                "max": 8192
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            328
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXL"
+      },
+      "widgets_values": [
+        4096,
+        4096,
+        0,
+        0,
+        832,
+        1216,
+        "8k, high detail, Golden Ratio, fantasy, neoclassical fine art, photorealistic portrait, of a fierce ancient warrior king and warrior queen, dynamic action fight poses,\n\nWith long black hair, a fit muscular body, wearing a cobalt blue linen tunic, and battle-scarred full armor that is a synthesis of Roman and Shogun Armor,\n\nPlatinum gladiator boots and platinum armor decorations,\n\nAt night, 8k resolution high detail, cinematic volumetric and foreboding chiaroscuro preternatural lighting, dark ethereal fantasy, in an ancient alpine mountain temple,\n\nHighly detailed, Digital Art,",
+        "8k, high detail, Golden Ratio, fantasy, neoclassical fine art, photorealistic portrait, of a fierce ancient warrior king and warrior queen, dynamic action fight poses,\n\nWith long black hair, a fit muscular body, wearing a cobalt blue linen tunic, and battle-scarred full armor that is a synthesis of Roman and Shogun Armor,\n\nPlatinum gladiator boots and platinum armor decorations,\n\nAt night, 8k resolution high detail, cinematic volumetric and foreboding chiaroscuro preternatural lighting, dark ethereal fantasy, in an ancient alpine mountain temple,\n\nHighly detailed, Digital Art,"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 90,
+      "type": "KSamplerAdvanced",
+      "pos": [
+        1640,
+        -219.22752868417174
+      ],
+      "size": [
+        315,
+        546.0000076293945
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 344
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 328
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 329
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 518
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            345,
+            417
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerAdvanced"
+      },
+      "widgets_values": [
+        "enable",
+        803006558779374,
+        "randomize",
+        35,
+        7.5,
+        "dpmpp_sde_gpu",
+        "exponential",
+        5,
+        10000,
+        "enable"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 102,
+      "type": "KSampler",
+      "pos": [
+        1640,
+        -729.2275286841718
+      ],
+      "size": {
+        "0": 315,
+        "1": 474.0000305175781
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 45,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 458
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 415
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 416
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 417
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            413
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "title": "KSampler Refiner",
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        835669311773375,
+        "randomize",
+        35,
+        7.5,
+        "dpmpp_sde_gpu",
+        "exponential",
+        0.33
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 143,
+      "type": "LoraLoader",
+      "pos": [
+        70,
+        500
+      ],
+      "size": {
+        "0": 338.15789794921875,
+        "1": 126
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 446
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 447
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            448,
+            449,
+            458
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            450,
+            451,
+            452,
+            453,
+            455,
+            456
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoader"
+      },
+      "widgets_values": [
+        "sd_xl_offset-lora_1.0.safetensors",
+        1,
+        1
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 140,
+      "type": "Image Save",
+      "pos": [
+        2440,
+        820
+      ],
+      "size": {
+        "0": 315,
+        "1": 558
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 419
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Image Save"
+      },
+      "widgets_values": [
+        "E:\\Stable Diffusion Output Images\\Illumination Images\\[time(%Y-%m-%d)]",
+        "My_Illumination_",
+        "_",
+        4,
+        "false",
+        "png",
+        100,
+        "false",
+        "false",
+        "false",
+        "true",
+        "true",
+        "true"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 106,
+      "type": "PrimitiveNode",
+      "pos": [
+        530,
+        530
+      ],
+      "size": {
+        "0": 310.94281005859375,
+        "1": 185.1824951171875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            357,
+            358
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "Night, dimly lit, a cerulean blue Bombette firework, and an amber comet firework, overhead, ethereal light, {lightning bolt to ground|Moonbow|Fire Orbs|Plasma Orbs},"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 128,
+      "type": "PrimitiveNode",
+      "pos": [
+        530,
+        1060
+      ],
+      "size": {
+        "0": 310.94281005859375,
+        "1": 185.1824951171875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            391,
+            392
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "Deep dark burnt umber, wispy transparent specters of beautiful streaks of smoke, with thin streaks of crimson light, dimly lit, swirls of vibrant, white-gold light, in the upper third of the image, swirls of indigo-white and deep orange and pastel yellow smoke, in the center, and bronze-gold smoke, in the lower third of the image, ethereal lighting,\n"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 112,
+      "type": "VAELoader",
+      "pos": [
+        130,
+        210
+      ],
+      "size": {
+        "0": 269.4325866699219,
+        "1": 65.93789672851562
+      },
+      "flags": {
+        "pinned": false
+      },
+      "order": 7,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            362,
+            363,
+            377,
+            412,
+            445
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "sdxl_vae.safetensors"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 142,
+      "type": "CM_SDXLResolution",
+      "pos": [
+        90,
+        350
+      ],
+      "size": {
+        "0": 315,
+        "1": 78
+      },
+      "flags": {
+        "pinned": false
+      },
+      "order": 8,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            422,
+            424,
+            426,
+            428,
+            430,
+            432,
+            434,
+            436,
+            437
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            421,
+            423,
+            425,
+            427,
+            429,
+            431,
+            433,
+            435,
+            438
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CM_SDXLResolution"
+      },
+      "widgets_values": [
+        "832x1216"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 87,
+      "type": "PrimitiveNode",
+      "pos": [
+        850,
+        -219.22752868417174
+      ],
+      "size": {
+        "0": 310.94281005859375,
+        "1": 185.1824951171875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 9,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            322,
+            324,
+            334
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text_g",
+            "config": [
+              "STRING",
+              {
+                "multiline": true,
+                "default": "CLIP_G"
+              }
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "8k, high detail, Golden Ratio, fantasy, neoclassical fine art, photorealistic portrait, of a fierce ancient warrior king and warrior queen, dynamic action fight poses,\n\nWith long black hair, a fit muscular body, wearing a cobalt blue linen tunic, and battle-scarred full armor that is a synthesis of Roman and Shogun Armor,\n\nPlatinum gladiator boots and platinum armor decorations,\n\nAt night, 8k resolution high detail, cinematic volumetric and foreboding chiaroscuro preternatural lighting, dark ethereal fantasy, in an ancient alpine mountain temple,\n\nHighly detailed, Digital Art,"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 174,
+      "type": "CLIPTextEncodeSDXL",
+      "pos": [
+        1618.213461934702,
+        1081.2770639235878
+      ],
+      "size": {
+        "0": 400,
+        "1": 270
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 522
+        },
+        {
+          "name": "text_g",
+          "type": "STRING",
+          "link": 523,
+          "widget": {
+            "name": "text_g"
+          }
+        },
+        {
+          "name": "text_l",
+          "type": "STRING",
+          "link": 524,
+          "widget": {
+            "name": "text_l"
+          }
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "target_width"
+          }
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "target_height"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            529
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXL"
+      },
+      "widgets_values": [
+        4096,
+        4096,
+        0,
+        0,
+        832,
+        1216,
+        "Golden Ratio, fantasy, neoclassical fine art, photorealistic Portrait, anime, of a beautiful, classy, elegant, and seductive girl, solo, large breasts, earrings, lips, makeup, ring, dynamic action pose,\n\nWith ({Shoulder Length black hair|long black hair|short black hair|short brunette hair|long brunette hair|short blonde hair|long blonde hair|short red hair|long red hair|short auburn hair|long auburn hair|short ash hair|long ash hair|short grey hair|long grey hair|short white hair|long white hair|short Afro-textured Hair|long Afro-textured Hair}:1.8),\n\nWith a sexy, slender, fit body, wearing a ({red|green|blue|violet|indigo|black|white|pink|yellow|gold|grey|Teal|olive green|emerald green|jade green|floral|orange|purple|cobalt blue|cerulean blue|artic blue|silver}:1.5) ({silk brocade|chiffon|georgette|cotton|linen|drapey knit|crepe|velvet|lace}:1.4), ({micro-length|mini-length|knee-length|midi-length|maxi-length|ankle-length|floor-length}:1.7), ({halter|wrap|drop-waist|apron|bodycon|strapless|a-line|babydoll|sun|tunic|princess|ball|slip|peasant|empire|shirt|one-shoulder|off-shoulder|bell}:1.2) dress,\n\n({Thigh-high gladiator boots|gladiator boots|thigh-high boots|wellington boots|bondage boots|doc marten boots|slingback shoes|loafer shoes|cone-heel shoes|d'orsay shoes|ankle-strap shoes|t-strap shoes|jelly shoes|stiletto-heel shoes|kitten-heel shoes|pump shoes|mary-jane shoes}:1.1),\n\nAt night, 8k resolution high detail, cinematic volumetric and foreboding chiaroscuro  preternatural lighting, dark ethereal fantasy, highly detailed, Digital Art, in a synthesis Anime Style of Tony Taka, Yenkoes, Urushihara, Saeki Shun, Yuriko, Mitsumayo, Meiriri Vega, Hatano Konami, George Edward Hurrell, Milton Greene, Gil Elvgren, Alberto Vargas, Art Frahm, Haddon Sundblom, Alfred Leslie Buell, Rolf Armstrong, Frederick Mellinger, William-Adolphe Bouguereau, Madame Le Brun, Raphael, Leonardo Da Vinci, Peter Paul Rubens, Michelangelo, Thomas Kincade, Albert Bierstadt, August Wilhelm Lue, Hudson River School, Boris Vallejo, Selina Fenech, Anne Stokes, Nene Thomas, Huang Guangjian, Leo Chuang, Sakimichan, Tsunako, George Edward Hurrell, Albert Witzel, Clarence Bull, Ruth Harriet Louise, Milton Greene, Cecil Beaton,",
+        "Golden Ratio, fantasy, neoclassical fine art, photorealistic Portrait, anime, of a beautiful, classy, elegant, and seductive girl, solo, large breasts, earrings, lips, makeup, ring, dynamic action pose,\n\nWith ({Shoulder Length black hair|long black hair|short black hair|short brunette hair|long brunette hair|short blonde hair|long blonde hair|short red hair|long red hair|short auburn hair|long auburn hair|short ash hair|long ash hair|short grey hair|long grey hair|short white hair|long white hair|short Afro-textured Hair|long Afro-textured Hair}:1.8),\n\nWith a sexy, slender, fit body, wearing a ({red|green|blue|violet|indigo|black|white|pink|yellow|gold|grey|Teal|olive green|emerald green|jade green|floral|orange|purple|cobalt blue|cerulean blue|artic blue|silver}:1.5) ({silk brocade|chiffon|georgette|cotton|linen|drapey knit|crepe|velvet|lace}:1.4), ({micro-length|mini-length|knee-length|midi-length|maxi-length|ankle-length|floor-length}:1.7), ({halter|wrap|drop-waist|apron|bodycon|strapless|a-line|babydoll|sun|tunic|princess|ball|slip|peasant|empire|shirt|one-shoulder|off-shoulder|bell}:1.2) dress,\n\n({Thigh-high gladiator boots|gladiator boots|thigh-high boots|wellington boots|bondage boots|doc marten boots|slingback shoes|loafer shoes|cone-heel shoes|d'orsay shoes|ankle-strap shoes|t-strap shoes|jelly shoes|stiletto-heel shoes|kitten-heel shoes|pump shoes|mary-jane shoes}:1.1),\n\nAt night, 8k resolution high detail, cinematic volumetric and foreboding chiaroscuro  preternatural lighting, dark ethereal fantasy, highly detailed, Digital Art, in a synthesis Anime Style of Tony Taka, Yenkoes, Urushihara, Saeki Shun, Yuriko, Mitsumayo, Meiriri Vega, Hatano Konami, George Edward Hurrell, Milton Greene, Gil Elvgren, Alberto Vargas, Art Frahm, Haddon Sundblom, Alfred Leslie Buell, Rolf Armstrong, Frederick Mellinger, William-Adolphe Bouguereau, Madame Le Brun, Raphael, Leonardo Da Vinci, Peter Paul Rubens, Michelangelo, Thomas Kincade, Albert Bierstadt, August Wilhelm Lue, Hudson River School, Boris Vallejo, Selina Fenech, Anne Stokes, Nene Thomas, Huang Guangjian, Leo Chuang, Sakimichan, Tsunako, George Edward Hurrell, Albert Witzel, Clarence Bull, Ruth Harriet Louise, Milton Greene, Cecil Beaton,"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 175,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        919.2134619347017,
+        1531.5595651442907
+      ],
+      "size": {
+        "0": 315,
+        "1": 98
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 10,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            528
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            522,
+            525
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "sd_xl_base_1.0.safetensors"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 176,
+      "type": "PrimitiveNode",
+      "pos": [
+        1284.2134619347014,
+        1111.2770639235878
+      ],
+      "size": {
+        "0": 310.94281005859375,
+        "1": 185.1824951171875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 11,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            523,
+            524,
+            532
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text_g"
+          }
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "Golden Ratio, fantasy, neoclassical fine art, photorealistic Portrait, anime, of a beautiful, classy, elegant, and seductive girl, solo, large breasts, earrings, lips, makeup, ring, dynamic action pose,\n\nWith ({Shoulder Length black hair|long black hair|short black hair|short brunette hair|long brunette hair|short blonde hair|long blonde hair|short red hair|long red hair|short auburn hair|long auburn hair|short ash hair|long ash hair|short grey hair|long grey hair|short white hair|long white hair|short Afro-textured Hair|long Afro-textured Hair}:1.8),\n\nWith a sexy, slender, fit body, wearing a ({red|green|blue|violet|indigo|black|white|pink|yellow|gold|grey|Teal|olive green|emerald green|jade green|floral|orange|purple|cobalt blue|cerulean blue|artic blue|silver}:1.5) ({silk brocade|chiffon|georgette|cotton|linen|drapey knit|crepe|velvet|lace}:1.4), ({micro-length|mini-length|knee-length|midi-length|maxi-length|ankle-length|floor-length}:1.7), ({halter|wrap|drop-waist|apron|bodycon|strapless|a-line|babydoll|sun|tunic|princess|ball|slip|peasant|empire|shirt|one-shoulder|off-shoulder|bell}:1.2) dress,\n\n({Thigh-high gladiator boots|gladiator boots|thigh-high boots|wellington boots|bondage boots|doc marten boots|slingback shoes|loafer shoes|cone-heel shoes|d'orsay shoes|ankle-strap shoes|t-strap shoes|jelly shoes|stiletto-heel shoes|kitten-heel shoes|pump shoes|mary-jane shoes}:1.1),\n\nAt night, 8k resolution high detail, cinematic volumetric and foreboding chiaroscuro  preternatural lighting, dark ethereal fantasy, highly detailed, Digital Art, in a synthesis Anime Style of Tony Taka, Yenkoes, Urushihara, Saeki Shun, Yuriko, Mitsumayo, Meiriri Vega, Hatano Konami, George Edward Hurrell, Milton Greene, Gil Elvgren, Alberto Vargas, Art Frahm, Haddon Sundblom, Alfred Leslie Buell, Rolf Armstrong, Frederick Mellinger, William-Adolphe Bouguereau, Madame Le Brun, Raphael, Leonardo Da Vinci, Peter Paul Rubens, Michelangelo, Thomas Kincade, Albert Bierstadt, August Wilhelm Lue, Hudson River School, Boris Vallejo, Selina Fenech, Anne Stokes, Nene Thomas, Huang Guangjian, Leo Chuang, Sakimichan, Tsunako, George Edward Hurrell, Albert Witzel, Clarence Bull, Ruth Harriet Louise, Milton Greene, Cecil Beaton,"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 177,
+      "type": "PrimitiveNode",
+      "pos": [
+        1284.2134619347014,
+        1428.2770639235875
+      ],
+      "size": {
+        "0": 308.142822265625,
+        "1": 201.28250122070312
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 12,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            526,
+            527,
+            533
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text_g"
+          }
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 178,
+      "type": "CLIPTextEncodeSDXL",
+      "pos": [
+        1618.213461934702,
+        1387.2770639235875
+      ],
+      "size": {
+        "0": 400,
+        "1": 270
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 525
+        },
+        {
+          "name": "text_g",
+          "type": "STRING",
+          "link": 526,
+          "widget": {
+            "name": "text_g"
+          }
+        },
+        {
+          "name": "text_l",
+          "type": "STRING",
+          "link": 527,
+          "widget": {
+            "name": "text_l"
+          }
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "target_width"
+          }
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "target_height"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            530
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXL"
+      },
+      "widgets_values": [
+        4096,
+        4096,
+        0,
+        0,
+        832,
+        1216,
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,",
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 179,
+      "type": "KSamplerAdvanced",
+      "pos": [
+        2069.2134619347016,
+        1114.2770639235878
+      ],
+      "size": {
+        "0": 315,
+        "1": 546
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 528
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 529
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 530
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            531,
+            537
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerAdvanced"
+      },
+      "widgets_values": [
+        "enable",
+        907011725924197,
+        "randomize",
+        35,
+        7.5,
+        "dpmpp_sde_gpu",
+        "exponential",
+        5,
+        10000,
+        "enable"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 180,
+      "type": "VAEDecode",
+      "pos": [
+        2413.2134619347016,
+        671.2770639235879
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 531
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            538
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 181,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        919.2134619347017,
+        1388.2770639235875
+      ],
+      "size": {
+        "0": 315,
+        "1": 98
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 13,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "sd_xl_refiner_1.0.safetensors"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 182,
+      "type": "CLIPTextEncodeSDXLRefiner",
+      "pos": [
+        1618.213461934702,
+        611.2770639235878
+      ],
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 532,
+          "widget": {
+            "name": "text"
+          }
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "height"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            535
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXLRefiner"
+      },
+      "widgets_values": [
+        7.5,
+        832,
+        1216,
+        "Golden Ratio, fantasy, neoclassical fine art, photorealistic Portrait, anime, of a beautiful, classy, elegant, and seductive girl, solo, large breasts, earrings, lips, makeup, ring, dynamic action pose,\n\nWith ({Shoulder Length black hair|long black hair|short black hair|short brunette hair|long brunette hair|short blonde hair|long blonde hair|short red hair|long red hair|short auburn hair|long auburn hair|short ash hair|long ash hair|short grey hair|long grey hair|short white hair|long white hair|short Afro-textured Hair|long Afro-textured Hair}:1.8),\n\nWith a sexy, slender, fit body, wearing a ({red|green|blue|violet|indigo|black|white|pink|yellow|gold|grey|Teal|olive green|emerald green|jade green|floral|orange|purple|cobalt blue|cerulean blue|artic blue|silver}:1.5) ({silk brocade|chiffon|georgette|cotton|linen|drapey knit|crepe|velvet|lace}:1.4), ({micro-length|mini-length|knee-length|midi-length|maxi-length|ankle-length|floor-length}:1.7), ({halter|wrap|drop-waist|apron|bodycon|strapless|a-line|babydoll|sun|tunic|princess|ball|slip|peasant|empire|shirt|one-shoulder|off-shoulder|bell}:1.2) dress,\n\n({Thigh-high gladiator boots|gladiator boots|thigh-high boots|wellington boots|bondage boots|doc marten boots|slingback shoes|loafer shoes|cone-heel shoes|d'orsay shoes|ankle-strap shoes|t-strap shoes|jelly shoes|stiletto-heel shoes|kitten-heel shoes|pump shoes|mary-jane shoes}:1.1),\n\nAt night, 8k resolution high detail, cinematic volumetric and foreboding chiaroscuro  preternatural lighting, dark ethereal fantasy, highly detailed, Digital Art, in a synthesis Anime Style of Tony Taka, Yenkoes, Urushihara, Saeki Shun, Yuriko, Mitsumayo, Meiriri Vega, Hatano Konami, George Edward Hurrell, Milton Greene, Gil Elvgren, Alberto Vargas, Art Frahm, Haddon Sundblom, Alfred Leslie Buell, Rolf Armstrong, Frederick Mellinger, William-Adolphe Bouguereau, Madame Le Brun, Raphael, Leonardo Da Vinci, Peter Paul Rubens, Michelangelo, Thomas Kincade, Albert Bierstadt, August Wilhelm Lue, Hudson River School, Boris Vallejo, Selina Fenech, Anne Stokes, Nene Thomas, Huang Guangjian, Leo Chuang, Sakimichan, Tsunako, George Edward Hurrell, Albert Witzel, Clarence Bull, Ruth Harriet Louise, Milton Greene, Cecil Beaton,"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 183,
+      "type": "CLIPTextEncodeSDXLRefiner",
+      "pos": [
+        1618.213461934702,
+        848.2770639235875
+      ],
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 533,
+          "widget": {
+            "name": "text"
+          }
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "height"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            536
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeSDXLRefiner"
+      },
+      "widgets_values": [
+        1.75,
+        832,
+        1216,
+        "(Blurry), grainy, Polymelia, Hypertelorism, Polydactyly, hyperdactyly, oligodactyly, supernumerary, syndactyly, dysmelia, Arachnodactyly, Anisocoria, Microphthalmia, Ptosis, Marfan, syndrome, Macrocephaly, Microcephaly, Polymastia, trademark, distorted, deformed, shiny skin, noisy image, low detail, low poly, brush strokes, camera, lens, NSFW, nude, naked, Artist signature, Artist monograms, Artist Calling card, Marquee, pixelated, noisy,"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 184,
+      "type": "VAEDecode",
+      "pos": [
+        2996.2134619347057,
+        671.2770639235879
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {
+        "pinned": false
+      },
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 534
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            539,
+            540
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 185,
+      "type": "KSampler",
+      "pos": [
+        2069.2134619347016,
+        608.2770639235878
+      ],
+      "size": {
+        "0": 315,
+        "1": 474.0000305175781
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 535
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 536
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 537
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            534
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "title": "KSampler Refiner",
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        25235484049872,
+        "randomize",
+        35,
+        7.5,
+        "dpmpp_sde_gpu",
+        "exponential",
+        0.33
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 186,
+      "type": "SaveImage",
+      "pos": [
+        2413.2134619347016,
+        761.2770639235878
+      ],
+      "size": {
+        "0": 588.6583251953125,
+        "1": 902.03466796875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 538
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 187,
+      "type": "Image Save",
+      "pos": [
+        3681.2134619347053,
+        761.2770639235878
+      ],
+      "size": {
+        "0": 315,
+        "1": 558
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 539
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Image Save"
+      },
+      "widgets_values": [
+        "E:\\Stable Diffusion Output Images\\ComfyUI SD AI Anime\\[time(%Y-%m-%d)]",
+        "My_Anime_",
+        "_",
+        4,
+        "false",
+        "png",
+        100,
+        "false",
+        "false",
+        "false",
+        "true",
+        "true",
+        "true"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 188,
+      "type": "PreviewImage",
+      "pos": [
+        3018.2134619347057,
+        761.2770639235878
+      ],
+      "size": {
+        "0": 594.28369140625,
+        "1": 900.03466796875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 540
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    }
+  ],
+  "links": [
+    [
+      321,
+      86,
+      1,
+      85,
+      0,
+      "CLIP"
+    ],
+    [
+      322,
+      87,
+      0,
+      85,
+      1,
+      "STRING"
+    ],
+    [
+      324,
+      87,
+      0,
+      85,
+      2,
+      "STRING"
+    ],
+    [
+      325,
+      86,
+      1,
+      89,
+      0,
+      "CLIP"
+    ],
+    [
+      326,
+      88,
+      0,
+      89,
+      1,
+      "STRING"
+    ],
+    [
+      327,
+      88,
+      0,
+      89,
+      2,
+      "STRING"
+    ],
+    [
+      328,
+      85,
+      0,
+      90,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      329,
+      89,
+      0,
+      90,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      334,
+      87,
+      0,
+      95,
+      1,
+      "STRING"
+    ],
+    [
+      335,
+      88,
+      0,
+      96,
+      1,
+      "STRING"
+    ],
+    [
+      344,
+      86,
+      0,
+      90,
+      0,
+      "MODEL"
+    ],
+    [
+      345,
+      90,
+      0,
+      92,
+      0,
+      "LATENT"
+    ],
+    [
+      356,
+      92,
+      0,
+      104,
+      0,
+      "IMAGE"
+    ],
+    [
+      357,
+      106,
+      0,
+      105,
+      1,
+      "STRING"
+    ],
+    [
+      358,
+      106,
+      0,
+      105,
+      2,
+      "STRING"
+    ],
+    [
+      359,
+      107,
+      0,
+      108,
+      1,
+      "STRING"
+    ],
+    [
+      360,
+      107,
+      0,
+      108,
+      2,
+      "STRING"
+    ],
+    [
+      361,
+      111,
+      0,
+      110,
+      0,
+      "IMAGE"
+    ],
+    [
+      362,
+      112,
+      0,
+      111,
+      1,
+      "VAE"
+    ],
+    [
+      363,
+      112,
+      0,
+      110,
+      1,
+      "VAE"
+    ],
+    [
+      364,
+      105,
+      0,
+      113,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      366,
+      108,
+      0,
+      113,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      375,
+      91,
+      0,
+      111,
+      0,
+      "LATENT"
+    ],
+    [
+      376,
+      110,
+      0,
+      113,
+      3,
+      "LATENT"
+    ],
+    [
+      377,
+      112,
+      0,
+      92,
+      1,
+      "VAE"
+    ],
+    [
+      391,
+      128,
+      0,
+      127,
+      1,
+      "STRING"
+    ],
+    [
+      392,
+      128,
+      0,
+      127,
+      2,
+      "STRING"
+    ],
+    [
+      393,
+      129,
+      0,
+      130,
+      1,
+      "STRING"
+    ],
+    [
+      394,
+      129,
+      0,
+      130,
+      2,
+      "STRING"
+    ],
+    [
+      397,
+      127,
+      0,
+      133,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      398,
+      130,
+      0,
+      133,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      402,
+      133,
+      0,
+      135,
+      1,
+      "LATENT"
+    ],
+    [
+      403,
+      113,
+      0,
+      135,
+      0,
+      "LATENT"
+    ],
+    [
+      410,
+      135,
+      0,
+      138,
+      0,
+      "LATENT"
+    ],
+    [
+      411,
+      138,
+      0,
+      137,
+      0,
+      "IMAGE"
+    ],
+    [
+      412,
+      112,
+      0,
+      138,
+      1,
+      "VAE"
+    ],
+    [
+      413,
+      102,
+      0,
+      99,
+      0,
+      "LATENT"
+    ],
+    [
+      415,
+      95,
+      0,
+      102,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      416,
+      96,
+      0,
+      102,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      417,
+      90,
+      0,
+      102,
+      3,
+      "LATENT"
+    ],
+    [
+      418,
+      99,
+      0,
+      139,
+      0,
+      "IMAGE"
+    ],
+    [
+      419,
+      138,
+      0,
+      140,
+      0,
+      "IMAGE"
+    ],
+    [
+      420,
+      99,
+      0,
+      141,
+      0,
+      "IMAGE"
+    ],
+    [
+      421,
+      142,
+      1,
+      130,
+      4,
+      "INT"
+    ],
+    [
+      422,
+      142,
+      0,
+      130,
+      3,
+      "INT"
+    ],
+    [
+      423,
+      142,
+      1,
+      127,
+      4,
+      "INT"
+    ],
+    [
+      424,
+      142,
+      0,
+      127,
+      3,
+      "INT"
+    ],
+    [
+      425,
+      142,
+      1,
+      108,
+      4,
+      "INT"
+    ],
+    [
+      426,
+      142,
+      0,
+      108,
+      3,
+      "INT"
+    ],
+    [
+      427,
+      142,
+      1,
+      105,
+      4,
+      "INT"
+    ],
+    [
+      428,
+      142,
+      0,
+      105,
+      3,
+      "INT"
+    ],
+    [
+      429,
+      142,
+      1,
+      89,
+      4,
+      "INT"
+    ],
+    [
+      430,
+      142,
+      0,
+      89,
+      3,
+      "INT"
+    ],
+    [
+      431,
+      142,
+      1,
+      85,
+      4,
+      "INT"
+    ],
+    [
+      432,
+      142,
+      0,
+      85,
+      3,
+      "INT"
+    ],
+    [
+      433,
+      142,
+      1,
+      96,
+      3,
+      "INT"
+    ],
+    [
+      434,
+      142,
+      0,
+      96,
+      2,
+      "INT"
+    ],
+    [
+      435,
+      142,
+      1,
+      95,
+      3,
+      "INT"
+    ],
+    [
+      436,
+      142,
+      0,
+      95,
+      2,
+      "INT"
+    ],
+    [
+      437,
+      142,
+      0,
+      91,
+      0,
+      "INT"
+    ],
+    [
+      438,
+      142,
+      1,
+      91,
+      1,
+      "INT"
+    ],
+    [
+      439,
+      110,
+      0,
+      133,
+      3,
+      "LATENT"
+    ],
+    [
+      445,
+      112,
+      0,
+      99,
+      1,
+      "VAE"
+    ],
+    [
+      446,
+      94,
+      0,
+      143,
+      0,
+      "MODEL"
+    ],
+    [
+      447,
+      94,
+      1,
+      143,
+      1,
+      "CLIP"
+    ],
+    [
+      448,
+      143,
+      0,
+      113,
+      0,
+      "MODEL"
+    ],
+    [
+      449,
+      143,
+      0,
+      133,
+      0,
+      "MODEL"
+    ],
+    [
+      450,
+      143,
+      1,
+      105,
+      0,
+      "CLIP"
+    ],
+    [
+      451,
+      143,
+      1,
+      108,
+      0,
+      "CLIP"
+    ],
+    [
+      452,
+      143,
+      1,
+      127,
+      0,
+      "CLIP"
+    ],
+    [
+      453,
+      143,
+      1,
+      130,
+      0,
+      "CLIP"
+    ],
+    [
+      455,
+      143,
+      1,
+      96,
+      0,
+      "CLIP"
+    ],
+    [
+      456,
+      143,
+      1,
+      95,
+      0,
+      "CLIP"
+    ],
+    [
+      458,
+      143,
+      0,
+      102,
+      0,
+      "MODEL"
+    ],
+    [
+      518,
+      135,
+      0,
+      90,
+      3,
+      "LATENT"
+    ],
+    [
+      522,
+      175,
+      1,
+      174,
+      0,
+      "CLIP"
+    ],
+    [
+      523,
+      176,
+      0,
+      174,
+      1,
+      "STRING"
+    ],
+    [
+      524,
+      176,
+      0,
+      174,
+      2,
+      "STRING"
+    ],
+    [
+      525,
+      175,
+      1,
+      178,
+      0,
+      "CLIP"
+    ],
+    [
+      526,
+      177,
+      0,
+      178,
+      1,
+      "STRING"
+    ],
+    [
+      527,
+      177,
+      0,
+      178,
+      2,
+      "STRING"
+    ],
+    [
+      528,
+      175,
+      0,
+      179,
+      0,
+      "MODEL"
+    ],
+    [
+      529,
+      174,
+      0,
+      179,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      530,
+      178,
+      0,
+      179,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      531,
+      179,
+      0,
+      180,
+      0,
+      "LATENT"
+    ],
+    [
+      532,
+      176,
+      0,
+      182,
+      1,
+      "STRING"
+    ],
+    [
+      533,
+      177,
+      0,
+      183,
+      1,
+      "STRING"
+    ],
+    [
+      534,
+      185,
+      0,
+      184,
+      0,
+      "LATENT"
+    ],
+    [
+      535,
+      182,
+      0,
+      185,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      536,
+      183,
+      0,
+      185,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      537,
+      179,
+      0,
+      185,
+      3,
+      "LATENT"
+    ],
+    [
+      538,
+      180,
+      0,
+      186,
+      0,
+      "IMAGE"
+    ],
+    [
+      539,
+      184,
+      0,
+      187,
+      0,
+      "IMAGE"
+    ],
+    [
+      540,
+      184,
+      0,
+      188,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "Basic  plus Refiner workflow",
+      "bounding": [
+        465,
+        -781,
+        3132,
+        1153
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "locked": false
+    },
+    {
+      "title": "Latent Illumination Conditioning",
+      "bounding": [
+        475,
+        409,
+        2309,
+        1218
+      ],
+      "color": "#b58b2a",
+      "font_size": 24,
+      "locked": false
+    }
+  ],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

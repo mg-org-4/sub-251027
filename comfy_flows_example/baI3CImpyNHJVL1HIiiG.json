@@ -1,0 +1,509 @@
+{
+  "last_node_id": 134,
+  "last_link_id": 196,
+  "nodes": [
+    {
+      "id": 81,
+      "type": "BizyAir_MinusZoneChatGLM3TextEncode",
+      "pos": {
+        "0": 1075,
+        "1": 1634
+      },
+      "size": {
+        "0": 379.9140319824219,
+        "1": 76
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 173,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BIZYAIR_CONDITIONING",
+          "type": "BIZYAIR_CONDITIONING",
+          "links": [
+            154
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MinusZoneChatGLM3TextEncode"
+      },
+      "widgets_values": [
+        "nsfw，脸部阴影，低分辨率，jpeg伪影、模糊、糟糕，黑脸，霓虹灯"
+      ]
+    },
+    {
+      "id": 80,
+      "type": "BizyAir_MinusZoneChatGLM3TextEncode",
+      "pos": {
+        "0": 1078,
+        "1": 1467
+      },
+      "size": {
+        "0": 389.34320068359375,
+        "1": 76
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 172,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BIZYAIR_CONDITIONING",
+          "type": "BIZYAIR_CONDITIONING",
+          "links": [
+            152
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MinusZoneChatGLM3TextEncode"
+      },
+      "widgets_values": [
+        "真实的照片,20岁女生,红色外套,城市夜景"
+      ]
+    },
+    {
+      "id": 76,
+      "type": "BizyAir_VAEDecode",
+      "pos": {
+        "0": 1556,
+        "1": 1636
+      },
+      "size": {
+        "0": 365.06793212890625,
+        "1": 46
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 159
+        },
+        {
+          "name": "vae",
+          "type": "BIZYAIR_VAE",
+          "link": 129
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            145
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 70,
+      "type": "BizyAir_MZ_KolorsUNETLoaderV2",
+      "pos": {
+        "0": 1094,
+        "1": 1136
+      },
+      "size": {
+        "0": 398.9453430175781,
+        "1": 58
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "BIZYAIR_MODEL",
+          "links": [
+            163
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MZ_KolorsUNETLoaderV2"
+      },
+      "widgets_values": [
+        "kolors/Kolors.safetensors"
+      ]
+    },
+    {
+      "id": 75,
+      "type": "BizyAir_VAELoader",
+      "pos": {
+        "0": 1054,
+        "1": 1783
+      },
+      "size": {
+        "0": 374.62469482421875,
+        "1": 58
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "vae",
+          "type": "BIZYAIR_VAE",
+          "links": [
+            129
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_VAELoader"
+      },
+      "widgets_values": [
+        "sdxl/sdxl_vae.safetensors"
+      ]
+    },
+    {
+      "id": 85,
+      "type": "EmptyLatentImage",
+      "pos": {
+        "0": 1112,
+        "1": 1280
+      },
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            144
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1080,
+        1920,
+        4
+      ]
+    },
+    {
+      "id": 73,
+      "type": "BizyAir_KSampler",
+      "pos": {
+        "0": 1614,
+        "1": 1173
+      },
+      "size": {
+        "0": 315,
+        "1": 262
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "BIZYAIR_MODEL",
+          "link": 163
+        },
+        {
+          "name": "positive",
+          "type": "BIZYAIR_CONDITIONING",
+          "link": 152
+        },
+        {
+          "name": "negative",
+          "type": "BIZYAIR_CONDITIONING",
+          "link": 154
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 144,
+          "slot_index": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            159
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_KSampler"
+      },
+      "widgets_values": [
+        114513,
+        "fixed",
+        22,
+        4.6000000000000005,
+        "dpmpp_sde_gpu",
+        "karras",
+        1
+      ]
+    },
+    {
+      "id": 86,
+      "type": "PreviewImage",
+      "pos": {
+        "0": 247,
+        "1": 245
+      },
+      "size": {
+        "0": 1627.340087890625,
+        "1": 723.9328002929688
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 145
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 92,
+      "type": "BizyAirSiliconCloudLLMAPI",
+      "pos": {
+        "0": 207,
+        "1": 1097
+      },
+      "size": {
+        "0": 508.814208984375,
+        "1": 374.79425048828125
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            196
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "【固定】☁️BizyAir SiliconCloud LLM API",
+      "properties": {
+        "Node name for S&R": "BizyAirSiliconCloudLLMAPI"
+      },
+      "widgets_values": [
+        "Qwen2 72B Instruct",
+        "你是一个 stable diffusion prompt 专家，为我生成适用于 Stable Diffusion 模型的prompt。\n我给你相关的词汇描述、句子描述，你帮我扩写为适合 Stable Diffusion 文生图的 prompt。要求：\n1. 英文输出,输出尽可能多和详细的描述\n2. 除了 prompt 外，不要输出任何其它的信息\n",
+        "**在一片宁静的湖泊旁，晨雾轻轻笼罩着水面，湖水如镜子般倒映出周围的山峦与树木。**偶尔，一只白天鹅优雅地划过水面，留下细微的涟漪，打破了湖面的宁静。岸边，柳树垂下柔软的枝条，微风拂过，带来丝丝凉意，空气中弥漫着清新的气息，令人感受到无比的宁静与安详，仿佛时间在这一刻静止。16:9 横屏 高分辨率 4K 宁静 安详",
+        1024,
+        1,
+        "\"A tranquil lakeside scene in the early morning, with a soft veil of mist gently hugging the serene surface of the lake, acting as a mirror reflecting the surrounding mountains and lush trees. Occasionally, a graceful swan glides across the water, creating delicate ripples that momentarily break the stillness of the scene. On the banks, willow trees with their supple branches drape over the water, swaying gently in the breeze, which carries a cool touch and fills the air with a refreshing aroma, evoking a profound sense of peace and serenity as if time itself has paused. Rendered in an ultra-wide 16:9 aspect ratio, this high-resolution 4K image captures every detail of this idyllic setting with stunning clarity, inviting the viewer to step into the scene and experience the calmness firsthand.\""
+      ]
+    },
+    {
+      "id": 115,
+      "type": "BizyAirSiliconCloudLLMAPI",
+      "pos": {
+        "0": 232,
+        "1": 1561
+      },
+      "size": {
+        "0": 520.4033813476562,
+        "1": 351.1521911621094
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "user_prompt",
+          "type": "STRING",
+          "link": 196,
+          "widget": {
+            "name": "user_prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            172,
+            173
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "【润色】☁️BizyAir SiliconCloud LLM API",
+      "properties": {
+        "Node name for S&R": "BizyAirSiliconCloudLLMAPI"
+      },
+      "widgets_values": [
+        "Qwen2 72B Instruct",
+        "Please refine the following Stable Diffusion prompt by enhancing its descriptive clarity and visual richness. Focus on adding vivid, sensory details that will guide the model to produce a more visually striking and immersive image. Include specific descriptions of lighting, color palettes, textures, and compositional elements, as well as any relevant emotions or atmosphere. Ensure that the enhanced prompt remains concise yet highly evocative, effectively optimizing the model's capacity to generate detailed, high-quality artwork. Maintain the core concept while improving its creative and visual depth",
+        "雪山、太阳、树木",
+        1024,
+        1,
+        "\"Dawn's tender light blankets a secluded lakeside in a gentle embrace, where the smooth surface of the lake glistens under the soft, ethereal glow, a serene mirror reflecting a diorama of emerald mountains and verdant, lush trees. The color palette is a sublime blend of cool blues, verdant greens, and soft, radiant golds that accentuate the tranquility of the surroundings. The ambient lighting is diffused by a hazy curtain of morning mist that clings lovingly to the water, adding depth and texture to the landscape.\n\nAs the air breathes life into the landscape, a solitary swan, white as the freshly fallen snow, makes its regal entrance, slicing through the tranquil waters with a quiet grace, leaving in its wake a pattern of delicate, shimmering ripples. The rhythmic lapping of the water against the shore creates a natural melody, harmonizing with the whisper of the gentle breeze. This same breeze carries a crisp, clean scent, permeating the air with the invigorating aroma of wet earth, evoking a sense of serenity that resonates deeply within.\n\nOn the banks, willow trees stand as silent sentinels, their supple, sinewy branches reaching out like arms in a gentle caress over the water. The textured bark, mottled in shades of earthy browns, contrasts beautifully with the vibrant leaves that sway gently to the rhythm of the wind, adding movement and life to the composition. The scene is rendered in ultra-wide 16:9 aspect ratio, capturing the panoramic grandeur of this idyllic setting with a high-resolution 4K quality that brings every detail into sharp, vivid focus.\n\nThis image invites the viewer not just to see, but to feel the cool touch of the morning air, to hear the rustling leaves, to breathe in the fresh, invigorating scent, and to step into this serene world, a timeless, tranquil haven where the worries of the day melt away, leaving only a profound sense of peace and tranquility.\""
+      ]
+    }
+  ],
+  "links": [
+    [
+      129,
+      75,
+      0,
+      76,
+      1,
+      "BIZYAIR_VAE"
+    ],
+    [
+      144,
+      85,
+      0,
+      73,
+      3,
+      "LATENT"
+    ],
+    [
+      145,
+      76,
+      0,
+      86,
+      0,
+      "IMAGE"
+    ],
+    [
+      152,
+      80,
+      0,
+      73,
+      1,
+      "BIZYAIR_CONDITIONING"
+    ],
+    [
+      154,
+      81,
+      0,
+      73,
+      2,
+      "BIZYAIR_CONDITIONING"
+    ],
+    [
+      159,
+      73,
+      0,
+      76,
+      0,
+      "LATENT"
+    ],
+    [
+      163,
+      70,
+      0,
+      73,
+      0,
+      "BIZYAIR_MODEL"
+    ],
+    [
+      172,
+      115,
+      0,
+      80,
+      0,
+      "STRING"
+    ],
+    [
+      173,
+      115,
+      0,
+      81,
+      0,
+      "STRING"
+    ],
+    [
+      196,
+      92,
+      0,
+      115,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5131581182307067,
+      "offset": [
+        2365.8620193676998,
+        55.78724758731492
+      ]
+    },
+    "workspace_info": {
+      "id": "ckS1tBu-IMHBxD8SZ6K-k",
+      "saveLock": false,
+      "cloudID": null,
+      "coverMediaPath": null
+    }
+  },
+  "version": 0.4
+}

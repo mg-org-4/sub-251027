@@ -1,0 +1,1562 @@
+{
+  "last_node_id": 48,
+  "last_link_id": 63,
+  "nodes": [
+    {
+      "id": 27,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -565.8385361913713,
+        189.2024096996934
+      ],
+      "size": {
+        "0": 315,
+        "1": 98
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            48
+          ],
+          "shape": 3,
+          "label": "模型"
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            49
+          ],
+          "shape": 3,
+          "label": "CLIP"
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null,
+          "shape": 3,
+          "label": "VAE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "pony\\ponyDiffusionV6XL_v6StartWithThisOne.safetensors"
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 35,
+      "type": "VAELoader",
+      "pos": [
+        -565.8385361913713,
+        529.2024096996936
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            43
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "sdxl_vae.safetensors"
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 36,
+      "type": "LoraLoader",
+      "pos": [
+        -204.83853619137085,
+        180.20240969969342
+      ],
+      "size": {
+        "0": 315,
+        "1": 126
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 48,
+          "label": "模型"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 49,
+          "label": "CLIP"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            50
+          ],
+          "shape": 3,
+          "label": "模型",
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            51
+          ],
+          "shape": 3,
+          "label": "CLIP",
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoader",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "pony\\Expressive_H-000001.safetensors",
+        0.8,
+        0.8
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 37,
+      "type": "LoraLoader",
+      "pos": [
+        129.1614638086291,
+        178.20240969969345
+      ],
+      "size": {
+        "0": 315,
+        "1": 126
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 50,
+          "label": "模型"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 51,
+          "label": "CLIP"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            52
+          ],
+          "shape": 3,
+          "label": "模型",
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            53
+          ],
+          "shape": 3,
+          "label": "CLIP",
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoader",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "pony\\Concept Art Twilight Style SDXL_LoRA_Pony Diffusion V6 XL.safetensors",
+        1,
+        1
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 33,
+      "type": "EmptyLatentImage",
+      "pos": [
+        -559.8385361913713,
+        353.20240969969336
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            44
+          ],
+          "shape": 3,
+          "label": "Latent"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        832,
+        1216,
+        4
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 28,
+      "type": "CLIPSetLastLayer",
+      "pos": [
+        469.1614638086292,
+        178.20240969969345
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 53,
+          "label": "CLIP"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            26,
+            27
+          ],
+          "shape": 3,
+          "label": "CLIP"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPSetLastLayer",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        -2
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 31,
+      "type": "smZ Settings",
+      "pos": [
+        448.1614638086292,
+        338.20240969969336
+      ],
+      "size": [
+        400,
+        529.4000244140625
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "*",
+          "type": "MODEL",
+          "link": 52,
+          "label": "*"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            35
+          ],
+          "shape": 3,
+          "label": "*"
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "Node name for S&R": "smZ Settings",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "{\"show_headings\":true,\"show_descriptions\":false,\"mode\":\"*\"}",
+        "Stable Diffusion",
+        "",
+        20,
+        true,
+        "",
+        "gpu",
+        "Compute Settings",
+        "",
+        true,
+        "Sampler parameters",
+        "",
+        1,
+        "",
+        0,
+        "",
+        0,
+        "",
+        0,
+        "",
+        1,
+        "",
+        0,
+        "",
+        false,
+        "",
+        true,
+        "Optimizations",
+        "",
+        0,
+        "",
+        false,
+        "",
+        true,
+        "Compatibility",
+        "",
+        true,
+        "Experimental",
+        "",
+        false,
+        "",
+        false
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 30,
+      "type": "smZ CLIPTextEncode",
+      "pos": [
+        854.1614638086287,
+        428.2024096996934
+      ],
+      "size": [
+        400,
+        220
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 27,
+          "label": "clip"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            40
+          ],
+          "shape": 3,
+          "label": "CONDITIONING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "smZ CLIPTextEncode",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "score_4, score_5, score_6, censored, lowres, low detail, big boobs, large boobs, blurry, watercolor, old, thick thighs, muscular female,  bad anatomy, bad proportions, deformed, deformed anatomy, deformed fingers, deformed faces, blurry faces, undefined, combined bodies, transgender, giant dicks, penis fingers, two heads, penis detached from body, floating dick, floating cock, conjoined twins, headless. head without body\n(Green skin), tan lines, jewelry, pointy ears, (anorexic), (bony), pillow",
+        "A1111",
+        true,
+        true,
+        false,
+        false,
+        6,
+        1024,
+        1024,
+        0,
+        0,
+        1024,
+        1024,
+        "",
+        "",
+        1
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 10,
+      "type": "KSampler",
+      "pos": [
+        1332,
+        160
+      ],
+      "size": {
+        "0": 315,
+        "1": 262
+      },
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 35,
+          "label": "模型"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 39,
+          "label": "正面条件"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 40,
+          "label": "负面条件"
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 44,
+          "label": "Latent"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            14
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "Latent"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        830612559003451,
+        "randomize",
+        30,
+        7.5,
+        "dpm_2_ancestral",
+        "karras",
+        1
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 5,
+      "type": "LoadT5Model|fofo",
+      "pos": [
+        517,
+        -246
+      ],
+      "size": {
+        "0": 342.5999755859375,
+        "1": 82
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "quantizationConfig",
+          "type": "QUANTIZATIONCONFIG",
+          "link": null,
+          "label": "quantizationConfig"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "T5_MODEL",
+          "type": "T5_MODEL",
+          "links": [
+            5
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "T5_MODEL"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadT5Model|fofo",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "roborovski/superprompt-v1",
+        "cpu"
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 18,
+      "type": "LoadImageRewardScoreModel|fofo",
+      "pos": [
+        1744,
+        -209
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGEREWARD_MODEL",
+          "type": "IMAGEREWARD_MODEL",
+          "links": [
+            19
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "IMAGEREWARD_MODEL"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImageRewardScoreModel|fofo",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "cuda"
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 19,
+      "type": "ImageRewardScore|fofo",
+      "pos": [
+        1764,
+        -97
+      ],
+      "size": {
+        "0": 442.962646484375,
+        "1": 181.89041137695312
+      },
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "IMAGEREWARD_MODEL",
+          "link": 19,
+          "label": "model"
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 24,
+          "label": "images"
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 20,
+          "widget": {
+            "name": "prompt"
+          },
+          "slot_index": 2,
+          "label": "prompt"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGES",
+          "type": "IMAGE",
+          "links": [
+            22
+          ],
+          "shape": 6,
+          "slot_index": 0,
+          "label": "IMAGES"
+        },
+        {
+          "name": "SCORES_STR",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "label": "SCORES_STR"
+        },
+        {
+          "name": "SCORES_INT",
+          "type": "INT",
+          "links": null,
+          "shape": 6,
+          "label": "SCORES_INT"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageRewardScore|fofo",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "",
+        1
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 14,
+      "type": "VAEDecode",
+      "pos": [
+        1773,
+        155
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 14,
+          "label": "Latent"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 43,
+          "slot_index": 1,
+          "label": "VAE"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            16,
+            23,
+            45,
+            46,
+            47
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "color": "#422342"
+    },
+    {
+      "id": 21,
+      "type": "ImageBatchToList|fofo",
+      "pos": [
+        2032,
+        163
+      ],
+      "size": {
+        "0": 241.79998779296875,
+        "1": 86
+      },
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_batch1",
+          "type": "IMAGE",
+          "link": 23,
+          "label": "image_batch1"
+        },
+        {
+          "name": "image_batch2",
+          "type": "IMAGE",
+          "link": 45,
+          "label": "image_batch2"
+        },
+        {
+          "name": "image_batch3",
+          "type": "IMAGE",
+          "link": 46,
+          "label": "image_batch3"
+        },
+        {
+          "name": "image_batch4",
+          "type": "IMAGE",
+          "link": 47,
+          "label": "image_batch4"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGES",
+          "type": "IMAGE",
+          "links": [
+            24
+          ],
+          "shape": 6,
+          "slot_index": 0,
+          "label": "IMAGES"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageBatchToList|fofo",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "color": "#422342"
+    },
+    {
+      "id": 16,
+      "type": "PreviewImage",
+      "pos": [
+        1720,
+        305
+      ],
+      "size": [
+        596.7633865763678,
+        666.7273139186764
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 16,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "color": "#422342"
+    },
+    {
+      "id": 20,
+      "type": "PreviewImage",
+      "pos": [
+        2360,
+        145
+      ],
+      "size": {
+        "0": 725.0601806640625,
+        "1": 816.694091796875
+      },
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 22,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "color": "#422342"
+    },
+    {
+      "id": 6,
+      "type": "ShowText|fofo",
+      "pos": [
+        1363,
+        -543
+      ],
+      "size": {
+        "0": 364,
+        "1": 242
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 6,
+          "widget": {
+            "name": "text"
+          },
+          "label": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            20,
+            58
+          ],
+          "shape": 6,
+          "slot_index": 0,
+          "label": "STRING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|fofo",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "",
+        "A woman with long, curly breasts stands in the middle of a brightly lit swimsuit, her arms outstretched as she prepares to take a deep breath. She wears a sleek black swimsuit and a pair of sunglasses, her eyes fixed on the water ahead. The sun is setting behind her, casting a warm orange glow on her skin. The woman's face is contorted in concentration as she takes a deep breath, her body rippling with excitement."
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 29,
+      "type": "smZ CLIPTextEncode",
+      "pos": [
+        849.1614638086287,
+        170.20240969969345
+      ],
+      "size": [
+        400,
+        220
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 26,
+          "label": "clip"
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 59,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            39
+          ],
+          "shape": 3,
+          "label": "CONDITIONING",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "smZ CLIPTextEncode",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "",
+        "A1111",
+        true,
+        true,
+        false,
+        false,
+        6,
+        1024,
+        1024,
+        0,
+        0,
+        1024,
+        1024,
+        "",
+        "",
+        1
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 45,
+      "type": "ShowText|pysssss",
+      "pos": [
+        1804,
+        -517
+      ],
+      "size": [
+        525.0021712298976,
+        187.1923169612408
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 60,
+          "widget": {
+            "name": "text"
+          },
+          "label": "文本"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "label": "字符串"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "",
+        "score_9, score_8_up, score_7_up, A woman with long, curly breasts stands in the middle of a brightly lit swimsuit, her arms outstretched as she prepares to take a deep breath. She wears a sleek black swimsuit and a pair of sunglasses, her eyes fixed on the water ahead. The sun is setting behind her, casting a warm orange glow on her skin. The woman's face is contorted in concentration as she takes a deep breath, her body rippling with excitement."
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 44,
+      "type": "StringFunction|pysssss",
+      "pos": [
+        1334,
+        -245
+      ],
+      "size": [
+        400,
+        244.00001430511475
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text_b",
+          "type": "STRING",
+          "link": 58,
+          "widget": {
+            "name": "text_b"
+          },
+          "label": "文本_B"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            59,
+            60
+          ],
+          "shape": 3,
+          "label": "字符串",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringFunction|pysssss",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "append",
+        "yes",
+        "score_9, score_8_up, score_7_up, ",
+        "",
+        "",
+        "score_9, score_8_up, score_7_up, A woman with long, curly breasts stands in the middle of a brightly lit swimsuit, her arms outstretched as she prepares to take a deep breath. She wears a sleek black swimsuit and a pair of sunglasses, her eyes fixed on the water ahead. The sun is setting behind her, casting a warm orange glow on her skin. The woman's face is contorted in concentration as she takes a deep breath, her body rippling with excitement."
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 7,
+      "type": "T5Text2Prompt|fofo",
+      "pos": [
+        907,
+        -246
+      ],
+      "size": [
+        400.88470458984375,
+        320.3781433105469
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "T5_MODEL",
+          "link": 5,
+          "label": "model"
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 63,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "string",
+          "type": "STRING",
+          "links": [
+            6
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "string"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "T5Text2Prompt|fofo",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "Expand the following prompt to add more detail: A woman, mature and sexy, with very large breasts, wearing a competitive swimsuit",
+        1364,
+        "fixed",
+        256,
+        1,
+        0.9,
+        50,
+        1.2
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 47,
+      "type": "StringFunction|pysssss",
+      "pos": [
+        936,
+        -563
+      ],
+      "size": {
+        "0": 400,
+        "1": 244.00001525878906
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text_b",
+          "type": "STRING",
+          "link": 61,
+          "widget": {
+            "name": "text_b"
+          },
+          "label": "文本_B"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            63
+          ],
+          "shape": 3,
+          "label": "字符串",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringFunction|pysssss",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "append",
+        "yes",
+        "Expand the following prompt to add more detail: ",
+        "",
+        "",
+        "Expand the following prompt to add more detail:, A woman, very big breasts, in a competitive swimsuit."
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 46,
+      "type": "ArgosTranslateTextNode",
+      "pos": [
+        502,
+        -567
+      ],
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [
+            61
+          ],
+          "shape": 3,
+          "label": "文本",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ArgosTranslateTextNode",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "zh",
+        "en",
+        "一个女人，非常大的乳房，穿竞技泳衣"
+      ],
+      "color": "#422342"
+    },
+    {
+      "id": 48,
+      "type": "StringFunction|pysssss",
+      "pos": [
+        1581.9134115796774,
+        -884.195967948536
+      ],
+      "size": {
+        "0": 400,
+        "1": 244.00001525878906
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text_b",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "text_b"
+          },
+          "label": "文本_B"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [],
+          "shape": 3,
+          "label": "字符串",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringFunction|pysssss",
+        "ttNbgOverride": {
+          "color": "#422342",
+          "groupcolor": "#a1309b"
+        }
+      },
+      "widgets_values": [
+        "append",
+        "yes",
+        "score_9, score_8_up, score_7_up, ",
+        "",
+        ""
+      ],
+      "color": "#422342"
+    }
+  ],
+  "links": [
+    [
+      5,
+      5,
+      0,
+      7,
+      0,
+      "T5_MODEL"
+    ],
+    [
+      6,
+      7,
+      0,
+      6,
+      0,
+      "STRING"
+    ],
+    [
+      14,
+      10,
+      0,
+      14,
+      0,
+      "LATENT"
+    ],
+    [
+      16,
+      14,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      19,
+      18,
+      0,
+      19,
+      0,
+      "IMAGEREWARD_MODEL"
+    ],
+    [
+      20,
+      6,
+      0,
+      19,
+      2,
+      "STRING"
+    ],
+    [
+      22,
+      19,
+      0,
+      20,
+      0,
+      "IMAGE"
+    ],
+    [
+      23,
+      14,
+      0,
+      21,
+      0,
+      "IMAGE"
+    ],
+    [
+      24,
+      21,
+      0,
+      19,
+      1,
+      "IMAGE"
+    ],
+    [
+      26,
+      28,
+      0,
+      29,
+      0,
+      "CLIP"
+    ],
+    [
+      27,
+      28,
+      0,
+      30,
+      0,
+      "CLIP"
+    ],
+    [
+      35,
+      31,
+      0,
+      10,
+      0,
+      "MODEL"
+    ],
+    [
+      39,
+      29,
+      0,
+      10,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      40,
+      30,
+      0,
+      10,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      43,
+      35,
+      0,
+      14,
+      1,
+      "VAE"
+    ],
+    [
+      44,
+      33,
+      0,
+      10,
+      3,
+      "LATENT"
+    ],
+    [
+      45,
+      14,
+      0,
+      21,
+      1,
+      "IMAGE"
+    ],
+    [
+      46,
+      14,
+      0,
+      21,
+      2,
+      "IMAGE"
+    ],
+    [
+      47,
+      14,
+      0,
+      21,
+      3,
+      "IMAGE"
+    ],
+    [
+      48,
+      27,
+      0,
+      36,
+      0,
+      "MODEL"
+    ],
+    [
+      49,
+      27,
+      1,
+      36,
+      1,
+      "CLIP"
+    ],
+    [
+      50,
+      36,
+      0,
+      37,
+      0,
+      "MODEL"
+    ],
+    [
+      51,
+      36,
+      1,
+      37,
+      1,
+      "CLIP"
+    ],
+    [
+      52,
+      37,
+      0,
+      31,
+      0,
+      "*"
+    ],
+    [
+      53,
+      37,
+      1,
+      28,
+      0,
+      "CLIP"
+    ],
+    [
+      58,
+      6,
+      0,
+      44,
+      0,
+      "STRING"
+    ],
+    [
+      59,
+      44,
+      0,
+      29,
+      1,
+      "STRING"
+    ],
+    [
+      60,
+      44,
+      0,
+      45,
+      0,
+      "STRING"
+    ],
+    [
+      61,
+      46,
+      0,
+      47,
+      0,
+      "STRING"
+    ],
+    [
+      63,
+      47,
+      0,
+      7,
+      1,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "pony",
+      "bounding": [
+        -611,
+        103,
+        1872,
+        781
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "locked": false
+    }
+  ],
+  "config": {},
+  "extra": {
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "workspace_info": {
+      "id": "7efa41ef-0750-4246-9f2f-b6c7ee1272f4"
+    }
+  },
+  "version": 0.4
+}

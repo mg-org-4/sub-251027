@@ -1,0 +1,713 @@
+{
+  "id": "af1eaa5b-0b49-4ee2-92f7-e5d22c2d9f7a",
+  "revision": 0,
+  "last_node_id": 23,
+  "last_link_id": 36,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "JanusModelLoader",
+      "pos": [
+        401.90875244140625,
+        151.46929931640625
+      ],
+      "size": [
+        270,
+        78
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "JANUS_MODEL",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "processor",
+          "type": "JANUS_PROCESSOR",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "janus-pro",
+        "ver": "4400129e5c33664ae6e927162a39ba4116f44b8b",
+        "Node name for S&R": "JanusModelLoader"
+      },
+      "widgets_values": [
+        "deepseek-ai/Janus-Pro-1B"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "StringConcatenate",
+      "pos": [
+        1113.4376220703125,
+        153.37643432617188
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "string_a",
+          "type": "STRING",
+          "widget": {
+            "name": "string_a"
+          },
+          "link": 30
+        },
+        {
+          "name": "string_b",
+          "type": "STRING",
+          "widget": {
+            "name": "string_b"
+          },
+          "link": 29
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "Node name for S&R": "StringConcatenate"
+      },
+      "widgets_values": [
+        "",
+        "",
+        ","
+      ]
+    },
+    {
+      "id": 18,
+      "type": "SaveImage",
+      "pos": [
+        2672.36181640625,
+        705.2251586914062
+      ],
+      "size": [
+        930.0593872070312,
+        702.3705444335938
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 28
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 14,
+      "type": "easy showAnything",
+      "pos": [
+        1114.1634521484375,
+        403.0588684082031
+      ],
+      "size": [
+        568.9602661132812,
+        262.7775573730469
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "7ef0612ce7552968146ed41f5863a1638bf33412",
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        "big tits,The image shows a person kneeling on the floor in a bathroom. The person is wearing denim shorts and has red nail polish. They are interacting with another person who is partially visible, with one hand holding the denim shorts open. The bathroom has tiled floors and a bathtub with a showerhead. The image has the text \"BRAZZERS\" in the bottom right corner."
+      ]
+    },
+    {
+      "id": 16,
+      "type": "VAEDecode",
+      "pos": [
+        2407.541015625,
+        636.2172241210938
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 36
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            28
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 15,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        1744.98974609375,
+        406.87213134765625
+      ],
+      "size": [
+        270,
+        98
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            19
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            17,
+            25
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "juggernautXL_ragnarokBy.safetensors"
+      ]
+    },
+    {
+      "id": 19,
+      "type": "EmptyLatentImage",
+      "pos": [
+        2216.421630859375,
+        862.3772583007812
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            23
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        832,
+        1216,
+        1
+      ]
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        2150.741455078125,
+        367.85357666015625
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 17
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 11,
+      "type": "easy positive",
+      "pos": [
+        704.6508178710938,
+        446.42840576171875
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "STRING",
+          "links": [
+            30
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "7ef0612ce7552968146ed41f5863a1638bf33412",
+        "Node name for S&R": "easy positive"
+      },
+      "widgets_values": [
+        "big tits"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 21,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1766.22412109375,
+        800.7935180664062
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 25
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "text, watermark"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "JanusImageUnderstanding",
+      "pos": [
+        693.4104614257812,
+        150.37965393066406
+      ],
+      "size": [
+        400,
+        248
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "JANUS_MODEL",
+          "link": 1
+        },
+        {
+          "name": "processor",
+          "type": "JANUS_PROCESSOR",
+          "link": 2
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [
+            29
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "janus-pro",
+        "ver": "4400129e5c33664ae6e927162a39ba4116f44b8b",
+        "Node name for S&R": "JanusImageUnderstanding"
+      },
+      "widgets_values": [
+        "Describe this image with details, ignore text on images",
+        131984210686256,
+        "randomize",
+        0.1,
+        0.95,
+        512
+      ]
+    },
+    {
+      "id": 17,
+      "type": "KSampler",
+      "pos": [
+        2618.829345703125,
+        188.11862182617188
+      ],
+      "size": [
+        270,
+        262
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 19
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 20
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 24
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 23
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            36
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        602757817678023,
+        "randomize",
+        30,
+        3,
+        "dpmpp_2m_sde",
+        "karras",
+        1
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        401.3638000488281,
+        277.3326110839844
+      ],
+      "size": [
+        270,
+        314
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "10818248_056_0e5c.jpg",
+        "image"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "JANUS_MODEL"
+    ],
+    [
+      2,
+      1,
+      1,
+      3,
+      1,
+      "JANUS_PROCESSOR"
+    ],
+    [
+      4,
+      2,
+      0,
+      3,
+      2,
+      "IMAGE"
+    ],
+    [
+      15,
+      9,
+      0,
+      14,
+      0,
+      "*"
+    ],
+    [
+      16,
+      14,
+      0,
+      7,
+      1,
+      "STRING"
+    ],
+    [
+      17,
+      15,
+      1,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      18,
+      15,
+      2,
+      16,
+      1,
+      "VAE"
+    ],
+    [
+      19,
+      15,
+      0,
+      17,
+      0,
+      "MODEL"
+    ],
+    [
+      20,
+      7,
+      0,
+      17,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      23,
+      19,
+      0,
+      17,
+      3,
+      "LATENT"
+    ],
+    [
+      24,
+      21,
+      0,
+      17,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      25,
+      15,
+      1,
+      21,
+      0,
+      "CLIP"
+    ],
+    [
+      28,
+      16,
+      0,
+      18,
+      0,
+      "IMAGE"
+    ],
+    [
+      29,
+      3,
+      0,
+      9,
+      1,
+      "STRING"
+    ],
+    [
+      30,
+      11,
+      0,
+      9,
+      0,
+      "STRING"
+    ],
+    [
+      36,
+      17,
+      0,
+      16,
+      0,
+      "LATENT"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9416894844316419,
+      "offset": [
+        183.82139282463024,
+        139.50398592383857
+      ]
+    },
+    "frontendVersion": "1.20.6"
+  },
+  "version": 0.4
+}

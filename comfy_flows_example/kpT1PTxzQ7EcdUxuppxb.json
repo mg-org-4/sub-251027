@@ -1,0 +1,1895 @@
+{
+  "last_node_id": 120,
+  "last_link_id": 115,
+  "nodes": [
+    {
+      "id": 54,
+      "type": "UNETLoader",
+      "pos": {
+        "0": 955.1032104492188,
+        "1": 1895.1396484375
+      },
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            97
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "flux1-dev.safetensors",
+        "fp8_e4m3fn"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 56,
+      "type": "DualCLIPLoader",
+      "pos": {
+        "0": 949.1032104492188,
+        "1": 2022.1396484375
+      },
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            98
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DualCLIPLoader"
+      },
+      "widgets_values": [
+        "clip_l.safetensors",
+        "t5xxl_fp16.safetensors",
+        "flux"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 55,
+      "type": "VAELoader",
+      "pos": {
+        "0": 953.1032104492188,
+        "1": 2171.138916015625
+      },
+      "size": {
+        "0": 309.8654479980469,
+        "1": 58
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            107
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "ae.safetensors"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 90,
+      "type": "Anything Everywhere",
+      "pos": {
+        "0": 1100.3345947265625,
+        "1": 2281.733154296875
+      },
+      "size": {
+        "0": 159.60000610351562,
+        "1": 26
+      },
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "VAE",
+          "type": "*",
+          "link": 107,
+          "shape": 7,
+          "color_on": "#FF6E6E"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere",
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 91,
+      "type": "Note",
+      "pos": {
+        "0": 1327.0845947265625,
+        "1": 2196.89990234375
+      },
+      "size": {
+        "0": 372.12640380859375,
+        "1": 110.831787109375
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "ℹ️ I am using FLUX TURBO LORA to generate faster (steps 8 in ksampler).\n\nℹ️ You can also load any additional Lora you would like to stack over your TEST LORA to see how your TEST LORA is behaving with other Loras."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 68,
+      "type": "FluxGuidance",
+      "pos": {
+        "0": 2386.76171875,
+        "1": 2108.9560546875
+      },
+      "size": {
+        "0": 236.93040466308594,
+        "1": 58
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 87
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            73
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FluxGuidance"
+      },
+      "widgets_values": [
+        3.5
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 69,
+      "type": "FluxGuidance",
+      "pos": {
+        "0": 2378,
+        "1": 2342
+      },
+      "size": {
+        "0": 238.93040466308594,
+        "1": 58
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 74
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            75
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FluxGuidance"
+      },
+      "widgets_values": [
+        3.5
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 95,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 967,
+        "1": 1501
+      },
+      "size": {
+        "0": 560.126953125,
+        "1": 180
+      },
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LORA TESTS\n(FLUX)\n",
+      "properties": {
+        "fontSize": 90,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "center",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 96,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 946,
+        "1": 1779
+      },
+      "size": {
+        "0": 282.333984375,
+        "1": 20
+      },
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Step 1 - Select Desired MODEL",
+      "properties": {
+        "fontSize": 20,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "center",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 97,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 1304,
+        "1": 1778
+      },
+      "size": {
+        "0": 250.146484375,
+        "1": 20
+      },
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Step 2 - Load Desired Loras",
+      "properties": {
+        "fontSize": 20,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "center",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 99,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 2673,
+        "1": 1772
+      },
+      "size": {
+        "0": 389.072265625,
+        "1": 20
+      },
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Step 4 - Fixed Seed Helps compare Results",
+      "properties": {
+        "fontSize": 20,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "center",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 100,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 3099,
+        "1": 1774
+      },
+      "size": {
+        "0": 226.73828125,
+        "1": 20
+      },
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 8,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [],
+      "title": "Step 5 - Customize TEST",
+      "properties": {
+        "fontSize": 20,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "center",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 87,
+      "type": "Display Any (rgthree)",
+      "pos": {
+        "0": 2174.900390625,
+        "1": 2720.9140625
+      },
+      "size": {
+        "0": 210,
+        "1": 78.97277069091797
+      },
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 104,
+          "dir": 3
+        }
+      ],
+      "outputs": [],
+      "title": "Width",
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 89,
+      "type": "Display Any (rgthree)",
+      "pos": {
+        "0": 2414.900390625,
+        "1": 2720.9140625
+      },
+      "size": {
+        "0": 210,
+        "1": 78.97277069091797
+      },
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 106,
+          "dir": 3
+        }
+      ],
+      "outputs": [],
+      "title": "Height",
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 104,
+      "type": "Note",
+      "pos": {
+        "0": 1924.900146484375,
+        "1": 2520.9140625
+      },
+      "size": {
+        "0": 222.82005310058594,
+        "1": 296.36871337890625
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Width & Height Are displayed when running queue\n\nSOME REFERENCES:\n\n 1.0 MegaPixel (Use per default)\n\n1:1 1024 x 1024\n3:2 1216 x 832\n4:3 1152 x 896\n16:9 1344 x 768\n21:9 1536 x 640\n\n2.0 MegaPixel (Flux maximum)\n\n1:1 1408 x 1408\n3:2 1728 x 1152\n4:3 1664 x 1216\n16:9 1920 x 1088\n21:9 2176 x 960"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 92,
+      "type": "Note",
+      "pos": {
+        "0": 1726,
+        "1": 2069
+      },
+      "size": {
+        "0": 469.2755432128906,
+        "1": 58
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "ℹ️ This is the LORA you want to test."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 107,
+      "type": "Mute / Bypass Repeater (rgthree)",
+      "pos": {
+        "0": 3399,
+        "1": 3219
+      },
+      "size": {
+        "0": 140,
+        "1": 26
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": [
+            109
+          ],
+          "slot_index": 0,
+          "color_on": "#Fc0",
+          "color_off": "#a80",
+          "dir": 4
+        }
+      ],
+      "title": ".",
+      "properties": {}
+    },
+    {
+      "id": 109,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 3348,
+        "1": 3293
+      },
+      "size": {
+        "0": 41.19140625,
+        "1": 30
+      },
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "➡️",
+      "properties": {
+        "fontSize": 30,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "center",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 103,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 3693,
+        "1": 2640
+      },
+      "size": {
+        "0": 316.845703125,
+        "1": 140
+      },
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Step 6 - When all renders are done,\nclick on OPEN RESULTS\nto see final test results\nin a GRID.\n\nThe Link only appears once Queue\nhas started.\n",
+      "properties": {
+        "fontSize": 20,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "left",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 41,
+      "type": "SaveImage",
+      "pos": {
+        "0": 3665,
+        "1": 1972
+      },
+      "size": {
+        "0": 414.5802001953125,
+        "1": 587.4002685546875
+      },
+      "flags": {},
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 58
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "link": 110,
+          "widget": {
+            "name": "filename_prefix"
+          }
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "lora-test"
+      ]
+    },
+    {
+      "id": 112,
+      "type": "PrimitiveNode",
+      "pos": {
+        "0": 3663,
+        "1": 1878
+      },
+      "size": {
+        "0": 413.797119140625,
+        "1": 58
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            110
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "filename_prefix"
+          }
+        }
+      ],
+      "title": "OUPUT FILENAME: \"folder/filename\"",
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "lora-test"
+      ]
+    },
+    {
+      "id": 70,
+      "type": "FluxResolutionNode",
+      "pos": {
+        "0": 2164.900390625,
+        "1": 2510.9140625
+      },
+      "size": {
+        "0": 462.4295959472656,
+        "1": 170
+      },
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            76,
+            104
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            77,
+            106
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "resolution",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FluxResolutionNode"
+      },
+      "widgets_values": [
+        "2.0",
+        "3:4 (Golden Ratio)",
+        false,
+        ""
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 37,
+      "type": "KSampler (Efficient)",
+      "pos": {
+        "0": 2692,
+        "1": 2197
+      },
+      "size": {
+        "0": 341.8772888183594,
+        "1": 718.4880981445312
+      },
+      "flags": {},
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 79
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 73
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 75
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 78
+        },
+        {
+          "name": "optional_vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "script",
+          "type": "SCRIPT",
+          "link": null,
+          "slot_index": 5,
+          "shape": 7
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "link": 100,
+          "widget": {
+            "name": "seed"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            58,
+            102
+          ],
+          "slot_index": 5,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler (Efficient)"
+      },
+      "widgets_values": [
+        363681892580897,
+        null,
+        8,
+        1,
+        "euler",
+        "beta",
+        1,
+        "auto",
+        "true"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159",
+      "shape": 1
+    },
+    {
+      "id": 84,
+      "type": "ttN seed",
+      "pos": {
+        "0": 2699,
+        "1": 2063
+      },
+      "size": {
+        "0": 326.95135498046875,
+        "1": 82
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "seed",
+          "type": "INT",
+          "links": [
+            100
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ttN seed",
+        "ttNnodeVersion": "1.0.0"
+      },
+      "widgets_values": [
+        855153146577978,
+        "randomize"
+      ]
+    },
+    {
+      "id": 79,
+      "type": "Power Lora Loader (rgthree)",
+      "pos": {
+        "0": 1324.0845947265625,
+        "1": 1905.899658203125
+      },
+      "size": {
+        "0": 374.8597106933594,
+        "1": 244.98330688476562
+      },
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 97,
+          "dir": 3
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 98,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            95
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "dir": 4
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            96
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "dir": 4
+        }
+      ],
+      "title": "Lora Loader",
+      "properties": {
+        "Show Strengths": "Single Strength"
+      },
+      "widgets_values": [
+        null,
+        {
+          "type": "PowerLoraLoaderHeaderWidget"
+        },
+        {
+          "on": true,
+          "lora": "flux1\\flux.1-turbo-alpha.safetensors",
+          "strength": 1,
+          "strengthTwo": null
+        },
+        null,
+        ""
+      ],
+      "shape": 1
+    },
+    {
+      "id": 67,
+      "type": "CLIPTextEncode",
+      "pos": {
+        "0": 2261.76171875,
+        "1": 2213.9560546875
+      },
+      "size": {
+        "0": 357.89410400390625,
+        "1": 81
+      },
+      "flags": {},
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 101
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            74
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Negative Prompt",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "",
+        true
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 83,
+      "type": "GlobalSeed //Inspire",
+      "pos": {
+        "0": 2697,
+        "1": 1884
+      },
+      "size": {
+        "0": 322.6517333984375,
+        "1": 130
+      },
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "GlobalSeed //Inspire"
+      },
+      "widgets_values": [
+        617993393,
+        true,
+        "randomize",
+        3310166730
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 108,
+      "type": "Note",
+      "pos": {
+        "0": 3116,
+        "1": 3229
+      },
+      "size": {
+        "0": 241.0675506591797,
+        "1": 97.99423217773438
+      },
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "ℹ️ Use FAST BYPASSER to disable TEST NODES. This is useful if you just want to generate one image to hunt for a good seed you would like to test."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 98,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 2253,
+        "1": 1777
+      },
+      "size": {
+        "0": 342.40234375,
+        "1": 20
+      },
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Step 3 - Enter Prompt and Output Size",
+      "properties": {
+        "fontSize": 20,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "center",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 101,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 3580,
+        "1": 2643
+      },
+      "size": {
+        "0": 109.84375,
+        "1": 80
+      },
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "⬅️",
+      "properties": {
+        "fontSize": 80,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "center",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 117,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 2356,
+        "1": 2916
+      },
+      "size": {
+        "0": 54.921875,
+        "1": 40
+      },
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 21,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "↗️",
+      "properties": {
+        "fontSize": 40,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "center",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 116,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 2328,
+        "1": 2966
+      },
+      "size": {
+        "0": 348.65234375,
+        "1": 20
+      },
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Step 3-B: enter BATCH SIZE if desired.",
+      "properties": {
+        "fontSize": 20,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "center",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 115,
+      "type": "Note",
+      "pos": {
+        "0": 2330,
+        "1": 3031
+      },
+      "size": {
+        "0": 337.6385498046875,
+        "1": 86.69596862792969
+      },
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "⚠️ raise batch_size if you want to test multiple random seeds (it will re-use the same random seeds for each loras). Make sure to select RANDOMIZE in GLOBAL SEED node at STEP 04."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 64,
+      "type": "LoraLoader",
+      "pos": {
+        "0": 1719.0843505859375,
+        "1": 1897.899658203125
+      },
+      "size": {
+        "0": 484.2884826660156,
+        "1": 127.28087615966797
+      },
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 95
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 96
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            79
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            88,
+            101
+          ],
+          "slot_index": 1
+        }
+      ],
+      "title": "LOAD LORA TO TEST",
+      "properties": {
+        "Node name for S&R": "LoraLoader"
+      },
+      "widgets_values": [
+        "flux-myloras\\fluxdev-biancaai-50pics-000008.safetensors",
+        1,
+        1
+      ]
+    },
+    {
+      "id": 76,
+      "type": "CLIPTextEncode",
+      "pos": {
+        "0": 2262.8125,
+        "1": 1891.8232421875
+      },
+      "size": {
+        "0": 366.7475891113281,
+        "1": 170.53302001953125
+      },
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 88
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            87
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Positive Prompt",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "biancaai a gorgeous fit woman with a small waist with red hair wearing a flimsy summer dress with flower patterns, she natural makeup, she is walking through a field of wheat, with some wheat sticks blurred in the foreground in front of her between the camera and the subject, adding realism to the composition. Photographed at dusk creating a diffused soft light. The low sun is seen near the edge of the composition in the background creating (lens flares:1.3) on the photograph. Specks of dust float around, creating a summer romantic vibe.  Realistic documentary style.",
+        true
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 71,
+      "type": "EmptyLatentImage",
+      "pos": {
+        "0": 2411,
+        "1": 2845
+      },
+      "size": {
+        "0": 210,
+        "1": 91.8969497680664
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 76,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 77,
+          "widget": {
+            "name": "height"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            78
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1280,
+        768,
+        6
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 106,
+      "type": "Fast Bypasser (rgthree)",
+      "pos": {
+        "0": 3397,
+        "1": 3253
+      },
+      "size": {
+        "0": 210,
+        "1": 78
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": ".",
+          "type": "*",
+          "link": 109,
+          "slot_index": 0,
+          "dir": 3,
+          "label": ""
+        },
+        {
+          "name": "",
+          "type": "*",
+          "link": null,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": [],
+          "slot_index": 0,
+          "dir": 4
+        }
+      ],
+      "properties": {
+        "toggleRestriction": "default"
+      },
+      "color": "#a2531f",
+      "bgcolor": "#8e3f0b"
+    },
+    {
+      "id": 94,
+      "type": "Note",
+      "pos": {
+        "0": 3138,
+        "1": 3106
+      },
+      "size": {
+        "0": 435.82647705078125,
+        "1": 73.09314727783203
+      },
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "NODE INPUTS: Note",
+      "properties": {},
+      "widgets_values": [
+        "ℹ️ This is where you can configure any type of inputs to test. \nℹ️ Each INPUT is a reference to a NODE in the workflow. Change inputs if you want to customize different tests."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 78,
+      "type": "SelectInputs //Browser",
+      "pos": {
+        "0": 3136,
+        "1": 2756
+      },
+      "size": {
+        "0": 435.9560241699219,
+        "1": 302.63189697265625
+      },
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "input_1",
+          "type": "INPUT",
+          "links": [
+            93
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "input_2",
+          "type": "INPUT",
+          "links": [
+            94
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "input_3",
+          "type": "INPUT",
+          "links": [],
+          "slot_index": 2
+        },
+        {
+          "name": "input_4",
+          "type": "INPUT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SelectInputs //Browser"
+      },
+      "widgets_values": [
+        "#64::Load LoRA::lora_name",
+        "#64::Load LoRA::strength_model",
+        "#84::seed::seed",
+        "#83::Global Seed (Inspire)::value",
+        "[{\"node_id\":\"64\",\"node_title\":\"Load LoRA\",\"widget_name\":\"lora_name\"},{\"node_id\":\"64\",\"node_title\":\"Load LoRA\",\"widget_name\":\"strength_model\"},{\"node_id\":\"84\",\"node_title\":\"seed\",\"widget_name\":\"seed\"},{\"node_id\":\"83\",\"node_title\":\"Global Seed (Inspire)\",\"widget_name\":\"value\"}]",
+        "",
+        true
+      ]
+    },
+    {
+      "id": 93,
+      "type": "Note",
+      "pos": {
+        "0": 3107,
+        "1": 1886
+      },
+      "size": [
+        502.1697094247229,
+        182.53871398094225
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "XYZ PLOT: Note",
+      "properties": {},
+      "widgets_values": [
+        "1️⃣ INPUT X: enter path and lora names to test.  \n    - The node assumes that root is already comfyui/comfyui/models/loras/\n\n2️⃣ INPUT Y: enter the strenght values to test each Lora, ie: 08; 09; 1.0\n\n3️⃣ INPUT Z (facultative): to test fixed seeds:\n    ON: enter seeds & connect input_3 from \"Select Nodes Input\" to \"XYZ\" input_z\n    OFF: disconnect \"input_z\" to deactivate\n\n⚠️ values must be separated with a \";\": text; text2; text3; etc.\n\n⚠️ output_folder_name: you can customize the output folder of your test"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 77,
+      "type": "XyzPlot //Browser",
+      "pos": {
+        "0": 3117,
+        "1": 2108
+      },
+      "size": [
+        464.9582022070899,
+        583.3460725333643
+      ],
+      "flags": {},
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 102
+        },
+        {
+          "name": "input_x",
+          "type": "INPUT",
+          "link": 93
+        },
+        {
+          "name": "input_y",
+          "type": "INPUT",
+          "link": 94
+        },
+        {
+          "name": "input_z",
+          "type": "INPUT",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "XyzPlot //Browser"
+      },
+      "widgets_values": [
+        "flux-myloras\\fluxdev-biancaai-50pics-000008.safetensors; flux-myloras\\fluxdev-biancaai-50pics-000020.safetensors; flux-myloras\\fluxdev-biancaai-50pics-000024.safetensors\n",
+        "1.0",
+        "3490771935; 147441093; 1588067970; 579167993",
+        "lora-test",
+        true,
+        true,
+        true,
+        ""
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 120,
+      "type": "Label (rgthree)",
+      "pos": {
+        "0": 2103.2783203125,
+        "1": 1759.93603515625
+      },
+      "size": [
+        109.84375,
+        80
+      ],
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 27,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "⬅️",
+      "properties": {
+        "fontSize": 80,
+        "fontFamily": "Arial",
+        "fontColor": "#ffffff",
+        "textAlign": "center",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    }
+  ],
+  "links": [
+    [
+      58,
+      37,
+      5,
+      41,
+      0,
+      "IMAGE"
+    ],
+    [
+      73,
+      68,
+      0,
+      37,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      74,
+      67,
+      0,
+      69,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      75,
+      69,
+      0,
+      37,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      76,
+      70,
+      0,
+      71,
+      0,
+      "INT"
+    ],
+    [
+      77,
+      70,
+      1,
+      71,
+      1,
+      "INT"
+    ],
+    [
+      78,
+      71,
+      0,
+      37,
+      3,
+      "LATENT"
+    ],
+    [
+      79,
+      64,
+      0,
+      37,
+      0,
+      "MODEL"
+    ],
+    [
+      87,
+      76,
+      0,
+      68,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      88,
+      64,
+      1,
+      76,
+      0,
+      "CLIP"
+    ],
+    [
+      93,
+      78,
+      0,
+      77,
+      1,
+      "INPUT"
+    ],
+    [
+      94,
+      78,
+      1,
+      77,
+      2,
+      "INPUT"
+    ],
+    [
+      95,
+      79,
+      0,
+      64,
+      0,
+      "MODEL"
+    ],
+    [
+      96,
+      79,
+      1,
+      64,
+      1,
+      "CLIP"
+    ],
+    [
+      97,
+      54,
+      0,
+      79,
+      0,
+      "MODEL"
+    ],
+    [
+      98,
+      56,
+      0,
+      79,
+      1,
+      "CLIP"
+    ],
+    [
+      100,
+      84,
+      0,
+      37,
+      6,
+      "INT"
+    ],
+    [
+      101,
+      64,
+      1,
+      67,
+      0,
+      "CLIP"
+    ],
+    [
+      102,
+      37,
+      5,
+      77,
+      0,
+      "IMAGE"
+    ],
+    [
+      104,
+      70,
+      0,
+      87,
+      0,
+      "*"
+    ],
+    [
+      106,
+      70,
+      1,
+      89,
+      0,
+      "*"
+    ],
+    [
+      107,
+      55,
+      0,
+      90,
+      0,
+      "VAE"
+    ],
+    [
+      109,
+      107,
+      0,
+      106,
+      0,
+      "*"
+    ],
+    [
+      110,
+      112,
+      0,
+      41,
+      1,
+      "STRING"
+    ],
+    [
+      115,
+      55,
+      0,
+      37,
+      4,
+      "VAE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "SAVE",
+      "bounding": [
+        3644,
+        1810,
+        455,
+        771
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "SAMPLER SPECS",
+      "bounding": [
+        2678,
+        1808,
+        370,
+        1133
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "LOAD LORAS",
+      "bounding": [
+        1300,
+        1817,
+        919,
+        524
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "LOAD MODEL",
+      "bounding": [
+        942,
+        1817,
+        339,
+        519
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "PROMPT",
+      "bounding": [
+        2247,
+        1812,
+        399,
+        600
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "OUTPUT SIZE",
+      "bounding": [
+        1912,
+        2431,
+        730,
+        513
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "CUZTOMIZE TESTS",
+      "bounding": [
+        3094,
+        1812,
+        528,
+        1533
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5989500000000021,
+      "offset": [
+        -918.5504900626788,
+        -1495.096832346721
+      ]
+    }
+  },
+  "version": 0.4
+}

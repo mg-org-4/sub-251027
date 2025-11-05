@@ -1,0 +1,699 @@
+{
+  "last_node_id": 63,
+  "last_link_id": 116,
+  "nodes": [
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": {
+        "0": 1200,
+        "1": 96
+      },
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 53,
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            51,
+            115,
+            116
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": {
+        "0": 1440,
+        "1": 96
+      },
+      "size": {
+        "0": 952.5112915039062,
+        "1": 1007.9328002929688
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 51,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 40,
+      "type": "CLIPTextEncode",
+      "pos": {
+        "0": 384,
+        "1": 336
+      },
+      "size": {
+        "0": 432,
+        "1": 192
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 110
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            80
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "title": "Negative Prompt",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 4,
+      "type": "CheckpointLoaderSimple",
+      "pos": {
+        "0": -710,
+        "1": 157
+      },
+      "size": {
+        "0": 384.75592041015625,
+        "1": 98
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            107
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [],
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            53
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "sd3.5_large.safetensors"
+      ]
+    },
+    {
+      "id": 55,
+      "type": "SDXLEmptyLatentSizePicker+",
+      "pos": {
+        "0": 512,
+        "1": 648
+      },
+      "size": {
+        "0": 340.20001220703125,
+        "1": 170
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            102
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SDXLEmptyLatentSizePicker+"
+      },
+      "widgets_values": [
+        "832x1216 (0.68)",
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 3,
+      "type": "KSampler",
+      "pos": {
+        "0": 864,
+        "1": 96
+      },
+      "size": {
+        "0": 315,
+        "1": 262
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 112,
+          "slot_index": 0
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 21
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 80
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 102
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        972008528905642,
+        "randomize",
+        30,
+        5,
+        "euler",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 41,
+      "type": "CLIPLoader",
+      "pos": {
+        "0": -519,
+        "1": -130
+      },
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            111
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "t5xxl_fp16.safetensors",
+        "sd3"
+      ]
+    },
+    {
+      "id": 63,
+      "type": "SaveImage",
+      "pos": {
+        "0": 3089,
+        "1": 475
+      },
+      "size": {
+        "0": 317.44134521484375,
+        "1": 503.9819030761719
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 114,
+          "label": "images"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 61,
+      "type": "SUPIR_Upscale",
+      "pos": {
+        "0": 2616,
+        "1": 176
+      },
+      "size": {
+        "0": 400,
+        "1": 818
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 115,
+          "label": "image"
+        },
+        {
+          "name": "captions",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "captions"
+          },
+          "label": "captions",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "upscaled_image",
+          "type": "IMAGE",
+          "links": [
+            113,
+            114
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "upscaled_image"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SUPIR_Upscale"
+      },
+      "widgets_values": [
+        "SUPIR-v0F_fp16.safetensors",
+        "dreamshaperXL_sfwLightningDPMSDE.safetensors",
+        683232604445506,
+        "randomize",
+        "lanczos",
+        2,
+        30,
+        -1,
+        6,
+        "a dramatic and serene scene of a group of people gathered on a luxurious terrace overlooking a green, tranquil pool. The terrace, constructed from ancient stone, features elegant classical columns and is adorned with vibrant red and orange flowers that cascade over the edges, adding a burst of color against the muted tones of the stone. The people, dressed in long, dark robes with a few in deep reds, are arranged around the pool in a contemplative or ceremonial manner, gazing into the water or conversing quietly. The pool reflects the surrounding architecture and the rocky cliffside that looms nearby, enhancing the secluded and elevated setting. The backdrop reveals rugged cliffs and deep, teal water below, suggesting the terrace is perched high above a steep descent, adding a sense of exclusivity and isolation. The atmosphere is both serene and mysterious, with a hint of ritualistic or monastic undertones, evoking a sense of ancient tradition and quiet reverence, ancientstyle",
+        "bad quality, blurry, messy",
+        5,
+        1.003,
+        1,
+        0,
+        0,
+        "Wavelet",
+        true,
+        true,
+        512,
+        64,
+        "",
+        "auto",
+        "auto",
+        1,
+        false,
+        1024,
+        512,
+        false,
+        false,
+        "RestoreEDMSampler"
+      ]
+    },
+    {
+      "id": 16,
+      "type": "CLIPTextEncode",
+      "pos": {
+        "0": 384,
+        "1": 94
+      },
+      "size": {
+        "0": 432,
+        "1": 192
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 109
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            21
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Positive Prompt",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "Imagine a vast, ethereal realm bathed in a gentle, otherworldly light emanating from two colossal, gigantic radiant trees standing side by side in a lush, verdant glade. One tree, tall and majestic, glows with a soft, silver light, its leaves shimmering like polished moonlight, each one a delicate masterpiece reflecting the cool glow of a serene evening. The other tree, equally magnificent, glows with a warm, golden light, its branches adorned with radiant blossoms that seem to capture the essence of a sunlit dawn. The golden tree’s light is vibrant yet soft, casting a gentle warmth that blankets the landscape in hues of amber and gold.\n\nThe surrounding landscape is a paradise of rolling green meadows, vibrant with flowers and plant life that thrive under the trees' radiant glow. A tranquil stream winds through the glade, its waters sparkling as if infused with the light of the trees, reflecting a dance of silver and gold on the surface. The sky above is a soft twilight canvas, neither day nor night, with stars faintly visible, subtly complementing the serene glow of the trees below.\n\nFigures draped in flowing robes of soft whites, silvers, and golds move gracefully through the scene, tending to the trees or simply basking in their light, their faces serene and filled with reverence. Their presence feels almost like an extension of the trees, as if they are guardians or caretakers of this sacred place, their every movement filled with purpose and quiet joy. The atmosphere is one of profound peace and timeless beauty, as if this place exists outside the constraints of time, a harmonious sanctuary where light, nature, and tranquility reign supreme. The entire scene feels like a glimpse into a world untouched by strife, a vision of pure, unspoiled splendor where the radiant trees stand as symbols of life, hope, and unending light."
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 60,
+      "type": "LoraLoader",
+      "pos": {
+        "0": -90.79910278320312,
+        "1": -12
+      },
+      "size": {
+        "0": 315,
+        "1": 126
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 107
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 111
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            112
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            109,
+            110
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoader"
+      },
+      "widgets_values": [
+        "sd35-ancient_style_v1.safetensors",
+        1,
+        1
+      ]
+    },
+    {
+      "id": 62,
+      "type": "Image Comparer (rgthree)",
+      "pos": {
+        "0": 3524,
+        "1": 162
+      },
+      "size": {
+        "0": 825.3643188476562,
+        "1": 962.08642578125
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 113,
+          "dir": 3,
+          "label": "image_a"
+        },
+        {
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 116,
+          "dir": 3,
+          "label": "image_b"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "comparer_mode": "Slide"
+      },
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_mynbi_00010_.png&type=temp&subfolder=&rand=0.018933085711064557"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_mynbi_00011_.png&type=temp&subfolder=&rand=0.5939429433988856"
+          }
+        ]
+      ]
+    }
+  ],
+  "links": [
+    [
+      7,
+      3,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      21,
+      16,
+      0,
+      3,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      51,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      53,
+      4,
+      2,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      80,
+      40,
+      0,
+      3,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      102,
+      55,
+      0,
+      3,
+      3,
+      "LATENT"
+    ],
+    [
+      107,
+      4,
+      0,
+      60,
+      0,
+      "MODEL"
+    ],
+    [
+      109,
+      60,
+      1,
+      16,
+      0,
+      "CLIP"
+    ],
+    [
+      110,
+      60,
+      1,
+      40,
+      0,
+      "CLIP"
+    ],
+    [
+      111,
+      41,
+      0,
+      60,
+      1,
+      "CLIP"
+    ],
+    [
+      112,
+      60,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      113,
+      61,
+      0,
+      62,
+      0,
+      "IMAGE"
+    ],
+    [
+      114,
+      61,
+      0,
+      63,
+      0,
+      "IMAGE"
+    ],
+    [
+      115,
+      8,
+      0,
+      61,
+      0,
+      "IMAGE"
+    ],
+    [
+      116,
+      8,
+      0,
+      62,
+      1,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.3073560549142818,
+      "offset": [
+        803.4173290602997,
+        794.7115632456055
+      ]
+    }
+  },
+  "version": 0.4
+}

@@ -1,0 +1,6893 @@
+{
+  "last_node_id": 1006,
+  "last_link_id": 2291,
+  "nodes": [
+    {
+      "id": 513,
+      "type": "DualCLIPLoader",
+      "pos": {
+        "0": -1120,
+        "1": -190
+      },
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DualCLIPLoader"
+      },
+      "widgets_values": [
+        "clip_l.safetensors",
+        "clip_l.safetensors",
+        "flux"
+      ]
+    },
+    {
+      "id": 512,
+      "type": "UNETLoader",
+      "pos": {
+        "0": -1110,
+        "1": -30
+      },
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        null,
+        "default"
+      ]
+    },
+    {
+      "id": 462,
+      "type": "DualCLIPLoaderGGUF",
+      "pos": {
+        "0": -658.5341796875,
+        "1": -217.87109375
+      },
+      "size": {
+        "0": 324.09820556640625,
+        "1": 106
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2080
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DualCLIPLoaderGGUF"
+      },
+      "widgets_values": [
+        "t5-v1_1-xxl-encoder-Q3_K_L.gguf",
+        "clip_l.safetensors",
+        "flux"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 461,
+      "type": "UnetLoaderGGUF",
+      "pos": {
+        "0": -668.5341796875,
+        "1": -327.87109375
+      },
+      "size": {
+        "0": 335.4490966796875,
+        "1": 58
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            2077
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UnetLoaderGGUF"
+      },
+      "widgets_values": [
+        "pixelwave_flux1_schnell_Q4_K_M_01.gguf"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 934,
+      "type": "ImageUpscaleWithModel",
+      "pos": {
+        "0": 1109,
+        "1": -201.1685028076172
+      },
+      "size": {
+        "0": 231.3583526611328,
+        "1": 47.15129470825195
+      },
+      "flags": {},
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "upscale_model",
+          "type": "UPSCALE_MODEL",
+          "link": 2209
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 2215
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2270
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "title": "Detail Image (using Model)",
+      "properties": {
+        "Node name for S&R": "ImageUpscaleWithModel"
+      }
+    },
+    {
+      "id": 910,
+      "type": "LoraLoader",
+      "pos": {
+        "0": -287.2406311035156,
+        "1": -154.12890625
+      },
+      "size": {
+        "0": 315,
+        "1": 126
+      },
+      "flags": {},
+      "order": 33,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2078
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2081
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            2079
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2082
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoader"
+      },
+      "widgets_values": [
+        "SameFace_Fix.safetensors",
+        -0.8,
+        1
+      ]
+    },
+    {
+      "id": 677,
+      "type": "Note",
+      "pos": {
+        "0": -1380,
+        "1": -260
+      },
+      "size": {
+        "0": 224.30235290527344,
+        "1": 92.3655776977539
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Extra loading methods (GGUF is generally the fastest) - Connect to the other nodes in the group if you want to use."
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 795,
+      "type": "Note",
+      "pos": {
+        "0": 748,
+        "1": 38
+      },
+      "size": {
+        "0": 282.1453552246094,
+        "1": 147.07797241210938
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Base Schnell generation gets sharpened & passed to upscaler and detailer.\n\nMake sure your detailer model matches the style of image you want to make. (Anime = deblur) (Realistic = skin) etc.\n\n\n"
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 969,
+      "type": "VAEEncode",
+      "pos": {
+        "0": 1378,
+        "1": -50
+      },
+      "size": {
+        "0": 140,
+        "1": 46
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 2271
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 2230
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            2258
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncode"
+      }
+    },
+    {
+      "id": 913,
+      "type": "CheckpointLoaderSimple",
+      "pos": {
+        "0": -1110,
+        "1": -350
+      },
+      "size": {
+        "0": 315,
+        "1": 98
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        null
+      ]
+    },
+    {
+      "id": 988,
+      "type": "Note",
+      "pos": {
+        "0": -1340,
+        "1": -1215
+      },
+      "size": {
+        "0": 1007.40087890625,
+        "1": 61.508522033691406
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        ""
+      ],
+      "color": "#fff028",
+      "bgcolor": "#ffdc14"
+    },
+    {
+      "id": 989,
+      "type": "Note",
+      "pos": {
+        "0": -1232,
+        "1": -1337
+      },
+      "size": {
+        "0": 785.8466796875,
+        "1": 58
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        ""
+      ],
+      "color": "#fff028",
+      "bgcolor": "#ffdc14"
+    },
+    {
+      "id": 990,
+      "type": "Note",
+      "pos": {
+        "0": -1077,
+        "1": -1463
+      },
+      "size": {
+        "0": 474.9416198730469,
+        "1": 58
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        ""
+      ],
+      "color": "#fff028",
+      "bgcolor": "#ffdc14"
+    },
+    {
+      "id": 515,
+      "type": "Note",
+      "pos": {
+        "0": -1302.302001953125,
+        "1": -1042.9393310546875
+      },
+      "size": {
+        "0": 545.447265625,
+        "1": 567.628662109375
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "The Manual",
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "\n------  Flux VALHALLA Starter Edition  ------\n\n--  by @ericreator  --\n\n-- Digital Creative --\n\n-- http://ericmotion.com -- https://x.com/ericreator --\n______________________________________________\n\nThis workflow is for beginners to easily get ComfyUI working on their Windows machines. It features the latest technology and efficiency research\n\nVALHALLA is a highly efficient 100% FLUX Schnell workflow focused on providing optimized quality and speed options using minimal VRAM.\n\nLoad, refine, and upscale with your favorite GGUF and safetensors models.\n\nIt's heavily annotated so intermediate and beginner users can follow along.\n\nCheck out the WIP extended edition if you want more functionality.\n\nhttps://civitai.com/images/32622819\n\n\n>>> If you want the best experience - match my models <<<\n\nPublished: October 2024\n\nCREDITS:\n\nTenofas - Modular Flux \nhttps://civitai.com/models/642589?modelVersionId=820435\n\nTenofas - Latent Detailing\nhttps://civitai.com/models/719931?modelVersionId=805023\n\nnerdyrodent - Latent upscale\nhttps://www.youtube.com/watch?v=PRiqTnP3no8&t=193s\n\nJockerAI - 1 step Flux upscale trick!\nhttps://www.youtube.com/watch?v=oVnTZLRgUC0&t=248s\n"
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 449,
+      "type": "VAELoader",
+      "pos": {
+        "0": -661.5341796875,
+        "1": -69.87109375
+      },
+      "size": {
+        "0": 322.7538757324219,
+        "1": 58
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            2088,
+            2230,
+            2235
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "ae.sft"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 961,
+      "type": "ImageUpscaleWithModel",
+      "pos": {
+        "0": 848,
+        "1": -208
+      },
+      "size": {
+        "0": 226.8000030517578,
+        "1": 47.78236770629883
+      },
+      "flags": {},
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "upscale_model",
+          "type": "UPSCALE_MODEL",
+          "link": 2208
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 2260
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2215
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageUpscaleWithModel"
+      }
+    },
+    {
+      "id": 831,
+      "type": "Note",
+      "pos": {
+        "0": -1152,
+        "1": 118
+      },
+      "size": {
+        "0": 288.4344177246094,
+        "1": 157.820068359375
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Loading GGUF's here of model and text encoder. Lower Q's will use less VRAM at a slight tradeoff of quality.\n\nT5 Text encoder Q3_K_L works fine and is fast.\n\nClipL and VAE are the same as FLUX dev.\n\nNerdyrodent does this force device thing I just copied it I guess it's good."
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 358,
+      "type": "VAEDecode",
+      "pos": {
+        "0": 642,
+        "1": -304
+      },
+      "size": {
+        "0": 140,
+        "1": 46
+      },
+      "flags": {
+        "collapsed": true,
+        "pinned": false
+      },
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 2257
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 2088
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2084,
+            2175
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 970,
+      "type": "VAEDecode",
+      "pos": {
+        "0": 2122,
+        "1": -275
+      },
+      "size": {
+        "0": 140,
+        "1": 46
+      },
+      "flags": {
+        "collapsed": true,
+        "pinned": false
+      },
+      "order": 47,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 2253
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 2235
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2244
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 973,
+      "type": "ImageUpscaleWithModel",
+      "pos": {
+        "0": 2259,
+        "1": -274
+      },
+      "size": {
+        "0": 218.39999389648438,
+        "1": 51.95741653442383
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "upscale_model",
+          "type": "UPSCALE_MODEL",
+          "link": 2246
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 2244
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2245
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "title": "Detail Image (using Model)",
+      "properties": {
+        "Node name for S&R": "ImageUpscaleWithModel"
+      }
+    },
+    {
+      "id": 971,
+      "type": "ImageSharpen",
+      "pos": {
+        "0": 2364,
+        "1": -232
+      },
+      "size": {
+        "0": 210,
+        "1": 106
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 2245
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2239,
+            2242
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageSharpen"
+      },
+      "widgets_values": [
+        1,
+        0.2,
+        1
+      ]
+    },
+    {
+      "id": 983,
+      "type": "ImageScaleBy",
+      "pos": {
+        "0": 1112,
+        "1": -113
+      },
+      "size": {
+        "0": 226.62367248535156,
+        "1": 82
+      },
+      "flags": {},
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 2270
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2271,
+            2274
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "title": "Resize for Valhalla",
+      "properties": {
+        "Node name for S&R": "ImageScaleBy"
+      },
+      "widgets_values": [
+        "bicubic",
+        0.8
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 986,
+      "type": "Note",
+      "pos": {
+        "0": 1079,
+        "1": 34
+      },
+      "size": {
+        "0": 298.32391357421875,
+        "1": 184.4456024169922
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Next we upscale and add skin texture with models.\n\nhttps://openmodeldb.info/models/1x-SkinContrast-High-SuperUltraCompact\n\nhttps://openmodeldb.info/models/2x-NomosUni-compact-otf-medium\n\n(Fast and modern 2x)\n\nThen we lower the size by 20% to make Valhalla faster. You may need to go lower if your VRAM can't handle Valhalla."
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 987,
+      "type": "Note",
+      "pos": {
+        "0": 2271,
+        "1": -161
+      },
+      "size": {
+        "0": 221.56597900390625,
+        "1": 58
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Lastly we add one more pass of skin grain, sharpen and save. Voila!"
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 914,
+      "type": "SaveImage",
+      "pos": {
+        "0": 2023,
+        "1": -1593
+      },
+      "size": {
+        "0": 810.5016479492188,
+        "1": 1210.244384765625
+      },
+      "flags": {},
+      "order": 50,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 2239
+        }
+      ],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "%date:yyyy-MM-dd%/VALHALLA/Valhalla_%date:hhmmss%_"
+      ],
+      "color": "#fff028",
+      "bgcolor": "#ffdc14"
+    },
+    {
+      "id": 972,
+      "type": "Image Comparer (rgthree)",
+      "pos": {
+        "0": 1364,
+        "1": -1321
+      },
+      "size": {
+        "0": 631.1780395507812,
+        "1": 938.1737060546875
+      },
+      "flags": {},
+      "order": 51,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 2262,
+          "dir": 3
+        },
+        {
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 2242,
+          "dir": 3
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "comparer_mode": "Slide"
+      },
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_xvzke_00079_.png&type=temp&subfolder=&rand=0.8521601027083197"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_xvzke_00080_.png&type=temp&subfolder=&rand=0.7587976916746555"
+          }
+        ]
+      ]
+    },
+    {
+      "id": 984,
+      "type": "SaveImage",
+      "pos": {
+        "0": 740,
+        "1": -1173
+      },
+      "size": {
+        "0": 545.7294921875,
+        "1": 772.5360107421875
+      },
+      "flags": {},
+      "order": 44,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 2274
+        }
+      ],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "%date:yyyy-MM-dd%/Thor/Thor_%date:hhmmss%_"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 806,
+      "type": "Note",
+      "pos": {
+        "0": -274,
+        "1": 214
+      },
+      "size": {
+        "0": 303.41094970703125,
+        "1": 240.2328643798828
+      },
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "LORAS - Flux Dev ones mostly work. (NOT HYPER) Put the identity ones on top and don't mix too many. ID loras and style ones don't mix too well. Use trigger words in prompt. Definitely experiment here.\n\nControlnet and IPadapter are too slow for this workflow. You can add them here if you have power.\n\nCheck out the WIP extended edition if you want more functionality.\n\nhttps://civitai.com/images/32622819"
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 688,
+      "type": "Note",
+      "pos": {
+        "0": -742.1343383789062,
+        "1": -1042.5106201171875
+      },
+      "size": {
+        "0": 383.37420654296875,
+        "1": 569.5213623046875
+      },
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Resources & Issues",
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "RESOURCES\n\n(Preferred Model)\nPixelwave Flux Schnell (NF4 diffuser is actually the GGUF you want)\n\nhttps://civitai.com/models/141592?modelVersionId=778964\n\nt5 GGUF Q83_K_L\nhttps://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf/tree/main\n\n1x models\nhttps://openmodeldb.info/models/1x-SkinContrast-High-SuperUltraCompact\n\nhttps://openmodeldb.info/models/1x-DeBLR\n\nhttps://openmodeldb.info/models/1x-ITF-SkinDiffDetail-Lite-v1\n\nUpscaler 2xLexicaSwinIR (optimized for upscaling genAI images)\nhttps://openmodeldb.info/models/2x-LexicaSwinIR\n\nLORAS:\n\nANTI-BLUR flux\nhttps://civitai.com/models/675581?modelVersionId=824514\n\nFaetastic flux\nhttps://civitai.com/models/643886/flux-faetastic-details\n\nAidmaImageUpgrader flux\nhttps://civitai.com/models/562866?modelVersionId=735063\n\nAraminta flux\nhttps://huggingface.co/alvdansen/flux-koda\n\nhttps://huggingface.co/alvdansen\n\n"
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 741,
+      "type": "Note",
+      "pos": {
+        "0": -210,
+        "1": -1209
+      },
+      "size": {
+        "0": 256.646484375,
+        "1": 134.80848693847656
+      },
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "LEGAL DISCLAIMER\nI am not responsible for any third-party use of this workflow, it is provided entirely as-is for educational purposes only. End user assumes all risk associated with it's operation.\n\n @Ericreator"
+      ],
+      "color": "#ff1414",
+      "bgcolor": "#ff0000"
+    },
+    {
+      "id": 985,
+      "type": "Note",
+      "pos": {
+        "0": 1547,
+        "1": 18
+      },
+      "size": {
+        "0": 475.3979187011719,
+        "1": 246.58872985839844
+      },
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Finally! VALHALLA!\n\nThis part of workflow adds a ton of great detail with a double sampler. First sampler to fix the general anatomy and details, and then the second one is at a lower denoise for photorealism and to eliminate artifacts. Feel free to adjust. I like heunpp2 for fixing details.\n\nSteps Usually just 1. If you want to maximize quality and details, increase denoise and steps.\n\nDenoise usually 0.08 - 0.2 but you can tweak it.\n\nHigher denoise will turn it painterly and change the face and eventually the whole composition.\n\nIf you see scanline or grid type artifacts, ajusting samplers and denoise here can help reduce and remove them."
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 933,
+      "type": "ImageSharpen",
+      "pos": {
+        "0": 671,
+        "1": -258
+      },
+      "size": {
+        "0": 210,
+        "1": 106
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 2175
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2260,
+            2262
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageSharpen"
+      },
+      "widgets_values": [
+        1,
+        0.2,
+        1
+      ]
+    },
+    {
+      "id": 799,
+      "type": "Note",
+      "pos": {
+        "0": -270,
+        "1": -1011
+      },
+      "size": {
+        "0": 318.65667724609375,
+        "1": 145.13624572753906
+      },
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Put your prompt here. Negatives do not work. Describe everything you want to see in the image. It can handle a like 5 independent concepts before it starts getting pretty confused & text will degrade.\n\nSome Loras require their trigger words. \"egmid\" is for Midjourney_Anime"
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 453,
+      "type": "ModelSamplingFlux",
+      "pos": {
+        "0": -192,
+        "1": 14
+      },
+      "size": [
+        215.7636260986328,
+        130
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2079
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 2286,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 2287,
+          "widget": {
+            "name": "height"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            2092,
+            2094,
+            2233,
+            2234,
+            2248,
+            2250
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelSamplingFlux"
+      },
+      "widgets_values": [
+        1.5,
+        0.8,
+        768,
+        1344
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 1001,
+      "type": "Note",
+      "pos": {
+        "0": 57,
+        "1": 330
+      },
+      "size": [
+        323.1116331142114,
+        236.40129227992975
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Common Resolutions - You can use any size really.\n256px up to 1536px\n\n1024 x 1024 (1:1 Square)\n1152 x 896 (9:7)\n896 x 1152 (7:9)\n1216 x 832 (19:13)\n832 x 1216 (13:19)\n1344 x 768 (7:4 Horizontal)\n768 x 1344 (4:7 Vertical)\n1536 x 640 (12:5 Horizontal)\n640 x 1536 (5:12 Vertical)"
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 516,
+      "type": "Note",
+      "pos": {
+        "0": 414,
+        "1": 322
+      },
+      "size": {
+        "0": 319.9214172363281,
+        "1": 238.23028564453125
+      },
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Guidance control - Guidance has NO effect.\nClip_L also. They are both random noise.\n\nSamplers - LCM for speed. Others are ok but not as fast.\n\nModelSamplingFlux does something but idk.\n\nBeta scheduler seems to be the highest quality but there are slightly faster ones.\n\nSteps can be 2-4, higher not really necessary imo but 3 and 4 have less anatomy errors. Image quality comes from the second pass.\n\nI like to explore at 4 step Thor only and then upscale the seeds I like by dragging them into the workflow."
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 803,
+      "type": "Note",
+      "pos": {
+        "0": 411,
+        "1": 158
+      },
+      "size": [
+        309.61138275304984,
+        119.35146901375407
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Seeds - Keep them fixed if you want a fixed gen.\n\nBatches - I ran a batch of 4, it crashed on the upscaler for me. Keep it to 2 or 1 unless you're using low res or have more compute.\n"
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 531,
+      "type": "Note",
+      "pos": {
+        "0": 61,
+        "1": 155
+      },
+      "size": {
+        "0": 318.925537109375,
+        "1": 135.87681579589844
+      },
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Resolution- Works with any sdxl resolution. Weird stuff starsts to happen with irregular aspect ratios and 2k+ sizes.\n\nclip_scale is multiplied by dimensions to give final base image size. Higher than SDXL resolutin gets slow and hyperdetailed. 0.5 - 1.5"
+      ],
+      "color": "#ffffff",
+      "bgcolor": "#ffffff"
+    },
+    {
+      "id": 1000,
+      "type": "Note",
+      "pos": {
+        "0": -291,
+        "1": -808
+      },
+      "size": [
+        333.13195281746846,
+        70.43415391742576
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "!!! Resolution and number of steps in samplers are the best ways to trade quality for speed !!!\n"
+      ],
+      "color": "#ff1414",
+      "bgcolor": "#ff0000"
+    },
+    {
+      "id": 444,
+      "type": "CLIPTextEncodeFlux",
+      "pos": {
+        "0": 50,
+        "1": -340
+      },
+      "size": {
+        "0": 210,
+        "1": 120
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2082
+        },
+        {
+          "name": "t5xxl",
+          "type": "STRING",
+          "link": 2116,
+          "widget": {
+            "name": "t5xxl"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            2070,
+            2228,
+            2249
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeFlux"
+      },
+      "widgets_values": [
+        "",
+        "a 2d anime illustration of a catboy  wearing a fancy blue overcoat, riding on top of a dragon flying over london at sunset\n\naidmaimageupgrader",
+        1
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 445,
+      "type": "EmptySD3LatentImage",
+      "pos": {
+        "0": 110,
+        "1": -296
+      },
+      "size": [
+        213.7639398849915,
+        78
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 2288,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 2289,
+          "widget": {
+            "name": "height"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            2268
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptySD3LatentImage"
+      },
+      "widgets_values": [
+        768,
+        1344,
+        1
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 936,
+      "type": "UpscaleModelLoader",
+      "pos": {
+        "0": 852,
+        "1": -309
+      },
+      "size": {
+        "0": 218.39999389648438,
+        "1": 58
+      },
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "UPSCALE_MODEL",
+          "type": "UPSCALE_MODEL",
+          "links": [
+            2208
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "title": "Load Fast 2x Upscale Model",
+      "properties": {
+        "Node name for S&R": "UpscaleModelLoader"
+      },
+      "widgets_values": [
+        "2xNomosUni_compact_otf_medium.pth"
+      ]
+    },
+    {
+      "id": 962,
+      "type": "UpscaleModelLoader",
+      "pos": {
+        "0": 1108,
+        "1": -307
+      },
+      "size": {
+        "0": 235.67510986328125,
+        "1": 58
+      },
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "UPSCALE_MODEL",
+          "type": "UPSCALE_MODEL",
+          "links": [
+            2209,
+            2246
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "title": "Load Fast 1x detailing Model",
+      "properties": {
+        "Node name for S&R": "UpscaleModelLoader"
+      },
+      "widgets_values": [
+        "1xSkinContrast-High-SuperUltraCompact.pth"
+      ]
+    },
+    {
+      "id": 1006,
+      "type": "MathExpression|pysssss",
+      "pos": {
+        "0": 115,
+        "1": -180
+      },
+      "size": [
+        210,
+        116
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        },
+        {
+          "name": "b",
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        },
+        {
+          "name": "c",
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [
+            2290,
+            2291
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "title": "Resolution Multiplier",
+      "properties": {},
+      "widgets_values": [
+        "1\n\n"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 979,
+      "type": "Fast Groups Bypasser (rgthree)",
+      "pos": {
+        "0": -275,
+        "1": -689
+      },
+      "size": {
+        "0": 319.5233154296875,
+        "1": 250
+      },
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "matchColors": "",
+        "matchTitle": "",
+        "showNav": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default"
+      },
+      "color": "#fff028",
+      "bgcolor": "#ffdc14"
+    },
+    {
+      "id": 909,
+      "type": "LoraLoader",
+      "pos": {
+        "0": -289,
+        "1": -329
+      },
+      "size": {
+        "0": 315,
+        "1": 126
+      },
+      "flags": {},
+      "order": 30,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2077
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2080
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            2078
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2081
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoader"
+      },
+      "widgets_values": [
+        "FLUX_MidJourney_Anime.safetensors",
+        1,
+        1
+      ]
+    },
+    {
+      "id": 976,
+      "type": "workflow/FluxSamplerGroup",
+      "pos": {
+        "0": 1832.574951171875,
+        "1": -304.7135314941406
+      },
+      "size": {
+        "0": 278.79998779296875,
+        "1": 262
+      },
+      "flags": {},
+      "order": 46,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2248
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 2249
+        },
+        {
+          "name": "BasicGuider model",
+          "type": "MODEL",
+          "link": 2250
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 2252
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            2253
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "workflow/FluxSamplerGroup"
+      },
+      "widgets_values": [
+        188,
+        "fixed",
+        "lcm",
+        "beta",
+        1,
+        0.1,
+        1
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 389,
+      "type": "workflow/FluxSamplerGroup",
+      "pos": {
+        "0": 347,
+        "1": -333
+      },
+      "size": {
+        "0": 278.79998779296875,
+        "1": 267.1432800292969
+      },
+      "flags": {},
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2092
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 2070
+        },
+        {
+          "name": "BasicGuider model",
+          "type": "MODEL",
+          "link": 2094
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 2268
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            2257
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "workflow/FluxSamplerGroup"
+      },
+      "widgets_values": [
+        222,
+        "increment",
+        "lcm",
+        "beta",
+        4,
+        1,
+        1
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 1003,
+      "type": "MathExpression|pysssss",
+      "pos": {
+        "0": 120,
+        "1": -23
+      },
+      "size": [
+        210,
+        116
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": 2290
+        },
+        {
+          "name": "b",
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        },
+        {
+          "name": "c",
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            2286,
+            2288
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "title": "Resolution Width",
+      "properties": {},
+      "widgets_values": [
+        "768 * a"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 1004,
+      "type": "MathExpression|pysssss",
+      "pos": {
+        "0": 347,
+        "1": -25
+      },
+      "size": {
+        "0": 210,
+        "1": 116
+      },
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": 2291
+        },
+        {
+          "name": "b",
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        },
+        {
+          "name": "c",
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            2287,
+            2289
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "title": "Resolution Height",
+      "properties": {},
+      "widgets_values": [
+        "1344 * a"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 928,
+      "type": "StringFunction|pysssss",
+      "pos": {
+        "0": 68,
+        "1": -942
+      },
+      "size": {
+        "0": 650,
+        "1": 510
+      },
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            2116
+          ],
+          "shape": 3
+        }
+      ],
+      "title": "Main Prompts",
+      "properties": {
+        "Node name for S&R": "StringFunction|pysssss"
+      },
+      "widgets_values": [
+        "append",
+        "yes",
+        "a professional close up photograph of a large bottle is full of galactic pink liquid. It has a large old fashioned label with a skull that says \"FLUX JUICE\" in a big bold font.",
+        "background blurry alchemists lab medieval times, dusty",
+        "",
+        "a professional close up photograph of a large bottle is full of galactic pink liquid. It has a large old fashioned label with a skull that says \"FLUX JUICE\" in a big bold font., background blurry alchemists lab medieval times, dusty"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 968,
+      "type": "workflow/FluxSamplerGroup",
+      "pos": {
+        "0": 1536.22314453125,
+        "1": -306.2793884277344
+      },
+      "size": {
+        "0": 278.79998779296875,
+        "1": 262
+      },
+      "flags": {},
+      "order": 45,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2233
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 2228
+        },
+        {
+          "name": "BasicGuider model",
+          "type": "MODEL",
+          "link": 2234
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 2258
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            2252
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "workflow/FluxSamplerGroup"
+      },
+      "widgets_values": [
+        190,
+        "fixed",
+        "heunpp2",
+        "beta",
+        1,
+        0.35000000000000003,
+        1
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    }
+  ],
+  "links": [
+    [
+      878,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      879,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      880,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      881,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      882,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      883,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      884,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      885,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      886,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      918,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      919,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      920,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      921,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      922,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      923,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      924,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      925,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      926,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      967,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      968,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      969,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      970,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      971,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      972,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      973,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      974,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      975,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      976,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1139,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1140,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1141,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1142,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1143,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1144,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1145,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1146,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1147,
+      465,
+      0,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1148,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1149,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1150,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1151,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1152,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1153,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1214,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1215,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1216,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1217,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1218,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1219,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1220,
+      465,
+      0,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1221,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1222,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1223,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1224,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1231,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1232,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1233,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1234,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1235,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1236,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1237,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1238,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1239,
+      740,
+      0,
+      468,
+      7,
+      "INT"
+    ],
+    [
+      1240,
+      465,
+      0,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1241,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1242,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1243,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1244,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1245,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1263,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1264,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1265,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1266,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1267,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1268,
+      740,
+      0,
+      468,
+      7,
+      "INT"
+    ],
+    [
+      1269,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1270,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1271,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1272,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1273,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1274,
+      465,
+      0,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1275,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1276,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1277,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1325,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1326,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1327,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1328,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1329,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1330,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1331,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1332,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1333,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1334,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1335,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1336,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1337,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1338,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1339,
+      740,
+      0,
+      468,
+      7,
+      "INT"
+    ],
+    [
+      1347,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1348,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1349,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1350,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1351,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1352,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1353,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1354,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1355,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1356,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1357,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1358,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1359,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1360,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1361,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1362,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1363,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1364,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1365,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1366,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1367,
+      740,
+      0,
+      468,
+      7,
+      "INT"
+    ],
+    [
+      1374,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1375,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1376,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1377,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1378,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1379,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1380,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1381,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1382,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1383,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1384,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1385,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1386,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1387,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1388,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1389,
+      740,
+      0,
+      468,
+      7,
+      "INT"
+    ],
+    [
+      1390,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1391,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1392,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1393,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1400,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1401,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1402,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1403,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1404,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1405,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1406,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1407,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1408,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1409,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1410,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1411,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1412,
+      740,
+      0,
+      468,
+      7,
+      "INT"
+    ],
+    [
+      1413,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1414,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1415,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1416,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1417,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1418,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1419,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1427,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1428,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1429,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1430,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1431,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1432,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1433,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1434,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1435,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1436,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1437,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1438,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1439,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1440,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1441,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1442,
+      740,
+      0,
+      468,
+      7,
+      "INT"
+    ],
+    [
+      1448,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1449,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1450,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1451,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1452,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1453,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1454,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1455,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1456,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1457,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1458,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1459,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1460,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1461,
+      740,
+      0,
+      468,
+      7,
+      "INT"
+    ],
+    [
+      1462,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1463,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1479,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1480,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1481,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1482,
+      744,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1483,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1484,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1485,
+      740,
+      0,
+      468,
+      7,
+      "INT"
+    ],
+    [
+      1486,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1487,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1488,
+      744,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1489,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1490,
+      744,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1491,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1492,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1493,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1494,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1495,
+      744,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1496,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1497,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1498,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1499,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1520,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1521,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1522,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1523,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1524,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1525,
+      740,
+      0,
+      468,
+      7,
+      "INT"
+    ],
+    [
+      1526,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1527,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1528,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1529,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1530,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1531,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1532,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1533,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1534,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1535,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1536,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1537,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1538,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1539,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1540,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1541,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1542,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1543,
+      453,
+      0,
+      468,
+      0,
+      "MODEL"
+    ],
+    [
+      1544,
+      464,
+      0,
+      468,
+      1,
+      "VAE"
+    ],
+    [
+      1545,
+      444,
+      0,
+      468,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1546,
+      740,
+      0,
+      468,
+      7,
+      "INT"
+    ],
+    [
+      1547,
+      444,
+      0,
+      482,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1548,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1549,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1550,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1551,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1552,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1553,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1554,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1555,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1556,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1557,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1558,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1559,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1560,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1561,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1572,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1573,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1574,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1575,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1576,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1577,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1578,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1579,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1580,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1581,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1582,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1583,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1584,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1585,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1586,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1587,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1588,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1589,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1590,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1591,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1592,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1593,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1594,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1595,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1596,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1597,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1598,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1606,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1607,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1608,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1609,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1610,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1611,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1612,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1613,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1614,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1615,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1616,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1617,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1618,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1619,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1620,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1621,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1622,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1623,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1624,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1625,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1626,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1627,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1628,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1629,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1630,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1631,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1632,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1633,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1634,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1635,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1636,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1637,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1638,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1639,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1640,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1641,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1642,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1643,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1644,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1645,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1646,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1647,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1648,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1649,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1650,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1651,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1652,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1653,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1654,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1655,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1656,
+      464,
+      0,
+      472,
+      1,
+      "VAE"
+    ],
+    [
+      1657,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1658,
+      464,
+      0,
+      545,
+      1,
+      "VAE"
+    ],
+    [
+      1659,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1660,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1661,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1662,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1663,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1664,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1665,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1666,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1667,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1668,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1669,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1692,
+      740,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1693,
+      740,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1694,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1695,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1696,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1697,
+      740,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1698,
+      740,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1699,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1700,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1701,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1702,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1703,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1704,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1705,
+      740,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1762,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1763,
+      802,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1764,
+      802,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1765,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1766,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1767,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1768,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1769,
+      802,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1770,
+      802,
+      0,
+      821,
+      0,
+      "INT"
+    ],
+    [
+      1771,
+      802,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1772,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1773,
+      802,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1774,
+      802,
+      0,
+      506,
+      0,
+      "INT"
+    ],
+    [
+      1775,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1776,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1777,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1778,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1779,
+      802,
+      0,
+      435,
+      0,
+      "INT"
+    ],
+    [
+      1780,
+      802,
+      0,
+      821,
+      0,
+      "INT"
+    ],
+    [
+      1781,
+      802,
+      0,
+      720,
+      0,
+      "INT"
+    ],
+    [
+      1793,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1794,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1795,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1796,
+      444,
+      0,
+      638,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1797,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1798,
+      802,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1799,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1800,
+      802,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1801,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1802,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1803,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1818,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1819,
+      444,
+      0,
+      834,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1820,
+      845,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1821,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1822,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1823,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1824,
+      845,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1825,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1826,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1827,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1828,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1830,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1831,
+      845,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1832,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1833,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1834,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1835,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1836,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1837,
+      845,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1838,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1839,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1840,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1841,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1867,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1868,
+      845,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1869,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1870,
+      845,
+      0,
+      848,
+      0,
+      "INT"
+    ],
+    [
+      1871,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1872,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1873,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1874,
+      845,
+      0,
+      846,
+      0,
+      "INT"
+    ],
+    [
+      1875,
+      845,
+      0,
+      850,
+      0,
+      "INT"
+    ],
+    [
+      1876,
+      845,
+      0,
+      855,
+      0,
+      "INT"
+    ],
+    [
+      1881,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1882,
+      845,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1883,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1884,
+      845,
+      0,
+      848,
+      0,
+      "INT"
+    ],
+    [
+      1885,
+      845,
+      0,
+      846,
+      0,
+      "INT"
+    ],
+    [
+      1886,
+      845,
+      0,
+      850,
+      0,
+      "INT"
+    ],
+    [
+      1887,
+      845,
+      0,
+      855,
+      0,
+      "INT"
+    ],
+    [
+      1888,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1889,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1890,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1912,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1913,
+      444,
+      0,
+      834,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1914,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1915,
+      845,
+      0,
+      850,
+      0,
+      "INT"
+    ],
+    [
+      1916,
+      845,
+      0,
+      855,
+      0,
+      "INT"
+    ],
+    [
+      1917,
+      845,
+      0,
+      846,
+      0,
+      "INT"
+    ],
+    [
+      1918,
+      845,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      1919,
+      845,
+      0,
+      871,
+      0,
+      "INT"
+    ],
+    [
+      1920,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      1921,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1922,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      1923,
+      845,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      1924,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      1925,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1926,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      1927,
+      845,
+      0,
+      872,
+      0,
+      "INT"
+    ],
+    [
+      1928,
+      845,
+      0,
+      875,
+      0,
+      "INT"
+    ],
+    [
+      1992,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      1993,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      1994,
+      845,
+      0,
+      855,
+      0,
+      "INT"
+    ],
+    [
+      1995,
+      845,
+      0,
+      881,
+      0,
+      "INT"
+    ],
+    [
+      1996,
+      845,
+      0,
+      846,
+      0,
+      "INT"
+    ],
+    [
+      1997,
+      845,
+      0,
+      871,
+      0,
+      "INT"
+    ],
+    [
+      1998,
+      845,
+      0,
+      875,
+      0,
+      "INT"
+    ],
+    [
+      1999,
+      845,
+      0,
+      872,
+      0,
+      "INT"
+    ],
+    [
+      2000,
+      845,
+      0,
+      889,
+      0,
+      "INT"
+    ],
+    [
+      2001,
+      845,
+      0,
+      886,
+      0,
+      "INT"
+    ],
+    [
+      2002,
+      845,
+      0,
+      850,
+      0,
+      "INT"
+    ],
+    [
+      2003,
+      845,
+      0,
+      902,
+      0,
+      "INT"
+    ],
+    [
+      2004,
+      845,
+      0,
+      899,
+      0,
+      "INT"
+    ],
+    [
+      2005,
+      845,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      2006,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      2007,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      2008,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      2010,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      2011,
+      444,
+      0,
+      834,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      2012,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      2013,
+      845,
+      0,
+      855,
+      0,
+      "INT"
+    ],
+    [
+      2014,
+      845,
+      0,
+      881,
+      0,
+      "INT"
+    ],
+    [
+      2015,
+      845,
+      0,
+      871,
+      0,
+      "INT"
+    ],
+    [
+      2016,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      2017,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      2018,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      2019,
+      845,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      2020,
+      845,
+      0,
+      875,
+      0,
+      "INT"
+    ],
+    [
+      2021,
+      845,
+      0,
+      872,
+      0,
+      "INT"
+    ],
+    [
+      2022,
+      845,
+      0,
+      889,
+      0,
+      "INT"
+    ],
+    [
+      2023,
+      845,
+      0,
+      902,
+      0,
+      "INT"
+    ],
+    [
+      2024,
+      845,
+      0,
+      899,
+      0,
+      "INT"
+    ],
+    [
+      2025,
+      845,
+      0,
+      886,
+      0,
+      "INT"
+    ],
+    [
+      2026,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      2027,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      2028,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      2029,
+      845,
+      0,
+      850,
+      0,
+      "INT"
+    ],
+    [
+      2030,
+      845,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      2031,
+      845,
+      0,
+      846,
+      0,
+      "INT"
+    ],
+    [
+      2037,
+      464,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      2038,
+      444,
+      0,
+      834,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      2039,
+      744,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      2040,
+      845,
+      0,
+      855,
+      0,
+      "INT"
+    ],
+    [
+      2041,
+      845,
+      0,
+      881,
+      0,
+      "INT"
+    ],
+    [
+      2042,
+      453,
+      0,
+      638,
+      1,
+      "MODEL"
+    ],
+    [
+      2043,
+      444,
+      0,
+      638,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      2044,
+      464,
+      0,
+      638,
+      4,
+      "VAE"
+    ],
+    [
+      2045,
+      845,
+      0,
+      638,
+      8,
+      "INT"
+    ],
+    [
+      2046,
+      845,
+      0,
+      875,
+      0,
+      "INT"
+    ],
+    [
+      2047,
+      845,
+      0,
+      889,
+      0,
+      "INT"
+    ],
+    [
+      2048,
+      845,
+      0,
+      902,
+      0,
+      "INT"
+    ],
+    [
+      2049,
+      453,
+      0,
+      "389:2",
+      0,
+      "MODEL"
+    ],
+    [
+      2050,
+      444,
+      0,
+      "389:3",
+      0,
+      "CONDITIONING"
+    ],
+    [
+      2051,
+      453,
+      0,
+      "389:4",
+      0,
+      "MODEL"
+    ],
+    [
+      2052,
+      845,
+      0,
+      850,
+      0,
+      "INT"
+    ],
+    [
+      2053,
+      845,
+      0,
+      846,
+      0,
+      "INT"
+    ],
+    [
+      2054,
+      845,
+      0,
+      755,
+      0,
+      "INT"
+    ],
+    [
+      2055,
+      845,
+      0,
+      871,
+      0,
+      "INT"
+    ],
+    [
+      2056,
+      845,
+      0,
+      872,
+      0,
+      "INT"
+    ],
+    [
+      2057,
+      845,
+      0,
+      886,
+      0,
+      "INT"
+    ],
+    [
+      2058,
+      845,
+      0,
+      899,
+      0,
+      "INT"
+    ],
+    [
+      2070,
+      444,
+      0,
+      389,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      2077,
+      461,
+      0,
+      909,
+      0,
+      "MODEL"
+    ],
+    [
+      2078,
+      909,
+      0,
+      910,
+      0,
+      "MODEL"
+    ],
+    [
+      2079,
+      910,
+      0,
+      453,
+      0,
+      "MODEL"
+    ],
+    [
+      2080,
+      462,
+      0,
+      909,
+      1,
+      "CLIP"
+    ],
+    [
+      2081,
+      909,
+      1,
+      910,
+      1,
+      "CLIP"
+    ],
+    [
+      2082,
+      910,
+      1,
+      444,
+      0,
+      "CLIP"
+    ],
+    [
+      2084,
+      358,
+      0,
+      788,
+      0,
+      "IMAGE"
+    ],
+    [
+      2088,
+      449,
+      0,
+      358,
+      1,
+      "VAE"
+    ],
+    [
+      2089,
+      788,
+      0,
+      638,
+      0,
+      "IMAGE"
+    ],
+    [
+      2092,
+      453,
+      0,
+      389,
+      0,
+      "MODEL"
+    ],
+    [
+      2094,
+      453,
+      0,
+      389,
+      2,
+      "MODEL"
+    ],
+    [
+      2116,
+      928,
+      0,
+      444,
+      1,
+      "STRING"
+    ],
+    [
+      2175,
+      358,
+      0,
+      933,
+      0,
+      "IMAGE"
+    ],
+    [
+      2208,
+      936,
+      0,
+      961,
+      0,
+      "UPSCALE_MODEL"
+    ],
+    [
+      2209,
+      962,
+      0,
+      934,
+      0,
+      "UPSCALE_MODEL"
+    ],
+    [
+      2215,
+      961,
+      0,
+      934,
+      1,
+      "IMAGE"
+    ],
+    [
+      2228,
+      444,
+      0,
+      968,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      2230,
+      449,
+      0,
+      969,
+      1,
+      "VAE"
+    ],
+    [
+      2233,
+      453,
+      0,
+      968,
+      0,
+      "MODEL"
+    ],
+    [
+      2234,
+      453,
+      0,
+      968,
+      2,
+      "MODEL"
+    ],
+    [
+      2235,
+      449,
+      0,
+      970,
+      1,
+      "VAE"
+    ],
+    [
+      2239,
+      971,
+      0,
+      914,
+      0,
+      "IMAGE"
+    ],
+    [
+      2242,
+      971,
+      0,
+      972,
+      1,
+      "IMAGE"
+    ],
+    [
+      2244,
+      970,
+      0,
+      973,
+      1,
+      "IMAGE"
+    ],
+    [
+      2245,
+      973,
+      0,
+      971,
+      0,
+      "IMAGE"
+    ],
+    [
+      2246,
+      962,
+      0,
+      973,
+      0,
+      "UPSCALE_MODEL"
+    ],
+    [
+      2248,
+      453,
+      0,
+      976,
+      0,
+      "MODEL"
+    ],
+    [
+      2249,
+      444,
+      0,
+      976,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      2250,
+      453,
+      0,
+      976,
+      2,
+      "MODEL"
+    ],
+    [
+      2252,
+      968,
+      0,
+      976,
+      3,
+      "LATENT"
+    ],
+    [
+      2253,
+      976,
+      0,
+      970,
+      0,
+      "LATENT"
+    ],
+    [
+      2257,
+      389,
+      0,
+      358,
+      0,
+      "LATENT"
+    ],
+    [
+      2258,
+      969,
+      0,
+      968,
+      3,
+      "LATENT"
+    ],
+    [
+      2260,
+      933,
+      0,
+      961,
+      1,
+      "IMAGE"
+    ],
+    [
+      2262,
+      933,
+      0,
+      972,
+      0,
+      "IMAGE"
+    ],
+    [
+      2268,
+      445,
+      0,
+      389,
+      3,
+      "LATENT"
+    ],
+    [
+      2270,
+      934,
+      0,
+      983,
+      0,
+      "IMAGE"
+    ],
+    [
+      2271,
+      983,
+      0,
+      969,
+      0,
+      "IMAGE"
+    ],
+    [
+      2274,
+      983,
+      0,
+      984,
+      0,
+      "IMAGE"
+    ],
+    [
+      2286,
+      1003,
+      0,
+      453,
+      1,
+      "INT"
+    ],
+    [
+      2287,
+      1004,
+      0,
+      453,
+      2,
+      "INT"
+    ],
+    [
+      2288,
+      1003,
+      0,
+      445,
+      0,
+      "INT"
+    ],
+    [
+      2289,
+      1004,
+      0,
+      445,
+      1,
+      "INT"
+    ],
+    [
+      2290,
+      1006,
+      1,
+      1003,
+      0,
+      "INT,FLOAT,IMAGE,LATENT"
+    ],
+    [
+      2291,
+      1006,
+      1,
+      1004,
+      0,
+      "INT,FLOAT,IMAGE,LATENT"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "VALHALLA (Refiner)",
+      "bounding": [
+        1381,
+        -383,
+        857,
+        344
+      ],
+      "color": "#ffffff",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Model Loader",
+      "bounding": [
+        -679,
+        -411,
+        358,
+        425
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Start Here",
+      "bounding": [
+        -1330,
+        -1122,
+        997,
+        659
+      ],
+      "color": "#00ff11",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Model Upscale",
+      "bounding": [
+        842,
+        -386,
+        245,
+        253
+      ],
+      "color": "#8AA",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Thor (Base Model Gen)",
+      "bounding": [
+        67,
+        -407,
+        729,
+        393
+      ],
+      "color": "#b58b2a",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Model Detail",
+      "bounding": [
+        1100,
+        -387,
+        250,
+        376
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Lora / Ctrl / Misc",
+      "bounding": [
+        -300,
+        -410,
+        344,
+        574
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Post Processing",
+      "bounding": [
+        2271,
+        -345,
+        207,
+        132
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5730855330116985,
+      "offset": [
+        931.7617654616332,
+        1388.6602571113347
+      ]
+    },
+    "groupNodes": {
+      "FluxSamplerGroup": {
+        "nodes": [
+          {
+            "type": "RandomNoise",
+            "pos": [
+              2180,
+              280
+            ],
+            "size": {
+              "0": 315,
+              "1": 82
+            },
+            "flags": {},
+            "order": 12,
+            "mode": 0,
+            "outputs": [
+              {
+                "name": "NOISE",
+                "type": "NOISE",
+                "links": [],
+                "shape": 3,
+                "slot_index": 0
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "RandomNoise"
+            },
+            "widgets_values": [
+              320637614769717,
+              "randomize"
+            ],
+            "index": 0
+          },
+          {
+            "type": "KSamplerSelect",
+            "pos": [
+              2175,
+              184
+            ],
+            "size": {
+              "0": 315,
+              "1": 58
+            },
+            "flags": {},
+            "order": 14,
+            "mode": 0,
+            "outputs": [
+              {
+                "name": "SAMPLER",
+                "type": "SAMPLER",
+                "links": [],
+                "shape": 3,
+                "slot_index": 0
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "KSamplerSelect"
+            },
+            "widgets_values": [
+              "euler"
+            ],
+            "index": 1
+          },
+          {
+            "type": "BasicScheduler",
+            "pos": [
+              2560,
+              280
+            ],
+            "size": {
+              "0": 315,
+              "1": 106
+            },
+            "flags": {},
+            "order": 23,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "SIGMAS",
+                "type": "SIGMAS",
+                "links": [],
+                "shape": 3,
+                "slot_index": 0
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "BasicScheduler"
+            },
+            "widgets_values": [
+              "simple",
+              10,
+              1
+            ],
+            "index": 2
+          },
+          {
+            "type": "FluxGuidance",
+            "pos": [
+              2555,
+              181
+            ],
+            "size": {
+              "0": 317.4000244140625,
+              "1": 58
+            },
+            "flags": {},
+            "order": 32,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "conditioning",
+                "type": "CONDITIONING",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "CONDITIONING",
+                "type": "CONDITIONING",
+                "links": [],
+                "shape": 3,
+                "slot_index": 0
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "FluxGuidance"
+            },
+            "widgets_values": [
+              2
+            ],
+            "index": 3
+          },
+          {
+            "type": "BasicGuider",
+            "pos": [
+              2263,
+              422
+            ],
+            "size": {
+              "0": 241.79998779296875,
+              "1": 46
+            },
+            "flags": {
+              "collapsed": false
+            },
+            "order": 37,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": null
+              },
+              {
+                "name": "conditioning",
+                "type": "CONDITIONING",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "GUIDER",
+                "type": "GUIDER",
+                "links": [],
+                "shape": 3,
+                "slot_index": 0
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "BasicGuider"
+            },
+            "index": 4
+          },
+          {
+            "type": "SamplerCustomAdvanced",
+            "pos": [
+              2473,
+              448
+            ],
+            "size": {
+              "0": 355.20001220703125,
+              "1": 106
+            },
+            "flags": {
+              "collapsed": false
+            },
+            "order": 38,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "noise",
+                "type": "NOISE",
+                "link": null
+              },
+              {
+                "name": "guider",
+                "type": "GUIDER",
+                "link": null
+              },
+              {
+                "name": "sampler",
+                "type": "SAMPLER",
+                "link": null
+              },
+              {
+                "name": "sigmas",
+                "type": "SIGMAS",
+                "link": null
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "output",
+                "type": "LATENT",
+                "links": [],
+                "shape": 3,
+                "slot_index": 0
+              },
+              {
+                "name": "denoised_output",
+                "type": "LATENT",
+                "links": null,
+                "shape": 3
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "SamplerCustomAdvanced"
+            },
+            "index": 5
+          }
+        ],
+        "links": [
+          [
+            null,
+            0,
+            2,
+            0,
+            363,
+            "MODEL"
+          ],
+          [
+            null,
+            0,
+            3,
+            0,
+            360,
+            "CONDITIONING"
+          ],
+          [
+            null,
+            0,
+            4,
+            0,
+            363,
+            "MODEL"
+          ],
+          [
+            3,
+            0,
+            4,
+            1,
+            386,
+            "CONDITIONING"
+          ],
+          [
+            0,
+            0,
+            5,
+            0,
+            383,
+            "NOISE"
+          ],
+          [
+            4,
+            0,
+            5,
+            1,
+            387,
+            "GUIDER"
+          ],
+          [
+            1,
+            0,
+            5,
+            2,
+            384,
+            "SAMPLER"
+          ],
+          [
+            2,
+            0,
+            5,
+            3,
+            385,
+            "SIGMAS"
+          ],
+          [
+            null,
+            0,
+            5,
+            4,
+            366,
+            "LATENT"
+          ]
+        ],
+        "external": [
+          [
+            5,
+            0,
+            "LATENT"
+          ]
+        ]
+      }
+    }
+  },
+  "version": 0.4
+}

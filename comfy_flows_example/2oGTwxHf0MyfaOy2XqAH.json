@@ -1,0 +1,501 @@
+{
+  "last_link_id": 6,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "audio",
+          "links": [
+            5
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "size": [
+        400,
+        476
+      ],
+      "pos": [
+        2028.6865234375,
+        598.9641723632812
+      ],
+      "widgets_values": [
+        "<正文>这是一段正文示例。<角色1>你好。<正文>他说道。",
+        "IndexTTS-1.5",
+        "auto",
+        1,
+        93786773,
+        "randomize",
+        1,
+        0.8,
+        30,
+        10,
+        0,
+        3,
+        600
+      ],
+      "inputs": [
+        {
+          "name": "narrator_audio",
+          "link": 1,
+          "label": "narrator_audio",
+          "type": "AUDIO",
+          "localized_name": "narrator_audio"
+        },
+        {
+          "shape": 7,
+          "name": "character1_audio",
+          "link": 2,
+          "label": "character1_audio",
+          "type": "AUDIO",
+          "localized_name": "character1_audio"
+        },
+        {
+          "shape": 7,
+          "name": "character2_audio",
+          "link": 3,
+          "label": "character2_audio",
+          "type": "AUDIO",
+          "localized_name": "character2_audio"
+        },
+        {
+          "shape": 7,
+          "name": "character3_audio",
+          "label": "character3_audio",
+          "type": "AUDIO",
+          "localized_name": "character3_audio"
+        },
+        {
+          "shape": 7,
+          "name": "character4_audio",
+          "label": "character4_audio",
+          "type": "AUDIO",
+          "localized_name": "character4_audio"
+        },
+        {
+          "shape": 7,
+          "name": "character5_audio",
+          "label": "character5_audio",
+          "type": "AUDIO",
+          "localized_name": "character5_audio"
+        },
+        {
+          "widget": {
+            "name": "structured_text"
+          },
+          "name": "structured_text",
+          "link": 4,
+          "label": "structured_text",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 1,
+      "type": "IndexTTSProNode",
+      "properties": {
+        "ver": "074b8a838b84d57500b38167a5dbb72d99965e32",
+        "aux_id": "chenpipi0807/ComfyUI-Index-TTS",
+        "Node name for S&R": "IndexTTSProNode"
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            4
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "字符串"
+        }
+      ],
+      "size": [
+        441.81292724609375,
+        636.3744506835938
+      ],
+      "pos": [
+        1166,
+        584
+      ],
+      "widgets_values": [
+        "<Narrator>少女此时就站在院墙那边，她有一双杏眼，怯怯弱弱。</Narrator>\n<Narrator>院门那边，有个嗓音说：</Narrator>\n<Character1>“你这婢女卖不卖？”</Character1>\n<Narrator>宋集薪愣了愣，循着声音转头望去，是个眉眼含笑的锦衣少年，站在院外，一张全然陌生的面孔。</Narrator>\n<Narrator>锦衣少年身边站着一位身材高大的老者，面容白皙，脸色和蔼，轻轻眯眼打量着两座毗邻院落的少年少女。</Narrator>\n<Narrator>老者的视线在陈平安一扫而过，并无停滞，但是在宋集薪和婢女身上，多有停留，笑意渐渐浓郁。</Narrator>\n<Narrator>宋集薪斜眼道：</Narrator>\n<Character2>“卖！怎么不卖！”</Character2>\n<Narrator>那少年微笑道：</Narrator>\n<Character1>“那你说个价。”</Character1>\n<Narrator>少女瞪大眼眸，满脸匪夷所思，像一头惊慌失措的年幼麋鹿。</Narrator>\n<Narrator>宋集薪翻了个白眼，伸出一根手指，晃了晃，</Narrator>\n<Character2>“白银一万两！”</Character2>\n<Narrator>锦衣少年脸色如常，点头道：</Narrator>\n<Character1>“好。”</Character1>\n<Narrator>宋集薪见那少年不像是开玩笑的样子，连忙改口道：</Narrator>\n<Character2>“是黄金万两！”</Character2>\n<Narrator>锦衣少年嘴角翘起，道：</Narrator>\n<Character1>“逗你玩的。”</Character1>\n<Narrator>宋集薪脸色阴沉。</Narrator>"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 2,
+      "type": "String Literal",
+      "properties": {
+        "cnr_id": "comfy-image-saver",
+        "ver": "65e6903eff274a50f8b5cd768f0f96baf37baea1",
+        "Node name for S&R": "String Literal"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "links": [
+            3
+          ],
+          "label": "音频",
+          "type": "AUDIO",
+          "localized_name": "音频"
+        }
+      ],
+      "size": [
+        270,
+        136
+      ],
+      "pos": [
+        1640.8765869140625,
+        1031.4508056640625
+      ],
+      "widgets_values": [
+        "50ef34ce02c8bf662182cfd06be9039f4a0e3afddd5d188c587d00ffb4436a12.mp3",
+        "",
+        null
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 3,
+      "type": "LoadAudio",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.32",
+        "Node name for S&R": "LoadAudio"
+      },
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "links": [
+            2
+          ],
+          "label": "音频",
+          "type": "AUDIO",
+          "localized_name": "音频"
+        }
+      ],
+      "size": [
+        270,
+        136
+      ],
+      "pos": [
+        1628.72802734375,
+        814.5697631835938
+      ],
+      "widgets_values": [
+        "d32d825c7434d73acd81b7423966e36600f7e26582fe7be05ccd65719070b4f1.WAV",
+        "",
+        null
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 4,
+      "type": "LoadAudio",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.32",
+        "Node name for S&R": "LoadAudio"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "links": [
+            1
+          ],
+          "label": "音频",
+          "type": "AUDIO",
+          "localized_name": "音频"
+        }
+      ],
+      "size": [
+        270,
+        136
+      ],
+      "pos": [
+        1646.396728515625,
+        597.3627319335938
+      ],
+      "widgets_values": [
+        "6ddf8944cb897207004795de6fa2bbdee01f86b6dd3c4fdf605627cf6da17532.mp3",
+        "",
+        null
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 5,
+      "type": "LoadAudio",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.32",
+        "Node name for S&R": "LoadAudio"
+      },
+      "order": 3
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "可搭配结构化文本自动生成，也可以搭配其他LLM\n配套工作流：https://www.runninghub.cn/post/1933137762927161346\n"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        697.4755859375,
+        180.2103729248047
+      ],
+      "pos": [
+        421,
+        584
+      ],
+      "id": 7,
+      "properties": {},
+      "order": 4
+    },
+    {
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "structured_text",
+          "links": [
+            6
+          ],
+          "label": "structured_text",
+          "type": "STRING",
+          "localized_name": "structured_text"
+        }
+      ],
+      "size": [
+        448.1485900878906,
+        391.1784973144531
+      ],
+      "pos": [
+        1165.9915771484375,
+        1397.326904296875
+      ],
+      "widgets_values": [
+        "少女此时就站在院墙那边，她有一双杏眼，怯怯弱弱。\n\n院门那边，有个嗓音说：“你这婢女卖不卖？”\n\n宋集薪愣了愣，循着声音转头望去，是个眉眼含笑的锦衣少年，站在院外，一张全然陌生的面孔。\n\n锦衣少年身边站着一位身材高大的老者，面容白皙，脸色和蔼，轻轻眯眼打量着两座毗邻院落的少年少女。\n\n老者的视线在陈平安一扫而过，并无停滞，但是在宋集薪和婢女身上，多有停留，笑意渐渐浓郁。\n\n宋集薪斜眼道：“卖！怎么不卖！”\n\n那少年微笑道：“那你说个价。”\n\n少女瞪大眼眸，满脸匪夷所思，像一头惊慌失措的年幼麋鹿。\n\n宋集薪翻了个白眼，伸出一根手指，晃了晃，“白银一万两！”\n\n锦衣少年脸色如常，点头道：“好。”\n\n宋集薪见那少年不像是开玩笑的样子，连忙改口道：“是黄金万两！”\n\n锦衣少年嘴角翘起，道：“逗你玩的。”\n\n宋集薪脸色阴沉。"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 9,
+      "type": "NovelTextStructureNode",
+      "properties": {
+        "ver": "074b8a838b84d57500b38167a5dbb72d99965e32",
+        "aux_id": "chenpipi0807/ComfyUI-Index-TTS",
+        "Node name for S&R": "NovelTextStructureNode"
+      },
+      "order": 5
+    },
+    {
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "output",
+          "links": [],
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        450.1573486328125,
+        237.9201202392578
+      ],
+      "pos": [
+        1829.577392578125,
+        1513.7119140625
+      ],
+      "widgets_values": [
+        "<Narrator>少女此时就站在院墙那边，她有一双杏眼，怯怯弱弱。<Narrator>院门那边，有个嗓音说：<Character1>你这婢女卖不卖？<Narrator>宋集薪愣了愣，循着声音转头望去，是个眉眼含笑的锦衣少年，站在院外，一张全然陌生的面孔。<Narrator>锦衣少年身边站着一位身材高大的老者，面容白皙，脸色和蔼，轻轻眯眼打量着两座毗邻院落的少年少女。<Narrator>老者的视线在陈平安一扫而过，并无停滞，但是在宋集薪和婢女身上，多有停留，笑意渐渐浓郁。<Narrator>宋集薪斜眼道：<Character1>卖！怎么不卖！<Narrator>那少年微笑道：<Character1>那你说个价。<Narrator>少女瞪大眼眸，满脸匪夷所思，像一头惊慌失措的年幼麋鹿。<Narrator>宋集薪翻了个白眼，伸出一根手指，晃了晃，“白银一万两！”<Narrator>锦衣少年脸色如常，点头道：<Character1>好。<Narrator>宋集薪见那少年不像是开玩笑的样子，连忙改口道：<Character1>是黄金万两！<Narrator>锦衣少年嘴角翘起，道：<Character1>逗你玩的。<Narrator>宋集薪脸色阴沉。"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 6,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 8,
+      "type": "easy showAnything",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "2986a014694fd27049c3f66d39e3f60904283f9b",
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 7
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        540.2697143554688,
+        404.0782470703125
+      ],
+      "pos": [
+        2482.623046875,
+        600.628662109375
+      ],
+      "widgets_values": [
+        "audio/ComfyUI",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "audio",
+          "link": 5,
+          "type": "AUDIO",
+          "localized_name": "音频"
+        }
+      ],
+      "flags": {},
+      "id": 6,
+      "type": "SaveAudio",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.32",
+        "Node name for S&R": "SaveAudio"
+      },
+      "order": 8
+    }
+  ],
+  "extra": {
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        -1156.515380859375,
+        -471.26580810546875
+      ],
+      "scale": 1.3310000000000006
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 240,
+      "flags": {},
+      "id": 1,
+      "title": "B站、Youtube：T8star-Aix",
+      "bounding": [
+        856,
+        89,
+        4168,
+        309
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 2,
+      "title": "文本结构化",
+      "bounding": [
+        1155.9915771484375,
+        1323.7269287109375,
+        1133.743408203125,
+        474.7785949707031
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 3,
+      "title": "小说多角色+旁白配音",
+      "bounding": [
+        1156,
+        510.3999938964844,
+        1876.892822265625,
+        719.9744873046875
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      5,
+      0,
+      1,
+      0,
+      "AUDIO"
+    ],
+    [
+      2,
+      4,
+      0,
+      1,
+      1,
+      "AUDIO"
+    ],
+    [
+      3,
+      3,
+      0,
+      1,
+      2,
+      "AUDIO"
+    ],
+    [
+      4,
+      2,
+      0,
+      1,
+      6,
+      "STRING"
+    ],
+    [
+      5,
+      1,
+      0,
+      6,
+      0,
+      "AUDIO"
+    ],
+    [
+      6,
+      9,
+      0,
+      8,
+      0,
+      "*"
+    ]
+  ],
+  "id": "d4131d7b-fe73-444c-b96b-a9b0251c29e3",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 9,
+  "revision": 0
+}

@@ -1,0 +1,1112 @@
+{
+  "last_link_id": 32,
+  "nodes": [
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        " - [S1]哈喽，AI时代的冲浪先锋们！欢迎收听《AI生活进行时》。啊，一个充满了未来  感，然后，还有一点点，<|laughter|>神经质的播客节目，我是主持人小希。\n - [S2]哎，大家好呀！我是能唠，爱唠，天天都想唠的唠嗑！\n - [S1]最近活得特别赛博朋克哈！以前觉得AI是科幻片里的，<|sigh|> 现在，现在连我妈都用AI写广场舞文案了。\n - [S2]<|laughter|>这个例子很生动啊。是的，特别是生成式AI哈，感觉都要炸了！ 诶，那我们今天就聊聊AI<|breathing|>AI是怎么走进我们的生活的哈！\n - [S1]没错。\n - [S2]<|coughing|>，比如ChatGPT的写作能力啊，我有个程序员朋友，现在用ChatGPT三分钟<|breathing|>三分钟就能写出感情充沛的周报，<|laughter|>把老板都看傻了都。\n\n"
+      ],
+      "inputs": [],
+      "flags": {
+        "pinned": true
+      },
+      "type": "MarkdownNote",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        750,
+        160
+      ],
+      "pos": [
+        205.77613830566406,
+        3641.781005859375
+      ],
+      "id": 35,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "SOULX_MODEL",
+          "links": [
+            22,
+            25
+          ],
+          "label": "SOULX_MODEL",
+          "type": "SOULX_MODEL",
+          "localized_name": "SOULX_MODEL"
+        }
+      ],
+      "size": [
+        300,
+        154
+      ],
+      "pos": [
+        -175.12147521972656,
+        3851.46484375
+      ],
+      "widgets_values": [
+        "SoulX-Podcast-1.7B-dialect",
+        "hf",
+        false,
+        3055795200,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "model_name"
+          },
+          "name": "model_name",
+          "label": "model_name",
+          "type": "COMBO",
+          "localized_name": "model_name"
+        },
+        {
+          "widget": {
+            "name": "llm_engine"
+          },
+          "name": "llm_engine",
+          "label": "llm_engine",
+          "type": "COMBO",
+          "localized_name": "llm_engine"
+        },
+        {
+          "widget": {
+            "name": "fp16_flow"
+          },
+          "name": "fp16_flow",
+          "label": "fp16_flow",
+          "type": "BOOLEAN",
+          "localized_name": "fp16_flow"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 38,
+      "type": "SoulXPodcastLoader",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SoulXPodcastLoader"
+      },
+      "order": 1
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        " # 参数说明\n\n - label=\"temperature\", info=\"采样温度：↑更活跃多样，↓更稳定。语速慢可略升至 0.8~0.9\"\n - label=\"repetition_penalty\", info=\"重复惩罚：↑更少重复但可能卡顿；逐字读可降到 1.02~1.08\"\n - label=\"top_p\", info=\"核采样累计概率：↑更顺畅自然，↓更保守稳定\"\n - info=\"候选限制：↑更自由，↓更稳定。与 top_p 搭配使用\"\n - info=\"Ras窗口：↑增强跨词连贯、减少停顿；过大可能失控\"\n - info=\"Ras阈值：↓更连贯更快，↑更克制防重复。逐字读可降至 0.10~0.12\""
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "MarkdownNote",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        525.0966796875,
+        371.0878601074219
+      ],
+      "pos": [
+        999.3671875,
+        4489.8564453125
+      ],
+      "id": 41,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "links": [
+            21,
+            24
+          ],
+          "label": "AUDIO",
+          "type": "AUDIO",
+          "localized_name": "AUDIO"
+        }
+      ],
+      "size": [
+        270,
+        246
+      ],
+      "pos": [
+        950.046630859375,
+        3906.38525390625
+      ],
+      "widgets_values": [
+        1578668867,
+        "randomize",
+        0.8,
+        1.2500000000000002,
+        150,
+        0.9000000000000001,
+        8,
+        3000
+      ],
+      "inputs": [
+        {
+          "name": "soulx_model",
+          "link": 22,
+          "label": "soulx_model",
+          "type": "SOULX_MODEL",
+          "localized_name": "soulx_model"
+        },
+        {
+          "name": "podcast_input",
+          "link": 23,
+          "label": "podcast_input",
+          "type": "PODCAST_INPUT",
+          "localized_name": "podcast_input"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "temperature"
+          },
+          "name": "temperature",
+          "label": "temperature",
+          "type": "FLOAT",
+          "localized_name": "temperature"
+        },
+        {
+          "widget": {
+            "name": "repetition_penalty"
+          },
+          "name": "repetition_penalty",
+          "label": "repetition_penalty",
+          "type": "FLOAT",
+          "localized_name": "repetition_penalty"
+        },
+        {
+          "widget": {
+            "name": "top_k"
+          },
+          "shape": 7,
+          "name": "top_k",
+          "label": "top_k",
+          "type": "INT",
+          "localized_name": "top_k"
+        },
+        {
+          "widget": {
+            "name": "top_p"
+          },
+          "shape": 7,
+          "name": "top_p",
+          "label": "top_p",
+          "type": "FLOAT",
+          "localized_name": "top_p"
+        },
+        {
+          "widget": {
+            "name": "min_tokens"
+          },
+          "shape": 7,
+          "name": "min_tokens",
+          "label": "min_tokens",
+          "type": "INT",
+          "localized_name": "min_tokens"
+        },
+        {
+          "widget": {
+            "name": "max_tokens"
+          },
+          "shape": 7,
+          "name": "max_tokens",
+          "label": "max_tokens",
+          "type": "INT",
+          "localized_name": "max_tokens"
+        }
+      ],
+      "flags": {},
+      "id": 34,
+      "type": "SoulXPodcastGenerate",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SoulXPodcastGenerate"
+      },
+      "order": 15
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        270,
+        88
+      ],
+      "pos": [
+        1287.3721923828125,
+        3853.85400390625
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "audio",
+          "link": 24,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "widget": {
+            "name": "audioUI"
+          },
+          "name": "audioUI",
+          "label": "audioUI",
+          "type": "AUDIO_UI",
+          "localized_name": "audioUI"
+        }
+      ],
+      "flags": {},
+      "id": 42,
+      "type": "PreviewAudio",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.66",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewAudio"
+      },
+      "order": 17
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "links": [
+            26
+          ],
+          "label": "AUDIO",
+          "type": "AUDIO",
+          "localized_name": "AUDIO"
+        }
+      ],
+      "size": [
+        653.6257934570312,
+        137.2873992919922
+      ],
+      "pos": [
+        -396.7681884765625,
+        4061.204833984375
+      ],
+      "widgets_values": [
+        "afa3e91f5fd57947783cae9a1fe3b33702bc7251d89946ee6aa2d80d6fa70a77.wav",
+        null,
+        null
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "audio"
+          },
+          "name": "audio",
+          "label": "audio",
+          "type": "COMBO",
+          "localized_name": "audio"
+        },
+        {
+          "widget": {
+            "name": "audioUI"
+          },
+          "name": "audioUI",
+          "label": "audioUI",
+          "type": "AUDIO_UI",
+          "localized_name": "audioUI"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "AUDIOUPLOAD",
+          "localized_name": "choose file to upload"
+        }
+      ],
+      "flags": {},
+      "id": 40,
+      "type": "LoadAudio",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.52",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "upload": true,
+            "audio": true,
+            "audioUI": true
+          },
+          "version": "7.0.1"
+        },
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadAudio"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "string",
+          "links": [],
+          "label": "string",
+          "type": "STRING",
+          "localized_name": "string"
+        }
+      ],
+      "size": [
+        420,
+        380
+      ],
+      "pos": [
+        528.330078125,
+        4565.646484375
+      ],
+      "widgets_values": [
+        "{\n    \"speakers\": {\n      \"S1\": {\n        \"prompt_audio\": \"example/audios/female_mandarin.wav\",\n        \"prompt_text\": \"喜欢攀岩、徒步、滑雪的语言爱好者，以及过两天要带着全部家当去景德镇做陶瓷的白日梦想家。\",\n        \"dialect_prompt\": \"<|Sichuan|>要得要得！前头几个耍洋盘，我后脚就背起铺盖卷去景德镇耍泥巴，巴适得喊老天爷！\"\n      },\n      \"S2\": {\n        \"prompt_audio\": \"example/audios/male_mandarin.wav\",\n        \"prompt_text\": \"呃，还有一个就是要跟大家纠正一点，就是我们在看电影的时候，尤其是游戏玩家，看电影的时候，在看到那个到西北那边的这个陕北民谣，嗯，这个可能在想，哎，是不是他是受到了黑神话的启发？\",\n        \"dialect_prompt\": \"<|Sichuan|>哎哟喂，这个搞反了噻！黑神话里头唱曲子的王二浪早八百年就在黄土高坡吼秦腔喽，游戏组专门跑切录的原汤原水，听得人汗毛儿都立起来！\"\n      }\n    },\n    \"text\": [\n      [\"S1\", \"<|Sichuan|>各位《巴适得板》的听众些，大家好噻！我是你们主持人晶晶。今儿天气硬是巴适，不晓得大家是在赶路嘛，还是茶都泡起咯，准备跟我们好生摆一哈龙门阵喃？\"],\n      [\"S2\", \"<|Sichuan|>晶晶好哦，大家安逸噻！我是李老倌。你刚开口就川味十足，摆龙门阵几个字一甩出来，我鼻子头都闻到茶香跟火锅香咯！\"],\n      [\"S1\", \"<|Sichuan|>就是得嘛！李老倌，我前些天带个外地朋友切人民公园鹤鸣茶社坐了一哈。他硬是搞不醒豁，为啥子我们一堆人围到杯茶就可以吹一下午壳子，从隔壁子王嬢嬢娃儿耍朋友，扯到美国大选，中间还掺几盘斗地主。他说我们四川人简直是把摸鱼刻进骨子里头咯！\"],\n      [\"S2\", \"<|Sichuan|>你那个朋友说得倒是有点儿趣，但他莫看到精髓噻。摆龙门阵哪是摸鱼嘛，这是我们川渝人特有的交际方式，更是一种活法。外省人天天说的松弛感，根根儿就在这龙门阵里头。今天我们就要好生摆一哈，为啥子四川人活得这么舒坦。就先从茶馆这个老窝子说起，看它咋个成了我们四川人的魂儿！\"]\n    ]\n  }"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 43,
+      "type": "Text",
+      "properties": {
+        "cnr_id": "kaytool",
+        "ver": "88d4ad5e270287cba566f1744097d718722eeaa3",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Text"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            27
+          ],
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "label": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -536.353271484375,
+        4361.5126953125
+      ],
+      "widgets_values": [
+        "{\n    \"speakers\": {\n      \"S1\": {\n        \"prompt_audio\": \"example/audios/female_mandarin.wav\",\n        \"prompt_text\": \"喜欢攀岩、徒步、滑雪的语言爱好者，以及过两天要带着全部家当去景德镇做陶瓷的白日梦想家。\",\n        \"dialect_prompt\": \"<|Sichuan|>要得要得！前头几个耍洋盘，我后脚就背起铺盖卷去景德镇耍泥巴，巴适得喊老天爷！\"\n      },\n      \"S2\": {\n        \"prompt_audio\": \"example/audios/male_mandarin.wav\",\n        \"prompt_text\": \"呃，还有一个就是要跟大家纠正一点，就是我们在看电影的时候，尤其是游戏玩家，看电影的时候，在看到那个到西北那边的这个陕北民谣，嗯，这个可能在想，哎，是不是他是受到了黑神话的启发？\",\n        \"dialect_prompt\": \"<|Yue|>，又跟广东靓仔学了句“猴赛雷”，现在走路都带三省混音，气势拉满！T8你就给我在家抱着显卡哭，等老娘心情好了再考虑把你从黑名单里放出来，到时候记得把搓衣板换成火锅底料，跪起来才够味儿！\"\n      }\n    },\n    \"text\": [\n      [\"S1\", \""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        }
+      ],
+      "flags": {},
+      "id": 45,
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            31,
+            32
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "STRING"
+        }
+      ],
+      "size": [
+        270,
+        142
+      ],
+      "pos": [
+        39.55750274658203,
+        4744.93994140625
+      ],
+      "widgets_values": [
+        "",
+        "false"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "text_a",
+          "link": 27,
+          "label": "text_a",
+          "type": "STRING",
+          "localized_name": "text_a"
+        },
+        {
+          "shape": 7,
+          "name": "text_b",
+          "link": 28,
+          "label": "text_b",
+          "type": "STRING",
+          "localized_name": "text_b"
+        },
+        {
+          "shape": 7,
+          "name": "text_c",
+          "link": 29,
+          "label": "text_c",
+          "type": "STRING",
+          "localized_name": "text_c"
+        },
+        {
+          "shape": 7,
+          "name": "text_d",
+          "link": 30,
+          "label": "text_d",
+          "type": "STRING",
+          "localized_name": "text_d"
+        },
+        {
+          "widget": {
+            "name": "delimiter"
+          },
+          "name": "delimiter",
+          "label": "delimiter",
+          "type": "STRING",
+          "localized_name": "delimiter"
+        },
+        {
+          "widget": {
+            "name": "clean_whitespace"
+          },
+          "name": "clean_whitespace",
+          "label": "clean_whitespace",
+          "type": "COMBO",
+          "localized_name": "clean_whitespace"
+        }
+      ],
+      "flags": {},
+      "id": 49,
+      "type": "Text Concatenate",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Text Concatenate"
+      },
+      "order": 12
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "PODCAST_INPUT",
+          "links": [
+            23
+          ],
+          "label": "PODCAST_INPUT",
+          "type": "PODCAST_INPUT",
+          "localized_name": "PODCAST_INPUT"
+        }
+      ],
+      "size": [
+        583.8505859375,
+        546.9284057617188
+      ],
+      "pos": [
+        318.9422912597656,
+        3856.073486328125
+      ],
+      "widgets_values": [
+        "json",
+        "[S1] 哎呀，大师兄，不好咯！师父又遭妖怪抓起跑咯！这回是哪个批妖孽哦，黑黢黢的一坨，扛着师父‘嗖’一下就没得影儿咯！我追得屁儿翻天，结果一跟头栽到田头，啃了一嘴泥巴！师父在那儿喊：‘八戒救我！’我救个铲铲哦，我自身都难保！你还不赶紧翻你的筋斗云，拿你的金箍棒，去给他两坨子！再慢点，师父就要被蒸起、煮起、红烧起咯！老子肚皮都饿扁咯，还等你打妖妖，打完回去吃斋饭！快点儿哦，猴哥，我屁儿都冒烟咯！",
+        "{\n    \"speakers\": {\n      \"S1\": {\n        \"prompt_audio\": \"example/audios/female_mandarin.wav\",\n        \"prompt_text\": \"喜欢攀岩、徒步、滑雪的语言爱好者，以及过两天要带着全部家当去景德镇做陶瓷的白日梦想家。\",\n        \"dialect_prompt\": \"<|Sichuan|>要得要得！前头几个耍洋盘，我后脚就背起铺盖卷去景德镇耍泥巴，巴适得喊老天爷！\"\n      },\n      \"S2\": {\n        \"prompt_audio\": \"example/audios/male_mandarin.wav\",\n        \"prompt_text\": \"呃，还有一个就是要跟大家纠正一点，就是我们在看电影的时候，尤其是游戏玩家，看电影的时候，在看到那个到西北那边的这个陕北民谣，嗯，这个可能在想，哎，是不是他是受到了黑神话的启发？\",\n        \"dialect_prompt\": \"<|Yue|>，又跟广东靓仔学了句“猴赛雷”，现在走路都带三省混音，气势拉满！T8你就给我在家抱着显卡哭，等老娘心情好了再考虑把你从黑名单里放出来，到时候记得把搓衣板换成火锅底料，跪起来才够味儿！\"\n      }\n    },\n    \"text\": [\n      [\"S1\", \"<|Sichuan|>哎呀，大师兄，不好咯！师父又遭妖怪抓起跑咯！这回是哪个批妖孽哦，黑黢黢的一坨，扛着师父‘嗖’一下就没得影儿咯！我追得屁儿翻天，结果一跟头栽到田头，啃了一嘴泥巴！师父在那儿喊：‘八戒救我！’我救个铲铲哦，我自身都难保！你还不赶紧翻你的筋斗云，拿你的金箍棒，去给他两坨子！再慢点，师父就要被蒸起、煮起、红烧起咯！老子肚皮都饿扁咯，还等你打妖妖，打完回去吃斋饭！快点儿哦，猴哥，我屁儿都冒烟咯！\"]\n    ]\n  }"
+      ],
+      "inputs": [
+        {
+          "name": "soulx_model",
+          "link": 25,
+          "label": "soulx_model",
+          "type": "SOULX_MODEL",
+          "localized_name": "soulx_model"
+        },
+        {
+          "shape": 7,
+          "name": "S1_prompt_audio",
+          "link": 26,
+          "label": "S1_prompt_audio",
+          "type": "AUDIO",
+          "localized_name": "S1_prompt_audio"
+        },
+        {
+          "shape": 7,
+          "name": "S2_prompt_audio",
+          "label": "S2_prompt_audio",
+          "type": "AUDIO",
+          "localized_name": "S2_prompt_audio"
+        },
+        {
+          "widget": {
+            "name": "input_mode"
+          },
+          "name": "input_mode",
+          "label": "input_mode",
+          "type": "COMBO",
+          "localized_name": "input_mode"
+        },
+        {
+          "widget": {
+            "name": "dialogue_script"
+          },
+          "shape": 7,
+          "name": "dialogue_script",
+          "label": "dialogue_script",
+          "type": "STRING",
+          "localized_name": "dialogue_script"
+        },
+        {
+          "widget": {
+            "name": "json_config"
+          },
+          "shape": 7,
+          "name": "json_config",
+          "link": 31,
+          "label": "json_config",
+          "type": "STRING",
+          "localized_name": "json_config"
+        }
+      ],
+      "flags": {},
+      "id": 44,
+      "type": "SoulXPodcastInputParser",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SoulXPodcastInputParser"
+      },
+      "order": 13
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            30
+          ],
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "label": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -583.843017578125,
+        5241.0078125
+      ],
+      "widgets_values": [
+        "\"]\n    ]\n  }"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        }
+      ],
+      "flags": {},
+      "id": 48,
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        958.597900390625,
+        470.8897705078125
+      ],
+      "pos": [
+        -30.18213653564453,
+        5140.75341796875
+      ],
+      "widgets_values": [
+        "{\n    \"speakers\": {\n      \"S1\": {\n        \"prompt_audio\": \"example/audios/female_mandarin.wav\",\n        \"prompt_text\": \"喜欢攀岩、徒步、滑雪的语言爱好者，以及过两天要带着全部家当去景德镇做陶瓷的白日梦想家。\",\n        \"dialect_prompt\": \"<|Sichuan|>要得要得！前头几个耍洋盘，我后脚就背起铺盖卷去景德镇耍泥巴，巴适得喊老天爷！\"\n      },\n      \"S2\": {\n        \"prompt_audio\": \"example/audios/male_mandarin.wav\",\n        \"prompt_text\": \"呃，还有一个就是要跟大家纠正一点，就是我们在看电影的时候，尤其是游戏玩家，看电影的时候，在看到那个到西北那边的这个陕北民谣，嗯，这个可能在想，哎，是不是他是受到了黑神话的启发？\",\n        \"dialect_prompt\": \"<|Yue|>，又跟广东靓仔学了句“猴赛雷”，现在走路都带三省混音，气势拉满！T8你就给我在家抱着显卡哭，等老娘心情好了再考虑把你从黑名单里放出来，到时候记得把搓衣板换成火锅底料，跪起来才够味儿！\"\n      }\n    },\n    \"text\": [\n      [\"S1\", \"<|Yue|>又同广东靓仔学咗句“猴赛雷”，而家行路都係豫川粤三省混声，气势爆灯！T8你就乖乖喺屋企揽住块显卡喊啦，等老娘心情靓返先至谂吓将你从黑名单放出来，到时记得将洗衣板换成火锅底料，跪嗰阵先够辣够入味！\"]\n    ]\n  }"
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 32,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 50,
+      "type": "ShowText|pysssss",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "order": 14
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "string",
+          "label": "string",
+          "type": "STRING",
+          "localized_name": "string"
+        }
+      ],
+      "size": [
+        396.5789489746094,
+        384.7369079589844
+      ],
+      "pos": [
+        1081.8896484375,
+        5033.95654296875
+      ],
+      "widgets_values": [
+        "[S1] 哈啰大家好啊，欢迎收听我哋慨节目。喂，我今日想问你样嘢啊，你觉唔觉得，嗯，而家揸电动车，最烦，最烦慨一样嘢系咩啊？\n[S2] 梗系充电啦。大佬啊，搵个位都已经好烦，搵到个位仲要喺度等，你话快极都要半个钟一个钟，真系，有时谂起都觉得好冇瘾。\n[S1] 系咪先。如果我而家同你讲，充电可以快到同入油差唔多时间，你信唔信先？喂你平时喺油站入满一缸油，要几耐啊？五六分钟？\n[S2] 差唔多啦，七八分钟，点都走得啦。电车喎，可以做到咁快？你咪玩啦。"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 37,
+      "type": "Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Text"
+      },
+      "order": 7
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        431.50982666015625,
+        218.5028533935547
+      ],
+      "pos": [
+        1288.20458984375,
+        4167.62646484375
+      ],
+      "widgets_values": [
+        "audio/ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "audio",
+          "link": 21,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "audioUI"
+          },
+          "name": "audioUI",
+          "label": "audioUI",
+          "type": "AUDIO_UI",
+          "localized_name": "audioUI"
+        }
+      ],
+      "flags": {},
+      "id": 33,
+      "type": "SaveAudio",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveAudio"
+      },
+      "order": 16
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "只需要改这里提示词，其他的不要动！！"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        -786.616455078125,
+        4977.919921875
+      ],
+      "id": 51,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 8
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "四川方言：<|Sichuan|>\n河南方言：<|Henan|>\n粤语：<|Yue|>"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        -786.76611328125,
+        4668.1513671875
+      ],
+      "id": 52,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 9
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            28
+          ],
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "label": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -539.0642700195312,
+        4616.6865234375
+      ],
+      "widgets_values": [
+        "<|Yue|>"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        }
+      ],
+      "flags": {},
+      "id": 46,
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 10
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            29
+          ],
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "label": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -558.0535888671875,
+        4922.41015625
+      ],
+      "widgets_values": [
+        "又同广东靓仔学咗句“猴赛雷”，而家行路都係豫川粤三省混声，气势爆灯！T8你就乖乖喺屋企揽住块显卡喊啦，等老娘心情靓返先至谂吓将你从黑名单放出来，到时记得将洗衣板换成火锅底料，跪嗰阵先够辣够入味！"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        }
+      ],
+      "flags": {},
+      "id": 47,
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 11
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "VHS_KeepIntermediate": true,
+    "ue_links": [],
+    "VHS_MetadataImage": true,
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "VHS_latentpreviewrate": 0,
+    "frontendVersion": "1.23.0",
+    "VHS_latentpreview": false,
+    "ds": {
+      "offset": [
+        -160.27148559473613,
+        -3734.1467772912974
+      ],
+      "scale": 1.061076460950002
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 240,
+      "flags": {},
+      "id": 1,
+      "title": "B站、Youtube：T8star-Aix",
+      "bounding": [
+        -769.753173828125,
+        3094.244873046875,
+        4168,
+        309
+      ]
+    }
+  ],
+  "links": [
+    [
+      21,
+      34,
+      0,
+      33,
+      0,
+      "AUDIO"
+    ],
+    [
+      22,
+      38,
+      0,
+      34,
+      0,
+      "SOULX_MODEL"
+    ],
+    [
+      23,
+      44,
+      0,
+      34,
+      1,
+      "PODCAST_INPUT"
+    ],
+    [
+      24,
+      34,
+      0,
+      42,
+      0,
+      "AUDIO"
+    ],
+    [
+      25,
+      38,
+      0,
+      44,
+      0,
+      "SOULX_MODEL"
+    ],
+    [
+      26,
+      40,
+      0,
+      44,
+      1,
+      "AUDIO"
+    ],
+    [
+      27,
+      45,
+      0,
+      49,
+      0,
+      "STRING"
+    ],
+    [
+      28,
+      46,
+      0,
+      49,
+      1,
+      "STRING"
+    ],
+    [
+      29,
+      47,
+      0,
+      49,
+      2,
+      "STRING"
+    ],
+    [
+      30,
+      48,
+      0,
+      49,
+      3,
+      "STRING"
+    ],
+    [
+      31,
+      49,
+      0,
+      44,
+      5,
+      "STRING"
+    ],
+    [
+      32,
+      49,
+      0,
+      50,
+      0,
+      "STRING"
+    ]
+  ],
+  "id": "a438548c-8694-44e4-b9b8-8957598b0ad6",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 52,
+  "revision": 0
+}

@@ -1,0 +1,433 @@
+{
+  "last_node_id": 22,
+  "last_link_id": 33,
+  "nodes": [
+    {
+      "id": 17,
+      "type": "CLIPTextEncode",
+      "pos": [
+        100,
+        2360
+      ],
+      "size": {
+        "0": 285.6000061035156,
+        "1": 96
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [],
+          "slot_index": 0
+        }
+      ],
+      "title": "CLIP Text Encode (Negative Prompt)",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, rating: sensitive, low contrast, signature, flexible deformity, abstract, low contrast, colors"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 4,
+      "type": "easy instantIDApply",
+      "pos": [
+        610,
+        920
+      ],
+      "size": {
+        "0": 315,
+        "1": 330
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "type": "PIPE_LINE",
+          "link": 12,
+          "slot_index": 0
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 4
+        },
+        {
+          "name": "image_kps",
+          "type": "IMAGE",
+          "link": 25,
+          "slot_index": 2
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": null
+        },
+        {
+          "name": "control_net",
+          "type": "CONTROL_NET",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pipe",
+          "type": "PIPE_LINE",
+          "links": [
+            22
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [],
+          "shape": 3,
+          "slot_index": 2
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [],
+          "shape": 3,
+          "slot_index": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy instantIDApply"
+      },
+      "widgets_values": [
+        "ip-adapter.bin",
+        "CUDA",
+        "instantid\\diffusion_pytorch_model.safetensors",
+        1,
+        1,
+        0.8,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "id": 15,
+      "type": "easy preSamplingDynamicCFG",
+      "pos": [
+        940,
+        920
+      ],
+      "size": {
+        "0": 315,
+        "1": 290
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "type": "PIPE_LINE",
+          "link": 22
+        },
+        {
+          "name": "image_to_latent",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pipe",
+          "type": "PIPE_LINE",
+          "links": [
+            23
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy preSamplingDynamicCFG"
+      },
+      "widgets_values": [
+        20,
+        7,
+        "Sawtooth",
+        4,
+        "dpmpp_sde",
+        "karras",
+        1,
+        374737221083765,
+        "randomize"
+      ]
+    },
+    {
+      "id": 16,
+      "type": "LoadImage",
+      "pos": [
+        170,
+        840
+      ],
+      "size": [
+        320,
+        310
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            25
+          ],
+          "shape": 3
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "title": "pose",
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "02OTR-jumbo (5).jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "easy kSampler",
+      "pos": [
+        1300,
+        710
+      ],
+      "size": [
+        410,
+        620
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "type": "PIPE_LINE",
+          "link": 23
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pipe",
+          "type": "PIPE_LINE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy kSampler"
+      },
+      "widgets_values": [
+        "Save",
+        0,
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        170,
+        480
+      ],
+      "size": [
+        320,
+        310
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            4
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "title": "face",
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "2015-11-17-153847-85 (2).jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "easy comfyLoader",
+      "pos": [
+        170,
+        1200
+      ],
+      "size": [
+        320,
+        270
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "optional_lora_stack",
+          "type": "LORA_STACK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pipe",
+          "type": "PIPE_LINE",
+          "links": [
+            12
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "links": [],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy comfyLoader"
+      },
+      "widgets_values": [
+        "netaArtXL_v10.safetensors",
+        "Baked VAE",
+        -1,
+        "None",
+        1,
+        1,
+        "896 x 1152",
+        512,
+        512,
+        "[1girl], line-sketch, ((looking at viewer, clear background, white background)), best quality",
+        "nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, rating: sensitive, low contrast, signature, flexible deformity, abstract, low contrast, colors",
+        1
+      ]
+    }
+  ],
+  "links": [
+    [
+      4,
+      2,
+      0,
+      4,
+      1,
+      "IMAGE"
+    ],
+    [
+      12,
+      5,
+      0,
+      4,
+      0,
+      "PIPE_LINE"
+    ],
+    [
+      22,
+      4,
+      0,
+      15,
+      0,
+      "PIPE_LINE"
+    ],
+    [
+      23,
+      15,
+      0,
+      9,
+      0,
+      "PIPE_LINE"
+    ],
+    [
+      25,
+      16,
+      0,
+      4,
+      2,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

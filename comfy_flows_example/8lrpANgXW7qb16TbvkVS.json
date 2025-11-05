@@ -1,0 +1,509 @@
+{
+  "last_node_id": 134,
+  "last_link_id": 196,
+  "nodes": [
+    {
+      "id": 81,
+      "type": "BizyAir_MinusZoneChatGLM3TextEncode",
+      "pos": {
+        "0": 1075,
+        "1": 1634
+      },
+      "size": {
+        "0": 379.9140319824219,
+        "1": 76
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 173,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BIZYAIR_CONDITIONING",
+          "type": "BIZYAIR_CONDITIONING",
+          "links": [
+            154
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MinusZoneChatGLM3TextEncode"
+      },
+      "widgets_values": [
+        "nsfw，脸部阴影，低分辨率，jpeg伪影、模糊、糟糕，黑脸，霓虹灯"
+      ]
+    },
+    {
+      "id": 80,
+      "type": "BizyAir_MinusZoneChatGLM3TextEncode",
+      "pos": {
+        "0": 1078,
+        "1": 1467
+      },
+      "size": {
+        "0": 389.34320068359375,
+        "1": 76
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 172,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BIZYAIR_CONDITIONING",
+          "type": "BIZYAIR_CONDITIONING",
+          "links": [
+            152
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MinusZoneChatGLM3TextEncode"
+      },
+      "widgets_values": [
+        "真实的照片,20岁女生,红色外套,城市夜景"
+      ]
+    },
+    {
+      "id": 76,
+      "type": "BizyAir_VAEDecode",
+      "pos": {
+        "0": 1556,
+        "1": 1636
+      },
+      "size": {
+        "0": 365.06793212890625,
+        "1": 46
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 159
+        },
+        {
+          "name": "vae",
+          "type": "BIZYAIR_VAE",
+          "link": 129
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            145
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 70,
+      "type": "BizyAir_MZ_KolorsUNETLoaderV2",
+      "pos": {
+        "0": 1094,
+        "1": 1136
+      },
+      "size": {
+        "0": 398.9453430175781,
+        "1": 58
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "BIZYAIR_MODEL",
+          "links": [
+            163
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MZ_KolorsUNETLoaderV2"
+      },
+      "widgets_values": [
+        "kolors/Kolors.safetensors"
+      ]
+    },
+    {
+      "id": 75,
+      "type": "BizyAir_VAELoader",
+      "pos": {
+        "0": 1054,
+        "1": 1783
+      },
+      "size": {
+        "0": 374.62469482421875,
+        "1": 58
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "vae",
+          "type": "BIZYAIR_VAE",
+          "links": [
+            129
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_VAELoader"
+      },
+      "widgets_values": [
+        "sdxl/sdxl_vae.safetensors"
+      ]
+    },
+    {
+      "id": 85,
+      "type": "EmptyLatentImage",
+      "pos": {
+        "0": 1112,
+        "1": 1280
+      },
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            144
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1080,
+        1920,
+        4
+      ]
+    },
+    {
+      "id": 73,
+      "type": "BizyAir_KSampler",
+      "pos": {
+        "0": 1614,
+        "1": 1173
+      },
+      "size": {
+        "0": 315,
+        "1": 262
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "BIZYAIR_MODEL",
+          "link": 163
+        },
+        {
+          "name": "positive",
+          "type": "BIZYAIR_CONDITIONING",
+          "link": 152
+        },
+        {
+          "name": "negative",
+          "type": "BIZYAIR_CONDITIONING",
+          "link": 154
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 144,
+          "slot_index": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            159
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_KSampler"
+      },
+      "widgets_values": [
+        114513,
+        "fixed",
+        22,
+        4.6000000000000005,
+        "dpmpp_sde_gpu",
+        "karras",
+        1
+      ]
+    },
+    {
+      "id": 115,
+      "type": "BizyAirSiliconCloudLLMAPI",
+      "pos": {
+        "0": 232,
+        "1": 1561
+      },
+      "size": {
+        "0": 520.4033813476562,
+        "1": 351.1521911621094
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "user_prompt",
+          "type": "STRING",
+          "link": 196,
+          "widget": {
+            "name": "user_prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            172,
+            173
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "【润色】☁️BizyAir SiliconCloud LLM API",
+      "properties": {
+        "Node name for S&R": "BizyAirSiliconCloudLLMAPI"
+      },
+      "widgets_values": [
+        "Qwen2 72B Instruct",
+        "Please refine the following Stable Diffusion prompt by enhancing its descriptive clarity and visual richness. Focus on adding vivid, sensory details that will guide the model to produce a more visually striking and immersive image. Include specific descriptions of lighting, color palettes, textures, and compositional elements, as well as any relevant emotions or atmosphere. Ensure that the enhanced prompt remains concise yet highly evocative, effectively optimizing the model's capacity to generate detailed, high-quality artwork. Maintain the core concept while improving its creative and visual depth",
+        "雪山、太阳、树木",
+        1024,
+        1,
+        "\"Imagine a breathtaking 16:9 panoramic, high-resolution 4K image that encapsulates the vivacious heart of spring. A sea of flowers, each a splash of luminous color, stretches across the canvas, swaying harmoniously in a grand floral dance. Sun-kissed hues of magenta, azure, and emerald intertwine with pastel tones of rose, apricot, and periwinkle, conjuring a visual symphony that dazzles the senses. Bees hum gently, darting from one bloom to another, while delicate butterflies in intricate patterns and textures flutter gracefully among the petals, their wings shimmering under the golden rays of the sun.\n\nThe scene is illuminated by the warm embrace of the sun, its beams casting a mesmerizing play of light and shadow. Dewdrops, clinging to the delicate petals and lush foliage, glisten like precious jewels, scattering tiny rainbows across the expanse. The atmosphere is filled with the heady, intoxicating perfume of the blooming flowers, evoking an overwhelming sense of peace and enchantment.\n\nIn the distance, silhouettes of photographers are scattered amidst the floral landscape, their cameras ready to capture the ephemeral beauty of the moment. The image is saturated with life, movement, and vibrancy, a breathtaking ode to spring's boundless charm. It is a feast for the eyes and the senses, a visual narrative that unfolds like a glorious, living poem, showcasing the breathtaking majesty and intricate details of nature's wonders.\""
+      ]
+    },
+    {
+      "id": 92,
+      "type": "BizyAirSiliconCloudLLMAPI",
+      "pos": {
+        "0": 207,
+        "1": 1097
+      },
+      "size": {
+        "0": 508.814208984375,
+        "1": 374.79425048828125
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            196
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "【固定】☁️BizyAir SiliconCloud LLM API",
+      "properties": {
+        "Node name for S&R": "BizyAirSiliconCloudLLMAPI"
+      },
+      "widgets_values": [
+        "Qwen2 72B Instruct",
+        "你是一个 stable diffusion prompt 专家，为我生成适用于 Stable Diffusion 模型的prompt。\n我给你相关的词汇描述、句子描述，你帮我扩写为适合 Stable Diffusion 文生图的 prompt。要求：\n1. 英文输出,输出尽可能多和详细的描述\n2. 除了 prompt 外，不要输出任何其它的信息\n",
+        "在一片绚丽的花海中，各种颜色的花朵竞相开放，蜜蜂和蝴蝶在花间翩翩起舞，仿佛在举行一场盛大的舞会。阳光照耀下，花瓣上的露珠闪烁着迷人的光芒，空气中弥漫着花香，令人陶醉。远处，几位摄影师正忙着捕捉这美丽的瞬间，整个场景充满了生机与活力，展现出春天的无限魅力。16:9 横屏 高分辨率 4K 生机 魅力",
+        1024,
+        1,
+        "\"A stunning, vibrant sea of flowers in a 16:9 panoramic, high resolution 4K image, where a dazzling array of blossoms in every hue are in full bloom, engaging in a grand floral dance. Bees and butterflies flutter gracefully among the petals, while dewdrops glisten on the leaves under the radiant sun, casting an enchanting sparkle. The air is thick with the sweet, intoxicating scent of blooming flowers. In the distance, photographers are busy capturing the exquisite beauty of the moment. The scene is brimming with vitality and allure, radiating the boundless charm of spring, showcasing a picturesque spectacle of nature's wonders.\""
+      ]
+    },
+    {
+      "id": 86,
+      "type": "PreviewImage",
+      "pos": {
+        "0": 247,
+        "1": 245
+      },
+      "size": {
+        "0": 1627.340087890625,
+        "1": 723.9328002929688
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 145
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      129,
+      75,
+      0,
+      76,
+      1,
+      "BIZYAIR_VAE"
+    ],
+    [
+      144,
+      85,
+      0,
+      73,
+      3,
+      "LATENT"
+    ],
+    [
+      145,
+      76,
+      0,
+      86,
+      0,
+      "IMAGE"
+    ],
+    [
+      152,
+      80,
+      0,
+      73,
+      1,
+      "BIZYAIR_CONDITIONING"
+    ],
+    [
+      154,
+      81,
+      0,
+      73,
+      2,
+      "BIZYAIR_CONDITIONING"
+    ],
+    [
+      159,
+      73,
+      0,
+      76,
+      0,
+      "LATENT"
+    ],
+    [
+      163,
+      70,
+      0,
+      73,
+      0,
+      "BIZYAIR_MODEL"
+    ],
+    [
+      172,
+      115,
+      0,
+      80,
+      0,
+      "STRING"
+    ],
+    [
+      173,
+      115,
+      0,
+      81,
+      0,
+      "STRING"
+    ],
+    [
+      196,
+      92,
+      0,
+      115,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.6830134553650705,
+      "offset": [
+        337.89583226540225,
+        -133.02091088104513
+      ]
+    },
+    "workspace_info": {
+      "id": "ckS1tBu-IMHBxD8SZ6K-k",
+      "saveLock": false,
+      "cloudID": null,
+      "coverMediaPath": null
+    }
+  },
+  "version": 0.4
+}

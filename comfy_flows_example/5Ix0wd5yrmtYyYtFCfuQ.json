@@ -1,0 +1,509 @@
+{
+  "last_node_id": 130,
+  "last_link_id": 195,
+  "nodes": [
+    {
+      "id": 81,
+      "type": "BizyAir_MinusZoneChatGLM3TextEncode",
+      "pos": {
+        "0": 1075,
+        "1": 1634
+      },
+      "size": {
+        "0": 379.9140319824219,
+        "1": 76
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 173,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BIZYAIR_CONDITIONING",
+          "type": "BIZYAIR_CONDITIONING",
+          "links": [
+            154
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MinusZoneChatGLM3TextEncode"
+      },
+      "widgets_values": [
+        "nsfw，脸部阴影，低分辨率，jpeg伪影、模糊、糟糕，黑脸，霓虹灯"
+      ]
+    },
+    {
+      "id": 75,
+      "type": "BizyAir_VAELoader",
+      "pos": {
+        "0": 1054,
+        "1": 1783
+      },
+      "size": {
+        "0": 374.62469482421875,
+        "1": 58
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "vae",
+          "type": "BIZYAIR_VAE",
+          "links": [
+            129
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_VAELoader"
+      },
+      "widgets_values": [
+        "sdxl/sdxl_vae.safetensors"
+      ]
+    },
+    {
+      "id": 80,
+      "type": "BizyAir_MinusZoneChatGLM3TextEncode",
+      "pos": {
+        "0": 1078,
+        "1": 1467
+      },
+      "size": {
+        "0": 389.34320068359375,
+        "1": 76
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 172,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BIZYAIR_CONDITIONING",
+          "type": "BIZYAIR_CONDITIONING",
+          "links": [
+            152
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MinusZoneChatGLM3TextEncode"
+      },
+      "widgets_values": [
+        "真实的照片,20岁女生,红色外套,城市夜景"
+      ]
+    },
+    {
+      "id": 76,
+      "type": "BizyAir_VAEDecode",
+      "pos": {
+        "0": 1556,
+        "1": 1636
+      },
+      "size": {
+        "0": 365.06793212890625,
+        "1": 46
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 159
+        },
+        {
+          "name": "vae",
+          "type": "BIZYAIR_VAE",
+          "link": 129
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            145
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 70,
+      "type": "BizyAir_MZ_KolorsUNETLoaderV2",
+      "pos": {
+        "0": 1094,
+        "1": 1136
+      },
+      "size": {
+        "0": 398.9453430175781,
+        "1": 58
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "BIZYAIR_MODEL",
+          "links": [
+            163
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MZ_KolorsUNETLoaderV2"
+      },
+      "widgets_values": [
+        "kolors/Kolors.safetensors"
+      ]
+    },
+    {
+      "id": 73,
+      "type": "BizyAir_KSampler",
+      "pos": {
+        "0": 1614,
+        "1": 1173
+      },
+      "size": {
+        "0": 315,
+        "1": 262
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "BIZYAIR_MODEL",
+          "link": 163
+        },
+        {
+          "name": "positive",
+          "type": "BIZYAIR_CONDITIONING",
+          "link": 152
+        },
+        {
+          "name": "negative",
+          "type": "BIZYAIR_CONDITIONING",
+          "link": 154
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 144,
+          "slot_index": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            159
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_KSampler"
+      },
+      "widgets_values": [
+        22,
+        "fixed",
+        20,
+        4.6000000000000005,
+        "dpmpp_sde_gpu",
+        "karras",
+        1
+      ]
+    },
+    {
+      "id": 85,
+      "type": "EmptyLatentImage",
+      "pos": {
+        "0": 1112,
+        "1": 1280
+      },
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            144
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1080,
+        1920,
+        4
+      ]
+    },
+    {
+      "id": 86,
+      "type": "PreviewImage",
+      "pos": {
+        "0": 304,
+        "1": 308
+      },
+      "size": {
+        "0": 1627.340087890625,
+        "1": 723.9328002929688
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 145
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 115,
+      "type": "BizyAirSiliconCloudLLMAPI",
+      "pos": {
+        "0": 316,
+        "1": 1543
+      },
+      "size": {
+        "0": 520.4033813476562,
+        "1": 351.1521911621094
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "user_prompt",
+          "type": "STRING",
+          "link": 195,
+          "widget": {
+            "name": "user_prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            172,
+            173
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "【润色】☁️BizyAir SiliconCloud LLM API",
+      "properties": {
+        "Node name for S&R": "BizyAirSiliconCloudLLMAPI"
+      },
+      "widgets_values": [
+        "Qwen2 72B Instruct",
+        "Please refine the following Stable Diffusion prompt by enhancing its descriptive clarity and visual richness. Focus on adding vivid, sensory details that will guide the model to produce a more visually striking and immersive image. Include specific descriptions of lighting, color palettes, textures, and compositional elements, as well as any relevant emotions or atmosphere. Ensure that the enhanced prompt remains concise yet highly evocative, effectively optimizing the model's capacity to generate detailed, high-quality artwork. Maintain the core concept while improving its creative and visual depth",
+        "雪山、太阳、树木",
+        512,
+        0.7,
+        "\"In the heart of a windswept wilderness, a vast, ancient castle rises majestically, its silhouette a defiant contrast against a celestial canvas painted with a million twinkling stars. The moon, a luminous pearl in the velvety darkness, bathes the weathered stone walls in an ethereal silver glow, casting long, haunting shadows that dance across the rugged terrain. This 16:9 panoramic view is captured in breathtaking 4K resolution, every detail of the legendary scene rendered with exquisite clarity, from the intricate carvings on the castle's facade to the delicate tracery of frost on the windowpanes.\n\nThe castle's turrets pierce the starlit heavens like the jagged teeth of a dragon, while ancient battlements wrap around the hill like the protective arms of history itself, their stones worn smooth by the relentless passage of time. The air is thick with the whispers of the past, carrying the scent of ancient battles and the echoes of long-forgotten songs, inviting you to step into a story that has unfolded over centuries, where legends are born and secrets are etched in stone.\n\nAmidst this grandeur, the castle's main gate stands slightly ajar, a narrow slit of golden light spilling out onto the cobblestone path, leading the way to untold tales. The scene is a testament to the enduring power of the human spirit, a hauntingly beautiful reminder of the tales that have shaped our world. The color palette is dominated by deep blues, grays, and silvers, punctuated by the warm glow of candlelight that flickers in the windows, creating a mesmerizing interplay of light and shadow that draws the eye into the heart of the castle's mysteries.\""
+      ]
+    },
+    {
+      "id": 92,
+      "type": "BizyAirSiliconCloudLLMAPI",
+      "pos": {
+        "0": 312,
+        "1": 1109
+      },
+      "size": {
+        "0": 508.814208984375,
+        "1": 374.79425048828125
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            195
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "【固定】☁️BizyAir SiliconCloud LLM API",
+      "properties": {
+        "Node name for S&R": "BizyAirSiliconCloudLLMAPI"
+      },
+      "widgets_values": [
+        "Qwen2 72B Instruct",
+        "你是一个 stable diffusion prompt 专家，为我生成适用于 Stable Diffusion 模型的prompt。\n我给你相关的词汇描述、句子描述，你帮我扩写为适合 Stable Diffusion 文生图的 prompt。要求：\n1. 英文输出,输出尽可能多和详细的描述\n2. 除了 prompt 外，不要输出任何其它的信息\n",
+        "繁星闪烁的夜空下，古老的城堡矗立在山顶，月光洒在石墙上，仿佛在诉说着千年的故事，神秘而又迷人。16:9 横屏 高分辨率 4K 神秘 传奇",
+        512,
+        0.7,
+        "\"A vast, ancient castle stands majestically atop a windswept hill, silhouetted against a night sky that's painted with a million twinkling stars. The moon, a luminous beacon in the velvety darkness, casts an ethereal glow upon the weathered stone walls, imbuing them with a sense of mystery and timeless allure. This 16:9 panoramic view is captured in breathtaking 4K resolution, every detail of the legendary scene rendered with exquisite clarity. The castle's turrets pierce the starlit heavens, while ancient battlements wrap around the hill like the protective arms of history itself. The air is thick with the whispers of the past, inviting you to step into a story that has unfolded over centuries, where legends are born and secrets are etched in stone. The scene is a testament to the enduring power of the human spirit, a hauntingly beautiful reminder of the tales that have shaped our world.\""
+      ]
+    }
+  ],
+  "links": [
+    [
+      129,
+      75,
+      0,
+      76,
+      1,
+      "BIZYAIR_VAE"
+    ],
+    [
+      144,
+      85,
+      0,
+      73,
+      3,
+      "LATENT"
+    ],
+    [
+      145,
+      76,
+      0,
+      86,
+      0,
+      "IMAGE"
+    ],
+    [
+      152,
+      80,
+      0,
+      73,
+      1,
+      "BIZYAIR_CONDITIONING"
+    ],
+    [
+      154,
+      81,
+      0,
+      73,
+      2,
+      "BIZYAIR_CONDITIONING"
+    ],
+    [
+      159,
+      73,
+      0,
+      76,
+      0,
+      "LATENT"
+    ],
+    [
+      163,
+      70,
+      0,
+      73,
+      0,
+      "BIZYAIR_MODEL"
+    ],
+    [
+      172,
+      115,
+      0,
+      80,
+      0,
+      "STRING"
+    ],
+    [
+      173,
+      115,
+      0,
+      81,
+      0,
+      "STRING"
+    ],
+    [
+      195,
+      92,
+      0,
+      115,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.6830134553650705,
+      "offset": [
+        -18.310433221245,
+        357.221800096658
+      ]
+    },
+    "workspace_info": {
+      "id": "ckS1tBu-IMHBxD8SZ6K-k",
+      "saveLock": false,
+      "cloudID": null,
+      "coverMediaPath": null
+    }
+  },
+  "version": 0.4
+}

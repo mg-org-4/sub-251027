@@ -1,0 +1,648 @@
+{
+  "last_node_id": 58,
+  "last_link_id": 87,
+  "nodes": [
+    {
+      "id": 27,
+      "type": "UnetLoaderGGUF",
+      "pos": {
+        "0": 140.14501953125,
+        "1": 372.1867980957031
+      },
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            50
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UnetLoaderGGUF"
+      },
+      "widgets_values": [
+        "flux1-dev-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "DualCLIPLoader",
+      "pos": {
+        "0": 150.14501953125,
+        "1": 492.18682861328125
+      },
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            49
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DualCLIPLoader"
+      },
+      "widgets_values": [
+        "clip_l.safetensors",
+        "t5xxl_fp8_e4m3fn.safetensors",
+        "flux"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "VAELoader",
+      "pos": {
+        "0": 924.8238525390625,
+        "1": 688.4208984375
+      },
+      "size": {
+        "0": 307.64178466796875,
+        "1": 58
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            47
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "ae.safetensors"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": {
+        "0": 1014.8238525390625,
+        "1": 798.4208984375
+      },
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 58
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 47
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            84
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 31,
+      "type": "CLIPTextEncode",
+      "pos": {
+        "0": 519.6187744140625,
+        "1": 633.2630615234375
+      },
+      "size": {
+        "0": 346.4091796875,
+        "1": 104.97179412841797
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 55
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            56
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Negative Prompt"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 29,
+      "type": "LoraLoader|pysssss",
+      "pos": {
+        "0": 120.14497375488281,
+        "1": 652.1871337890625
+      },
+      "size": {
+        "0": 352.6841735839844,
+        "1": 190.88589477539062
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 50
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 49
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            82
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            55,
+            86
+          ],
+          "slot_index": 1,
+          "shape": 3
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoader|pysssss"
+      },
+      "widgets_values": [
+        {
+          "content": "Textimprover-FLUX-V0.4.safetensors",
+          "image": null
+        },
+        0.75,
+        1,
+        "[none]"
+      ]
+    },
+    {
+      "id": 40,
+      "type": "EmptyLatentImage",
+      "pos": {
+        "0": 517.793701171875,
+        "1": 740.080810546875
+      },
+      "size": {
+        "0": 276.9035339355469,
+        "1": 106
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            68
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1280,
+        720,
+        1
+      ]
+    },
+    {
+      "id": 55,
+      "type": "SaveImage",
+      "pos": {
+        "0": 1254.9759521484375,
+        "1": 377.6021728515625
+      },
+      "size": {
+        "0": 623.6815795898438,
+        "1": 456.4524841308594
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 84
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 30,
+      "type": "KSampler",
+      "pos": {
+        "0": 904.6192626953125,
+        "1": 377.94122314453125
+      },
+      "size": {
+        "0": 315,
+        "1": 262
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 82
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 87
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 56
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 68
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            58
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        31,
+        "increment",
+        20,
+        1,
+        "euler",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 56,
+      "type": "CLIPTextEncode",
+      "pos": {
+        "0": 515.6187744140625,
+        "1": 373.26287841796875
+      },
+      "size": {
+        "0": 364.0679626464844,
+        "1": 222.12255859375
+      },
+      "flags": {
+        "pinned": false
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 86
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            87
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Positive Prompt",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "The text \"HOW TO CONTOUR BEGINNER FRIENDLY.\", a woman is smiling in a medium shot, pointing towards the title text, aidmatextimprover"
+      ]
+    },
+    {
+      "id": 57,
+      "type": "Note",
+      "pos": {
+        "0": 512,
+        "1": 200
+      },
+      "size": {
+        "0": 310.4739074707031,
+        "1": 97.6018295288086
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "please don't erase \"aidmatextimprover\". Its a trigger word for lora that enhance quality of you r text."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 58,
+      "type": "Note",
+      "pos": {
+        "0": 115,
+        "1": 25
+      },
+      "size": [
+        1699.909912109375,
+        58
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "https://nordy.ai/workflows/670890ecfabe17a5d5f51a7f?utm_source=in_workflow&utm_medium=workflow&utm_campaign=in_workflow"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      47,
+      10,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      49,
+      11,
+      0,
+      29,
+      1,
+      "CLIP"
+    ],
+    [
+      50,
+      27,
+      0,
+      29,
+      0,
+      "MODEL"
+    ],
+    [
+      55,
+      29,
+      1,
+      31,
+      0,
+      "CLIP"
+    ],
+    [
+      56,
+      31,
+      0,
+      30,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      58,
+      30,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      68,
+      40,
+      0,
+      30,
+      3,
+      "LATENT"
+    ],
+    [
+      82,
+      29,
+      0,
+      30,
+      0,
+      "MODEL"
+    ],
+    [
+      84,
+      8,
+      0,
+      55,
+      0,
+      "IMAGE"
+    ],
+    [
+      86,
+      29,
+      1,
+      56,
+      0,
+      "CLIP"
+    ],
+    [
+      87,
+      56,
+      0,
+      30,
+      1,
+      "CONDITIONING"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "👆You can run this workflow without setting up a ComfyUI environment, and it's free.",
+      "bounding": [
+        109,
+        92,
+        1720,
+        62
+      ],
+      "color": "#8AA",
+      "font_size": 45,
+      "flags": {},
+      "locked": false
+    },
+    {
+      "title": "Ksampler",
+      "bounding": [
+        895,
+        304,
+        341,
+        553
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "locked": false
+    },
+    {
+      "title": "Prompt",
+      "bounding": [
+        508,
+        301,
+        380,
+        351
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "locked": false
+    },
+    {
+      "title": "Flux Model",
+      "bounding": [
+        111,
+        298,
+        373,
+        555
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "locked": false
+    },
+    {
+      "title": "Size",
+      "bounding": [
+        508,
+        666,
+        297,
+        190
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "locked": false
+    },
+    {
+      "title": "Output",
+      "bounding": [
+        1247,
+        302,
+        639,
+        548
+      ],
+      "color": "#A88",
+      "font_size": 24,
+      "flags": {},
+      "locked": false
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1,
+      "offset": [
+        0,
+        0
+      ]
+    }
+  },
+  "version": 0.4
+}

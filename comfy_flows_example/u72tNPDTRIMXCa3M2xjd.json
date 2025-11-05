@@ -1,0 +1,778 @@
+{
+  "id": "27decc95-db23-489f-bd36-91f56e7ec825",
+  "revision": 0,
+  "last_node_id": 26,
+  "last_link_id": 38,
+  "nodes": [
+    {
+      "id": 8,
+      "type": "LoadVideo",
+      "pos": [
+        802.6727499949325,
+        132.5637499746628
+      ],
+      "size": [
+        295.7879963940276,
+        366.91610156217314
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "VIDEO",
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "LoadVideo",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.4.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "【女性が歌う】Lemon-米津玄師(Full Covered by コバソロ & 春茶)_1_1.mp4",
+        "image"
+      ]
+    },
+    {
+      "id": 12,
+      "type": "GetVideoComponents",
+      "pos": [
+        1207.5636671504985,
+        132.59060997547354
+      ],
+      "size": [
+        185.17734375,
+        66
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "video",
+          "name": "video",
+          "type": "VIDEO",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "label": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            15
+          ]
+        },
+        {
+          "label": "audio",
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "label": "fps",
+          "name": "fps",
+          "type": "FLOAT",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "GetVideoComponents",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.4.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 15,
+      "type": "SeedVR2",
+      "pos": [
+        1502.5549998986533,
+        132.56374997466284
+      ],
+      "size": [
+        295.85879941217695,
+        266
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 8,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 15
+        },
+        {
+          "label": "block_swap_config",
+          "name": "block_swap_config",
+          "shape": 7,
+          "type": "block_swap_config",
+          "link": 16
+        },
+        {
+          "label": "extra_args",
+          "name": "extra_args",
+          "shape": 7,
+          "type": "extra_args",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "label": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "numz/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "12aefc08bb302fa595a5938e1520522dc7246d7c",
+        "Node name for S&R": "SeedVR2",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.4.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "seedvr2_ema_7b-Q4_K_M.gguf",
+        1426023830,
+        "randomize",
+        720,
+        1,
+        "wavelet",
+        0,
+        0
+      ]
+    },
+    {
+      "id": 11,
+      "type": "CreateVideo",
+      "pos": [
+        1895.0048243428782,
+        132.59525328715134
+      ],
+      "size": [
+        210,
+        78
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 10,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 18
+        },
+        {
+          "label": "audio",
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "label": "fps",
+          "name": "fps",
+          "type": "FLOAT",
+          "widget": {
+            "name": "fps"
+          },
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "label": "VIDEO",
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "CreateVideo",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "fps": true
+          },
+          "version": "7.4.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        30
+      ]
+    },
+    {
+      "id": 10,
+      "type": "SaveVideo",
+      "pos": [
+        2202.61524566864,
+        132.6239982371803
+      ],
+      "size": [
+        295.7596260139444,
+        366.7722508458534
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 11,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "video",
+          "name": "video",
+          "type": "VIDEO",
+          "link": 7
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "SaveVideo",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.4.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "video/ComfyUI",
+        "mp4",
+        "auto"
+      ]
+    },
+    {
+      "id": 14,
+      "type": "SeedVR2ExtraArgs",
+      "pos": [
+        1195.033647731425,
+        297.3397050033529
+      ],
+      "size": [
+        210,
+        202
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "extra_args",
+          "name": "extra_args",
+          "type": "extra_args",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "numz/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "12aefc08bb302fa595a5938e1520522dc7246d7c",
+        "Node name for S&R": "SeedVR2ExtraArgs",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.4.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        true,
+        512,
+        64,
+        false,
+        false,
+        false,
+        "cuda:0"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "SeedVR2BlockSwap",
+      "pos": [
+        1186.046322103548,
+        -67.41768668480417
+      ],
+      "size": [
+        227.873046875,
+        82
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "block_swap_config",
+          "name": "block_swap_config",
+          "type": "block_swap_config",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "numz/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "12aefc08bb302fa595a5938e1520522dc7246d7c",
+        "Node name for S&R": "SeedVR2BlockSwap",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.4.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        16,
+        false
+      ]
+    },
+    {
+      "id": 21,
+      "type": "LoadImage",
+      "pos": [
+        812.8319804529284,
+        -567.3245547493204
+      ],
+      "size": [
+        274.080078125,
+        314
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            23,
+            25
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.67",
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4.1"
+        }
+      },
+      "widgets_values": [
+        "ff32cde6-d367-4050-bb41-779935c60a01.png",
+        "image"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "SeedVR2",
+      "pos": [
+        1502.6131726066187,
+        -567.4303992751036
+      ],
+      "size": [
+        295.79276982831493,
+        266
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 23
+        },
+        {
+          "name": "block_swap_config",
+          "shape": 7,
+          "type": "block_swap_config",
+          "link": 19
+        },
+        {
+          "name": "extra_args",
+          "shape": 7,
+          "type": "extra_args",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "numz/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "984f9af478cbde993c36f1006625753498d2c08d",
+        "Node name for S&R": "SeedVR2",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4.1"
+        }
+      },
+      "widgets_values": [
+        "seedvr2_ema_7b-Q4_K_M.gguf",
+        2242106210,
+        "fixed",
+        2048,
+        1,
+        "wavelet",
+        0,
+        0
+      ]
+    },
+    {
+      "id": 18,
+      "type": "SeedVR2BlockSwap",
+      "pos": [
+        1186.1176032434353,
+        -667.4078898905171
+      ],
+      "size": [
+        227.873046875,
+        82
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "block_swap_config",
+          "type": "block_swap_config",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "numz/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "984f9af478cbde993c36f1006625753498d2c08d",
+        "Node name for S&R": "SeedVR2BlockSwap",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4.1"
+        }
+      },
+      "widgets_values": [
+        16,
+        false
+      ]
+    },
+    {
+      "id": 19,
+      "type": "SeedVR2ExtraArgs",
+      "pos": [
+        1194.9457228944366,
+        -467.4195434593271
+      ],
+      "size": [
+        210,
+        202
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "extra_args",
+          "type": "extra_args",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "numz/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "984f9af478cbde993c36f1006625753498d2c08d",
+        "Node name for S&R": "SeedVR2ExtraArgs",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4.1"
+        }
+      },
+      "widgets_values": [
+        true,
+        512,
+        64,
+        false,
+        false,
+        false,
+        "cuda:0"
+      ]
+    },
+    {
+      "id": 22,
+      "type": "Image Comparer (rgthree)",
+      "pos": [
+        1902.540992576571,
+        -587.5128233260814
+      ],
+      "size": [
+        295.9222115577286,
+        286.923158970033
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "dir": 3,
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 24
+        },
+        {
+          "dir": 3,
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 25
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "rgthree-comfy",
+        "ver": "2b9eb36d3e1741e88dbfccade0e08137f7fa2bfb",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "comparer_mode": "Slide"
+      },
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_uqobu_00013_.png&type=temp&subfolder=&rand=0.9566611956061164"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_uqobu_00014_.png&type=temp&subfolder=&rand=0.741739167821067"
+          }
+        ]
+      ]
+    }
+  ],
+  "links": [
+    [
+      7,
+      11,
+      0,
+      10,
+      0,
+      "VIDEO"
+    ],
+    [
+      10,
+      8,
+      0,
+      12,
+      0,
+      "VIDEO"
+    ],
+    [
+      12,
+      12,
+      2,
+      11,
+      2,
+      "FLOAT"
+    ],
+    [
+      15,
+      12,
+      0,
+      15,
+      0,
+      "IMAGE"
+    ],
+    [
+      16,
+      13,
+      0,
+      15,
+      1,
+      "block_swap_config"
+    ],
+    [
+      17,
+      14,
+      0,
+      15,
+      2,
+      "extra_args"
+    ],
+    [
+      18,
+      15,
+      0,
+      11,
+      0,
+      "IMAGE"
+    ],
+    [
+      19,
+      18,
+      0,
+      17,
+      1,
+      "block_swap_config"
+    ],
+    [
+      20,
+      19,
+      0,
+      17,
+      2,
+      "extra_args"
+    ],
+    [
+      23,
+      21,
+      0,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      24,
+      17,
+      0,
+      22,
+      0,
+      "IMAGE"
+    ],
+    [
+      25,
+      21,
+      0,
+      22,
+      1,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Video Upscaler",
+      "bounding": [
+        792.6727499949325,
+        -141.01768668480418,
+        1715.702121687652,
+        650.4975382216402
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "id": 2,
+      "title": "Image Upscaler",
+      "bounding": [
+        802.8319804529284,
+        -741.0078898905172,
+        1405.631223681371,
+        497.6833351411967
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      }
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5730855330116805,
+      "offset": [
+        1367.0206570893693,
+        1493.4099261733386
+      ]
+    },
+    "frontendVersion": "1.28.8",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "ue_links": [],
+    "links_added_by_ue": []
+  },
+  "version": 0.4
+}

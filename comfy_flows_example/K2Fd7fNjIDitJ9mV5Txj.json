@@ -1,0 +1,1112 @@
+{
+  "last_node_id": 391,
+  "last_link_id": 936,
+  "nodes": [
+    {
+      "id": 339,
+      "type": "ControlNetLoader",
+      "pos": [
+        570,
+        390
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CONTROL_NET",
+          "type": "CONTROL_NET",
+          "links": [
+            818
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ControlNetLoader"
+      },
+      "widgets_values": [
+        "instantid\\diffusion_pytorch_model.safetensors"
+      ]
+    },
+    {
+      "id": 337,
+      "type": "InstantIDModelLoader",
+      "pos": [
+        570,
+        170
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "INSTANTID",
+          "type": "INSTANTID",
+          "links": [
+            816
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InstantIDModelLoader"
+      },
+      "widgets_values": [
+        "ip-adapter.bin"
+      ]
+    },
+    {
+      "id": 361,
+      "type": "Note",
+      "pos": [
+        190,
+        90
+      ],
+      "size": {
+        "0": 366.660400390625,
+        "1": 128.11778259277344
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "instantid model: https://huggingface.co/InstantX/InstantID/resolve/main/ip-adapter.bin?download=true\n(ComfyUI/models/instantid)\n\nThe main model can be downloaded from HuggingFace and should be placed into the ComfyUI/models/instantid directory. (Note that the model is called ip_adapter as it is based on the IPAdapter models).\n"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 362,
+      "type": "Note",
+      "pos": [
+        190,
+        270
+      ],
+      "size": {
+        "0": 365.4271240234375,
+        "1": 75.59053039550781
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "face alalysis model: https://huggingface.co/MonsterMMORPG/tools/resolve/main/antelopev2.zip\n(ComfyUI/models/insightface/models/antelopev2)\n"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 363,
+      "type": "Note",
+      "pos": [
+        190,
+        400
+      ],
+      "size": {
+        "0": 365.4271240234375,
+        "1": 75.59053039550781
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "controlnet model:  https://huggingface.co/InstantX/InstantID/resolve/main/ControlNetModel/diffusion_pytorch_model.safetensors?download=true\n(ComfyUI/models/controlnet)"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 366,
+      "type": "Note",
+      "pos": [
+        1090,
+        290
+      ],
+      "size": {
+        "0": 291.8059387207031,
+        "1": 72.49397277832031
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "instantid node: https://github.com/cubiq/ComfyUI_InstantID\n(ComfyUI/custom_nodes/)"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 338,
+      "type": "InstantIDFaceAnalysis",
+      "pos": [
+        570,
+        290
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "FACEANALYSIS",
+          "type": "FACEANALYSIS",
+          "links": [
+            817
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InstantIDFaceAnalysis"
+      },
+      "widgets_values": [
+        "CPU"
+      ]
+    },
+    {
+      "id": 291,
+      "type": "CLIPTextEncode",
+      "pos": [
+        600,
+        1360
+      ],
+      "size": {
+        "0": 285.6000061035156,
+        "1": 96
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 910
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            822
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "CLIP Text Encode (Negative Prompt)",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "nsfw, lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 14,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        470,
+        1040
+      ],
+      "size": {
+        "0": 416.9157409667969,
+        "1": 105.38227081298828
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            908
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            909,
+            910
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "title": "Load Checkpoint Base",
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "animagine-xl-3.1.safetensors"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 383,
+      "type": "ImageScaleToTotalPixels",
+      "pos": [
+        570,
+        870
+      ],
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 917
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            918
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageScaleToTotalPixels"
+      },
+      "widgets_values": [
+        "lanczos",
+        1
+      ]
+    },
+    {
+      "id": 360,
+      "type": "Note",
+      "pos": [
+        100,
+        1030
+      ],
+      "size": {
+        "0": 349.10791015625,
+        "1": 123.42522430419922
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "checkpoint: \nhttps://huggingface.co/cagliostrolab/animagine-xl-3.1\n(ComfyUI/models/checkpoints)\n\nIf you change the checkpoint model, please adjust the cfg and steps in ksample yourself."
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 373,
+      "type": "Note",
+      "pos": [
+        300,
+        1210
+      ],
+      "size": {
+        "0": 283.8729248046875,
+        "1": 147.84056091308594
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "You can rewrite the prompt words to change the style of the picture, such as \n\"[1girl], Ayanami Rei, neon genesis evangelion, pilot suit, white bodysuit, looking at viewer, half body, outdoors, (masterpiece), (best quality), (ultra-detailed), very aesthetic, illustration, disheveled hair, perfect composition, moist skin, intricate details\""
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 290,
+      "type": "CLIPTextEncode",
+      "pos": [
+        600,
+        1210
+      ],
+      "size": {
+        "0": 285.6000061035156,
+        "1": 96
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 909
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            821
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "CLIP Text Encode (Positive Prompt)",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "[1girl], Ayanami Rei, neon genesis evangelion, pilot suit, white bodysuit, looking at viewer, half body, outdoors, (masterpiece), (best quality), (ultra-detailed), very aesthetic, illustration, disheveled hair, perfect composition, moist skin, intricate details"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 345,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1080,
+        750
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            934
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        896,
+        1152,
+        1
+      ]
+    },
+    {
+      "id": 346,
+      "type": "LoadImage",
+      "pos": [
+        560,
+        1500
+      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            844
+          ],
+          "shape": 3
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "title": "pose",
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "145438026326804400_a700xH (9).jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 336,
+      "type": "ApplyInstantID",
+      "pos": [
+        1080,
+        430
+      ],
+      "size": {
+        "0": 315,
+        "1": 266
+      },
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "instantid",
+          "type": "INSTANTID",
+          "link": 816,
+          "slot_index": 0
+        },
+        {
+          "name": "insightface",
+          "type": "FACEANALYSIS",
+          "link": 817,
+          "slot_index": 1
+        },
+        {
+          "name": "control_net",
+          "type": "CONTROL_NET",
+          "link": 818,
+          "slot_index": 2
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 918,
+          "slot_index": 3
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 908
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 821
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 822
+        },
+        {
+          "name": "image_kps",
+          "type": "IMAGE",
+          "link": 844,
+          "slot_index": 7
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            926
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "POSITIVE",
+          "type": "CONDITIONING",
+          "links": [
+            932
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "NEGATIVE",
+          "type": "CONDITIONING",
+          "links": [
+            933
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ApplyInstantID"
+      },
+      "widgets_values": [
+        0.6,
+        0,
+        0.85
+      ]
+    },
+    {
+      "id": 387,
+      "type": "Automatic CFG",
+      "pos": [
+        1430,
+        430
+      ],
+      "size": {
+        "0": 210,
+        "1": 60
+      },
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 926
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            931
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Automatic CFG"
+      },
+      "widgets_values": [
+        true
+      ]
+    },
+    {
+      "id": 391,
+      "type": "KSamplerSelect",
+      "pos": [
+        1430,
+        530
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            929
+          ],
+          "shape": 3,
+          "label": "采样器"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "dpmpp_2m"
+      ]
+    },
+    {
+      "id": 389,
+      "type": "AlignYourStepsScheduler",
+      "pos": [
+        1430,
+        630
+      ],
+      "size": [
+        210,
+        110
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            930
+          ],
+          "shape": 3,
+          "label": "SIGMAS",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AlignYourStepsScheduler"
+      },
+      "widgets_values": [
+        "SDXL",
+        10,
+        1
+      ]
+    },
+    {
+      "id": 388,
+      "type": "VAEDecode",
+      "pos": [
+        2080,
+        440
+      ],
+      "size": [
+        140,
+        50
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 928,
+          "label": "Latent"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 936,
+          "label": "VAE"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            935
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 359,
+      "type": "SaveImage",
+      "pos": [
+        2270,
+        280
+      ],
+      "size": {
+        "0": 834.1019897460938,
+        "1": 1125.1456298828125
+      },
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 935
+        }
+      ],
+      "title": "@Datou https://twitter.com/Datou",
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "Animagine XL 3.1/img_"
+      ]
+    },
+    {
+      "id": 386,
+      "type": "VAELoader",
+      "pos": [
+        1710,
+        940
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            936
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "sdxl_vae_madebyollin.safetensors"
+      ]
+    },
+    {
+      "id": 390,
+      "type": "SamplerCustom",
+      "pos": [
+        1670,
+        430
+      ],
+      "size": [
+        360,
+        440
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 931,
+          "label": "模型",
+          "slot_index": 0
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 932,
+          "label": "正面条件",
+          "slot_index": 1
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 933,
+          "label": "负面条件",
+          "slot_index": 2
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 929,
+          "label": "采样器",
+          "slot_index": 3
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 930,
+          "label": "Sigmas"
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 934,
+          "label": "Latent",
+          "slot_index": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            928
+          ],
+          "shape": 3,
+          "label": "输出",
+          "slot_index": 0
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3,
+          "label": "降噪输出"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustom"
+      },
+      "widgets_values": [
+        true,
+        11014679756112,
+        "randomize",
+        7.5
+      ]
+    },
+    {
+      "id": 340,
+      "type": "LoadImage",
+      "pos": [
+        570,
+        500
+      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            917
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "title": "face",
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "p (3).jpg",
+        "image"
+      ]
+    }
+  ],
+  "links": [
+    [
+      816,
+      337,
+      0,
+      336,
+      0,
+      "INSTANTID"
+    ],
+    [
+      817,
+      338,
+      0,
+      336,
+      1,
+      "FACEANALYSIS"
+    ],
+    [
+      818,
+      339,
+      0,
+      336,
+      2,
+      "CONTROL_NET"
+    ],
+    [
+      821,
+      290,
+      0,
+      336,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      822,
+      291,
+      0,
+      336,
+      6,
+      "CONDITIONING"
+    ],
+    [
+      844,
+      346,
+      0,
+      336,
+      7,
+      "IMAGE"
+    ],
+    [
+      908,
+      14,
+      0,
+      336,
+      4,
+      "MODEL"
+    ],
+    [
+      909,
+      14,
+      1,
+      290,
+      0,
+      "CLIP"
+    ],
+    [
+      910,
+      14,
+      1,
+      291,
+      0,
+      "CLIP"
+    ],
+    [
+      917,
+      340,
+      0,
+      383,
+      0,
+      "IMAGE"
+    ],
+    [
+      918,
+      383,
+      0,
+      336,
+      3,
+      "IMAGE"
+    ],
+    [
+      926,
+      336,
+      0,
+      387,
+      0,
+      "MODEL"
+    ],
+    [
+      928,
+      390,
+      0,
+      388,
+      0,
+      "LATENT"
+    ],
+    [
+      929,
+      391,
+      0,
+      390,
+      3,
+      "SAMPLER"
+    ],
+    [
+      930,
+      389,
+      0,
+      390,
+      4,
+      "SIGMAS"
+    ],
+    [
+      931,
+      387,
+      0,
+      390,
+      0,
+      "MODEL"
+    ],
+    [
+      932,
+      336,
+      1,
+      390,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      933,
+      336,
+      2,
+      390,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      934,
+      345,
+      0,
+      390,
+      5,
+      "LATENT"
+    ],
+    [
+      935,
+      388,
+      0,
+      359,
+      0,
+      "IMAGE"
+    ],
+    [
+      936,
+      386,
+      0,
+      388,
+      1,
+      "VAE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4,
+  "widget_idx_map": {
+    "390": {
+      "noise_seed": 1
+    },
+    "391": {
+      "sampler_name": 0
+    }
+  },
+  "seed_widgets": {
+    "390": 1
+  }
+}

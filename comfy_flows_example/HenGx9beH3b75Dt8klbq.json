@@ -1,0 +1,1880 @@
+{
+  "last_link_id": 48,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            25
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -275.4222412109375,
+        -384.111083984375
+      ],
+      "widgets_values": [
+        "Format reference:A candid, spontaneous selfie of a stunning young Black woman standing on her balcony at golden hour, dressed in a cropped white tee and wearing gold hoop earrings that catch the warm sunlight. Her curly hair frames her glowing skin naturally, illuminated by the soft last rays of the sun. The blurred city rooftops behind her fade gently into an orange-toned twilight sky. The image features authentic skin texture with subtle highlights and natural shadows, casual framing with a slight tilt capturing the intimate and effortless moment. The overall lighting and ambience reflect typical warm, natural light of an iPhone photo, making the scene feel genuine and elegantly powerful."
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 31,
+      "type": "JjkText",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "JjkText"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            26
+          ],
+          "label": "字符串",
+          "type": "*",
+          "localized_name": "STRING"
+        },
+        {
+          "name": "show_help",
+          "label": "显示帮助",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        315,
+        126
+      ],
+      "pos": [
+        164.57777404785156,
+        -634.1109008789062
+      ],
+      "widgets_values": [
+        "",
+        "",
+        ","
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text1"
+          },
+          "shape": 7,
+          "name": "text1",
+          "link": 24,
+          "label": "文本1",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text2"
+          },
+          "shape": 7,
+          "name": "text2",
+          "link": 25,
+          "label": "文本2",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 33,
+      "type": "CR Text Concatenate",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Text Concatenate"
+      },
+      "order": 10
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            36,
+            47
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        382.01788330078125,
+        219.3756103515625
+      ],
+      "pos": [
+        574.5776977539062,
+        -664.1109619140625
+      ],
+      "widgets_values": [
+        "",
+        "A serene, atmospheric portrait of a thoughtful middle-aged Asian man sitting by a rain-soaked window in a quiet café, dressed in a dark wool coat and a soft grey scarf draped loosely around his neck. His neatly combed hair and gentle, introspective gaze reflect the calm melancholy of a rainy afternoon. Outside the window, blurred passing umbrellas and glistening wet streets create a dreamy bokeh background. The image features realistic skin texture with subtle pores and natural shadows, composed with a shallow depth of field that draws focus to his contemplative expression. The overall lighting is cool and diffused, evoking the soft ambient light of an overcast day, giving the scene a cinematic and poetic mood."
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 27,
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 34,
+      "type": "ShowText",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText"
+      },
+      "order": 17
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        257.067138671875,
+        212.28964233398438
+      ],
+      "pos": [
+        1004.5775146484375,
+        -384.111083984375
+      ],
+      "widgets_values": [
+        "",
+        "一幅宁静而富有氛围的肖像：一位沉思的中年亚裔男子坐在雨痕斑驳的咖啡馆窗边，身着深色羊毛大衣，灰白柔软的围巾随意搭在颈间。他梳得一丝不苟的头发与温和内敛的目光，映衬着雨日下午恬淡的忧思。窗外模糊移动的伞影与水光潋滟的街道构成朦胧散景。画面以真实肌肤质感呈现，细腻毛孔与自然阴影交织，浅景深构图将视觉焦点凝聚于他沉思的面容。整体冷调弥散的光线如阴天 ambient 柔光，为场景注入电影般的诗意情绪。"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 32,
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 36,
+      "type": "ShowText",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText"
+      },
+      "order": 22
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt opt",
+          "links": [
+            27,
+            28
+          ],
+          "label": "prompt opt",
+          "type": "STRING",
+          "localized_name": "prompt opt"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        154.57777404785156,
+        -404.111083984375
+      ],
+      "widgets_values": [
+        "沙滩上的女孩",
+        1656,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 26,
+          "label": "prompt",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 30,
+      "type": "RH_Prompter",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Prompter"
+      },
+      "order": 14
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            24
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -265.4222106933594,
+        -634.1109008789062
+      ],
+      "widgets_values": [
+        "Generate prompt words randomly according to this format, only refer to the format but not the text content."
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 32,
+      "type": "JjkText",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "JjkText"
+      },
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            43
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        315,
+        178
+      ],
+      "pos": [
+        203.67173767089844,
+        -1304.745849609375
+      ],
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text1"
+          },
+          "name": "text1",
+          "link": 40,
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text2"
+          },
+          "name": "text2",
+          "link": 41,
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text3"
+          },
+          "name": "text3",
+          "link": 42,
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 48,
+      "type": "TextCombinerSix",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextCombinerSix"
+      },
+      "order": 11
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "translation",
+          "links": [
+            32
+          ],
+          "label": "translation",
+          "type": "STRING",
+          "localized_name": "translation"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        584.5776977539062,
+        -364.11114501953125
+      ],
+      "widgets_values": [
+        "",
+        21,
+        "randomize",
+        "force_chinese"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 28,
+          "label": "prompt",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 35,
+      "type": "RH_Translator",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Translator"
+      },
+      "order": 18
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "LATENT",
+          "slot_index": 0,
+          "links": [
+            35
+          ],
+          "label": "Latent",
+          "type": "LATENT",
+          "localized_name": "Latent"
+        }
+      ],
+      "size": [
+        314.7364501953125,
+        106
+      ],
+      "pos": [
+        580,
+        300
+      ],
+      "widgets_values": [
+        1024,
+        1280,
+        1
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "width",
+          "link": 33,
+          "label": "width",
+          "type": "INT",
+          "localized_name": "宽度"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "link": 34,
+          "label": "height",
+          "type": "INT",
+          "localized_name": "高度"
+        }
+      ],
+      "flags": {},
+      "id": 38,
+      "type": "EmptyLatentImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "order": 13
+    },
+    {
+      "outputs": [
+        {
+          "name": "model",
+          "links": [
+            13
+          ],
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [
+        11,
+        0.25,
+        2.5
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 18,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "name": "conditioning",
+          "link": 19,
+          "label": "conditioning",
+          "type": "CONDITIONING",
+          "localized_name": "conditioning"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "WanVideoNAG",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        315,
+        126
+      ],
+      "pos": [
+        640,
+        -50
+      ],
+      "id": 20,
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "f7eb33abc80a2aded1b46dff0dd14d07856a7d50",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "WanVideoNAG"
+      },
+      "order": 23
+    },
+    {
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            8,
+            19
+          ],
+          "label": "条件",
+          "type": "CONDITIONING",
+          "localized_name": "条件"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "poorly drawn, bad anatomy, bad hands, bad eyes, missing fingers, extra fingers, ugly, deformed, disfigured, blurry, grainy, out of focus, low resolution, amateur, poorly lit, oversaturated, undersaturated, watermark, signature, text, writing, noise, artifacts"
+      ],
+      "inputs": [
+        {
+          "name": "clip",
+          "link": 5,
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "clip"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "CLIPTextEncode",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        347.76849365234375,
+        141.4219207763672
+      ],
+      "pos": [
+        140,
+        370
+      ],
+      "id": 4,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "order": 20
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            6
+          ],
+          "label": "模型",
+          "type": "MODEL",
+          "localized_name": "模型"
+        }
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        1000,
+        -50
+      ],
+      "widgets_values": [
+        1.0000000000000002
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 13,
+          "label": "模型",
+          "type": "MODEL",
+          "localized_name": "模型"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "id": 12,
+      "type": "ModelSamplingSD3",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ModelSamplingSD3"
+      },
+      "order": 25
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "VAE",
+          "slot_index": 0,
+          "links": [
+            16
+          ],
+          "label": "VAE",
+          "type": "VAE",
+          "localized_name": "VAE"
+        }
+      ],
+      "size": [
+        298.46527099609375,
+        87.64912414550781
+      ],
+      "pos": [
+        990,
+        480
+      ],
+      "widgets_values": [
+        "wan_2.1_vae.safetensors"
+      ],
+      "inputs": [],
+      "flags": {
+        "collapsed": false
+      },
+      "id": 11,
+      "type": "VAELoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "models": [
+          {
+            "name": "wan_2.1_vae.safetensors",
+            "directory": "vae",
+            "url": "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors?download=true"
+          }
+        ],
+        "ver": "0.3.36",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAELoader"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "pos": [
+        1370,
+        340
+      ],
+      "widgets_values": [
+        0.04,
+        0.5
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "flags": {},
+      "id": 50,
+      "type": "FastFilmGrain",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "FastFilmGrain"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "links": [
+            10
+          ],
+          "label": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        140,
+        26
+      ],
+      "pos": [
+        1560,
+        260
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "anything",
+          "link": 11,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 9,
+      "type": "easy clearCacheAll",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "54614079ca96fa66c8953ff89dc66ca77245f5db",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy clearCacheAll"
+      },
+      "order": 30
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            42
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -268.04925537109375,
+        -971.5086669921875
+      ],
+      "widgets_values": [
+        "根据相关词语，按照这个格式润色扩写，只参考格式不参考文本内容。画面要有景深空间感，光影氛围感。\n格式参考：一幅宁静而富有氛围的肖像：一位优雅的年轻男子在黄昏时分随意倚靠着雨水斑驳的咖啡馆玻璃窗，身着宽松的米色毛衣，纤细的银链在柔和的灯光下微微闪烁。略带凌乱的发丝自然垂落额前，与他眼眸中温柔的神态相得益彰，身后模糊的城市灯光化作朦胧的光斑。玻璃上温柔的倒影为画面增添层次，雨滴的细腻纹理捕捉着窗外霓虹招牌的微弱光芒。构图透露出亲密而不经意的质感，自然的肤色与精致的阴影交织，强化了这一幕静谧如电影般的氛围。"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 46,
+      "type": "JjkText",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "JjkText"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        316.2373046875,
+        366.1284484863281
+      ],
+      "pos": [
+        582.5227661132812,
+        -1304.8582763671875
+      ],
+      "widgets_values": [
+        "A serene and atmospheric portrait: A graceful young woman seated by an old wooden window, bathed in soft morning light, wearing a loose beige sweater. Her slightly tousled hair gently falls across her forehead, complementing the tender expression in her eyes. The warm, natural tones of her skin contrast beautifully with the delicate shadows on her face, enhancing the film-like stillness of the scene. The background is softly blurred, with a gentle play of light filtering through the window, creating a dreamy bokeh effect. The composition evokes a quiet intimacy, while the depth and space in the image are enhanced by the subtle light and shadow interplay, adding to the cinematic quality of the moment."
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 46,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 49,
+      "type": "easy showAnything",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 19
+    },
+    {
+      "outputs": [],
+      "color": "#232",
+      "widgets_values": [
+        "ComfyUI",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 10,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        }
+      ],
+      "flags": {},
+      "type": "SaveImage",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        710.6453857421875,
+        585.046875
+      ],
+      "pos": [
+        1750,
+        -40
+      ],
+      "id": 7,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.42",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 31
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "links": [
+            11
+          ],
+          "label": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        157.38925170898438,
+        26
+      ],
+      "pos": [
+        1560,
+        170
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "anything",
+          "link": 12,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 10,
+      "type": "easy cleanGpuUsed",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "54614079ca96fa66c8953ff89dc66ca77245f5db",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy cleanGpuUsed"
+      },
+      "order": 29
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt opt",
+          "links": [
+            46,
+            48
+          ],
+          "label": "prompt opt",
+          "type": "STRING",
+          "localized_name": "prompt opt"
+        }
+      ],
+      "size": [
+        346.06134033203125,
+        206.27186584472656
+      ],
+      "pos": [
+        197.41160583496094,
+        -1046.757080078125
+      ],
+      "widgets_values": [
+        "沙滩上的女孩",
+        810,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 43,
+          "label": "prompt",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 45,
+      "type": "RH_Prompter",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Prompter"
+      },
+      "order": 15
+    },
+    {
+      "outputs": [
+        {
+          "name": "LATENT",
+          "slot_index": 0,
+          "links": [
+            15
+          ],
+          "label": "Latent",
+          "type": "LATENT",
+          "localized_name": "Latent"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        524029734907686,
+        "fixed",
+        10,
+        1,
+        "euler",
+        "beta",
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 6,
+          "label": "模型",
+          "type": "MODEL",
+          "localized_name": "模型"
+        },
+        {
+          "name": "positive",
+          "link": 7,
+          "label": "正面条件",
+          "type": "CONDITIONING",
+          "localized_name": "正面条件"
+        },
+        {
+          "name": "negative",
+          "link": 8,
+          "label": "负面条件",
+          "type": "CONDITIONING",
+          "localized_name": "负面条件"
+        },
+        {
+          "name": "latent_image",
+          "link": 35,
+          "label": "Latent",
+          "type": "LATENT",
+          "localized_name": "Latent图像"
+        }
+      ],
+      "flags": {},
+      "type": "KSampler",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        292.2470703125,
+        328.0917663574219
+      ],
+      "pos": [
+        1000,
+        80
+      ],
+      "id": 6,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "KSampler"
+      },
+      "order": 26
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            40
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        402.0733642578125,
+        88
+      ],
+      "pos": [
+        -269.1591491699219,
+        -1367.84375
+      ],
+      "widgets_values": [
+        "相关词语是："
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 47,
+      "type": "JjkText",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "JjkText"
+      },
+      "order": 5
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            41
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "富有氛围的肖像，一位优雅年轻女子，身着宽松的米色毛衣，略带凌乱的发丝自然垂落额前，与他眼眸中温柔的神态相得益彰，自然的肤色与精致的阴影交织，强化了这一幕静谧如电影般的氛围。"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "JjkText",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -270.60296630859375,
+        -1222.8680419921875
+      ],
+      "id": 44,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "JjkText"
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            12
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "size": [
+        214.21890258789062,
+        82
+      ],
+      "pos": [
+        1330,
+        190
+      ],
+      "widgets_values": [
+        0.030000000000000006,
+        0.4000000000000001
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 14,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "id": 13,
+      "type": "FastFilmGrain",
+      "properties": {
+        "cnr_id": "comfyui-aspect-ratio-crop-node",
+        "ver": "0.1.0",
+        "widget_ue_connectable": {},
+        "aux_id": "vrgamegirl19/comfyui-vrgamedevgirl",
+        "Node name for S&R": "FastFilmGrain"
+      },
+      "order": 28
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            22
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "模型"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "auto"
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 20,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "PathchSageAttentionKJ",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        364.2439270019531,
+        58
+      ],
+      "pos": [
+        -261.9765319824219,
+        71.76293182373047
+      ],
+      "id": 2,
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "5dcda71011870278c35d92ff77a677ed2e538f2d",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PathchSageAttentionKJ"
+      },
+      "order": 12
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            20
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "模型"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "wan2.1-t2v-14b-Q5_K_S.gguf"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "UnetLoaderGGUF",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        372.2325744628906,
+        72.23545837402344
+      ],
+      "pos": [
+        -272.2389831542969,
+        -57.26911544799805
+      ],
+      "id": 26,
+      "properties": {
+        "cnr_id": "ComfyUI-GGUF",
+        "hasSecondTab": false,
+        "ver": "6570efec6992015085f11b84e42d32f6cc71e8b7",
+        "widget_ue_connectable": {},
+        "secondTabText": "Send Back",
+        "enableTabs": false,
+        "secondTabOffset": 80,
+        "Node name for S&R": "UnetLoaderGGUF",
+        "tabWidth": 65,
+        "secondTabWidth": 65,
+        "tabXOffset": 10
+      },
+      "order": 7
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            18
+          ],
+          "label": "模型",
+          "type": "MODEL",
+          "localized_name": "模型"
+        },
+        {
+          "name": "CLIP",
+          "links": [
+            5,
+            17
+          ],
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "CLIP"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "Wan21_T2V_14B_lightx2v_cfg_step_distill_lora_rank32.safetensors",
+        1,
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 22,
+          "label": "模型",
+          "type": "MODEL",
+          "localized_name": "模型"
+        },
+        {
+          "name": "clip",
+          "link": 2,
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "CLIPCLIP"
+        }
+      ],
+      "flags": {},
+      "type": "LoraLoader",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        435.5740661621094,
+        182.44161987304688
+      ],
+      "pos": [
+        135.13275146484375,
+        -46.045936584472656
+      ],
+      "id": 1,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.43",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoraLoader"
+      },
+      "order": 16
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CLIP",
+          "links": [
+            2
+          ],
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "CLIP"
+        }
+      ],
+      "size": [
+        315,
+        98
+      ],
+      "pos": [
+        -252.3809814453125,
+        180.03858947753906
+      ],
+      "widgets_values": [
+        "umt5_xxl_fp16.safetensors",
+        "wan",
+        "default"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 25,
+      "type": "CLIPLoader",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CLIPLoader"
+      },
+      "order": 8
+    },
+    {
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            7
+          ],
+          "label": "条件",
+          "type": "CONDITIONING",
+          "localized_name": "条件"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "A candid, spontaneous selfie of a stunning young Black woman standing on her balcony at golden hour, dressed in a cropped white tee and wearing gold hoop earrings that catch the warm sunlight. Her curly hair frames her glowing skin naturally, illuminated by the soft last rays of the sun. The blurred city rooftops behind her fade gently into an orange-toned twilight sky. The image features authentic skin texture with subtle highlights and natural shadows, casual framing with a slight tilt capturing the intimate and effortless moment. The overall lighting and ambience reflect typical warm, natural light of an iPhone photo, making the scene feel genuine and elegantly powerful."
+      ],
+      "inputs": [
+        {
+          "name": "clip",
+          "link": 17,
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "clip"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 38,
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "文本"
+        }
+      ],
+      "flags": {},
+      "type": "CLIPTextEncode",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        366.58428955078125,
+        123.86048126220703
+      ],
+      "pos": [
+        130,
+        200
+      ],
+      "id": 18,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "order": 24
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            14
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "samples",
+          "link": 15,
+          "label": "Latent",
+          "type": "LATENT",
+          "localized_name": "Latent"
+        },
+        {
+          "name": "vae",
+          "link": 16,
+          "label": "VAE",
+          "type": "VAE",
+          "localized_name": "vae"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "VAEDecode",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        210,
+        46
+      ],
+      "pos": [
+        1340,
+        80
+      ],
+      "id": 14,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.36",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAEDecode"
+      },
+      "order": 27
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "width",
+          "slot_index": 0,
+          "links": [
+            33
+          ],
+          "label": "width",
+          "type": "INT",
+          "localized_name": "width"
+        },
+        {
+          "shape": 3,
+          "name": "height",
+          "slot_index": 1,
+          "links": [
+            34
+          ],
+          "label": "height",
+          "type": "INT",
+          "localized_name": "height"
+        },
+        {
+          "shape": 3,
+          "name": "resolution",
+          "label": "resolution",
+          "type": "STRING",
+          "localized_name": "resolution"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "1.0",
+        "3:4 (Golden Ratio)",
+        false,
+        "1:1"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "FluxResolutionNode",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        322.2302551269531,
+        170
+      ],
+      "pos": [
+        -260.8887634277344,
+        330.6666564941406
+      ],
+      "id": 37,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "FluxResolutionNode"
+      },
+      "order": 9
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            38
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "selected_value"
+        },
+        {
+          "name": "selected_label",
+          "label": "标签",
+          "type": "STRING",
+          "localized_name": "selected_label"
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "localized_name": "selected_index"
+        }
+      ],
+      "size": [
+        315,
+        122
+      ],
+      "pos": [
+        958.7427978515625,
+        -1247.483642578125
+      ],
+      "widgets_values": [
+        1,
+        false
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "input1",
+          "link": 48,
+          "label": "输入1",
+          "type": "STRING",
+          "localized_name": "input1"
+        },
+        {
+          "name": "input2",
+          "link": 47,
+          "type": "STRING"
+        },
+        {
+          "name": "input3",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 43,
+      "type": "ImpactSwitch",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "order": 21
+    }
+  ],
+  "extra": {
+    "VHS_KeepIntermediate": true,
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "VHS_MetadataImage": true,
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "VHS_latentpreviewrate": 0,
+    "VHS_latentpreview": false,
+    "ds": {
+      "offset": [
+        338.9218052252984,
+        1569.1184765298142
+      ],
+      "scale": 0.797202450000028
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 1,
+      "title": "Group",
+      "bounding": [
+        -285.4222717285156,
+        -737.7109375,
+        1557.067138671875,
+        583.5999755859375
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 2,
+      "title": "Group",
+      "bounding": [
+        -282.26922607421875,
+        -1411.379638671875,
+        1558.6002197265625,
+        657.140380859375
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 3,
+      "title": "Group",
+      "bounding": [
+        -282.2389831542969,
+        -130.86912536621094,
+        2752.884521484375,
+        708.5182495117188
+      ]
+    }
+  ],
+  "links": [
+    [
+      2,
+      25,
+      0,
+      1,
+      1,
+      "CLIP"
+    ],
+    [
+      5,
+      1,
+      1,
+      4,
+      0,
+      "CLIP"
+    ],
+    [
+      6,
+      12,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      7,
+      18,
+      0,
+      6,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      8,
+      4,
+      0,
+      6,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      10,
+      9,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ],
+    [
+      11,
+      10,
+      0,
+      9,
+      0,
+      "*"
+    ],
+    [
+      12,
+      13,
+      0,
+      10,
+      0,
+      "*"
+    ],
+    [
+      13,
+      20,
+      0,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
+      14,
+      14,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      15,
+      6,
+      0,
+      14,
+      0,
+      "LATENT"
+    ],
+    [
+      16,
+      11,
+      0,
+      14,
+      1,
+      "VAE"
+    ],
+    [
+      17,
+      1,
+      1,
+      18,
+      0,
+      "CLIP"
+    ],
+    [
+      18,
+      1,
+      0,
+      20,
+      0,
+      "MODEL"
+    ],
+    [
+      19,
+      4,
+      0,
+      20,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      20,
+      26,
+      0,
+      2,
+      0,
+      "MODEL"
+    ],
+    [
+      22,
+      2,
+      0,
+      1,
+      0,
+      "MODEL"
+    ],
+    [
+      24,
+      32,
+      0,
+      33,
+      0,
+      "STRING"
+    ],
+    [
+      25,
+      31,
+      0,
+      33,
+      1,
+      "STRING"
+    ],
+    [
+      26,
+      33,
+      0,
+      30,
+      0,
+      "STRING"
+    ],
+    [
+      27,
+      30,
+      0,
+      34,
+      0,
+      "STRING"
+    ],
+    [
+      28,
+      30,
+      0,
+      35,
+      0,
+      "STRING"
+    ],
+    [
+      32,
+      35,
+      0,
+      36,
+      0,
+      "STRING"
+    ],
+    [
+      33,
+      37,
+      0,
+      38,
+      0,
+      "INT"
+    ],
+    [
+      34,
+      37,
+      1,
+      38,
+      1,
+      "INT"
+    ],
+    [
+      35,
+      38,
+      0,
+      6,
+      3,
+      "LATENT"
+    ],
+    [
+      38,
+      43,
+      0,
+      18,
+      1,
+      "STRING"
+    ],
+    [
+      40,
+      47,
+      0,
+      48,
+      0,
+      "STRING"
+    ],
+    [
+      41,
+      44,
+      0,
+      48,
+      1,
+      "STRING"
+    ],
+    [
+      42,
+      46,
+      0,
+      48,
+      2,
+      "STRING"
+    ],
+    [
+      43,
+      48,
+      0,
+      45,
+      0,
+      "STRING"
+    ],
+    [
+      46,
+      45,
+      0,
+      49,
+      0,
+      "*"
+    ],
+    [
+      47,
+      34,
+      0,
+      43,
+      1,
+      "STRING"
+    ],
+    [
+      48,
+      45,
+      0,
+      43,
+      0,
+      "STRING"
+    ]
+  ],
+  "id": "00000000-0000-0000-0000-000000000000",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 50,
+  "revision": 0
+}

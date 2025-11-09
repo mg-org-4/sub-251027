@@ -1,0 +1,464 @@
+{
+  "last_link_id": 9,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "translation",
+          "links": [
+            2,
+            7
+          ],
+          "label": "translation",
+          "type": "STRING",
+          "localized_name": "translation"
+        }
+      ],
+      "size": [
+        513.135009765625,
+        205.32400512695312
+      ],
+      "pos": [
+        414.40985107421875,
+        -65.04027557373047
+      ],
+      "widgets_values": [
+        "修复这张照片，消除裂痕，增强清晰度，校正色彩，还原原始照片的细节与质感，使其达到超高清画质。",
+        869,
+        "randomize",
+        "force_english"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 10,
+      "type": "RH_Translator",
+      "properties": {
+        "Node name for S&R": "RH_Translator"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "STRING",
+          "label": "字符串",
+          "type": "STRING",
+          "localized_name": "字符串"
+        }
+      ],
+      "size": [
+        516.1900024414062,
+        117.32400512695312
+      ],
+      "pos": [
+        417.9993896484375,
+        187.76803588867188
+      ],
+      "widgets_values": [
+        "",
+        "Restore this photo by removing cracks, enhancing clarity, correcting colors, and recovering the original details and texture to achieve ultra-high-definition quality."
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 7,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "文本"
+        }
+      ],
+      "flags": {},
+      "id": 20,
+      "type": "ShowText|pysssss",
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "size": [
+        217.71157836914062,
+        348.57025146484375
+      ],
+      "pos": [
+        713.9046020507812,
+        416.92681884765625
+      ],
+      "widgets_values": [
+        "dc7eaf408986270c0ebba6509ef7856b851a0663e4294306cab5d0c99f4be9f9.jpg",
+        "image",
+        ""
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 21,
+      "type": "LoadImage",
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            3,
+            5
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "size": [
+        511.498779296875,
+        814.4044189453125
+      ],
+      "pos": [
+        -157.5802764892578,
+        -57.292396545410156
+      ],
+      "widgets_values": [
+        "1a4c16eb598d249fc78a13ecef44ff7475096e8b746ee5d0a7bd9b157e1216ff.jpg",
+        "image",
+        ""
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 14,
+      "type": "LoadImage",
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        558.3510131835938,
+        814.3950805664062
+      ],
+      "pos": [
+        1000.2459716796875,
+        -52.3276481628418
+      ],
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 9,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        }
+      ],
+      "flags": {},
+      "id": 23,
+      "type": "SaveImage",
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            6,
+            9
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "images_urls",
+          "links": [],
+          "label": "images_urls",
+          "type": "STRING",
+          "localized_name": "images_urls"
+        }
+      ],
+      "size": [
+        285.6065979003906,
+        341.69659423828125
+      ],
+      "pos": [
+        415.4975891113281,
+        420.0552978515625
+      ],
+      "widgets_values": [
+        "",
+        "flux-kontext-pro",
+        "",
+        "1:1",
+        1,
+        1661525286,
+        "randomize",
+        true,
+        3.5,
+        "ai.t8star.cn"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "input_image",
+          "link": 3,
+          "label": "input_image",
+          "type": "IMAGE",
+          "localized_name": "input_image"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 2,
+          "label": "prompt",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 13,
+      "type": "RH_ComfyFluxKontext",
+      "properties": {
+        "Node name for S&R": "RH_ComfyFluxKontext"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        582.423828125,
+        811.4439086914062
+      ],
+      "pos": [
+        1621.2193603515625,
+        -53.98656463623047
+      ],
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/view?filename=rgthree.compare._temp_jprlf_00001_jbcpo_1749689992.png&type=temp&subfolder=&rand=0.0750198036277514&Rh-Comfy-Auth=eyJ1c2VySWQiOiJmMWZlYjM3ZDgzZTY0ODdhYjNkY2M5MDM0YjVjMTBmNiIsInNpZ25FeHBpcmUiOjE3NTAyOTQ3NzUzNjEsInRzIjoxNzQ5Njg5OTc1MzYxLCJzaWduIjoiN2Q2OGI2ZTg0OGY4YTdmODZkMDM1ZDlmOTI2MmFiZGQifQ==&Rh-Identify=f1feb37d83e6487ab3dcc9034b5c10f6"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/view?filename=rgthree.compare._temp_jprlf_00002_aidit_1749689994.png&type=temp&subfolder=&rand=0.6553137837455216&Rh-Comfy-Auth=eyJ1c2VySWQiOiJmMWZlYjM3ZDgzZTY0ODdhYjNkY2M5MDM0YjVjMTBmNiIsInNpZ25FeHBpcmUiOjE3NTAyOTQ3NzUzNjEsInRzIjoxNzQ5Njg5OTc1MzYxLCJzaWduIjoiN2Q2OGI2ZTg0OGY4YTdmODZkMDM1ZDlmOTI2MmFiZGQifQ==&Rh-Identify=f1feb37d83e6487ab3dcc9034b5c10f6"
+          }
+        ]
+      ],
+      "inputs": [
+        {
+          "name": "image_a",
+          "link": 5,
+          "label": "图像_A",
+          "dir": 3,
+          "type": "IMAGE"
+        },
+        {
+          "name": "image_b",
+          "link": 6,
+          "label": "图像_B",
+          "dir": 3,
+          "type": "IMAGE"
+        }
+      ],
+      "flags": {},
+      "id": 17,
+      "type": "Image Comparer (rgthree)",
+      "properties": {
+        "comparer_mode": "Slide"
+      },
+      "order": 5
+    }
+  ],
+  "extra": {
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        -376.2458503073194,
+        283.3906008669545
+      ],
+      "scale": 0.8769226950000029
+    }
+  },
+  "groups": [
+    {
+      "color": "#A88",
+      "font_size": 24,
+      "flags": {},
+      "id": 1,
+      "title": "导入图片",
+      "bounding": [
+        -172.79031372070312,
+        -140.03753662109375,
+        548.2642822265625,
+        911.5062866210938
+      ]
+    },
+    {
+      "color": "#b06634",
+      "font_size": 24,
+      "flags": {},
+      "id": 2,
+      "title": "输入中文提示词",
+      "bounding": [
+        402.5814208984375,
+        -137.51535034179688,
+        549.3623657226562,
+        454.6631774902344
+      ]
+    },
+    {
+      "color": "#88A",
+      "font_size": 24,
+      "flags": {},
+      "id": 3,
+      "title": "设置aspect_ratio参数，根据原图比例修改",
+      "bounding": [
+        404.87335205078125,
+        340.0458068847656,
+        547.4300537109375,
+        434.2565612792969
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {},
+      "id": 4,
+      "title": "生成图片",
+      "bounding": [
+        987.5048828125,
+        -131.47994995117188,
+        586.141845703125,
+        906.0914306640625
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {},
+      "id": 5,
+      "title": "图片对比",
+      "bounding": [
+        1607.962646484375,
+        -130.13192749023438,
+        602.1382446289062,
+        898.0519409179688
+      ]
+    },
+    {
+      "color": "#A88",
+      "font_size": 80,
+      "flags": {},
+      "id": 6,
+      "title": "Kontext-老照片修复",
+      "bounding": [
+        -168.4385223388672,
+        -315.7754821777344,
+        727.8361206054688,
+        100.93663024902344
+      ]
+    }
+  ],
+  "links": [
+    [
+      2,
+      10,
+      0,
+      13,
+      1,
+      "STRING"
+    ],
+    [
+      3,
+      14,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      5,
+      14,
+      0,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      6,
+      13,
+      0,
+      17,
+      1,
+      "IMAGE"
+    ],
+    [
+      7,
+      10,
+      0,
+      20,
+      0,
+      "STRING"
+    ],
+    [
+      9,
+      13,
+      0,
+      23,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "id": "2f0908c8-dd87-4fb5-883c-2fee422bc1cc",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 23,
+  "revision": 0
+}

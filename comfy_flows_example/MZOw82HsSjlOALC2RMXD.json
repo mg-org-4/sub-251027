@@ -1,0 +1,1604 @@
+{
+  "last_link_id": 184,
+  "nodes": [
+    {
+      "outputs": [],
+      "color": "#223",
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 176,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "type": "SaveImage",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        862.0704345703125,
+        704.0177612304688
+      ],
+      "pos": [
+        871.3642578125,
+        184.54246520996094
+      ],
+      "id": 86,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.52",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "filename_prefix": true
+          },
+          "version": "7.0.1"
+        },
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 19
+    },
+    {
+      "outputs": [],
+      "color": "#223",
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 58,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "type": "SaveImage",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        1021.8271484375,
+        771.1708374023438
+      ],
+      "pos": [
+        874.544189453125,
+        973.4893798828125
+      ],
+      "id": 90,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.52",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "filename_prefix": true
+          },
+          "version": "7.0.1"
+        },
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 22
+    },
+    {
+      "outputs": [],
+      "color": "#223",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 63,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "flags": {},
+      "type": "PreviewImage",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        844.9444580078125,
+        564.54443359375
+      ],
+      "pos": [
+        -364.17755126953125,
+        1584.1282958984375
+      ],
+      "id": 93,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewImage",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 23
+    },
+    {
+      "outputs": [],
+      "color": "#223",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 177,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "flags": {},
+      "type": "PreviewImage",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        140,
+        246
+      ],
+      "pos": [
+        633.6075439453125,
+        1848.17822265625
+      ],
+      "id": 97,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewImage",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 20
+    },
+    {
+      "outputs": [
+        {
+          "name": "VAE",
+          "links": [
+            68
+          ],
+          "type": "VAE",
+          "localized_name": "VAE"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "qwen_image_vae.safetensors"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "vae_name"
+          },
+          "name": "vae_name",
+          "type": "COMBO",
+          "localized_name": "vae名称"
+        }
+      ],
+      "flags": {},
+      "type": "VAELoader",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        749.8151245117188,
+        2060.578369140625
+      ],
+      "id": 99,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAELoader",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 0
+    },
+    {
+      "outputs": [],
+      "color": "#223",
+      "widgets_values": [
+        "latents/ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "samples",
+          "link": 69,
+          "label": "Latent",
+          "type": "LATENT",
+          "localized_name": "Latent"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "type": "SaveLatent",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        1341.9078369140625,
+        1947.557861328125
+      ],
+      "id": 100,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveLatent",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 24
+    },
+    {
+      "outputs": [
+        {
+          "name": "LATENT",
+          "links": [
+            69
+          ],
+          "label": "Latent",
+          "type": "LATENT",
+          "localized_name": "Latent"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "pixels",
+          "link": 178,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "像素"
+        },
+        {
+          "name": "vae",
+          "link": 68,
+          "label": "VAE",
+          "type": "VAE",
+          "localized_name": "vae"
+        }
+      ],
+      "flags": {},
+      "type": "VAEEncode",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        140,
+        46
+      ],
+      "pos": [
+        1115.882568359375,
+        1946.154541015625
+      ],
+      "id": 98,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAEEncode",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 21
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "model有两个，如果一个风控了请用另外个\n\n默认模型：gemini-2.5-flash-image-preview\n备选模型：nano-banana\n\n另外务必本地开启TUN模式，魔法选美国！！！非常重要\n"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        675.9651489257812,
+        284.64923095703125
+      ],
+      "pos": [
+        -1141.8997802734375,
+        492.0196228027344
+      ],
+      "id": 96,
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.0.1"
+        },
+        "widget_ue_connectable": {}
+      },
+      "order": 1
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "\nAPI申请地址：https://ai.t8star.cn/\n注册送0.2美元\n\n注册后，点击左侧令牌，创建令牌，用Default分组，不要用跟随用户分组！！\n然后复制API到APIKEY即可\n\n如需本地使用，请安装节点：https://github.com/ainewsto/Comfyui_Comfly_v2"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        675.9651489257812,
+        284.64923095703125
+      ],
+      "pos": [
+        -1221.9591064453125,
+        2072.921630859375
+      ],
+      "id": 91,
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.0.1"
+        },
+        "widget_ue_connectable": {}
+      },
+      "order": 2
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            118
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "5ef2204a7fbc1d3eaf54ee1fe560ce2c67245a9908362708f6a4b7841ff16b03.jpg",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "type": "COMBO",
+          "localized_name": "图像"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "type": "LoadImage",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        270,
+        314.00006103515625
+      ],
+      "pos": [
+        -2077.007080078125,
+        717.0020141601562
+      ],
+      "id": 136,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.52",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "image": true,
+            "upload": true
+          },
+          "version": "7.0.1"
+        },
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 3
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            58,
+            63
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "down",
+        true
+      ],
+      "inputs": [
+        {
+          "name": "image1",
+          "link": 56,
+          "label": "图像_1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        },
+        {
+          "name": "image2",
+          "link": 175,
+          "label": "图像_2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "widget": {
+            "name": "direction"
+          },
+          "name": "direction",
+          "type": "COMBO",
+          "localized_name": "方向"
+        },
+        {
+          "widget": {
+            "name": "match_image_size"
+          },
+          "name": "match_image_size",
+          "type": "BOOLEAN",
+          "localized_name": "match_image_size"
+        }
+      ],
+      "flags": {},
+      "type": "ImageConcanate",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        270,
+        102
+      ],
+      "pos": [
+        284.0806884765625,
+        842.61572265625
+      ],
+      "id": 89,
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "e2ce0843d1183aea86ce6a1617426f492dcdc802",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "match_image_size": true,
+            "direction": true
+          },
+          "version": "7.0.1"
+        },
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImageConcanate",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 18
+    },
+    {
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            182
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "图片中女人"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "type": "STRING",
+          "localized_name": "提示词"
+        }
+      ],
+      "flags": {},
+      "type": "CR Prompt Text",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -2938.408203125,
+        1068.5914306640625
+      ],
+      "id": 147,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 4
+    },
+    {
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            183
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "中国长城"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "type": "STRING",
+          "localized_name": "提示词"
+        }
+      ],
+      "flags": {},
+      "type": "CR Prompt Text",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -2913.87158203125,
+        1374.2564697265625
+      ],
+      "id": 148,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 5
+    },
+    {
+      "outputs": [
+        {
+          "name": "p0",
+          "label": "p0",
+          "type": "*",
+          "localized_name": "p0"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "pwd"
+          },
+          "name": "pwd",
+          "label": "pwd",
+          "type": "STRING",
+          "localized_name": "pwd"
+        }
+      ],
+      "flags": {},
+      "type": "RHHiddenNodes",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        -174.78817749023438,
+        1054.890869140625
+      ],
+      "id": 151,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RHHiddenNodes",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 6
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "APIKEY"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        -3250.861328125,
+        1811.69189453125
+      ],
+      "id": 101,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 7
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "地点"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        -3210.457275390625,
+        1420.8824462890625
+      ],
+      "id": 153,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 8
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "主体"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        -3212.3115234375,
+        1102.0262451171875
+      ],
+      "id": 154,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 9
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            56,
+            172
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        1024,
+        "bicubic"
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 118,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "widget": {
+            "name": "size"
+          },
+          "name": "size",
+          "label": "size",
+          "type": "INT",
+          "localized_name": "size"
+        },
+        {
+          "widget": {
+            "name": "interpolation_mode"
+          },
+          "name": "interpolation_mode",
+          "label": "interpolation_mode",
+          "type": "COMBO",
+          "localized_name": "interpolation_mode"
+        }
+      ],
+      "flags": {},
+      "type": "JWImageResizeByLongerSide",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        283.5611267089844,
+        82
+      ],
+      "pos": [
+        -717.3665771484375,
+        832.5762329101562
+      ],
+      "id": 87,
+      "properties": {
+        "cnr_id": "jameswalker-nodes",
+        "ver": "5bd85aaf7616878471469c4ec7e11bbd0cef3bf2",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "interpolation_mode": true,
+            "size": true
+          },
+          "version": "7.0.1"
+        },
+        "widget_ue_connectable": {},
+        "Node name for S&R": "JWImageResizeByLongerSide",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 14
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            175,
+            176,
+            177,
+            178
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "response",
+          "label": "response",
+          "type": "STRING",
+          "localized_name": "response"
+        },
+        {
+          "name": "image_url",
+          "label": "image_url",
+          "type": "STRING",
+          "localized_name": "image_url"
+        }
+      ],
+      "size": [
+        400,
+        316
+      ],
+      "pos": [
+        -174.78817749023438,
+        1054.890869140625
+      ],
+      "widgets_values": [
+        "137,0",
+        "nano-banana",
+        1,
+        0.95,
+        [
+          "95",
+          0
+        ],
+        358645222,
+        "randomize",
+        32768
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "image1",
+          "link": 172,
+          "label": "image1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        },
+        {
+          "shape": 7,
+          "name": "image2",
+          "label": "image2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "shape": 7,
+          "name": "image3",
+          "label": "image3",
+          "type": "IMAGE",
+          "localized_name": "image3"
+        },
+        {
+          "shape": 7,
+          "name": "image4",
+          "label": "image4",
+          "type": "IMAGE",
+          "localized_name": "image4"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 173,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "model"
+          },
+          "name": "model",
+          "label": "model",
+          "type": "COMBO",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "temperature"
+          },
+          "shape": 7,
+          "name": "temperature",
+          "label": "temperature",
+          "type": "FLOAT",
+          "localized_name": "temperature"
+        },
+        {
+          "widget": {
+            "name": "top_p"
+          },
+          "shape": 7,
+          "name": "top_p",
+          "label": "top_p",
+          "type": "FLOAT",
+          "localized_name": "top_p"
+        },
+        {
+          "widget": {
+            "name": "apikey"
+          },
+          "shape": 7,
+          "name": "apikey",
+          "link": 174,
+          "label": "apikey",
+          "type": "STRING",
+          "localized_name": "apikey"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "shape": 7,
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "max_tokens"
+          },
+          "shape": 7,
+          "name": "max_tokens",
+          "label": "max_tokens",
+          "type": "INT",
+          "localized_name": "max_tokens"
+        }
+      ],
+      "flags": {},
+      "id": "92",
+      "type": "Comfly_nano_banana",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Comfly_nano_banana"
+      },
+      "order": 17
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "translation",
+          "links": [
+            173
+          ],
+          "label": "translation",
+          "type": "STRING",
+          "localized_name": "translation"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -758.389892578125,
+        1213.9180908203125
+      ],
+      "widgets_values": [
+        "149,0",
+        1430,
+        "randomize",
+        "force_english"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 179,
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "advanced_options"
+          },
+          "shape": 7,
+          "name": "advanced_options",
+          "label": "advanced_options",
+          "type": "COMBO",
+          "localized_name": "advanced_options"
+        }
+      ],
+      "flags": {},
+      "id": "137",
+      "type": "RH_Translator",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Translator"
+      },
+      "order": 16
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            180
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -2126.940673828125,
+        1141.947265625
+      ],
+      "widgets_values": [
+        "生成一张照片：捕捉了白天的场景，天空中散落的云彩组成了"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        }
+      ],
+      "flags": {},
+      "id": "139",
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 11
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            181
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -2253.811279296875,
+        1418.75146484375
+      ],
+      "widgets_values": [
+        "[参考图片] 的形状，由深浅不一的白色云朵组成，位于 [地点] 的上方。"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        }
+      ],
+      "flags": {},
+      "id": "146",
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 12
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            179
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "字符串"
+        }
+      ],
+      "size": [
+        270,
+        178
+      ],
+      "pos": [
+        -1349.4407958984375,
+        1208.0511474609375
+      ],
+      "widgets_values": [
+        " ",
+        [
+          "139",
+          0
+        ],
+        [
+          "147",
+          0
+        ],
+        [
+          "146",
+          0
+        ],
+        [
+          "148",
+          0
+        ],
+        [
+          "150",
+          0
+        ]
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "delimiter"
+          },
+          "name": "delimiter",
+          "label": "delimiter",
+          "type": "STRING",
+          "localized_name": "delimiter"
+        },
+        {
+          "widget": {
+            "name": "text1"
+          },
+          "shape": 7,
+          "name": "text1",
+          "link": 180,
+          "label": "text1",
+          "type": "STRING",
+          "localized_name": "text1"
+        },
+        {
+          "widget": {
+            "name": "text2"
+          },
+          "shape": 7,
+          "name": "text2",
+          "link": 182,
+          "label": "text2",
+          "type": "STRING",
+          "localized_name": "text2"
+        },
+        {
+          "widget": {
+            "name": "text3"
+          },
+          "shape": 7,
+          "name": "text3",
+          "link": 181,
+          "label": "text3",
+          "type": "STRING",
+          "localized_name": "text3"
+        },
+        {
+          "widget": {
+            "name": "text4"
+          },
+          "shape": 7,
+          "name": "text4",
+          "link": 183,
+          "label": "text4",
+          "type": "STRING",
+          "localized_name": "text4"
+        },
+        {
+          "widget": {
+            "name": "text5"
+          },
+          "shape": 7,
+          "name": "text5",
+          "link": 184,
+          "label": "text5",
+          "type": "STRING",
+          "localized_name": "text5"
+        }
+      ],
+      "flags": {},
+      "id": "149",
+      "type": "TextConcat",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextConcat"
+      },
+      "order": 15
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            184
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -2225.834716796875,
+        1716.3707275390625
+      ],
+      "widgets_values": [
+        "的上方。"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        }
+      ],
+      "flags": {},
+      "id": "150",
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 13
+    },
+    {
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            174
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "type": "STRING",
+          "localized_name": "提示词"
+        }
+      ],
+      "flags": {},
+      "type": "CR Prompt Text",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -2984.666015625,
+        1759.58544921875
+      ],
+      "id": 95,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 10
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "VHS_KeepIntermediate": true,
+    "ue_links": [],
+    "VHS_MetadataImage": true,
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "VHS_latentpreviewrate": 0,
+    "frontendVersion": "1.25.10",
+    "VHS_latentpreview": false,
+    "ds": {
+      "offset": [
+        3359.5048618475817,
+        -1078.9923849775248
+      ],
+      "scale": 1.412292769524457
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 240,
+      "flags": {},
+      "id": 7,
+      "title": "B站、Youtube：T8star-Aix",
+      "bounding": [
+        -756.0153198242188,
+        -386.59625244140625,
+        3258.791259765625,
+        393.88262939453125
+      ]
+    }
+  ],
+  "links": [
+    [
+      56,
+      87,
+      0,
+      89,
+      0,
+      "IMAGE"
+    ],
+    [
+      58,
+      89,
+      0,
+      90,
+      0,
+      "IMAGE"
+    ],
+    [
+      63,
+      89,
+      0,
+      93,
+      0,
+      "IMAGE"
+    ],
+    [
+      68,
+      99,
+      0,
+      98,
+      1,
+      "VAE"
+    ],
+    [
+      69,
+      98,
+      0,
+      100,
+      0,
+      "LATENT"
+    ],
+    [
+      118,
+      136,
+      0,
+      87,
+      0,
+      "IMAGE"
+    ],
+    [
+      172,
+      87,
+      0,
+      "92",
+      0,
+      "IMAGE"
+    ],
+    [
+      173,
+      "137",
+      0,
+      "92",
+      4,
+      "STRING"
+    ],
+    [
+      174,
+      95,
+      0,
+      "92",
+      8,
+      "STRING"
+    ],
+    [
+      175,
+      "92",
+      0,
+      89,
+      1,
+      "IMAGE"
+    ],
+    [
+      176,
+      "92",
+      0,
+      86,
+      0,
+      "IMAGE"
+    ],
+    [
+      177,
+      "92",
+      0,
+      97,
+      0,
+      "IMAGE"
+    ],
+    [
+      178,
+      "92",
+      0,
+      98,
+      0,
+      "IMAGE"
+    ],
+    [
+      179,
+      "149",
+      0,
+      "137",
+      0,
+      "STRING"
+    ],
+    [
+      180,
+      "139",
+      0,
+      "149",
+      1,
+      "STRING"
+    ],
+    [
+      181,
+      "146",
+      0,
+      "149",
+      3,
+      "STRING"
+    ],
+    [
+      182,
+      147,
+      0,
+      "149",
+      2,
+      "STRING"
+    ],
+    [
+      183,
+      148,
+      0,
+      "149",
+      4,
+      "STRING"
+    ],
+    [
+      184,
+      "150",
+      0,
+      "149",
+      5,
+      "STRING"
+    ]
+  ],
+  "id": "00000000-0000-0000-0000-000000000000",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 154,
+  "revision": 0
+}

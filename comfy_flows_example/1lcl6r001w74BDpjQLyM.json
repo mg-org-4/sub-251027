@@ -1,0 +1,435 @@
+{
+  "last_link_id": 9,
+  "nodes": [
+    {
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            3,
+            7
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "STRING"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "large",
+        "auto"
+      ],
+      "inputs": [
+        {
+          "name": "audio",
+          "link": 2,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "widget": {
+            "name": "model_size"
+          },
+          "name": "model_size",
+          "label": "model_size",
+          "type": "COMBO",
+          "localized_name": "model_size"
+        },
+        {
+          "widget": {
+            "name": "language"
+          },
+          "name": "language",
+          "label": "language",
+          "type": "COMBO",
+          "localized_name": "language"
+        }
+      ],
+      "flags": {},
+      "type": "WhisperSTT",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        1219.9095458984375,
+        464.7900695800781
+      ],
+      "id": 3,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "WhisperSTT"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        397.67364501953125,
+        112.62659454345703
+      ],
+      "pos": [
+        1652.6107177734375,
+        534.0177612304688
+      ],
+      "widgets_values": [
+        "大家好,我是高云针很高兴见到大家"
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 7,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 7,
+      "type": "ShowText|pysssss",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "order": 4
+    },
+    {
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "links": [
+            2,
+            9
+          ],
+          "label": "AUDIO",
+          "type": "AUDIO",
+          "localized_name": "AUDIO"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "cebc7c1cdd3c858e95d7d07d59c54b8d4d297e2f0f186bf354cfebeb80bd608a.flac",
+        null,
+        null
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "audio"
+          },
+          "name": "audio",
+          "label": "audio",
+          "type": "COMBO",
+          "localized_name": "audio"
+        },
+        {
+          "widget": {
+            "name": "audioUI"
+          },
+          "name": "audioUI",
+          "label": "audioUI",
+          "type": "AUDIO_UI",
+          "localized_name": "audioUI"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "AUDIOUPLOAD",
+          "localized_name": "choose file to upload"
+        }
+      ],
+      "flags": {},
+      "type": "LoadAudio",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        274.080078125,
+        136
+      ],
+      "pos": [
+        1288.21044921875,
+        256.59033203125
+      ],
+      "id": 2,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadAudio"
+      },
+      "order": 0
+    },
+    {
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            4
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "STRING"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "大家好，我是贞贞，新的DMO speech2技术，支持长音频输出，效果似乎还不错"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "Text Multiline",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        284.0243225097656,
+        157.1067657470703
+      ],
+      "pos": [
+        1215.4498291015625,
+        607.75634765625
+      ],
+      "id": 4,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Text Multiline"
+      },
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        304.71075439453125,
+        113.65289306640625
+      ],
+      "pos": [
+        2189.68212890625,
+        288.0509338378906
+      ],
+      "widgets_values": [
+        "audio/ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "audio",
+          "link": 5,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "audioUI"
+          },
+          "name": "audioUI",
+          "label": "audioUI",
+          "type": "AUDIO_UI",
+          "localized_name": "audioUI"
+        }
+      ],
+      "flags": {},
+      "id": 5,
+      "type": "SaveAudio",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveAudio"
+      },
+      "order": 5
+    },
+    {
+      "outputs": [
+        {
+          "name": "audio",
+          "links": [
+            5
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "猫猫真是太帅了，帅的我愿意每个月给他五十万块钱",
+        999,
+        "fixed",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "ref_audio",
+          "link": 9,
+          "label": "ref_audio",
+          "type": "AUDIO",
+          "localized_name": "ref_audio"
+        },
+        {
+          "widget": {
+            "name": "gen_text"
+          },
+          "name": "gen_text",
+          "link": 4,
+          "label": "gen_text",
+          "type": "STRING",
+          "localized_name": "gen_text"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "ref_text"
+          },
+          "shape": 7,
+          "name": "ref_text",
+          "link": 3,
+          "label": "ref_text",
+          "type": "STRING",
+          "localized_name": "ref_text"
+        }
+      ],
+      "flags": {},
+      "type": "RunningHub DMOSpeech2",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        1693.017333984375,
+        240.99314880371094
+      ],
+      "id": 1,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RunningHub DMOSpeech2"
+      },
+      "order": 3
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        -1314.5571053035417,
+        30.008355300974756
+      ],
+      "scale": 1.4122927695244547
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 240,
+      "flags": {},
+      "id": 1,
+      "title": "B站、Youtube：T8star-Aix",
+      "bounding": [
+        1059.451904296875,
+        -262.1477966308594,
+        4168,
+        309
+      ]
+    }
+  ],
+  "links": [
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "AUDIO"
+    ],
+    [
+      3,
+      3,
+      0,
+      1,
+      3,
+      "STRING"
+    ],
+    [
+      4,
+      4,
+      0,
+      1,
+      1,
+      "STRING"
+    ],
+    [
+      5,
+      1,
+      0,
+      5,
+      0,
+      "AUDIO"
+    ],
+    [
+      7,
+      3,
+      0,
+      7,
+      0,
+      "STRING"
+    ],
+    [
+      9,
+      2,
+      0,
+      1,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "id": "18d90514-6f86-421f-a9c5-18ad7368e8e7",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 8,
+  "revision": 0
+}

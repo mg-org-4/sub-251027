@@ -1,0 +1,3099 @@
+{
+  "last_node_id": 70,
+  "last_link_id": 263,
+  "nodes": [
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        413,
+        389
+      ],
+      "size": {
+        "0": 425.27801513671875,
+        "1": 180.6060791015625
+      },
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "text, watermark"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [
+        415,
+        186
+      ],
+      "size": {
+        "0": 422.84503173828125,
+        "1": 164.31304931640625
+      },
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            4
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "beautiful scenery nature glass bottle landscape, , purple galaxy bottle,"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "EmptyLatentImage",
+      "pos": [
+        473,
+        609
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        512,
+        512,
+        1
+      ]
+    },
+    {
+      "id": 19,
+      "type": "0246.CastReroute",
+      "pos": [
+        970,
+        30
+      ],
+      "size": [
+        124,
+        26
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "INT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "INT",
+          "links": [],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false
+      },
+      "widgets_values": [
+        "INT"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "KSampler",
+      "pos": [
+        863,
+        186
+      ],
+      "size": {
+        "0": 210,
+        "1": 440
+      },
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 4
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 2
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "link": 247,
+          "widget": {
+            "name": "seed"
+          }
+        },
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "link": 248,
+          "widget": {
+            "name": "sampler_name"
+          }
+        },
+        {
+          "name": "scheduler",
+          "type": "COMBO",
+          "link": 249,
+          "widget": {
+            "name": "scheduler"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        108850016824040,
+        "randomize",
+        8,
+        3,
+        "euler",
+        "normal",
+        1
+      ]
+    },
+    {
+      "id": 34,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        -534.8839935056326,
+        1298.7953739535278
+      ],
+      "size": {
+        "0": 210,
+        "1": 180
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:INT",
+          "type": "INT",
+          "link": 122,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:INT",
+          "type": "INT",
+          "link": 123,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:INT",
+          "type": "INT",
+          "link": 124,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:INT",
+          "type": "INT",
+          "link": 125,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "INT:0",
+          "type": "INT",
+          "links": [
+            179
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "Seed(1-4) Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 35,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        -534.8839935056326,
+        1528.7953739535278
+      ],
+      "size": {
+        "0": 210,
+        "1": 180
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:INT",
+          "type": "INT",
+          "link": 126,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:INT",
+          "type": "INT",
+          "link": 127,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:INT",
+          "type": "INT",
+          "link": 128,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:INT",
+          "type": "INT",
+          "link": 129,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "INT:0",
+          "type": "INT",
+          "links": [
+            143,
+            180
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "Seed(1-4) Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 39,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        15.418912743049408,
+        1308.7886420218372
+      ],
+      "size": {
+        "0": 210,
+        "1": 180
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:COMBO",
+          "type": "COMBO",
+          "link": 193,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:COMBO",
+          "type": "COMBO",
+          "link": 194,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:COMBO",
+          "type": "COMBO",
+          "link": 195,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:COMBO",
+          "type": "COMBO",
+          "link": 196,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "COMBO:0",
+          "type": "COMBO",
+          "links": [
+            213
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "3M_SDE Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 51,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        578.6036014188724,
+        862.3133017261673
+      ],
+      "size": {
+        "0": 240,
+        "1": 180
+      },
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:COMBO",
+          "type": "COMBO",
+          "link": 215,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:COMBO",
+          "type": "COMBO",
+          "link": 216,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:COMBO",
+          "type": "COMBO",
+          "link": 217,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:COMBO",
+          "type": "COMBO",
+          "link": 218,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "COMBO:0",
+          "type": "COMBO",
+          "links": [
+            243
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "Normal for SDE Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 53,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        588.6036014188724,
+        1082.3133017261664
+      ],
+      "size": {
+        "0": 310,
+        "1": 180
+      },
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:COMBO",
+          "type": "COMBO",
+          "link": 227,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:COMBO",
+          "type": "COMBO",
+          "link": 228,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:COMBO",
+          "type": "COMBO",
+          "link": 229,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:COMBO",
+          "type": "COMBO",
+          "link": 230,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "COMBO:0",
+          "type": "COMBO",
+          "links": [
+            244
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "Exponential for 2M_SDE Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 56,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        590,
+        1510
+      ],
+      "size": {
+        "0": 280,
+        "1": 180
+      },
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:COMBO",
+          "type": "COMBO",
+          "link": 235,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:COMBO",
+          "type": "COMBO",
+          "link": 236,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:COMBO",
+          "type": "COMBO",
+          "link": 237,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:COMBO",
+          "type": "COMBO",
+          "link": 238,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "COMBO:0",
+          "type": "COMBO",
+          "links": [
+            246
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "Exponential for 2M Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 55,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        590,
+        1300
+      ],
+      "size": {
+        "0": 310,
+        "1": 180
+      },
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:COMBO",
+          "type": "COMBO",
+          "link": 231,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:COMBO",
+          "type": "COMBO",
+          "link": 232,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:COMBO",
+          "type": "COMBO",
+          "link": 233,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:COMBO",
+          "type": "COMBO",
+          "link": 234,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "COMBO:0",
+          "type": "COMBO",
+          "links": [
+            245
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "Exponential for 3M_SDE Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 40,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        20,
+        1530
+      ],
+      "size": {
+        "0": 210,
+        "1": 180
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:COMBO",
+          "type": "COMBO",
+          "link": 201,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:COMBO",
+          "type": "COMBO",
+          "link": 202,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:COMBO",
+          "type": "COMBO",
+          "link": 203,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:COMBO",
+          "type": "COMBO",
+          "link": 200,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "COMBO:0",
+          "type": "COMBO",
+          "links": [
+            214
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "2M Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 18,
+      "type": "0246.Hub",
+      "pos": [
+        -1020,
+        990
+      ],
+      "size": {
+        "0": 420,
+        "1": 660
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "sole:0:int:INT",
+          "type": "INT",
+          "links": [
+            41,
+            43,
+            112,
+            118,
+            122,
+            126
+          ],
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "sole:1:int:INT",
+          "type": "INT",
+          "links": [
+            47,
+            48,
+            115,
+            119,
+            123,
+            127
+          ],
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "sole:3:int:INT",
+          "type": "INT",
+          "links": [
+            50,
+            52,
+            116,
+            120,
+            124,
+            128
+          ],
+          "dir": 4,
+          "slot_index": 2
+        },
+        {
+          "name": "sole:4:int:INT",
+          "type": "INT",
+          "links": [
+            54,
+            56,
+            117,
+            121,
+            125,
+            129
+          ],
+          "dir": 4,
+          "slot_index": 3
+        },
+        {
+          "name": "sole:1:combo:KSampler:required:sampler_name:COMBO",
+          "type": "COMBO",
+          "links": [
+            57,
+            59,
+            144,
+            145,
+            146,
+            147
+          ],
+          "dir": 4,
+          "slot_index": 4,
+          "label": "sde"
+        },
+        {
+          "name": "sole:2:combo:KSampler:required:sampler_name:COMBO",
+          "type": "COMBO",
+          "links": [
+            61,
+            63,
+            189,
+            190,
+            191,
+            192
+          ],
+          "dir": 4,
+          "slot_index": 5,
+          "label": "2m_sde"
+        },
+        {
+          "name": "sole:3:combo:KSampler:required:sampler_name:COMBO",
+          "type": "COMBO",
+          "links": [
+            65,
+            67,
+            193,
+            194,
+            195,
+            196
+          ],
+          "dir": 4,
+          "slot_index": 6,
+          "label": "3m_sde"
+        },
+        {
+          "name": "sole:4:combo:KSampler:required:sampler_name:COMBO",
+          "type": "COMBO",
+          "links": [
+            69,
+            71,
+            200,
+            201,
+            202,
+            203
+          ],
+          "dir": 4,
+          "slot_index": 7,
+          "label": "2m"
+        },
+        {
+          "name": "sole:5:combo:KSampler:required:scheduler:COMBO",
+          "type": "COMBO",
+          "links": [
+            73,
+            75,
+            215,
+            216,
+            217,
+            218
+          ],
+          "dir": 4,
+          "slot_index": 8,
+          "label": "normal"
+        },
+        {
+          "name": "sole:6:combo:KSampler:required:scheduler:COMBO",
+          "type": "COMBO",
+          "links": [
+            77,
+            79,
+            81,
+            83,
+            85,
+            87,
+            227,
+            228,
+            229,
+            230,
+            231,
+            232,
+            233,
+            234,
+            235,
+            236,
+            237,
+            238
+          ],
+          "dir": 4,
+          "slot_index": 9,
+          "label": "exponential"
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "INT",
+        null,
+        [
+          "KSampler",
+          "required",
+          "scheduler"
+        ],
+        null,
+        "KSampler",
+        null,
+        "sole:0:combo:KSampler:required:sampler_name:COMBO",
+        null,
+        -1,
+        0,
+        1,
+        2,
+        3,
+        "dpmpp_sde",
+        "dpmpp_2m_sde",
+        "dpmpp_3m_sde",
+        "dpmpp_2m",
+        "normal",
+        "exponential"
+      ],
+      "color": "#1a1a1a",
+      "bgcolor": "#111"
+    },
+    {
+      "id": 33,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        -530,
+        1080
+      ],
+      "size": {
+        "0": 210,
+        "1": 180
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:INT",
+          "type": "INT",
+          "link": 118,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:INT",
+          "type": "INT",
+          "link": 119,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:INT",
+          "type": "INT",
+          "link": 120,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:INT",
+          "type": "INT",
+          "link": 121,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "INT:0",
+          "type": "INT",
+          "links": [
+            141,
+            170
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "Seed(1-4) Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 30,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        -530,
+        860
+      ],
+      "size": {
+        "0": 210,
+        "1": 180
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:INT",
+          "type": "INT",
+          "link": 112,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:INT",
+          "type": "INT",
+          "link": 115,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:INT",
+          "type": "INT",
+          "link": 116,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:INT",
+          "type": "INT",
+          "link": 117,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "INT:0",
+          "type": "INT",
+          "links": [
+            169
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "Seed(1-4) Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 37,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        30,
+        860
+      ],
+      "size": {
+        "0": 210,
+        "1": 180
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:COMBO",
+          "type": "COMBO",
+          "link": 144,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:COMBO",
+          "type": "COMBO",
+          "link": 145,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:COMBO",
+          "type": "COMBO",
+          "link": 146,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:COMBO",
+          "type": "COMBO",
+          "link": 147,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "COMBO:0",
+          "type": "COMBO",
+          "links": [
+            210
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "SDE Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 38,
+      "type": "0246.JunctionBatch",
+      "pos": [
+        30,
+        1080
+      ],
+      "size": {
+        "0": 210,
+        "1": 180
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "_junc_in",
+          "type": "JUNCTION_PIPE",
+          "link": null,
+          "dir": 3
+        },
+        {
+          "name": "0:COMBO",
+          "type": "COMBO",
+          "link": 189,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "1:COMBO",
+          "type": "COMBO",
+          "link": 190,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "2:COMBO",
+          "type": "COMBO",
+          "link": 191,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "3:COMBO",
+          "type": "COMBO",
+          "link": 192,
+          "shape": 6,
+          "dir": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 6,
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": [],
+          "shape": 3,
+          "dir": 4,
+          "slot_index": 0
+        },
+        {
+          "name": "COMBO:0",
+          "type": "COMBO",
+          "links": [
+            212
+          ],
+          "shape": 6,
+          "dir": 4,
+          "slot_index": 1
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "links": null,
+          "shape": 6,
+          "dir": 4
+        }
+      ],
+      "title": "2M_SDE Junction Batch",
+      "properties": {},
+      "widgets_values": [
+        ";",
+        "batch"
+      ],
+      "color": "#40134b",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 46,
+      "type": "0246.Merge",
+      "pos": [
+        -274.8839935056326,
+        1178.7953739535278
+      ],
+      "size": {
+        "0": 210,
+        "1": 160
+      },
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "0:INT",
+          "type": "INT",
+          "link": 169,
+          "shape": 3
+        },
+        {
+          "name": "1:INT",
+          "type": "INT",
+          "link": 170,
+          "shape": 3
+        },
+        {
+          "name": "2:INT",
+          "type": "INT",
+          "link": 179,
+          "shape": 3
+        },
+        {
+          "name": "3:INT",
+          "type": "INT",
+          "link": 180,
+          "shape": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_way_out",
+          "type": "HIGHWAY_PIPE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "_batch_out",
+          "type": "*",
+          "links": [
+            247
+          ],
+          "shape": 6,
+          "slot_index": 2
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "same",
+        "_"
+      ],
+      "color": "#660029",
+      "bgcolor": "#4d001f"
+    },
+    {
+      "id": 45,
+      "type": "0246.Merge",
+      "pos": [
+        285.41891274304976,
+        1208.7886420218372
+      ],
+      "size": {
+        "0": 210,
+        "1": 160
+      },
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "0:COMBO",
+          "type": "COMBO",
+          "link": 210,
+          "shape": 3
+        },
+        {
+          "name": "1:COMBO",
+          "type": "COMBO",
+          "link": 212,
+          "shape": 3
+        },
+        {
+          "name": "2:COMBO",
+          "type": "COMBO",
+          "link": 213,
+          "shape": 3
+        },
+        {
+          "name": "3:COMBO",
+          "type": "COMBO",
+          "link": 214,
+          "shape": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_way_out",
+          "type": "HIGHWAY_PIPE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "_batch_out",
+          "type": "*",
+          "links": [
+            248
+          ],
+          "shape": 6,
+          "slot_index": 2
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "same",
+        "_"
+      ],
+      "color": "#660029",
+      "bgcolor": "#4d001f"
+    },
+    {
+      "id": 57,
+      "type": "0246.Merge",
+      "pos": [
+        938.6036014188726,
+        1172.3133017261664
+      ],
+      "size": {
+        "0": 210,
+        "1": 160
+      },
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "0:COMBO",
+          "type": "COMBO",
+          "link": 243,
+          "shape": 3
+        },
+        {
+          "name": "1:COMBO",
+          "type": "COMBO",
+          "link": 244,
+          "shape": 3
+        },
+        {
+          "name": "2:COMBO",
+          "type": "COMBO",
+          "link": 245,
+          "shape": 3
+        },
+        {
+          "name": "3:COMBO",
+          "type": "COMBO",
+          "link": 246,
+          "shape": 3
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_way_out",
+          "type": "HIGHWAY_PIPE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "_batch_out",
+          "type": "*",
+          "links": [
+            249
+          ],
+          "shape": 6,
+          "slot_index": 2
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "same",
+        "_"
+      ],
+      "color": "#660029",
+      "bgcolor": "#4d001f"
+    },
+    {
+      "id": 22,
+      "type": "PreviewImage",
+      "pos": [
+        1660,
+        120
+      ],
+      "size": {
+        "0": 650,
+        "1": 680
+      },
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 91
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        1100,
+        180
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            91,
+            258
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 65,
+      "type": "PreviewImage",
+      "pos": [
+        2480,
+        120
+      ],
+      "size": [
+        810,
+        690
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 263
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 66,
+      "type": "ImagesGridByRows",
+      "pos": [
+        2100,
+        1030
+      ],
+      "size": {
+        "0": 315,
+        "1": 102
+      },
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 262
+        },
+        {
+          "name": "annotation",
+          "type": "GRID_ANNOTATION",
+          "link": 253
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            263
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImagesGridByRows"
+      },
+      "widgets_values": [
+        1,
+        4
+      ]
+    },
+    {
+      "id": 4,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -10,
+        330
+      ],
+      "size": {
+        "0": 315,
+        "1": 98
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            3,
+            5
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            8
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "base\\sd15.ckpt"
+      ]
+    },
+    {
+      "id": 63,
+      "type": "GridAnnotation",
+      "pos": [
+        1660,
+        1110
+      ],
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "GRID_ANNOTATION",
+          "type": "GRID_ANNOTATION",
+          "links": [
+            253
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GridAnnotation"
+      },
+      "widgets_values": [
+        "SEED-0;SEED-1;SEED-2;SEED-3",
+        "SDE-NORMAL;2M_SDE-EXPONENTIAL;3M_SDE-EXPONENTIAL;2M-EXPONENTIAL",
+        50
+      ]
+    },
+    {
+      "id": 68,
+      "type": "ImageListToImageBatch",
+      "pos": [
+        1850,
+        1000
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 258
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            262
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageListToImageBatch"
+      }
+    },
+    {
+      "id": 69,
+      "type": "0246.Merge",
+      "pos": [
+        -67.17386558274438,
+        818.4450606562064
+      ],
+      "size": {
+        "0": 210,
+        "1": 160
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_way_out",
+          "type": "HIGHWAY_PIPE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "_batch_out",
+          "type": "*",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "same",
+        "_"
+      ],
+      "color": "#660029",
+      "bgcolor": "#4d001f"
+    },
+    {
+      "id": 70,
+      "type": "0246.Merge",
+      "pos": [
+        3359.419256936572,
+        772.7953157733443
+      ],
+      "size": {
+        "0": 210,
+        "1": 160
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "...",
+          "type": "*",
+          "link": null,
+          "shape": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "_way_out",
+          "type": "HIGHWAY_PIPE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "_junc_out",
+          "type": "JUNCTION_PIPE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "_batch_out",
+          "type": "*",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "same",
+        "_"
+      ],
+      "color": "#660029",
+      "bgcolor": "#4d001f"
+    }
+  ],
+  "links": [
+    [
+      1,
+      4,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      5,
+      0,
+      3,
+      3,
+      "LATENT"
+    ],
+    [
+      3,
+      4,
+      1,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      6,
+      0,
+      3,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      5,
+      4,
+      1,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      6,
+      7,
+      0,
+      3,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      3,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      8,
+      4,
+      2,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      41,
+      18,
+      0,
+      10,
+      1,
+      "INT"
+    ],
+    [
+      43,
+      18,
+      0,
+      10,
+      2,
+      "INT"
+    ],
+    [
+      47,
+      18,
+      1,
+      10,
+      3,
+      "INT"
+    ],
+    [
+      48,
+      18,
+      1,
+      10,
+      4,
+      "INT"
+    ],
+    [
+      50,
+      18,
+      2,
+      10,
+      5,
+      "INT"
+    ],
+    [
+      52,
+      18,
+      2,
+      10,
+      6,
+      "INT"
+    ],
+    [
+      54,
+      18,
+      3,
+      10,
+      7,
+      "INT"
+    ],
+    [
+      56,
+      18,
+      3,
+      10,
+      8,
+      "INT"
+    ],
+    [
+      57,
+      18,
+      4,
+      20,
+      1,
+      "COMBO"
+    ],
+    [
+      59,
+      18,
+      4,
+      20,
+      2,
+      "COMBO"
+    ],
+    [
+      61,
+      18,
+      5,
+      20,
+      3,
+      "COMBO"
+    ],
+    [
+      63,
+      18,
+      5,
+      20,
+      4,
+      "COMBO"
+    ],
+    [
+      65,
+      18,
+      6,
+      20,
+      5,
+      "COMBO"
+    ],
+    [
+      67,
+      18,
+      6,
+      20,
+      6,
+      "COMBO"
+    ],
+    [
+      69,
+      18,
+      7,
+      20,
+      7,
+      "COMBO"
+    ],
+    [
+      71,
+      18,
+      7,
+      20,
+      8,
+      "COMBO"
+    ],
+    [
+      73,
+      18,
+      8,
+      21,
+      1,
+      "COMBO"
+    ],
+    [
+      75,
+      18,
+      8,
+      21,
+      2,
+      "COMBO"
+    ],
+    [
+      77,
+      18,
+      9,
+      21,
+      3,
+      "COMBO"
+    ],
+    [
+      79,
+      18,
+      9,
+      21,
+      4,
+      "COMBO"
+    ],
+    [
+      81,
+      18,
+      9,
+      21,
+      5,
+      "COMBO"
+    ],
+    [
+      83,
+      18,
+      9,
+      21,
+      6,
+      "COMBO"
+    ],
+    [
+      85,
+      18,
+      9,
+      21,
+      7,
+      "COMBO"
+    ],
+    [
+      87,
+      18,
+      9,
+      21,
+      8,
+      "COMBO"
+    ],
+    [
+      91,
+      8,
+      0,
+      22,
+      0,
+      "IMAGE"
+    ],
+    [
+      112,
+      18,
+      0,
+      30,
+      1,
+      "INT"
+    ],
+    [
+      115,
+      18,
+      1,
+      30,
+      2,
+      "INT"
+    ],
+    [
+      116,
+      18,
+      2,
+      30,
+      3,
+      "INT"
+    ],
+    [
+      117,
+      18,
+      3,
+      30,
+      4,
+      "INT"
+    ],
+    [
+      118,
+      18,
+      0,
+      33,
+      1,
+      "INT"
+    ],
+    [
+      119,
+      18,
+      1,
+      33,
+      2,
+      "INT"
+    ],
+    [
+      120,
+      18,
+      2,
+      33,
+      3,
+      "INT"
+    ],
+    [
+      121,
+      18,
+      3,
+      33,
+      4,
+      "INT"
+    ],
+    [
+      122,
+      18,
+      0,
+      34,
+      1,
+      "INT"
+    ],
+    [
+      123,
+      18,
+      1,
+      34,
+      2,
+      "INT"
+    ],
+    [
+      124,
+      18,
+      2,
+      34,
+      3,
+      "INT"
+    ],
+    [
+      125,
+      18,
+      3,
+      34,
+      4,
+      "INT"
+    ],
+    [
+      126,
+      18,
+      0,
+      35,
+      1,
+      "INT"
+    ],
+    [
+      127,
+      18,
+      1,
+      35,
+      2,
+      "INT"
+    ],
+    [
+      128,
+      18,
+      2,
+      35,
+      3,
+      "INT"
+    ],
+    [
+      129,
+      18,
+      3,
+      35,
+      4,
+      "INT"
+    ],
+    [
+      130,
+      30,
+      1,
+      23,
+      0,
+      "IMAGE"
+    ],
+    [
+      141,
+      33,
+      1,
+      23,
+      1,
+      "INT"
+    ],
+    [
+      143,
+      35,
+      1,
+      23,
+      2,
+      "INT"
+    ],
+    [
+      144,
+      18,
+      4,
+      37,
+      1,
+      "COMBO"
+    ],
+    [
+      145,
+      18,
+      4,
+      37,
+      2,
+      "COMBO"
+    ],
+    [
+      146,
+      18,
+      4,
+      37,
+      3,
+      "COMBO"
+    ],
+    [
+      147,
+      18,
+      4,
+      37,
+      4,
+      "COMBO"
+    ],
+    [
+      169,
+      30,
+      1,
+      46,
+      0,
+      "INT"
+    ],
+    [
+      170,
+      33,
+      1,
+      46,
+      1,
+      "INT"
+    ],
+    [
+      179,
+      34,
+      1,
+      46,
+      2,
+      "INT"
+    ],
+    [
+      180,
+      35,
+      1,
+      46,
+      3,
+      "INT"
+    ],
+    [
+      189,
+      18,
+      5,
+      38,
+      1,
+      "COMBO"
+    ],
+    [
+      190,
+      18,
+      5,
+      38,
+      2,
+      "COMBO"
+    ],
+    [
+      191,
+      18,
+      5,
+      38,
+      3,
+      "COMBO"
+    ],
+    [
+      192,
+      18,
+      5,
+      38,
+      4,
+      "COMBO"
+    ],
+    [
+      193,
+      18,
+      6,
+      39,
+      1,
+      "COMBO"
+    ],
+    [
+      194,
+      18,
+      6,
+      39,
+      2,
+      "COMBO"
+    ],
+    [
+      195,
+      18,
+      6,
+      39,
+      3,
+      "COMBO"
+    ],
+    [
+      196,
+      18,
+      6,
+      39,
+      4,
+      "COMBO"
+    ],
+    [
+      200,
+      18,
+      7,
+      40,
+      4,
+      "COMBO"
+    ],
+    [
+      201,
+      18,
+      7,
+      40,
+      1,
+      "COMBO"
+    ],
+    [
+      202,
+      18,
+      7,
+      40,
+      2,
+      "COMBO"
+    ],
+    [
+      203,
+      18,
+      7,
+      40,
+      3,
+      "COMBO"
+    ],
+    [
+      210,
+      37,
+      1,
+      45,
+      0,
+      "COMBO"
+    ],
+    [
+      212,
+      38,
+      1,
+      45,
+      1,
+      "COMBO"
+    ],
+    [
+      213,
+      39,
+      1,
+      45,
+      2,
+      "COMBO"
+    ],
+    [
+      214,
+      40,
+      1,
+      45,
+      3,
+      "COMBO"
+    ],
+    [
+      215,
+      18,
+      8,
+      51,
+      1,
+      "COMBO"
+    ],
+    [
+      216,
+      18,
+      8,
+      51,
+      2,
+      "COMBO"
+    ],
+    [
+      217,
+      18,
+      8,
+      51,
+      3,
+      "COMBO"
+    ],
+    [
+      218,
+      18,
+      8,
+      51,
+      4,
+      "COMBO"
+    ],
+    [
+      227,
+      18,
+      9,
+      53,
+      1,
+      "COMBO"
+    ],
+    [
+      228,
+      18,
+      9,
+      53,
+      2,
+      "COMBO"
+    ],
+    [
+      229,
+      18,
+      9,
+      53,
+      3,
+      "COMBO"
+    ],
+    [
+      230,
+      18,
+      9,
+      53,
+      4,
+      "COMBO"
+    ],
+    [
+      231,
+      18,
+      9,
+      55,
+      1,
+      "COMBO"
+    ],
+    [
+      232,
+      18,
+      9,
+      55,
+      2,
+      "COMBO"
+    ],
+    [
+      233,
+      18,
+      9,
+      55,
+      3,
+      "COMBO"
+    ],
+    [
+      234,
+      18,
+      9,
+      55,
+      4,
+      "COMBO"
+    ],
+    [
+      235,
+      18,
+      9,
+      56,
+      1,
+      "COMBO"
+    ],
+    [
+      236,
+      18,
+      9,
+      56,
+      2,
+      "COMBO"
+    ],
+    [
+      237,
+      18,
+      9,
+      56,
+      3,
+      "COMBO"
+    ],
+    [
+      238,
+      18,
+      9,
+      56,
+      4,
+      "COMBO"
+    ],
+    [
+      243,
+      51,
+      1,
+      57,
+      0,
+      "COMBO"
+    ],
+    [
+      244,
+      53,
+      1,
+      57,
+      1,
+      "COMBO"
+    ],
+    [
+      245,
+      55,
+      1,
+      57,
+      2,
+      "COMBO"
+    ],
+    [
+      246,
+      56,
+      1,
+      57,
+      3,
+      "COMBO"
+    ],
+    [
+      247,
+      46,
+      2,
+      3,
+      4,
+      "INT"
+    ],
+    [
+      248,
+      45,
+      2,
+      3,
+      5,
+      "COMBO"
+    ],
+    [
+      249,
+      57,
+      2,
+      3,
+      6,
+      "COMBO"
+    ],
+    [
+      253,
+      63,
+      0,
+      66,
+      1,
+      "GRID_ANNOTATION"
+    ],
+    [
+      258,
+      8,
+      0,
+      68,
+      0,
+      "IMAGE"
+    ],
+    [
+      262,
+      68,
+      0,
+      66,
+      0,
+      "IMAGE"
+    ],
+    [
+      263,
+      66,
+      0,
+      65,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "Samplers",
+      "bounding": [
+        5,
+        785,
+        500,
+        934
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "locked": false
+    },
+    {
+      "title": "Seeds",
+      "bounding": [
+        -545,
+        785,
+        490,
+        934
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "locked": false
+    },
+    {
+      "title": "Schedulers",
+      "bounding": [
+        569,
+        788,
+        617,
+        919
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "locked": false
+    }
+  ],
+  "config": {},
+  "extra": {
+    "0246.HUB_DATA": {
+      "18": {
+        "node_list": [],
+        "node_img": [],
+        "sole_name": {
+          "int": 5,
+          "combo": 7
+        },
+        "sole_type": {
+          "sole:0:int:INT": [
+            "sole",
+            "0",
+            "int",
+            "INT"
+          ],
+          "sole:1:int:INT": [
+            "sole",
+            "1",
+            "int",
+            "INT"
+          ],
+          "sole:3:int:INT": [
+            "sole",
+            "3",
+            "int",
+            "INT"
+          ],
+          "sole:4:int:INT": [
+            "sole",
+            "4",
+            "int",
+            "INT"
+          ],
+          "sole:1:combo:KSampler:required:sampler_name:COMBO": [
+            "sole",
+            "1",
+            "combo",
+            "KSampler",
+            "required",
+            "sampler_name",
+            "COMBO"
+          ],
+          "sole:2:combo:KSampler:required:sampler_name:COMBO": [
+            "sole",
+            "2",
+            "combo",
+            "KSampler",
+            "required",
+            "sampler_name",
+            "COMBO"
+          ],
+          "sole:3:combo:KSampler:required:sampler_name:COMBO": [
+            "sole",
+            "3",
+            "combo",
+            "KSampler",
+            "required",
+            "sampler_name",
+            "COMBO"
+          ],
+          "sole:4:combo:KSampler:required:sampler_name:COMBO": [
+            "sole",
+            "4",
+            "combo",
+            "KSampler",
+            "required",
+            "sampler_name",
+            "COMBO"
+          ],
+          "sole:5:combo:KSampler:required:scheduler:COMBO": [
+            "sole",
+            "5",
+            "combo",
+            "KSampler",
+            "required",
+            "scheduler",
+            "COMBO"
+          ],
+          "sole:6:combo:KSampler:required:scheduler:COMBO": [
+            "sole",
+            "6",
+            "combo",
+            "KSampler",
+            "required",
+            "scheduler",
+            "COMBO"
+          ]
+        }
+      }
+    }
+  },
+  "version": 0.4
+}

@@ -1,0 +1,2923 @@
+{
+  "id": "fbe878de-3def-4177-9547-37cf85660db2",
+  "revision": 0,
+  "last_node_id": 56,
+  "last_link_id": 45,
+  "nodes": [
+    {
+      "id": 2,
+      "type": "Reroute",
+      "pos": [
+        4599.5546875,
+        -2537.127685546875
+      ],
+      "size": [
+        82,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 3,
+      "type": "Reroute",
+      "pos": [
+        4486.0439453125,
+        -2430.3740234375
+      ],
+      "size": [
+        90.4000015258789,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": null
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 4,
+      "type": "Reroute",
+      "pos": [
+        4559.01416015625,
+        -2477.670166015625
+      ],
+      "size": [
+        90.4000015258789,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": null
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 5,
+      "type": "Reroute",
+      "pos": [
+        4384.82275390625,
+        -2359.74169921875
+      ],
+      "size": [
+        98.80000305175781,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": null
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 6,
+      "type": "LayerUtility: PurgeVRAM",
+      "pos": [
+        5148.07373046875,
+        -3396.935546875
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 6
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "LayerUtility: PurgeVRAM",
+        "cnr_id": "comfyui_layerstyle",
+        "ver": "1.0.90"
+      },
+      "widgets_values": [
+        true,
+        true
+      ],
+      "color": "rgba(38, 73, 116, 0.7)"
+    },
+    {
+      "id": 7,
+      "type": "RandomNoise",
+      "pos": [
+        4094.404052734375,
+        -2867.50146484375
+      ],
+      "size": [
+        315.3865661621094,
+        82
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "slot_index": 0,
+          "links": [
+            2,
+            25
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        459114886771356,
+        "randomize"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 8,
+      "type": "Reroute",
+      "pos": [
+        4240.1142578125,
+        -3439.23291015625
+      ],
+      "size": [
+        82,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 9,
+      "type": "BasicGuider",
+      "pos": [
+        4408.59033203125,
+        -3419.32275390625
+      ],
+      "size": [
+        241.79998779296875,
+        46
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 8
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "slot_index": 0,
+          "links": [
+            4,
+            26
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicGuider",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 10,
+      "type": "Reroute",
+      "pos": [
+        6111.78955078125,
+        -2587.455322265625
+      ],
+      "size": [
+        82,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 47,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 11,
+      "type": "Reroute",
+      "pos": [
+        4777.92724609375,
+        -2364.1005859375
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 12,
+      "type": "Reroute",
+      "pos": [
+        4823.8779296875,
+        -2424.30517578125
+      ],
+      "size": [
+        90.4000015258789,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 13,
+      "type": "Reroute",
+      "pos": [
+        4075.4775390625,
+        -2395.72900390625
+      ],
+      "size": [
+        140.8000030517578,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 14,
+      "type": "Reroute",
+      "pos": [
+        3561.67431640625,
+        -2411.51904296875
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 15,
+      "type": "Reroute",
+      "pos": [
+        3568.42724609375,
+        -2350.709228515625
+      ],
+      "size": [
+        82,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": null
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 17,
+      "type": "KSamplerSelect",
+      "pos": [
+        4031.599365234375,
+        -2709.12744140625
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "slot_index": 0,
+          "links": [
+            5,
+            27
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "euler"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 21,
+      "type": "VAEDecodeTiled_TiledDiffusion",
+      "pos": [
+        5214.0849609375,
+        -3178.231201171875
+      ],
+      "size": [
+        315,
+        102
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 44,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 19
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            1,
+            37
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecodeTiled_TiledDiffusion",
+        "cnr_id": "ComfyUI-TiledDiffusion",
+        "ver": "a155b1bac39147381aeaa52b9be42e545626a44f",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        512,
+        true
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 22,
+      "type": "Reroute",
+      "pos": [
+        7430.0478515625,
+        -2194.810302734375
+      ],
+      "size": [
+        82,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 24,
+      "type": "ImageCompositeMasked",
+      "pos": [
+        6840.5634765625,
+        -3348.14990234375
+      ],
+      "size": [
+        240.56597900390625,
+        146
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 52,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "destination",
+          "type": "IMAGE",
+          "link": 22
+        },
+        {
+          "name": "source",
+          "type": "IMAGE",
+          "link": 23
+        },
+        {
+          "name": "mask",
+          "shape": 7,
+          "type": "MASK",
+          "link": 24
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            30,
+            40
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageCompositeMasked",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        0,
+        0,
+        false
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 25,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        4754.6884765625,
+        -3277.3359375
+      ],
+      "size": [
+        355.20001220703125,
+        106
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 25
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 26
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 27
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 28
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 29
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": []
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "slot_index": 1,
+          "links": [
+            6,
+            12,
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 26,
+      "type": "Reroute",
+      "pos": [
+        7232.7529296875,
+        -3634.134033203125
+      ],
+      "size": [
+        82,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 53,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 30
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 28,
+      "type": "EmptyLatentImage",
+      "pos": [
+        3502.24169921875,
+        -2837.3564453125
+      ],
+      "size": [
+        315,
+        318
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            29
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        896,
+        1152,
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 29,
+      "type": "ImagePadForOutpaint",
+      "pos": [
+        6442.05615234375,
+        -3399.9541015625
+      ],
+      "size": [
+        315,
+        174
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 51,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 32
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            22
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "slot_index": 1,
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImagePadForOutpaint",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        0,
+        0,
+        0,
+        56,
+        0
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 31,
+      "type": "ImageCrop+",
+      "pos": [
+        6098.765625,
+        -3348.30615234375
+      ],
+      "size": [
+        315,
+        194
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 50,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 34
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            32
+          ]
+        },
+        {
+          "name": "x",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "y",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageCrop+",
+        "cnr_id": "comfyui_essentials",
+        "ver": "9d9f4bedfc9f0321c19faf71855e228c93bd0dc9",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        896,
+        1056,
+        "top-left",
+        0,
+        0
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 33,
+      "type": "Reroute",
+      "pos": [
+        3893.99072265625,
+        -2593.246826171875
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 35
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "MODEL",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 34,
+      "type": "DualCLIPLoader",
+      "pos": [
+        3111.356201171875,
+        -3308.7646484375
+      ],
+      "size": [
+        315,
+        130
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            14,
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DualCLIPLoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "t5xxl_fp8_e4m3fn.safetensors",
+        "clip_l.safetensors",
+        "flux",
+        "default"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 35,
+      "type": "LoadImage",
+      "pos": [
+        6421.69921875,
+        -2923.803466796875
+      ],
+      "size": [
+        315,
+        314
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            33
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "slot_index": 1,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "jeffby-fady2.png",
+        "image"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 36,
+      "type": "Reroute",
+      "pos": [
+        6004.26904296875,
+        -3349.1875
+      ],
+      "size": [
+        82,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 36
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            34
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 37,
+      "type": "Reroute",
+      "pos": [
+        5875.560546875,
+        -3344.97998046875
+      ],
+      "size": [
+        82,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 46,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 37
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10,
+            36
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 39,
+      "type": "VAELoader",
+      "pos": [
+        4683.77001953125,
+        -2893.2568359375
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            11,
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "openflux vae.safetensors"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 40,
+      "type": "TeaCache",
+      "pos": [
+        3830.00048828125,
+        -3385.99951171875
+      ],
+      "size": [
+        270,
+        130
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 38
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            7,
+            35
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TeaCache",
+        "cnr_id": "teacache",
+        "ver": "1.6.1"
+      },
+      "widgets_values": [
+        "flux",
+        0.4,
+        0,
+        1
+      ]
+    },
+    {
+      "id": 41,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        3447.3046875,
+        -3442.49169921875
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 39
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            38
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "openflux1-v0.1.0-fast-lora.safetensors",
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 42,
+      "type": "UnetLoaderGGUF",
+      "pos": [
+        3100.080810546875,
+        -3436.705078125
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            15,
+            39
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UnetLoaderGGUF",
+        "cnr_id": "comfyui-gguf",
+        "ver": "1.1.0",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "openflux-model-Q4_K_S.gguf"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 20,
+      "type": "Reroute",
+      "pos": [
+        2992.56494140625,
+        -3069.120361328125
+      ],
+      "size": [
+        90.4000015258789,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "widget": {
+            "name": "value"
+          },
+          "link": 41
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": true,
+        "horizontal": false,
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 46,
+      "type": "Save Text File",
+      "pos": [
+        4359.5087890625,
+        -1822.986083984375
+      ],
+      "size": [
+        315,
+        226
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 32,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 42
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Save Text File",
+        "cnr_id": "was-node-suite-comfyui",
+        "ver": "1.0.2",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "./ComfyUI/output/[time(%Y-%m-%d)]",
+        "ComfyUI",
+        "_",
+        4,
+        ".txt",
+        "utf-8",
+        ""
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 49,
+      "type": "JanusModelLoader",
+      "pos": [
+        3377.095703125,
+        -1832.639404296875
+      ],
+      "size": [
+        315,
+        78
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "JANUS_MODEL",
+          "slot_index": 0,
+          "links": [
+            43
+          ]
+        },
+        {
+          "name": "processor",
+          "type": "JANUS_PROCESSOR",
+          "links": [
+            44
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JanusModelLoader",
+        "cnr_id": "janus-pro",
+        "ver": "4400129e5c33664ae6e927162a39ba4116f44b8b",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "deepseek-ai/Janus-Pro-1B"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 47,
+      "type": "Batch Load Images",
+      "pos": [
+        3377.5966796875,
+        -1696.839599609375
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 8,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "image",
+          "shape": 6,
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            45
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Batch Load Images",
+        "cnr_id": "mikey_nodes",
+        "ver": "1.0.4",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "F:\\comfy june 25\\6.18.25\\prompt",
+        "false"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 48,
+      "type": "JanusImageUnderstanding",
+      "pos": [
+        3842.3359375,
+        -1834.711181640625
+      ],
+      "size": [
+        400,
+        248
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 29,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "JANUS_MODEL",
+          "link": 43
+        },
+        {
+          "name": "processor",
+          "type": "JANUS_PROCESSOR",
+          "link": 44
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 45
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            42
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JanusImageUnderstanding",
+        "cnr_id": "janus-pro",
+        "ver": "4400129e5c33664ae6e927162a39ba4116f44b8b",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "Describe this image in detail and Use 153 words or 930 characters. (max tokens)",
+        198460225156964,
+        "randomize",
+        0.1,
+        0.95,
+        512
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 44,
+      "type": "Note",
+      "pos": [
+        1530.785400390625,
+        -2800.186279296875
+      ],
+      "size": [
+        338.4692077636719,
+        548.5133666992188
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "NOTES",
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "\n____________________\n    /--- /   /\n___/____/___/___\n       /   /   homann\n          /    \n     \n\nhttps://jeffreythomann.wordpress.com/\n\nhttp://payhip.com/buyart\nhttp://payhip.com/mastermesh\n\nhttps://twitter.com/jeffreySthomann\nhttps://twitter.com/JeffThomann\n\nhttps://www.facebook.com/jeff.thomann\n\nhttps://www.pinterest.com/mastermesh/\n\nhttps://www.redbubble.com/people/jeffthomann/shop?asc=u\nhttps://www.teepublic.com/user/jeffthomann\n\nhttps://aiartshop.com/pages/seller-profile/creative-explorations\nhttps://www.createjigsawpuzzles.com/sell/jeffs-puzzles\nhttps://jeff-shop.printify.me/products\n\nhttps://promptsideas.com/profile/jethro\nhttps://civitai.com/user/jeffthomann871\nhttps://www.iamfy.co/shop/mastermesh\n\nhttps://imgur.com/user/JeffThomann/posts\n\nhttps://openart.ai/workflows/@mongrel_monstrous_1"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 51,
+      "type": "Note",
+      "pos": [
+        3469.267822265625,
+        -1439.3419189453125
+      ],
+      "size": [
+        1247.0482177734375,
+        461.15753173828125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "The above Janus/Deep Seek Group utilizes a safetensor version of Janus that can be found in the zip file you can download from: https://civitai.com/models/1191420/deepseek-janus-pro-1b-7b-safetensors\n\nThis is the only variant of Deep Seek that I've found that is utilizing a safetensor format, which is a bit safer to use than other variations. If you look at my Kitchensink series of workflows at https://openart.ai/workflows/profile/mongrel_monstrous_1?tab=workflows&sort=latest you may see some other llm variants that I've used to do descriptions/captions before other than Deep Seek.  However, I mainly use the Janus/Deepseek variant Janus Pro 1B listed above because it's a little faster than most other LLMs and is useful for generating captions. I DO NOT suggest using deep seek for actual image generation, only for captioning or describing the images in a specific folder in text files.  You can change the Image directory in the Batch Load Images (Mikey) node above to use whatever folder you have your images set up in.\n\nThe way I typically run this is right click group for above to bypass it and then use the flux group to generate a batch of images.  Then after that right click group to bypass the flux section and set this Janus group to always on (unbypassed) to read the folder of images I generated to create text descriptions of each image.  You can also aim it at whatever other folders you need to describe but I find it works best for the images generated in comfy since it has limits on pixel dimensions the images can be in.  \n\nI also have an intermediate step if I'm not using the main flux image and only the one with footer where I use xnview to cut off footer before doing the Janus descriptions so that the footer won't be described in the Janus texts. I find it easier to do that sometimes for the descriptions since it makes it easier to upload images later. \n\nImages I personally am uploading using this technique can be found at https://payhip.com/buyart \n\nIn olden days when ai first came out I used to use xnview to add footers, but find that adding footer here in comfyui is easier and makes more logical sense since the generated image keeps the workflow in the metadata.  On the https://payhip.com/buyart you can doanlost a lot of my images or purchase one. I used to try to make the workflows hidden in the buy only section but stopped doing that since it only makes sense for this type of technology to be shared in my opinion so others can make beautiful ai artwork too.  If you want to buy images there go ahead, if you want to just download images from there go ahead. If I upscale images, which I typically do for some of my favorites the upscaled version of those can be found at https://payhip.com/buyart/collection/upscaled upscaled variants are only for sale, but you may find some of the smaller non-upscaled variant of the same image with workflow available on the site too.  Eventually I may add some images to other sites and will try to link them from the main image pages at  https://payhip.com/buyart when I can, over time.  \n\nHave fun.\n\n\n____________________\n    /--- /   /\n___/____/___/___\n       /   /   homann\n          /    \n\n06/19/2025"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 1,
+      "type": "SaveImage",
+      "pos": [
+        3096.5322265625,
+        -2935.178466796875
+      ],
+      "size": [
+        333.56982421875,
+        481.77642822265625
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 45,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "FLUX GGUF-LORA"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 54,
+      "type": "Note",
+      "pos": [
+        4212.35546875,
+        -3270.274169921875
+      ],
+      "size": [
+        259.9639892578125,
+        199.380126953125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "gguf models called from the Unet Loader (GGUF) node to the right go in the folder\nComfyUI\\models\\diffusion_models\n\n___________________\n    /--- /   /\n___/____/___/___\n       /   /   homann\n      /   /    \n\n6.19.25"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 19,
+      "type": "Note",
+      "pos": [
+        3454.1982421875,
+        -3314.51806640625
+      ],
+      "size": [
+        319.11260986328125,
+        214.15280151367188
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "The above Lora is a speed up Lora for Flux. I believe it is the Turbo or Hyper model or something from Shakker Labs... other Loras may exist by the time you read this. I think you can try different loras for testing.... or bypass the lora all together if you want. The openflux fast lora is specifically for openflux. Lora models go in \\ComfyUI\\models\\loras folder.\n____________________\n    /--- /   /\n___/____/___/___\n       /   /   homann\n      /   /    \n\n6.19.25"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 18,
+      "type": "CLIPTextEncode",
+      "pos": [
+        3500.197265625,
+        -3059.9599609375
+      ],
+      "size": [
+        422.84503173828125,
+        164.31304931640625
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 17
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            9,
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "ArsMJStyle, a beautiful scandinavian girl posing in the mountains, the sun is shining, the grass is green and flowers are everywhere"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 38,
+      "type": "ImagePadForOutpaint",
+      "pos": [
+        6035.857421875,
+        -3659.435302734375
+      ],
+      "size": [
+        315,
+        174
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 13,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": []
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "slot_index": 1,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImagePadForOutpaint",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        0,
+        1152,
+        0,
+        0,
+        0
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 32,
+      "type": "ImagePadForOutpaint",
+      "pos": [
+        6345.919921875,
+        -3703.541748046875
+      ],
+      "size": [
+        315,
+        174
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 14,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": []
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "slot_index": 1,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImagePadForOutpaint",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        0,
+        0,
+        0,
+        56,
+        0
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 52,
+      "type": "Note",
+      "pos": [
+        5218.767578125,
+        -2979.204833984375
+      ],
+      "size": [
+        679.1709594726562,
+        396.4751281738281
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Openflux model and vae can be found at \nhttps://huggingface.co/ostris/OpenFLUX.1/tree/main\n\nFlux Schnell model and vae can be found at https://huggingface.co/black-forest-labs/FLUX.1-schnell/tree/main\n\nYou can also use other variants of flux with this workflow but I mainly use openflux, which is a non-distilled version of schnell. I perfer schnell over Dev because it's commercial use where as Dev is not.  Some have argued that Dev can be used commercially because the license states they make no claim over the output but other parts of the license for Dev state that it's mainly for non-commercial use so unless you are paying Black Forest for a commercial use license I find it safer to use actual commercial use licenses like we find in Schnell or Openflux variant.  \n\nI also find it nicer hard drive space wise to only download and use models you really want to use, so I'm sticking with OpenFlux for now.  Eventually, if other things develop better like Auraflow it may make sense at that point to change models, but til then Open Flux can handle most stuff you throw at it and you are fairly safe using output from it commercially. Vae models go in the \\ComfyUI\\models\\vae folder.\n\nHAVE FUN!\n\n____________________\n    /--- /   /\n___/____/___/___\n       /   /   homann\n          /    \n06/19/2025"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 16,
+      "type": "BasicScheduler",
+      "pos": [
+        4041.680908203125,
+        -2590.861328125
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "slot_index": 0,
+          "links": [
+            3,
+            28
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicScheduler",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "normal",
+        8,
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 23,
+      "type": "Note",
+      "pos": [
+        5342.61962890625,
+        -2524.4013671875
+      ],
+      "size": [
+        483.06048583984375,
+        188.79391479492188
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        " to get gguf files to be seen in the list you may have to edit around the 10th line of folder_paths.py under comfyui folder to add it like so: \nsupported_pt_extensions: set[str] = {'.ckpt', '.pt', '.bin', '.pth', '.pkl', '.sft', '.safetensors', '.gguf' }\n\n\n____________________\n    /--- /   /\n___/____/___/___\n       /   /   homann\n          /    "
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 56,
+      "type": "Note",
+      "pos": [
+        4183.65771484375,
+        -2291.639892578125
+      ],
+      "size": [
+        786.8001098632812,
+        205.23963928222656
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Sorry about all these little messy re-routes. I leave them here in case I want to add more post-generation type logic later.  Initially this was part of the Kitchen Sink Series so I had a bunch of different varaitions of the same prompt used for multiple workflows. I may add more like that later for upscaling or something at some point. The re-routes make it easier to link up different sections. \n\n____________________\n    /--- /   /\n___/____/___/___\n       /   /   homann\n          /    \n6.19.2025"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 50,
+      "type": "Note",
+      "pos": [
+        6547.333984375,
+        -2521.01416015625
+      ],
+      "size": [
+        589.6112060546875,
+        242.74609375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "This footer add on is utilizing foocus outpainting patch. Information regarding how to install this can be found at:\n\nhttps://github.com/Acly/comfyui-inpaint-nodes?tab=readme-ov-file&fbclid=IwZXh0bgNhZW0CMTAAAR11bevwQ5BDX27jR9ITzbmDIx-C5wYu9JUB_rWouxaWa8MhB79gtb0LfR0_aem_AS1jSOXus0RBv0jThftpKniZOgUZvLDHaeZXZTdFj2305dyT-U4KC2XnoadIgkqFuzQ9czrXsrNUhuV8Q-RrGc8_\n\nPixel dimensions for footers I use are 896x56\n\n____________________\n    /--- /   /\n___/____/___/___\n       /   /   homann\n      /   /    \n\n06/19/2025\n\n"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 55,
+      "type": "Note",
+      "pos": [
+        6090.74267578125,
+        -3105.030029296875
+      ],
+      "size": [
+        295.8024597167969,
+        356.3318176269531
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "If you don't want to crop you don't have to. Use the bypassed Pad Image for Outpainting options above if you don't want to crop. I like cropping to help remove signatures sometimes.  A lot of the prompts I use are based on Public Domain art such as works by Frederic Remington and other artists that had unique signatures that would usually be put at the bottom of the image. I crop off a bit of the bottom and replace it with my blog's url footer to edit a bit of that out. It's not perfect but usually works.\n\n____________________\n    /--- /   /\n___/____/___/___\n       /   /   homann\n      /   /    \n\n06/19/2025\n"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 30,
+      "type": "ImagePadForOutpaint",
+      "pos": [
+        6441.931640625,
+        -3188.79638671875
+      ],
+      "size": [
+        315,
+        174
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 33
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            23
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "slot_index": 1,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImagePadForOutpaint",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        0,
+        1056,
+        0,
+        0,
+        0
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 43,
+      "type": "SaveImage",
+      "pos": [
+        6819.935546875,
+        -3015.310302734375
+      ],
+      "size": [
+        307.28912353515625,
+        291.4190673828125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 54,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 40
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.39",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "Jeff-Flux"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 53,
+      "type": "Note",
+      "pos": [
+        3105.4833984375,
+        -3133.78125
+      ],
+      "size": [
+        327.3608703613281,
+        143.06639099121094
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Clip models above go in the folder\nComfyUI\\models\\clip\n___________________\n    /--- /   /\n___/____/___/___\n       /   /   homann\n      /   /    \n6.19.25"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 45,
+      "type": "DPRandomGenerator",
+      "pos": [
+        2498.3798828125,
+        -3064.364501953125
+      ],
+      "size": [
+        381.4118347167969,
+        4733.08740234375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 21,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            41
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DPRandomGenerator",
+        "cnr_id": "comfyui-dynamicprompts",
+        "ver": "3f2fff32358cf39e21b8b440ca87eac9a8e2bade",
+        "ttNbgOverride": {
+          "color": "#223",
+          "bgcolor": "#335",
+          "groupcolor": "#88A"
+        }
+      },
+      "widgets_values": [
+        "{ __colors__ | __clearcolors__ | __artz__ | __adjectives__ }\n __dark__ \n{ __colors__ | __clearcolors__ }  \n\n",
+        1115,
+        "randomize",
+        "No"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    }
+  ],
+  "links": [
+    [
+      1,
+      21,
+      0,
+      1,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      7,
+      0,
+      2,
+      0,
+      "*"
+    ],
+    [
+      3,
+      16,
+      0,
+      3,
+      0,
+      "*"
+    ],
+    [
+      4,
+      9,
+      0,
+      4,
+      0,
+      "*"
+    ],
+    [
+      5,
+      17,
+      0,
+      5,
+      0,
+      "*"
+    ],
+    [
+      6,
+      25,
+      1,
+      6,
+      0,
+      "*"
+    ],
+    [
+      7,
+      40,
+      0,
+      8,
+      0,
+      "*"
+    ],
+    [
+      8,
+      8,
+      0,
+      9,
+      0,
+      "MODEL"
+    ],
+    [
+      9,
+      18,
+      0,
+      9,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      10,
+      37,
+      0,
+      10,
+      0,
+      "*"
+    ],
+    [
+      11,
+      39,
+      0,
+      11,
+      0,
+      "*"
+    ],
+    [
+      12,
+      25,
+      1,
+      12,
+      0,
+      "*"
+    ],
+    [
+      13,
+      18,
+      0,
+      13,
+      0,
+      "*"
+    ],
+    [
+      14,
+      34,
+      0,
+      14,
+      0,
+      "*"
+    ],
+    [
+      15,
+      42,
+      0,
+      15,
+      0,
+      "*"
+    ],
+    [
+      16,
+      33,
+      0,
+      16,
+      0,
+      "MODEL"
+    ],
+    [
+      17,
+      34,
+      0,
+      18,
+      0,
+      "CLIP"
+    ],
+    [
+      18,
+      20,
+      0,
+      18,
+      1,
+      "STRING"
+    ],
+    [
+      19,
+      25,
+      1,
+      21,
+      0,
+      "LATENT"
+    ],
+    [
+      20,
+      39,
+      0,
+      21,
+      1,
+      "VAE"
+    ],
+    [
+      21,
+      10,
+      0,
+      22,
+      0,
+      "*"
+    ],
+    [
+      22,
+      29,
+      0,
+      24,
+      0,
+      "IMAGE"
+    ],
+    [
+      23,
+      30,
+      0,
+      24,
+      1,
+      "IMAGE"
+    ],
+    [
+      24,
+      29,
+      1,
+      24,
+      2,
+      "MASK"
+    ],
+    [
+      25,
+      7,
+      0,
+      25,
+      0,
+      "NOISE"
+    ],
+    [
+      26,
+      9,
+      0,
+      25,
+      1,
+      "GUIDER"
+    ],
+    [
+      27,
+      17,
+      0,
+      25,
+      2,
+      "SAMPLER"
+    ],
+    [
+      28,
+      16,
+      0,
+      25,
+      3,
+      "SIGMAS"
+    ],
+    [
+      29,
+      28,
+      0,
+      25,
+      4,
+      "LATENT"
+    ],
+    [
+      30,
+      24,
+      0,
+      26,
+      0,
+      "*"
+    ],
+    [
+      32,
+      31,
+      0,
+      29,
+      0,
+      "IMAGE"
+    ],
+    [
+      33,
+      35,
+      0,
+      30,
+      0,
+      "IMAGE"
+    ],
+    [
+      34,
+      36,
+      0,
+      31,
+      0,
+      "IMAGE"
+    ],
+    [
+      35,
+      40,
+      0,
+      33,
+      0,
+      "*"
+    ],
+    [
+      36,
+      37,
+      0,
+      36,
+      0,
+      "*"
+    ],
+    [
+      37,
+      21,
+      0,
+      37,
+      0,
+      "*"
+    ],
+    [
+      38,
+      41,
+      0,
+      40,
+      0,
+      "MODEL"
+    ],
+    [
+      39,
+      42,
+      0,
+      41,
+      0,
+      "MODEL"
+    ],
+    [
+      40,
+      24,
+      0,
+      43,
+      0,
+      "IMAGE"
+    ],
+    [
+      41,
+      45,
+      0,
+      20,
+      0,
+      "*"
+    ],
+    [
+      42,
+      48,
+      0,
+      46,
+      0,
+      "STRING"
+    ],
+    [
+      43,
+      49,
+      0,
+      48,
+      0,
+      "JANUS_MODEL"
+    ],
+    [
+      44,
+      49,
+      1,
+      48,
+      1,
+      "JANUS_PROCESSOR"
+    ],
+    [
+      45,
+      47,
+      0,
+      48,
+      2,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 7,
+      "title": "Flux GGUF ",
+      "bounding": [
+        3022.625732421875,
+        -3699.527099609375,
+        4275.3876953125,
+        1512.7593994140625
+      ],
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 1,
+      "title": "FLUX GGUF with LORA - FASTER- Primary Prompt 896x1152 pixel output",
+      "bounding": [
+        3077.783935546875,
+        -3562.864990234375,
+        2907.302490234375,
+        1277.4066162109375
+      ],
+      "color": "#8A8",
+      "font_size": 48,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "Speed up! ",
+      "bounding": [
+        3780.44140625,
+        -3486.669677734375,
+        389.28692626953125,
+        356.7904357910156
+      ],
+      "color": "#24b319",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Speed up Switcher",
+      "bounding": [
+        4222.0087890625,
+        -3469.754150390625,
+        156.8429718017578,
+        138.95330810546875
+      ],
+      "color": "#3f789e",
+      "font_size": 15,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "Speed up Switcher",
+      "bounding": [
+        3853.669921875,
+        -2634.201416015625,
+        140,
+        120.82896423339844
+      ],
+      "color": "#3f789e",
+      "font_size": 15,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "Add Watermark Footer (USE 896X56 Pixel Footer Image)",
+      "bounding": [
+        6401.73486328125,
+        -3500.56787109375,
+        791.8541259765625,
+        924.8982543945312
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "Standard pre-created Watarmark Image Footer",
+      "bounding": [
+        6419.8046875,
+        -2994.389892578125,
+        355.63006591796875,
+        396.1883239746094
+      ],
+      "color": "#3f789e",
+      "font_size": 15,
+      "flags": {}
+    },
+    {
+      "id": 8,
+      "title": "POSITIVE Prompt",
+      "bounding": [
+        2467.689453125,
+        -3156.555908203125,
+        442.8602600097656,
+        4852.9453125
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 9,
+      "title": "Janus/Deep Seek Describe Files in a Folder (Faster than Qwen 2 if you use Janua-Pro-1B... average around 10 seconds per image) USE ZIP file at https://civitai.com/models/1191420/deepseek-janus-pro-1b-7b-safetensors",
+      "bounding": [
+        3341.4990234375,
+        -1937.738525390625,
+        1441.45751953125,
+        392.5008850097656
+      ],
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.978446689001352,
+      "offset": [
+        -6689.317693439169,
+        2962.1241398014035
+      ]
+    },
+    "frontendVersion": "1.21.5",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4,
+  "widget_idx_map": {
+    "7": {
+      "noise_seed": 0
+    },
+    "16": {
+      "scheduler": 0
+    },
+    "17": {
+      "sampler_name": 0
+    },
+    "45": {
+      "seed": 1
+    },
+    "48": {
+      "seed": 1
+    }
+  }
+}

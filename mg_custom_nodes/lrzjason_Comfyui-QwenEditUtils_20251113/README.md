@@ -10,10 +10,12 @@ A collection of utility nodes for Qwen-based image editing in ComfyUI.
 </p>
 
 You can find complete ComfyUI workflow examples in the following files:
-- [`qwen edit custom simple.json`](qwen edit custom simple.json) - demonstrates basic usage of the custom node with simple configuration
-- [`qwen edit custom full.json`](qwen edit custom full.json) - demonstrates advanced usage with full configuration options
+- [`qwen edit custom.json`](qwen edit custom.json) - demonstrates advanced usage with full configuration options
+- [`qwen edit custom mask.json`](qwen edit custom mask.json) - demonstrates mask usage with full configuration options
 
 ## Update Log
+### v2.0.5
+- Added mask option to configs nodes and custom node for improved image editing.
 ### v2.0.3
 - Added QwenEditAdaptiveLongestEdge for easier to get the best longest edge of the image.
 ### v2.0.0
@@ -25,7 +27,7 @@ You can find complete ComfyUI workflow examples in the following files:
 
 ## Node
 
-### TextEncodeQwenImageEditPlus 小志Jason(xiaozhijason)
+### TextEncodeQwenImageEditPlus lrzjason
 
 This node provides text encoding functionality with reference image support for Qwen-based image editing workflows. It allows you to encode prompts while incorporating up to 5 reference images for more controlled image generation.
 
@@ -63,7 +65,7 @@ This node provides text encoding functionality with reference image support for 
 - Processes images separately for VAE encoding (1024x1024) and VL encoding (384x384)
 - Returns individual processed images for more flexible workflow connections
 
-### TextEncodeQwenImageEditPlusAdvance 小志Jason(xiaozhijason)
+### TextEncodeQwenImageEditPlusAdvance lrzjason
 
 This advanced node provides enhanced text encoding functionality with reference image support for Qwen-based image editing workflows. It offers more precise control over image resizing and supports flexible image input configurations with separate processing for VAE and VL encoding.
 
@@ -104,7 +106,7 @@ This advanced node provides enhanced text encoding functionality with reference 
 - Provides enhanced upscale and crop controls for optimal image processing
 - Integrates with custom instructions for tailored image editing
 
-### TextEncodeQwenImageEditPlusPro 小志Jason(xiaozhijason)
+### TextEncodeQwenImageEditPlusPro lrzjason
 
 This professional node provides the most flexible text encoding functionality with reference image support for Qwen-based image editing workflows. It offers fine-grained control over which images are VL-resized and includes a main image designation for focused conditioning.
 
@@ -169,6 +171,7 @@ This node provides maximum flexibility for image editing workflows by allowing c
   - **vl_target_size**: Target size for VL processing (default: 384)
   - **vl_crop**: Cropping method for VL processing (options: "center", "disabled")
   - **vl_upscale**: Upscaling method for VL processing (options: "bicubic", "area", "lanczos")
+  - **mask**: Optional mask for the image to define region of interest for editing
 - **return_full_refs_cond** (optional): Whether to return conditioning with all reference images or only with the main reference (default: True)
 - **instruction** (optional): Custom instruction for image editing
 
@@ -186,6 +189,7 @@ This node provides maximum flexibility for image editing workflows by allowing c
   - **vl_images**: List of all processed VL images
   - **full_prompt**: The complete prompt with image descriptions
   - **llama_template**: The applied system prompt template
+  - **mask**: The processed mask used for region of interest
 
 #### Behavior
 
@@ -214,6 +218,7 @@ This helper node creates configuration objects for use with the TextEncodeQwenIm
 - **vl_target_size** (optional): Target size for VL processing (default: 384)
 - **vl_crop** (optional): Cropping method for VL processing (options: "center", "disabled", default: "center")
 - **vl_upscale** (optional): Upscaling method for VL processing (options: "bicubic", "area", "lanczos", default: "bicubic")
+- **mask** (optional): Optional mask for the image to define region of interest for editing
 
 #### Outputs
 
@@ -236,6 +241,7 @@ This helper node creates configuration objects from JSON strings for use with th
 - **image**: The reference image to configure
 - **configs** (optional): An existing list of configuration objects to append to
 - **config_json** (optional): JSON string containing configuration parameters
+- **mask** (optional): Optional mask for the image to define region of interest for editing
 
 #### Outputs
 
@@ -268,6 +274,8 @@ This helper node extracts specific outputs from the custom_output dictionary pro
 - **vl_images**: List of all processed VL images
 - **full_prompt**: The complete prompt with image descriptions
 - **llama_template**: The applied system prompt template
+- **no_refs_cond**: Conditioning without any reference latents
+- **mask**: The processed mask used for region of interest
 
 #### Behavior
 
@@ -294,7 +302,7 @@ This helper node extracts a specific item from a list based on its index positio
 - Useful for extracting specific images from the vae_images list or other collections
 - Supports any list items regardless of type
 
-### QwenEditAdaptiveLongestEdge 小志Jason(xiaozhijason)
+### QwenEditAdaptiveLongestEdge
 
 This utility node calculates an appropriate longest edge size for an image, ensuring it doesn't exceed a specified maximum size. This is particularly useful when you want to automatically determine the best longest edge for image processing based on image dimensions, especially when working with large images that need to be downscaled for processing.
 

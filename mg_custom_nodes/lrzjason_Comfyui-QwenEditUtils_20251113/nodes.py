@@ -860,7 +860,7 @@ class TextEncodeQwenImageEditPlusCustom_lrzjason:
         vae_images = []
         vl_images = []
         
-        # noise_mask = None
+        noise_mask = None
         for i, image_obj in enumerate(configs):
             assert "image" in image_obj, "Image is missing"
             image = image_obj["image"]
@@ -876,13 +876,18 @@ class TextEncodeQwenImageEditPlusCustom_lrzjason:
             vl_crop = image_obj["vl_crop"]
             vl_upscale = image_obj["vl_upscale"]
             
-            # print("to_ref",to_ref)
-            # print("ref_main_image",ref_main_image)
-            # print("ref_longest_edge",ref_longest_edge)
-            # print("ref_crop",ref_crop)
-            # print("ref_upscale",ref_upscale)
+            mask = image_obj["mask"]
             
             samples = image.movedim(-1, 1)
+            if mask is not None:
+                _, c, _, _ = samples.shape
+                sample_masks = mask.unsqueeze(1).repeat(1, c, 1, 1)  # same shape
+                # sample_masks = mask.movedim(-1, 1)
+                # check samples and sample_masks should match
+                print('samples.shape',samples.shape)
+                print('sample_masks.shape',sample_masks.shape)
+                assert samples.shape == sample_masks.shape, "Image and mask shape mismatch"
+            
             if not to_ref and not to_vl:
                 continue
             if to_ref:
@@ -893,22 +898,6 @@ class TextEncodeQwenImageEditPlusCustom_lrzjason:
                 scaled_height = int(round(samples.shape[2] / scale_by))
                 scaled_width = int(round(samples.shape[3] / scale_by))
                 
-                # print("scaled_height,scaled_width",scaled_height,scaled_width)
-                # print(ref_longest_edge)
-                # ori_aspect_ratio = samples.shape[2] / samples.shape[3]
-                # if samples.shape[2] > samples.shape[3]:
-                #     shorter_edge = round(ref_longest_edge * ( 1 / ori_aspect_ratio))
-                #     scaled_height = ref_longest_edge
-                #     scaled_width = shorter_edge
-                # else:
-                #     shorter_edge = round(ref_longest_edge * ori_aspect_ratio)
-                #     scaled_height = shorter_edge
-                #     scaled_width = ref_longest_edge
-                    
-                # print("ori_height, ori_width", ori_height, ori_width)
-                # print("samples.shape[2], samples.shape[3]", samples.shape[2], samples.shape[3])
-                # print("ref_longest_edge, shorter_edge", ref_longest_edge, shorter_edge)
-                
                 # pad only apply to main image
                 if ref_crop == "pad" and ref_main_image:
                     # print("In pad mode")
@@ -917,30 +906,22 @@ class TextEncodeQwenImageEditPlusCustom_lrzjason:
                     crop = "center"
                     canvas_width = math.ceil(scaled_width / 8.0) * 8
                     canvas_height = math.ceil(scaled_height / 8.0) * 8
-                    # print("canvas_width", canvas_width)
-                    # print("canvas_height", canvas_height)
-                    
                     # pad image to canvas size
                     canvas = torch.zeros(
                         (samples.shape[0], samples.shape[1], canvas_height, canvas_width),
                         dtype=samples.dtype,
                         device=samples.device
                     )
+                    
                     resized_samples = comfy.utils.common_upscale(samples, scaled_width, scaled_height, ref_upscale, crop)
-                    # print("resized_samples.shape", resized_samples.shape)
-                    # print("samples.shape", samples.shape)
-                    # print("canvas.shape", canvas.shape)
+                    
                     resized_width = resized_samples.shape[3]
                     resized_height = resized_samples.shape[2]
-                    
-                    # x_offset = (canvas_width - resized_width) // 2
-                    # y_offset = (canvas_height - resized_height) // 2
-                    # print("x_offset", x_offset)
-                    # print("y_offset", y_offset)
                     
                     # set resized samples to canvas
                     # canvas[:, :, x_offset:resized_height, y_offset:resized_width] = resized_samples
                     canvas[:, :, :resized_height, :resized_width] = resized_samples
+                    
                     
                     # if set_noise_mask:
                         # noise_mask = torch.zeros(canvas.shape, dtype=torch.bool, device=canvas.device)
@@ -964,6 +945,21 @@ class TextEncodeQwenImageEditPlusCustom_lrzjason:
                     
                     # print("pad_info", pad_info)
                     s = canvas
+                    
+                    if mask is not None and ref_main_image:
+                        mask_canvas = torch.zeros(
+                            (samples.shape[0], samples.shape[1], canvas_height, canvas_width),
+                            dtype=samples.dtype,
+                            device=samples.device
+                        )
+                        
+                        resized_sample_masks = comfy.utils.common_upscale(sample_masks, scaled_width, scaled_height, ref_upscale, crop)
+                        mask_canvas[:, :, :resized_height, :resized_width] = resized_sample_masks
+                        m =  mask_canvas
+                        
+                        # remove noise mask channel
+                        noise_mask = m[:, :1, :, :].squeeze(1)
+                        print("noise_mask.shape", noise_mask.shape)
                 else:
                     crop = ref_crop
                     # handle pad method when not main image
@@ -974,10 +970,15 @@ class TextEncodeQwenImageEditPlusCustom_lrzjason:
                     # print("width",width)
                     # print("height",height)
                     s = comfy.utils.common_upscale(samples, width, height, ref_upscale, crop)
+                    
+                    if mask is not None and ref_main_image:
+                        m = comfy.utils.common_upscale(sample_masks, width, height, ref_upscale, crop)
+                        # remove noise mask channel
+                        noise_mask = m[:, :1, :, :].squeeze(1)
+                        print("noise_mask.shape", noise_mask.shape)
                 image = s.movedim(1, -1)
                 ref_latents.append(vae.encode(image[:, :, :, :3]))
                 vae_images.append(image)
-
             if to_vl:
                 if vl_resize:
                     # print("vl_resize")
@@ -998,6 +999,7 @@ class TextEncodeQwenImageEditPlusCustom_lrzjason:
                 # handle non resize vl images
                 image_prompt += "Picture {}: <|vision_start|><|image_pad|><|vision_end|>".format(i + 1)
                 vl_images.append(image)
+                
 
         full_prompt = image_prompt + prompt
         tokens = clip.tokenize(full_prompt, images=vl_images, llama_template=llama_template)
@@ -1010,8 +1012,8 @@ class TextEncodeQwenImageEditPlusCustom_lrzjason:
             samples = ref_latents[main_image_index]
         latent_out = {"samples": samples}
         
-        # if set_noise_mask:
-        #     latent_out["noise_mask"] = noise_mask
+        if noise_mask is not None:
+            latent_out["noise_mask"] = noise_mask
         
         conditioning_output = conditioning_full_refs
         if not return_full_refs_cond:
@@ -1023,7 +1025,6 @@ class TextEncodeQwenImageEditPlusCustom_lrzjason:
         
         custom_output = {
             "pad_info": pad_info,
-            # "noise_mask": noise_mask,
             "full_refs_cond": conditioning_full_refs,
             "main_ref_cond": conditioning_only_with_main_ref,
             "main_image": main_image,
@@ -1032,7 +1033,8 @@ class TextEncodeQwenImageEditPlusCustom_lrzjason:
             "vl_images": vl_images,
             "full_prompt": full_prompt,
             "llama_template": llama_template,
-            "no_refs_cond": conditioning
+            "no_refs_cond": conditioning,
+            "mask": noise_mask,
         }
         
         return (conditioning_output, latent_out, custom_output)
@@ -1049,7 +1051,8 @@ class QwenEditConfigJsonParser():
         "vl_resize": True,
         "vl_target_size": 384,
         "vl_crop": "center",
-        "vl_upscale": "bicubic"
+        "vl_upscale": "bicubic",
+        "mask": None
     }
     
     default_config_json = """{
@@ -1075,6 +1078,7 @@ class QwenEditConfigJsonParser():
             {
                 "configs": ("LIST", {"default": None, "tooltip": "Configs list"}),
                 "config_json": ("STRING", {"default": s.default_config_json, "multiline": True, "tooltip": "Config JSON String"}),
+                "mask": ("MASK", ),
             }
         }
 
@@ -1083,7 +1087,7 @@ class QwenEditConfigJsonParser():
     FUNCTION = "prepare_config"
     CATEGORY = "advanced/conditioning"
     def prepare_config(self, image, configs=None,
-                config_json=""
+                config_json="", mask=None
         ):
         if configs is None:
             configs = []
@@ -1098,6 +1102,10 @@ class QwenEditConfigJsonParser():
         
         config.update(json_config)
         config["image"] = image
+        
+        config["mask"] = None
+        if mask is not None:
+            config["mask"] = mask
         
         config_output = copy.deepcopy(configs)
         del configs
@@ -1148,6 +1156,7 @@ class QwenEditConfigPreparer:
                 "vl_target_size": ("INT", {"default": 384, "min": 384, "max": 2048, "tooltip": "Target size of the qwenvl 2.5 encode"}),
                 "vl_crop": (s.vl_crop_methods, {"default": "center", "tooltip": "Crop method for reference image"}),
                 "vl_upscale": (s.upscale_methods, {"default": "lanczos", "tooltip": "Upscale method for reference image"}),
+                "mask": ("MASK", ),
             }
         }
 
@@ -1158,7 +1167,8 @@ class QwenEditConfigPreparer:
     CATEGORY = "advanced/conditioning"
     def prepare_config(self, image, configs=None,
                 to_ref=True, ref_main_image=True, ref_longest_edge=1024, ref_crop="center", ref_upscale="lanczos",
-                to_vl=True, vl_resize=True, vl_target_size=384, vl_crop="center", vl_upscale="bicubic"
+                to_vl=True, vl_resize=True, vl_target_size=384, vl_crop="center", vl_upscale="bicubic",
+                mask=None
         ):
         if configs is None:
             configs = []
@@ -1182,6 +1192,11 @@ class QwenEditConfigPreparer:
         
         
         config_output = copy.deepcopy(configs)
+        
+        config["mask"] = None
+        if mask is not None:
+            config["mask"] = mask
+        
         del configs
         
         
@@ -1192,7 +1207,6 @@ class QwenEditConfigPreparer:
 class QwenEditOutputExtractor:
     preset_keys = [
         "pad_info",
-        # "noise_mask",
         "full_refs_cond",
         "main_ref_cond",
         "main_image",
@@ -1201,7 +1215,8 @@ class QwenEditOutputExtractor:
         "vl_images",
         "full_prompt",
         "llama_template",
-        "no_refs_cond"
+        "no_refs_cond",
+        "mask"
     ]
     @classmethod
     def INPUT_TYPES(s):
@@ -1215,8 +1230,8 @@ class QwenEditOutputExtractor:
     # RETURN_TYPES = ("ANY", "MASK", "CONDITIONING", "CONDITIONING", "IMAGE", "LIST", "LIST", "LIST", "STRING", "STRING")
     # RETURN_NAMES = ("pad_info", "noise_mask", "full_refs_cond", "main_ref_cond", "main_image", "vae_images", "ref_latents", "vl_images", "full_prompt", "llama_template")
     
-    RETURN_TYPES = ("ANY", "CONDITIONING", "CONDITIONING", "IMAGE", "LIST", "LIST", "LIST", "STRING", "STRING", "CONDITIONING")
-    RETURN_NAMES = ("pad_info", "full_refs_cond", "main_ref_cond", "main_image", "vae_images", "ref_latents", "vl_images", "full_prompt", "llama_template", "no_refs_cond")
+    RETURN_TYPES = ("ANY", "CONDITIONING", "CONDITIONING", "IMAGE", "LIST", "LIST", "LIST", "STRING", "STRING", "CONDITIONING", "MASK")
+    RETURN_NAMES = ("pad_info", "full_refs_cond", "main_ref_cond", "main_image", "vae_images", "ref_latents", "vl_images", "full_prompt", "llama_template", "no_refs_cond", "mask")
     FUNCTION = "extract"
 
     CATEGORY = "advanced/conditioning"
@@ -1233,10 +1248,9 @@ class QwenEditOutputExtractor:
         full_prompt = custom_output['full_prompt']
         llama_template = custom_output['llama_template']
         no_refs_cond = custom_output['no_refs_cond']
+        mask = custom_output['mask']
         
-        
-        # return (pad_info, noise_mask, full_refs_cond, main_ref_cond, main_image, vae_images, ref_latents, vl_images, full_prompt, llama_template )
-        return (pad_info, full_refs_cond, main_ref_cond, main_image, vae_images, ref_latents, vl_images, full_prompt, llama_template, no_refs_cond )
+        return (pad_info, full_refs_cond, main_ref_cond, main_image, vae_images, ref_latents, vl_images, full_prompt, llama_template, no_refs_cond, mask)
 
 
 

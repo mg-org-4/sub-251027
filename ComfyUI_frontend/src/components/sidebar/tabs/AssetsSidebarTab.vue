@@ -39,18 +39,45 @@
         <Tab value="input">{{ $t('sideToolbar.labels.imported') }}</Tab>
         <Tab value="output">{{ $t('sideToolbar.labels.generated') }}</Tab>
       </TabList>
+      <!-- Search Bar -->
+      <div class="pt-2">
+        <SearchBox
+          v-model="searchQuery"
+          :placeholder="$t('sideToolbar.searchAssets')"
+          size="lg"
+        />
+      </div>
     </template>
     <template #body>
-      <div v-if="displayAssets.length" class="relative size-full">
+      <!-- Loading state -->
+      <div v-if="loading">
+        <ProgressSpinner class="absolute left-1/2 w-[50px] -translate-x-1/2" />
+      </div>
+      <!-- Empty state -->
+      <div v-else-if="!displayAssets.length">
+        <NoResultsPlaceholder
+          icon="pi pi-info-circle"
+          :title="
+            $t(
+              activeTab === 'input'
+                ? 'sideToolbar.noImportedFiles'
+                : 'sideToolbar.noGeneratedFiles'
+            )
+          "
+          :message="$t('sideToolbar.noFilesFoundMessage')"
+        />
+      </div>
+      <!-- Content -->
+      <div v-else class="relative size-full">
         <VirtualGrid
-          v-if="displayAssets.length"
           :items="mediaAssetsWithKey"
           :grid-style="{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-            padding: '0.5rem',
+            padding: '0 0.5rem',
             gap: '0.5rem'
           }"
+          @approach-end="handleApproachEnd"
         >
           <template #item="{ item }">
             <MediaAssetCard
@@ -66,24 +93,6 @@
             />
           </template>
         </VirtualGrid>
-        <div v-else-if="loading">
-          <ProgressSpinner
-            class="absolute left-1/2 w-[50px] -translate-x-1/2"
-          />
-        </div>
-        <div v-else>
-          <NoResultsPlaceholder
-            icon="pi pi-info-circle"
-            :title="
-              $t(
-                activeTab === 'input'
-                  ? 'sideToolbar.noImportedFiles'
-                  : 'sideToolbar.noGeneratedFiles'
-              )
-            "
-            :message="$t('sideToolbar.noFilesFoundMessage')"
-          />
-        </div>
       </div>
     </template>
     <template #footer>
@@ -147,6 +156,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDebounceFn } from '@vueuse/core'
 import ProgressSpinner from 'primevue/progressspinner'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -155,6 +165,7 @@ import IconTextButton from '@/components/button/IconTextButton.vue'
 import TextButton from '@/components/button/TextButton.vue'
 import NoResultsPlaceholder from '@/components/common/NoResultsPlaceholder.vue'
 import VirtualGrid from '@/components/common/VirtualGrid.vue'
+import SearchBox from '@/components/input/SearchBox.vue'
 import ResultGallery from '@/components/sidebar/tabs/queue/ResultGallery.vue'
 import Tab from '@/components/tab/Tab.vue'
 import TabList from '@/components/tab/TabList.vue'
@@ -163,6 +174,7 @@ import MediaAssetCard from '@/platform/assets/components/MediaAssetCard.vue'
 import { useMediaAssets } from '@/platform/assets/composables/media/useMediaAssets'
 import { useAssetSelection } from '@/platform/assets/composables/useAssetSelection'
 import { useMediaAssetActions } from '@/platform/assets/composables/useMediaAssetActions'
+import { useMediaAssetFiltering } from '@/platform/assets/composables/useMediaAssetFiltering'
 import { getOutputAssetMetadata } from '@/platform/assets/schemas/assetMetadataSchema'
 import type { AssetItem } from '@/platform/assets/schemas/assetSchema'
 import { ResultItemImpl } from '@/stores/queueStore'
@@ -226,11 +238,19 @@ const currentGalleryAssetId = ref<string | null>(null)
 
 const folderAssets = ref<AssetItem[]>([])
 
-const displayAssets = computed(() => {
+// Base assets before search filtering
+const baseAssets = computed(() => {
   if (isInFolderView.value) {
     return folderAssets.value
   }
   return mediaAssets.value
+})
+
+// Use media asset filtering composable
+const { searchQuery, filteredAssets } = useMediaAssetFiltering(baseAssets)
+
+const displayAssets = computed(() => {
+  return filteredAssets.value
 })
 
 watch(displayAssets, (newAssets) => {
@@ -291,6 +311,9 @@ watch(
   activeTab,
   () => {
     clearSelection()
+    // Clear search when switching tabs
+    searchQuery.value = ''
+    // Reset pagination state when tab changes
     void refreshAssets()
   },
   { immediate: true }
@@ -347,6 +370,7 @@ const exitFolderView = () => {
   folderPromptId.value = null
   folderExecutionTime.value = undefined
   folderAssets.value = []
+  searchQuery.value = ''
   clearSelection()
 }
 
@@ -395,4 +419,15 @@ const handleDeleteSelected = async () => {
   await deleteMultipleAssets(selectedAssets)
   clearSelection()
 }
+
+const handleApproachEnd = useDebounceFn(async () => {
+  if (
+    activeTab.value === 'output' &&
+    !isInFolderView.value &&
+    outputAssets.hasMore.value &&
+    !outputAssets.isLoadingMore.value
+  ) {
+    await outputAssets.loadMore()
+  }
+}, 300)
 </script>

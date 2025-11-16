@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.14.27] - 2025-11-15
+
+### Added
+
+- Streaming now works correctly with batch_size > 1 for parallel processing
+- All streaming segments complete successfully without NoneType errors
+
+### Fixed
+
+- Fix ChatterBox streaming batch processing
+- Fix tuple unpacking errors in multi-character streaming mode
+- Fix transformers compatibility issue causing streaming segment crashes
+- Add better error logging for debugging streaming failures
+## [4.14.26] - 2025-11-15
+
+### Added
+
+- Eliminates 'Model not wrapped - using legacy path' warning
+- Ensures Clear VRAM button works correctly for all cached model instances
+
+### Fixed
+
+- Fix model wrapper consistency for Clear VRAM support
+- Fix cached models returning unwrapped instances instead of ComfyUI wrappers
+
+### Removed
+
+- Remove obsolete model unwrapping code from streaming adapter
+## [4.14.25] - 2025-11-15
+
+### Added
+
+- Add automatic 50000x scaling to make exaggeration parameter more intuitive (use normal 0.5-2.0 values instead of 10000+)
+- Expand exaggeration range to 0.0-5.0 for experimentation
+
+### Changed
+
+- Improve ChatterBox Official 23-Lang exaggeration control
+- Update tooltip with honest warning that this parameter has minimal effect in multilingual models due to ResembleAI training limitations
+
+### Fixed
+
+- Note: Classic ChatterBox exaggeration works as documented; issue only affects multilingual v1/v2 models
+## [4.14.24] - 2025-11-15
+
+### Fixed
+
+- Fix ChatterBox Official 23-Lang audio generation failure
+- Fix crash when generating long audio with chunking enabled in single-character mode
+- Resolves tuple unpacking error (expected 3 values, got 4)
 ## [4.14.23] - 2025-11-14
 
 ### Added

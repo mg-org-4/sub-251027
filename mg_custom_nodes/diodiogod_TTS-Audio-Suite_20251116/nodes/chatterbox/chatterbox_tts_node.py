@@ -1,6 +1,6 @@
 """
-ChatterBox Official 23-Lang Processor - Multilingual TTS processor
-Enhanced Text-to-Speech processor using ChatterBox Official 23-Lang with multilingual support
+ChatterBox TTS Node - Migrated to use new foundation
+Enhanced Text-to-Speech node using ChatterboxTTS with improved chunking
 """
 
 import torch
@@ -12,7 +12,6 @@ import json
 import tempfile
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
-import comfy.model_management as model_management
 
 # Use direct file imports that work when loaded via importlib
 import os
@@ -45,12 +44,9 @@ from utils.text.character_parser import parse_character_text, character_parser
 from utils.text.segment_parameters import apply_segment_parameters
 import comfy.model_management as model_management
 
-# Import the ChatterBox Official 23-Lang TTS engine
-from engines.chatterbox_official_23lang.tts import ChatterboxOfficial23LangTTS
 
 
-
-class ChatterboxOfficial23LangTTSNode(BaseTTSNode):
+class ChatterboxTTSNode(BaseTTSNode):
     """
     Enhanced Text-to-Speech node using ChatterboxTTS - Voice Edition
     SUPPORTS BUNDLED CHATTERBOX + Enhanced Chunking + Character Switching
@@ -65,8 +61,8 @@ class ChatterboxOfficial23LangTTSNode(BaseTTSNode):
     def INPUT_TYPES(cls):
         # Import language models for dropdown
         try:
-            from engines.chatterbox_official_23lang.language_models import get_supported_language_names
-            available_languages = get_supported_language_names()
+            from engines.chatterbox.language_models import get_available_languages
+            available_languages = get_available_languages()
         except ImportError:
             available_languages = ["English"]
         
@@ -113,26 +109,9 @@ Back to the main narrator voice for the conclusion.""",
                 "max_chars_per_chunk": ("INT", {"default": 400, "min": 100, "max": 1000, "step": 50}),
                 "chunk_combination_method": (["auto", "concatenate", "silence_padding", "crossfade"], {"default": "auto"}),
                 "silence_between_chunks_ms": ("INT", {"default": 100, "min": 0, "max": 500, "step": 25}),
-                "repetition_penalty": ("FLOAT", {
-                    "default": 2.0,
-                    "min": 1.0,
-                    "max": 5.0,
-                    "step": 0.1,
-                    "tooltip": "Penalty for repeated tokens. Higher values reduce repetition in generated speech."
-                }),
-                "min_p": ("FLOAT", {
-                    "default": 0.05,
-                    "min": 0.0,
-                    "max": 1.0,
-                    "step": 0.01,
-                    "tooltip": "Minimum probability threshold for token selection. Lower values allow more diverse tokens."
-                }),
-                "top_p": ("FLOAT", {
-                    "default": 1.0,
-                    "min": 0.0,
-                    "max": 1.0,
-                    "step": 0.01,
-                    "tooltip": "Nucleus sampling threshold. Controls the probability mass of tokens to consider."
+                "crash_protection_template": ("STRING", {
+                    "default": "hmm ,, {seg} hmm ,,",
+                    "tooltip": "Custom padding template for short text segments to prevent ChatterBox crashes. ChatterBox has a bug where text shorter than ~21 characters causes CUDA tensor errors in sequential generation. Use {seg} as placeholder for the original text. Examples: '...ummmmm {seg}' (default hesitation), '{seg}... yes... {seg}' (repetition), 'Well, {seg}' (natural prefix), or empty string to disable padding. This only affects ChatterBox nodes, not F5-TTS nodes."
                 }),
                 "enable_audio_cache": ("BOOLEAN", {
                     "default": True,
@@ -153,242 +132,6 @@ Back to the main narrator voice for the conclusion.""",
     def __init__(self):
         super().__init__()
         self.chunker = ImprovedChatterBoxChunker()
-        # Override to use ChatterBox Official 23-Lang engine instead of regular ChatterBox
-        self.engine_type = "chatterbox_official_23lang"
-        
-        # Initialize model variable
-        self.tts_model = None
-        self.device = None
-        self.current_language = None
-        
-        # Initialize ChatterBox Official 23-Lang model manager
-        from engines.chatterbox_official_23lang import ChatterboxOfficial23LangTTS, ChatterboxOfficial23LangVC
-        self.ChatterboxTTS = ChatterboxOfficial23LangTTS
-        self.ChatterboxVC = ChatterboxOfficial23LangVC
-    
-    def load_tts_model(self, device: str, language: str, model_version: str = "v2"):
-        """
-        Override base method to load ChatterBox Official 23-Lang models using unified interface.
-        ChatterBox Official 23-Lang is a single multilingual model - no need to reload for language changes.
-        Only reload if model_version or device changes.
-        """
-        # CRITICAL FIX: Check if same model (same version and device) is already loaded
-        # ChatterBox Official 23-Lang supports all 23 languages in one model - language changes don't require reload
-        if (hasattr(self, 'tts_model') and self.tts_model is not None and
-            hasattr(self, 'model_version') and self.model_version == model_version and
-            hasattr(self, 'device') and self.device == device):
-            print(f"💾 ChatterBox Official 23-Lang (v{model_version}) already loaded on {device}, reusing for language '{language}'")
-            self.current_language = language  # Just update language parameter
-            return self.tts_model
-
-        print(f"🌍 Loading ChatterBox Official 23-Lang model for {language} on {device}")
-
-        # Use unified model interface for ComfyUI VRAM management
-        from utils.models.unified_model_interface import load_tts_model
-
-        try:
-            # Load through unified interface which handles caching and VRAM management
-            engine = load_tts_model(
-                engine_name="chatterbox_official_23lang",
-                model_name="Official 23-Lang",  # Always same model for ChatterBox 23-Lang
-                language=language,
-                device=device,
-                model_version=model_version
-            )
-
-            print(f"✅ ChatterBox Official 23-Lang '{language}' loaded via unified interface")
-            self.tts_model = engine
-            self.device = device
-            self.model_version = model_version
-            self.current_language = language
-            return engine
-            
-        except Exception as e:
-            print(f"❌ Failed to load ChatterBox 23-Lang via unified interface: {e}")
-            # Fallback to direct loading
-            
-            # Get the model directory for ChatterBox Official 23-Lang
-            # This should load from: models/TTS/chatterbox_official_23lang/Official 23-Lang/
-            import folder_paths
-            
-            models_dir = folder_paths.models_dir
-        # Use the unified model directory for ChatterBox Official 23-Lang
-        ckpt_dir = os.path.join(models_dir, "TTS", "chatterbox_official_23lang", "Official 23-Lang")
-        
-        print(f"📁 Loading from directory: {ckpt_dir}")
-        
-        # Auto-download model if it doesn't exist or if critical files are missing
-        required_files = [
-            "t3_23lang.safetensors",
-            "s3gen.pt", 
-            "ve.pt",
-            "mtl_tokenizer.json"
-        ]
-        
-        missing_files = []
-        if not os.path.exists(ckpt_dir):
-            missing_files = required_files
-        else:
-            for file in required_files:
-                if not os.path.exists(os.path.join(ckpt_dir, file)):
-                    # Check for alternative formats for s3gen and ve
-                    if file.endswith('.pt') and file in ['s3gen.pt', 've.pt']:
-                        # Check if safetensors version exists
-                        safetensors_file = file.replace('.pt', '.safetensors')
-                        if not os.path.exists(os.path.join(ckpt_dir, safetensors_file)):
-                            missing_files.append(file)
-                        # else: safetensors exists, so file is not missing
-                    else:
-                        missing_files.append(file)
-        
-        if missing_files:
-            print(f"📥 ChatterBox Official 23-Lang missing files: {missing_files}")
-            print("📥 Downloading missing files...")
-            
-            # Use unified downloader to download the model
-            from utils.downloads.unified_downloader import unified_downloader
-            
-            # Try to download official .pt format first
-            print("📥 Trying official .pt format...")
-            success_dir = unified_downloader.download_chatterbox_model(
-                repo_id="ResembleAI/chatterbox",
-                model_name="Official 23-Lang",
-                subdirectory=None,
-                files=[
-                    "t3_23lang.safetensors",
-                    "s3gen.pt", 
-                    "ve.pt",
-                    "mtl_tokenizer.json",
-                    "conds.pt"
-                ]
-            )
-            
-            # Fallback to safetensors if .pt download failed
-            if not success_dir:
-                print("⚠️ Official .pt download failed, trying safetensors fallback...")
-                success_dir = unified_downloader.download_chatterbox_model(
-                    repo_id="ResembleAI/chatterbox",
-                    model_name="Official 23-Lang",
-                    subdirectory=None,
-                    files=[
-                        "t3_23lang.safetensors",
-                        "s3gen.safetensors", 
-                        "ve.safetensors",
-                        "mtl_tokenizer.json",
-                        "conds.pt"
-                    ]
-                )
-            
-            if not success_dir:
-                raise RuntimeError("Failed to download ChatterBox Official 23-Lang model (tried both .pt and safetensors)")
-            
-            print("✅ ChatterBox Official 23-Lang model downloaded successfully!")
-        
-        # Use the ChatterBox Official 23-Lang engine with correct parameters
-        self.tts_model = ChatterboxOfficial23LangTTS.from_local(
-            ckpt_dir=ckpt_dir,
-            device=device,
-            model_name="Official 23-Lang",
-            model_version=model_version
-        )
-        
-        self.device = device
-        self.model_version = model_version
-        self.current_language = language
-
-        return self.tts_model
-    
-    def _language_name_to_code(self, language_input: str) -> str:
-        """Convert language name or code to language code compatible with ChatterBox Official 23-Lang."""
-        from utils.models.language_mapper import resolve_language_alias
-
-        # First resolve using the centralized language mapper
-        resolved_code = resolve_language_alias(language_input)
-        
-        # Map to ChatterBox Official 23-Lang supported codes
-        # Import supported languages from our language models
-        from engines.chatterbox_official_23lang.language_models import SUPPORTED_LANGUAGES
-        
-        # If it's already a supported language code, return it
-        if resolved_code in SUPPORTED_LANGUAGES:
-            return resolved_code
-            
-        # Handle special cases where character parser codes don't match Official 23-Lang
-        code_mapping = {
-            # Portuguese variations -> single pt
-            "pt-br": "pt",  # Brazilian Portuguese -> Portuguese
-            "pt-pt": "pt",  # European Portuguese -> Portuguese  
-            "ptbr": "pt",
-            "portuguese": "pt",
-            # Greek
-            "gr": "el",     # Greece -> Greek
-            "greek": "el",
-            # Any other unmapped codes
-        }
-        
-        mapped_code = code_mapping.get(resolved_code, resolved_code)
-        
-        # If still not supported, default to English
-        if mapped_code not in SUPPORTED_LANGUAGES:
-            print(f"⚠️ Language tag '{language_input}' not recognized by ChatterBox Official 23-Lang. Falling back to English.")
-            return "en"
-            
-        return mapped_code
-    
-    def generate_tts_audio(self, text: str, audio_prompt: str, exaggeration: float = 0.5, temperature: float = 0.8, cfg_weight: float = 0.5, repetition_penalty: float = 1.2, min_p: float = 0.05, top_p: float = 1.0, language_id: str = "en"):
-        """
-        Override base method to work directly with ChatterBox Official 23-Lang model.
-        """
-        if self.tts_model is None:
-            raise RuntimeError("TTS model not loaded. Call load_tts_model() first.")
-
-        # CRITICAL FIX: Reload model to correct device if it was offloaded
-        # When processors are cached, the model reference persists but may be on wrong device
-        # Use the unified model interface to properly reload through wrapper system
-        if hasattr(self.tts_model, 'to') and hasattr(self.tts_model, 'device'):
-            target_device = self.device if hasattr(self, 'device') else self.tts_model.device
-
-            # Resolve "auto" to actual device
-            if target_device == "auto":
-                target_device = "cuda" if torch.cuda.is_available() else "cpu"
-
-            # Check current device of model components
-            if hasattr(self.tts_model.t3, 'parameters'):
-                try:
-                    current_device = str(next(self.tts_model.t3.parameters()).device)
-                    target_device_str = str(target_device)
-
-                    # Reload through unified interface if device mismatch
-                    # This ensures ComfyUI's model management stays in sync
-                    if current_device != target_device_str:
-                        # Unified interface returns wrapped models, so just call model_load
-                        if hasattr(self.tts_model, 'model_load'):
-                            self.tts_model.model_load(target_device)
-                        else:
-                            # Fallback for any legacy unwrapped models (shouldn't happen after Tier 2)
-                            print(f"⚠️ Model not wrapped - using direct .to() (legacy path)")
-                            self.tts_model.to(target_device)
-                except StopIteration:
-                    pass  # Model has no parameters
-
-        # Use torch.no_grad() to ensure no gradients are tracked during inference
-        with torch.no_grad():
-            # Debug: Show the language_id being passed to the model
-            print(f"🌍 ChatterBox Official 23-Lang TTS: language_id='{language_id}' for text: '{text[:50]}{'...' if len(text) > 50 else ''}'")
-
-            # ChatterBox generate method with correct parameters including language_id
-            audio = self.tts_model.generate(
-                text,
-                language_id,
-                audio_prompt_path=audio_prompt if audio_prompt else None,
-                exaggeration=exaggeration,
-                cfg_weight=cfg_weight,
-                temperature=temperature,
-                repetition_penalty=repetition_penalty,
-                min_p=min_p,
-                top_p=top_p
-            )
-            return audio
     
     def _pad_short_text_for_chatterbox(self, text: str, crash_protection_template: str = "hmm ,, {seg} hmm ,,", min_length: int = 15) -> str:
         """
@@ -454,8 +197,7 @@ Back to the main narrator voice for the conclusion.""",
             final_length = len(original_text)
             display_text = repr(original_text)  # repr shows spaces clearly
         else:
-            # padded_text = self._pad_short_text_for_chatterbox(text)  # DISABLED FOR TESTING
-            padded_text = text  # Direct text without crash protection
+            padded_text = self._pad_short_text_for_chatterbox(text)
             final_length = len(padded_text)
             display_text = f"{repr(original_text)} → padded: {repr(padded_text)}"
         
@@ -487,8 +229,7 @@ Back to the main narrator voice for the conclusion.""",
         """
         if not enable_crash_protection:
             # No protection - original behavior (may crash ComfyUI)
-            language_code = self._language_name_to_code(language)
-            return self.generate_tts_audio(text, audio_prompt, exaggeration, temperature, cfg_weight, repetition_penalty, min_p, top_p, language_code)
+            return self.generate_tts_audio(text, audio_prompt, exaggeration, temperature, cfg_weight)
         
         # Predict and skip problematic text before it crashes
         # The text passed here is already processed/padded, so check it directly
@@ -503,8 +244,7 @@ Back to the main narrator voice for the conclusion.""",
         
         # If prediction says it's safe, try generation with fallback
         try:
-            language_code = self._language_name_to_code(language)
-            return self.generate_tts_audio(text, audio_prompt, exaggeration, temperature, cfg_weight, repetition_penalty, min_p, top_p, language_code)
+            return self.generate_tts_audio(text, audio_prompt, exaggeration, temperature, cfg_weight)
         except Exception as e:
             error_msg = str(e)
             is_cuda_crash = ("srcIndex < srcSelectDimSize" in error_msg or 
@@ -535,14 +275,8 @@ Back to the main narrator voice for the conclusion.""",
         """
         def generate_segment_audio(segment_text: str, audio_prompt) -> torch.Tensor:
             """Generate audio for a text segment with crash protection"""
-            # Convert v2 special tags (AFTER character parsing, BEFORE TTS engine)
-            if hasattr(self.tts_model, 'model_version') and self.tts_model.model_version == "v2":
-                from utils.text.chatterbox_v2_special_tags import convert_v2_special_tags
-                segment_text = convert_v2_special_tags(segment_text)
-
             # Apply padding for crash protection
-            # processed_text = self._pad_short_text_for_chatterbox(segment_text, inputs["crash_protection_template"])  # DISABLED FOR TESTING
-            processed_text = segment_text  # Direct text without crash protection
+            processed_text = self._pad_short_text_for_chatterbox(segment_text, inputs["crash_protection_template"])
             
             # Determine crash protection based on template
             enable_protection = bool(inputs["crash_protection_template"].strip())
@@ -574,9 +308,9 @@ Back to the main narrator voice for the conclusion.""",
             
             # Build voice references
             voice_refs = {}
-            for char_name in all_characters:
-                audio_path, _ = character_mapping.get(char_name, (None, None))
-                voice_refs[char_name] = audio_path if audio_path else main_audio_prompt
+            for character in all_characters:
+                audio_path, _ = character_mapping.get(character, (None, None))
+                voice_refs[character] = audio_path if audio_path else main_audio_prompt
         
         # Generate audio using pause tag processor
         def tts_generate_func(text_content: str) -> torch.Tensor:
@@ -586,8 +320,8 @@ Back to the main narrator voice for the conclusion.""",
                 char_segments = parse_character_text(text_content)
                 segment_audio_parts = []
                 
-                for char_name, segment_text in char_segments:
-                    audio_prompt = voice_refs.get(char_name, main_audio_prompt)
+                for character, segment_text in char_segments:
+                    audio_prompt = voice_refs.get(character, main_audio_prompt)
                     audio_part = generate_segment_audio(segment_text, audio_prompt)
                     segment_audio_parts.append(audio_part)
                 
@@ -671,13 +405,12 @@ Back to the main narrator voice for the conclusion.""",
         return generate_stable_audio_component(reference_audio, audio_prompt_path)
 
 
-    def _generate_tts_with_pause_tags(self, text: str, audio_prompt, exaggeration: float,
-                                    temperature: float, cfg_weight: float, repetition_penalty: float = 1.2,
-                                    min_p: float = 0.05, top_p: float = 1.0, language: str = "English",
-                                    enable_pause_tags: bool = True, character: str = "narrator",
+    def _generate_tts_with_pause_tags(self, text: str, audio_prompt, exaggeration: float, 
+                                    temperature: float, cfg_weight: float, language: str = "English",
+                                    enable_pause_tags: bool = True, character: str = "narrator", 
                                     seed: int = 0, enable_cache: bool = True,
-                                    crash_protection_template: str = "hmm ,, {seg} hmm ,,",
-                                    stable_audio_component: str = None, model_version: str = "v1") -> torch.Tensor:
+                                    crash_protection_template: str = "hmm ,, {seg} hmm ,,", 
+                                    stable_audio_component: str = None) -> torch.Tensor:
         """
         Generate ChatterBox TTS audio with pause tag support.
         
@@ -701,18 +434,7 @@ Back to the main narrator voice for the conclusion.""",
         processed_text, pause_segments = PauseTagProcessor.preprocess_text_with_pause_tags(
             text, enable_pause_tags
         )
-
-        # Convert v2 special tags AFTER pause processing, BEFORE TTS generation
-        if model_version == "v2":
-            from utils.text.chatterbox_v2_special_tags import convert_v2_special_tags
-            processed_text = convert_v2_special_tags(processed_text)
-            # Also convert in pause segments if they exist
-            if pause_segments is not None:
-                pause_segments = [
-                    (seg_type, convert_v2_special_tags(content) if seg_type == 'text' else content)
-                    for seg_type, content in pause_segments
-                ]
-
+        
         # Debug pause tag processing in streaming
         if pause_segments is not None:
             print(f"🏷️ PAUSE TAGS: Found in '{text[:50]}...' -> {len(pause_segments)} segments")
@@ -724,8 +446,7 @@ Back to the main narrator voice for the conclusion.""",
                 audio_component = stable_audio_component if stable_audio_component else ""
                 
                 # Apply crash protection first for consistency
-                # protected_text = self._pad_short_text_for_chatterbox(processed_text, crash_protection_template)  # DISABLED FOR TESTING
-                protected_text = processed_text  # Direct text without crash protection
+                protected_text = self._pad_short_text_for_chatterbox(processed_text, crash_protection_template)
                 
                 # Show final text going into the TTS model
                 print(f"🔤 Final text to ChatterBox TTS model ({character}): '{protected_text}'")
@@ -733,7 +454,7 @@ Back to the main narrator voice for the conclusion.""",
                 # Use centralized cache system
                 from utils.audio.cache import create_cache_function
                 cache_fn = create_cache_function(
-                    "chatterbox_official_23lang",
+                    "chatterbox",
                     character=character,
                     exaggeration=exaggeration,
                     temperature=temperature,
@@ -741,13 +462,8 @@ Back to the main narrator voice for the conclusion.""",
                     seed=seed,
                     audio_component=audio_component,
                     model_source=f"chatterbox_{language.lower()}",
-                    model_version=model_version,
                     device=self.device,
-                    language=language,
-                    # Add ChatterBox Official 23-Lang specific parameters to cache key
-                    repetition_penalty=repetition_penalty,
-                    min_p=min_p,
-                    top_p=top_p
+                    language=language
                 )
                 
                 # Try cache first
@@ -757,19 +473,16 @@ Back to the main narrator voice for the conclusion.""",
                     return cached_audio
                 
                 # Generate and cache
-                language_code = self._language_name_to_code(language)
-                audio = self.generate_tts_audio(protected_text, audio_prompt, exaggeration, temperature, cfg_weight, repetition_penalty, min_p, top_p, language_code)
+                audio = self.generate_tts_audio(protected_text, audio_prompt, exaggeration, temperature, cfg_weight)
                 # Clone tensor to avoid autograd issues in streaming mode
                 audio_clone = audio.detach().clone() if audio.requires_grad else audio
                 cache_fn(protected_text, audio_result=audio_clone)
                 return audio_clone
             else:
-                # protected_text = self._pad_short_text_for_chatterbox(processed_text, crash_protection_template)  # DISABLED FOR TESTING
-                protected_text = processed_text  # Direct text without crash protection
+                protected_text = self._pad_short_text_for_chatterbox(processed_text, crash_protection_template)
                 # Show final text going into the TTS model
                 print(f"🔤 Final text to ChatterBox TTS model ({character}): '{protected_text}'")
-                language_code = self._language_name_to_code(language)
-                audio = self.generate_tts_audio(protected_text, audio_prompt, exaggeration, temperature, cfg_weight, repetition_penalty, min_p, top_p, language_code)
+                audio = self.generate_tts_audio(protected_text, audio_prompt, exaggeration, temperature, cfg_weight)
                 # Clone tensor to avoid autograd issues in streaming mode
                 return audio.detach().clone() if audio.requires_grad else audio
         
@@ -781,8 +494,7 @@ Back to the main narrator voice for the conclusion.""",
                 audio_component = stable_audio_component if stable_audio_component else ""
                 
                 # Apply crash protection first for consistency
-                # protected_text = self._pad_short_text_for_chatterbox(text_content, crash_protection_template)  # DISABLED FOR TESTING
-                protected_text = text_content  # Direct text without crash protection
+                protected_text = self._pad_short_text_for_chatterbox(text_content, crash_protection_template)
                 if len(text_content.strip()) < 21:
                     print(f"🔍 DEBUG: Pause segment original: '{text_content}' → Protected: '{protected_text}' (len: {len(protected_text)})")
                 
@@ -792,7 +504,7 @@ Back to the main narrator voice for the conclusion.""",
                 # Use centralized cache system
                 from utils.audio.cache import create_cache_function
                 cache_fn = create_cache_function(
-                    "chatterbox_official_23lang",
+                    "chatterbox",
                     character=character,
                     exaggeration=exaggeration,
                     temperature=temperature,
@@ -800,13 +512,8 @@ Back to the main narrator voice for the conclusion.""",
                     seed=seed,
                     audio_component=audio_component,
                     model_source=f"chatterbox_{language.lower()}",
-                    model_version=model_version,
                     device=self.device,
-                    language=language,
-                    # Add ChatterBox Official 23-Lang specific parameters to cache key
-                    repetition_penalty=repetition_penalty,
-                    min_p=min_p,
-                    top_p=top_p
+                    language=language
                 )
                 
                 # Try cache first
@@ -816,24 +523,21 @@ Back to the main narrator voice for the conclusion.""",
                     return cached_audio
                 
                 # Generate and cache
-                language_code = self._language_name_to_code(language)
-                audio = self.generate_tts_audio(protected_text, audio_prompt, exaggeration, temperature, cfg_weight, repetition_penalty, min_p, top_p, language_code)
+                audio = self.generate_tts_audio(protected_text, audio_prompt, exaggeration, temperature, cfg_weight)
                 # Clone tensor to avoid autograd issues in streaming mode
                 audio_clone = audio.detach().clone() if audio.requires_grad else audio
                 cache_fn(protected_text, audio_result=audio_clone)
                 return audio_clone
             else:
                 # Apply crash protection
-                # protected_text = self._pad_short_text_for_chatterbox(text_content, crash_protection_template)  # DISABLED FOR TESTING
-                protected_text = text_content  # Direct text without crash protection
+                protected_text = self._pad_short_text_for_chatterbox(text_content, crash_protection_template)
                 if len(text_content.strip()) < 21:
                     print(f"🔍 DEBUG: Pause segment original: '{text_content}' → Protected: '{protected_text}' (len: {len(protected_text)})")
                 
                 # Show final text going into the TTS model
                 print(f"🔤 Final text to ChatterBox TTS model ({character}, pause segment, no cache): '{protected_text}'")
                 
-                language_code = self._language_name_to_code(language)
-                audio = self.generate_tts_audio(protected_text, audio_prompt, exaggeration, temperature, cfg_weight, repetition_penalty, min_p, top_p, language_code)
+                audio = self.generate_tts_audio(protected_text, audio_prompt, exaggeration, temperature, cfg_weight)
                 # Clone tensor to avoid autograd issues in streaming mode
                 return audio.detach().clone() if audio.requires_grad else audio
         
@@ -852,22 +556,20 @@ Back to the main narrator voice for the conclusion.""",
         
         # Use the pause tag processor with caching
         return self._generate_tts_with_pause_tags(
-            inputs["text"], main_audio_prompt, inputs["exaggeration"],
-            inputs["temperature"], inputs["cfg_weight"], inputs["repetition_penalty"],
-            inputs["min_p"], inputs["top_p"], inputs["language"],
-            True, character=inputs["character"], seed=inputs["seed"],
+            inputs["text"], main_audio_prompt, inputs["exaggeration"], 
+            inputs["temperature"], inputs["cfg_weight"], inputs["language"],
+            True, character="narrator", seed=inputs["seed"], 
             enable_cache=inputs.get("enable_audio_cache", True),
             crash_protection_template=inputs.get("crash_protection_template", "hmm ,, {seg} hmm ,,"),
-            stable_audio_component=stable_audio_component,
-            model_version=inputs.get("model_version", "v1")
+            stable_audio_component=stable_audio_component
         )
 
-    def generate_speech(self, text, language, device, model_version="v2", exaggeration=0.5, temperature=0.8, cfg_weight=0.5,
-                       repetition_penalty=2.0, min_p=0.05, top_p=1.0, seed=0,
+    def generate_speech(self, text, language, device, exaggeration, temperature, cfg_weight, seed,
                        reference_audio=None, audio_prompt_path="",
                        enable_chunking=True, max_chars_per_chunk=400,
                        chunk_combination_method="auto", silence_between_chunks_ms=100,
-                       enable_audio_cache=True, batch_size=4, character="narrator"):
+                       crash_protection_template="hmm ,, {seg} hmm ,,", enable_audio_cache=True,
+                       batch_size=4):
         
         def _process():
             # Import PauseTagProcessor at the top to avoid scoping issues
@@ -878,17 +580,15 @@ Back to the main narrator voice for the conclusion.""",
             
             # Validate inputs
             inputs = self.validate_inputs(
-                text=text, language=language, device=device, model_version=model_version,
-                exaggeration=exaggeration,
-                temperature=temperature, cfg_weight=cfg_weight,
-                repetition_penalty=repetition_penalty, min_p=min_p, top_p=top_p,
-                seed=seed, reference_audio=reference_audio, audio_prompt_path=audio_prompt_path,
+                text=text, language=language, device=device, exaggeration=exaggeration,
+                temperature=temperature, cfg_weight=cfg_weight, seed=seed,
+                reference_audio=reference_audio, audio_prompt_path=audio_prompt_path,
                 enable_chunking=enable_chunking, max_chars_per_chunk=max_chars_per_chunk,
                 chunk_combination_method=chunk_combination_method,
                 silence_between_chunks_ms=silence_between_chunks_ms,
+                crash_protection_template=crash_protection_template,
                 enable_audio_cache=enable_audio_cache,
-                batch_size=current_batch_size,
-                character=character  # Add character to inputs
+                batch_size=current_batch_size
             )
             
             # Set seed for reproducibility (can be done without loading model)
@@ -955,26 +655,26 @@ Back to the main narrator voice for the conclusion.""",
                 character_voices = []
                 main_voices = []
                 
-                for char_name in characters:
+                for character in characters:
                     # CRITICAL FIX: Skip narrator - it should use selected input/dropdown voice, not character voice files
-                    if char_name == 'narrator':
+                    if character == 'narrator':
                         continue
                         
-                    audio_path, _ = character_mapping.get(char_name, (None, None))
+                    audio_path, _ = character_mapping.get(character, (None, None))
                     if audio_path:
-                        voice_refs[char_name] = audio_path
-                        character_voices.append(char_name)
+                        voice_refs[character] = audio_path
+                        character_voices.append(character)
                         
                         # CRITICAL FIX: Also map resolved character name to same audio path
                         # This ensures streaming workers can find voices using resolved names
                         from utils.voice.discovery import voice_discovery
-                        resolved_name = voice_discovery.resolve_character_alias(char_name)
-                        if resolved_name != char_name:
+                        resolved_name = voice_discovery.resolve_character_alias(character)
+                        if resolved_name != character:
                             voice_refs[resolved_name] = audio_path
                             
                     else:
-                        voice_refs[char_name] = main_audio_prompt
-                        main_voices.append(char_name)
+                        voice_refs[character] = main_audio_prompt
+                        main_voices.append(character)
                 
                 # Consolidated voice summary logging
                 voice_summary = []
@@ -987,19 +687,35 @@ Back to the main narrator voice for the conclusion.""",
                     print(f"🎭 Voice mapping - {' | '.join(voice_summary)}")
                 
                 # Map language codes to ChatterBox model names
+                def get_chatterbox_model_for_language(lang_code: str) -> str:
+                    """Map language codes to ChatterBox model names"""
+                    lang_model_map = {
+                        'en': 'English',          # English (always use English model)
+                        'de': 'German',           # German
+                        'es': 'Spanish',          # Spanish
+                        'fr': 'French',           # French
+                        'it': 'Italian',          # Italian
+                        'pt': 'Portuguese',       # Portuguese
+                        'pt-br': 'Portuguese',    # Brazilian Portuguese (use Portuguese model)
+                        'pt-pt': 'Portuguese',    # European Portuguese (use Portuguese model)
+                        'no': 'Norwegian',        # Norwegian
+                        'nb': 'Norwegian',        # Norwegian Bokmål
+                        'nn': 'Norwegian',        # Norwegian Nynorsk
+                    }
+                    # For the main model language, use the selected model; for others, use language-specific models
+                    selected_lang = inputs["language"].lower()
+                    if lang_code.lower() == selected_lang:
+                        return inputs["language"]  # Use selected model for main language
+                    else:
+                        return lang_model_map.get(lang_code.lower(), inputs["language"])
                 
                 # Preprocess pause tags in character segments before streaming
                 expanded_segments_with_lang = []
                 pause_info = {}  # Track pause information for reconstruction
                 segment_mapping = {}  # Map streaming indices to original indices
                 streaming_idx = 0
-
-                for original_idx, seg_obj in enumerate(character_segment_objects):
-                    char = seg_obj.character
-                    segment_text = seg_obj.text
-                    lang = seg_obj.language
-                    segment_params = seg_obj.parameters if seg_obj.parameters else {}
-
+                
+                for original_idx, (char, segment_text, lang, segment_params) in enumerate(character_segments_with_lang):
                     from utils.text.pause_processor import PauseTagProcessor
                     processed_text, pause_segments = PauseTagProcessor.preprocess_text_with_pause_tags(segment_text, True)
 
@@ -1104,15 +820,14 @@ Back to the main narrator voice for the conclusion.""",
                             # Check centralized cache system
                             from utils.audio.cache import create_cache_function
                             cache_fn = create_cache_function(
-                                "chatterbox_official_23lang",
-                                character=inputs["character"],
+                                "chatterbox",
+                                character="narrator",
                                 exaggeration=inputs["exaggeration"],
                                 temperature=inputs["temperature"],
                                 cfg_weight=inputs["cfg_weight"],
                                 seed=inputs["seed"],
                                 audio_component=stable_audio_component,
                                 model_source=f"chatterbox_{language.lower()}",
-                                model_version=inputs.get("model_version", "v1"),
                                 device=inputs["device"],
                                 language=inputs["language"]
                             )
@@ -1137,15 +852,14 @@ Back to the main narrator voice for the conclusion.""",
                                 # Check centralized cache system
                                 from utils.audio.cache import create_cache_function
                                 cache_fn = create_cache_function(
-                                    "chatterbox_official_23lang",
-                                    character=inputs["character"],
+                                    "chatterbox",
+                                    character="narrator",
                                     exaggeration=inputs["exaggeration"],
                                     temperature=inputs["temperature"],
                                     cfg_weight=inputs["cfg_weight"],
                                     seed=inputs["seed"],
                                     audio_component=stable_audio_component,
                                     model_source=f"chatterbox_{language.lower()}",
-                                    model_version=inputs.get("model_version", "v1"),
                                     device=inputs["device"],
                                     language=inputs["language"]
                                 )
@@ -1159,10 +873,18 @@ Back to the main narrator voice for the conclusion.""",
                 
                 # Only load model if we need to generate something
                 if not single_content_cached:
-                    # Use unified model interface for ComfyUI VRAM management
-                    if not hasattr(self, 'tts_model') or self.tts_model is None:
-                        self.tts_model = self.load_tts_model(inputs["device"], inputs["language"], inputs.get("model_version", "v2"))
-                        self.device = inputs["device"]  # Update device tracking
+                    # Load model using unified interface
+                    from utils.models.unified_model_interface import load_tts_model
+
+                    self.tts_model = load_tts_model(
+                        engine_name="chatterbox",
+                        model_name=inputs["language"],
+                        device=inputs["device"],
+                        language=inputs["language"],
+                        force_reload=False
+                    )
+
+                    self.device = inputs["device"]  # Update device tracking
                 else:
                     print(f"💾 All single character content cached - skipping model loading")
                 
@@ -1171,14 +893,12 @@ Back to the main narrator voice for the conclusion.""",
                     # BUGFIX: Clean character tags from text even in single character mode
                     clean_text = character_parser.remove_character_tags(inputs["text"])
                     wav = self._generate_tts_with_pause_tags(
-                        clean_text, main_audio_prompt, inputs["exaggeration"],
-                        inputs["temperature"], inputs["cfg_weight"], inputs["repetition_penalty"],
-                        inputs["min_p"], inputs["top_p"], inputs["language"],
-                        True, character=inputs["character"], seed=inputs["seed"],
+                        clean_text, main_audio_prompt, inputs["exaggeration"], 
+                        inputs["temperature"], inputs["cfg_weight"], inputs["language"],
+                        True, character="narrator", seed=inputs["seed"], 
                         enable_cache=inputs.get("enable_audio_cache", True),
                         crash_protection_template=inputs.get("crash_protection_template", "hmm ,, {seg} hmm ,,"),
-                        stable_audio_component=stable_audio_component,
-                        model_version=inputs.get("model_version", "v1")
+                        stable_audio_component=stable_audio_component
                     )
                     model_source = f"chatterbox_{language.lower()}"
                     info = f"Generated {wav.size(-1) / self.tts_model.sr:.1f}s audio from {text_length} characters (single chunk, {model_source} models)"
@@ -1199,19 +919,17 @@ Back to the main narrator voice for the conclusion.""",
                         
                         # Generate chunk with caching support
                         chunk_audio = self._generate_tts_with_pause_tags(
-                            chunk, main_audio_prompt, inputs["exaggeration"],
-                            inputs["temperature"], inputs["cfg_weight"], inputs["repetition_penalty"],
-                            inputs["min_p"], inputs["top_p"], inputs["language"],
-                            True, character=inputs["character"], seed=inputs["seed"],
+                            chunk, main_audio_prompt, inputs["exaggeration"], 
+                            inputs["temperature"], inputs["cfg_weight"], inputs["language"],
+                            True, character="narrator", seed=inputs["seed"], 
                             enable_cache=inputs.get("enable_audio_cache", True),
                             crash_protection_template=inputs.get("crash_protection_template", "hmm ,, {seg} hmm ,,"),
-                            stable_audio_component=stable_audio_component,
-                            model_version=inputs.get("model_version", "v1")
+                            stable_audio_component=stable_audio_component
                         )
                         audio_segments.append(chunk_audio)
                     
                     # Create processed text for timing display (character tags removed, Italian prefixes applied)
-                    processed_text_segments = [segment_text for _, segment_text, _ in character_segments_with_lang]
+                    processed_text_segments = [segment_text for _, segment_text, _, _ in character_segments_with_lang]
                     processed_text = ' '.join(processed_text_segments)
                     
                     # Combine audio segments with timing info
@@ -1268,13 +986,11 @@ Back to the main narrator voice for the conclusion.""",
             # Generate audio with caching support for character segments
             chunk_audio = self._generate_tts_with_pause_tags(
                 chunk_text, char_audio_prompt, inputs["exaggeration"],
-                inputs["temperature"], inputs["cfg_weight"], inputs["repetition_penalty"],
-                inputs["min_p"], inputs["top_p"], required_language,
-                True, character=inputs["character"], seed=inputs.get("seed", 42),
+                inputs["temperature"], inputs["cfg_weight"], required_language,
+                True, character=character, seed=inputs.get("seed", 42),
                 enable_cache=inputs.get("enable_audio_cache", True),
                 crash_protection_template=inputs.get("crash_protection_template", "hmm ,, {seg} hmm ,,"),
-                stable_audio_component=stable_audio_component,
-                model_version=inputs.get("model_version", "v1")
+                stable_audio_component=stable_audio_component
             )
             segment_audio_chunks.append(chunk_audio)
         
@@ -1295,8 +1011,8 @@ Back to the main narrator voice for the conclusion.""",
         from engines.adapters.chatterbox_streaming_adapter import ChatterBoxStreamingAdapter
         
         # Convert expanded_segments_with_lang to indexed format for streaming
-        # expanded_segments_with_lang is (idx, char, text, lang, params)
-        indexed_segments = [(idx, char, text, lang, segment_params) for idx, char, text, lang, segment_params in expanded_segments_with_lang]
+        # expanded_segments_with_lang is (idx, char, text, lang, params) - extract only what we need
+        indexed_segments = [(idx, char, text, lang) for idx, char, text, lang, _ in expanded_segments_with_lang]
         
         # Convert to universal streaming segments
         segments = StreamingCoordinator.convert_node_data_to_segments(
@@ -1416,25 +1132,33 @@ Back to the main narrator voice for the conclusion.""",
         print(f"🎯 TRADITIONAL MODE: Processing {len(language_groups)} language groups sequentially")
         
         audio_segments_with_order = []
-        
-        # For ChatterBox Official 23-Lang, we only need to load the model once
-        # It's a multilingual model that handles all languages with the same model
-        if not hasattr(self, 'tts_model') or self.tts_model is None:
-            # Use unified model interface for ComfyUI VRAM management
-            self.tts_model = self.load_tts_model(inputs["device"], inputs["language"], inputs.get("model_version", "v2"))
-            self.device = inputs["device"]  # Update device tracking
+        current_loaded_language = None
         
         for original_idx, (char, segment_text, lang, segment_params) in enumerate(character_segments_with_lang):
-            # For Official 23-Lang, we don't need to reload model for different languages
-            # Just use the same model with different language_id parameter
+            # Load TTS model for this language if not already loaded
+            from utils.models.language_mapper import get_model_for_language
+            required_model = get_model_for_language("chatterbox", lang, "English")
 
-            # Apply segment parameters if provided
-            current_params = inputs.copy()
+            if current_loaded_language != required_model:
+                # Load model using unified interface
+                from utils.models.unified_model_interface import load_tts_model
+
+                self.tts_model = load_tts_model(
+                    engine_name="chatterbox",
+                    model_name=required_model,
+                    device=inputs["device"],
+                    language=required_model,
+                    force_reload=False
+                )
+
+                self.device = inputs["device"]  # Update device tracking
+                current_loaded_language = required_model
+
+            # Apply per-segment parameters
+            current_config = dict(inputs)
             if segment_params:
-                segment_config = apply_segment_parameters(current_params, segment_params, "chatterbox_official_23lang")
-                current_params.update(segment_config)
-                if segment_params:
-                    print(f"  📊 Segment {original_idx + 1}: Character '{char}' with params {segment_params}")
+                from utils.text.segment_parameters import apply_segment_parameters
+                current_config = apply_segment_parameters(current_config, segment_params, "chatterbox")
 
             # Process each segment individually
             char_audio_prompt = voice_refs.get(char, voice_refs.get("narrator", "none"))
@@ -1443,14 +1167,12 @@ Back to the main narrator voice for the conclusion.""",
             stable_audio_component = self._generate_stable_audio_component(inputs.get("reference_audio"), char_audio_prompt)
 
             segment_audio = self._generate_tts_with_pause_tags(
-                segment_text, char_audio_prompt, current_params["exaggeration"],
-                current_params["temperature"], current_params["cfg_weight"], current_params["repetition_penalty"],
-                current_params["min_p"], current_params["top_p"], lang,
-                True, character=char, seed=current_params["seed"],
-                enable_cache=current_params.get("enable_audio_cache", True),
-                crash_protection_template=current_params.get("crash_protection_template", "hmm ,, {seg} hmm ,,"),
-                stable_audio_component=stable_audio_component,
-                model_version=current_params.get("model_version", "v1")
+                segment_text, char_audio_prompt, current_config.get("exaggeration", inputs["exaggeration"]),
+                current_config.get("temperature", inputs["temperature"]), current_config.get("cfg_weight", inputs["cfg_weight"]), lang,
+                True, character=char, seed=current_config.get("seed", inputs["seed"]),
+                enable_cache=current_config.get("enable_audio_cache", inputs.get("enable_audio_cache", True)),
+                crash_protection_template=current_config.get("crash_protection_template", inputs.get("crash_protection_template", "hmm ,, {seg} hmm ,,")),
+                stable_audio_component=stable_audio_component
             )
 
             audio_segments_with_order.append((original_idx, segment_audio))
@@ -1471,8 +1193,7 @@ Back to the main narrator voice for the conclusion.""",
                 stateless_model = self._streaming_model_manager.get_stateless_model_for_language(language)
                 if stateless_model:
                     # Process text for generation
-                    # processed_text = self._pad_short_text_for_chatterbox(segment_text, inputs.get("crash_protection_template", "hmm ,, {seg} hmm ,,"))  # DISABLED FOR TESTING
-                    processed_text = segment_text  # Direct text without crash protection
+                    processed_text = self._pad_short_text_for_chatterbox(segment_text, inputs.get("crash_protection_template", "hmm ,, {seg} hmm ,,"))
                     
                     # Add caching logic like SRT streaming does
                     enable_cache = inputs.get("enable_audio_cache", True)
@@ -1482,15 +1203,14 @@ Back to the main narrator voice for the conclusion.""",
                     if enable_cache:
                         from utils.audio.cache import create_cache_function
                         cache_fn = create_cache_function(
-                            "chatterbox_official_23lang",
-                            character=inputs["character"],
+                            "chatterbox",
+                            character=character,
                             exaggeration=inputs.get("exaggeration", 0.5),
                             temperature=inputs.get("temperature", 0.8),
                             cfg_weight=inputs.get("cfg_weight", 0.5),
                             seed=inputs.get("seed", 42),
                             audio_component=self._generate_stable_audio_component(inputs.get("reference_audio"), voice_path),
                             model_source="streaming_stateless",
-                            model_version=inputs.get("model_version", "v1"),
                             device="auto",
                             language=language
                         )
@@ -1528,18 +1248,18 @@ Back to the main narrator voice for the conclusion.""",
             # Directly call the pause-aware generation method
             segment_audio = self._generate_tts_with_pause_tags(
                 segment_text, voice_path, inputs.get("exaggeration", 0.5),
-                inputs.get("temperature", 0.8), inputs.get("cfg_weight", 0.5),
-                inputs.get("repetition_penalty", 1.2), inputs.get("min_p", 0.05), inputs.get("top_p", 1.0),
-                language, True, character=inputs["character"], seed=inputs.get("seed", 42),
+                inputs.get("temperature", 0.8), inputs.get("cfg_weight", 0.5), language,
+                True, character=character, seed=inputs.get("seed", 42),
                 enable_cache=inputs.get("enable_audio_cache", True),
                 crash_protection_template=inputs.get("crash_protection_template", "hmm ,, {seg} hmm ,,"),
-                stable_audio_component=stable_audio_component,
-                model_version=inputs.get("model_version", "v1")
+                stable_audio_component=stable_audio_component
             )
             return segment_audio
             
         except Exception as e:
+            import traceback
             print(f"❌ Streaming segment failed: {e}")
+            print(f"   Traceback: {traceback.format_exc()}")
             # Return silence instead of crashing
             if hasattr(self, 'tts_model') and self.tts_model:
                 sr = self.tts_model.sr
@@ -1549,7 +1269,7 @@ Back to the main narrator voice for the conclusion.""",
 
     def _preload_language_models(self, language_codes, device):
         """Pre-load all required language models for streaming to prevent worker conflicts."""
-        from engines.chatterbox_official_23lang.streaming_model_manager import StreamingModelManager
+        from engines.chatterbox.streaming_model_manager import StreamingModelManager
         
         # Create streaming model manager if not exists
         if not hasattr(self, '_streaming_model_manager'):

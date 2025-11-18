@@ -18,8 +18,6 @@ import os
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint
-from einops import rearrange
-
 
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.loaders import UNet2DConditionLoadersMixin
@@ -37,9 +35,8 @@ from diffusers.models.embeddings import (
     TimestepEmbedding,
     Timesteps,
 )
-from diffusers.models.lora import LoRALinearLayer
-
-from diffusers.models.modeling_utils import ModelMixin, load_state_dict, _load_state_dict_into_model
+from diffusers.models.modeling_utils import ModelMixin
+from diffusers.models.model_loading_utils import load_state_dict, _load_state_dict_into_model
 from diffusers.models.unets.unet_2d_blocks import (
     CrossAttnDownBlock2D,
     CrossAttnUpBlock2D,
@@ -48,17 +45,22 @@ from diffusers.models.unets.unet_2d_blocks import (
     UNetMidBlock2DSimpleCrossAttn,
     UpBlock2D,
 )
-from huggingface_hub.constants import HF_HUB_CACHE, HF_HUB_OFFLINE
 from diffusers.utils import (
+    CONFIG_NAME,
+    FLAX_WEIGHTS_NAME,
     SAFETENSORS_WEIGHTS_NAME,
     WEIGHTS_NAME,
     _add_variant,
     _get_model_file,
     deprecate,
-    is_accelerate_available,
     is_torch_version,
     logging,
 )
+from diffusers.utils.import_utils import is_accelerate_available 
+from diffusers.utils.hub_utils import HF_HUB_OFFLINE
+from huggingface_hub.constants import HUGGINGFACE_HUB_CACHE
+DIFFUSERS_CACHE = HUGGINGFACE_HUB_CACHE
+
 from diffusers import __version__
 from .unet_mv2d_blocks import (
     CrossAttnDownBlockMV2D,
@@ -67,16 +69,16 @@ from .unet_mv2d_blocks import (
     get_down_block,
     get_up_block,
 )
-from diffusers.models.attention_processor import Attention, AttnProcessor
-from diffusers.utils.import_utils import is_xformers_available
-from .transformer_mv2d import XFormersMVAttnProcessor, MVAttnProcessor
-from .refunet import ReferenceOnlyAttnProc
+from einops import rearrange, repeat
+
+from diffusers import __version__
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 @dataclass
-class UNetMV2DRefOutput(BaseOutput):
+class UNetMV2DConditionOutput(BaseOutput):
     """
     The output of [`UNet2DConditionModel`].
 
@@ -87,56 +89,72 @@ class UNetMV2DRefOutput(BaseOutput):
 
     sample: torch.FloatTensor = None
 
-class Identity(torch.nn.Module):
-    r"""A placeholder identity operator that is argument-insensitive.
 
-    Args:
-        args: any argument (unused)
-        kwargs: any keyword argument (unused)
+class ResidualBlock(nn.Module):
+    def __init__(self, dim):
+        super(ResidualBlock, self).__init__()
+        self.linear1 = nn.Linear(dim, dim)
+        self.activation = nn.SiLU()
+        self.linear2 = nn.Linear(dim, dim)
 
-    Shape:
-        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
-        - Output: :math:`(*)`, same shape as the input.
+    def forward(self, x):
+        identity = x
+        out = self.linear1(x)
+        out = self.activation(out)
+        out = self.linear2(out)
+        out += identity  
+        out = self.activation(out)
+        return out
+    
+class ResidualLiner(nn.Module):
+    def __init__(self, in_features, out_features, dim, act=None, num_block=1):
+        super(ResidualLiner, self).__init__()
+        self.linear_in = nn.Sequential(nn.Linear(in_features, dim), nn.SiLU())
+        
+        blocks = nn.ModuleList()
+        for _ in range(num_block):
+            blocks.append(ResidualBlock(dim))
+        self.blocks = blocks    
+        
+        self.linear_out = nn.Linear(dim, out_features)
+        self.act = act
 
-    Examples::
+    def forward(self, x):
+        out = self.linear_in(x)
+        for block in self.blocks:
+            out = block(out)
+        out = self.linear_out(out)
+        if self.act is not None:
+            out = self.act(out)
+        return out
 
-        >>> m = nn.Identity(54, unused_argument1=0.1, unused_argument2=False)
-        >>> input = torch.randn(128, 20)
-        >>> output = m(input)
-        >>> print(output.size())
-        torch.Size([128, 20])
+class BasicConvBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, stride=1):
+        super(BasicConvBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.norm1 = nn.GroupNorm(num_groups=8, num_channels=in_channels,  affine=True)
+        self.act = nn.SiLU()
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
+        self.norm2 = nn.GroupNorm(num_groups=8, num_channels=in_channels,  affine=True)
+        self.downsample = nn.Sequential()
+        if stride != 1 or in_channels != out_channels:
+            self.downsample = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
+                nn.GroupNorm(num_groups=8, num_channels=in_channels,  affine=True)
+            )
 
-    """
-    def __init__(self, scale=None, *args, **kwargs) -> None:
-        super(Identity, self).__init__()
+    def forward(self, x):
+        identity = x
+        out = self.conv1(x)
+        out = self.norm1(out)
+        out = self.act(out)
+        out = self.conv2(out)
+        out = self.norm2(out)
+        out += self.downsample(identity)
+        out = self.act(out)
+        return out
 
-    def forward(self, input, *args, **kwargs):
-        return input
-
-
-
-class _LoRACompatibleLinear(nn.Module):
-    """
-    A Linear layer that can be used with LoRA.
-    """
-
-    def __init__(self, *args, lora_layer: Optional[LoRALinearLayer] = None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.lora_layer = lora_layer
-
-    def set_lora_layer(self, lora_layer: Optional[LoRALinearLayer]):
-        self.lora_layer = lora_layer
-
-    def _fuse_lora(self):
-        pass
-
-    def _unfuse_lora(self):
-        pass
-
-    def forward(self, hidden_states, scale=None, lora_scale: int = 1):
-        return hidden_states
-
-class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
+class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
     r"""
     A conditional 2D UNet model that takes a noisy sample, conditional state, and a timestep and returns a sample
     shaped output.
@@ -275,24 +293,30 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         conv_in_kernel: int = 3,
         conv_out_kernel: int = 3,
         projection_class_embeddings_input_dim: Optional[int] = None,
+        projection_camera_embeddings_input_dim: Optional[int] = None,
         class_embeddings_concat: bool = False,
         mid_block_only_cross_attention: Optional[bool] = None,
         cross_attention_norm: Optional[str] = None,
         addition_embed_type_num_heads=64,
         num_views: int = 1,
-        joint_attention: bool = False,
-        joint_attention_twice: bool = False,
+        cd_attention_last: bool = False,
+        cd_attention_mid: bool = False,
         multiview_attention: bool = True,
-        cross_domain_attention: bool = False,
-        camera_input_dim: int = 12,
-        camera_hidden_dim: int = 320,
-        camera_output_dim: int = 1280,
-        
+        sparse_mv_attention: bool = False,
+        selfattn_block: str = "custom",
+        mvcd_attention: bool = False,
+        regress_elevation: bool = False,
+        regress_focal_length: bool = False,
+        num_regress_blocks: int = 4,
+        use_dino: bool = False,
+        addition_downsample: bool = False,
+        addition_channels: Optional[Tuple[int]] = (1280, 1280, 1280),
     ):
         super().__init__()
 
         self.sample_size = sample_size
-
+        self.num_views = num_views
+        self.mvcd_attention = mvcd_attention
         if num_attention_heads is not None:
             raise ValueError(
                 "At the moment it is not possible to define the number of attention heads via `num_attention_heads` because of a naming issue as described in https://github.com/huggingface/diffusers/issues/2011#issuecomment-1547958131. Passing `num_attention_heads` will only be supported in diffusers v0.19."
@@ -471,12 +495,6 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         else:
             self.time_embed_act = get_activation(time_embedding_act_fn)
 
-        self.camera_embedding = nn.Sequential(
-            nn.Linear(camera_input_dim, time_embed_dim),
-            nn.SiLU(),
-            nn.Linear(time_embed_dim, time_embed_dim),
-        )
-
         self.down_blocks = nn.ModuleList([])
         self.up_blocks = nn.ModuleList([])
 
@@ -543,10 +561,13 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                 cross_attention_norm=cross_attention_norm,
                 attention_head_dim=attention_head_dim[i] if attention_head_dim[i] is not None else output_channel,
                 num_views=num_views,
-                joint_attention=joint_attention,
-                joint_attention_twice=joint_attention_twice,
+                cd_attention_last=cd_attention_last,
+                cd_attention_mid=cd_attention_mid,
                 multiview_attention=multiview_attention,
-                cross_domain_attention=cross_domain_attention
+                sparse_mv_attention=sparse_mv_attention,
+                selfattn_block=selfattn_block,
+                mvcd_attention=mvcd_attention,
+                use_dino=use_dino
             )
             self.down_blocks.append(down_block)
 
@@ -584,10 +605,13 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                 use_linear_projection=use_linear_projection,
                 upcast_attention=upcast_attention,
                 num_views=num_views,
-                joint_attention=joint_attention,
-                joint_attention_twice=joint_attention_twice,
+                cd_attention_last=cd_attention_last,
+                cd_attention_mid=cd_attention_mid,
                 multiview_attention=multiview_attention,
-                cross_domain_attention=cross_domain_attention
+                sparse_mv_attention=sparse_mv_attention,
+                selfattn_block=selfattn_block,
+                mvcd_attention=mvcd_attention,
+                use_dino=use_dino
             )
         elif mid_block_type == "UNetMidBlock2DSimpleCrossAttn":
             self.mid_block = UNetMidBlock2DSimpleCrossAttn(
@@ -608,7 +632,61 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             self.mid_block = None
         else:
             raise ValueError(f"unknown mid_block_type : {mid_block_type}")
-
+        
+        self.addition_downsample = addition_downsample
+        if self.addition_downsample:
+            inc = block_out_channels[-1]
+            self.downsample = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            self.conv_block = nn.ModuleList()
+            self.conv_block.append(BasicConvBlock(inc, addition_channels[0], stride=1)) 
+            for dim_ in addition_channels[1:-1]:  
+                self.conv_block.append(BasicConvBlock(dim_, dim_, stride=1))    
+            self.conv_block.append(BasicConvBlock(dim_, inc))
+            self.addition_conv_out = nn.Conv2d(inc, inc, kernel_size=1, bias=False)
+            nn.init.zeros_(self.addition_conv_out.weight.data)
+            self.addition_act_out = nn.SiLU()
+            self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+                
+        self.regress_elevation = regress_elevation
+        self.regress_focal_length = regress_focal_length
+        if regress_elevation or regress_focal_length:
+            self.pool = nn.AdaptiveAvgPool2d((1, 1))
+            self.camera_embedding = TimestepEmbedding(projection_camera_embeddings_input_dim, time_embed_dim=time_embed_dim) 
+        
+        regress_in_dim = block_out_channels[-1]*2 if mvcd_attention else block_out_channels
+            
+        if regress_elevation:
+            self.elevation_regressor = ResidualLiner(regress_in_dim, 1, 1280, act=None, num_block=num_regress_blocks)
+        if regress_focal_length:
+            self.focal_regressor = ResidualLiner(regress_in_dim, 1, 1280, act=None, num_block=num_regress_blocks)
+        '''
+        self.regress_elevation = regress_elevation
+        self.regress_focal_length = regress_focal_length
+        if regress_elevation and (not regress_focal_length):
+            print("Regressing elevation")
+            cam_dim = 1
+        elif regress_focal_length and (not regress_elevation):
+            print("Regressing focal length")
+            cam_dim = 6
+        elif regress_elevation and regress_focal_length:
+            print("Regressing both elevation and focal length")
+            cam_dim = 7
+        else:
+            cam_dim = 0
+        assert projection_camera_embeddings_input_dim == 2*cam_dim, "projection_camera_embeddings_input_dim should be 2*cam_dim"
+        if regress_elevation or regress_focal_length:
+            self.elevation_regressor = nn.ModuleList([
+                nn.Linear(block_out_channels[-1], 1280),
+                nn.SiLU(),
+                nn.Linear(1280, 1280),
+                nn.SiLU(),
+                nn.Linear(1280, cam_dim)
+            ])
+            self.pool = nn.AdaptiveAvgPool2d((1, 1))
+            self.focal_act = nn.Softmax(dim=-1)
+            self.camera_embedding = TimestepEmbedding(projection_camera_embeddings_input_dim, time_embed_dim=time_embed_dim) 
+        '''
+          
         # count how many layers upsample the images
         self.num_upsamplers = 0
 
@@ -659,40 +737,33 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                 cross_attention_norm=cross_attention_norm,
                 attention_head_dim=attention_head_dim[i] if attention_head_dim[i] is not None else output_channel,
                 num_views=num_views,
-                joint_attention=joint_attention,
-                joint_attention_twice=joint_attention_twice,
+                cd_attention_last=cd_attention_last,
+                cd_attention_mid=cd_attention_mid,
                 multiview_attention=multiview_attention,
-                cross_domain_attention=cross_domain_attention
+                sparse_mv_attention=sparse_mv_attention,
+                selfattn_block=selfattn_block,
+                mvcd_attention=mvcd_attention,
+                use_dino=use_dino
             )
             self.up_blocks.append(up_block)
             prev_output_channel = output_channel
 
         # out
-        # if norm_num_groups is not None:
-        #     self.conv_norm_out = nn.GroupNorm(
-        #         num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
-        #     )
+        if norm_num_groups is not None:
+            self.conv_norm_out = nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
+            )
 
-        #     self.conv_act = get_activation(act_fn)
+            self.conv_act = get_activation(act_fn)
 
-        # else:
-        #     self.conv_norm_out = None
-        #     self.conv_act = None
+        else:
+            self.conv_norm_out = None
+            self.conv_act = None
 
-        # conv_out_padding = (conv_out_kernel - 1) // 2
-        # self.conv_out = nn.Conv2d(
-        #     block_out_channels[0], out_channels, kernel_size=conv_out_kernel, padding=conv_out_padding
-        # )
-
-        self.up_blocks[3].attentions[2].transformer_blocks[0].attn1.to_q = _LoRACompatibleLinear()
-        self.up_blocks[3].attentions[2].transformer_blocks[0].attn1.to_k = _LoRACompatibleLinear()
-        self.up_blocks[3].attentions[2].transformer_blocks[0].attn1.to_v = _LoRACompatibleLinear()
-        self.up_blocks[3].attentions[2].transformer_blocks[0].attn1.to_out = nn.ModuleList([Identity(), Identity()])
-        self.up_blocks[3].attentions[2].transformer_blocks[0].norm2 = Identity()
-        self.up_blocks[3].attentions[2].transformer_blocks[0].attn2 = None
-        self.up_blocks[3].attentions[2].transformer_blocks[0].norm3 = Identity()
-        self.up_blocks[3].attentions[2].transformer_blocks[0].ff = Identity()
-        self.up_blocks[3].attentions[2].proj_out = Identity()
+        conv_out_padding = (conv_out_kernel - 1) // 2
+        self.conv_out = nn.Conv2d(
+            block_out_channels[0], out_channels, kernel_size=conv_out_kernel, padding=conv_out_padding
+        )
 
     @property
     def attn_processors(self) -> Dict[str, AttentionProcessor]:
@@ -832,7 +903,6 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         sample: torch.FloatTensor,
         timestep: Union[torch.Tensor, float, int],
         encoder_hidden_states: torch.Tensor,
-        camera_matrixs: Optional[torch.Tensor] = None,
         class_labels: Optional[torch.Tensor] = None,
         timestep_cond: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
@@ -841,8 +911,10 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         down_block_additional_residuals: Optional[Tuple[torch.Tensor]] = None,
         mid_block_additional_residual: Optional[torch.Tensor] = None,
         encoder_attention_mask: Optional[torch.Tensor] = None,
+        dino_feature: Optional[torch.Tensor] = None,
         return_dict: bool = True,
-    ) -> Union[UNetMV2DRefOutput, Tuple]:
+        vis_max_min: bool = False,
+    ) -> Union[UNetMV2DConditionOutput, Tuple]:
         r"""
         The [`UNet2DConditionModel`] forward method.
 
@@ -870,6 +942,7 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                 If `return_dict` is True, an [`~models.unet_2d_condition.UNet2DConditionOutput`] is returned, otherwise
                 a `tuple` is returned where the first element is the sample tensor.
         """
+        record_max_min = {}
         # By default samples have to be AT least a multiple of the overall upsampling factor.
         # The overall upsampling factor is equal to 2 ** (# num of upsampling layers).
         # However, the upsampling interpolation output size can be forced to fit any upsampling size
@@ -908,7 +981,6 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         # 0. center input if necessary
         if self.config.center_input_sample:
             sample = 2 * sample - 1.0
-
         # 1. time
         timesteps = timestep
         if not torch.is_tensor(timesteps):
@@ -932,21 +1004,10 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         # but time_embedding might actually be running in fp16. so we need to cast here.
         # there might be better ways to encapsulate this.
         t_emb = t_emb.to(dtype=sample.dtype)
+
         emb = self.time_embedding(t_emb, timestep_cond)
-        
-        # import pdb; pdb.set_trace()
-        if camera_matrixs is not None:
-            emb = torch.unsqueeze(emb, 1)
-            # came emb
-            cam_emb = self.camera_embedding(camera_matrixs)
-            # cam_emb = self.camera_embedding_2(cam_emb)
-            emb = emb.repeat(1,cam_emb.shape[1],1) #torch.Size([32, 4, 1280])
-            emb = emb + cam_emb
-            emb = rearrange(emb, "b f c -> (b f) c", f=emb.shape[1])
-
         aug_emb = None
-
-        if self.class_embedding is not None and class_labels is not None:
+        if self.class_embedding is not None:
             if class_labels is None:
                 raise ValueError("class_labels should be provided when num_class_embeds > 0")
 
@@ -958,7 +1019,6 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                 class_labels = class_labels.to(dtype=sample.dtype)
 
             class_emb = self.class_embedding(class_labels).to(dtype=sample.dtype)
-
             if self.config.class_embeddings_concat:
                 emb = torch.cat([emb, class_emb], dim=-1)
             else:
@@ -1014,7 +1074,7 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             sample = torch.cat([sample, hint], dim=1)
 
         emb = emb + aug_emb if aug_emb is not None else emb
-
+        emb_pre_act = emb
         if self.time_embed_act is not None:
             emb = self.time_embed_act(emb)
 
@@ -1038,7 +1098,6 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             image_embeds = added_cond_kwargs.get("image_embeds")
             encoder_hidden_states = self.encoder_hid_proj(image_embeds)
         # 2. pre-process
-        sample = rearrange(sample, "b c f h w -> (b f) c h w", f=sample.shape[2])
         sample = self.conv_in(sample)
         # 3. down
 
@@ -1046,7 +1105,7 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         is_adapter = mid_block_additional_residual is None and down_block_additional_residuals is not None
 
         down_block_res_samples = (sample,)
-        for downsample_block in self.down_blocks:
+        for i, downsample_block in enumerate(self.down_blocks):
             if hasattr(downsample_block, "has_cross_attention") and downsample_block.has_cross_attention:
                 # For t2i-adapter CrossAttnDownBlock2D
                 additional_residuals = {}
@@ -1057,6 +1116,7 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                     hidden_states=sample,
                     temb=emb,
                     encoder_hidden_states=encoder_hidden_states,
+                    dino_feature=dino_feature,
                     attention_mask=attention_mask,
                     cross_attention_kwargs=cross_attention_kwargs,
                     encoder_attention_mask=encoder_attention_mask,
@@ -1080,23 +1140,65 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                 new_down_block_res_samples = new_down_block_res_samples + (down_block_res_sample,)
 
             down_block_res_samples = new_down_block_res_samples
-        # print("after down: ", sample.mean(), emb.mean())
 
+        if self.addition_downsample:
+            global_sample = sample
+            global_sample = self.downsample(global_sample)
+            for layer in self.conv_block:
+                global_sample = layer(global_sample)
+            global_sample = self.addition_act_out(self.addition_conv_out(global_sample))
+            global_sample = self.upsample(global_sample)
         # 4. mid
         if self.mid_block is not None:
             sample = self.mid_block(
                 sample,
                 emb,
                 encoder_hidden_states=encoder_hidden_states,
+                dino_feature=dino_feature,
                 attention_mask=attention_mask,
                 cross_attention_kwargs=cross_attention_kwargs,
                 encoder_attention_mask=encoder_attention_mask,
-            )
+            )        
+        # 4.1 regress elevation and focal length
+        # # predict elevation -> embed -> projection -> add to time emb
+        if self.regress_elevation or self.regress_focal_length:
+            pool_embeds = self.pool(sample.detach()).squeeze(-1).squeeze(-1) # (2B, C)
+            if self.mvcd_attention:
+                pool_embeds_normal, pool_embeds_color = torch.chunk(pool_embeds, 2, dim=0)
+                pool_embeds = torch.cat([pool_embeds_normal, pool_embeds_color], dim=-1) # (B, 2C)
+            pose_pred = []
+            if self.regress_elevation:
+                ele_pred = self.elevation_regressor(pool_embeds)
+                ele_pred = rearrange(ele_pred, '(b v) c -> b v c', v=self.num_views)
+                ele_pred = torch.mean(ele_pred, dim=1)
+                pose_pred.append(ele_pred) # b, c
+            
+            if self.regress_focal_length:
+                focal_pred = self.focal_regressor(pool_embeds)
+                focal_pred = rearrange(focal_pred, '(b v) c -> b v c', v=self.num_views)
+                focal_pred = torch.mean(focal_pred, dim=1)
+                pose_pred.append(focal_pred)
+            pose_pred = torch.cat(pose_pred, dim=-1)
+            # 'e_de_da_sincos', (B, 2)
+            pose_embeds = torch.cat([
+                torch.sin(pose_pred),
+                torch.cos(pose_pred)
+            ], dim=-1)
+            pose_embeds = self.camera_embedding(pose_embeds)
+            pose_embeds = torch.repeat_interleave(pose_embeds, self.num_views, 0) 
+            if self.mvcd_attention:
+                pose_embeds = torch.cat([pose_embeds,] * 2, dim=0)
 
+            emb = pose_embeds + emb_pre_act
+            if self.time_embed_act is not None:
+                emb = self.time_embed_act(emb)
+            
         if is_controlnet:
             sample = sample + mid_block_additional_residual
 
-        # print("after mid: ", sample.mean())
+        if self.addition_downsample:
+            sample = sample + global_sample
+            
         # 5. up
         for i, upsample_block in enumerate(self.up_blocks):
             is_final_block = i == len(self.up_blocks) - 1
@@ -1115,6 +1217,7 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                     temb=emb,
                     res_hidden_states_tuple=res_samples,
                     encoder_hidden_states=encoder_hidden_states,
+                    dino_feature=dino_feature,
                     cross_attention_kwargs=cross_attention_kwargs,
                     upsample_size=upsample_size,
                     attention_mask=attention_mask,
@@ -1124,27 +1227,33 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                 sample = upsample_block(
                     hidden_states=sample, temb=emb, res_hidden_states_tuple=res_samples, upsample_size=upsample_size
                 )
-
+        if torch.isnan(sample).any() or torch.isinf(sample).any():
+            print("NAN in sample, stop training.")
+            exit() 
         # 6. post-process
-        # if self.conv_norm_out:
-        #     sample = self.conv_norm_out(sample)
-        #     sample = self.conv_act(sample)
-        # sample = self.conv_out(sample)
-
+        if self.conv_norm_out:
+            sample = self.conv_norm_out(sample)
+            sample = self.conv_act(sample)
+        sample = self.conv_out(sample)
         if not return_dict:
-            return (sample,)
+            return (sample, pose_pred)
+        if self.regress_elevation or self.regress_focal_length:
+            return UNetMV2DConditionOutput(sample=sample), pose_pred
+        else:
+            return UNetMV2DConditionOutput(sample=sample)
 
-        return UNetMV2DRefOutput(sample=sample)
-
+        
     @classmethod
     def from_pretrained_2d(
             cls, pretrained_model_name_or_path: Optional[Union[str, os.PathLike]],
             camera_embedding_type: str, num_views: int, sample_size: int,
             zero_init_conv_in: bool = True, zero_init_camera_projection: bool = False,
-            projection_class_embeddings_input_dim: int=6, joint_attention: bool = False, 
-            joint_attention_twice: bool = False, multiview_attention: bool = True,
-            cross_domain_attention: bool = False,
-            in_channels: int = 8, out_channels: int = 4, local_crossattn=False,
+            projection_camera_embeddings_input_dim: int=2,  
+            cd_attention_last: bool = False, num_regress_blocks: int = 4,
+            cd_attention_mid: bool = False, multiview_attention: bool = True, 
+            sparse_mv_attention: bool = False, selfattn_block: str = 'custom', mvcd_attention: bool = False,
+            in_channels: int = 8, out_channels: int = 4, unclip: bool = False, regress_elevation: bool = False, regress_focal_length: bool = False, 
+            init_mvattn_with_selfattn: bool= False, use_dino: bool = False, addition_downsample: bool = False,
             **kwargs
         ):
         r"""
@@ -1251,7 +1360,7 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
         ```
         """
-        cache_dir = kwargs.pop("cache_dir", HF_HUB_CACHE)
+        cache_dir = kwargs.pop("cache_dir", DIFFUSERS_CACHE)
         ignore_mismatched_sizes = kwargs.pop("ignore_mismatched_sizes", False)
         force_download = kwargs.pop("force_download", False)
         from_flax = kwargs.pop("from_flax", False)
@@ -1270,15 +1379,14 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         variant = kwargs.pop("variant", None)
         use_safetensors = kwargs.pop("use_safetensors", None)
 
-        # if use_safetensors and not is_safetensors_available():
-        #     raise ValueError(
-        #         "`use_safetensors`=True but safetensors is not installed. Please install safetensors with `pip install safetensors"
-        #     )
+        if use_safetensors:
+            raise ValueError(
+                "`use_safetensors`=True but safetensors is not installed. Please install safetensors with `pip install safetensors"
+            )
 
         allow_pickle = False
         if use_safetensors is None:
-            # use_safetensors = is_safetensors_available()
-            use_safetensors = False
+            use_safetensors = True
             allow_pickle = True
 
         if device_map is not None and not is_accelerate_available():
@@ -1330,10 +1438,12 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         config['out_channels'] = out_channels
         config['sample_size'] = sample_size # training resolution
         config['num_views'] = num_views
-        config['joint_attention'] = joint_attention
-        config['joint_attention_twice'] = joint_attention_twice
+        config['cd_attention_last'] = cd_attention_last
+        config['cd_attention_mid'] = cd_attention_mid
         config['multiview_attention'] = multiview_attention
-        config['cross_domain_attention'] = cross_domain_attention
+        config['sparse_mv_attention'] = sparse_mv_attention
+        config['selfattn_block'] = selfattn_block
+        config['mvcd_attention'] = mvcd_attention
         config["down_block_types"] = [
             "CrossAttnDownBlockMV2D",
             "CrossAttnDownBlockMV2D",
@@ -1346,13 +1456,15 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             "CrossAttnUpBlockMV2D",
             "CrossAttnUpBlockMV2D",
             "CrossAttnUpBlockMV2D"
-        ]        
-        config['class_embed_type'] = 'projection'
-        if camera_embedding_type == 'e_de_da_sincos':
-            config['projection_class_embeddings_input_dim'] = projection_class_embeddings_input_dim # default 6
-        else:
-            raise NotImplementedError
+        ]
+        
 
+        config['regress_elevation'] = regress_elevation # true
+        config['regress_focal_length'] = regress_focal_length # true
+        config['projection_camera_embeddings_input_dim'] = projection_camera_embeddings_input_dim # 2 for elevation and 10 for focal_length  
+        config['use_dino'] = use_dino 
+        config['num_regress_blocks'] = num_regress_blocks
+        config['addition_downsample'] = addition_downsample
         # load model
         model_file = None
         if from_flax:
@@ -1395,22 +1507,24 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                 )
 
             model = cls.from_config(config, **unused_kwargs)
-            if local_crossattn:
-                unet_lora_attn_procs = dict()
-                for name, _ in model.attn_processors.items():
-                    if not name.endswith("attn1.processor"):
-                        default_attn_proc = AttnProcessor()
-                    elif is_xformers_available():
-                        default_attn_proc = XFormersMVAttnProcessor()
-                    else:
-                        default_attn_proc = MVAttnProcessor()
-                    unet_lora_attn_procs[name] = ReferenceOnlyAttnProc(
-                        default_attn_proc, enabled=name.endswith("attn1.processor"), name=name
-                    )
-                model.set_attn_processor(unet_lora_attn_procs)
-            # state_dict = load_state_dict(model_file, variant=variant)
+            import copy
+            # state_dict_pretrain = load_state_dict(model_file, variant=variant)
             state_dict = load_state_dict(model_file)
-            # model._convert_deprecated_attention_blocks(state_dict)
+            state_dict = copy.deepcopy(state_dict_pretrain)
+            
+            if init_mvattn_with_selfattn:
+                for key in state_dict_pretrain:
+                    if 'attn1' in key:
+                        key_mv = key.replace('attn1', 'attn_mv')
+                        state_dict[key_mv] = state_dict_pretrain[key]
+                        if 'to_out.0.weight' in key:
+                            nn.init.zeros_(state_dict[key_mv].data)
+                    if 'transformer_blocks' in key and 'norm1' in key: # in case that initialize the norm layer in resnet block
+                        key_mv = key.replace('norm1', 'norm_mv')
+                        state_dict[key_mv] = state_dict_pretrain[key]
+            # del state_dict_pretrain
+            
+            model._convert_deprecated_attention_blocks(state_dict)
 
             conv_in_weight = state_dict['conv_in.weight']
             conv_out_weight = state_dict['conv_out.weight']
@@ -1434,10 +1548,10 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
                 model.conv_out.weight.data[:,:4] = conv_out_weight
                 if out_channels == 8: # copy for the last 4 channels
                     model.conv_out.weight.data[:, 4:] = conv_out_weight
-            
-            if zero_init_camera_projection:
-                for p in model.class_embedding.parameters():
-                    torch.nn.init.zeros_(p)
+
+            if zero_init_camera_projection: # true
+                params = [p for p in model.camera_embedding.parameters()]
+                torch.nn.init.zeros_(params[-1].data)
 
             loading_info = {
                 "missing_keys": missing_keys,
@@ -1459,7 +1573,6 @@ class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         model.eval()
         if output_loading_info:
             return model, loading_info
-
         return model
 
     @classmethod

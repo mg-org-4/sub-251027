@@ -18,6 +18,8 @@ import os
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint
+from einops import rearrange
+
 
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.loaders import UNet2DConditionLoadersMixin
@@ -35,7 +37,8 @@ from diffusers.models.embeddings import (
     TimestepEmbedding,
     Timesteps,
 )
-from diffusers.models.modeling_utils import ModelMixin, load_state_dict, _load_state_dict_into_model
+from diffusers.models.modeling_utils import ModelMixin
+from diffusers.models.model_loading_utils import load_state_dict, _load_state_dict_into_model
 from diffusers.models.unets.unet_2d_blocks import (
     CrossAttnDownBlock2D,
     CrossAttnUpBlock2D,
@@ -44,10 +47,8 @@ from diffusers.models.unets.unet_2d_blocks import (
     UNetMidBlock2DSimpleCrossAttn,
     UpBlock2D,
 )
-from huggingface_hub.constants import HF_HUB_OFFLINE, HUGGINGFACE_HUB_CACHE
+from huggingface_hub.constants import HF_HUB_CACHE, HF_HUB_OFFLINE
 from diffusers.utils import (
-    CONFIG_NAME,
-    FLAX_WEIGHTS_NAME,
     SAFETENSORS_WEIGHTS_NAME,
     WEIGHTS_NAME,
     _add_variant,
@@ -65,7 +66,10 @@ from .unet_mv2d_blocks import (
     get_down_block,
     get_up_block,
 )
-
+from diffusers.models.attention_processor import Attention, AttnProcessor
+from diffusers.utils.import_utils import is_xformers_available
+from .transformer_mv2d import XFormersMVAttnProcessor, MVAttnProcessor
+from .refunet import ReferenceOnlyAttnProc
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -81,7 +85,6 @@ class UNetMV2DConditionOutput(BaseOutput):
     """
 
     sample: torch.FloatTensor = None
-
 
 class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
     r"""
@@ -227,11 +230,14 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
         cross_attention_norm: Optional[str] = None,
         addition_embed_type_num_heads=64,
         num_views: int = 1,
-        cd_attention_last: bool = False,
-        cd_attention_mid: bool = False,
+        joint_attention: bool = False,
+        joint_attention_twice: bool = False,
         multiview_attention: bool = True,
-        sparse_mv_attention: bool = False,
-        mvcd_attention: bool = False
+        cross_domain_attention: bool = False,
+        camera_input_dim: int = 12,
+        camera_hidden_dim: int = 320,
+        camera_output_dim: int = 1280,
+
     ):
         super().__init__()
 
@@ -415,6 +421,12 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
         else:
             self.time_embed_act = get_activation(time_embedding_act_fn)
 
+        self.camera_embedding = nn.Sequential(
+            nn.Linear(camera_input_dim, time_embed_dim),
+            nn.SiLU(),
+            nn.Linear(time_embed_dim, time_embed_dim),
+        )
+
         self.down_blocks = nn.ModuleList([])
         self.up_blocks = nn.ModuleList([])
 
@@ -481,11 +493,10 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
                 cross_attention_norm=cross_attention_norm,
                 attention_head_dim=attention_head_dim[i] if attention_head_dim[i] is not None else output_channel,
                 num_views=num_views,
-                cd_attention_last=cd_attention_last,
-                cd_attention_mid=cd_attention_mid,
+                joint_attention=joint_attention,
+                joint_attention_twice=joint_attention_twice,
                 multiview_attention=multiview_attention,
-                sparse_mv_attention=sparse_mv_attention,
-                mvcd_attention=mvcd_attention
+                cross_domain_attention=cross_domain_attention
             )
             self.down_blocks.append(down_block)
 
@@ -523,11 +534,10 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
                 use_linear_projection=use_linear_projection,
                 upcast_attention=upcast_attention,
                 num_views=num_views,
-                cd_attention_last=cd_attention_last,
-                cd_attention_mid=cd_attention_mid,
+                joint_attention=joint_attention,
+                joint_attention_twice=joint_attention_twice,
                 multiview_attention=multiview_attention,
-                sparse_mv_attention=sparse_mv_attention,
-                mvcd_attention=mvcd_attention
+                cross_domain_attention=cross_domain_attention
             )
         elif mid_block_type == "UNetMidBlock2DSimpleCrossAttn":
             self.mid_block = UNetMidBlock2DSimpleCrossAttn(
@@ -599,11 +609,10 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
                 cross_attention_norm=cross_attention_norm,
                 attention_head_dim=attention_head_dim[i] if attention_head_dim[i] is not None else output_channel,
                 num_views=num_views,
-                cd_attention_last=cd_attention_last,
-                cd_attention_mid=cd_attention_mid,
+                joint_attention=joint_attention,
+                joint_attention_twice=joint_attention_twice,
                 multiview_attention=multiview_attention,
-                sparse_mv_attention=sparse_mv_attention,
-                mvcd_attention=mvcd_attention
+                cross_domain_attention=cross_domain_attention
             )
             self.up_blocks.append(up_block)
             prev_output_channel = output_channel
@@ -754,15 +763,16 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
         for module in self.children():
             fn_recursive_set_attention_slice(module, reversed_slice_size)
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (CrossAttnDownBlock2D, CrossAttnDownBlockMV2D, DownBlock2D, CrossAttnUpBlock2D, CrossAttnUpBlockMV2D, UpBlock2D)):
-            module.gradient_checkpointing = value
+    # def _set_gradient_checkpointing(self, module, value=False):
+    #     if isinstance(module, (CrossAttnDownBlock2D, CrossAttnDownBlockMV2D, DownBlock2D, CrossAttnUpBlock2D, CrossAttnUpBlockMV2D, UpBlock2D)):
+    #         module.gradient_checkpointing = value
 
     def forward(
         self,
         sample: torch.FloatTensor,
         timestep: Union[torch.Tensor, float, int],
         encoder_hidden_states: torch.Tensor,
+        camera_matrixs: Optional[torch.Tensor] = None,
         class_labels: Optional[torch.Tensor] = None,
         timestep_cond: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
@@ -862,11 +872,23 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
         # but time_embedding might actually be running in fp16. so we need to cast here.
         # there might be better ways to encapsulate this.
         t_emb = t_emb.to(dtype=sample.dtype)
-
         emb = self.time_embedding(t_emb, timestep_cond)
+        
+        # import pdb; pdb.set_trace()
+        if camera_matrixs is not None:
+            emb = torch.unsqueeze(emb, 1)
+            # came emb
+            cam_emb = self.camera_embedding(camera_matrixs)
+            # cam_emb = self.camera_embedding_2(cam_emb)
+            # import ipdb
+            # ipdb.set_trace()
+            emb = emb.repeat(1,cam_emb.shape[1],1) #torch.Size([32, 4, 1280])
+            emb = emb + cam_emb
+            emb = rearrange(emb, "b f c -> (b f) c", f=emb.shape[1])
+
         aug_emb = None
 
-        if self.class_embedding is not None:
+        if self.class_embedding is not None and class_labels is not None:
             if class_labels is None:
                 raise ValueError("class_labels should be provided when num_class_embeds > 0")
 
@@ -958,8 +980,8 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
             image_embeds = added_cond_kwargs.get("image_embeds")
             encoder_hidden_states = self.encoder_hid_proj(image_embeds)
         # 2. pre-process
+        sample = rearrange(sample, "b c f h w -> (b f) c h w", f=sample.shape[2])
         sample = self.conv_in(sample)
-
         # 3. down
 
         is_controlnet = mid_block_additional_residual is not None and down_block_additional_residuals is not None
@@ -1000,7 +1022,7 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
                 new_down_block_res_samples = new_down_block_res_samples + (down_block_res_sample,)
 
             down_block_res_samples = new_down_block_res_samples
-
+        # print("after down: ", sample.mean(), emb.mean())
         # 4. mid
         if self.mid_block is not None:
             sample = self.mid_block(
@@ -1059,10 +1081,10 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
             cls, pretrained_model_name_or_path: Optional[Union[str, os.PathLike]],
             camera_embedding_type: str, num_views: int, sample_size: int,
             zero_init_conv_in: bool = True, zero_init_camera_projection: bool = False,
-            projection_class_embeddings_input_dim: int=6, cd_attention_last: bool = False, 
-            cd_attention_mid: bool = False, multiview_attention: bool = True, 
-            sparse_mv_attention: bool = False, mvcd_attention: bool = False,
-            in_channels: int = 8, out_channels: int = 4,
+            projection_class_embeddings_input_dim: int=6, joint_attention: bool = False, 
+            joint_attention_twice: bool = False, multiview_attention: bool = True,
+            cross_domain_attention: bool = False,
+            in_channels: int = 8, out_channels: int = 4, local_crossattn=False,
             **kwargs
         ):
         r"""
@@ -1169,7 +1191,7 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
         You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
         ```
         """
-        cache_dir = kwargs.pop("cache_dir", HUGGINGFACE_HUB_CACHE)
+        cache_dir = kwargs.pop("cache_dir", HF_HUB_CACHE)
         ignore_mismatched_sizes = kwargs.pop("ignore_mismatched_sizes", False)
         force_download = kwargs.pop("force_download", False)
         from_flax = kwargs.pop("from_flax", False)
@@ -1188,9 +1210,15 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
         variant = kwargs.pop("variant", None)
         use_safetensors = kwargs.pop("use_safetensors", None)
 
+        # if use_safetensors and not is_safetensors_available():
+        #     raise ValueError(
+        #         "`use_safetensors`=True but safetensors is not installed. Please install safetensors with `pip install safetensors"
+        #     )
+
         allow_pickle = False
         if use_safetensors is None:
-            use_safetensors = True
+            # use_safetensors = is_safetensors_available()
+            use_safetensors = False
             allow_pickle = True
 
         if device_map is not None and not is_accelerate_available():
@@ -1242,11 +1270,10 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
         config['out_channels'] = out_channels
         config['sample_size'] = sample_size # training resolution
         config['num_views'] = num_views
-        config['cd_attention_last'] = cd_attention_last
-        config['cd_attention_mid'] = cd_attention_mid
+        config['joint_attention'] = joint_attention
+        config['joint_attention_twice'] = joint_attention_twice
         config['multiview_attention'] = multiview_attention
-        config['sparse_mv_attention'] = sparse_mv_attention
-        config['mvcd_attention'] = mvcd_attention
+        config['cross_domain_attention'] = cross_domain_attention
         config["down_block_types"] = [
             "CrossAttnDownBlockMV2D",
             "CrossAttnDownBlockMV2D",
@@ -1308,27 +1335,23 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
                 )
 
             model = cls.from_config(config, **unused_kwargs)
-            import copy
-            # state_dict_v0 = load_state_dict(model_file, variant=variant)
-            state_dict_v0 = load_state_dict(model_file)
-            state_dict = copy.deepcopy(state_dict_v0)
-            # attn_joint -> attn_joint_last; norm_joint -> norm_joint_last
-            # attn_joint_twice -> attn_joint_mid; norm_joint_twice -> norm_joint_mid
-            for key in state_dict_v0:
-                if 'attn_joint.' in key:
-                    tmp = copy.deepcopy(key)
-                    state_dict[key.replace("attn_joint.", "attn_joint_last.")] = state_dict.pop(tmp)
-                if 'norm_joint.' in key:
-                    tmp = copy.deepcopy(key)
-                    state_dict[key.replace("norm_joint.", "norm_joint_last.")] = state_dict.pop(tmp)
-                if 'attn_joint_twice.' in key:
-                    tmp = copy.deepcopy(key)
-                    state_dict[key.replace("attn_joint_twice.", "attn_joint_mid.")] = state_dict.pop(tmp)
-                if 'norm_joint_twice.' in key:
-                    tmp = copy.deepcopy(key)
-                    state_dict[key.replace("norm_joint_twice.", "norm_joint_mid.")] = state_dict.pop(tmp)
-            
-            model._convert_deprecated_attention_blocks(state_dict)
+            if local_crossattn:
+                unet_lora_attn_procs = dict()
+                for name, _ in model.attn_processors.items():
+                    if not name.endswith("attn1.processor"):
+                        default_attn_proc = AttnProcessor()
+                    elif is_xformers_available():
+                        default_attn_proc = XFormersMVAttnProcessor()
+                    else:
+                        default_attn_proc = MVAttnProcessor()
+                    unet_lora_attn_procs[name] = ReferenceOnlyAttnProc(
+                        default_attn_proc, enabled=name.endswith("attn1.processor"), name=name
+                    )
+                model.set_attn_processor(unet_lora_attn_procs)
+            # state_dict = load_state_dict(model_file, variant=variant)
+            state_dict = load_state_dict(model_file)
+
+            # model._convert_deprecated_attention_blocks(state_dict)
 
             conv_in_weight = state_dict['conv_in.weight']
             conv_out_weight = state_dict['conv_out.weight']

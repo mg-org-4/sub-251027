@@ -37,7 +37,10 @@ from diffusers.models.embeddings import (
     TimestepEmbedding,
     Timesteps,
 )
-from diffusers.models.modeling_utils import ModelMixin, load_state_dict, _load_state_dict_into_model
+from diffusers.models.lora import LoRALinearLayer
+
+from diffusers.models.modeling_utils import ModelMixin
+from diffusers.models.model_loading_utils import load_state_dict, _load_state_dict_into_model
 from diffusers.models.unets.unet_2d_blocks import (
     CrossAttnDownBlock2D,
     CrossAttnUpBlock2D,
@@ -74,7 +77,7 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 @dataclass
-class UNetMV2DConditionOutput(BaseOutput):
+class UNetMV2DRefOutput(BaseOutput):
     """
     The output of [`UNet2DConditionModel`].
 
@@ -85,7 +88,56 @@ class UNetMV2DConditionOutput(BaseOutput):
 
     sample: torch.FloatTensor = None
 
-class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
+class Identity(torch.nn.Module):
+    r"""A placeholder identity operator that is argument-insensitive.
+
+    Args:
+        args: any argument (unused)
+        kwargs: any keyword argument (unused)
+
+    Shape:
+        - Input: :math:`(*)`, where :math:`*` means any number of dimensions.
+        - Output: :math:`(*)`, same shape as the input.
+
+    Examples::
+
+        >>> m = nn.Identity(54, unused_argument1=0.1, unused_argument2=False)
+        >>> input = torch.randn(128, 20)
+        >>> output = m(input)
+        >>> print(output.size())
+        torch.Size([128, 20])
+
+    """
+    def __init__(self, scale=None, *args, **kwargs) -> None:
+        super(Identity, self).__init__()
+
+    def forward(self, input, *args, **kwargs):
+        return input
+
+
+
+class _LoRACompatibleLinear(nn.Module):
+    """
+    A Linear layer that can be used with LoRA.
+    """
+
+    def __init__(self, *args, lora_layer: Optional[LoRALinearLayer] = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lora_layer = lora_layer
+
+    def set_lora_layer(self, lora_layer: Optional[LoRALinearLayer]):
+        self.lora_layer = lora_layer
+
+    def _fuse_lora(self):
+        pass
+
+    def _unfuse_lora(self):
+        pass
+
+    def forward(self, hidden_states, scale=None, lora_scale: int = 1):
+        return hidden_states
+
+class UNetMV2DRefModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
     r"""
     A conditional 2D UNet model that takes a noisy sample, conditional state, and a timestep and returns a sample
     shaped output.
@@ -236,7 +288,7 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
         camera_input_dim: int = 12,
         camera_hidden_dim: int = 320,
         camera_output_dim: int = 1280,
-
+        
     ):
         super().__init__()
 
@@ -617,21 +669,31 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
             prev_output_channel = output_channel
 
         # out
-        if norm_num_groups is not None:
-            self.conv_norm_out = nn.GroupNorm(
-                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
-            )
+        # if norm_num_groups is not None:
+        #     self.conv_norm_out = nn.GroupNorm(
+        #         num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
+        #     )
 
-            self.conv_act = get_activation(act_fn)
+        #     self.conv_act = get_activation(act_fn)
 
-        else:
-            self.conv_norm_out = None
-            self.conv_act = None
+        # else:
+        #     self.conv_norm_out = None
+        #     self.conv_act = None
 
-        conv_out_padding = (conv_out_kernel - 1) // 2
-        self.conv_out = nn.Conv2d(
-            block_out_channels[0], out_channels, kernel_size=conv_out_kernel, padding=conv_out_padding
-        )
+        # conv_out_padding = (conv_out_kernel - 1) // 2
+        # self.conv_out = nn.Conv2d(
+        #     block_out_channels[0], out_channels, kernel_size=conv_out_kernel, padding=conv_out_padding
+        # )
+
+        self.up_blocks[3].attentions[2].transformer_blocks[0].attn1.to_q = _LoRACompatibleLinear()
+        self.up_blocks[3].attentions[2].transformer_blocks[0].attn1.to_k = _LoRACompatibleLinear()
+        self.up_blocks[3].attentions[2].transformer_blocks[0].attn1.to_v = _LoRACompatibleLinear()
+        self.up_blocks[3].attentions[2].transformer_blocks[0].attn1.to_out = nn.ModuleList([Identity(), Identity()])
+        self.up_blocks[3].attentions[2].transformer_blocks[0].norm2 = Identity()
+        self.up_blocks[3].attentions[2].transformer_blocks[0].attn2 = None
+        self.up_blocks[3].attentions[2].transformer_blocks[0].norm3 = Identity()
+        self.up_blocks[3].attentions[2].transformer_blocks[0].ff = Identity()
+        self.up_blocks[3].attentions[2].proj_out = Identity()
 
     @property
     def attn_processors(self) -> Dict[str, AttentionProcessor]:
@@ -762,9 +824,9 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
         for module in self.children():
             fn_recursive_set_attention_slice(module, reversed_slice_size)
 
-    # def _set_gradient_checkpointing(self, module, value=False):
-    #     if isinstance(module, (CrossAttnDownBlock2D, CrossAttnDownBlockMV2D, DownBlock2D, CrossAttnUpBlock2D, CrossAttnUpBlockMV2D, UpBlock2D)):
-    #         module.gradient_checkpointing = value
+    def _set_gradient_checkpointing(self, module, value=False):
+        if isinstance(module, (CrossAttnDownBlock2D, CrossAttnDownBlockMV2D, DownBlock2D, CrossAttnUpBlock2D, CrossAttnUpBlockMV2D, UpBlock2D)):
+            module.gradient_checkpointing = value
 
     def forward(
         self,
@@ -781,7 +843,7 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
         mid_block_additional_residual: Optional[torch.Tensor] = None,
         encoder_attention_mask: Optional[torch.Tensor] = None,
         return_dict: bool = True,
-    ) -> Union[UNetMV2DConditionOutput, Tuple]:
+    ) -> Union[UNetMV2DRefOutput, Tuple]:
         r"""
         The [`UNet2DConditionModel`] forward method.
 
@@ -879,8 +941,6 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
             # came emb
             cam_emb = self.camera_embedding(camera_matrixs)
             # cam_emb = self.camera_embedding_2(cam_emb)
-            # import ipdb
-            # ipdb.set_trace()
             emb = emb.repeat(1,cam_emb.shape[1],1) #torch.Size([32, 4, 1280])
             emb = emb + cam_emb
             emb = rearrange(emb, "b f c -> (b f) c", f=emb.shape[1])
@@ -1022,6 +1082,7 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
 
             down_block_res_samples = new_down_block_res_samples
         # print("after down: ", sample.mean(), emb.mean())
+
         # 4. mid
         if self.mid_block is not None:
             sample = self.mid_block(
@@ -1036,6 +1097,7 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
         if is_controlnet:
             sample = sample + mid_block_additional_residual
 
+        # print("after mid: ", sample.mean())
         # 5. up
         for i, upsample_block in enumerate(self.up_blocks):
             is_final_block = i == len(self.up_blocks) - 1
@@ -1065,15 +1127,15 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
                 )
 
         # 6. post-process
-        if self.conv_norm_out:
-            sample = self.conv_norm_out(sample)
-            sample = self.conv_act(sample)
-        sample = self.conv_out(sample)
+        # if self.conv_norm_out:
+        #     sample = self.conv_norm_out(sample)
+        #     sample = self.conv_act(sample)
+        # sample = self.conv_out(sample)
 
         if not return_dict:
             return (sample,)
 
-        return UNetMV2DConditionOutput(sample=sample)
+        return UNetMV2DRefOutput(sample=sample)
 
     @classmethod
     def from_pretrained_2d(
@@ -1349,7 +1411,6 @@ class UNetMV2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixi
                 model.set_attn_processor(unet_lora_attn_procs)
             # state_dict = load_state_dict(model_file, variant=variant)
             state_dict = load_state_dict(model_file)
-
             # model._convert_deprecated_attention_blocks(state_dict)
 
             conv_in_weight = state_dict['conv_in.weight']

@@ -1,6 +1,28 @@
-## Lora Training Code
+## Training Code
 
-We can choose whether to use deep speed in Wan, which can save a lot of video memory. 
+The default training commands for the different versions are as follows:
+
+We can choose whether to use deepspeed in CogVideoX-Fun, which can save a lot of video memory. 
+
+The metadata_control.json is a little different from normal json in CogVideoX-Fun, you need to add a control_file_path, and [DWPose](https://github.com/IDEA-Research/DWPose) is suggested as tool to generate control file.
+
+```json
+[
+    {
+      "file_path": "train/00000001.mp4",
+      "control_file_path": "control/00000001.mp4",
+      "text": "A group of young men in suits and sunglasses are walking down a city street.",
+      "type": "video"
+    },
+    {
+      "file_path": "train/00000002.jpg",
+      "control_file_path": "control/00000002.jpg",
+      "text": "A group of young men in suits and sunglasses are walking down a city street.",
+      "type": "image"
+    },
+    .....
+]
+```
 
 Some parameters in the sh file can be confusing, and they are explained in this document:
 
@@ -17,39 +39,37 @@ Some parameters in the sh file can be confusing, and they are explained in this 
     - At 768x768 resolution, the number of video frames is 21 (~= 512 * 512 * 49 / 768 / 768).
     - At 1024x1024 resolution, the number of video frames is 9 (~= 512 * 512 * 49 / 1024 / 1024).
     - These resolutions combined with their corresponding lengths allow the model to generate videos of different sizes.
-- `train_mode` is used to specify the training mode, which can be either normal or inpaint. Since Wan uses the inpaint model to achieve image-to-video generation, the default is set to inpaint mode. If you only wish to achieve text-to-video generation, you can remove this line, and it will default to the text-to-video mode.
 - `resume_from_checkpoint` is used to set the training should be resumed from a previous checkpoint. Use a path or `"latest"` to automatically select the last available checkpoint.
 
-Wan T2V without deepspeed:
-
-Wan without DeepSpeed is more suitable for 1.3B Wan, as using it with 14B Wan may result in insufficient GPU memory.
+CogVideoX-Fun without deepspeed:
 ```sh
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-Fun-V1.1-14B-InP"
+export MODEL_NAME="models/Diffusion_Transformer/CogVideoX-Fun-V1.1-2b-Pose"
 export DATASET_NAME="datasets/internal_datasets/"
-export DATASET_META_NAME="datasets/internal_datasets/metadata.json"
+export DATASET_META_NAME="datasets/internal_datasets/metadata_control.json"
 # NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
 # export NCCL_IB_DISABLE=1
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --mixed_precision="bf16" scripts/wan2.1_fun/train_lora.py \
-  --config_path="config/wan2.1/wan_civitai.yaml" \
+accelerate launch --mixed_precision="bf16" scripts/cogvideox_fun/train_control.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
   --image_sample_size=1024 \
   --video_sample_size=256 \
   --token_sample_size=512 \
-  --video_sample_stride=2 \
-  --video_sample_n_frames=81 \
-  --train_batch_size=1 \
+  --video_sample_stride=3 \
+  --video_sample_n_frames=49 \
+  --train_batch_size=4 \
   --video_repeat=1 \
   --gradient_accumulation_steps=1 \
   --dataloader_num_workers=8 \
   --num_train_epochs=100 \
   --checkpointing_steps=50 \
-  --learning_rate=1e-04 \
-  --seed=42 \
+  --learning_rate=2e-05 \
+  --lr_scheduler="constant_with_warmup" \
+  --lr_warmup_steps=50 \
+  --seed=43 \
   --output_dir="output_dir" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
@@ -60,42 +80,38 @@ accelerate launch --mixed_precision="bf16" scripts/wan2.1_fun/train_lora.py \
   --random_hw_adapt \
   --training_with_video_token_length \
   --enable_bucket \
-  --uniform_sampling \
-  --train_mode="inpaint" \
-  --low_vram 
+  --trainable_modules "."
 ```
 
-Wan T2V with deepspeed zero-2:
-
-Wan with DeepSpeed Zero-2 is suitable for training 1.3B Wan and 14B Wan at low resolutions, but training 14B Wan at high resolutions may still result in insufficient GPU memory.
-
+CogVideoX-Fun with deepspeed:
 ```sh
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-Fun-V1.1-14B-InP"
+export MODEL_NAME="models/Diffusion_Transformer/CogVideoX-Fun-V1.1-2b-Pose"
 export DATASET_NAME="datasets/internal_datasets/"
-export DATASET_META_NAME="datasets/internal_datasets/metadata.json"
+export DATASET_META_NAME="datasets/internal_datasets/metadata_control.json"
 # NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
 # export NCCL_IB_DISABLE=1
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/wan2.1_fun/train_lora.py \
-  --config_path="config/wan2.1/wan_civitai.yaml" \
+accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/cogvideox_fun/train.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
   --image_sample_size=1024 \
   --video_sample_size=256 \
   --token_sample_size=512 \
-  --video_sample_stride=2 \
-  --video_sample_n_frames=81 \
-  --train_batch_size=1 \
+  --video_sample_stride=3 \
+  --video_sample_n_frames=49 \
+  --train_batch_size=4 \
   --video_repeat=1 \
   --gradient_accumulation_steps=1 \
   --dataloader_num_workers=8 \
   --num_train_epochs=100 \
   --checkpointing_steps=50 \
-  --learning_rate=1e-04 \
-  --seed=42 \
+  --learning_rate=2e-05 \
+  --lr_scheduler="constant_with_warmup" \
+  --lr_warmup_steps=50 \
+  --seed=43 \
   --output_dir="output_dir" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
@@ -106,47 +122,43 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
   --random_hw_adapt \
   --training_with_video_token_length \
   --enable_bucket \
-  --uniform_sampling \
   --use_deepspeed \
-  --train_mode="inpaint" \
-  --low_vram
+  --trainable_modules "."
 ```
 
-Wan T2V with deepspeed zero-3:
-
-Wan with DeepSpeed Zero-3 is suitable for 14B Wan at high resolutions. You must set save_state to True to save the model. After training, you can use the following command to get the final model:
+CogVideoX-Fun with multi machines:
 ```sh
-python scripts/zero_to_bf16.py output_dir/checkpoint-{our-num-steps} output_dir/checkpoint-{your-num-steps}-outputs --max_shard_size 80GB --safe_serialization
-```
-
-Training shell command is as follows:
-```sh
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-Fun-V1.1-14B-InP"
+export MODEL_NAME="models/Diffusion_Transformer/CogVideoX-Fun-V1.1-2b-Pose"
 export DATASET_NAME="datasets/internal_datasets/"
-export DATASET_META_NAME="datasets/internal_datasets/metadata.json"
+export DATASET_META_NAME="datasets/internal_datasets/metadata_control.json"
 # NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
 # export NCCL_IB_DISABLE=1
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag true --use_deepspeed --deepspeed_config_file config/zero_stage3_config.json --deepspeed_multinode_launcher standard scripts/wan2.1_fun/train_lora.py \
-  --config_path="config/wan2.1/wan_civitai.yaml" \
+NUM_PROCESS=$((WORLD_SIZE * 8))
+
+echo "MASTER_ADDR: ${MASTER_ADDR} MASTER_PORT: ${MASTER_PORT} NUM_PROCESS: ${NUM_PROCESS}"
+
+accelerate launch --main_process_ip=$MASTER_ADDR --main_process_port=$MASTER_PORT --num_machines=$WORLD_SIZE --num_processes=$NUM_PROCESS --machine_rank=$RANK scripts/cogvideox_fun/train.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
   --image_sample_size=1024 \
   --video_sample_size=256 \
   --token_sample_size=512 \
-  --video_sample_stride=2 \
-  --video_sample_n_frames=81 \
-  --train_batch_size=1 \
+  --video_sample_stride=3 \
+  --video_sample_n_frames=49 \
+  --train_batch_size=4 \
   --video_repeat=1 \
   --gradient_accumulation_steps=1 \
   --dataloader_num_workers=8 \
   --num_train_epochs=100 \
   --checkpointing_steps=50 \
-  --learning_rate=1e-04 \
-  --seed=42 \
+  --learning_rate=2e-05 \
+  --lr_scheduler="constant_with_warmup" \
+  --lr_warmup_steps=50 \
+  --seed=43 \
   --output_dir="output_dir" \
   --gradient_checkpointing \
   --mixed_precision="bf16" \
@@ -157,56 +169,5 @@ accelerate launch --zero_stage 3 --zero3_save_16bit_model true --zero3_init_flag
   --random_hw_adapt \
   --training_with_video_token_length \
   --enable_bucket \
-  --uniform_sampling \
-  --save_state \
-  --use_deepspeed \
-  --train_mode="inpaint" \
-  --low_vram
-```
-
-Wan T2V with FSDP:
-
-Wan with FSDP is suitable for 14B Wan at high resolutions. Training shell command is as follows:
-```sh
-export MODEL_NAME="models/Diffusion_Transformer/Wan2.1-Fun-V1.1-14B-InP"
-export DATASET_NAME="datasets/internal_datasets/"
-export DATASET_META_NAME="datasets/internal_datasets/metadata.json"
-# NCCL_IB_DISABLE=1 and NCCL_P2P_DISABLE=1 are used in multi nodes without RDMA. 
-# export NCCL_IB_DISABLE=1
-# export NCCL_P2P_DISABLE=1
-NCCL_DEBUG=INFO
-
-accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TRANSFORMER_BASED_WRAP --fsdp_transformer_layer_cls_to_wrap=WanAttentionBlock --fsdp_sharding_strategy "FULL_SHARD" --fsdp_state_dict_type=SHARDED_STATE_DICT --fsdp_backward_prefetch "BACKWARD_PRE" --fsdp_cpu_ram_efficient_loading False scripts/wan2.1_fun/train_lora.py \
-  --config_path="config/wan2.1/wan_civitai.yaml" \
-  --pretrained_model_name_or_path=$MODEL_NAME \
-  --train_data_dir=$DATASET_NAME \
-  --train_data_meta=$DATASET_META_NAME \
-  --image_sample_size=1024 \
-  --video_sample_size=256 \
-  --token_sample_size=512 \
-  --video_sample_stride=2 \
-  --video_sample_n_frames=81 \
-  --train_batch_size=1 \
-  --video_repeat=1 \
-  --gradient_accumulation_steps=1 \
-  --dataloader_num_workers=8 \
-  --num_train_epochs=100 \
-  --checkpointing_steps=50 \
-  --learning_rate=1e-04 \
-  --seed=42 \
-  --output_dir="output_dir" \
-  --gradient_checkpointing \
-  --mixed_precision="bf16" \
-  --adam_weight_decay=3e-2 \
-  --adam_epsilon=1e-10 \
-  --vae_mini_batch=1 \
-  --max_grad_norm=0.05 \
-  --random_hw_adapt \
-  --training_with_video_token_length \
-  --enable_bucket \
-  --uniform_sampling \
-  --save_state \
-  --use_deepspeed \
-  --train_mode="inpaint" \
-  --low_vram
+  --trainable_modules "."
 ```

@@ -1,6 +1,8 @@
-## Lora Training Code
+## Training Code
 
-We can choose whether to use deep speed in CogVideoX-Fun, which can save a lot of video memory. 
+The default training commands for the different versions are as follows:
+
+We can choose whether to use deepspeed in CogVideoX-Fun, which can save a lot of video memory. 
 
 Some parameters in the sh file can be confusing, and they are explained in this document:
 
@@ -21,7 +23,6 @@ Some parameters in the sh file can be confusing, and they are explained in this 
 - `resume_from_checkpoint` is used to set the training should be resumed from a previous checkpoint. Use a path or `"latest"` to automatically select the last available checkpoint.
 
 CogVideoX-Fun without deepspeed:
-
 ```sh
 export MODEL_NAME="models/Diffusion_Transformer/CogVideoX-Fun-2b-InP"
 export DATASET_NAME="datasets/internal_datasets/"
@@ -31,7 +32,7 @@ export DATASET_META_NAME="datasets/internal_datasets/metadata.json"
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --mixed_precision="bf16" scripts/cogvideox_fun/train_lora.py \
+accelerate launch --mixed_precision="bf16" scripts/cogvideox_fun/train.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -46,7 +47,9 @@ accelerate launch --mixed_precision="bf16" scripts/cogvideox_fun/train_lora.py \
   --dataloader_num_workers=8 \
   --num_train_epochs=100 \
   --checkpointing_steps=50 \
-  --learning_rate=1e-04 \
+  --learning_rate=2e-05 \
+  --lr_scheduler="constant_with_warmup" \
+  --lr_warmup_steps=100 \
   --seed=42 \
   --output_dir="output_dir" \
   --gradient_checkpointing \
@@ -58,8 +61,9 @@ accelerate launch --mixed_precision="bf16" scripts/cogvideox_fun/train_lora.py \
   --random_hw_adapt \
   --training_with_video_token_length \
   --enable_bucket \
-  --low_vram \
-  --train_mode="inpaint" 
+  --use_ema \
+  --train_mode="inpaint" \
+  --trainable_modules "."
 ```
 
 CogVideoX-Fun with deepspeed:
@@ -72,7 +76,7 @@ export DATASET_META_NAME="datasets/internal_datasets/metadata.json"
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/cogvideox_fun/train_lora.py \
+accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/cogvideox_fun/train.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
@@ -81,13 +85,15 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
   --token_sample_size=512 \
   --video_sample_stride=3 \
   --video_sample_n_frames=49 \
-  --train_batch_size=1 \
+  --train_batch_size=4 \
   --video_repeat=1 \
   --gradient_accumulation_steps=1 \
   --dataloader_num_workers=8 \
   --num_train_epochs=100 \
   --checkpointing_steps=50 \
-  --learning_rate=1e-04 \
+  --learning_rate=2e-05 \
+  --lr_scheduler="constant_with_warmup" \
+  --lr_warmup_steps=100 \
   --seed=42 \
   --output_dir="output_dir" \
   --gradient_checkpointing \
@@ -100,8 +106,8 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
   --training_with_video_token_length \
   --enable_bucket \
   --use_deepspeed \
-  --low_vram \
-  --train_mode="inpaint" 
+  --train_mode="inpaint" \
+  --trainable_modules "."
 ```
 
 CogVideoX-Fun with multi machines:
@@ -127,13 +133,15 @@ accelerate launch --main_process_ip=$MASTER_ADDR --main_process_port=$MASTER_POR
   --token_sample_size=512 \
   --video_sample_stride=3 \
   --video_sample_n_frames=49 \
-  --train_batch_size=1 \
+  --train_batch_size=4 \
   --video_repeat=1 \
   --gradient_accumulation_steps=1 \
   --dataloader_num_workers=8 \
   --num_train_epochs=100 \
   --checkpointing_steps=50 \
-  --learning_rate=1e-04 \
+  --learning_rate=2e-05 \
+  --lr_scheduler="constant_with_warmup" \
+  --lr_warmup_steps=100 \
   --seed=42 \
   --output_dir="output_dir" \
   --gradient_checkpointing \
@@ -145,5 +153,6 @@ accelerate launch --main_process_ip=$MASTER_ADDR --main_process_port=$MASTER_POR
   --random_hw_adapt \
   --training_with_video_token_length \
   --enable_bucket \
-  --train_mode="inpaint" 
+  --train_mode="inpaint" \
+  --trainable_modules "."
 ```

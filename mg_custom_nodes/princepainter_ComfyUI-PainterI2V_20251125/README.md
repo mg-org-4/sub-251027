@@ -6,6 +6,8 @@ Wan2.2 图生视频增强节点，专门针对4步LoRA（如 lightx2v）的慢�
 
 如果你用的是KJ的wan2.2-i2v工作流，请使用这个专门为KJ开发的节点，效果一致 (https://github.com/princepainter/ComfyUI-PainterI2VforKJ)
 
+（FirstLastFrameToVideo）首尾帧节点 PainterFLF2V：https://github.com/princepainter/Comfyui-PainterFLF2V
+
 ## 🛠 解决的问题
 
 - ✅ 1.减少慢动作：提升运动幅度 15-50%
@@ -204,6 +206,7 @@ In your workflow, replace `WanImageToVideo` with `PainterI2V`.
 If you find this project helpful, please give it a star ⭐ to show your support!
 </div>
 # Restart ComfyUI
+
 
 
 

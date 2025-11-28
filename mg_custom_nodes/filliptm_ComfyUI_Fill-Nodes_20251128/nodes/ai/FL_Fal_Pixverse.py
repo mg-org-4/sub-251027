@@ -1,4 +1,4 @@
-# FL_Fal_Pixverse_Transition: Fal AI Pixverse v5 Transition API Node with frame decomposition
+# FL_Fal_Pixverse: Fal AI Image-to-Video API Node with frame decomposition
 import os
 import uuid
 import json
@@ -9,36 +9,34 @@ import torch
 import numpy as np
 import tempfile
 import cv2
-import base64
 import concurrent.futures
 import fal_client
-import asyncio
 from typing import Tuple, List, Dict, Union, Optional
 from pathlib import Path
 from PIL import Image
 from tqdm import tqdm
 
 
-class FL_Fal_Pixverse_Transition:
+class FL_Fal_Pixverse:
     """
-    A ComfyUI node for the Fal AI Pixverse v5 Transition API.
-    Takes two images and creates a transition video between them using Fal AI's transition endpoint.
+    A ComfyUI node for the Fal AI Image-to-Video API.
+    Takes an image and converts it to a video using Fal AI's pixverse/v4/image-to-video endpoint.
     Downloads the video, extracts frames, and returns them as image tensors.
     """
 
     RETURN_TYPES = ("IMAGE", "IMAGE", "IMAGE", "IMAGE", "IMAGE", "STRING", "STRING")
     RETURN_NAMES = ("frames_1", "frames_2", "frames_3", "frames_4", "frames_5", "video_urls", "status_msg")
-    FUNCTION = "generate_transition"
+    FUNCTION = "generate_video"
     CATEGORY = "🏵️Fill Nodes/AI"
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "api_key": ("STRING", {"multiline": False, 
+                "api_key": ("STRING", {"multiline": False,
                                       "description": "Fal AI API key"}),
-                "prompt": ("STRING", {"default": "Scene slowly transition into cat swimming under water",
-                                    "multiline": True, "description": "The prompt for the transition"}),
+                "prompt": ("STRING", {"default": "A woman walking through a beautiful landscape",
+                                    "multiline": True, "description": "Text prompt describing the video"}),
                 "aspect_ratio": (["16:9", "4:3", "1:1", "3:4", "9:16"], {"default": "16:9",
                                                                         "description": "The aspect ratio of the generated video"}),
                 "resolution": (["360p", "540p", "720p", "1080p"], {"default": "720p",
@@ -53,38 +51,40 @@ class FL_Fal_Pixverse_Transition:
                                      "description": "Extract every Nth frame (1=all frames, 2=every 2nd frame, etc.)"})
             },
             "optional": {
-                "first_image": ("IMAGE", {"description": "First input image (start of transition)"}),
-                "last_image": ("IMAGE", {"description": "Last input image (end of transition)"}),
+                "image": ("IMAGE", {"description": "Input image to animate"}),
                 "negative_prompt": ("STRING", {"default": "blurry, low quality, low resolution, pixelated, noisy, grainy, out of focus, poorly lit, poorly exposed, poorly composed, poorly framed, poorly cropped, poorly color corrected, poorly color graded",
                                              "multiline": True, "description": "Negative prompt"}),
                 "style": (["none", "anime", "3d_animation", "clay", "comic", "cyberpunk"], {"default": "none",
-                                                                                           "description": "Style of the generated video"})
+                                                                                           "description": "Style of the generated video"}),
+                "camera_movement": (["none", "horizontal_left", "horizontal_right", "vertical_up", "vertical_down",
+                                   "zoom_in", "zoom_out", "crane_up", "quickly_zoom_in", "quickly_zoom_out",
+                                   "smooth_zoom_in", "camera_rotation", "robo_arm", "super_dolly_out",
+                                   "whip_pan", "hitchcock", "left_follow", "right_follow", "pan_left",
+                                   "pan_right", "fix_bg"], {"default": "none",
+                                                           "description": "Type of camera movement to apply"})
             }
         }
 
-    def generate_transition(self, api_key, prompt="Scene slowly transition into cat swimming under water", aspect_ratio="16:9", 
-                           resolution="720p", duration="5", seed=0, batch_size=1, nth_frame=1,
-                           first_image=None, last_image=None, negative_prompt="", style="none"):
+    def generate_video(self, api_key, prompt="A woman walking through a beautiful landscape", aspect_ratio="16:9",
+                       resolution="720p", duration="5", seed=0, batch_size=1, nth_frame=1,
+                       image=None, negative_prompt="", style="none", camera_movement="none"):
         # Clear any existing FAL_KEY environment variable to prevent caching issues
         if "FAL_KEY" in os.environ:
             del os.environ["FAL_KEY"]
-            print("[Fal Pixverse Transition] Cleared existing FAL_KEY environment variable")
+            print("[Fal Pixverse] Cleared existing FAL_KEY environment variable")
         """
-        Generate a transition video between two images, download it, and extract frames
+        Generate a video from an image, download it, and extract frames
 
         Args:
             api_key: Fal AI API key
-            prompt: Text prompt describing the transition
-            aspect_ratio: Aspect ratio of the video
-            resolution: Video resolution
+            prompt: Text prompt describing the video
+            negative_prompt: Negative prompt
             duration: Video duration in seconds
+            quality: Video quality
             seed: Random seed for video generation (0 = random)
             batch_size: Number of videos to generate with different seeds
             nth_frame: Extract every Nth frame (1=all frames, 2=every 2nd frame, etc.)
-            first_image: First input image tensor (start of transition)
-            last_image: Last input image tensor (end of transition)
-            negative_prompt: Negative prompt
-            style: Video style
+            image: (Optional) Input image tensor
 
         Returns:
             Tuple of (frames_tensor_1, frames_tensor_2, frames_tensor_3, frames_tensor_4, frames_tensor_5,
@@ -101,9 +101,9 @@ class FL_Fal_Pixverse_Transition:
             if not api_key or api_key.strip() == "":
                 return error_return("Error: API Key is required")
                 
-            # 2. Validate image inputs
-            if first_image is None or last_image is None:
-                return error_return("Error: Both first_image and last_image are required for transition")
+            # 2. Validate image input
+            if image is None:
+                return error_return("Error: Input image is required")
 
             # Initialize return values
             frame_tensors = [torch.zeros((1, 1, 1, 3)) for _ in range(5)]  # 5 empty tensors by default
@@ -115,16 +115,16 @@ class FL_Fal_Pixverse_Transition:
             
             # Validate duration for 1080p (limited to 5 seconds)
             if resolution == "1080p" and duration == "8":
-                print(f"[Fal Pixverse Transition] Warning: 1080p videos are limited to 5 seconds, changing duration from 8s to 5s")
+                print(f"[Fal Pixverse] Warning: 1080p videos are limited to 5 seconds, changing duration from 8s to 5s")
                 duration = "5"
             
-            # Convert images to base64
-            def convert_image_to_base64(image_tensor, image_name):
+            # Convert image tensor to base64
+            if image is not None:
                 # Take first image if batch
-                if len(image_tensor.shape) == 4:
-                    image_tensor = image_tensor[0]
+                if len(image.shape) == 4:
+                    image_tensor = image[0]
                 else:
-                    image_tensor = image_tensor
+                    image_tensor = image
                 
                 # Convert to uint8
                 if image_tensor.dtype != torch.uint8:
@@ -135,23 +135,25 @@ class FL_Fal_Pixverse_Transition:
                 
                 try:
                     pil_image = Image.fromarray(np_img)
-                    print(f"[Fal Pixverse Transition] Successfully converted {image_name} to PIL image")
-                    
-                    # Convert PIL image to base64
+                    print(f"[Fal Pixverse] Successfully converted image tensor to PIL image")
+
+                    # Set API key first - needed for CDN upload
+                    clean_api_key = api_key.strip()
+                    os.environ["FAL_KEY"] = clean_api_key
+
+                    # Upload image to fal.media CDN to avoid 10MB request body limit
+                    print(f"[Fal Pixverse] Uploading image to fal.media CDN...")
                     buffered = io.BytesIO()
                     pil_image.save(buffered, format="PNG")
-                    img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-                    img_data_uri = f"data:image/png;base64,{img_base64}"
-                    
-                    return img_data_uri
-                    
+                    image_bytes = buffered.getvalue()
+                    img_url = fal_client.upload(image_bytes, content_type="image/png")
+                    print(f"[Fal Pixverse] Uploaded image to CDN: {img_url[:80]}...")
+
                 except Exception as e:
-                    print(f"[Fal Pixverse Transition] Error: Failed to convert {image_name} to base64: {str(e)}")
-                    raise Exception(f"Failed to convert {image_name}: {str(e)}")
-            
-            # Convert both images to base64
-            first_image_uri = convert_image_to_base64(first_image, "first_image")
-            last_image_uri = convert_image_to_base64(last_image, "last_image")
+                    print(f"[Fal Pixverse] Error: Failed to upload image to CDN: {str(e)}")
+                    return error_return(f"Error: Failed to upload image: {str(e)}")
+            else:
+                return error_return("Error: No image provided")
             
             # Process batches in parallel
             def process_batch(batch_idx):
@@ -159,7 +161,7 @@ class FL_Fal_Pixverse_Transition:
                     # Calculate seed for this batch
                     batch_seed = np.random.randint(1, 2147483647) if seed == 0 else seed + batch_idx
                     
-                    print(f"[Fal Pixverse Transition] Batch {batch_idx+1}/{batch_size}: Generating transition video with seed {batch_seed}...")
+                    print(f"[Fal Pixverse] Batch {batch_idx+1}/{batch_size}: Generating video with seed {batch_seed}...")
                     
                     # Prepare the API request
                     # Ensure API key is properly formatted (trim any whitespace)
@@ -168,8 +170,7 @@ class FL_Fal_Pixverse_Transition:
                     # Prepare the arguments for fal_client
                     arguments = {
                         "prompt": prompt,
-                        "first_image_url": first_image_uri,
-                        "last_image_url": last_image_uri,
+                        "image_url": img_url,
                         "aspect_ratio": aspect_ratio,
                         "resolution": resolution,
                         "duration": duration,
@@ -183,37 +184,47 @@ class FL_Fal_Pixverse_Transition:
                     if style and style != "none" and style != "":
                         arguments["style"] = style
                     
+                    # Camera movement might have resolution restrictions - only add if not none and resolution is compatible
+                    if camera_movement and camera_movement != "none" and camera_movement != "":
+                        # Some camera movements might have resolution limits - let's be more conservative
+                        if resolution in ["360p", "540p"]:
+                            arguments["camera_movement"] = camera_movement
+                            print(f"[Fal Pixverse] Adding camera_movement: {camera_movement} (resolution: {resolution})")
+                        else:
+                            print(f"[Fal Pixverse] Skipping camera_movement for {resolution} - may have restrictions")
+                    
                     # Keep duration as string per API documentation
                     arguments["duration"] = str(duration)
                     
                     # Remove any None values from arguments
                     arguments = {k: v for k, v in arguments.items() if v is not None}
                     
+                    # Print arguments without exposing potentially large base64 data
+                    safe_arguments = {k: v if not (isinstance(v, str) and v.startswith('data:')) else f"<data_uri_{len(v)}_chars>" for k, v in arguments.items()}
+                    print(f"[Fal Pixverse] API arguments: {safe_arguments}")
+                    
                     # Set the API key as an environment variable for fal_client (using cleaned key)
                     # Print the first few characters of the key for debugging (don't print the whole key for security)
                     key_preview = clean_api_key[:8] + "..." if len(clean_api_key) > 8 else "invalid_key"
-                    print(f"[Fal Pixverse Transition] Using API key starting with: {key_preview}")
+                    print(f"[Fal Pixverse] Using API key starting with: {key_preview}")
                     
                     # Clear and set the environment variable
                     if "FAL_KEY" in os.environ:
                         del os.environ["FAL_KEY"]
                     os.environ["FAL_KEY"] = clean_api_key
                     
-                    # Print arguments without exposing potentially large base64 data
-                    safe_arguments = {k: v if not (isinstance(v, str) and v.startswith('data:')) else f"<data_uri_{len(v)}_chars>" for k, v in arguments.items()}
-                    print(f"[Fal Pixverse Transition] API arguments: {safe_arguments}")
-                    print(f"[Fal Pixverse Transition] Calling Fal AI API with fal_client...")
+                    print(f"[Fal Pixverse] Calling Fal AI API with fal_client...")
                     
                     # Define a callback for queue updates
                     def on_queue_update(update):
                         if isinstance(update, fal_client.InProgress):
                             for log in update.logs:
-                                print(f"[Fal Pixverse Transition] Log: {log['message']}")
+                                print(f"[Fal Pixverse] Log: {log['message']}")
                     
                     try:
-                        # Use the v5 transition endpoint
-                        endpoint = "fal-ai/pixverse/v5/transition"
-                        print(f"[Fal Pixverse Transition] Using transition endpoint: {endpoint}")
+                        # Use the new v5 endpoint
+                        endpoint = "fal-ai/pixverse/v5/image-to-video"
+                        print(f"[Fal Pixverse] Using v5 endpoint: {endpoint}")
                         
                         # Force reload the fal_client module to avoid caching issues
                         import sys
@@ -222,7 +233,7 @@ class FL_Fal_Pixverse_Transition:
                         import fal_client
                         
                         # Make the API call using fal_client.subscribe
-                        print(f"[Fal Pixverse Transition] Making API call with fal_client.subscribe...")
+                        print(f"[Fal Pixverse] Making API call with fal_client.subscribe...")
                         result = fal_client.subscribe(
                             endpoint,
                             arguments=arguments,
@@ -230,10 +241,10 @@ class FL_Fal_Pixverse_Transition:
                             on_queue_update=on_queue_update,
                         )
                         
-                        print(f"[Fal Pixverse Transition] API call completed successfully")
+                        print(f"[Fal Pixverse] API call completed successfully")
                     except Exception as e:
                         error_msg = f"API Error: {str(e)}"
-                        print(f"[Fal Pixverse Transition] {error_msg}")
+                        print(f"[Fal Pixverse] {error_msg}")
                         return {
                             "batch_idx": batch_idx,
                             "success": False,
@@ -243,11 +254,11 @@ class FL_Fal_Pixverse_Transition:
                     # Extract video URL from the result
                     if "video" in result and "url" in result["video"]:
                         video_url = result["video"]["url"]
-                        print(f"[Fal Pixverse Transition] Batch {batch_idx+1}: Video ready! URL: {video_url}")
+                        print(f"[Fal Pixverse] Batch {batch_idx+1}: Video ready! URL: {video_url}")
                         
                         # Download and process the video
                         try:
-                            print(f"[Fal Pixverse Transition] Batch {batch_idx+1}: Downloading video...")
+                            print(f"[Fal Pixverse] Batch {batch_idx+1}: Downloading video...")
                             
                             # Create a temporary file
                             with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_video:
@@ -268,7 +279,7 @@ class FL_Fal_Pixverse_Transition:
                                 progress_bar.close()
                             
                             # Extract frames using OpenCV
-                            print(f"[Fal Pixverse Transition] Batch {batch_idx+1}: Extracting frames from video...")
+                            print(f"[Fal Pixverse] Batch {batch_idx+1}: Extracting frames from video...")
                             cap = cv2.VideoCapture(temp_video_path)
                             
                             if not cap.isOpened():
@@ -283,7 +294,7 @@ class FL_Fal_Pixverse_Transition:
                             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                             fps = cap.get(cv2.CAP_PROP_FPS)
                             
-                            print(f"[Fal Pixverse Transition] Batch {batch_idx+1}: Video has {total_frames} frames at {fps} FPS")
+                            print(f"[Fal Pixverse] Batch {batch_idx+1}: Video has {total_frames} frames at {fps} FPS")
                             
                             frames = []
                             frame_count = 0
@@ -326,7 +337,7 @@ class FL_Fal_Pixverse_Transition:
                             # Convert frames to tensor
                             if frames:
                                 frames_tensor = torch.from_numpy(np.stack(frames))
-                                print(f"[Fal Pixverse Transition] Batch {batch_idx+1}: Extracted {len(frames)} frames as tensor with shape {frames_tensor.shape}")
+                                print(f"[Fal Pixverse] Batch {batch_idx+1}: Extracted {len(frames)} frames as tensor with shape {frames_tensor.shape}")
                                 return {
                                     "batch_idx": batch_idx,
                                     "success": True,
@@ -401,7 +412,7 @@ class FL_Fal_Pixverse_Transition:
             return tuple(frame_tensors + [combined_urls, combined_status])
             
         except Exception as e:
-            print(f"[Fal Pixverse Transition] Error: {str(e)}")
+            print(f"[Fal Pixverse] Error: {str(e)}")
             # Try to return proper empty tensors
             empty_tensor = torch.zeros((1, 1, 1, 3))
             return empty_tensor, empty_tensor, empty_tensor, empty_tensor, empty_tensor, "", f"Error: {str(e)}"

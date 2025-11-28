@@ -989,6 +989,7 @@
     "initializingAlmostReady": "Initializing - Almost ready",
     "inQueue": "In queue...",
     "jobAddedToQueue": "Job added to queue",
+    "completedIn": "Finished in {duration}",
     "jobMenu": {
       "openAsWorkflowNewTab": "Open as workflow in new tab",
       "openWorkflowNewTab": "Open workflow in new tab",
@@ -2161,9 +2162,15 @@
     "deletingImportedFilesCloudOnly": "Deleting imported files is only supported in cloud version",
     "failedToDeleteAsset": "Failed to delete asset",
     "actions": {
-      "inspect": "Inspect",
+      "inspect": "Inspect asset",
       "more": "More options",
-      "seeMoreOutputs": "See more outputs"
+      "seeMoreOutputs": "See more outputs",
+      "addToWorkflow": "Add to current workflow",
+      "download": "Download",
+      "openWorkflow": "Open as workflow in new tab",
+      "exportWorkflow": "Export workflow",
+      "copyJobId": "Copy job ID",
+      "delete": "Delete"
     },
     "jobIdToast": {
       "jobIdCopied": "Job ID copied to clipboard",

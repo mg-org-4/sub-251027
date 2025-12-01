@@ -36,6 +36,12 @@ We're actively working on improvements and new features. To stay informed:
 
 ## 🚀 Updates
 
+**2025.11.30 - Version 2.5.13**
+
+- **🔧 Fix: PyTorch 2.7+ triton import error** - Resolved installation crash caused by triton.ops import chain on newer triton versions
+- **💾 Fix: OOM on float32 conversion for long videos** - Graceful fallback to native dtype when insufficient memory for float32 conversion
+- **🍎 Fix: CLI watermark error on macOS** - Resolved MPS-related watermark processing crash on Apple Silicon
+
 **2025.11.28 - Version 2.5.12**
 
 - **🐛 Fix: Color artifacts regression** - Reverted in-place tensor operations in video transform pipeline that caused color artifacts on some images

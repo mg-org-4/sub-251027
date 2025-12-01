@@ -4,7 +4,7 @@ Only includes constants actually used in the codebase
 """
 
 # Version information
-__version__ = "2.5.12"
+__version__ = "2.5.13"
 
 import os
 import warnings

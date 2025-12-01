@@ -64,8 +64,14 @@ os.environ['PYTHONPATH'] = script_dir + ':' + os.environ.get('PYTHONPATH', '')
 if mp.get_start_method(allow_none=True) != 'spawn':
     mp.set_start_method('spawn', force=True)
 
-# Configure VRAM management and validate CUDA devices before heavy imports
-if platform.system() != "Darwin":
+# Configure platform-specific memory management before heavy imports
+# Must be set BEFORE import torch
+if platform.system() == "Darwin":
+    # MPS allocator requires: low_watermark <= high_watermark
+    # Setting both to 0.0 disables PyTorch memory limits, letting macOS manage memory
+    os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.0")
+    os.environ.setdefault("PYTORCH_MPS_LOW_WATERMARK_RATIO", "0.0")
+else:
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "backend:cudaMallocAsync")
 
     # Pre-parse CUDA device argument for validation and environment setup

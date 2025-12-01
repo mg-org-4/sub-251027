@@ -1,0 +1,4557 @@
+{
+  "last_node_id": 643,
+  "last_link_id": 1178,
+  "nodes": [
+    {
+      "id": 114,
+      "type": "Efficient Loader",
+      "pos": [
+        4314.00146484375,
+        -1698.282958984375
+      ],
+      "size": [
+        351.2377624511719,
+        748.2857055664062
+      ],
+      "flags": {},
+      "order": 47,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora_stack",
+          "type": "LORA_STACK",
+          "link": 913,
+          "slot_index": 0,
+          "label": "LoRA堆",
+          "shape": 7
+        },
+        {
+          "name": "cnet_stack",
+          "type": "CONTROL_NET_STACK",
+          "link": null,
+          "slot_index": 1,
+          "label": "ControlNet堆",
+          "shape": 7
+        },
+        {
+          "name": "positive",
+          "type": "STRING",
+          "link": 1013,
+          "widget": {
+            "name": "positive"
+          },
+          "label": "正面条件"
+        },
+        {
+          "name": "empty_latent_width",
+          "type": "INT",
+          "link": 1097,
+          "widget": {
+            "name": "empty_latent_width"
+          },
+          "label": "宽度"
+        },
+        {
+          "name": "empty_latent_height",
+          "type": "INT",
+          "link": 1098,
+          "widget": {
+            "name": "empty_latent_height"
+          },
+          "label": "高度"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            924
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "模型"
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": [
+            1124
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "正面条件"
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": [
+            1125
+          ],
+          "slot_index": 2,
+          "shape": 3,
+          "label": "负面条件"
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [],
+          "slot_index": 3,
+          "shape": 3,
+          "label": "Latent"
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            275,
+            1021
+          ],
+          "slot_index": 4,
+          "shape": 3,
+          "label": "VAE"
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            233
+          ],
+          "slot_index": 5,
+          "shape": 3,
+          "label": "CLIP"
+        },
+        {
+          "name": "DEPENDENCIES",
+          "type": "DEPENDENCIES",
+          "links": null,
+          "slot_index": 6,
+          "shape": 3,
+          "label": "依赖"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Efficient Loader"
+      },
+      "widgets_values": [
+        "sdxl\\AnythingXL_xl.safetensors",
+        "sdxl_vae.safetensors",
+        -2,
+        "None",
+        0.9,
+        0.9,
+        "\n1girl,Perfect face, beautiful face, delicate and detailed,",
+        "nsfw, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name",
+        "mean",
+        "A1111",
+        512,
+        512,
+        1,
+        true,
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "shape": 1
+    },
+    {
+      "id": 117,
+      "type": "Anything Everywhere",
+      "pos": [
+        4832.00048828125,
+        -1672.282958984375
+      ],
+      "size": [
+        210,
+        26
+      ],
+      "flags": {},
+      "order": 50,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "MODEL",
+          "type": "*",
+          "link": 924,
+          "label": "MODEL",
+          "color_on": "#B39DDB",
+          "shape": 7
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere",
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 118,
+      "type": "Anything Everywhere",
+      "pos": [
+        4831.00048828125,
+        -1554.282958984375
+      ],
+      "size": [
+        210,
+        26
+      ],
+      "flags": {},
+      "order": 54,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "CLIP",
+          "type": "*",
+          "link": 233,
+          "label": "CLIP",
+          "color_on": "#FFD500",
+          "shape": 7
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere",
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 141,
+      "type": "SEGSDetailerForAnimateDiff",
+      "pos": [
+        4883.00048828125,
+        104.71713256835938
+      ],
+      "size": [
+        340,
+        614
+      ],
+      "flags": {},
+      "order": 63,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_frames",
+          "type": "IMAGE",
+          "link": 956,
+          "slot_index": 0,
+          "label": "图像"
+        },
+        {
+          "name": "segs",
+          "type": "SEGS",
+          "link": 277,
+          "label": "Seg"
+        },
+        {
+          "name": "basic_pipe",
+          "type": "BASIC_PIPE",
+          "link": 270,
+          "slot_index": 2,
+          "label": "基础节点束"
+        },
+        {
+          "name": "refiner_basic_pipe_opt",
+          "type": "BASIC_PIPE",
+          "link": null,
+          "label": "优化基础节点束",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "segs",
+          "type": "SEGS",
+          "links": [
+            271
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "Seg"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SEGSDetailerForAnimateDiff"
+      },
+      "widgets_values": [
+        256,
+        true,
+        768,
+        41,
+        "fixed",
+        10,
+        2,
+        "dpmpp_2m",
+        "karras",
+        0.2,
+        0.2,
+        20
+      ]
+    },
+    {
+      "id": 142,
+      "type": "SEGSPaste",
+      "pos": [
+        5296.00048828125,
+        211.71717834472656
+      ],
+      "size": [
+        300,
+        122
+      ],
+      "flags": {},
+      "order": 64,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 957,
+          "label": "图像"
+        },
+        {
+          "name": "segs",
+          "type": "SEGS",
+          "link": 271,
+          "label": "Seg"
+        },
+        {
+          "name": "ref_image_opt",
+          "type": "IMAGE",
+          "link": null,
+          "slot_index": 2,
+          "label": "参考图像",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1143
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SEGSPaste"
+      },
+      "widgets_values": [
+        5,
+        255
+      ]
+    },
+    {
+      "id": 143,
+      "type": "ImpactSimpleDetectorSEGS_for_AD",
+      "pos": [
+        4486.201171875,
+        157.33380126953125
+      ],
+      "size": [
+        319.20001220703125,
+        334
+      ],
+      "flags": {},
+      "order": 62,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 272,
+          "slot_index": 0,
+          "label": "BBox检测"
+        },
+        {
+          "name": "image_frames",
+          "type": "IMAGE",
+          "link": 955,
+          "label": "图像"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": 273,
+          "slot_index": 2,
+          "label": "SAM模型",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": null,
+          "slot_index": 3,
+          "label": "Segm检测",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SEGS",
+          "type": "SEGS",
+          "links": [
+            277
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "Seg"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImpactSimpleDetectorSEGS_for_AD"
+      },
+      "widgets_values": [
+        0.5,
+        10,
+        2.5,
+        50,
+        0.5,
+        10,
+        0,
+        0.7,
+        "Pivot SEGS",
+        "Combined mask"
+      ]
+    },
+    {
+      "id": 144,
+      "type": "UltralyticsDetectorProvider",
+      "pos": [
+        4080.2548828125,
+        327.526123046875
+      ],
+      "size": [
+        315,
+        78
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            272
+          ],
+          "shape": 3,
+          "label": "BBox检测"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "SEGM检测"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "bbox/face_yolov8m.pt"
+      ]
+    },
+    {
+      "id": 145,
+      "type": "SAMLoader",
+      "pos": [
+        4072.19921875,
+        458.33367919921875
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAM_MODEL",
+          "type": "SAM_MODEL",
+          "links": [
+            273
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "SAM模型"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SAMLoader"
+      },
+      "widgets_values": [
+        "sam_vit_b_01ec64.pth",
+        "AUTO"
+      ]
+    },
+    {
+      "id": 146,
+      "type": "ToBasicPipe",
+      "pos": [
+        4587.255859375,
+        651.526123046875
+      ],
+      "size": [
+        241.79998779296875,
+        106
+      ],
+      "flags": {},
+      "order": 52,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "slot_index": 0,
+          "label": "模型"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null,
+          "label": "CLIP"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 275,
+          "label": "VAE"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 1033,
+          "slot_index": 3,
+          "label": "正面条件"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 1034,
+          "label": "负面条件"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "basic_pipe",
+          "type": "BASIC_PIPE",
+          "links": [
+            270
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "基础节点束"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ToBasicPipe"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 170,
+      "type": "CLIPTextEncode",
+      "pos": [
+        4134.00048828125,
+        745.7171630859375
+      ],
+      "size": [
+        305.40814208984375,
+        93.6010513305664
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null,
+          "label": "CLIP"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            1033
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "条件"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "1girl,Perfect face, beautiful face, delicate and detailed,",
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 171,
+      "type": "CLIPTextEncode",
+      "pos": [
+        4142.00048828125,
+        913.7171630859375
+      ],
+      "size": [
+        305.40814208984375,
+        93.6010513305664
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null,
+          "label": "CLIP"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            1034
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "条件"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "embedding:bad_artist, ",
+        true
+      ]
+    },
+    {
+      "id": 342,
+      "type": "ImageApplyLUT+",
+      "pos": [
+        3852.3642578125,
+        3194.6611328125
+      ],
+      "size": [
+        315,
+        130
+      ],
+      "flags": {},
+      "order": 57,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1092,
+          "label": "图像"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1160
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageApplyLUT+"
+      },
+      "widgets_values": [
+        "油管大神.cube",
+        true,
+        false,
+        1
+      ]
+    },
+    {
+      "id": 375,
+      "type": "Reroute",
+      "pos": [
+        3528.859375,
+        2837.62939453125
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 46,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 1112
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            1091
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 388,
+      "type": "Note",
+      "pos": [
+        3865.3642578125,
+        3018.6611328125
+      ],
+      "size": [
+        301.3498840332031,
+        83.46839904785156
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "custom_nodes\\ComfyUI_essentials\\luts先放入cube文件"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 489,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        4819.3642578125,
+        3161.6611328125
+      ],
+      "size": [
+        210,
+        306
+      ],
+      "flags": {},
+      "order": 61,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1071,
+          "label": "图像"
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 1170,
+          "shape": 7,
+          "label": "音频"
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": 1167,
+          "shape": 7,
+          "label": "批次管理"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "frame_rate",
+          "type": "FLOAT",
+          "link": 1171,
+          "widget": {
+            "name": "frame_rate"
+          },
+          "label": "帧率"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "label": "文件名"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_00188.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 24
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 490,
+      "type": "VHS_VideoInfoSource",
+      "pos": [
+        1295,
+        -1154
+      ],
+      "size": [
+        172,
+        106
+      ],
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "link": 876,
+          "label": "视频信息"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "fps🟨",
+          "type": "FLOAT",
+          "links": [
+            1148
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "frame_count🟨",
+          "type": "INT",
+          "links": [
+            1061
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "duration🟨",
+          "type": "FLOAT",
+          "links": null
+        },
+        {
+          "name": "width🟨",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height🟨",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoInfoSource"
+      },
+      "widgets_values": {}
+    },
+    {
+      "id": 493,
+      "type": "VHS_LoadVideo",
+      "pos": [
+        1037,
+        -1481
+      ],
+      "size": [
+        210,
+        262
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": 1139,
+          "shape": 7,
+          "label": "批次管理"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "select_every_nth",
+          "type": "INT",
+          "link": 1075,
+          "widget": {
+            "name": "select_every_nth"
+          },
+          "label": "模选"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1065,
+            1130
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": null,
+          "label": "帧计数"
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            1149
+          ],
+          "label": "音频"
+        },
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": [
+            876
+          ],
+          "label": "视频信息"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_LoadVideo"
+      },
+      "widgets_values": {
+        "video": "imageinput_一位穿着花和服的年轻女子站在一片花丛中，旋转，转圈，周围是漂浮在明亮蓝色天空中的粉彩气球。美丽、异想天开、夏日、欢乐。 _2024-11-19 18_57_45.mp4",
+        "force_rate": 0,
+        "force_size": "Disabled",
+        "custom_width": 512,
+        "custom_height": 512,
+        "frame_load_cap": 0,
+        "skip_first_frames": 0,
+        "select_every_nth": 3,
+        "choose video to upload": "image",
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "frame_load_cap": 0,
+            "skip_first_frames": 0,
+            "force_rate": 0,
+            "filename": "imageinput_一位穿着花和服的年轻女子站在一片花丛中，旋转，转圈，周围是漂浮在明亮蓝色天空中的粉彩气球。美丽、异想天开、夏日、欢乐。 _2024-11-19 18_57_45.mp4",
+            "type": "input",
+            "format": "video/mp4",
+            "select_every_nth": 3
+          }
+        }
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 499,
+      "type": "Note",
+      "pos": [
+        8983,
+        3237
+      ],
+      "size": [
+        573.513427734375,
+        164.64566040039062
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "- b站主页（虚幻1024）：https://space.bilibili.com/383893362\n- liblib：https://www.liblib.art/userpage/54021b109b7a40258e58c95ea57a1177/publish/workflow\n\n- qq交流群：995012625\n\n- 知识星球（技术分享 91536747）\n  - 目录：https://www.linyy.site/article/detail?id=292\n  - 链接：https://t.zsxq.com/eqGN8"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 500,
+      "type": "Note",
+      "pos": [
+        951,
+        -2726
+      ],
+      "size": [
+        1401.7950439453125,
+        252.33201599121094
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "sd1.5：（控制效果不如sdxl）\n- control_v11f1e_sd15_tile.pth <https://huggingface.co/lllyasviel/control_v11f1e_sd15_tile/tree/main> 放到ComfyUI\\models\\controlnet 夸克<https://pan.quark.cn/s/e99ad6302c65>\n- control_v11p_sd15_lineart.pth <https://huggingface.co/lllyasviel/control_v11p_sd15_lineart/tree/main> 放到ComfyUI\\models\\controlnet 夸克<https://pan.quark.cn/s/af73bfaa5837>\n- flat2DAnimerge_v45Sharp <https://civitai.com/models/35960?modelVersionId=266360> 放到ComfyUI\\models\\checkpoints\\2d 夸克<https://pan.quark.cn/s/bcc44ad903f9>\n- vae-ft-mse-840000-ema-pruned.ckpt <https://huggingface.co/YANGYINGDUO/vae-ft-mse-840000-ema-pruned.ckpt/tree/main> 放到ComfyUI\\models\\vae 夸克<https://pan.quark.cn/s/299f0a9a492f>\n\nsdxl：\n- controlnet-union-sdxl-1.0 <https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/tree/main> 放到ComfyUI\\models\\controlnet\\SDXL\\controlnet-union-sdxl-1.0 夸克<https://pan.quark.cn/s/4df8a2e2afea>\n- AnythingXL <https://civitai.com/models/9409/or-anything-xl> 放到ComfyUI\\models\\checkpoints\\sdxl 夸克<https://pan.quark.cn/s/43c0b9b701a1>\n- sdxl_vae <https://civitai.com/api/download/models/192804?type=VAE> 放到ComfyUI\\models\\vae 夸克<https://pan.quark.cn/s/94c80f96108f>\n\n- 油管大神 放到custom_nodes\\ComfyUI_essentials\\luts 夸克<https://pan.quark.cn/s/e69cb1e04d8a>\n\n- 更多模型地址 https://www.linyy.site/article/detail?id=273"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 501,
+      "type": "Note",
+      "pos": [
+        949,
+        -2412
+      ],
+      "size": [
+        439.2828063964844,
+        402.4486389160156
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "操作方法1：\n1. 依次右击第一、二步的组，点击“执行框内节点”\n操作方法2：（没有“执行框内节点”按钮）\n1. 右击第二组“忽略框内节点”，执行队列（启用第一组）\n2. 右击第一组“忽略框内节点”，执行队列（启用第二组）\n\n功能：\n1. 3渲2\n\n原理：\n- 循环逐帧反推采样\n- 修脸\n- fastblend平滑\n\n缺点：\n- 长视频不支持\n- 大幅度动作有伪影"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 512,
+      "type": "CR LoRA Stack",
+      "pos": [
+        3147.999755859375,
+        -1656.282958984375
+      ],
+      "size": [
+        389.0071716308594,
+        554
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora_stack",
+          "type": "LORA_STACK",
+          "link": null,
+          "label": "LoRA堆",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LORA_STACK",
+          "type": "LORA_STACK",
+          "links": [
+            913
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "LORA_STACK"
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null,
+          "shape": 3,
+          "label": "show_help"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CR LoRA Stack"
+      },
+      "widgets_values": [
+        "Off",
+        "None",
+        1.2,
+        1.2,
+        "Off",
+        "None",
+        0.65,
+        1,
+        "Off",
+        "None",
+        0.9,
+        0.9
+      ]
+    },
+    {
+      "id": 523,
+      "type": "Note",
+      "pos": [
+        2111.720703125,
+        1948.1319580078125
+      ],
+      "size": [
+        429.41888427734375,
+        126.27776336669922
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "- accuracy: 越大越好，大部分情况 1 就够了 \n- window_size: 视频的平滑程度\n- minimum_patch_size: 奇数（重要），越大越好 \n- num_iter: 迭代次数，越大越好 \n- Guide weight: 决定将多少运动特征应用到风格视频中的参数。 \n- Batch size: 较大的 batch size 使程序更快，但需要更多的 VRAM。 \n  时间复杂度（accuracy=1）：\n  log(window_size) * minimum_patch_size^2 * num_iter * 视频长度 * 视频分辨率"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 524,
+      "type": "SmoothVideo",
+      "pos": [
+        1634.1494140625,
+        1890.458251953125
+      ],
+      "size": [
+        315,
+        222
+      ],
+      "flags": {},
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "orginalframe",
+          "type": "IMAGE",
+          "link": 1158,
+          "label": "orginalframe"
+        },
+        {
+          "name": "keyframe",
+          "type": "IMAGE",
+          "link": 1156,
+          "label": "keyframe"
+        },
+        {
+          "name": "minimum_patch_size",
+          "type": "INT",
+          "link": 933,
+          "slot_index": 2,
+          "widget": {
+            "name": "minimum_patch_size"
+          },
+          "label": "minimum_patch_size"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1069,
+            1112
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "IMAGE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SmoothVideo"
+      },
+      "widgets_values": [
+        3,
+        4,
+        17,
+        1,
+        8,
+        5,
+        10
+      ]
+    },
+    {
+      "id": 525,
+      "type": "DF_Integer",
+      "pos": [
+        1650.1494140625,
+        1711.458251953125
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            933
+          ],
+          "shape": 3,
+          "label": "INT"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DF_Integer"
+      },
+      "widgets_values": [
+        7
+      ]
+    },
+    {
+      "id": 533,
+      "type": "Reroute",
+      "pos": [
+        3901.254638671875,
+        212.52626037597656
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 60,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 1025
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            955,
+            956,
+            957
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 540,
+      "type": "ACN_AdvancedControlNetApply",
+      "pos": [
+        4760.00048828125,
+        -685.2828369140625
+      ],
+      "size": [
+        355.20001220703125,
+        286
+      ],
+      "flags": {},
+      "order": 51,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 1124,
+          "label": "正面条件"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 1125,
+          "slot_index": 1,
+          "label": "负面条件"
+        },
+        {
+          "name": "control_net",
+          "type": "CONTROL_NET",
+          "link": 1129,
+          "slot_index": 2,
+          "label": "ControlNet"
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1121,
+          "slot_index": 3,
+          "label": "图像"
+        },
+        {
+          "name": "mask_optional",
+          "type": "MASK",
+          "link": null,
+          "label": "遮罩",
+          "shape": 7
+        },
+        {
+          "name": "timestep_kf",
+          "type": "TIMESTEP_KEYFRAME",
+          "link": null,
+          "label": "帧间隔",
+          "shape": 7
+        },
+        {
+          "name": "latent_kf_override",
+          "type": "LATENT_KEYFRAME",
+          "link": null,
+          "label": "覆盖Latent关键帧",
+          "shape": 7
+        },
+        {
+          "name": "weights_override",
+          "type": "CONTROL_NET_WEIGHTS",
+          "link": null,
+          "label": "覆盖ControlNet权重",
+          "shape": 7
+        },
+        {
+          "name": "model_optional",
+          "type": "MODEL",
+          "link": null,
+          "label": "模型(可选)",
+          "shape": 7
+        },
+        {
+          "name": "vae_optional",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            1016
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "正面条件"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            1017
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "负面条件"
+        },
+        {
+          "name": "model_opt",
+          "type": "MODEL",
+          "links": null,
+          "slot_index": 2,
+          "shape": 3,
+          "label": "model_opt"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ACN_AdvancedControlNetApply"
+      },
+      "widgets_values": [
+        0.35000000000000003,
+        0,
+        0.9,
+        ""
+      ]
+    },
+    {
+      "id": 547,
+      "type": "LineArtPreprocessor",
+      "pos": [
+        4758.00048828125,
+        -995.2828369140625
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1120,
+          "label": "图像"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1121
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LineArtPreprocessor"
+      },
+      "widgets_values": [
+        "disable",
+        512
+      ]
+    },
+    {
+      "id": 548,
+      "type": "Reroute",
+      "pos": [
+        3043.569580078125,
+        -1028.4801025390625
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 1056
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            1014,
+            1096,
+            1106,
+            1120
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 562,
+      "type": "KSampler (Efficient)",
+      "pos": [
+        3400.999755859375,
+        114.7171401977539
+      ],
+      "size": [
+        294.71435546875,
+        562
+      ],
+      "flags": {},
+      "order": 58,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "label": "模型"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 1016,
+          "label": "正面条件"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 1017,
+          "slot_index": 2,
+          "label": "负面条件"
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 1128,
+          "slot_index": 3,
+          "label": "Latent"
+        },
+        {
+          "name": "optional_vae",
+          "type": "VAE",
+          "link": 1023,
+          "label": "VAE(可选)",
+          "shape": 7
+        },
+        {
+          "name": "script",
+          "type": "SCRIPT",
+          "link": null,
+          "label": "脚本",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "模型"
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "正面条件"
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": [],
+          "slot_index": 2,
+          "shape": 3,
+          "label": "负面条件"
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [],
+          "slot_index": 3,
+          "shape": 3,
+          "label": "Latent"
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [],
+          "slot_index": 4,
+          "shape": 3,
+          "label": "VAE"
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1025
+          ],
+          "slot_index": 5,
+          "shape": 3,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler (Efficient)"
+      },
+      "widgets_values": [
+        421367451545612,
+        null,
+        16,
+        7,
+        "dpmpp_2m",
+        "karras",
+        1,
+        "latent2rgb",
+        "true"
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "shape": 1
+    },
+    {
+      "id": 563,
+      "type": "StringFunction|pysssss",
+      "pos": [
+        3616.569580078125,
+        -1337.47998046875
+      ],
+      "size": [
+        467.2044677734375,
+        337.8157653808594
+      ],
+      "flags": {},
+      "order": 44,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text_a",
+          "type": "STRING",
+          "link": 1011,
+          "widget": {
+            "name": "text_a"
+          },
+          "label": "文本_A"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            1013
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "字符串"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringFunction|pysssss"
+      },
+      "widgets_values": [
+        "append",
+        "yes",
+        "",
+        ",best quality ,masterpiece, illustration, an extremely delicate and beautiful, extremely detailed ,CG ,unity ,8k wallpaper, Amazing, finely detail, masterpiece,best quality,official art,extremely detailed CG unity 8k wallpaper,absurdres, incredibly absurdres, huge filesize, ultra-detailed, highres, ",
+        "(2d,anime:1.5)",
+        "The image is a portrait of a young girl wearing a traditional Japanese kimono. She is standing in a field of colorful balloons, with a blue sky and white clouds in the background. The girl is smiling and looking directly at the camera. She has shoulder-length dark hair tied up in a bun with a white bow on top. The balloons are of different sizes and colors, including pink, orange, yellow, and blue. The overall mood of the image is cheerful and playful.,best quality,masterpiece, illustration, an extremely delicate and beautiful, extremely detailed,CG,unity,8k wallpaper, Amazing, finely detail, masterpiece,best quality,official art,extremely detailed CG unity 8k wallpaper,absurdres, incredibly absurdres, huge filesize, ultra-detailed, highres, (2d,anime:1.5)",
+        true,
+        true
+      ]
+    },
+    {
+      "id": 564,
+      "type": "LayerUtility: Florence2Image2Prompt",
+      "pos": [
+        3633.97705078125,
+        -1653.9990234375
+      ],
+      "size": [
+        453.5999755859375,
+        198
+      ],
+      "flags": {},
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "florence2_model",
+          "type": "FLORENCE2",
+          "link": 1012,
+          "label": "florence2_model"
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1014,
+          "label": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [
+            1011
+          ],
+          "slot_index": 0,
+          "label": "text"
+        },
+        {
+          "name": "preview_image",
+          "type": "IMAGE",
+          "links": null,
+          "slot_index": 1,
+          "label": "preview_image"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerUtility: Florence2Image2Prompt"
+      },
+      "widgets_values": [
+        "more detailed caption",
+        "",
+        1024,
+        3,
+        false,
+        false
+      ],
+      "color": "rgba(38, 73, 116, 0.7)"
+    },
+    {
+      "id": 565,
+      "type": "LayerMask: LoadFlorence2Model",
+      "pos": [
+        3674.97705078125,
+        -1786.9984130859375
+      ],
+      "size": [
+        390.5999755859375,
+        58
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "florence2_model",
+          "type": "FLORENCE2",
+          "links": [
+            1012
+          ],
+          "label": "florence2_model"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: LoadFlorence2Model"
+      },
+      "widgets_values": [
+        "base"
+      ],
+      "color": "rgba(27, 80, 119, 0.7)"
+    },
+    {
+      "id": 567,
+      "type": "Reroute",
+      "pos": [
+        2922.8212890625,
+        230.6071014404297
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 53,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 1021
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "VAE",
+          "links": [
+            1023,
+            1107
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 584,
+      "type": "LayerUtility: ImageScaleByAspectRatio V2",
+      "pos": [
+        1720,
+        -1496
+      ],
+      "size": [
+        315,
+        330
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1130,
+          "shape": 7,
+          "label": "图像"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": null,
+          "shape": 7,
+          "label": "遮罩"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            1056,
+            1147
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "label": "遮罩"
+        },
+        {
+          "name": "original_size",
+          "type": "BOX",
+          "links": null,
+          "label": "原始大小"
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerUtility: ImageScaleByAspectRatio V2"
+      },
+      "widgets_values": [
+        "original",
+        1,
+        1,
+        "letterbox",
+        "lanczos",
+        "8",
+        "shortest",
+        640,
+        "#000000"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 585,
+      "type": "DF_Integer",
+      "pos": [
+        972.3793334960938,
+        -1761.8646240234375
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            1140
+          ],
+          "slot_index": 0,
+          "label": "INT"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DF_Integer"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 586,
+      "type": "Note",
+      "pos": [
+        1734,
+        -1106
+      ],
+      "size": [
+        296.85723876953125,
+        65.99048614501953
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "分辨率越高，效果越好，对电脑配置要求越高"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 588,
+      "type": "DF_To_text_(Debug)",
+      "pos": [
+        1290,
+        -969
+      ],
+      "size": [
+        216.59999084472656,
+        96
+      ],
+      "flags": {},
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "ANY",
+          "type": "*",
+          "link": 1061,
+          "label": "ANY"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SAME AS INPUT",
+          "type": "*",
+          "links": null,
+          "label": "SAME AS INPUT"
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "label": "STRING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DF_To_text_(Debug)"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 589,
+      "type": "Note",
+      "pos": [
+        1332,
+        -1769
+      ],
+      "size": [
+        210,
+        73.83599090576172
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "内存不足，减低该值"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 593,
+      "type": "PreviewImage",
+      "pos": [
+        1293,
+        -803
+      ],
+      "size": [
+        210,
+        246
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1065,
+          "label": "图像"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 595,
+      "type": "RIFE VFI",
+      "pos": [
+        3791.3642578125,
+        1972.660888671875
+      ],
+      "size": [
+        443.4000244140625,
+        198
+      ],
+      "flags": {},
+      "order": 45,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "frames",
+          "type": "IMAGE",
+          "link": 1069,
+          "label": "图像"
+        },
+        {
+          "name": "optional_interpolation_states",
+          "type": "INTERPOLATION_STATES",
+          "link": null,
+          "shape": 7,
+          "label": "插值规则(可选)"
+        },
+        {
+          "name": "multiplier",
+          "type": "INT",
+          "link": 1074,
+          "widget": {
+            "name": "multiplier"
+          },
+          "label": "乘数"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1163
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RIFE VFI"
+      },
+      "widgets_values": [
+        "rife47.pth",
+        100,
+        3,
+        true,
+        true,
+        1
+      ]
+    },
+    {
+      "id": 596,
+      "type": "RIFE VFI",
+      "pos": [
+        4273.3642578125,
+        3153.6611328125
+      ],
+      "size": [
+        443.4000244140625,
+        198
+      ],
+      "flags": {},
+      "order": 59,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "frames",
+          "type": "IMAGE",
+          "link": 1160,
+          "label": "图像"
+        },
+        {
+          "name": "optional_interpolation_states",
+          "type": "INTERPOLATION_STATES",
+          "link": null,
+          "shape": 7,
+          "label": "插值规则(可选)"
+        },
+        {
+          "name": "multiplier",
+          "type": "INT",
+          "link": 1073,
+          "widget": {
+            "name": "multiplier"
+          },
+          "label": "乘数"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1071
+          ],
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RIFE VFI"
+      },
+      "widgets_values": [
+        "rife47.pth",
+        100,
+        3,
+        true,
+        true,
+        1
+      ]
+    },
+    {
+      "id": 597,
+      "type": "DF_Integer",
+      "pos": [
+        636,
+        -1524
+      ],
+      "size": [
+        210,
+        68.50389099121094
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            1073,
+            1074,
+            1075
+          ],
+          "slot_index": 0,
+          "label": "INT"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DF_Integer"
+      },
+      "widgets_values": [
+        2
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 598,
+      "type": "easy cleanGpuUsed",
+      "pos": [
+        1080,
+        1836
+      ],
+      "size": [
+        210,
+        26
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 1138,
+          "label": "输入任何"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": [
+            1080
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy cleanGpuUsed"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 599,
+      "type": "easy clearCacheAll",
+      "pos": [
+        1075,
+        1926
+      ],
+      "size": [
+        217.53062438964844,
+        26
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 1080,
+          "label": "输入任何"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": [
+            1174
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy clearCacheAll"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 604,
+      "type": "easy cleanGpuUsed",
+      "pos": [
+        3599.606201171875,
+        3173.372802734375
+      ],
+      "size": [
+        210,
+        26
+      ],
+      "flags": {},
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 1091,
+          "label": "输入任何"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": [
+            1090
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy cleanGpuUsed"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 605,
+      "type": "easy clearCacheAll",
+      "pos": [
+        3587.606201171875,
+        3299.373046875
+      ],
+      "size": [
+        210,
+        26
+      ],
+      "flags": {},
+      "order": 55,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 1090,
+          "label": "输入任何"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": [
+            1092
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy clearCacheAll"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 606,
+      "type": "Note",
+      "pos": [
+        639,
+        -1401
+      ],
+      "size": [
+        210,
+        89.94759368896484
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "原视频动作幅度小，模选设置3到5\n原视频动作幅度大，模选设置1到2\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 607,
+      "type": "GetImageSize+",
+      "pos": [
+        3796.0634765625,
+        -839.7025146484375
+      ],
+      "size": [
+        210,
+        66
+      ],
+      "flags": {},
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1096,
+          "label": "图像"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            1097
+          ],
+          "slot_index": 0,
+          "label": "宽度"
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            1098
+          ],
+          "label": "高度"
+        },
+        {
+          "name": "count",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GetImageSize+"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 611,
+      "type": "VAEEncode",
+      "pos": [
+        3049.999755859375,
+        143.71713256835938
+      ],
+      "size": [
+        210,
+        46
+      ],
+      "flags": {},
+      "order": 56,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 1106,
+          "label": "图像"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 1107,
+          "label": "VAE"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            1128
+          ],
+          "slot_index": 0,
+          "label": "Latent"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 620,
+      "type": "ACN_ControlNet++LoaderSingle",
+      "pos": [
+        4776.00048828125,
+        -838.2828369140625
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONTROL_NET",
+          "type": "CONTROL_NET",
+          "links": [
+            1129
+          ],
+          "slot_index": 0,
+          "label": "ControlNet"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ACN_ControlNet++LoaderSingle"
+      },
+      "widgets_values": [
+        "SDXL\\controlnet-union-sdxl-1.0\\diffusion_pytorch_model.safetensors",
+        "canny/lineart/mlsd"
+      ]
+    },
+    {
+      "id": 623,
+      "type": "Note",
+      "pos": [
+        5170.00048828125,
+        -566.2827758789062
+      ],
+      "size": [
+        238.710693359375,
+        138.1725616455078
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "强度越低，2d效果越好\n强度越高，构图越稳定\n0.3-1"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 627,
+      "type": "RetrieveBackendData //Inspire",
+      "pos": [
+        996,
+        2159
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "data",
+          "type": "*",
+          "links": [
+            1176
+          ],
+          "slot_index": 0,
+          "shape": 6,
+          "label": "数据"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RetrieveBackendData //Inspire"
+      },
+      "widgets_values": [
+        "source_video"
+      ]
+    },
+    {
+      "id": 628,
+      "type": "RetrieveBackendData //Inspire",
+      "pos": [
+        972,
+        1728
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "data",
+          "type": "*",
+          "links": [
+            1138
+          ],
+          "slot_index": 0,
+          "shape": 6,
+          "label": "数据"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RetrieveBackendData //Inspire"
+      },
+      "widgets_values": [
+        "new_video"
+      ]
+    },
+    {
+      "id": 629,
+      "type": "VHS_BatchManager",
+      "pos": [
+        1025.3798828125,
+        -1634.86474609375
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "frames_per_batch",
+          "type": "INT",
+          "link": 1140,
+          "widget": {
+            "name": "frames_per_batch"
+          },
+          "label": "每批次帧数"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "links": [
+            1139,
+            1144,
+            1146
+          ],
+          "slot_index": 0,
+          "label": "批次管理"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_BatchManager"
+      },
+      "widgets_values": {
+        "frames_per_batch": 16,
+        "count": 17
+      }
+    },
+    {
+      "id": 630,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        5314,
+        481
+      ],
+      "size": [
+        210,
+        310
+      ],
+      "flags": {},
+      "order": 65,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1143,
+          "label": "图像"
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null,
+          "shape": 7,
+          "label": "音频"
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": 1144,
+          "shape": 7,
+          "label": "批次管理"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": [
+            1151
+          ],
+          "slot_index": 0,
+          "label": "文件名"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_00185.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 8
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 631,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        2267,
+        -1474
+      ],
+      "size": [
+        210,
+        306
+      ],
+      "flags": {},
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1147,
+          "label": "图像"
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 1149,
+          "shape": 7,
+          "label": "音频"
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": 1146,
+          "shape": 7,
+          "label": "批次管理"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "frame_rate",
+          "type": "FLOAT",
+          "link": 1148,
+          "widget": {
+            "name": "frame_rate"
+          },
+          "label": "帧率"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": [
+            1150
+          ],
+          "slot_index": 0,
+          "label": "文件名"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 60,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_00186.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 24
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 632,
+      "type": "CacheBackendData //Inspire",
+      "pos": [
+        2550,
+        -1487
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "data",
+          "type": "*",
+          "link": 1150,
+          "label": "数据"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "data opt",
+          "type": "*",
+          "links": null,
+          "label": "数据"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CacheBackendData //Inspire"
+      },
+      "widgets_values": [
+        "source_video",
+        "原视频"
+      ]
+    },
+    {
+      "id": 633,
+      "type": "CacheBackendData //Inspire",
+      "pos": [
+        5558.00048828125,
+        474.71710205078125
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 66,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "data",
+          "type": "*",
+          "link": 1151,
+          "label": "数据"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "data opt",
+          "type": "*",
+          "links": null,
+          "label": "数据"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CacheBackendData //Inspire"
+      },
+      "widgets_values": [
+        "new_video",
+        "新视频"
+      ]
+    },
+    {
+      "id": 634,
+      "type": "VHS_LoadVideoPath",
+      "pos": [
+        1343.720703125,
+        1618.1319580078125
+      ],
+      "size": [
+        210,
+        238
+      ],
+      "flags": {},
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": 1164,
+          "shape": 7,
+          "label": "批次管理"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "video",
+          "type": "STRING",
+          "link": 1175,
+          "widget": {
+            "name": "video"
+          },
+          "label": "视频"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1156
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": null,
+          "label": "帧计数"
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null,
+          "label": "音频"
+        },
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": null,
+          "label": "视频信息"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_LoadVideoPath"
+      },
+      "widgets_values": {
+        "video": "",
+        "force_rate": 0,
+        "force_size": "Disabled",
+        "custom_width": 512,
+        "custom_height": 512,
+        "frame_load_cap": 0,
+        "skip_first_frames": 0,
+        "select_every_nth": 1,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "force_rate": 0,
+            "frame_load_cap": 0,
+            "skip_first_frames": 0,
+            "select_every_nth": 1
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 635,
+      "type": "VHS_LoadVideoPath",
+      "pos": [
+        1363.7205810546875,
+        2023.1319580078125
+      ],
+      "size": [
+        210,
+        238
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": 1165,
+          "shape": 7,
+          "label": "批次管理"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "video",
+          "type": "STRING",
+          "link": 1177,
+          "widget": {
+            "name": "video"
+          },
+          "label": "视频"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1158
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": null,
+          "label": "帧计数"
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            1169,
+            1170
+          ],
+          "slot_index": 2,
+          "label": "音频"
+        },
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": [
+            1168
+          ],
+          "slot_index": 3,
+          "label": "视频信息"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_LoadVideoPath"
+      },
+      "widgets_values": {
+        "video": "",
+        "force_rate": 0,
+        "force_size": "Disabled",
+        "custom_width": 512,
+        "custom_height": 512,
+        "frame_load_cap": 0,
+        "skip_first_frames": 0,
+        "select_every_nth": 1,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "force_rate": 0,
+            "frame_load_cap": 0,
+            "skip_first_frames": 0,
+            "select_every_nth": 1
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 636,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        4459.3642578125,
+        1856.660888671875
+      ],
+      "size": [
+        216,
+        306
+      ],
+      "flags": {},
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1163,
+          "label": "图像"
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 1169,
+          "shape": 7,
+          "label": "音频"
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": 1166,
+          "shape": 7,
+          "label": "批次管理"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "frame_rate",
+          "type": "FLOAT",
+          "link": 1172,
+          "widget": {
+            "name": "frame_rate"
+          },
+          "label": "帧率"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "label": "文件名"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_00189.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 24
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 637,
+      "type": "VHS_BatchManager",
+      "pos": [
+        1080,
+        1620
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "frames_per_batch",
+          "type": "INT",
+          "link": 1173,
+          "widget": {
+            "name": "frames_per_batch"
+          },
+          "label": "每批次帧数"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "links": [
+            1164,
+            1165,
+            1166,
+            1167
+          ],
+          "slot_index": 0,
+          "label": "批次管理"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_BatchManager"
+      },
+      "widgets_values": {
+        "frames_per_batch": 300,
+        "count": 16
+      }
+    },
+    {
+      "id": 638,
+      "type": "VHS_VideoInfoSource",
+      "pos": [
+        1675.952392578125,
+        2243.9853515625
+      ],
+      "size": [
+        172,
+        106
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "link": 1168,
+          "label": "视频信息"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "fps🟨",
+          "type": "FLOAT",
+          "links": [
+            1171,
+            1172
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "frame_count🟨",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "duration🟨",
+          "type": "FLOAT",
+          "links": null
+        },
+        {
+          "name": "width🟨",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height🟨",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoInfoSource"
+      },
+      "widgets_values": {}
+    },
+    {
+      "id": 639,
+      "type": "DF_Integer",
+      "pos": [
+        1011,
+        1527
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            1173
+          ],
+          "slot_index": 0,
+          "label": "INT"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DF_Integer"
+      },
+      "widgets_values": [
+        300
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 640,
+      "type": "VHS_SelectFilename",
+      "pos": [
+        1089,
+        2005
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "filenames",
+          "type": "*",
+          "link": 1174,
+          "label": "文件名"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filename",
+          "type": "STRING",
+          "links": [
+            1175
+          ],
+          "slot_index": 0,
+          "label": "文件名"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_SelectFilename"
+      },
+      "widgets_values": {
+        "index": 1
+      }
+    },
+    {
+      "id": 641,
+      "type": "VHS_SelectFilename",
+      "pos": [
+        1099,
+        2268
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "filenames",
+          "type": "*",
+          "link": 1176,
+          "label": "文件名"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filename",
+          "type": "STRING",
+          "links": [
+            1177
+          ],
+          "slot_index": 0,
+          "label": "文件名"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_SelectFilename"
+      },
+      "widgets_values": {
+        "index": 1
+      }
+    },
+    {
+      "id": 642,
+      "type": "Note",
+      "pos": [
+        1101,
+        2399
+      ],
+      "size": [
+        210,
+        78.78486633300781
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "0：图\n1：视频"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      233,
+      114,
+      5,
+      118,
+      0,
+      "CLIP"
+    ],
+    [
+      270,
+      146,
+      0,
+      141,
+      2,
+      "BASIC_PIPE"
+    ],
+    [
+      271,
+      141,
+      0,
+      142,
+      1,
+      "SEGS"
+    ],
+    [
+      272,
+      144,
+      0,
+      143,
+      0,
+      "BBOX_DETECTOR"
+    ],
+    [
+      273,
+      145,
+      0,
+      143,
+      2,
+      "SAM_MODEL"
+    ],
+    [
+      275,
+      114,
+      4,
+      146,
+      2,
+      "VAE"
+    ],
+    [
+      277,
+      143,
+      0,
+      141,
+      1,
+      "SEGS"
+    ],
+    [
+      555,
+      114,
+      5,
+      171,
+      0,
+      "CLIP"
+    ],
+    [
+      556,
+      114,
+      1,
+      174,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      557,
+      114,
+      2,
+      174,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      558,
+      119,
+      0,
+      146,
+      0,
+      "MODEL"
+    ],
+    [
+      559,
+      114,
+      5,
+      146,
+      1,
+      "CLIP"
+    ],
+    [
+      560,
+      114,
+      5,
+      170,
+      0,
+      "CLIP"
+    ],
+    [
+      561,
+      114,
+      1,
+      267,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      562,
+      114,
+      2,
+      267,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      563,
+      119,
+      0,
+      267,
+      8,
+      "MODEL"
+    ],
+    [
+      564,
+      119,
+      0,
+      257,
+      0,
+      "MODEL"
+    ],
+    [
+      576,
+      114,
+      5,
+      171,
+      0,
+      "CLIP"
+    ],
+    [
+      577,
+      114,
+      1,
+      174,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      578,
+      114,
+      2,
+      174,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      579,
+      119,
+      0,
+      146,
+      0,
+      "MODEL"
+    ],
+    [
+      580,
+      114,
+      5,
+      146,
+      1,
+      "CLIP"
+    ],
+    [
+      581,
+      114,
+      5,
+      170,
+      0,
+      "CLIP"
+    ],
+    [
+      582,
+      114,
+      1,
+      267,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      583,
+      114,
+      2,
+      267,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      584,
+      119,
+      0,
+      267,
+      8,
+      "MODEL"
+    ],
+    [
+      585,
+      119,
+      0,
+      257,
+      0,
+      "MODEL"
+    ],
+    [
+      827,
+      119,
+      0,
+      146,
+      0,
+      "MODEL"
+    ],
+    [
+      828,
+      114,
+      5,
+      146,
+      1,
+      "CLIP"
+    ],
+    [
+      829,
+      119,
+      0,
+      257,
+      0,
+      "MODEL"
+    ],
+    [
+      830,
+      114,
+      1,
+      480,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      831,
+      114,
+      2,
+      480,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      832,
+      119,
+      0,
+      480,
+      8,
+      "MODEL"
+    ],
+    [
+      833,
+      114,
+      5,
+      171,
+      0,
+      "CLIP"
+    ],
+    [
+      834,
+      114,
+      5,
+      170,
+      0,
+      "CLIP"
+    ],
+    [
+      835,
+      119,
+      0,
+      146,
+      0,
+      "MODEL"
+    ],
+    [
+      836,
+      114,
+      5,
+      146,
+      1,
+      "CLIP"
+    ],
+    [
+      837,
+      114,
+      5,
+      170,
+      0,
+      "CLIP"
+    ],
+    [
+      838,
+      114,
+      5,
+      171,
+      0,
+      "CLIP"
+    ],
+    [
+      839,
+      119,
+      0,
+      257,
+      0,
+      "MODEL"
+    ],
+    [
+      840,
+      114,
+      1,
+      480,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      841,
+      114,
+      2,
+      480,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      842,
+      119,
+      0,
+      480,
+      8,
+      "MODEL"
+    ],
+    [
+      876,
+      493,
+      3,
+      490,
+      0,
+      "VHS_VIDEOINFO"
+    ],
+    [
+      877,
+      114,
+      5,
+      171,
+      0,
+      "CLIP"
+    ],
+    [
+      878,
+      119,
+      0,
+      146,
+      0,
+      "MODEL"
+    ],
+    [
+      879,
+      114,
+      5,
+      146,
+      1,
+      "CLIP"
+    ],
+    [
+      880,
+      114,
+      5,
+      170,
+      0,
+      "CLIP"
+    ],
+    [
+      887,
+      114,
+      5,
+      171,
+      0,
+      "CLIP"
+    ],
+    [
+      888,
+      119,
+      0,
+      146,
+      0,
+      "MODEL"
+    ],
+    [
+      889,
+      114,
+      5,
+      146,
+      1,
+      "CLIP"
+    ],
+    [
+      890,
+      114,
+      5,
+      170,
+      0,
+      "CLIP"
+    ],
+    [
+      896,
+      114,
+      5,
+      171,
+      0,
+      "CLIP"
+    ],
+    [
+      897,
+      119,
+      0,
+      146,
+      0,
+      "MODEL"
+    ],
+    [
+      898,
+      114,
+      5,
+      146,
+      1,
+      "CLIP"
+    ],
+    [
+      899,
+      114,
+      5,
+      170,
+      0,
+      "CLIP"
+    ],
+    [
+      913,
+      512,
+      0,
+      114,
+      0,
+      "LORA_STACK"
+    ],
+    [
+      924,
+      114,
+      0,
+      117,
+      0,
+      "MODEL"
+    ],
+    [
+      933,
+      525,
+      0,
+      524,
+      2,
+      "INT"
+    ],
+    [
+      955,
+      533,
+      0,
+      143,
+      1,
+      "IMAGE"
+    ],
+    [
+      956,
+      533,
+      0,
+      141,
+      0,
+      "IMAGE"
+    ],
+    [
+      957,
+      533,
+      0,
+      142,
+      0,
+      "IMAGE"
+    ],
+    [
+      1011,
+      564,
+      0,
+      563,
+      0,
+      "STRING"
+    ],
+    [
+      1012,
+      565,
+      0,
+      564,
+      0,
+      "FLORENCE2"
+    ],
+    [
+      1013,
+      563,
+      0,
+      114,
+      2,
+      "STRING"
+    ],
+    [
+      1014,
+      548,
+      0,
+      564,
+      1,
+      "IMAGE"
+    ],
+    [
+      1016,
+      540,
+      0,
+      562,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1017,
+      540,
+      1,
+      562,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      1021,
+      114,
+      4,
+      567,
+      0,
+      "*"
+    ],
+    [
+      1023,
+      567,
+      0,
+      562,
+      4,
+      "VAE"
+    ],
+    [
+      1025,
+      562,
+      5,
+      533,
+      0,
+      "*"
+    ],
+    [
+      1033,
+      170,
+      0,
+      146,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1034,
+      171,
+      0,
+      146,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      1056,
+      584,
+      0,
+      548,
+      0,
+      "*"
+    ],
+    [
+      1061,
+      490,
+      1,
+      588,
+      0,
+      "*"
+    ],
+    [
+      1065,
+      493,
+      0,
+      593,
+      0,
+      "IMAGE"
+    ],
+    [
+      1069,
+      524,
+      0,
+      595,
+      0,
+      "IMAGE"
+    ],
+    [
+      1071,
+      596,
+      0,
+      489,
+      0,
+      "IMAGE"
+    ],
+    [
+      1073,
+      597,
+      0,
+      596,
+      2,
+      "INT"
+    ],
+    [
+      1074,
+      597,
+      0,
+      595,
+      2,
+      "INT"
+    ],
+    [
+      1075,
+      597,
+      0,
+      493,
+      2,
+      "INT"
+    ],
+    [
+      1080,
+      598,
+      0,
+      599,
+      0,
+      "*"
+    ],
+    [
+      1090,
+      604,
+      0,
+      605,
+      0,
+      "*"
+    ],
+    [
+      1091,
+      375,
+      0,
+      604,
+      0,
+      "*"
+    ],
+    [
+      1092,
+      605,
+      0,
+      342,
+      0,
+      "IMAGE"
+    ],
+    [
+      1096,
+      548,
+      0,
+      607,
+      0,
+      "IMAGE"
+    ],
+    [
+      1097,
+      607,
+      0,
+      114,
+      3,
+      "INT"
+    ],
+    [
+      1098,
+      607,
+      1,
+      114,
+      4,
+      "INT"
+    ],
+    [
+      1106,
+      548,
+      0,
+      611,
+      0,
+      "IMAGE"
+    ],
+    [
+      1107,
+      567,
+      0,
+      611,
+      1,
+      "VAE"
+    ],
+    [
+      1112,
+      524,
+      0,
+      375,
+      0,
+      "*"
+    ],
+    [
+      1120,
+      548,
+      0,
+      547,
+      0,
+      "IMAGE"
+    ],
+    [
+      1121,
+      547,
+      0,
+      540,
+      3,
+      "IMAGE"
+    ],
+    [
+      1124,
+      114,
+      1,
+      540,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1125,
+      114,
+      2,
+      540,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1128,
+      611,
+      0,
+      562,
+      3,
+      "LATENT"
+    ],
+    [
+      1129,
+      620,
+      0,
+      540,
+      2,
+      "CONTROL_NET"
+    ],
+    [
+      1130,
+      493,
+      0,
+      584,
+      0,
+      "IMAGE"
+    ],
+    [
+      1138,
+      628,
+      0,
+      598,
+      0,
+      "*"
+    ],
+    [
+      1139,
+      629,
+      0,
+      493,
+      0,
+      "VHS_BatchManager"
+    ],
+    [
+      1140,
+      585,
+      0,
+      629,
+      0,
+      "INT"
+    ],
+    [
+      1143,
+      142,
+      0,
+      630,
+      0,
+      "IMAGE"
+    ],
+    [
+      1144,
+      629,
+      0,
+      630,
+      2,
+      "VHS_BatchManager"
+    ],
+    [
+      1146,
+      629,
+      0,
+      631,
+      2,
+      "VHS_BatchManager"
+    ],
+    [
+      1147,
+      584,
+      0,
+      631,
+      0,
+      "IMAGE"
+    ],
+    [
+      1148,
+      490,
+      0,
+      631,
+      4,
+      "FLOAT"
+    ],
+    [
+      1149,
+      493,
+      2,
+      631,
+      1,
+      "AUDIO"
+    ],
+    [
+      1150,
+      631,
+      0,
+      632,
+      0,
+      "*"
+    ],
+    [
+      1151,
+      630,
+      0,
+      633,
+      0,
+      "*"
+    ],
+    [
+      1156,
+      634,
+      0,
+      524,
+      1,
+      "IMAGE"
+    ],
+    [
+      1158,
+      635,
+      0,
+      524,
+      0,
+      "IMAGE"
+    ],
+    [
+      1160,
+      342,
+      0,
+      596,
+      0,
+      "IMAGE"
+    ],
+    [
+      1163,
+      595,
+      0,
+      636,
+      0,
+      "IMAGE"
+    ],
+    [
+      1164,
+      637,
+      0,
+      634,
+      0,
+      "VHS_BatchManager"
+    ],
+    [
+      1165,
+      637,
+      0,
+      635,
+      0,
+      "VHS_BatchManager"
+    ],
+    [
+      1166,
+      637,
+      0,
+      636,
+      2,
+      "VHS_BatchManager"
+    ],
+    [
+      1167,
+      637,
+      0,
+      489,
+      2,
+      "VHS_BatchManager"
+    ],
+    [
+      1168,
+      635,
+      3,
+      638,
+      0,
+      "VHS_VIDEOINFO"
+    ],
+    [
+      1169,
+      635,
+      2,
+      636,
+      1,
+      "AUDIO"
+    ],
+    [
+      1170,
+      635,
+      2,
+      489,
+      1,
+      "AUDIO"
+    ],
+    [
+      1171,
+      638,
+      0,
+      489,
+      4,
+      "FLOAT"
+    ],
+    [
+      1172,
+      638,
+      0,
+      636,
+      4,
+      "FLOAT"
+    ],
+    [
+      1173,
+      639,
+      0,
+      637,
+      0,
+      "INT"
+    ],
+    [
+      1174,
+      599,
+      0,
+      640,
+      0,
+      "VHS_FILENAMES"
+    ],
+    [
+      1175,
+      640,
+      0,
+      634,
+      2,
+      "*"
+    ],
+    [
+      1176,
+      627,
+      0,
+      641,
+      0,
+      "VHS_FILENAMES"
+    ],
+    [
+      1177,
+      641,
+      0,
+      635,
+      2,
+      "*"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 2,
+      "title": "脸部修复",
+      "bounding": [
+        3919.254638671875,
+        14.526106834411621,
+        1986.11181640625,
+        1086.247802734375
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "基础配置",
+      "bounding": [
+        2968.398681640625,
+        -1853.690673828125,
+        2936.590576171875,
+        1642.69384765625
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "无滤镜",
+      "bounding": [
+        3547.111328125,
+        1472.9571533203125,
+        1511.860107421875,
+        1041.6090087890625
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "输入",
+      "bounding": [
+        942.376708984375,
+        -1851.0672607421875,
+        1925.937744140625,
+        1617.5992431640625
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "滤镜",
+      "bounding": [
+        3559.6201171875,
+        2716.7080078125,
+        1498.1480712890625,
+        934.678955078125
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 8,
+      "title": "采样",
+      "bounding": [
+        2950.8212890625,
+        2.0071115493774414,
+        865.7432861328125,
+        1115.3790283203125
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 9,
+      "title": "平滑",
+      "bounding": [
+        967.8385620117188,
+        1463.3389892578125,
+        2038.942138671875,
+        1094.151123046875
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 10,
+      "title": "第一步",
+      "bounding": [
+        945.6652221679688,
+        -1904.9620361328125,
+        4962.0302734375,
+        3024.6767578125
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 12,
+      "title": "第二步",
+      "bounding": [
+        957.8385620117188,
+        1419.739013671875,
+        4111.13330078125,
+        2241.647705078125
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.19487171000000222,
+      "offset": [
+        2552.0267562061163,
+        -1334.5939565479662
+      ]
+    }
+  },
+  "version": 0.4
+}

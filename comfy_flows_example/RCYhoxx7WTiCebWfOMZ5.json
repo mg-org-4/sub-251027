@@ -1,0 +1,998 @@
+{
+  "last_node_id": 277,
+  "last_link_id": 349,
+  "nodes": [
+    {
+      "id": 102,
+      "type": "PurgeVRAM",
+      "pos": [
+        24049.60546875,
+        -894.618896484375
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 255,
+          "label": "anything"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PurgeVRAM",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        true,
+        true
+      ],
+      "color": "#af3535"
+    },
+    {
+      "id": 111,
+      "type": "PurgeVRAM",
+      "pos": [
+        22374.427734375,
+        619.9091796875
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 153,
+          "label": "anything"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PurgeVRAM",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        true,
+        true
+      ],
+      "color": "#af3535"
+    },
+    {
+      "id": 96,
+      "type": "Note Plus (mtb)",
+      "pos": [
+        21028.064453125,
+        -258.2060241699219
+      ],
+      "size": [
+        656,
+        128
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "<div class=\"startPage\">\n  <div class=\"hoverContainer\">\n    <a href=\"https://aix.studio\">\n      <span class=\"size-smallButton style-input\">🗃️ AIX官网</span>\n    </a>\n    <a href=\"https://t.zsxq.com/7F90A\">\n      <span class=\"size-smallButton style-input\">🪲 知识星球</span>\n    </a>\n    <a href=\"https://space.bilibili.com/385085361\">\n      <span class=\"size-smallButton style-input\">☕ B站首页</span>\n    </a>\n  </div>\n</div>",
+        "markdown",
+        "\r\n\r\n* {\r\n    font-family: Arial;\r\n  }\r\n\r\n\r\n  .startPage {\r\n    position: absolute;\r\n    width:auto;\r\n    z-index: 0;\r\n    transition: transform 0.3s ease;\r\n  }\r\n\r\n  .startPage:hover {\r\n    transform: translateY(-1%);\r\n  }\r\n\r\n  .hoverContainer {\r\n    background: black;\r\n    border-radius: 27px;\r\n    padding: 50px;\r\n    display: flex;\r\n    flex-direction: row;\r\n    margin: 12px auto;\r\n    position: relative;\r\n  }\r\n\r\n  .header {\r\n    padding-bottom: 24px;\r\n    margin-bottom: 24px;\r\n    border-bottom: 1px solid #3e3e3e;\r\n    width: 200%;\r\n    height: 72px;\r\n    display: flex;\r\n    align-items: center;\r\n    justify-content: space-between;\r\n  }\r\n\r\n  .header_discrip {\r\n    font-size: 21px;\r\n    font-weight: 200;\r\n    color: #6f6f6f;\r\n  }\r\n\r\n  .size-smallButton {\r\n    font-size: 21px;\r\n    border-radius: 12px;\r\n    height: 48px;\r\n    min-width: 48px;\r\n    display: flex;\r\n    align-items: center;\r\n    justify-content: center;\r\n    width: 100%;\r\n    cursor: pointer;\r\n  }\r\n\r\n  .style-input {\r\n    background: #2a2a2b;\r\n    padding: 12px;\r\n    transition: background 0.3s;\r\n  }\r\n\r\n  .style-input:hover {\r\n    background: #3b3b3c;\r\n  }\r\na:not(:first-child) {\r\n      margin-left:8px;}\r\n  a {\r\n    color: #b6b6b7;\r\n  }\r\n\r\n  a:hover,\r\n  a:hover .header_discrip {\r\n    color: #dddddd !important;\r\n  }",
+        "one_dark"
+      ],
+      "color": "#3a3a3a",
+      "bgcolor": "#262626",
+      "shape": 1
+    },
+    {
+      "id": 95,
+      "type": "MediaPlayer",
+      "pos": [
+        21188.412109375,
+        -615.8201904296875
+      ],
+      "size": [
+        320,
+        330
+      ],
+      "flags": {
+        "showTitle": false
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "MediaPlayer",
+      "properties": {
+        "url": "<iframe width=\"560\" height=\"315\" src=\"https://www.youtube.com/embed/LBwduOugFf0?si=X8HEp7FFWbESfbJI\" title=\"YouTube video player\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>",
+        "theme": "light"
+      },
+      "widgets_values": [
+        null
+      ],
+      "color": "#E0E0E0",
+      "bgcolor": "#FFFFFF",
+      "shape": 2
+    },
+    {
+      "id": 108,
+      "type": "StableMakeup_Sampler",
+      "pos": [
+        22344.091796875,
+        214.10806274414062
+      ],
+      "size": [
+        315,
+        218
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "id_image",
+          "type": "IMAGE",
+          "link": 144,
+          "label": "id_image"
+        },
+        {
+          "name": "makeup_image",
+          "type": "IMAGE",
+          "link": 145,
+          "label": "makeup_image"
+        },
+        {
+          "name": "model",
+          "type": "MAKEUP_MODEL",
+          "link": 146,
+          "label": "model"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            139,
+            153
+          ],
+          "slot_index": 0,
+          "label": "image"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StableMakeup_Sampler",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        "resnet",
+        "300wpublic",
+        1.6,
+        30,
+        512,
+        512
+      ],
+      "color": "#af3535"
+    },
+    {
+      "id": 104,
+      "type": "StableMakeup_LoadModel",
+      "pos": [
+        21828.650390625,
+        624.6859741210938
+      ],
+      "size": [
+        315,
+        178
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MAKEUP_MODEL",
+          "links": [
+            146
+          ],
+          "label": "model"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StableMakeup_LoadModel",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        "15\\pytorch_model.fp16.safetensors",
+        "D:/ComfyUI-aki/models/openai/clip-vit-large-patch",
+        "none",
+        1,
+        "best",
+        "DDIM"
+      ],
+      "color": "#af3535"
+    },
+    {
+      "id": 100,
+      "type": "SHMT_LoadModel",
+      "pos": [
+        23341.251953125,
+        -131.07266235351562
+      ],
+      "size": [
+        315,
+        130
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL_SHMT",
+          "links": [
+            252
+          ],
+          "slot_index": 0,
+          "label": "model"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SHMT_LoadModel",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        "epoch=000755.ckpt",
+        "model.ckpt",
+        "D:/ComfyUI-aki/models/jonathandinu",
+        false
+      ],
+      "color": "#af3535"
+    },
+    {
+      "id": 180,
+      "type": "SHMT_Sampler",
+      "pos": [
+        24307.33203125,
+        -684.4070434570312
+      ],
+      "size": [
+        315,
+        434
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "id_image",
+          "type": "IMAGE",
+          "link": 253,
+          "label": "id_image"
+        },
+        {
+          "name": "makeup_image",
+          "type": "IMAGE",
+          "link": 254,
+          "label": "makeup_image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL_SHMT",
+          "link": 252,
+          "label": "model"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            255,
+            257
+          ],
+          "slot_index": 0,
+          "label": "image"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SHMT_Sampler",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        918624344,
+        "fixed",
+        256,
+        256,
+        3,
+        4,
+        50,
+        0,
+        1,
+        1,
+        0.5,
+        "autocast",
+        true,
+        false,
+        true
+      ],
+      "color": "#af3535"
+    },
+    {
+      "id": 181,
+      "type": "Note",
+      "pos": [
+        25488,
+        96
+      ],
+      "size": [
+        255.86575317382812,
+        87.89363861083984
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        " 原图"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 177,
+      "type": "CSDMTLoader",
+      "pos": [
+        22551.841796875,
+        857.7197265625
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL_CSDMT",
+          "links": [
+            247
+          ],
+          "label": "model"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CSDMTLoader",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        "CSD_MT.pth",
+        "79999_iter.pth"
+      ],
+      "color": "#af3535"
+    },
+    {
+      "id": 176,
+      "type": "CSDMTSampler",
+      "pos": [
+        22967.193359375,
+        880.9265747070312
+      ],
+      "size": [
+        315,
+        98
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL_CSDMT",
+          "link": 247,
+          "label": "model"
+        },
+        {
+          "name": "non_makeup_image",
+          "type": "IMAGE",
+          "link": 249,
+          "label": "non_makeup_image"
+        },
+        {
+          "name": "makeup_image",
+          "type": "IMAGE",
+          "link": 250,
+          "label": "makeup_image"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            248,
+            251
+          ],
+          "slot_index": 0,
+          "label": "image"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CSDMTSampler",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        256
+      ],
+      "color": "#af3535"
+    },
+    {
+      "id": 179,
+      "type": "PurgeVRAM",
+      "pos": [
+        23862.419921875,
+        874.7388305664062
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 251,
+          "label": "anything"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PurgeVRAM",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        true,
+        true
+      ],
+      "color": "#af3535"
+    },
+    {
+      "id": 107,
+      "type": "LoadImage",
+      "pos": [
+        25423.74609375,
+        280.8478088378906
+      ],
+      "size": [
+        315,
+        314
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            144,
+            249,
+            253,
+            259
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "label": "遮罩"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        "gao512.jpg",
+        "image"
+      ],
+      "color": "#af3535"
+    },
+    {
+      "id": 182,
+      "type": "Note",
+      "pos": [
+        25772.076171875,
+        138.48411560058594
+      ],
+      "size": [
+        255.86575317382812,
+        87.89363861083984
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "SHMT"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 101,
+      "type": "PreviewImage",
+      "pos": [
+        25791.3984375,
+        282.1056213378906
+      ],
+      "size": [
+        257.9305725097656,
+        336.4838562011719
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 257,
+          "label": "图像"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [],
+      "color": "#af3535"
+    },
+    {
+      "id": 99,
+      "type": "PreviewImage",
+      "pos": [
+        26086.8203125,
+        254.1613311767578
+      ],
+      "size": [
+        315.9826965332031,
+        415.0521545410156
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 139,
+          "label": "图像"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [],
+      "color": "#af3535"
+    },
+    {
+      "id": 183,
+      "type": "Note",
+      "pos": [
+        26098.623046875,
+        102.2939682006836
+      ],
+      "size": [
+        255.86575317382812,
+        87.89363861083984
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Stable MakeUp"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 184,
+      "type": "Note",
+      "pos": [
+        26464.5859375,
+        132.6504364013672
+      ],
+      "size": [
+        255.86575317382812,
+        87.89363861083984
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "CSDMT"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 178,
+      "type": "PreviewImage",
+      "pos": [
+        26463.953125,
+        309.385009765625
+      ],
+      "size": [
+        205.6437530517578,
+        284.0012512207031
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 248,
+          "label": "图像"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [],
+      "color": "#af3535"
+    },
+    {
+      "id": 103,
+      "type": "PurgeVRAM",
+      "pos": [
+        22943.90234375,
+        -195.1588592529297
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 259,
+          "label": "anything"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PurgeVRAM",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        true,
+        true
+      ],
+      "color": "#af3535"
+    },
+    {
+      "id": 94,
+      "type": "MediaPlayer",
+      "pos": [
+        21189.0703125,
+        -978.5325317382812
+      ],
+      "size": [
+        320,
+        328
+      ],
+      "flags": {
+        "showTitle": false
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "MediaPlayer",
+      "properties": {
+        "url": "<iframe src=\"//player.bilibili.com/player.html?isOutside=true&aid=113963165552895&bvid=BV1mWNNe8EHE&cid=28266201342&p=1\" scrolling=\"no\" border=\"0\" frameborder=\"no\" framespacing=\"0\" allowfullscreen=\"true\"></iframe>",
+        "theme": "light"
+      },
+      "widgets_values": [
+        null
+      ],
+      "color": "#E0E0E0",
+      "bgcolor": "#FFFFFF",
+      "shape": 2
+    },
+    {
+      "id": 115,
+      "type": "LoadImage",
+      "pos": [
+        21914.333984375,
+        -747.44189453125
+      ],
+      "size": [
+        556.1419067382812,
+        534.1160888671875
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            145,
+            250,
+            254
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "label": "遮罩"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ttNbgOverride": {
+          "color": "#af3535",
+          "groupcolor": "#A88"
+        }
+      },
+      "widgets_values": [
+        "vFG112.png",
+        "image"
+      ],
+      "color": "#af3535"
+    }
+  ],
+  "links": [
+    [
+      139,
+      108,
+      0,
+      99,
+      0,
+      "IMAGE"
+    ],
+    [
+      144,
+      107,
+      0,
+      108,
+      0,
+      "IMAGE"
+    ],
+    [
+      145,
+      115,
+      0,
+      108,
+      1,
+      "IMAGE"
+    ],
+    [
+      146,
+      104,
+      0,
+      108,
+      2,
+      "MAKEUP_MODEL"
+    ],
+    [
+      153,
+      108,
+      0,
+      111,
+      0,
+      "*"
+    ],
+    [
+      247,
+      177,
+      0,
+      176,
+      0,
+      "MODEL_CSDMT"
+    ],
+    [
+      248,
+      176,
+      0,
+      178,
+      0,
+      "IMAGE"
+    ],
+    [
+      249,
+      107,
+      0,
+      176,
+      1,
+      "IMAGE"
+    ],
+    [
+      250,
+      115,
+      0,
+      176,
+      2,
+      "IMAGE"
+    ],
+    [
+      251,
+      176,
+      0,
+      179,
+      0,
+      "*"
+    ],
+    [
+      252,
+      100,
+      0,
+      180,
+      2,
+      "MODEL_SHMT"
+    ],
+    [
+      253,
+      107,
+      0,
+      180,
+      0,
+      "IMAGE"
+    ],
+    [
+      254,
+      115,
+      0,
+      180,
+      1,
+      "IMAGE"
+    ],
+    [
+      255,
+      180,
+      0,
+      102,
+      0,
+      "*"
+    ],
+    [
+      257,
+      180,
+      0,
+      101,
+      0,
+      "IMAGE"
+    ],
+    [
+      259,
+      107,
+      0,
+      103,
+      0,
+      "*"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 5,
+      "title": "B站、Youtube：T8star-Aix",
+      "bounding": [
+        21734.873046875,
+        -1457.457275390625,
+        3140.275146484375,
+        346.5564880371094
+      ],
+      "color": "#3f789e",
+      "font_size": 240,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5559917313492252,
+      "offset": [
+        -21574.07837563235,
+        1114.4873904074793
+      ]
+    },
+    "ue_links": [],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0
+  },
+  "version": 0.4
+}

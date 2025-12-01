@@ -1,0 +1,1023 @@
+{
+  "last_link_id": 33,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "slot_index": 0,
+          "links": [
+            4
+          ],
+          "label": "引导",
+          "type": "GUIDER",
+          "localized_name": "引导器"
+        }
+      ],
+      "size": [
+        222.3482666015625,
+        46
+      ],
+      "pos": [
+        2343.904296875,
+        504.84722900390625
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 8,
+          "label": "模型",
+          "type": "MODEL",
+          "localized_name": "模型"
+        },
+        {
+          "name": "conditioning",
+          "link": 33,
+          "label": "条件",
+          "type": "CONDITIONING",
+          "localized_name": "条件"
+        }
+      ],
+      "flags": {},
+      "id": 12,
+      "type": "BasicGuider",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.71",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "BasicGuider"
+      },
+      "order": 11
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "NOISE",
+          "links": [
+            3
+          ],
+          "label": "噪波生成",
+          "type": "NOISE",
+          "localized_name": "噪波"
+        }
+      ],
+      "size": [
+        222.3482666015625,
+        82
+      ],
+      "pos": [
+        2342.59228515625,
+        371.3304443359375
+      ],
+      "widgets_values": [
+        796840141551672,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "noise_seed"
+          },
+          "name": "noise_seed",
+          "type": "INT",
+          "localized_name": "随机种"
+        }
+      ],
+      "flags": {},
+      "id": 16,
+      "type": "RandomNoise",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.71",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RandomNoise"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "links": [
+            5
+          ],
+          "label": "采样器",
+          "type": "SAMPLER",
+          "localized_name": "采样器"
+        }
+      ],
+      "size": [
+        222.3482666015625,
+        58
+      ],
+      "pos": [
+        2345.34814453125,
+        611.5897216796875
+      ],
+      "widgets_values": [
+        "euler"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "sampler_name"
+          },
+          "name": "sampler_name",
+          "type": "COMBO",
+          "localized_name": "采样器"
+        }
+      ],
+      "flags": {},
+      "id": 26,
+      "type": "KSamplerSelect",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.71",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CLIP",
+          "links": [
+            27
+          ],
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "CLIP"
+        }
+      ],
+      "size": [
+        298.18182373046875,
+        106
+      ],
+      "pos": [
+        2013.7794189453125,
+        520.0121459960938
+      ],
+      "widgets_values": [
+        "mistral_3_small_flux2_bf16.safetensors",
+        "flux2",
+        "default"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "clip_name"
+          },
+          "name": "clip_name",
+          "type": "COMBO",
+          "localized_name": "CLIP名称"
+        },
+        {
+          "widget": {
+            "name": "type"
+          },
+          "name": "type",
+          "type": "COMBO",
+          "localized_name": "类型"
+        },
+        {
+          "widget": {
+            "name": "device"
+          },
+          "shape": 7,
+          "name": "device",
+          "type": "COMBO",
+          "localized_name": "设备"
+        }
+      ],
+      "flags": {},
+      "id": 15,
+      "type": "CLIPLoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "models": [
+          {
+            "directory_invalid": true,
+            "name": "mistral_3_small_flux2_bf16.safetensors",
+            "directory": "text_encoders",
+            "url": "https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors"
+          }
+        ],
+        "ver": "0.3.71",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CLIPLoader"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "links": [
+            6
+          ],
+          "label": "SIGMAS",
+          "type": "SIGMAS",
+          "localized_name": "Sigmas"
+        }
+      ],
+      "size": [
+        222.3482666015625,
+        106
+      ],
+      "pos": [
+        2349.405517578125,
+        720.6928100585938
+      ],
+      "widgets_values": [
+        20,
+        1248,
+        2784
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "steps"
+          },
+          "name": "steps",
+          "label": "steps",
+          "type": "INT",
+          "localized_name": "steps"
+        },
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "width",
+          "link": 28,
+          "label": "width",
+          "type": "INT",
+          "localized_name": "width"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "link": 29,
+          "label": "height",
+          "type": "INT",
+          "localized_name": "height"
+        }
+      ],
+      "flags": {},
+      "id": 27,
+      "type": "Flux2Scheduler",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.71",
+        "widget_ue_connectable": {
+          "width": true,
+          "height": true
+        },
+        "Node name for S&R": "Flux2Scheduler"
+      },
+      "order": 8
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "LATENT",
+          "links": [
+            7
+          ],
+          "label": "LATENT",
+          "type": "LATENT",
+          "localized_name": "Latent"
+        }
+      ],
+      "size": [
+        233.15921020507812,
+        106
+      ],
+      "pos": [
+        2346.354736328125,
+        873.289794921875
+      ],
+      "widgets_values": [
+        1248,
+        2784,
+        1
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "width",
+          "link": 31,
+          "label": "width",
+          "type": "INT",
+          "localized_name": "width"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "link": 30,
+          "label": "height",
+          "type": "INT",
+          "localized_name": "height"
+        },
+        {
+          "widget": {
+            "name": "batch_size"
+          },
+          "name": "batch_size",
+          "label": "batch_size",
+          "type": "INT",
+          "localized_name": "batch_size"
+        }
+      ],
+      "flags": {},
+      "id": 28,
+      "type": "EmptyFlux2LatentImage",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.71",
+        "widget_ue_connectable": {
+          "width": true,
+          "height": true
+        },
+        "Node name for S&R": "EmptyFlux2LatentImage"
+      },
+      "order": 9
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "VAE",
+          "slot_index": 0,
+          "links": [
+            26
+          ],
+          "label": "VAE",
+          "type": "VAE",
+          "localized_name": "VAE"
+        }
+      ],
+      "size": [
+        301.5572509765625,
+        58
+      ],
+      "pos": [
+        2011.79052734375,
+        695.7674560546875
+      ],
+      "widgets_values": [
+        "flux2-vae.safetensors"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "vae_name"
+          },
+          "name": "vae_name",
+          "type": "COMBO",
+          "localized_name": "vae名称"
+        }
+      ],
+      "flags": {},
+      "id": 31,
+      "type": "VAELoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "models": [
+          {
+            "directory_invalid": true,
+            "name": "flux2-vae.safetensors",
+            "directory": "vae",
+            "url": "https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/vae/flux2-vae.safetensors"
+          }
+        ],
+        "ver": "0.3.71",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAELoader"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "int",
+          "links": [
+            29,
+            30
+          ],
+          "label": "整数",
+          "type": "INT",
+          "localized_name": "int"
+        }
+      ],
+      "size": [
+        295.0877380371094,
+        59.140350341796875
+      ],
+      "pos": [
+        2013.7208251953125,
+        917.609619140625
+      ],
+      "widgets_values": [
+        1024
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "type": "INT",
+          "localized_name": "值"
+        }
+      ],
+      "flags": {},
+      "id": 34,
+      "type": "easy int",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy int"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "int",
+          "links": [
+            28,
+            31
+          ],
+          "label": "整数",
+          "type": "INT",
+          "localized_name": "int"
+        }
+      ],
+      "size": [
+        295.0877380371094,
+        59.140350341796875
+      ],
+      "pos": [
+        2015.834228515625,
+        807.4476928710938
+      ],
+      "widgets_values": [
+        1024
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "type": "INT",
+          "localized_name": "值"
+        }
+      ],
+      "flags": {},
+      "id": 33,
+      "type": "easy int",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy int"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "slot_index": 0,
+          "links": [
+            25
+          ],
+          "label": "输出",
+          "type": "LATENT",
+          "localized_name": "Latent"
+        },
+        {
+          "name": "denoised_output",
+          "label": "降噪输出",
+          "type": "LATENT",
+          "localized_name": "降噪Latent"
+        }
+      ],
+      "size": [
+        272.3617858886719,
+        124.53733825683594
+      ],
+      "pos": [
+        2599.011474609375,
+        376.75592041015625
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "noise",
+          "link": 3,
+          "label": "噪波生成",
+          "type": "NOISE",
+          "localized_name": "噪波"
+        },
+        {
+          "name": "guider",
+          "link": 4,
+          "label": "引导",
+          "type": "GUIDER",
+          "localized_name": "引导器"
+        },
+        {
+          "name": "sampler",
+          "link": 5,
+          "label": "采样器",
+          "type": "SAMPLER",
+          "localized_name": "采样器"
+        },
+        {
+          "name": "sigmas",
+          "link": 6,
+          "label": "Sigmas",
+          "type": "SIGMAS",
+          "localized_name": "西格玛"
+        },
+        {
+          "name": "latent_image",
+          "link": 7,
+          "label": "Latent",
+          "type": "LATENT",
+          "localized_name": "Latent图像"
+        }
+      ],
+      "flags": {},
+      "id": 11,
+      "type": "SamplerCustomAdvanced",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.71",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SamplerCustomAdvanced"
+      },
+      "order": 12
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            2
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "size": [
+        210,
+        46
+      ],
+      "pos": [
+        2642.865478515625,
+        575.0556030273438
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "samples",
+          "link": 25,
+          "label": "Latent",
+          "type": "LATENT",
+          "localized_name": "Latent"
+        },
+        {
+          "name": "vae",
+          "link": 26,
+          "label": "VAE",
+          "type": "VAE",
+          "localized_name": "vae"
+        }
+      ],
+      "flags": {},
+      "id": 30,
+      "type": "VAEDecode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.71",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAEDecode"
+      },
+      "order": 13
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            8
+          ],
+          "label": "模型",
+          "type": "MODEL",
+          "localized_name": "模型"
+        }
+      ],
+      "size": [
+        298.18182373046875,
+        82
+      ],
+      "pos": [
+        2012.0184326171875,
+        370.546875
+      ],
+      "widgets_values": [
+        "flux2_dev_fp8mixed.safetensors",
+        "default"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "unet_name"
+          },
+          "name": "unet_name",
+          "type": "COMBO",
+          "localized_name": "UNET名称"
+        },
+        {
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "localized_name": "剪枝类型"
+        }
+      ],
+      "flags": {},
+      "id": 17,
+      "type": "UNETLoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "models": [
+          {
+            "directory_invalid": true,
+            "name": "flux2_dev_fp8mixed.safetensors",
+            "directory": "diffusion_models",
+            "url": "https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/diffusion_models/flux2_dev_fp8mixed.safetensors"
+          }
+        ],
+        "ver": "0.3.71",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "UNETLoader"
+      },
+      "order": 6
+    },
+    {
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            33
+          ],
+          "label": "条件",
+          "type": "CONDITIONING",
+          "localized_name": "条件"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        5
+      ],
+      "inputs": [
+        {
+          "name": "conditioning",
+          "link": 20,
+          "label": "条件",
+          "type": "CONDITIONING",
+          "localized_name": "条件"
+        },
+        {
+          "widget": {
+            "name": "guidance"
+          },
+          "name": "guidance",
+          "type": "FLOAT",
+          "localized_name": "引导"
+        }
+      ],
+      "flags": {},
+      "type": "FluxGuidance",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        317.4000244140625,
+        58
+      ],
+      "pos": [
+        2967.70556640625,
+        592.8397216796875
+      ],
+      "id": 24,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.71",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "FluxGuidance"
+      },
+      "order": 10
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        985.3012084960938,
+        1060.3828125
+      ],
+      "pos": [
+        3368.9921875,
+        136.14633178710938
+      ],
+      "widgets_values": [
+        "QQ842850240_Flux2_"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 2,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "id": 10,
+      "type": "SaveImage",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.71",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 14
+    },
+    {
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            20
+          ],
+          "label": "条件",
+          "type": "CONDITIONING",
+          "localized_name": "条件"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "The poster design features the word \"FLUX 2\" printed on a woman's face, requiring a sophisticated and aesthetically pleasing font that doesn't appear too jarring on her skin."
+      ],
+      "inputs": [
+        {
+          "name": "clip",
+          "link": 27,
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "clip"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "type": "STRING",
+          "localized_name": "文本"
+        }
+      ],
+      "flags": {},
+      "type": "CLIPTextEncode",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        430,
+        200
+      ],
+      "pos": [
+        2917.882568359375,
+        338.01605224609375
+      ],
+      "id": 32,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.71",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "order": 7
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        -2263.9286900148427,
+        -147.9301384147679
+      ],
+      "scale": 1.2839025177495043
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 2,
+      "title": "采样器",
+      "bounding": [
+        2332.59228515625,
+        297.7304382324219,
+        569.514404296875,
+        716.64697265625
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 3,
+      "title": "Group",
+      "bounding": [
+        2001.79052734375,
+        296.9468688964844,
+        321.5572509765625,
+        689.8035888671875
+      ]
+    }
+  ],
+  "links": [
+    [
+      2,
+      30,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      16,
+      0,
+      11,
+      0,
+      "NOISE"
+    ],
+    [
+      4,
+      12,
+      0,
+      11,
+      1,
+      "GUIDER"
+    ],
+    [
+      5,
+      26,
+      0,
+      11,
+      2,
+      "SAMPLER"
+    ],
+    [
+      6,
+      27,
+      0,
+      11,
+      3,
+      "SIGMAS"
+    ],
+    [
+      7,
+      28,
+      0,
+      11,
+      4,
+      "LATENT"
+    ],
+    [
+      8,
+      17,
+      0,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
+      20,
+      32,
+      0,
+      24,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      25,
+      11,
+      0,
+      30,
+      0,
+      "LATENT"
+    ],
+    [
+      26,
+      31,
+      0,
+      30,
+      1,
+      "VAE"
+    ],
+    [
+      27,
+      15,
+      0,
+      32,
+      0,
+      "CLIP"
+    ],
+    [
+      28,
+      33,
+      0,
+      27,
+      1,
+      "INT"
+    ],
+    [
+      29,
+      34,
+      0,
+      27,
+      2,
+      "INT"
+    ],
+    [
+      30,
+      34,
+      0,
+      28,
+      1,
+      "INT"
+    ],
+    [
+      31,
+      33,
+      0,
+      28,
+      0,
+      "INT"
+    ],
+    [
+      33,
+      24,
+      0,
+      12,
+      1,
+      "CONDITIONING"
+    ]
+  ],
+  "id": "accf7774-dcea-44e3-8d3b-7d0a89f74342",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 34,
+  "revision": 0
+}

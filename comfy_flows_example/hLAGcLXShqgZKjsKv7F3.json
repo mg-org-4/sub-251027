@@ -1,0 +1,798 @@
+{
+  "last_node_id": 86,
+  "last_link_id": 99,
+  "nodes": [
+    {
+      "id": 47,
+      "type": "BizyAir_BasicGuider",
+      "pos": [
+        -239,
+        1078
+      ],
+      "size": {
+        "0": 253.01522827148438,
+        "1": 52.98030471801758
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "BIZYAIR_MODEL",
+          "link": 59,
+          "slot_index": 0,
+          "label": "model"
+        },
+        {
+          "name": "conditioning",
+          "type": "BIZYAIR_CONDITIONING",
+          "link": 60,
+          "slot_index": 1,
+          "label": "conditioning"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            61
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "GUIDER"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_BasicGuider"
+      }
+    },
+    {
+      "id": 58,
+      "type": "BizyAir_BasicScheduler",
+      "pos": [
+        -239,
+        1319
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "BIZYAIR_MODEL",
+          "link": 72,
+          "slot_index": 0,
+          "label": "model"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            73
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "SIGMAS"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_BasicScheduler"
+      },
+      "widgets_values": [
+        "normal",
+        4,
+        1
+      ]
+    },
+    {
+      "id": 51,
+      "type": "EmptyLatentImage",
+      "pos": [
+        30,
+        919
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            63
+          ],
+          "shape": 3,
+          "label": "Latent"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        1
+      ]
+    },
+    {
+      "id": 50,
+      "type": "BizyAir_SamplerCustomAdvanced",
+      "pos": [
+        51,
+        1082
+      ],
+      "size": {
+        "0": 260.3999938964844,
+        "1": 106
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 74,
+          "label": "noise"
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 61,
+          "label": "guider"
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 75,
+          "slot_index": 2,
+          "label": "sampler"
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 73,
+          "label": "sigmas"
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 63,
+          "slot_index": 4,
+          "label": "latent_image"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            66
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "output"
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3,
+          "label": "denoised_output"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_SamplerCustomAdvanced"
+      }
+    },
+    {
+      "id": 55,
+      "type": "BizyAir_VAELoader",
+      "pos": [
+        91,
+        1341
+      ],
+      "size": {
+        "0": 273.7454833984375,
+        "1": 58
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "vae",
+          "type": "BIZYAIR_VAE",
+          "links": [
+            67
+          ],
+          "shape": 3,
+          "label": "vae"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_VAELoader"
+      },
+      "widgets_values": [
+        "flux/ae.sft"
+      ]
+    },
+    {
+      "id": 48,
+      "type": "BizyAir_UNETLoader",
+      "pos": [
+        -585,
+        944
+      ],
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "BIZYAIR_MODEL",
+          "type": "BIZYAIR_MODEL",
+          "links": [
+            59,
+            72
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "BIZYAIR_MODEL"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_UNETLoader"
+      },
+      "widgets_values": [
+        "flux/flux1-schnell.sft",
+        "fp8_e4m3fn"
+      ]
+    },
+    {
+      "id": 36,
+      "type": "BizyAir_DualCLIPLoader",
+      "pos": [
+        -595,
+        1093
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "BIZYAIR_CLIP",
+          "type": "BIZYAIR_CLIP",
+          "links": [
+            56
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "BIZYAIR_CLIP"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_DualCLIPLoader"
+      },
+      "widgets_values": [
+        "t5xxl_fp8_e4m3fn.safetensors",
+        "clip_l.safetensors",
+        "flux"
+      ]
+    },
+    {
+      "id": 59,
+      "type": "BizyAir_RandomNoise",
+      "pos": [
+        -238,
+        933
+      ],
+      "size": {
+        "0": 244.64930725097656,
+        "1": 82
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            74
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "NOISE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_RandomNoise"
+      },
+      "widgets_values": [
+        1004912372771877,
+        "randomize"
+      ]
+    },
+    {
+      "id": 37,
+      "type": "BizyAir_CLIPTextEncode",
+      "pos": [
+        -598,
+        1310
+      ],
+      "size": [
+        344.9754943847656,
+        127.23637390136719
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "BIZYAIR_CLIP",
+          "link": 56,
+          "label": "clip"
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 99,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "BIZYAIR_CONDITIONING",
+          "links": [
+            60
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "CONDITIONING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_CLIPTextEncode"
+      },
+      "widgets_values": [
+        "black forest gateau cake spelling out the words \"BizyAir\", tasty, food photography, dynamic shot"
+      ]
+    },
+    {
+      "id": 54,
+      "type": "BizyAir_VAEDecode",
+      "pos": [
+        55,
+        1232
+      ],
+      "size": {
+        "0": 271.0523681640625,
+        "1": 46
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 66,
+          "slot_index": 0,
+          "label": "samples"
+        },
+        {
+          "name": "vae",
+          "type": "BIZYAIR_VAE",
+          "link": 67,
+          "slot_index": 1,
+          "label": "vae"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            68
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "IMAGE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_VAEDecode"
+      }
+    },
+    {
+      "id": 60,
+      "type": "BizyAir_KSamplerSelect",
+      "pos": [
+        -246,
+        1197
+      ],
+      "size": {
+        "0": 259.05419921875,
+        "1": 58
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            75
+          ],
+          "shape": 3,
+          "slot_index": 0,
+          "label": "SAMPLER"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler"
+      ]
+    },
+    {
+      "id": 56,
+      "type": "PreviewImage",
+      "pos": [
+        531,
+        910
+      ],
+      "size": [
+        429.6075785780872,
+        574.6758502001844
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 68,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 73,
+      "type": "Note",
+      "pos": [
+        -599,
+        528
+      ],
+      "size": [
+        716.2197262612658,
+        135.55209759375452
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "https://github.com/siliconflow/BizyAir   install to ComfyUI\\custom_nodes \nFor other instructions, please refer to the plugin introduction\n\nhttps://github.com/siliconflow/BizyAir 安装到 ComfyUI\\custom_nodes\n其他操作请参考插件介绍\n\n使用这个插件来用Flux的好处就是不限制电脑配置，用云端算力\n\nmy wechat 微信 :  DLONG189one ，可以咨询  -- 亦诚\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 72,
+      "type": "Note",
+      "pos": [
+        -1065,
+        679
+      ],
+      "size": [
+        399.9781537052695,
+        191.87323827107912
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Large language model website:\nhttps://platform.deepseek.com/sign_in\nOr you can use a local AI language model instead\n\nThe key point is the AI ​​prompt word. You can copy your local flux workflow.\n\n大型语言模型网站：\nhttps://platform.deepseek.com/sign_in\n或者你可以使用本地 AI 语言模型\n\n重点是ai提示词，你复制到你本地的flux工作流就可以"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 70,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -593,
+        1503
+      ],
+      "size": [
+        617.0307479128537,
+        452.52578540939544
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 98,
+          "widget": {
+            "name": "text"
+          },
+          "label": "文本"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            99
+          ],
+          "shape": 6,
+          "label": "字符串",
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "**Design Layout:**\n\n1. **Top Center Banner (大标题):** \"Step into Style\"\n2. **Upper Left Corner (小标题):** \"Unleash Your Potential\"\n3. **Lower Right Corner (文案):** \"Every Stride, Every Story\"\n4. **Center Image:** A dynamic, high-resolution image of a pair of sleek, modern sneakers in action, possibly a runner in mid-stride against a vibrant, abstract background.\n5. **Lower Left Corner (品牌信息):** \"Innovation in Every Step\"\n6. **Upper Right Corner (促销信息):** \"New Arrivals\"\n\n**Design Concept:**\n\nThe poster is meticulously crafted to embody the dynamic and innovative spirit of modern sneakers. The top center banner, \"Step into Style,\" is set in a bold, contemporary typeface that immediately captures attention, encapsulating the essence of fashion and functionality.\n\nIn the upper left corner, the subtitle \"Unleash Your Potential\" is presented in a smaller, yet equally energetic font, suggesting a journey of self-discovery and achievement. This text is subtly outlined with a thin, neon stroke, enhancing its visibility and thematic resonance.\n\nThe centerpiece of the poster is a dynamic, high-resolution image of a pair of sleek, modern sneakers in action, possibly a runner in mid-stride against a vibrant, abstract background. This image is designed to be the visual anchor, inviting the viewer to imagine the possibilities and adventures that await.\n\nIn the lower right corner, the text \"Every Stride, Every Story\" is overlaid on a transparent gradient of geometric patterns, symbolizing the journey and the narrative behind every step. This combination of text and imagery creates a dynamic and engaging area of the poster.\n\nThe lower left corner features the brand's commitment to innovation, \"Innovation in Every Step,\" in a classic, sans-serif font, emphasizing the brand's dedication to cutting-edge technology and design.\n\nLastly, the upper right corner highlights new arrivals, \"New Arrivals,\" in a vibrant, eye-catching color to draw attention to the latest trends and styles.\n\n**Color Scheme:**\n\nThe color palette is thoughtfully selected to reflect the energetic and modern vibe of sneakers. Bright neon accents against a dark, abstract background create a visually appealing and cohesive design. The text colors are chosen to contrast effectively with the background, ensuring readability and impact.\n\n**Overall, the poster is a testament to top-tier design elements, including sophisticated typography, strategic use of color, and a harmonious integration of text and imagery, all working together to create a compelling and memorable visual experience.**"
+      ]
+    },
+    {
+      "id": 65,
+      "type": "ChatGPTOpenAI",
+      "pos": [
+        -1076,
+        1064
+      ],
+      "size": [
+        429.42782284172927,
+        517.2044022725522
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [
+            98
+          ],
+          "shape": 3,
+          "label": "文本",
+          "slot_index": 0
+        },
+        {
+          "name": "messages",
+          "type": "STRING",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "session_history",
+          "type": "STRING",
+          "links": null,
+          "shape": 3,
+          "label": "会话历史"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ChatGPTOpenAI"
+      },
+      "widgets_values": [
+        null,
+        null,
+        "你是个顶级潮流平面设计师,请你创造性设计一张海报,主题（运动鞋），排版上主要的相关中英文文字和图片和图案。\n写文字的时候要跟例子这样写：什么位置的牌子（写上中文“中秋佳节”英文“Mooncake Festival”）。加括号()起强调作用。\n设计布局要写在前面，后面在写设计理念。\n设计布局中，文字一定要写在最前面。写文字的时候一定要写在牌子上。\n文字的颜色要紧贴主题和设计美感。\n有大文字标题，也有小文字文案，要符合设计原理和主题内容\n文字可以跟图片图案相结合，设计元素可以透明，渐变，描边。\n顶级色彩设计搭配，顶级的排版和超流的设计水平，内容丰富，有层次，有空间感。\n顶级的海报设计。\n(最后总的输出是全英文)",
+        "",
+        "deepseek-chat",
+        112495825256293,
+        "randomize",
+        1,
+        null
+      ]
+    }
+  ],
+  "links": [
+    [
+      56,
+      36,
+      0,
+      37,
+      0,
+      "BIZYAIR_CLIP"
+    ],
+    [
+      59,
+      48,
+      0,
+      47,
+      0,
+      "BIZYAIR_MODEL"
+    ],
+    [
+      60,
+      37,
+      0,
+      47,
+      1,
+      "BIZYAIR_CONDITIONING"
+    ],
+    [
+      61,
+      47,
+      0,
+      50,
+      1,
+      "GUIDER"
+    ],
+    [
+      63,
+      51,
+      0,
+      50,
+      4,
+      "LATENT"
+    ],
+    [
+      66,
+      50,
+      0,
+      54,
+      0,
+      "LATENT"
+    ],
+    [
+      67,
+      55,
+      0,
+      54,
+      1,
+      "BIZYAIR_VAE"
+    ],
+    [
+      68,
+      54,
+      0,
+      56,
+      0,
+      "IMAGE"
+    ],
+    [
+      72,
+      48,
+      0,
+      58,
+      0,
+      "BIZYAIR_MODEL"
+    ],
+    [
+      73,
+      58,
+      0,
+      50,
+      3,
+      "SIGMAS"
+    ],
+    [
+      74,
+      59,
+      0,
+      50,
+      0,
+      "NOISE"
+    ],
+    [
+      75,
+      60,
+      0,
+      50,
+      2,
+      "SAMPLER"
+    ],
+    [
+      98,
+      65,
+      0,
+      70,
+      0,
+      "STRING"
+    ],
+    [
+      99,
+      70,
+      0,
+      37,
+      1,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "Flux poster 海报 --by yicheng 亦诚",
+      "bounding": [
+        -603,
+        790,
+        949,
+        80
+      ],
+      "color": "#3f789e",
+      "font_size": 55,
+      "locked": false
+    },
+    {
+      "title": "Using cloud workflow 使用的是云端工作流",
+      "bounding": [
+        -604,
+        677,
+        952,
+        80
+      ],
+      "color": "#3f789e",
+      "font_size": 40,
+      "locked": false
+    },
+    {
+      "title": "The key point is this AI prompt word",
+      "bounding": [
+        -1326,
+        915,
+        663,
+        80
+      ],
+      "color": "#3f789e",
+      "font_size": 40,
+      "locked": false
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.6588450000000289,
+      "offset": [
+        1411.961318286195,
+        -516.5256870631387
+      ]
+    }
+  },
+  "version": 0.4
+}

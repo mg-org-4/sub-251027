@@ -1,0 +1,551 @@
+{
+  "last_node_id": 280,
+  "last_link_id": 615,
+  "nodes": [
+    {
+      "id": 71,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1550,
+        760
+      ],
+      "size": {
+        "0": 380.4615783691406,
+        "1": 102.07693481445312
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 606
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            610
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "title": "CLIP Text Encode (Negative Prompt)",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "bad quality, poor quality, doll, disfigured, jpg, toy, bad anatomy, missing limbs, missing fingers, 3d, cgi"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 277,
+      "type": "Note",
+      "pos": [
+        1110,
+        520
+      ],
+      "size": {
+        "0": 360,
+        "1": 370
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "checkpoints:\nhttps://huggingface.co/stabilityai/stable-diffusion-3-medium/tree/main\n(ComfyUI\\models\\checkpoints\\sd3)\n\nsd3_medium.safetensors includes the MMDiT and VAE weights but does not include any text encoders.👎\n\nsd3_medium_incl_clips.safetensors includes all necessary weights except for the T5XXL text encoder. It requires minimal resources, but the model's performance will differ without the T5XXL text encoder.👌\n\nsd3_medium_incl_clips_t5xxlfp8.safetensors contains all necessary weights, including fp8 version of the T5XXL text encoder, offering a balance between quality and resource requirements.👍\n\nsd3_medium_incl_clips_t5xxlfp16.safetensors contains all necessary weights, including fp16 version of the T5XXL text encoder.👍\n\nhttps://x.com/Datou"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 231,
+      "type": "VAEDecode",
+      "pos": [
+        2000,
+        1060
+      ],
+      "size": [
+        140,
+        50
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 596
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 557
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            600
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 278,
+      "type": "LoadImage",
+      "pos": [
+        1110,
+        950
+      ],
+      "size": [
+        360,
+        340
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            612
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "1.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 279,
+      "type": "ImageScaleToMegapixels",
+      "pos": [
+        1110,
+        1340
+      ],
+      "size": [
+        210,
+        80
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 612
+        },
+        {
+          "name": "upscale_model_opt",
+          "type": "UPSCALE_MODEL",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            613
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageScaleToMegapixels"
+      },
+      "widgets_values": [
+        1
+      ]
+    },
+    {
+      "id": 266,
+      "type": "Note",
+      "pos": [
+        1110,
+        1460
+      ],
+      "size": [
+        210,
+        90
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Resolution should be around 1 megapixel and width/height must be multiple of 64"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 280,
+      "type": "VAEEncode",
+      "pos": [
+        1330,
+        1340
+      ],
+      "size": [
+        140,
+        50
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 613
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 614
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            615
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncode"
+      }
+    },
+    {
+      "id": 273,
+      "type": "SaveImage",
+      "pos": [
+        2000,
+        380
+      ],
+      "size": {
+        "0": 580,
+        "1": 630
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 600
+        }
+      ],
+      "title": "@Datou",
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "sd3/comfy_"
+      ]
+    },
+    {
+      "id": 252,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        1110,
+        380
+      ],
+      "size": {
+        "0": 360,
+        "1": 100
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            611
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            606,
+            607
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            557,
+            614
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "sd3\\sd3_medium_incl_clips_t5xxlfp8.safetensors"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1550,
+        380
+      ],
+      "size": {
+        "0": 380,
+        "1": 330
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 607
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            595
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "a cute chinese girl"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 271,
+      "type": "KSampler",
+      "pos": [
+        1550,
+        910
+      ],
+      "size": [
+        380,
+        470
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 611
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 595
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 610
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 615
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            596
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        600506362104043,
+        "randomize",
+        28,
+        4.1,
+        "dpmpp_2m",
+        "sgm_uniform",
+        0.7000000000000001
+      ]
+    }
+  ],
+  "links": [
+    [
+      557,
+      252,
+      2,
+      231,
+      1,
+      "VAE"
+    ],
+    [
+      595,
+      6,
+      0,
+      271,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      596,
+      271,
+      0,
+      231,
+      0,
+      "LATENT"
+    ],
+    [
+      600,
+      231,
+      0,
+      273,
+      0,
+      "IMAGE"
+    ],
+    [
+      606,
+      252,
+      1,
+      71,
+      0,
+      "CLIP"
+    ],
+    [
+      607,
+      252,
+      1,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      610,
+      71,
+      0,
+      271,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      611,
+      252,
+      0,
+      271,
+      0,
+      "MODEL"
+    ],
+    [
+      612,
+      278,
+      0,
+      279,
+      0,
+      "IMAGE"
+    ],
+    [
+      613,
+      279,
+      0,
+      280,
+      0,
+      "IMAGE"
+    ],
+    [
+      614,
+      252,
+      2,
+      280,
+      1,
+      "VAE"
+    ],
+    [
+      615,
+      280,
+      0,
+      271,
+      3,
+      "LATENT"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.658845000000001,
+      "offset": {
+        "0": -163.1866534391081,
+        "1": -43.42196793159576
+      }
+    }
+  },
+  "version": 0.4
+}

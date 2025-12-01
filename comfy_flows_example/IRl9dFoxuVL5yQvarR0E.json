@@ -1,0 +1,2175 @@
+{
+  "last_node_id": 140,
+  "last_link_id": 376,
+  "nodes": [
+    {
+      "id": 50,
+      "type": "LoadImage",
+      "pos": {
+        "0": 2.8809921741485596,
+        "1": 732.975830078125
+      },
+      "size": {
+        "0": 294.9325866699219,
+        "1": 465.8413391113281
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            139,
+            308
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "图像"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "遮罩"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "ComfyUI_00058_.png",
+        "image"
+      ]
+    },
+    {
+      "id": 59,
+      "type": "Image Comparer (rgthree)",
+      "pos": {
+        "0": 1002.881591796875,
+        "1": 732.975830078125
+      },
+      "size": {
+        "0": 594.959716796875,
+        "1": 910.3597412109375
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 153,
+          "label": "图像_A",
+          "dir": 3
+        },
+        {
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 308,
+          "label": "图像_B",
+          "dir": 3
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "comparer_mode": "Slide"
+      },
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_mpfjt_00001_.png&type=temp&subfolder=&rand=0.5326804361073807"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_mpfjt_00002_.png&type=temp&subfolder=&rand=0.7112268917701579"
+          }
+        ]
+      ]
+    },
+    {
+      "id": 75,
+      "type": "UnetLoaderGGUF",
+      "pos": {
+        "0": 2.967263698577881,
+        "1": -466.88232421875
+      },
+      "size": {
+        "0": 210,
+        "1": 58
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            197
+          ],
+          "slot_index": 0,
+          "label": "MODEL"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UnetLoaderGGUF"
+      },
+      "widgets_values": [
+        "flux1-dev-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": 78,
+      "type": "Power Lora Loader (rgthree)",
+      "pos": {
+        "0": 287.96728515625,
+        "1": -466.88232421875
+      },
+      "size": {
+        "0": 210,
+        "1": 142
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 197,
+          "label": "模型",
+          "dir": 3
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 198,
+          "label": "CLIP",
+          "dir": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            199
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "模型",
+          "dir": 4
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            200
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "CLIP",
+          "dir": 4
+        }
+      ],
+      "properties": {
+        "Show Strengths": "Single Strength"
+      },
+      "widgets_values": [
+        null,
+        {
+          "type": "PowerLoraLoaderHeaderWidget"
+        },
+        {
+          "on": false,
+          "lora": "None",
+          "strength": 0.5,
+          "strengthTwo": null
+        },
+        null,
+        ""
+      ]
+    },
+    {
+      "id": 81,
+      "type": "PulidFluxModelLoader",
+      "pos": {
+        "0": 602.9674072265625,
+        "1": -466.88232421875
+      },
+      "size": {
+        "0": 295.0179748535156,
+        "1": 58
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "PULIDFLUX",
+          "type": "PULIDFLUX",
+          "links": [
+            207
+          ],
+          "label": "PULIDFLUX"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PulidFluxModelLoader"
+      },
+      "widgets_values": [
+        "pulid_flux_v0.9.0.safetensors"
+      ]
+    },
+    {
+      "id": 82,
+      "type": "PulidFluxEvaClipLoader",
+      "pos": {
+        "0": 602.9674072265625,
+        "1": -326.8822937011719
+      },
+      "size": {
+        "0": 295.03076171875,
+        "1": 26
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "EVA_CLIP",
+          "type": "EVA_CLIP",
+          "links": [
+            208
+          ],
+          "slot_index": 0,
+          "label": "EVA_CLIP"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PulidFluxEvaClipLoader"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 79,
+      "type": "KSampler (Efficient)",
+      "pos": {
+        "0": 2003,
+        "1": 33
+      },
+      "size": {
+        "0": 294.9864807128906,
+        "1": 562
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 257,
+          "label": "模型"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 216,
+          "label": "正面条件"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 215,
+          "label": "负面条件"
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 205,
+          "label": "Latent"
+        },
+        {
+          "name": "optional_vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7,
+          "label": "VAE(可选)"
+        },
+        {
+          "name": "script",
+          "type": "SCRIPT",
+          "link": null,
+          "shape": 7,
+          "label": "脚本"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": null,
+          "label": "模型"
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": null,
+          "label": "正面条件"
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": null,
+          "label": "负面条件"
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null,
+          "label": "Latent"
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null,
+          "label": "VAE"
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 5,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler (Efficient)"
+      },
+      "widgets_values": [
+        635949596442743,
+        null,
+        20,
+        1,
+        "ddim",
+        "ddim_uniform",
+        1,
+        "auto",
+        "true"
+      ],
+      "color": "#222233",
+      "bgcolor": "#333355",
+      "shape": "box"
+    },
+    {
+      "id": 74,
+      "type": "SDXLEmptyLatentSizePicker+",
+      "pos": {
+        "0": 1695,
+        "1": 429
+      },
+      "size": {
+        "0": 210,
+        "1": 170
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            205
+          ],
+          "slot_index": 0,
+          "label": "Latent"
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [],
+          "slot_index": 1,
+          "label": "宽度"
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [],
+          "slot_index": 2,
+          "label": "高度"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SDXLEmptyLatentSizePicker+"
+      },
+      "widgets_values": [
+        "832x1216 (0.68)",
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 76,
+      "type": "DualCLIPLoaderGGUF",
+      "pos": {
+        "0": 2.967263698577881,
+        "1": -355.88232421875
+      },
+      "size": {
+        "0": 210,
+        "1": 106
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            198
+          ],
+          "slot_index": 0,
+          "label": "CLIP"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DualCLIPLoaderGGUF"
+      },
+      "widgets_values": [
+        "t5-v1_1-xxl-encoder-Q8_0.gguf",
+        "clip_l.safetensors",
+        "flux"
+      ]
+    },
+    {
+      "id": 77,
+      "type": "VAELoader",
+      "pos": {
+        "0": 2.967263698577881,
+        "1": -196.88211059570312
+      },
+      "size": {
+        "0": 210,
+        "1": 58
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            201
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "ae.safetensors"
+      ]
+    },
+    {
+      "id": 66,
+      "type": "Anything Everywhere3",
+      "pos": {
+        "0": 357.96728515625,
+        "1": -236.8821563720703
+      },
+      "size": {
+        "0": 140,
+        "1": 66
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "MODEL",
+          "type": "*",
+          "link": 199,
+          "label": "输入",
+          "color_on": "#B39DDB",
+          "shape": 7
+        },
+        {
+          "name": "CLIP",
+          "type": "*",
+          "link": 200,
+          "label": "输入2",
+          "color_on": "#FFD500",
+          "shape": 7
+        },
+        {
+          "name": "VAE",
+          "type": "*",
+          "link": 201,
+          "label": "输入3",
+          "color_on": "#FF6E6E",
+          "shape": 7
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere3",
+        "group_restricted": 0,
+        "color_restricted": 0
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 83,
+      "type": "PulidFluxInsightFaceLoader",
+      "pos": {
+        "0": 602.9674072265625,
+        "1": -196.88211059570312
+      },
+      "size": {
+        "0": 295.0440979003906,
+        "1": 58
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "FACEANALYSIS",
+          "type": "FACEANALYSIS",
+          "links": [
+            209
+          ],
+          "label": "FACEANALYSIS"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PulidFluxInsightFaceLoader"
+      },
+      "widgets_values": [
+        "CUDA"
+      ]
+    },
+    {
+      "id": 84,
+      "type": "CLIPTextEncodeFlux",
+      "pos": {
+        "0": 1695,
+        "1": 52
+      },
+      "size": {
+        "0": 210,
+        "1": 98
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null,
+          "label": "CLIP"
+        },
+        {
+          "name": "clip_l",
+          "type": "STRING",
+          "link": 229,
+          "widget": {
+            "name": "clip_l"
+          },
+          "label": "CLIP_L"
+        },
+        {
+          "name": "t5xxl",
+          "type": "STRING",
+          "link": 230,
+          "widget": {
+            "name": "t5xxl"
+          },
+          "label": "T5XXL"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            215,
+            216
+          ],
+          "slot_index": 0,
+          "label": "条件"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncodeFlux"
+      },
+      "widgets_values": [
+        "Korean female model, long black hair, fair smooth skin, slim body, wearing a light-colored round-neck tank top with a straight hem tucked neatly into her pants, autumn-winter style, minimalistic design, seamless fabric, no lace, no decorations, front view, upper body from head to waist, bright cool lighting, clean minimalistic studio background, soft shadows, casual pose",
+        "Korean female model, long black hair, fair smooth skin, slim body, wearing a light-colored round-neck tank top with a straight hem tucked neatly into her pants, autumn-winter style, minimalistic design, seamless fabric, no lace, no decorations, front view, upper body from head to waist, bright cool lighting, clean minimalistic studio background, soft shadows, casual pose",
+        3.5
+      ]
+    },
+    {
+      "id": 53,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 3,
+        "1": 1421
+      },
+      "size": {
+        "0": 294.94354248046875,
+        "1": 78
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            148
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "BBox检测"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": null,
+          "shape": 3,
+          "label": "SEGM检测"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "bbox/face_yolov9c.pt"
+      ]
+    },
+    {
+      "id": 121,
+      "type": "SAMLoader",
+      "pos": {
+        "0": 3,
+        "1": 1554
+      },
+      "size": {
+        "0": 294.9942626953125,
+        "1": 82
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAM_MODEL",
+          "type": "SAM_MODEL",
+          "links": [
+            303
+          ],
+          "label": "SAM模型"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SAMLoader"
+      },
+      "widgets_values": [
+        "sam_vit_b_01ec64.pth",
+        "AUTO"
+      ]
+    },
+    {
+      "id": 49,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 402.88134765625,
+        "1": 732.975830078125
+      },
+      "size": {
+        "0": 494.85845947265625,
+        "1": 910.3967895507812
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 139,
+          "label": "图像"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 363,
+          "label": "模型"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null,
+          "label": "CLIP"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "label": "VAE"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 261,
+          "label": "正面条件"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 260,
+          "label": "负面条件"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 148,
+          "label": "BBox检测"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": 303,
+          "label": "SAM模型",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": null,
+          "label": "Segm检测",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "细化约束",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            153
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "图像"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "细化图像"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 2,
+          "shape": 6,
+          "label": "细化部分"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [],
+          "slot_index": 3,
+          "shape": 3,
+          "label": "遮罩"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "细化节点束"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "ControlNet图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        false,
+        1024,
+        625094720545947,
+        "fixed",
+        20,
+        1,
+        "ddim",
+        "ddim_uniform",
+        0.8,
+        20,
+        true,
+        true,
+        0.5,
+        10,
+        1.5,
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 80,
+      "type": "ApplyPulidFlux",
+      "pos": {
+        "0": 1303,
+        "1": 33
+      },
+      "size": {
+        "0": 294.9775085449219,
+        "1": 206
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "label": "model"
+        },
+        {
+          "name": "pulid_flux",
+          "type": "PULIDFLUX",
+          "link": 207,
+          "label": "pulid_flux"
+        },
+        {
+          "name": "eva_clip",
+          "type": "EVA_CLIP",
+          "link": 208,
+          "label": "eva_clip"
+        },
+        {
+          "name": "face_analysis",
+          "type": "FACEANALYSIS",
+          "link": 209,
+          "label": "face_analysis"
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 325,
+          "label": "image"
+        },
+        {
+          "name": "attn_mask",
+          "type": "MASK",
+          "link": null,
+          "shape": 7,
+          "label": "attn_mask"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            257,
+            363
+          ],
+          "slot_index": 0,
+          "label": "MODEL"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ApplyPulidFlux"
+      },
+      "widgets_values": [
+        0.7000000000000001,
+        0,
+        1
+      ]
+    },
+    {
+      "id": 128,
+      "type": "PreviewImage",
+      "pos": {
+        "0": 703,
+        "1": 33
+      },
+      "size": {
+        "0": 495.0107116699219,
+        "1": 565.989990234375
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 326,
+          "label": "图像"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 126,
+      "type": "MaskBoundingBox+",
+      "pos": {
+        "0": 395,
+        "1": 33
+      },
+      "size": {
+        "0": 210,
+        "1": 182
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 321,
+          "label": "遮罩"
+        },
+        {
+          "name": "image_optional",
+          "type": "IMAGE",
+          "link": 322,
+          "shape": 7,
+          "label": "图像（可选）"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "label": "遮罩"
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            324
+          ],
+          "slot_index": 1,
+          "label": "图像"
+        },
+        {
+          "name": "x",
+          "type": "INT",
+          "links": null,
+          "label": "X"
+        },
+        {
+          "name": "y",
+          "type": "INT",
+          "links": null,
+          "label": "Y"
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null,
+          "label": "宽度"
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null,
+          "label": "高度"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MaskBoundingBox+"
+      },
+      "widgets_values": [
+        20,
+        0
+      ]
+    },
+    {
+      "id": 127,
+      "type": "ImageResize+",
+      "pos": {
+        "0": 395,
+        "1": 381
+      },
+      "size": {
+        "0": 210,
+        "1": 218
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 324,
+          "label": "图像"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            325,
+            326
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null,
+          "label": "宽度"
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null,
+          "label": "高度"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageResize+"
+      },
+      "widgets_values": [
+        768,
+        768,
+        "nearest",
+        "keep proportion",
+        "always",
+        0
+      ]
+    },
+    {
+      "id": 12,
+      "type": "LoadImage",
+      "pos": {
+        "0": -597,
+        "1": 33
+      },
+      "size": {
+        "0": 495.0238037109375,
+        "1": 565.9800415039062
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            323
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "图像"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "遮罩"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "1w3xQ6_5f.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 125,
+      "type": "LayerMask: PersonMaskUltra V2",
+      "pos": {
+        "0": 3,
+        "1": 33
+      },
+      "size": {
+        "0": 295.0078125,
+        "1": 414
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 323,
+          "label": "图像"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            322
+          ],
+          "slot_index": 0,
+          "label": "图像"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            321
+          ],
+          "slot_index": 1,
+          "label": "遮罩"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: PersonMaskUltra V2"
+      },
+      "widgets_values": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        0.3,
+        "VITMatte",
+        1,
+        6,
+        0.01,
+        0.99,
+        true,
+        "cuda",
+        2
+      ],
+      "color": "rgba(27, 80, 119, 0.7)"
+    },
+    {
+      "id": 85,
+      "type": "PrimitiveNode",
+      "pos": {
+        "0": 1303,
+        "1": 333
+      },
+      "size": {
+        "0": 294.98260498046875,
+        "1": 266.1446838378906
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            229,
+            230
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "clip_l"
+          }
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "Korean female model, long black hair, fair smooth skin, slim body, wearing a light-colored round-neck tank top with a straight hem tucked neatly into her pants, autumn-winter style, minimalistic design, seamless fabric, no lace, no decorations, front view, upper body from head to waist, bright cool lighting, clean minimalistic studio background, soft shadows, casual pose"
+      ]
+    },
+    {
+      "id": 137,
+      "type": "Fast Groups Muter (rgthree)",
+      "pos": {
+        "0": -497,
+        "1": -167
+      },
+      "size": {
+        "0": 294.96307373046875,
+        "1": 106
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null,
+          "label": "可选连接"
+        }
+      ],
+      "properties": {
+        "matchColors": "",
+        "matchTitle": "",
+        "showNav": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default"
+      }
+    },
+    {
+      "id": 100,
+      "type": "CLIPTextEncode",
+      "pos": {
+        "0": 3,
+        "1": 1254
+      },
+      "size": {
+        "0": 295.0373229980469,
+        "1": 113.34212493896484
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null,
+          "label": "CLIP"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            260,
+            261
+          ],
+          "slot_index": 0,
+          "label": "条件"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      139,
+      50,
+      0,
+      49,
+      0,
+      "IMAGE"
+    ],
+    [
+      148,
+      53,
+      0,
+      49,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      153,
+      49,
+      0,
+      59,
+      0,
+      "IMAGE"
+    ],
+    [
+      164,
+      4,
+      0,
+      46,
+      0,
+      "MODEL"
+    ],
+    [
+      165,
+      4,
+      2,
+      64,
+      1,
+      "VAE"
+    ],
+    [
+      166,
+      4,
+      1,
+      22,
+      0,
+      "CLIP"
+    ],
+    [
+      167,
+      4,
+      1,
+      58,
+      0,
+      "CLIP"
+    ],
+    [
+      168,
+      4,
+      1,
+      49,
+      2,
+      "CLIP"
+    ],
+    [
+      169,
+      4,
+      2,
+      49,
+      3,
+      "VAE"
+    ],
+    [
+      191,
+      67,
+      0,
+      46,
+      0,
+      "MODEL"
+    ],
+    [
+      192,
+      4,
+      2,
+      64,
+      1,
+      "VAE"
+    ],
+    [
+      193,
+      67,
+      1,
+      22,
+      0,
+      "CLIP"
+    ],
+    [
+      194,
+      67,
+      1,
+      58,
+      0,
+      "CLIP"
+    ],
+    [
+      197,
+      75,
+      0,
+      78,
+      0,
+      "MODEL"
+    ],
+    [
+      198,
+      76,
+      0,
+      78,
+      1,
+      "CLIP"
+    ],
+    [
+      199,
+      78,
+      0,
+      66,
+      0,
+      "MODEL"
+    ],
+    [
+      200,
+      78,
+      1,
+      66,
+      1,
+      "CLIP"
+    ],
+    [
+      201,
+      77,
+      0,
+      66,
+      2,
+      "VAE"
+    ],
+    [
+      205,
+      74,
+      0,
+      79,
+      3,
+      "LATENT"
+    ],
+    [
+      207,
+      81,
+      0,
+      80,
+      1,
+      "PULIDFLUX"
+    ],
+    [
+      208,
+      82,
+      0,
+      80,
+      2,
+      "EVA_CLIP"
+    ],
+    [
+      209,
+      83,
+      0,
+      80,
+      3,
+      "FACEANALYSIS"
+    ],
+    [
+      215,
+      84,
+      0,
+      79,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      216,
+      84,
+      0,
+      79,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      219,
+      78,
+      0,
+      80,
+      0,
+      "MODEL"
+    ],
+    [
+      220,
+      77,
+      0,
+      79,
+      4,
+      "VAE"
+    ],
+    [
+      221,
+      78,
+      1,
+      84,
+      0,
+      "CLIP"
+    ],
+    [
+      229,
+      85,
+      0,
+      84,
+      1,
+      "STRING"
+    ],
+    [
+      230,
+      85,
+      0,
+      84,
+      2,
+      "STRING"
+    ],
+    [
+      257,
+      80,
+      0,
+      79,
+      0,
+      "MODEL"
+    ],
+    [
+      260,
+      100,
+      0,
+      49,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      261,
+      100,
+      0,
+      49,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      265,
+      78,
+      0,
+      80,
+      0,
+      "MODEL"
+    ],
+    [
+      266,
+      77,
+      0,
+      79,
+      4,
+      "VAE"
+    ],
+    [
+      267,
+      78,
+      1,
+      84,
+      0,
+      "CLIP"
+    ],
+    [
+      268,
+      78,
+      1,
+      49,
+      2,
+      "CLIP"
+    ],
+    [
+      269,
+      77,
+      0,
+      49,
+      3,
+      "VAE"
+    ],
+    [
+      270,
+      78,
+      1,
+      100,
+      0,
+      "CLIP"
+    ],
+    [
+      303,
+      121,
+      0,
+      49,
+      7,
+      "SAM_MODEL"
+    ],
+    [
+      308,
+      50,
+      0,
+      59,
+      1,
+      "IMAGE"
+    ],
+    [
+      309,
+      78,
+      0,
+      80,
+      0,
+      "MODEL"
+    ],
+    [
+      310,
+      77,
+      0,
+      79,
+      4,
+      "VAE"
+    ],
+    [
+      311,
+      78,
+      1,
+      84,
+      0,
+      "CLIP"
+    ],
+    [
+      312,
+      78,
+      1,
+      49,
+      2,
+      "CLIP"
+    ],
+    [
+      313,
+      77,
+      0,
+      49,
+      3,
+      "VAE"
+    ],
+    [
+      314,
+      78,
+      1,
+      100,
+      0,
+      "CLIP"
+    ],
+    [
+      315,
+      78,
+      0,
+      80,
+      0,
+      "MODEL"
+    ],
+    [
+      316,
+      77,
+      0,
+      79,
+      4,
+      "VAE"
+    ],
+    [
+      317,
+      78,
+      1,
+      84,
+      0,
+      "CLIP"
+    ],
+    [
+      318,
+      78,
+      1,
+      49,
+      2,
+      "CLIP"
+    ],
+    [
+      319,
+      77,
+      0,
+      49,
+      3,
+      "VAE"
+    ],
+    [
+      320,
+      78,
+      1,
+      100,
+      0,
+      "CLIP"
+    ],
+    [
+      321,
+      125,
+      1,
+      126,
+      0,
+      "MASK"
+    ],
+    [
+      322,
+      125,
+      0,
+      126,
+      1,
+      "IMAGE"
+    ],
+    [
+      323,
+      12,
+      0,
+      125,
+      0,
+      "IMAGE"
+    ],
+    [
+      324,
+      126,
+      1,
+      127,
+      0,
+      "IMAGE"
+    ],
+    [
+      325,
+      127,
+      0,
+      80,
+      4,
+      "IMAGE"
+    ],
+    [
+      326,
+      127,
+      0,
+      128,
+      0,
+      "IMAGE"
+    ],
+    [
+      327,
+      77,
+      0,
+      79,
+      4,
+      "VAE"
+    ],
+    [
+      328,
+      78,
+      1,
+      84,
+      0,
+      "CLIP"
+    ],
+    [
+      329,
+      78,
+      1,
+      49,
+      2,
+      "CLIP"
+    ],
+    [
+      330,
+      77,
+      0,
+      49,
+      3,
+      "VAE"
+    ],
+    [
+      331,
+      78,
+      1,
+      100,
+      0,
+      "CLIP"
+    ],
+    [
+      332,
+      78,
+      0,
+      80,
+      0,
+      "MODEL"
+    ],
+    [
+      333,
+      77,
+      0,
+      79,
+      4,
+      "VAE"
+    ],
+    [
+      334,
+      78,
+      1,
+      84,
+      0,
+      "CLIP"
+    ],
+    [
+      335,
+      78,
+      1,
+      49,
+      2,
+      "CLIP"
+    ],
+    [
+      336,
+      77,
+      0,
+      49,
+      3,
+      "VAE"
+    ],
+    [
+      337,
+      78,
+      1,
+      100,
+      0,
+      "CLIP"
+    ],
+    [
+      338,
+      78,
+      0,
+      80,
+      0,
+      "MODEL"
+    ],
+    [
+      353,
+      77,
+      0,
+      79,
+      4,
+      "VAE"
+    ],
+    [
+      354,
+      78,
+      1,
+      84,
+      0,
+      "CLIP"
+    ],
+    [
+      355,
+      78,
+      0,
+      80,
+      0,
+      "MODEL"
+    ],
+    [
+      356,
+      77,
+      0,
+      79,
+      4,
+      "VAE"
+    ],
+    [
+      357,
+      78,
+      1,
+      84,
+      0,
+      "CLIP"
+    ],
+    [
+      358,
+      78,
+      1,
+      49,
+      2,
+      "CLIP"
+    ],
+    [
+      359,
+      77,
+      0,
+      49,
+      3,
+      "VAE"
+    ],
+    [
+      360,
+      78,
+      0,
+      80,
+      0,
+      "MODEL"
+    ],
+    [
+      361,
+      78,
+      1,
+      100,
+      0,
+      "CLIP"
+    ],
+    [
+      363,
+      80,
+      0,
+      49,
+      1,
+      "MODEL"
+    ],
+    [
+      365,
+      77,
+      0,
+      79,
+      4,
+      "VAE"
+    ],
+    [
+      366,
+      78,
+      1,
+      84,
+      0,
+      "CLIP"
+    ],
+    [
+      367,
+      78,
+      1,
+      49,
+      2,
+      "CLIP"
+    ],
+    [
+      368,
+      77,
+      0,
+      49,
+      3,
+      "VAE"
+    ],
+    [
+      369,
+      78,
+      0,
+      80,
+      0,
+      "MODEL"
+    ],
+    [
+      370,
+      78,
+      1,
+      100,
+      0,
+      "CLIP"
+    ],
+    [
+      371,
+      77,
+      0,
+      79,
+      4,
+      "VAE"
+    ],
+    [
+      372,
+      78,
+      1,
+      84,
+      0,
+      "CLIP"
+    ],
+    [
+      373,
+      78,
+      1,
+      49,
+      2,
+      "CLIP"
+    ],
+    [
+      374,
+      77,
+      0,
+      49,
+      3,
+      "VAE"
+    ],
+    [
+      375,
+      78,
+      0,
+      80,
+      0,
+      "MODEL"
+    ],
+    [
+      376,
+      78,
+      1,
+      100,
+      0,
+      "CLIP"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "PuLID",
+      "bounding": [
+        -7,
+        -41,
+        2315,
+        650
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "title": "Face swap",
+      "bounding": [
+        -6,
+        659,
+        1615,
+        994
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "title": "Load Models",
+      "bounding": [
+        -8,
+        -541,
+        915,
+        412
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      }
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.371900826446281,
+      "offset": [
+        1660.3924496120883,
+        670.9956041971844
+      ]
+    }
+  },
+  "version": 0.4
+}

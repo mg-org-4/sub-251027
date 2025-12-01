@@ -1,0 +1,7552 @@
+{
+  "id": "95c92026-9b8d-4567-ab12-d61f65127f83",
+  "revision": 0,
+  "last_node_id": 463,
+  "last_link_id": 1157,
+  "nodes": [
+    {
+      "id": 250,
+      "type": "ImpactSwitch",
+      "pos": [
+        2550,
+        940
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 67,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 600
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 599
+        },
+        {
+          "name": "input2",
+          "type": "MASK",
+          "link": 601
+        },
+        {
+          "name": "input3",
+          "type": "MASK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "MASK",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            602
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Mask Resize Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 249,
+      "type": "Image Resize",
+      "pos": [
+        2550,
+        860
+      ],
+      "size": [
+        270,
+        178
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 59,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 598
+        },
+        {
+          "name": "resize_width",
+          "type": "INT",
+          "widget": {
+            "name": "resize_width"
+          },
+          "link": 595
+        },
+        {
+          "name": "resize_height",
+          "type": "INT",
+          "widget": {
+            "name": "resize_height"
+          },
+          "link": 596
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            601
+          ]
+        }
+      ],
+      "title": "Mask Resize (Manual)",
+      "properties": {
+        "cnr_id": "was-ns",
+        "ver": "f86447721c18758d7b3b6ae5769f52344a3d764a",
+        "Node name for S&R": "Image Resize"
+      },
+      "widgets_values": [
+        "resize",
+        "true",
+        "lanczos",
+        2,
+        1024,
+        1536
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 248,
+      "type": "Image Resize",
+      "pos": [
+        2550,
+        820
+      ],
+      "size": [
+        270,
+        178
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 58,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 597
+        },
+        {
+          "name": "rescale_factor",
+          "type": "FLOAT",
+          "widget": {
+            "name": "rescale_factor"
+          },
+          "link": 738
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            600
+          ]
+        }
+      ],
+      "title": "Mask Resize (Factor)",
+      "properties": {
+        "cnr_id": "was-ns",
+        "ver": "f86447721c18758d7b3b6ae5769f52344a3d764a",
+        "Node name for S&R": "Image Resize"
+      },
+      "widgets_values": [
+        "rescale",
+        "true",
+        "lanczos",
+        2,
+        1024,
+        1536
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 400,
+      "type": "CR Clamp Value",
+      "pos": [
+        2350,
+        940
+      ],
+      "size": [
+        270,
+        126
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "widget": {
+            "name": "a"
+          },
+          "link": 1012
+        }
+      ],
+      "outputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "links": [
+            1013
+          ]
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Refine Clamp",
+      "properties": {
+        "cnr_id": "ComfyUI_Comfyroll_CustomNodes",
+        "ver": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
+        "Node name for S&R": "CR Clamp Value"
+      },
+      "widgets_values": [
+        1,
+        0,
+        1
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 401,
+      "type": "CR Clamp Value",
+      "pos": [
+        2350,
+        980
+      ],
+      "size": [
+        270,
+        126
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "widget": {
+            "name": "a"
+          },
+          "link": 1010
+        }
+      ],
+      "outputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "links": [
+            1011
+          ]
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Upscale Clamp",
+      "properties": {
+        "cnr_id": "ComfyUI_Comfyroll_CustomNodes",
+        "ver": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
+        "Node name for S&R": "CR Clamp Value"
+      },
+      "widgets_values": [
+        1,
+        0,
+        1
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 404,
+      "type": "CR Clamp Value",
+      "pos": [
+        2350,
+        1060
+      ],
+      "size": [
+        270,
+        126
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 53,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "widget": {
+            "name": "a"
+          },
+          "link": 1020
+        }
+      ],
+      "outputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "links": [
+            1021
+          ]
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "End_ Clamp",
+      "properties": {
+        "cnr_id": "ComfyUI_Comfyroll_CustomNodes",
+        "ver": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
+        "Node name for S&R": "CR Clamp Value"
+      },
+      "widgets_values": [
+        1,
+        0,
+        1
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 372,
+      "type": "EmptyImage",
+      "pos": [
+        2150,
+        1420
+      ],
+      "size": [
+        270,
+        130
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            933
+          ]
+        }
+      ],
+      "title": "Controlnet EmptyImage",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "EmptyImage"
+      },
+      "widgets_values": [
+        16,
+        16,
+        1,
+        0
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 386,
+      "type": "easy compare",
+      "pos": [
+        2150,
+        1460
+      ],
+      "size": [
+        270,
+        78
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "*",
+          "link": 970
+        },
+        {
+          "name": "b",
+          "type": "*",
+          "link": 972
+        }
+      ],
+      "outputs": [
+        {
+          "name": "boolean",
+          "type": "BOOLEAN",
+          "links": [
+            971
+          ]
+        }
+      ],
+      "title": "Controlnet Compare",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy compare"
+      },
+      "widgets_values": [
+        "a > b"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 387,
+      "type": "ImpactInt",
+      "pos": [
+        2150,
+        1500
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            972
+          ]
+        }
+      ],
+      "title": "Controlnet ImpactInt",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 391,
+      "type": "Boolean To Int [Dream]",
+      "pos": [
+        2150,
+        1540
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 61,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "boolean",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "boolean"
+          },
+          "link": 976
+        }
+      ],
+      "outputs": [
+        {
+          "name": "result",
+          "type": "INT",
+          "links": [
+            977,
+            1027,
+            1028
+          ]
+        }
+      ],
+      "title": "ControlNet Image Bool Int",
+      "properties": {
+        "cnr_id": "comfyui-dream-project",
+        "ver": "f48bed5b8ae866b3dad33fb811d712d45205f117",
+        "Node name for S&R": "Boolean To Int [Dream]"
+      },
+      "widgets_values": [
+        false,
+        2,
+        1
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 416,
+      "type": "ImpactSwitch",
+      "pos": [
+        2150,
+        1620
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 78,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 1025
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 1028
+        },
+        {
+          "name": "input2",
+          "type": "INT",
+          "link": 1026
+        },
+        {
+          "name": "input3",
+          "type": "INT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "INT",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            1030
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Height Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 422,
+      "type": "ImpactSwitch",
+      "pos": [
+        2150,
+        1660
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 62,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 1038
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 1037
+        },
+        {
+          "name": "input2",
+          "type": "IMAGE",
+          "link": 1039
+        },
+        {
+          "name": "input3",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            1040
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "CN Resize Logic Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 392,
+      "type": "ImpactSwitch",
+      "pos": [
+        2150,
+        1700
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 68,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 978
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 977
+        },
+        {
+          "name": "input2",
+          "type": "IMAGE",
+          "link": 979
+        },
+        {
+          "name": "input3",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            980,
+            981,
+            982
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "ControlNet Image Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 383,
+      "type": "EmptyImage",
+      "pos": [
+        2350,
+        1540
+      ],
+      "size": [
+        270,
+        130
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            965
+          ]
+        }
+      ],
+      "title": "Preview EmptyImage",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "EmptyImage"
+      },
+      "widgets_values": [
+        16,
+        16,
+        1,
+        0
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 365,
+      "type": "DepthAnythingPreprocessor",
+      "pos": [
+        2350,
+        1700
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 75,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 981
+        },
+        {
+          "name": "resolution",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": 926
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            935
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui_controlnet_aux",
+        "ver": "59b027e088c1c8facf7258f6e392d16d204b4d27",
+        "Node name for S&R": "DepthAnythingPreprocessor"
+      },
+      "widgets_values": [
+        "depth_anything_vitl14.pth",
+        512
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 418,
+      "type": "Boolean To Int [Dream]",
+      "pos": [
+        2350,
+        1500
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "boolean",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "boolean"
+          },
+          "link": 1031
+        }
+      ],
+      "outputs": [
+        {
+          "name": "result",
+          "type": "INT",
+          "links": [
+            1037
+          ]
+        }
+      ],
+      "title": "CN Resize Boolean To Int",
+      "properties": {
+        "cnr_id": "comfyui-dream-project",
+        "ver": "f48bed5b8ae866b3dad33fb811d712d45205f117",
+        "Node name for S&R": "Boolean To Int [Dream]"
+      },
+      "widgets_values": [
+        false,
+        2,
+        1
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 290,
+      "type": "easy float",
+      "pos": [
+        670,
+        1300
+      ],
+      "size": [
+        260,
+        58
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "float",
+          "type": "FLOAT",
+          "links": [
+            737
+          ]
+        }
+      ],
+      "title": "Upscale Image By",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy float"
+      },
+      "widgets_values": [
+        1.5
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 382,
+      "type": "ImpactSwitch",
+      "pos": [
+        2350,
+        1580
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 87,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 965
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 969
+        },
+        {
+          "name": "input2",
+          "type": "IMAGE",
+          "link": 966
+        },
+        {
+          "name": "input3",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            968
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Preview Logic Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 419,
+      "type": "Image Resize",
+      "pos": [
+        2350,
+        1420
+      ],
+      "size": [
+        270,
+        178
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 51,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1032
+        },
+        {
+          "name": "rescale_factor",
+          "type": "FLOAT",
+          "widget": {
+            "name": "rescale_factor"
+          },
+          "link": 1041
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1038
+          ]
+        }
+      ],
+      "title": "CN Image Resize (Factor)",
+      "properties": {
+        "cnr_id": "was-ns",
+        "ver": "f86447721c18758d7b3b6ae5769f52344a3d764a",
+        "Node name for S&R": "Image Resize"
+      },
+      "widgets_values": [
+        "rescale",
+        "true",
+        "lanczos",
+        2,
+        1024,
+        1536
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 241,
+      "type": "Boolean To Int [Dream]",
+      "pos": [
+        2550,
+        660
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "boolean",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "boolean"
+          },
+          "link": 578
+        }
+      ],
+      "outputs": [
+        {
+          "name": "result",
+          "type": "INT",
+          "links": [
+            582,
+            599
+          ]
+        }
+      ],
+      "title": "Resize Boolean To Int",
+      "properties": {
+        "cnr_id": "comfyui-dream-project",
+        "ver": "f48bed5b8ae866b3dad33fb811d712d45205f117",
+        "Node name for S&R": "Boolean To Int [Dream]"
+      },
+      "widgets_values": [
+        false,
+        2,
+        1
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 242,
+      "type": "Image Resize",
+      "pos": [
+        2550,
+        700
+      ],
+      "size": [
+        270,
+        178
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 592
+        },
+        {
+          "name": "rescale_factor",
+          "type": "FLOAT",
+          "widget": {
+            "name": "rescale_factor"
+          },
+          "link": 739
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            583
+          ]
+        }
+      ],
+      "title": "Image Resize (Factor)",
+      "properties": {
+        "cnr_id": "was-ns",
+        "ver": "f86447721c18758d7b3b6ae5769f52344a3d764a",
+        "Node name for S&R": "Image Resize"
+      },
+      "widgets_values": [
+        "rescale",
+        "true",
+        "lanczos",
+        2,
+        1024,
+        1536
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 79,
+      "type": "PrimitiveInt",
+      "pos": [
+        40,
+        1530
+      ],
+      "size": [
+        330,
+        100
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            649,
+            650,
+            651
+          ]
+        }
+      ],
+      "title": "Seed",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "PrimitiveInt"
+      },
+      "widgets_values": [
+        -991774126699022,
+        "randomize"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 137,
+      "type": "ImpactInt",
+      "pos": [
+        40,
+        1420
+      ],
+      "size": [
+        330,
+        70
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            923
+          ]
+        }
+      ],
+      "title": "Batch Size",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 390,
+      "type": "easy compare",
+      "pos": [
+        2350,
+        1620
+      ],
+      "size": [
+        270,
+        78
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 50,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "*",
+          "link": 975
+        },
+        {
+          "name": "b",
+          "type": "*",
+          "link": 974
+        }
+      ],
+      "outputs": [
+        {
+          "name": "boolean",
+          "type": "BOOLEAN",
+          "links": [
+            976
+          ]
+        }
+      ],
+      "title": "ControlNet ImageCompare",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy compare"
+      },
+      "widgets_values": [
+        "a > b"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 415,
+      "type": "GetImageSize+",
+      "pos": [
+        2150,
+        1740
+      ],
+      "size": [
+        290,
+        66
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 69,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1040
+        }
+      ],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            1024
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            1026
+          ]
+        },
+        {
+          "name": "count",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "ControlNet Image Size",
+      "properties": {
+        "cnr_id": "comfyui_essentials",
+        "ver": "9d9f4bedfc9f0321c19faf71855e228c93bd0dc9",
+        "Node name for S&R": "GetImageSize+"
+      },
+      "widgets_values": [],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 381,
+      "type": "PreviewImage",
+      "pos": [
+        1520,
+        1470
+      ],
+      "size": [
+        370,
+        300
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 91,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 968
+        }
+      ],
+      "outputs": [],
+      "title": "Preview ControlNet",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 36,
+      "type": "Image Comparer (rgthree)",
+      "pos": [
+        1520,
+        1120
+      ],
+      "size": [
+        370,
+        310
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 107,
+      "mode": 0,
+      "inputs": [
+        {
+          "dir": 3,
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 780
+        },
+        {
+          "dir": 3,
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 826
+        }
+      ],
+      "outputs": [],
+      "title": "Refine/Upscale Compare",
+      "properties": {
+        "cnr_id": "rgthree-comfy",
+        "ver": "c5ffa43de4ddb17244626a65a30700a05dd6b67d",
+        "comparer_mode": "Slide"
+      },
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_nlgsp_00017_.png&type=temp&subfolder=&rand=0.5598771002699882"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_nlgsp_00018_.png&type=temp&subfolder=&rand=0.45976697415787227"
+          }
+        ]
+      ]
+    },
+    {
+      "id": 291,
+      "type": "easy float",
+      "pos": [
+        670,
+        1200
+      ],
+      "size": [
+        260,
+        58
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "float",
+          "type": "FLOAT",
+          "links": [
+            738,
+            739
+          ]
+        }
+      ],
+      "title": "Resize Reference By",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy float"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 243,
+      "type": "Image Resize",
+      "pos": [
+        2550,
+        740
+      ],
+      "size": [
+        270,
+        178
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 44,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 593
+        },
+        {
+          "name": "resize_width",
+          "type": "INT",
+          "widget": {
+            "name": "resize_width"
+          },
+          "link": 580
+        },
+        {
+          "name": "resize_height",
+          "type": "INT",
+          "widget": {
+            "name": "resize_height"
+          },
+          "link": 581
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            584
+          ]
+        }
+      ],
+      "title": "Image Resize (Manual)",
+      "properties": {
+        "cnr_id": "was-ns",
+        "ver": "f86447721c18758d7b3b6ae5769f52344a3d764a",
+        "Node name for S&R": "Image Resize"
+      },
+      "widgets_values": [
+        "resize",
+        "true",
+        "lanczos",
+        2,
+        1024,
+        1536
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 379,
+      "type": "ImpactSwitch",
+      "pos": [
+        2550,
+        1060
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 89,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 952
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 957
+        },
+        {
+          "name": "input2",
+          "type": "CONDITIONING",
+          "link": 954
+        },
+        {
+          "name": "input3",
+          "type": "CONDITIONING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "CONDITIONING",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            958,
+            959,
+            960
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Pos Master Control Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 380,
+      "type": "ImpactSwitch",
+      "pos": [
+        2550,
+        1100
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 90,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 953
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 956
+        },
+        {
+          "name": "input2",
+          "type": "CONDITIONING",
+          "link": 955
+        },
+        {
+          "name": "input3",
+          "type": "CONDITIONING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "CONDITIONING",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            961,
+            962,
+            963
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Neg Master Control Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 402,
+      "type": "CR Clamp Value",
+      "pos": [
+        2350,
+        1100
+      ],
+      "size": [
+        270,
+        126
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "widget": {
+            "name": "a"
+          },
+          "link": 1016
+        }
+      ],
+      "outputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "links": [
+            1017
+          ]
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Strength Clamp",
+      "properties": {
+        "cnr_id": "ComfyUI_Comfyroll_CustomNodes",
+        "ver": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
+        "Node name for S&R": "CR Clamp Value"
+      },
+      "widgets_values": [
+        1,
+        0,
+        1
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 267,
+      "type": "VAEDecode",
+      "pos": [
+        2150,
+        1300
+      ],
+      "size": [
+        190,
+        50
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 105,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 895
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 1067
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            825,
+            826
+          ]
+        }
+      ],
+      "title": "VAE Decode After",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": [],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 369,
+      "type": "ImpactSwitch",
+      "pos": [
+        2350,
+        1380
+      ],
+      "size": [
+        270,
+        162
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 83,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 933
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 938
+        },
+        {
+          "name": "input2",
+          "type": "IMAGE",
+          "link": 934
+        },
+        {
+          "name": "input3",
+          "type": "IMAGE",
+          "link": 935
+        },
+        {
+          "name": "input4",
+          "type": "IMAGE",
+          "link": 936
+        },
+        {
+          "name": "input5",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            944,
+            966
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Controlnet Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        0,
+        false
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 378,
+      "type": "Boolean To Int [Dream]",
+      "pos": [
+        2150,
+        1380
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 60,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "boolean",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "boolean"
+          },
+          "link": 971
+        }
+      ],
+      "outputs": [
+        {
+          "name": "result",
+          "type": "INT",
+          "links": [
+            956,
+            957,
+            969
+          ]
+        }
+      ],
+      "title": "Controlnet BoolInt",
+      "properties": {
+        "cnr_id": "comfyui-dream-project",
+        "ver": "f48bed5b8ae866b3dad33fb811d712d45205f117",
+        "Node name for S&R": "Boolean To Int [Dream]"
+      },
+      "widgets_values": [
+        false,
+        2,
+        1
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 366,
+      "type": "CannyEdgePreprocessor",
+      "pos": [
+        2350,
+        1660
+      ],
+      "size": [
+        220,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 74,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 980
+        },
+        {
+          "name": "low_threshold",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "low_threshold"
+          },
+          "link": 983
+        },
+        {
+          "name": "high_threshold",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "high_threshold"
+          },
+          "link": 984
+        },
+        {
+          "name": "resolution",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": 925
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            934
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui_controlnet_aux",
+        "ver": "59b027e088c1c8facf7258f6e392d16d204b4d27",
+        "Node name for S&R": "CannyEdgePreprocessor"
+      },
+      "widgets_values": [
+        100,
+        200,
+        512
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 294,
+      "type": "easy float",
+      "pos": [
+        390,
+        1120
+      ],
+      "size": [
+        260,
+        100
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "float",
+          "type": "FLOAT",
+          "links": [
+            1012
+          ]
+        }
+      ],
+      "title": "Refining Denoise",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy float"
+      },
+      "widgets_values": [
+        0.1
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 109,
+      "type": "PrimitiveBoolean",
+      "pos": [
+        40,
+        1060
+      ],
+      "size": [
+        330,
+        58
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "links": [
+            578,
+            1031
+          ]
+        }
+      ],
+      "title": "ENABLE (Manual) Reference Resize",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "PrimitiveBoolean"
+      },
+      "widgets_values": [
+        false
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 417,
+      "type": "ImpactSwitch",
+      "pos": [
+        2150,
+        1580
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 77,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 1023
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 1027
+        },
+        {
+          "name": "input2",
+          "type": "INT",
+          "link": 1024
+        },
+        {
+          "name": "input3",
+          "type": "INT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "INT",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            1029
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Width Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 399,
+      "type": "CR Clamp Value",
+      "pos": [
+        2350,
+        900
+      ],
+      "size": [
+        270,
+        126
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "widget": {
+            "name": "a"
+          },
+          "link": 1008
+        }
+      ],
+      "outputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "links": [
+            1009
+          ]
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Main Clamp",
+      "properties": {
+        "cnr_id": "ComfyUI_Comfyroll_CustomNodes",
+        "ver": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
+        "Node name for S&R": "CR Clamp Value"
+      },
+      "widgets_values": [
+        1,
+        0,
+        1
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 293,
+      "type": "easy float",
+      "pos": [
+        390,
+        1260
+      ],
+      "size": [
+        260,
+        100
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "float",
+          "type": "FLOAT",
+          "links": [
+            1010
+          ]
+        }
+      ],
+      "title": "Upscaler Denoise",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy float"
+      },
+      "widgets_values": [
+        0.4
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 367,
+      "type": "OpenposePreprocessor",
+      "pos": [
+        2350,
+        1740
+      ],
+      "size": [
+        300,
+        174
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 76,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 982
+        },
+        {
+          "name": "resolution",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": 927
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            936
+          ]
+        },
+        {
+          "name": "POSE_KEYPOINT",
+          "type": "POSE_KEYPOINT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui_controlnet_aux",
+        "ver": "59b027e088c1c8facf7258f6e392d16d204b4d27",
+        "Node name for S&R": "OpenposePreprocessor"
+      },
+      "widgets_values": [
+        "enable",
+        "enable",
+        "enable",
+        512,
+        "disable"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 389,
+      "type": "LoadImage",
+      "pos": [
+        1240,
+        1440
+      ],
+      "size": [
+        260,
+        330
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            979,
+            1032,
+            1033
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "ControlNet Reference",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 182,
+      "type": "GlobalSampler //Inspire",
+      "pos": [
+        40,
+        1670
+      ],
+      "size": [
+        330,
+        100
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Sampler & Scheduler",
+      "properties": {
+        "cnr_id": "comfyui-inspire-pack",
+        "ver": "1.21.0",
+        "Node name for S&R": "GlobalSampler //Inspire"
+      },
+      "widgets_values": [
+        "euler_ancestral",
+        "simple"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 403,
+      "type": "CR Clamp Value",
+      "pos": [
+        2350,
+        1020
+      ],
+      "size": [
+        270,
+        126
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 52,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "widget": {
+            "name": "a"
+          },
+          "link": 1018
+        }
+      ],
+      "outputs": [
+        {
+          "name": "a",
+          "type": "FLOAT",
+          "links": [
+            1019
+          ]
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Start_ Clamp",
+      "properties": {
+        "cnr_id": "ComfyUI_Comfyroll_CustomNodes",
+        "ver": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
+        "Node name for S&R": "CR Clamp Value"
+      },
+      "widgets_values": [
+        1,
+        0,
+        1
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 308,
+      "type": "VAEDecode",
+      "pos": [
+        2150,
+        1260
+      ],
+      "size": [
+        190,
+        46
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 93,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 800
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 1066
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            780
+          ]
+        }
+      ],
+      "title": "VAE Decode Before",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": [],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 245,
+      "type": "ImpactSwitch",
+      "pos": [
+        2550,
+        620
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 57,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 583
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 582
+        },
+        {
+          "name": "input2",
+          "type": "IMAGE",
+          "link": 584
+        },
+        {
+          "name": "input3",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            585,
+            606,
+            978,
+            1116
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Resize Logic Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 247,
+      "type": "MaskToImage",
+      "pos": [
+        2550,
+        900
+      ],
+      "size": [
+        184.89999389648438,
+        26
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 45,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 617
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            597,
+            598
+          ]
+        }
+      ],
+      "title": "Mask to Image",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "MaskToImage"
+      },
+      "widgets_values": [],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 350,
+      "type": "ImpactInt",
+      "pos": [
+        1240,
+        960
+      ],
+      "size": [
+        260,
+        58
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            900,
+            916,
+            1119,
+            1120
+          ]
+        }
+      ],
+      "title": "In/Outpaint Grow Mask",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        10
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 235,
+      "type": "Big Latent Switch [Dream]",
+      "pos": [
+        2150,
+        620
+      ],
+      "size": [
+        270,
+        262
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 88,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_0",
+          "shape": 7,
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "input_1",
+          "shape": 7,
+          "type": "LATENT",
+          "link": 924
+        },
+        {
+          "name": "input_2",
+          "shape": 7,
+          "type": "LATENT",
+          "link": 586
+        },
+        {
+          "name": "input_3",
+          "shape": 7,
+          "type": "LATENT",
+          "link": 1123
+        },
+        {
+          "name": "input_4",
+          "shape": 7,
+          "type": "LATENT",
+          "link": 1125
+        },
+        {
+          "name": "input_5",
+          "shape": 7,
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "input_6",
+          "shape": 7,
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "input_7",
+          "shape": 7,
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "input_8",
+          "shape": 7,
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "input_9",
+          "shape": 7,
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 543
+        }
+      ],
+      "outputs": [
+        {
+          "name": "selected",
+          "type": "LATENT",
+          "links": [
+            626
+          ]
+        }
+      ],
+      "title": "Big Latent Switch",
+      "properties": {
+        "cnr_id": "comfyui-dream-project",
+        "ver": "f48bed5b8ae866b3dad33fb811d712d45205f117",
+        "Node name for S&R": "Big Latent Switch [Dream]"
+      },
+      "widgets_values": [
+        0,
+        "previous"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 135,
+      "type": "ImpactFloat",
+      "pos": [
+        40,
+        1310
+      ],
+      "size": [
+        330,
+        70
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [
+            535,
+            536,
+            537
+          ]
+        }
+      ],
+      "title": "CFG",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactFloat"
+      },
+      "widgets_values": [
+        7
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 92,
+      "type": "ImpactInt",
+      "pos": [
+        670,
+        960
+      ],
+      "size": [
+        260,
+        58
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            580,
+            595,
+            1023,
+            1126
+          ]
+        }
+      ],
+      "title": "(Manual) Width",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        1024
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 93,
+      "type": "ImpactInt",
+      "pos": [
+        670,
+        1060
+      ],
+      "size": [
+        260,
+        58
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            581,
+            596,
+            1025,
+            1128
+          ]
+        }
+      ],
+      "title": "(Manual) Height",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        1024
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 421,
+      "type": "Image Resize",
+      "pos": [
+        2350,
+        1460
+      ],
+      "size": [
+        270,
+        178
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1033
+        },
+        {
+          "name": "resize_width",
+          "type": "INT",
+          "widget": {
+            "name": "resize_width"
+          },
+          "link": 1126
+        },
+        {
+          "name": "resize_height",
+          "type": "INT",
+          "widget": {
+            "name": "resize_height"
+          },
+          "link": 1128
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1039
+          ]
+        }
+      ],
+      "title": "CN Image Resize (Manual)",
+      "properties": {
+        "cnr_id": "was-ns",
+        "ver": "f86447721c18758d7b3b6ae5769f52344a3d764a",
+        "Node name for S&R": "Image Resize"
+      },
+      "widgets_values": [
+        "resize",
+        "true",
+        "lanczos",
+        2,
+        1024,
+        1536
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 6,
+      "type": "Power Lora Loader (rgthree)",
+      "pos": [
+        1910,
+        1420
+      ],
+      "size": [
+        220,
+        350
+      ],
+      "flags": {},
+      "order": 63,
+      "mode": 0,
+      "inputs": [
+        {
+          "dir": 3,
+          "name": "model",
+          "type": "MODEL",
+          "link": 1104
+        },
+        {
+          "dir": 3,
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1134
+        }
+      ],
+      "outputs": [
+        {
+          "dir": 4,
+          "name": "MODEL",
+          "shape": 3,
+          "type": "MODEL",
+          "links": [
+            558,
+            559,
+            560
+          ]
+        },
+        {
+          "dir": 4,
+          "name": "CLIP",
+          "shape": 3,
+          "type": "CLIP",
+          "links": [
+            562,
+            563
+          ]
+        }
+      ],
+      "title": "Lora Loader",
+      "properties": {
+        "cnr_id": "rgthree-comfy",
+        "ver": "c5ffa43de4ddb17244626a65a30700a05dd6b67d",
+        "Show Strengths": "Single Strength"
+      },
+      "widgets_values": [
+        {},
+        {
+          "type": "PowerLoraLoaderHeaderWidget"
+        },
+        {
+          "on": true,
+          "lora": "None",
+          "strength": 1,
+          "strengthTwo": null
+        },
+        {},
+        ""
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 238,
+      "type": "ImpactSwitch",
+      "pos": [
+        2550,
+        980
+      ],
+      "size": [
+        270,
+        182
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 79,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 567
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 565
+        },
+        {
+          "name": "input2",
+          "type": "INT",
+          "link": 568
+        },
+        {
+          "name": "input3",
+          "type": "INT",
+          "link": 1056
+        },
+        {
+          "name": "input4",
+          "type": "INT",
+          "link": 1057
+        },
+        {
+          "name": "input5",
+          "type": "INT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "INT",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            950,
+            952
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Positive Conditioning",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 239,
+      "type": "ImpactSwitch",
+      "pos": [
+        2550,
+        1020
+      ],
+      "size": [
+        270,
+        182
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 80,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 572
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 566
+        },
+        {
+          "name": "input2",
+          "type": "CONDITIONING",
+          "link": 573
+        },
+        {
+          "name": "input3",
+          "type": "CONDITIONING",
+          "link": 832
+        },
+        {
+          "name": "input4",
+          "type": "CONDITIONING",
+          "link": 1089
+        },
+        {
+          "name": "input5",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "input6",
+          "type": "CONDITIONING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "CONDITIONING",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            951,
+            953
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Negative Conditioning",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 263,
+      "type": "ImpactSwitch",
+      "pos": [
+        2150,
+        780
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 104,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 1064
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 639
+        },
+        {
+          "name": "input2",
+          "type": "LATENT",
+          "link": 1065
+        },
+        {
+          "name": "input3",
+          "type": "LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "LATENT",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            895
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Upscale Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        0,
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 446,
+      "type": "ImpactSwitch",
+      "pos": [
+        2150,
+        700
+      ],
+      "size": [
+        270,
+        162
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 55,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 1130
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 1129
+        },
+        {
+          "name": "input2",
+          "type": "CLIP",
+          "link": 1131
+        },
+        {
+          "name": "input3",
+          "type": "CLIP",
+          "link": 1132
+        },
+        {
+          "name": "input4",
+          "type": "CLIP",
+          "link": 1133
+        },
+        {
+          "name": "input5",
+          "type": "CLIP",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "CLIP",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            1134
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Clip Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 360,
+      "type": "EmptyLatentImage",
+      "pos": [
+        2150,
+        740
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 84,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 1029
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 1030
+        },
+        {
+          "name": "batch_size",
+          "type": "INT",
+          "widget": {
+            "name": "batch_size"
+          },
+          "link": 923
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            924
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        512,
+        512,
+        1
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 393,
+      "type": "ImpactInt",
+      "pos": [
+        2350,
+        1340
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            974
+          ]
+        }
+      ],
+      "title": "ControlNet Image Int",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 442,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        1910,
+        760
+      ],
+      "size": [
+        216.89999389648438,
+        98
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1100,
+            1101
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1132,
+            1133
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            1117,
+            1121
+          ]
+        }
+      ],
+      "title": "Load In/outpaint Checkpoint",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "sd_xl_base_1.0_inpainting_0.1.safetensors"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 251,
+      "type": "ImageToMask",
+      "pos": [
+        2550,
+        780
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 73,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 602
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            901
+          ]
+        }
+      ],
+      "title": "Image to Mask",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "ImageToMask"
+      },
+      "widgets_values": [
+        "red"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 349,
+      "type": "GrowMask",
+      "pos": [
+        2350,
+        780
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 82,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 901
+        },
+        {
+          "name": "expand",
+          "type": "INT",
+          "widget": {
+            "name": "expand"
+          },
+          "link": 900
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            1118
+          ]
+        }
+      ],
+      "title": "Inpaint GrowMask",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "GrowMask"
+      },
+      "widgets_values": [
+        0,
+        true
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 444,
+      "type": "VAEEncodeForInpaint",
+      "pos": [
+        2350,
+        820
+      ],
+      "size": [
+        273.8999938964844,
+        98
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 85,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 1116
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 1117
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 1118
+        },
+        {
+          "name": "grow_mask_by",
+          "type": "INT",
+          "widget": {
+            "name": "grow_mask_by"
+          },
+          "link": 1119
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            1123
+          ]
+        }
+      ],
+      "title": "VAE Encode Inpainting",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "VAEEncodeForInpaint"
+      },
+      "widgets_values": [
+        6
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 445,
+      "type": "VAEEncodeForInpaint",
+      "pos": [
+        2350,
+        860
+      ],
+      "size": [
+        273.8999938964844,
+        98
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 81,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 1124
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 1121
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 1122
+        },
+        {
+          "name": "grow_mask_by",
+          "type": "INT",
+          "widget": {
+            "name": "grow_mask_by"
+          },
+          "link": 1120
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            1125
+          ]
+        }
+      ],
+      "title": "VAE Encode Outpainting",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "VAEEncodeForInpaint"
+      },
+      "widgets_values": [
+        6
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 438,
+      "type": "ImpactSwitch",
+      "pos": [
+        2150,
+        900
+      ],
+      "size": [
+        210,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 98,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 1114
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 1062
+        },
+        {
+          "name": "input2",
+          "type": "LATENT",
+          "link": 1115
+        },
+        {
+          "name": "input3",
+          "type": "LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "LATENT",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            1064,
+            1145,
+            1146
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Refine Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        0,
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 450,
+      "type": "VAEDecode",
+      "pos": [
+        2150,
+        1140
+      ],
+      "size": [
+        240,
+        50
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 99,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 1146
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 1136
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1147
+          ]
+        }
+      ],
+      "title": "VAE Decode Upscale",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": [],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 452,
+      "type": "VAEEncode",
+      "pos": [
+        2150,
+        1180
+      ],
+      "size": [
+        250,
+        50
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 100,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 1147
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 1138
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            1148
+          ]
+        }
+      ],
+      "title": "VAE Encode Upscale",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "VAEEncode"
+      },
+      "widgets_values": [],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 451,
+      "type": "VAEEncode",
+      "pos": [
+        2150,
+        1100
+      ],
+      "size": [
+        250,
+        50
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 95,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 1141
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 1137
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            1142
+          ]
+        }
+      ],
+      "title": "VAE Encode Refine",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "VAEEncode"
+      },
+      "widgets_values": [],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 262,
+      "type": "LatentUpscaleBy",
+      "pos": [
+        2150,
+        860
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 102,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 1149
+        },
+        {
+          "name": "scale_by",
+          "type": "FLOAT",
+          "widget": {
+            "name": "scale_by"
+          },
+          "link": 737
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            668
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "LatentUpscaleBy"
+      },
+      "widgets_values": [
+        "bicubic",
+        1.5
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 29,
+      "type": "KSampler",
+      "pos": [
+        2350,
+        660
+      ],
+      "size": [
+        210,
+        262
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 97,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 560
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 959
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 962
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 1151
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": 649
+        },
+        {
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": 533
+        },
+        {
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": 537
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": 1013
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            1115
+          ]
+        }
+      ],
+      "title": "Refining KSampler",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        692813436668608,
+        "fixed",
+        4,
+        1,
+        "euler_ancestral",
+        "simple",
+        0.05
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 41,
+      "type": "KSampler",
+      "pos": [
+        2350,
+        700
+      ],
+      "size": [
+        210,
+        262
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 103,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 559
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 960
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 961
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 668
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": 650
+        },
+        {
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": 532
+        },
+        {
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": 536
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": 1011
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            1065
+          ]
+        }
+      ],
+      "title": "Upscaling KSampler",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        98003174192175,
+        "fixed",
+        4,
+        1,
+        "euler_ancestral",
+        "simple",
+        0.3
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 240,
+      "type": "VAEEncode",
+      "pos": [
+        2150,
+        1220
+      ],
+      "size": [
+        190,
+        50
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 65,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 585
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 1070
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            586
+          ]
+        }
+      ],
+      "title": "VAE Encode Img2Img",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "VAEEncode"
+      },
+      "widgets_values": [],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 449,
+      "type": "VAEDecode",
+      "pos": [
+        2150,
+        1060
+      ],
+      "size": [
+        200,
+        46
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 94,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 1140
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 1135
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1141
+          ]
+        }
+      ],
+      "title": "VAE Decode Refine",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": [],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 373,
+      "type": "ControlNetApplyAdvanced",
+      "pos": [
+        2150,
+        1340
+      ],
+      "size": [
+        270,
+        186
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 86,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 950
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 951
+        },
+        {
+          "name": "control_net",
+          "type": "CONTROL_NET",
+          "link": 1099
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 944
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 1074
+        },
+        {
+          "name": "strength",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength"
+          },
+          "link": 1017
+        },
+        {
+          "name": "start_percent",
+          "type": "FLOAT",
+          "widget": {
+            "name": "start_percent"
+          },
+          "link": 1019
+        },
+        {
+          "name": "end_percent",
+          "type": "FLOAT",
+          "widget": {
+            "name": "end_percent"
+          },
+          "link": 1021
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            954
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            955
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "ControlNetApplyAdvanced"
+      },
+      "widgets_values": [
+        1,
+        0,
+        1
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 2,
+      "type": "KSampler",
+      "pos": [
+        2350,
+        620
+      ],
+      "size": [
+        210,
+        262
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 92,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 558
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 958
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 963
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 626
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": 651
+        },
+        {
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": 531
+        },
+        {
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": 535
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": 1009
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            800,
+            1114,
+            1139,
+            1140
+          ]
+        }
+      ],
+      "title": "Main KSampler",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        927828892319014,
+        "fixed",
+        4,
+        1,
+        "euler_ancestral",
+        "simple",
+        1
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 358,
+      "type": "GrowMask",
+      "pos": [
+        2350,
+        740
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 72,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 914
+        },
+        {
+          "name": "expand",
+          "type": "INT",
+          "widget": {
+            "name": "expand"
+          },
+          "link": 916
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            1122
+          ]
+        }
+      ],
+      "title": "Outpaint GrowMask",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "GrowMask"
+      },
+      "widgets_values": [
+        0,
+        true
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 292,
+      "type": "easy float",
+      "pos": [
+        390,
+        960
+      ],
+      "size": [
+        260,
+        120
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "float",
+          "type": "FLOAT",
+          "links": [
+            1008
+          ]
+        }
+      ],
+      "title": "Main Ksampler Denoise",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy float"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 46,
+      "type": "LoadImage",
+      "pos": [
+        950,
+        960
+      ],
+      "size": [
+        270,
+        400
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            592,
+            593
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            617
+          ]
+        }
+      ],
+      "title": "Reference: I2I, In/Outpaint",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 127,
+      "type": "ImagePadForOutpaint",
+      "pos": [
+        1240,
+        1060
+      ],
+      "size": [
+        260,
+        300
+      ],
+      "flags": {},
+      "order": 66,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 606
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1124
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            914
+          ]
+        }
+      ],
+      "title": "Pad for Outpainting",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "ImagePadForOutpaint"
+      },
+      "widgets_values": [
+        0,
+        0,
+        0,
+        0,
+        50
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 32,
+      "type": "PrimitiveBoolean",
+      "pos": [
+        40,
+        860
+      ],
+      "size": [
+        330,
+        58
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "links": [
+            652
+          ]
+        }
+      ],
+      "title": "ENABLE Refining",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "PrimitiveBoolean"
+      },
+      "widgets_values": [
+        false
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 10,
+      "type": "SaveImage",
+      "pos": [
+        1520,
+        620
+      ],
+      "size": [
+        370,
+        460
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 106,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 825
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 42,
+      "type": "PrimitiveBoolean",
+      "pos": [
+        40,
+        960
+      ],
+      "size": [
+        330,
+        58
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "links": [
+            653
+          ]
+        }
+      ],
+      "title": "ENABLE Upscaling",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "PrimitiveBoolean"
+      },
+      "widgets_values": [
+        false
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 368,
+      "type": "ImpactInt",
+      "pos": [
+        950,
+        1690
+      ],
+      "size": [
+        270,
+        80
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            925,
+            926,
+            927
+          ]
+        }
+      ],
+      "title": "Control Net Resolution",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        1024
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 374,
+      "type": "easy float",
+      "pos": [
+        950,
+        1570
+      ],
+      "size": [
+        270,
+        80
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "float",
+          "type": "FLOAT",
+          "links": [
+            1016
+          ]
+        }
+      ],
+      "title": "Strength",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy float"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 362,
+      "type": "ImpactInt",
+      "pos": [
+        390,
+        1440
+      ],
+      "size": [
+        540,
+        90
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            938,
+            970,
+            975
+          ]
+        }
+      ],
+      "title": "ControlNet Type (1=Off, 2=Canny, 3=Depth, 4=Pose)",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 423,
+      "type": "easy float",
+      "pos": [
+        950,
+        1440
+      ],
+      "size": [
+        270,
+        90
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "float",
+          "type": "FLOAT",
+          "links": [
+            1041
+          ]
+        }
+      ],
+      "title": "Resize ControlNet By",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy float"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        390,
+        620
+      ],
+      "size": [
+        540,
+        260
+      ],
+      "flags": {},
+      "order": 70,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 562
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            567,
+            568,
+            1056,
+            1057
+          ]
+        }
+      ],
+      "title": "Positive (Prompt)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "masterpiece,best quality,"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 439,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        1910,
+        620
+      ],
+      "size": [
+        220,
+        100
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1079,
+            1080
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1130,
+            1131
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            1066,
+            1067,
+            1070,
+            1074,
+            1135,
+            1136,
+            1137,
+            1138
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "sd_xl_base_1.0.safetensors"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 441,
+      "type": "ControlNetLoader",
+      "pos": [
+        1910,
+        900
+      ],
+      "size": [
+        220,
+        60
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONTROL_NET",
+          "type": "CONTROL_NET",
+          "links": [
+            1099
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.51",
+        "Node name for S&R": "ControlNetLoader"
+      },
+      "widgets_values": [
+        "diffusion_pytorch_model.safetensors"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 375,
+      "type": "easy float",
+      "pos": [
+        390,
+        1570
+      ],
+      "size": [
+        260,
+        80
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "float",
+          "type": "FLOAT",
+          "links": [
+            1018
+          ]
+        }
+      ],
+      "title": "Start_Percent",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy float"
+      },
+      "widgets_values": [
+        0
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 376,
+      "type": "easy float",
+      "pos": [
+        670,
+        1570
+      ],
+      "size": [
+        260,
+        80
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "float",
+          "type": "FLOAT",
+          "links": [
+            1020
+          ]
+        }
+      ],
+      "title": "End_Percent",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy float"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 394,
+      "type": "ImpactInt",
+      "pos": [
+        390,
+        1690
+      ],
+      "size": [
+        260,
+        80
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 30,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            983
+          ]
+        }
+      ],
+      "title": "Canny Low Threshold",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        100
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 395,
+      "type": "ImpactInt",
+      "pos": [
+        670,
+        1690
+      ],
+      "size": [
+        260,
+        80
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 31,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            984
+          ]
+        }
+      ],
+      "title": "Canny High Threshold",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        200
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 233,
+      "type": "ImpactSwitch",
+      "pos": [
+        2150,
+        660
+      ],
+      "size": [
+        270,
+        202
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 54,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 1079
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 555
+        },
+        {
+          "name": "input2",
+          "type": "MODEL",
+          "link": 1080
+        },
+        {
+          "name": "input3",
+          "type": "MODEL",
+          "link": 1100
+        },
+        {
+          "name": "input4",
+          "type": "MODEL",
+          "link": 1101
+        },
+        {
+          "name": "input5",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "input6",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "input7",
+          "type": "MODEL",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "MODEL",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            1104
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Big Model Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 8,
+      "type": "CLIPTextEncode",
+      "pos": [
+        950,
+        620
+      ],
+      "size": [
+        550,
+        260
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 71,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 563
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            572,
+            573,
+            832,
+            1089
+          ]
+        }
+      ],
+      "title": "Negative (Prompt)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "bad quality, worst quality, worst detail, text, watermark"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 448,
+      "type": "MarkdownNote",
+      "pos": [
+        -730,
+        580
+      ],
+      "size": [
+        570,
+        500
+      ],
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Install Guide",
+      "properties": {},
+      "widgets_values": [
+        "### Installation Guide: SDXL Cockpit Workflow\n\n#### Step 1: Install Custom Nodes & Update ComfyUI\nBefore you begin, make sure your ComfyUI is up to date. Then, use the ComfyUI Manager to install the following required custom nodes:\n\n- `ComfyUI-Impact-Pack`\n- `rgthree-comfy`\n- `WAS Node Suite`\n- `ComfyUI-Easy-Use`\n- `ComfyUI Inspire Pack`\n- `ComfyUI Dream Project`\n- `ComfyUI Essentials`\n- `ComfyUI Comfyroll CustomNodes`\n- `ComfyUI's ControlNet Auxiliary Preprocessors`\n\nAfter installing all nodes, **restart ComfyUI**.\n\n---\n\n#### Step 2: Download Required Models\nClick the links below to download the required files. Place them in the correct folders as specified.\n\n**1. Checkpoint Models**\n- **Download:** [SDXL 1.0 Base Model (6.94 GB)](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors)\n- **Place in:** `ComfyUI/models/checkpoints/`\n\n- **Download:** [SDXL 1.0 Inpainting Model (6.94 GB)](https://huggingface.co/wangqyqq/sd_xl_base_1.0_inpainting_0.1.safetensors/resolve/main/sd_xl_base_1.0_inpainting_0.1.safetensors)\n- **Place in:** `ComfyUI/models/checkpoints/`\n\n**2. ControlNet Model**\n- **Download:** [ControlNet Union SDXL 1.0 Model (2.58 GB)](https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/resolve/main/diffusion_pytorch_model.safetensors)\n- **Place in:** `ComfyUI/models/controlnet/`"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 138,
+      "type": "ImpactInt",
+      "pos": [
+        40,
+        620
+      ],
+      "size": [
+        330,
+        160
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            543,
+            555,
+            565,
+            566,
+            1129,
+            1154
+          ]
+        }
+      ],
+      "title": "Mode:1=T2I, 2=I2I, 3/4=In/Outpaint",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 453,
+      "type": "ImpactSwitch",
+      "pos": [
+        2150,
+        980
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 96,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 1139
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 1157
+        },
+        {
+          "name": "input2",
+          "type": "LATENT",
+          "link": 1142
+        },
+        {
+          "name": "input3",
+          "type": "LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "LATENT",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            1151
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Refine Loop Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 454,
+      "type": "ImpactSwitch",
+      "pos": [
+        2150,
+        1020
+      ],
+      "size": [
+        270,
+        122
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 101,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 1145
+        },
+        {
+          "name": "select",
+          "type": "INT",
+          "widget": {
+            "name": "select"
+          },
+          "link": 1156
+        },
+        {
+          "name": "input2",
+          "type": "LATENT",
+          "link": 1148
+        },
+        {
+          "name": "input3",
+          "type": "LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "LATENT",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            1149
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "Upscale Loop Switch",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        1,
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 266,
+      "type": "Boolean To Int [Dream]",
+      "pos": [
+        2150,
+        940
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 46,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "boolean",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "boolean"
+          },
+          "link": 652
+        }
+      ],
+      "outputs": [
+        {
+          "name": "result",
+          "type": "INT",
+          "links": [
+            1062
+          ]
+        }
+      ],
+      "title": "Refine To Int",
+      "properties": {
+        "cnr_id": "comfyui-dream-project",
+        "ver": "f48bed5b8ae866b3dad33fb811d712d45205f117",
+        "Node name for S&R": "Boolean To Int [Dream]"
+      },
+      "widgets_values": [
+        false,
+        2,
+        1
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 260,
+      "type": "Boolean To Int [Dream]",
+      "pos": [
+        2150,
+        820
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 47,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "boolean",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "boolean"
+          },
+          "link": 653
+        }
+      ],
+      "outputs": [
+        {
+          "name": "result",
+          "type": "INT",
+          "links": [
+            639
+          ]
+        }
+      ],
+      "title": "Upscale To Int",
+      "properties": {
+        "cnr_id": "comfyui-dream-project",
+        "ver": "f48bed5b8ae866b3dad33fb811d712d45205f117",
+        "Node name for S&R": "Boolean To Int [Dream]"
+      },
+      "widgets_values": [
+        false,
+        2,
+        1
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 461,
+      "type": "easy compare",
+      "pos": [
+        2350,
+        1180
+      ],
+      "size": [
+        270,
+        78
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 56,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "*",
+          "link": 1154
+        },
+        {
+          "name": "b",
+          "type": "*",
+          "link": 1153
+        }
+      ],
+      "outputs": [
+        {
+          "name": "boolean",
+          "type": "BOOLEAN",
+          "links": [
+            1155
+          ]
+        }
+      ],
+      "title": "VAE Loop Compare",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.2",
+        "Node name for S&R": "easy compare"
+      },
+      "widgets_values": [
+        "a > b"
+      ]
+    },
+    {
+      "id": 462,
+      "type": "ImpactInt",
+      "pos": [
+        2350,
+        1220
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 34,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            1153
+          ]
+        }
+      ],
+      "title": "VAE Loop ImpactInt",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "f86c5afc68958afb89bf66898d6b5038ce98a096",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        2
+      ]
+    },
+    {
+      "id": 463,
+      "type": "Boolean To Int [Dream]",
+      "pos": [
+        2350,
+        1140
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 64,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "boolean",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "boolean"
+          },
+          "link": 1155
+        }
+      ],
+      "outputs": [
+        {
+          "name": "result",
+          "type": "INT",
+          "links": [
+            1156,
+            1157
+          ]
+        }
+      ],
+      "title": "VAE Loop Boolean To Int",
+      "properties": {
+        "cnr_id": "comfyui-dream-project",
+        "ver": "f48bed5b8ae866b3dad33fb811d712d45205f117",
+        "Node name for S&R": "Boolean To Int [Dream]"
+      },
+      "widgets_values": [
+        false,
+        2,
+        1
+      ]
+    },
+    {
+      "id": 134,
+      "type": "ImpactInt",
+      "pos": [
+        40,
+        1200
+      ],
+      "size": [
+        330,
+        70
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 35,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            531,
+            532,
+            533
+          ]
+        }
+      ],
+      "title": "Steps",
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "e22f68fb97115b24ddf35d3d8801cc99fdb8af8d",
+        "Node name for S&R": "ImpactInt"
+      },
+      "widgets_values": [
+        20
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 76,
+      "type": "Note",
+      "pos": [
+        1900,
+        580
+      ],
+      "size": [
+        860,
+        1200
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 36,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Loaders & Backend",
+      "properties": {},
+      "widgets_values": [
+        ""
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      531,
+      134,
+      0,
+      2,
+      5,
+      "INT"
+    ],
+    [
+      532,
+      134,
+      0,
+      41,
+      5,
+      "INT"
+    ],
+    [
+      533,
+      134,
+      0,
+      29,
+      5,
+      "INT"
+    ],
+    [
+      535,
+      135,
+      0,
+      2,
+      6,
+      "FLOAT"
+    ],
+    [
+      536,
+      135,
+      0,
+      41,
+      6,
+      "FLOAT"
+    ],
+    [
+      537,
+      135,
+      0,
+      29,
+      6,
+      "FLOAT"
+    ],
+    [
+      543,
+      138,
+      0,
+      235,
+      10,
+      "INT"
+    ],
+    [
+      555,
+      138,
+      0,
+      233,
+      1,
+      "INT"
+    ],
+    [
+      558,
+      6,
+      0,
+      2,
+      0,
+      "MODEL"
+    ],
+    [
+      559,
+      6,
+      0,
+      41,
+      0,
+      "MODEL"
+    ],
+    [
+      560,
+      6,
+      0,
+      29,
+      0,
+      "MODEL"
+    ],
+    [
+      562,
+      6,
+      1,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      563,
+      6,
+      1,
+      8,
+      0,
+      "CLIP"
+    ],
+    [
+      565,
+      138,
+      0,
+      238,
+      1,
+      "INT"
+    ],
+    [
+      566,
+      138,
+      0,
+      239,
+      1,
+      "INT"
+    ],
+    [
+      567,
+      7,
+      0,
+      238,
+      0,
+      "*"
+    ],
+    [
+      568,
+      7,
+      0,
+      238,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      572,
+      8,
+      0,
+      239,
+      0,
+      "*"
+    ],
+    [
+      573,
+      8,
+      0,
+      239,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      578,
+      109,
+      0,
+      241,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      580,
+      92,
+      0,
+      243,
+      1,
+      "INT"
+    ],
+    [
+      581,
+      93,
+      0,
+      243,
+      2,
+      "INT"
+    ],
+    [
+      582,
+      241,
+      0,
+      245,
+      1,
+      "INT"
+    ],
+    [
+      583,
+      242,
+      0,
+      245,
+      0,
+      "*"
+    ],
+    [
+      584,
+      243,
+      0,
+      245,
+      2,
+      "IMAGE"
+    ],
+    [
+      585,
+      245,
+      0,
+      240,
+      0,
+      "IMAGE"
+    ],
+    [
+      586,
+      240,
+      0,
+      235,
+      2,
+      "LATENT"
+    ],
+    [
+      592,
+      46,
+      0,
+      242,
+      0,
+      "IMAGE"
+    ],
+    [
+      593,
+      46,
+      0,
+      243,
+      0,
+      "IMAGE"
+    ],
+    [
+      595,
+      92,
+      0,
+      249,
+      1,
+      "INT"
+    ],
+    [
+      596,
+      93,
+      0,
+      249,
+      2,
+      "INT"
+    ],
+    [
+      597,
+      247,
+      0,
+      248,
+      0,
+      "IMAGE"
+    ],
+    [
+      598,
+      247,
+      0,
+      249,
+      0,
+      "IMAGE"
+    ],
+    [
+      599,
+      241,
+      0,
+      250,
+      1,
+      "INT"
+    ],
+    [
+      600,
+      248,
+      0,
+      250,
+      0,
+      "*"
+    ],
+    [
+      601,
+      249,
+      0,
+      250,
+      2,
+      "IMAGE"
+    ],
+    [
+      602,
+      250,
+      0,
+      251,
+      0,
+      "IMAGE"
+    ],
+    [
+      606,
+      245,
+      0,
+      127,
+      0,
+      "IMAGE"
+    ],
+    [
+      617,
+      46,
+      1,
+      247,
+      0,
+      "MASK"
+    ],
+    [
+      626,
+      235,
+      0,
+      2,
+      3,
+      "LATENT"
+    ],
+    [
+      639,
+      260,
+      0,
+      263,
+      1,
+      "INT"
+    ],
+    [
+      649,
+      79,
+      0,
+      29,
+      4,
+      "INT"
+    ],
+    [
+      650,
+      79,
+      0,
+      41,
+      4,
+      "INT"
+    ],
+    [
+      651,
+      79,
+      0,
+      2,
+      4,
+      "INT"
+    ],
+    [
+      652,
+      32,
+      0,
+      266,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      653,
+      42,
+      0,
+      260,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      668,
+      262,
+      0,
+      41,
+      3,
+      "LATENT"
+    ],
+    [
+      737,
+      290,
+      0,
+      262,
+      1,
+      "FLOAT"
+    ],
+    [
+      738,
+      291,
+      0,
+      248,
+      1,
+      "FLOAT"
+    ],
+    [
+      739,
+      291,
+      0,
+      242,
+      1,
+      "FLOAT"
+    ],
+    [
+      780,
+      308,
+      0,
+      36,
+      0,
+      "IMAGE"
+    ],
+    [
+      800,
+      2,
+      0,
+      308,
+      0,
+      "LATENT"
+    ],
+    [
+      825,
+      267,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ],
+    [
+      826,
+      267,
+      0,
+      36,
+      1,
+      "IMAGE"
+    ],
+    [
+      832,
+      8,
+      0,
+      239,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      895,
+      263,
+      0,
+      267,
+      0,
+      "LATENT"
+    ],
+    [
+      900,
+      350,
+      0,
+      349,
+      1,
+      "INT"
+    ],
+    [
+      901,
+      251,
+      0,
+      349,
+      0,
+      "MASK"
+    ],
+    [
+      914,
+      127,
+      1,
+      358,
+      0,
+      "MASK"
+    ],
+    [
+      916,
+      350,
+      0,
+      358,
+      1,
+      "INT"
+    ],
+    [
+      923,
+      137,
+      0,
+      360,
+      2,
+      "INT"
+    ],
+    [
+      924,
+      360,
+      0,
+      235,
+      1,
+      "LATENT"
+    ],
+    [
+      925,
+      368,
+      0,
+      366,
+      3,
+      "INT"
+    ],
+    [
+      926,
+      368,
+      0,
+      365,
+      1,
+      "INT"
+    ],
+    [
+      927,
+      368,
+      0,
+      367,
+      1,
+      "INT"
+    ],
+    [
+      933,
+      372,
+      0,
+      369,
+      0,
+      "IMAGE"
+    ],
+    [
+      934,
+      366,
+      0,
+      369,
+      2,
+      "IMAGE"
+    ],
+    [
+      935,
+      365,
+      0,
+      369,
+      3,
+      "IMAGE"
+    ],
+    [
+      936,
+      367,
+      0,
+      369,
+      4,
+      "IMAGE"
+    ],
+    [
+      938,
+      362,
+      0,
+      369,
+      1,
+      "INT"
+    ],
+    [
+      944,
+      369,
+      0,
+      373,
+      3,
+      "IMAGE"
+    ],
+    [
+      950,
+      238,
+      0,
+      373,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      951,
+      239,
+      0,
+      373,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      952,
+      238,
+      0,
+      379,
+      0,
+      "*"
+    ],
+    [
+      953,
+      239,
+      0,
+      380,
+      0,
+      "*"
+    ],
+    [
+      954,
+      373,
+      0,
+      379,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      955,
+      373,
+      1,
+      380,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      956,
+      378,
+      0,
+      380,
+      1,
+      "INT"
+    ],
+    [
+      957,
+      378,
+      0,
+      379,
+      1,
+      "INT"
+    ],
+    [
+      958,
+      379,
+      0,
+      2,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      959,
+      379,
+      0,
+      29,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      960,
+      379,
+      0,
+      41,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      961,
+      380,
+      0,
+      41,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      962,
+      380,
+      0,
+      29,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      963,
+      380,
+      0,
+      2,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      965,
+      383,
+      0,
+      382,
+      0,
+      "*"
+    ],
+    [
+      966,
+      369,
+      0,
+      382,
+      2,
+      "IMAGE"
+    ],
+    [
+      968,
+      382,
+      0,
+      381,
+      0,
+      "IMAGE"
+    ],
+    [
+      969,
+      378,
+      0,
+      382,
+      1,
+      "INT"
+    ],
+    [
+      970,
+      362,
+      0,
+      386,
+      0,
+      "*"
+    ],
+    [
+      971,
+      386,
+      0,
+      378,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      972,
+      387,
+      0,
+      386,
+      1,
+      "*"
+    ],
+    [
+      974,
+      393,
+      0,
+      390,
+      1,
+      "*"
+    ],
+    [
+      975,
+      362,
+      0,
+      390,
+      0,
+      "*"
+    ],
+    [
+      976,
+      390,
+      0,
+      391,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      977,
+      391,
+      0,
+      392,
+      1,
+      "INT"
+    ],
+    [
+      978,
+      245,
+      0,
+      392,
+      0,
+      "*"
+    ],
+    [
+      979,
+      389,
+      0,
+      392,
+      2,
+      "*"
+    ],
+    [
+      980,
+      392,
+      0,
+      366,
+      0,
+      "IMAGE"
+    ],
+    [
+      981,
+      392,
+      0,
+      365,
+      0,
+      "IMAGE"
+    ],
+    [
+      982,
+      392,
+      0,
+      367,
+      0,
+      "IMAGE"
+    ],
+    [
+      983,
+      394,
+      0,
+      366,
+      1,
+      "INT"
+    ],
+    [
+      984,
+      395,
+      0,
+      366,
+      2,
+      "INT"
+    ],
+    [
+      1008,
+      292,
+      0,
+      399,
+      0,
+      "FLOAT"
+    ],
+    [
+      1009,
+      399,
+      0,
+      2,
+      7,
+      "FLOAT"
+    ],
+    [
+      1010,
+      293,
+      0,
+      401,
+      0,
+      "FLOAT"
+    ],
+    [
+      1011,
+      401,
+      0,
+      41,
+      7,
+      "FLOAT"
+    ],
+    [
+      1012,
+      294,
+      0,
+      400,
+      0,
+      "FLOAT"
+    ],
+    [
+      1013,
+      400,
+      0,
+      29,
+      7,
+      "FLOAT"
+    ],
+    [
+      1016,
+      374,
+      0,
+      402,
+      0,
+      "FLOAT"
+    ],
+    [
+      1017,
+      402,
+      0,
+      373,
+      5,
+      "FLOAT"
+    ],
+    [
+      1018,
+      375,
+      0,
+      403,
+      0,
+      "FLOAT"
+    ],
+    [
+      1019,
+      403,
+      0,
+      373,
+      6,
+      "FLOAT"
+    ],
+    [
+      1020,
+      376,
+      0,
+      404,
+      0,
+      "FLOAT"
+    ],
+    [
+      1021,
+      404,
+      0,
+      373,
+      7,
+      "FLOAT"
+    ],
+    [
+      1023,
+      92,
+      0,
+      417,
+      0,
+      "*"
+    ],
+    [
+      1024,
+      415,
+      0,
+      417,
+      2,
+      "INT"
+    ],
+    [
+      1025,
+      93,
+      0,
+      416,
+      0,
+      "*"
+    ],
+    [
+      1026,
+      415,
+      1,
+      416,
+      2,
+      "INT"
+    ],
+    [
+      1027,
+      391,
+      0,
+      417,
+      1,
+      "INT"
+    ],
+    [
+      1028,
+      391,
+      0,
+      416,
+      1,
+      "INT"
+    ],
+    [
+      1029,
+      417,
+      0,
+      360,
+      0,
+      "INT"
+    ],
+    [
+      1030,
+      416,
+      0,
+      360,
+      1,
+      "INT"
+    ],
+    [
+      1031,
+      109,
+      0,
+      418,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      1032,
+      389,
+      0,
+      419,
+      0,
+      "IMAGE"
+    ],
+    [
+      1033,
+      389,
+      0,
+      421,
+      0,
+      "IMAGE"
+    ],
+    [
+      1037,
+      418,
+      0,
+      422,
+      1,
+      "INT"
+    ],
+    [
+      1038,
+      419,
+      0,
+      422,
+      0,
+      "*"
+    ],
+    [
+      1039,
+      421,
+      0,
+      422,
+      2,
+      "IMAGE"
+    ],
+    [
+      1040,
+      422,
+      0,
+      415,
+      0,
+      "IMAGE"
+    ],
+    [
+      1041,
+      423,
+      0,
+      419,
+      1,
+      "FLOAT"
+    ],
+    [
+      1056,
+      7,
+      0,
+      238,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1057,
+      7,
+      0,
+      238,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      1062,
+      266,
+      0,
+      438,
+      1,
+      "INT"
+    ],
+    [
+      1064,
+      438,
+      0,
+      263,
+      0,
+      "LATENT"
+    ],
+    [
+      1065,
+      41,
+      0,
+      263,
+      2,
+      "LATENT"
+    ],
+    [
+      1066,
+      439,
+      2,
+      308,
+      1,
+      "VAE"
+    ],
+    [
+      1067,
+      439,
+      2,
+      267,
+      1,
+      "VAE"
+    ],
+    [
+      1070,
+      439,
+      2,
+      240,
+      1,
+      "VAE"
+    ],
+    [
+      1074,
+      439,
+      2,
+      373,
+      4,
+      "VAE"
+    ],
+    [
+      1079,
+      439,
+      0,
+      233,
+      0,
+      "MODEL"
+    ],
+    [
+      1080,
+      439,
+      0,
+      233,
+      2,
+      "MODEL"
+    ],
+    [
+      1089,
+      8,
+      0,
+      239,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      1099,
+      441,
+      0,
+      373,
+      2,
+      "CONTROL_NET"
+    ],
+    [
+      1100,
+      442,
+      0,
+      233,
+      3,
+      "MODEL"
+    ],
+    [
+      1101,
+      442,
+      0,
+      233,
+      4,
+      "MODEL"
+    ],
+    [
+      1104,
+      233,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      1114,
+      2,
+      0,
+      438,
+      0,
+      "LATENT"
+    ],
+    [
+      1115,
+      29,
+      0,
+      438,
+      2,
+      "LATENT"
+    ],
+    [
+      1116,
+      245,
+      0,
+      444,
+      0,
+      "IMAGE"
+    ],
+    [
+      1117,
+      442,
+      2,
+      444,
+      1,
+      "VAE"
+    ],
+    [
+      1118,
+      349,
+      0,
+      444,
+      2,
+      "MASK"
+    ],
+    [
+      1119,
+      350,
+      0,
+      444,
+      3,
+      "INT"
+    ],
+    [
+      1120,
+      350,
+      0,
+      445,
+      3,
+      "INT"
+    ],
+    [
+      1121,
+      442,
+      2,
+      445,
+      1,
+      "VAE"
+    ],
+    [
+      1122,
+      358,
+      0,
+      445,
+      2,
+      "MASK"
+    ],
+    [
+      1123,
+      444,
+      0,
+      235,
+      3,
+      "LATENT"
+    ],
+    [
+      1124,
+      127,
+      0,
+      445,
+      0,
+      "IMAGE"
+    ],
+    [
+      1125,
+      445,
+      0,
+      235,
+      4,
+      "LATENT"
+    ],
+    [
+      1126,
+      92,
+      0,
+      421,
+      1,
+      "INT"
+    ],
+    [
+      1128,
+      93,
+      0,
+      421,
+      2,
+      "INT"
+    ],
+    [
+      1129,
+      138,
+      0,
+      446,
+      1,
+      "INT"
+    ],
+    [
+      1130,
+      439,
+      1,
+      446,
+      0,
+      "*"
+    ],
+    [
+      1131,
+      439,
+      1,
+      446,
+      2,
+      "CLIP"
+    ],
+    [
+      1132,
+      442,
+      1,
+      446,
+      3,
+      "CLIP"
+    ],
+    [
+      1133,
+      442,
+      1,
+      446,
+      4,
+      "CLIP"
+    ],
+    [
+      1134,
+      446,
+      0,
+      6,
+      1,
+      "CLIP"
+    ],
+    [
+      1135,
+      439,
+      2,
+      449,
+      1,
+      "VAE"
+    ],
+    [
+      1136,
+      439,
+      2,
+      450,
+      1,
+      "VAE"
+    ],
+    [
+      1137,
+      439,
+      2,
+      451,
+      1,
+      "VAE"
+    ],
+    [
+      1138,
+      439,
+      2,
+      452,
+      1,
+      "VAE"
+    ],
+    [
+      1139,
+      2,
+      0,
+      453,
+      0,
+      "*"
+    ],
+    [
+      1140,
+      2,
+      0,
+      449,
+      0,
+      "LATENT"
+    ],
+    [
+      1141,
+      449,
+      0,
+      451,
+      0,
+      "IMAGE"
+    ],
+    [
+      1142,
+      451,
+      0,
+      453,
+      2,
+      "LATENT"
+    ],
+    [
+      1145,
+      438,
+      0,
+      454,
+      0,
+      "*"
+    ],
+    [
+      1146,
+      438,
+      0,
+      450,
+      0,
+      "LATENT"
+    ],
+    [
+      1147,
+      450,
+      0,
+      452,
+      0,
+      "IMAGE"
+    ],
+    [
+      1148,
+      452,
+      0,
+      454,
+      2,
+      "*"
+    ],
+    [
+      1149,
+      454,
+      0,
+      262,
+      0,
+      "LATENT"
+    ],
+    [
+      1151,
+      453,
+      0,
+      29,
+      3,
+      "LATENT"
+    ],
+    [
+      1153,
+      462,
+      0,
+      461,
+      1,
+      "*"
+    ],
+    [
+      1154,
+      138,
+      0,
+      461,
+      0,
+      "*"
+    ],
+    [
+      1155,
+      461,
+      0,
+      463,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      1156,
+      463,
+      0,
+      454,
+      1,
+      "INT"
+    ],
+    [
+      1157,
+      463,
+      0,
+      453,
+      1,
+      "INT"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Loaders",
+      "bounding": [
+        1900,
+        550,
+        240,
+        800
+      ],
+      "color": "#A88",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "Features",
+      "bounding": [
+        30,
+        790,
+        350,
+        340
+      ],
+      "color": "#b58b2a",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Reference",
+      "bounding": [
+        940,
+        890,
+        290,
+        480
+      ],
+      "color": "#8AA",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "Results",
+      "bounding": [
+        1510,
+        550,
+        390,
+        1230
+      ],
+      "color": "#444",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "Node Logic",
+      "bounding": [
+        2140,
+        550,
+        620,
+        1230
+      ],
+      "color": "#b58b2a",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 9,
+      "title": "Mode",
+      "bounding": [
+        30,
+        550,
+        350,
+        240
+      ],
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 10,
+      "title": "Denoise",
+      "bounding": [
+        380,
+        890,
+        280,
+        480
+      ],
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 11,
+      "title": "Width & Height",
+      "bounding": [
+        660,
+        890,
+        280,
+        240
+      ],
+      "color": "#8AA",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 12,
+      "title": "Upscale & Resize",
+      "bounding": [
+        660,
+        1130,
+        280,
+        240
+      ],
+      "color": "#8AA",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 15,
+      "title": "Prompts",
+      "bounding": [
+        380,
+        550,
+        1130,
+        340
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 17,
+      "title": "In/Outpaint Control",
+      "bounding": [
+        1230,
+        890,
+        280,
+        480
+      ],
+      "color": "#8AA",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 18,
+      "title": "ControlNet",
+      "bounding": [
+        380,
+        1370,
+        1130,
+        410
+      ],
+      "color": "#A88",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 20,
+      "title": "Main Control",
+      "bounding": [
+        30,
+        1130,
+        350,
+        650
+      ],
+      "color": "#88A",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 21,
+      "title": "Lora Loader",
+      "bounding": [
+        1900,
+        1350,
+        240,
+        430
+      ],
+      "color": "#8AA",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.7139601867076216,
+      "offset": [
+        663.8295886534816,
+        -414.50152543289676
+      ]
+    },
+    "frontendVersion": "1.25.9",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

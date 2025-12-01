@@ -1171,6 +1171,16 @@ class WanVideoSampler:
 
                 latent = add_noise(ttm_reference_latents, noise, timesteps[ttm_start_step].to(noise.device)).to(latent)
 
+        # SteadyDancer
+        sdancer_embeds = image_embeds.get("sdancer_embeds", None)
+        sdancer_data = sdancer_input = None
+        if sdancer_embeds is not None:
+            log.info("Using SteadyDancer embeddings:")
+            for k, v in sdancer_embeds.items():
+                log.info(f"  {k}: {v.shape if isinstance(v, torch.Tensor) else v}")
+            sdancer_data = sdancer_embeds.copy()
+            sdancer_data = dict_to_device(sdancer_data, device, dtype)
+
         #region model pred
         def predict_with_cfg(z, cfg_scale, positive_embeds, negative_embeds, timestep, idx, image_cond=None, clip_fea=None,
                              control_latents=None, vace_data=None, unianim_data=None, audio_proj=None, control_camera_latents=None,
@@ -1348,6 +1358,13 @@ class WanVideoSampler:
                 else:
                     uni3c_data_input = uni3c_data
 
+                if context_window is not None and sdancer_data is not None and sdancer_data["cond_pos"].shape[1] != context_frames:
+                    sdancer_input = sdancer_data.copy()
+                    sdancer_input["cond_pos"] = sdancer_data["cond_pos"][:, context_window]
+                    sdancer_input["cond_neg"] = sdancer_data["cond_neg"][:, context_window] if sdancer_data.get("cond_neg", None) is not None else None
+                else:
+                    sdancer_input = sdancer_data
+
                 if s2v_pose is not None:
                     if not ((s2v_pose_start_percent <= current_step_percentage <= s2v_pose_end_percent) or \
                             (s2v_pose_end_percent > 0 and idx == 0 and current_step_percentage >= s2v_pose_start_percent)):
@@ -1450,6 +1467,7 @@ class WanVideoSampler:
                     "flashvsr_LQ_latent": flashvsr_LQ_latent, # FlashVSR LQ latent for upsampling
                     "flashvsr_strength": flashvsr_strength, # FlashVSR strength
                     "num_cond_latents": len(all_indices) if transformer.is_longcat else None,
+                    "sdancer_input": sdancer_input, # SteadyDancer input
                 }
 
                 batch_size = 1

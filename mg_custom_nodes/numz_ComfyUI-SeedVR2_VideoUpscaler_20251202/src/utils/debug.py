@@ -14,6 +14,14 @@ from ..optimization.memory_manager import get_vram_usage, get_basic_vram_info, g
 from ..utils.constants import __version__
 
 
+def _format_peak_with_swap(peak_gb: float, total_vram_gb: float) -> str:
+    """Format peak memory, showing swap breakdown if overflow occurred."""
+    if total_vram_gb > 0 and peak_gb > total_vram_gb:
+        swap_gb = peak_gb - total_vram_gb
+        return f"{peak_gb:.2f}GB ({total_vram_gb:.0f}GB GPU + {swap_gb:.2f}GB swap)"
+    return f"{peak_gb:.2f}GB"
+
+
 class Debug:
     """
     Unified debug logging for generation pipeline and BlockSwap monitoring
@@ -307,7 +315,12 @@ class Debug:
         if show_diff and self.memory_checkpoints:
             self._log_memory_diff(current_metrics=memory_info, force=force)
 
-       # Log detailed analysis if requested
+        # Warn if swap detected (peak > physical VRAM)
+        if memory_info['vram_total'] > 0 and memory_info['vram_peak_since_last'] > memory_info['vram_total']:
+            self.log("VRAM swap detected - severe slowdown expected. Consider optimizing (e.g., reduce resolution, batch_size, enable BlockSwap, VAE tiling...).", 
+                     level="WARNING", category="memory", force=True)
+
+        # Log detailed analysis if requested
         if detailed_tensors and tensor_stats.get('details'):
             self._log_detailed_tensor_analysis(details=tensor_stats['details'], force=force)
                 
@@ -361,9 +374,10 @@ class Debug:
                 metrics['vram_total'] = vram_info["total_gb"]
                 
                 backend = "MPS" if (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()) else "VRAM"
+                peak_str = _format_peak_with_swap(metrics['vram_peak_since_last'], metrics['vram_total'])
                 metrics['summary_vram'] = (f"  [{backend}] {metrics['vram_allocated']:.2f}GB allocated / "
                         f"{metrics['vram_reserved']:.2f}GB reserved / "
-                        f"Peak: {metrics['vram_peak_since_last']:.2f}GB / "
+                        f"Peak: {peak_str} / "
                         f"{metrics['vram_free']:.2f}GB free / "
                         f"{metrics['vram_total']:.2f}GB total")
             else:
@@ -525,6 +539,13 @@ class Debug:
         
         is_mps = hasattr(torch.backends, 'mps') and torch.backends.mps.is_available() and not torch.cuda.is_available()
         
+        # Get total VRAM for swap detection (reuse existing function)
+        total_vram_gb = 0.0
+        if not is_mps:
+            vram_info = get_basic_vram_info(device=None)
+            if "error" not in vram_info:
+                total_vram_gb = vram_info["total_gb"]
+        
         self.log("", category="none", force=force)
         self.log("────────────────────────", category="none", force=force)
         self.log("Peak memory by phase:", category="memory", force=force)
@@ -539,7 +560,7 @@ class Debug:
             if is_mps:
                 self.log(f"  Phase {phase_num} ({phase_name}): {vram:.2f}GB", category="memory", force=force)
             else:
-                self.log(f"  Phase {phase_num} ({phase_name}): VRAM {vram:.2f}GB | RAM {ram:.2f}GB", category="memory", force=force)
+                self.log(f"  Phase {phase_num} ({phase_name}): {_format_peak_with_swap(vram, total_vram_gb)} | RAM {ram:.2f}GB", category="memory", force=force)
         
         if is_mps:
             overall = max(self.phase_vram_peaks.values()) if self.phase_vram_peaks else 0
@@ -547,7 +568,7 @@ class Debug:
         else:
             overall_vram = max(self.phase_vram_peaks.values()) if self.phase_vram_peaks else 0
             overall_ram = max(self.phase_ram_peaks.values()) if self.phase_ram_peaks else 0
-            self.log(f"Overall peak: VRAM {overall_vram:.2f}GB | RAM {overall_ram:.2f}GB", category="memory", force=force)
+            self.log(f"Overall peak: {_format_peak_with_swap(overall_vram, total_vram_gb)} | RAM {overall_ram:.2f}GB", category="memory", force=force)
     
     @torch._dynamo.disable  # Skip tracing to avoid time.time() warnings
     def _store_checkpoint(self, label: str, metrics: Dict[str, Any]) -> None:

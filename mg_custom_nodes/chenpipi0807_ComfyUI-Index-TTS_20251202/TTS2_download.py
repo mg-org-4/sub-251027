@@ -142,7 +142,7 @@ class ModelDownloader:
             # 正确放置：若 local_dir 指向 semantic_codec，则 filename 只需为文件名
             ok = self._download_file(
                 repo_id="amphion/MaskGCT",
-                filename="model.safetensors",
+                filename="semantic_codec/model.safetensors",
                 local_path=target,
             )
             # 兼容之前下载到 semantic_codec/semantic_codec/model.safetensors 的旧路径，自动修正

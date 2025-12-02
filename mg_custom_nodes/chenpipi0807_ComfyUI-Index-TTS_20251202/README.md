@@ -134,8 +134,7 @@ ComfyUI/models/IndexTTS-2/
 
 - 脚本位置：`ComfyUI/custom_nodes/ComfyUI-Index-TTS/TTS2_download.py`
 - 作用：自动下载并放置上述所有 TTS2 所需模型文件，支持断点续传、国内镜像（HF_ENDPOINT=hf-mirror.com）、本地缓存（HF_HOME=./ComfyUI/models/IndexTTS-2/hf_cache）。
-
-使用方法（Windows/PowerShell）：
+- 脚本使用时，可能会存在国内镜像设置不成功的问题，可直接在控制台设置环境变量：Windows Powershell `$env:HF_ENDPOINT = "https://hf-mirror.com"`,linux `export HF_ENDPOINT=https://hf-mirror.com`
 
 ```powershell
 python .\ComfyUI\custom_nodes\ComfyUI-Index-TTS\TTS2_download.py
@@ -473,6 +472,7 @@ python -m pip install -U "huggingface_hub[hf_xet]"
 ## 许可证
 
 请参考原始IndexTTS项目许可证。
+
 
 
 

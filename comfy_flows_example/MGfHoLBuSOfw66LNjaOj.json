@@ -1,0 +1,3176 @@
+{
+  "last_link_id": 919,
+  "nodes": [
+    {
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            764
+          ],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING",
+          "localized_name": "CONDITIONING"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        30
+      ],
+      "inputs": [
+        {
+          "name": "conditioning",
+          "link": 757,
+          "label": "conditioning",
+          "type": "CONDITIONING",
+          "localized_name": "conditioning"
+        }
+      ],
+      "flags": {},
+      "type": "FluxGuidance",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        211.60000610351562,
+        58
+      ],
+      "pos": [
+        -6565.44677734375,
+        -4358.42822265625
+      ],
+      "id": 422,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "FluxGuidance"
+      },
+      "order": 41
+    },
+    {
+      "outputs": [
+        {
+          "name": "positive",
+          "slot_index": 0,
+          "links": [
+            766
+          ],
+          "label": "positive",
+          "type": "CONDITIONING",
+          "localized_name": "positive"
+        },
+        {
+          "name": "negative",
+          "slot_index": 1,
+          "links": [
+            767
+          ],
+          "label": "negative",
+          "type": "CONDITIONING",
+          "localized_name": "negative"
+        },
+        {
+          "name": "latent",
+          "slot_index": 2,
+          "links": [
+            894
+          ],
+          "label": "latent",
+          "type": "LATENT",
+          "localized_name": "latent"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        false
+      ],
+      "inputs": [
+        {
+          "name": "positive",
+          "link": 764,
+          "label": "positive",
+          "type": "CONDITIONING",
+          "localized_name": "positive"
+        },
+        {
+          "name": "negative",
+          "link": 765,
+          "label": "negative",
+          "type": "CONDITIONING",
+          "localized_name": "negative"
+        },
+        {
+          "name": "vae",
+          "link": 763,
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "name": "pixels",
+          "link": 828,
+          "label": "pixels",
+          "type": "IMAGE",
+          "localized_name": "pixels"
+        },
+        {
+          "name": "mask",
+          "link": 762,
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        }
+      ],
+      "flags": {},
+      "type": "InpaintModelConditioning",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        138
+      ],
+      "pos": [
+        -6565.44677734375,
+        -4245.525390625
+      ],
+      "id": 415,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "InpaintModelConditioning"
+      },
+      "order": 42
+    },
+    {
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            765
+          ],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING",
+          "localized_name": "CONDITIONING"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "conditioning",
+          "link": 749,
+          "label": "conditioning",
+          "type": "CONDITIONING",
+          "localized_name": "conditioning"
+        }
+      ],
+      "flags": {},
+      "type": "ConditioningZeroOut",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        211.60000610351562,
+        26
+      ],
+      "pos": [
+        -6879.169921875,
+        -4218.65869140625
+      ],
+      "id": 416,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "ConditioningZeroOut"
+      },
+      "order": 40
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            769
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        1.15,
+        0.07,
+        1024,
+        1024
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 756,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "ModelSamplingFlux",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        130
+      ],
+      "pos": [
+        -6879.169921875,
+        -4427.78271484375
+      ],
+      "id": 421,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "ModelSamplingFlux"
+      },
+      "order": 26
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            770
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 769,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "DifferentialDiffusion",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        26
+      ],
+      "pos": [
+        -6565.44677734375,
+        -4428.7392578125
+      ],
+      "id": 428,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "DifferentialDiffusion"
+      },
+      "order": 29
+    },
+    {
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            749,
+            757
+          ],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING",
+          "localized_name": "CONDITIONING"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "A young girl is pictured in a professional headshot, her image crisp and clear against a neutral background. Her posture is straight and her expression is neutral yet approachable, her eyes looking directly at the camera. Her hair is neatly styled, framing her face in a professional and flattering manner. She wears simple, understated attire, likely a blouse or a collared shirt, suitable for a professional setting. The lighting is even and balanced, minimizing shadows and highlighting her features. The overall impression is one of professionalism, competence, and a polished, approachable demeanor. The photo adheres to standard headshot conventions, ensuring it is suitable for official documents or professional profiles.",
+        [
+          false,
+          true
+        ]
+      ],
+      "inputs": [
+        {
+          "name": "clip",
+          "link": 758,
+          "label": "clip",
+          "type": "CLIP",
+          "localized_name": "clip"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 899,
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "CLIPTextEncode",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        83
+      ],
+      "pos": [
+        -6879.169921875,
+        -4357.0869140625
+      ],
+      "id": 426,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "order": 36
+    },
+    {
+      "outputs": [
+        {
+          "name": "output",
+          "label": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "女性-男性-肖像模式 - 随机选择 (2/3)"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 901,
+          "label": "anything",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "type": "easy showAnything",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        -7302.607421875,
+        -3532.43115234375
+      ],
+      "id": 510,
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "0daf114fe8870aeacfea484aa59e7f9973b91cd5",
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 38
+    },
+    {
+      "outputs": [
+        {
+          "name": "reel",
+          "slot_index": 0,
+          "links": [
+            872
+          ],
+          "label": "reel",
+          "type": "Reel",
+          "localized_name": "reel"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "",
+        "CHAOS image2",
+        "CHAOS image3",
+        "CHAOS image4",
+        1024,
+        10
+      ],
+      "inputs": [
+        {
+          "name": "image1",
+          "link": 879,
+          "label": "image1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        },
+        {
+          "shape": 7,
+          "name": "image2",
+          "label": "image2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "shape": 7,
+          "name": "image3",
+          "label": "image3",
+          "type": "IMAGE",
+          "localized_name": "image3"
+        },
+        {
+          "shape": 7,
+          "name": "image4",
+          "label": "image4",
+          "type": "IMAGE",
+          "localized_name": "image4"
+        }
+      ],
+      "flags": {},
+      "type": "LayerUtility: ImageReel",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        274.4751281738281,
+        238
+      ],
+      "pos": [
+        -7025.71435546875,
+        -3374.280517578125
+      ],
+      "id": 512,
+      "properties": {
+        "cnr_id": "comfyui_layerstyle",
+        "ver": "7b326d13e43fc4022cd80e472c7af67027409b1e",
+        "Node name for S&R": "LayerUtility: ImageReel"
+      },
+      "order": 23
+    },
+    {
+      "outputs": [
+        {
+          "name": "reel",
+          "slot_index": 0,
+          "links": [
+            876
+          ],
+          "label": "reel",
+          "type": "Reel",
+          "localized_name": "reel"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "上传 左图 & 右图",
+        "生成图",
+        "CHAOS image3",
+        "CHAOS  image4",
+        1024,
+        10
+      ],
+      "inputs": [
+        {
+          "name": "image1",
+          "link": 874,
+          "label": "image1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        },
+        {
+          "shape": 7,
+          "name": "image2",
+          "link": 897,
+          "label": "image2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "shape": 7,
+          "name": "image3",
+          "label": "image3",
+          "type": "IMAGE",
+          "localized_name": "image3"
+        },
+        {
+          "shape": 7,
+          "name": "image4",
+          "label": "image4",
+          "type": "IMAGE",
+          "localized_name": "image4"
+        },
+        {
+          "widget": {
+            "name": "reel_height"
+          },
+          "name": "reel_height",
+          "link": 887,
+          "label": "reel_height",
+          "type": "INT"
+        },
+        {
+          "widget": {
+            "name": "image2_text"
+          },
+          "name": "image2_text",
+          "link": 886,
+          "label": "image2_text",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "LayerUtility: ImageReel",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        278.244873046875,
+        278
+      ],
+      "pos": [
+        -6719.37744140625,
+        -3702.773193359375
+      ],
+      "id": 514,
+      "properties": {
+        "cnr_id": "comfyui_layerstyle",
+        "ver": "7b326d13e43fc4022cd80e472c7af67027409b1e",
+        "Node name for S&R": "LayerUtility: ImageReel"
+      },
+      "order": 48
+    },
+    {
+      "outputs": [
+        {
+          "name": "width_int",
+          "label": "width_int",
+          "type": "INT",
+          "localized_name": "width_int"
+        },
+        {
+          "name": "height_int",
+          "slot_index": 1,
+          "links": [
+            887
+          ],
+          "label": "height_int",
+          "type": "INT",
+          "localized_name": "height_int"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "Width: 1024 , Height: 720"
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 832,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "easy imageSize",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        222.251708984375,
+        108
+      ],
+      "pos": [
+        -7576.54541015625,
+        -3953.20654296875
+      ],
+      "id": 474,
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "0daf114fe8870aeacfea484aa59e7f9973b91cd5",
+        "Node name for S&R": "easy imageSize"
+      },
+      "order": 31
+    },
+    {
+      "outputs": [
+        {
+          "name": "mask",
+          "slot_index": 0,
+          "links": [
+            721
+          ],
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        false,
+        -6,
+        2
+      ],
+      "inputs": [
+        {
+          "name": "mask",
+          "link": 826,
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        }
+      ],
+      "flags": {},
+      "type": "LayerMask: MaskGrow",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        106
+      ],
+      "pos": [
+        -6876.4453125,
+        -4097.630859375
+      ],
+      "id": 399,
+      "properties": {
+        "cnr_id": "comfyui_layerstyle",
+        "ver": "7b326d13e43fc4022cd80e472c7af67027409b1e",
+        "Node name for S&R": "LayerMask: MaskGrow"
+      },
+      "order": 32
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "# PromptSelector @ CHAOS 节点使用说明\n\n## 功能简介\nPromptSelector 节点（包括 PromptSelectorDoubleCHAOS 和 PromptSelectorSingleCHAOS）用于根据不同的场景模式和性别组合，自动选择合适的提示词。它能够与 FaceAutoFit 节点配合使用，实现从图像到提示词的智能适配。\n\n## 主要特点\n- **多模式支持**：支持肖像模式、半身模式、全身模式和自定义模式\n- **性别组合适配**：根据不同性别组合（女-女、女-男、男-女、男-男）选择对应提示词\n- **随机/固定选择**：可选择随机或固定索引方式获取提示词\n\n\n## 使用方法\n1. 将 FaceAutoFit 节点的 `mode_code` 输出连接到 PromptSelector 节点的输入\n2. 选择提示词选择模式（随机或固定）\n3. 如需固定选择，设置固定索引值\n4. 节点会根据 `mode_code` 自动选择合适的提示词类别和内容（建议自行更改喜欢的提示词或反推提示词）\n\n## 参数说明\n- **mode_code**：模式代码（0-15），由性别组合和模式类型共同决定\n- **selection_mode**：提示词选择模式（random/fixed）\n- **fixed_index**：固定选择模式下的提示词索引\n- **seed**：随机选择模式下的随机种子\n\n## 输出说明\n- **prompt**：选择的提示词文本\n- **prompt_info**：提示词相关信息，包括模式和选择方式\n- **mode_name**：当前使用的模式名称\n\n## 工作流示例\n1. 输入图像 → FaceAutoFit → 获取 mode_code\n2. mode_code → PromptSelector → 获取适配的提示词\n3. 提示词 → 文本编码器 → 图像生成器\n\n通过 PromptSelector 节点，您可以根据不同的场景需求和性别组合，快速获取适合的提示词，提高生成效率和质量。"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "title": "Workflow instructions",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        345.7703857421875,
+        521.9659423828125
+      ],
+      "pos": [
+        -8239.8505859375,
+        -3782.080810546875
+      ],
+      "id": 468,
+      "properties": {},
+      "order": 0
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "# FaceAutoFitDouble Node User Guide\n\n## Function Overview\nThe FaceAutoFitDouble node is primarily used for automatically identifying and adjusting the size and position of faces in dual-person images, making them suitable for various generation modes (portrait, half-length, full-length, etc.). Additionally, it can automatically identify the gender combinations of individuals in the image, generating corresponding mode_code to facilitate automatic image generation when paired with the Prompt Selector Double @ CHAOS node.\n\n## Key Features\n- Automatic Facial Adjustment: Automatically adjusts face size and position based on different modes (portrait, half-length, full-length, etc.)\n- Manual Adjustment: Supports manual adjustment of face size and XY-axis position under various modes, as well as facial tilt angle. If preset options cannot meet the requirements, the node supports custom mode for manual adjustments to the canvas and all other content.\n- Dual Face Detection: Accurately locates and adjusts two faces within the image\n- Gender Recognition: Automatically determines the gender combination of the two faces\n- Mode Adaptation: Generates corresponding mode_code for seamless integration with the CHAOS prompt selector\n\n## Usage Instructions\n1. Connect an image containing two faces along with its mask to the node's image and mask input ports\n2. Select the desired mode (portrait, half-length, full-length, or custom)\n3. The node will automatically adjust the size and position of the faces and identify the gender combination4. Connect the output mode_code to the Prompt Selector Double @ CHAOS node (includes preset example prompts, supports custom adjustment of prompts)\n\n## Parameter Description\n- mode: Generation mode selection\n  portrait: Portrait mode, focuses mainly on face close-ups\n  half: Half-body mode, includes head and upper body\n  full: Full-body mode, displays the complete figure\n  custom: Custom mode, can be adjusted as needed\n- move_x: Horizontal movement of face position\n- move_y: Vertical movement of face position\n- face scale: Overall scaling factor Range: 0.5 to 2.0\n- angle: Rotation angle Range: -30.0 to 30.0 degrees\n\n## Notes\n- Ensure that there are two clearly visible faces in the input image\n- Adjustment criteria for face size and position vary by mode; select the appropriate one. Manual fine-tuning of face size and position is also supported.\nWith the FaceAutoFitDouble node, you can quickly achieve automatic facial adjustments and prompt adaptation for dual-person images, greatly simplifying workflows and improving efficiency.\n\nIf the preset modes don't meet your needs, you can choose custom mode and adjust various parameters manually.\nWe welcome you to join our group for consultations or suggestions.QQ Group: 247228975"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "title": "Workflow instructions",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        345.7703857421875,
+        655.7923583984375
+      ],
+      "pos": [
+        -8609.953125,
+        -3206.49072265625
+      ],
+      "id": 540,
+      "properties": {},
+      "order": 1
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "# PromptSelector Node Usage Guide\n\n## Function Overview\nThe PromptSelector node (including PromptSelectorDoubleCHAOS and PromptSelectorSingleCHAOS) automatically selects appropriate prompts based on different scene modes and gender combinations. It can be used in conjunction with the FaceAutoFit node to achieve intelligent adaptation from image to prompt.\n\n## Key Features\n- **Multi-mode Support**: Supports portrait mode, half-body mode, full-body mode, and custom mode.\n- **Gender Combination Matching**: Selects corresponding prompts based on different gender combinations (female-female, female-male, male-female, male-male).\n- **Random/Fixed Selection**: Allows for random or fixed index selection of prompts.\n\n## Usage Method\n1. Connect the `mode_code` output from the FaceAutoFit node to the input of the PromptSelector node.\n2. Choose the prompt selection mode (random or fixed).\n3. If using fixed selection, set the fixed index value.\n4. The node will automatically select suitable prompt categories and content based on `mode_code` (it is recommended to customize or back-infer the prompts as desired).\n\n## Parameter Description\n- **mode_code**: Mode code (0-15), determined jointly by gender combination and mode type.- **selection_mode**: Prompt selection mode (random/fixed)\n- **fixed_index**: Prompt index in fixed selection mode\n- **seed**: Random seed for random selection mode\n\n## Output Description\n- **prompt**: Selected prompt text\n- **prompt_info**: Prompt-related information, including mode and selection method\n- **mode_name**: Name of the current mode in use\n\n## Workflow Example\n1. Input image → FaceAutoFit → Obtain mode_code\n2. mode_code → PromptSelector → Obtain compatible prompts\n3. Prompts → Text Encoder → Image Generator\n\nThrough the PromptSelector node, you can quickly obtain suitable prompts based on different scenario requirements and gender combinations, enhancing generation efficiency and quality."
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "title": "Workflow instructions",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        346.71282958984375,
+        652.9649658203125
+      ],
+      "pos": [
+        -8239.2138671875,
+        -3206.49072265625
+      ],
+      "id": 541,
+      "properties": {},
+      "order": 2
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "节点自动判断图片中人物性别和选择的模式,然后匹配对应的提示词。\n\n提示词部分作者仅少量做了演示。建议自行替换您喜欢的提示词风格，比如艺术写真，唯美婚纱，也可适当搭配风格lora，redux使用。但请注意提示词所在位置对应的模式。\n\n"
+      ],
+      "inputs": [],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        138.7517852783203
+      ],
+      "pos": [
+        -7308.9423828125,
+        -2976.834228515625
+      ],
+      "id": 449,
+      "properties": {},
+      "order": 3
+    },
+    {
+      "outputs": [
+        {
+          "name": "STRING",
+          "slot_index": 0,
+          "links": [
+            886
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "STRING"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "",
+        " 生成图"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "a"
+          },
+          "name": "a",
+          "link": 902,
+          "label": "a",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "JWStringConcat",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        260.1754455566406,
+        82
+      ],
+      "pos": [
+        -7013.95751953125,
+        -2838.154541015625
+      ],
+      "id": 522,
+      "properties": {
+        "cnr_id": "jameswalker-nodes",
+        "ver": "5bd85aaf7616878471469c4ec7e11bbd0cef3bf2",
+        "Node name for S&R": "JWStringConcat"
+      },
+      "order": 39
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "# FaceAutoFitDouble @ CHAOS 节点使用说明\n\n## 功能简介\nFaceAutoFitDouble 节点主要用于自动识别调整双人图像中的脸部大小和位置，使其适合不同的生成模式（肖像、半身、全身等）。同时，它还能自动识别图像中人物的性别组合，生成对应的 mode_code，便于与 Prompt Selector Double @ CHAOS 节点配合自动生图。\n\n## 主要特点\n- 自动调整脸部 ：根据不同模式（肖像、半身、全身等）自动调整脸部大小和位置\n- 手动调整     ：支持不同模式下手动调整脸部大小，XY轴位置\n，面部倾斜角度，如果预设均无法满足需求，节点支持自定义模式，手动调整画布以及其他所有调整内容。\n- 双人脸检测 ：精确定位调整图像中的两个人脸\n- 性别识别 ：自动判断两个人脸的性别组合\n- 模式适配 ：生成对应的 mode_code，实现与CHAOS提示词选择器的无缝对接\n\n## 使用方法\n1. 将包含两个人脸的图像和遮罩连接到节点的 image ，mask 输入端\n2. 选择所需的模式（肖像、半身、全身或自定义）\n3. 节点会自动调整脸部大小和位置，并识别性别组合\n4. 将输出的 mode_code 连接到 Prompt Selector Double @ CHAOS 节点（含预设的示例提示词，支持自定义调整提示词）\n\n## 参数说明\n- mode : 生成模式选择\n  portrait : 肖像模式，主要聚焦于脸部特写\n  half : 半身模式，包括头部和上半身\n  full : 全身模式，显示完整人物形象\n  custom : 自定义模式，可根据需要自行调整\n- move_x : 水平方向移动人脸位置\n- move_y : 垂直方向移动人脸位置\n- face scale : 整体缩放系数 范围: 0.5 到 2.0\n- angle : 脸部旋转角度 范围:-30.0 到 30.0 度\n\n## 注意事项\n- 确保输入图像中有两个清晰可见的人脸\n- 不同模式下，脸部大小和位置的调整标准不同，请选择合适的模式,也支持手动微调脸部大小和位置\n通过 FaceAutoFitDouble 节点，您可以快速实现双人图像的脸部自动调整和提示词适配，大大简化工作流程，提高生成效率\n\n如果预设模式满足不了你，可选自定义模式，自行调整各种参数。\n欢迎进群咨询或提建议。QQ群：247228975"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "title": "节点使用说明",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        347.2276611328125,
+        530.1827392578125
+      ],
+      "pos": [
+        -8611.595703125,
+        -3782.080810546875
+      ],
+      "id": 465,
+      "properties": {},
+      "order": 4
+    },
+    {
+      "outputs": [
+        {
+          "name": "output",
+          "label": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "4"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 863,
+          "label": "anything",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "type": "easy showAnything",
+      "title": "当前code number",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        -7303.208984375,
+        -3404.495849609375
+      ],
+      "id": 509,
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "0daf114fe8870aeacfea484aa59e7f9973b91cd5",
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 33
+    },
+    {
+      "outputs": [
+        {
+          "name": "image1",
+          "slot_index": 0,
+          "links": [
+            874
+          ],
+          "label": "image1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "Alibaba-PuHuiTi-Heavy.ttf",
+        5,
+        10,
+        "light"
+      ],
+      "inputs": [
+        {
+          "name": "reel_1",
+          "link": 873,
+          "label": "reel_1",
+          "type": "Reel",
+          "localized_name": "reel_1"
+        },
+        {
+          "shape": 7,
+          "name": "reel_2",
+          "link": 872,
+          "label": "reel_2",
+          "type": "Reel",
+          "localized_name": "reel_2"
+        },
+        {
+          "shape": 7,
+          "name": "reel_3",
+          "label": "reel_3",
+          "type": "Reel",
+          "localized_name": "reel_3"
+        },
+        {
+          "shape": 7,
+          "name": "reel_4",
+          "label": "reel_4",
+          "type": "Reel",
+          "localized_name": "reel_4"
+        }
+      ],
+      "flags": {},
+      "type": "LayerUtility: ImageReelComposit",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        277.20001220703125,
+        190
+      ],
+      "pos": [
+        -7022.603515625,
+        -3081.573486328125
+      ],
+      "id": 513,
+      "properties": {
+        "cnr_id": "comfyui_layerstyle",
+        "ver": "7b326d13e43fc4022cd80e472c7af67027409b1e",
+        "Node name for S&R": "LayerUtility: ImageReelComposit"
+      },
+      "order": 27
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "模式可选：肖像，半身，全身，自定义\n可调整：人脸X轴，Y轴位置，脸部大小，面部倾斜角度，自定义画布大小\n不建议调整：detection method 勿动"
+      ],
+      "inputs": [],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        -7576.2060546875,
+        -4108.2119140625
+      ],
+      "id": 538,
+      "properties": {},
+      "order": 5
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 825,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "flags": {},
+      "type": "PreviewImage",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        229.21563720703125,
+        288.838134765625
+      ],
+      "pos": [
+        -7580.10986328125,
+        -4449.4619140625
+      ],
+      "id": 472,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "PreviewImage"
+      },
+      "order": 30
+    },
+    {
+      "outputs": [
+        {
+          "name": "LATENT",
+          "slot_index": 0,
+          "links": [
+            759
+          ],
+          "label": "LATENT",
+          "type": "LATENT",
+          "localized_name": "LATENT"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        844,
+        "increment",
+        12,
+        1,
+        "euler",
+        "sgm_uniform",
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 770,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "name": "positive",
+          "link": 766,
+          "label": "positive",
+          "type": "CONDITIONING",
+          "localized_name": "positive"
+        },
+        {
+          "name": "negative",
+          "link": 767,
+          "label": "negative",
+          "type": "CONDITIONING",
+          "localized_name": "negative"
+        },
+        {
+          "name": "latent_image",
+          "link": 895,
+          "label": "latent_image",
+          "type": "LATENT",
+          "localized_name": "latent_image"
+        }
+      ],
+      "flags": {},
+      "type": "KSampler",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        262
+      ],
+      "pos": [
+        -6285.45556640625,
+        -4433.79736328125
+      ],
+      "id": 420,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "KSampler"
+      },
+      "order": 44
+    },
+    {
+      "outputs": [
+        {
+          "name": "MASK",
+          "slot_index": 0,
+          "links": [
+            762
+          ],
+          "label": "MASK",
+          "type": "MASK",
+          "localized_name": "MASK"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "mask",
+          "link": 721,
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        }
+      ],
+      "flags": {},
+      "type": "InvertMask",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        201.258544921875,
+        26
+      ],
+      "pos": [
+        -6871.73974609375,
+        -3915.89111328125
+      ],
+      "id": 400,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "InvertMask"
+      },
+      "order": 35
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            750,
+            896,
+            903
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "samples",
+          "link": 759,
+          "label": "samples",
+          "type": "LATENT",
+          "localized_name": "samples"
+        },
+        {
+          "name": "vae",
+          "link": 760,
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        }
+      ],
+      "flags": {},
+      "type": "VAEDecode",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        202.09292602539062,
+        46
+      ],
+      "pos": [
+        -6288.33740234375,
+        -3941.142578125
+      ],
+      "id": 427,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "VAEDecode"
+      },
+      "order": 45
+    },
+    {
+      "outputs": [
+        {
+          "name": "reel",
+          "slot_index": 0,
+          "links": [
+            873
+          ],
+          "label": "reel",
+          "type": "Reel",
+          "localized_name": "reel"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "",
+        "CHAOS image2",
+        "CHAOS image3",
+        "CHAOS image4",
+        1024,
+        10
+      ],
+      "inputs": [
+        {
+          "name": "image1",
+          "link": 878,
+          "label": "image1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        },
+        {
+          "shape": 7,
+          "name": "image2",
+          "label": "image2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "shape": 7,
+          "name": "image3",
+          "label": "image3",
+          "type": "IMAGE",
+          "localized_name": "image3"
+        },
+        {
+          "shape": 7,
+          "name": "image4",
+          "label": "image4",
+          "type": "IMAGE",
+          "localized_name": "image4"
+        }
+      ],
+      "flags": {},
+      "type": "LayerUtility: ImageReel",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        270.70538330078125,
+        282.2946472167969
+      ],
+      "pos": [
+        -7026.75732421875,
+        -3709.591064453125
+      ],
+      "id": 511,
+      "properties": {
+        "cnr_id": "comfyui_layerstyle",
+        "ver": "7b326d13e43fc4022cd80e472c7af67027409b1e",
+        "Node name for S&R": "LayerUtility: ImageReel"
+      },
+      "order": 21
+    },
+    {
+      "outputs": [
+        {
+          "name": "output",
+          "label": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "A stylish portrait captures a woman and man, side-by-side, the woman positioned on the left and the man on the right. They both wear casual yet fashionable attire, perhaps trendy streetwear or designer separates, with the word 'CHAOS' emblazoned across their shirts. The lighting is carefully crafted to create a mood of cool sophistication, highlighting their features and the stylish details of their clothing. Their poses are relaxed yet confident, conveying a sense of effortless cool. The background is  smooth, monochromatic,seamless,keeping the focus on the couple and their shared sense of style. The overall impression is one of modern fashion, youthful rebellion, and a strong connection between the two individuals."
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 900,
+          "label": "anything",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "type": "easy showAnything",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        225.0790252685547,
+        88
+      ],
+      "pos": [
+        -7312.5048828125,
+        -3707.279541015625
+      ],
+      "id": 505,
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "0daf114fe8870aeacfea484aa59e7f9973b91cd5",
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 37
+    },
+    {
+      "outputs": [
+        {
+          "name": "LATENT",
+          "slot_index": 0,
+          "links": [
+            895
+          ],
+          "label": "LATENT",
+          "type": "LATENT",
+          "localized_name": "LATENT"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        2
+      ],
+      "inputs": [
+        {
+          "name": "samples",
+          "link": 894,
+          "label": "samples",
+          "type": "LATENT",
+          "localized_name": "samples"
+        }
+      ],
+      "flags": {},
+      "type": "RepeatLatentBatch",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        -6568.0078125,
+        -4058.947509765625
+      ],
+      "id": 559,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "RepeatLatentBatch"
+      },
+      "order": 43
+    },
+    {
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            897
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 896,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "flags": {},
+      "type": "ImpactImageBatchToImageList",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        26
+      ],
+      "pos": [
+        -6999.9560546875,
+        -2686.515869140625
+      ],
+      "id": 561,
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "8.8.1",
+        "Node name for S&R": "ImpactImageBatchToImageList"
+      },
+      "order": 46
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "CHAOS",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 904,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "flags": {},
+      "type": "SaveImage",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        910.9595947265625,
+        1114.565673828125
+      ],
+      "pos": [
+        -6404.556640625,
+        -3698.67724609375
+      ],
+      "id": 567,
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "ttNbgOverride": {
+          "bgcolor": "#355",
+          "groupcolor": "#8AA",
+          "color": "#233"
+        }
+      },
+      "order": 50
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            751
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "flux1-fill-dev.safetensors",
+        "default"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "UNETLoader",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        315,
+        82
+      ],
+      "pos": [
+        -7291.2626953125,
+        -4426.36279296875
+      ],
+      "id": 423,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "UNETLoader"
+      },
+      "order": 6
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            756
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "alimama-creative-FLUX.1-Turbo-Alpha-diffusion_pytorch_model.safetensors",
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 751,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        }
+      ],
+      "flags": {},
+      "type": "LoraLoaderModelOnly",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        315,
+        82
+      ],
+      "pos": [
+        -7291.2626953125,
+        -4265.8876953125
+      ],
+      "id": 419,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "order": 20
+    },
+    {
+      "outputs": [
+        {
+          "name": "CLIP",
+          "slot_index": 0,
+          "links": [
+            758
+          ],
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "CLIP"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "clip_l.safetensors",
+        "sd3/t5xxl_fp16.safetensors",
+        "flux",
+        "default"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "DualCLIPLoader",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        315,
+        122
+      ],
+      "pos": [
+        -7291.2626953125,
+        -4119.375
+      ],
+      "id": 425,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "DualCLIPLoader"
+      },
+      "order": 7
+    },
+    {
+      "outputs": [
+        {
+          "name": "VAE",
+          "slot_index": 0,
+          "links": [
+            760,
+            763
+          ],
+          "label": "VAE",
+          "type": "VAE",
+          "localized_name": "VAE"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "ae.safetensors"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "VAELoader",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        315,
+        58
+      ],
+      "pos": [
+        -7291.2626953125,
+        -3918.67138671875
+      ],
+      "id": 417,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "VAELoader"
+      },
+      "order": 8
+    },
+    {
+      "outputs": [
+        {
+          "name": "image1",
+          "slot_index": 0,
+          "links": [
+            877,
+            904
+          ],
+          "label": "image1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "Alibaba-PuHuiTi-Heavy.ttf",
+        60,
+        10,
+        "light"
+      ],
+      "inputs": [
+        {
+          "name": "reel_1",
+          "link": 876,
+          "label": "reel_1",
+          "type": "Reel",
+          "localized_name": "reel_1"
+        },
+        {
+          "shape": 7,
+          "name": "reel_2",
+          "label": "reel_2",
+          "type": "Reel",
+          "localized_name": "reel_2"
+        },
+        {
+          "shape": 7,
+          "name": "reel_3",
+          "label": "reel_3",
+          "type": "Reel",
+          "localized_name": "reel_3"
+        },
+        {
+          "shape": 7,
+          "name": "reel_4",
+          "label": "reel_4",
+          "type": "Reel",
+          "localized_name": "reel_4"
+        }
+      ],
+      "flags": {},
+      "type": "LayerUtility: ImageReelComposit",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        277.20001220703125,
+        233.52088928222656
+      ],
+      "pos": [
+        -6719.501953125,
+        -3368.745361328125
+      ],
+      "id": 515,
+      "properties": {
+        "cnr_id": "comfyui_layerstyle",
+        "ver": "7b326d13e43fc4022cd80e472c7af67027409b1e",
+        "Node name for S&R": "LayerUtility: ImageReelComposit"
+      },
+      "order": 49
+    },
+    {
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            905
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "STRING"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "portrait"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "PrimitiveString",
+      "title": "0",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        -8359.3427734375,
+        -4335.10107421875
+      ],
+      "id": 569,
+      "properties": {
+        "Node name for S&R": "PrimitiveString",
+        "ttNbgOverride": {
+          "bgcolor": "#355",
+          "groupcolor": "#8AA",
+          "color": "#233"
+        }
+      },
+      "order": 9
+    },
+    {
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            906
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "STRING"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "half_body"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "PrimitiveString",
+      "title": "1",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        -8359.3427734375,
+        -4227.90625
+      ],
+      "id": 570,
+      "properties": {
+        "Node name for S&R": "PrimitiveString",
+        "ttNbgOverride": {
+          "bgcolor": "#355",
+          "groupcolor": "#8AA",
+          "color": "#233"
+        }
+      },
+      "order": 10
+    },
+    {
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            907
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "STRING"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "full_body"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "PrimitiveString",
+      "title": "2",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        -8359.3427734375,
+        -4124.13525390625
+      ],
+      "id": 571,
+      "properties": {
+        "Node name for S&R": "PrimitiveString",
+        "ttNbgOverride": {
+          "bgcolor": "#355",
+          "groupcolor": "#8AA",
+          "color": "#233"
+        }
+      },
+      "order": 11
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "0-肖像照\n1-半身照\n2-全身照\n3-自定义"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        -8102.671875,
+        -4451.1162109375
+      ],
+      "id": 572,
+      "properties": {},
+      "order": 12
+    },
+    {
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            908
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "STRING"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "custom"
+      ],
+      "inputs": [],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "PrimitiveString",
+      "title": "3",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        -8102.3203125,
+        -4125.1064453125
+      ],
+      "id": 573,
+      "properties": {
+        "Node name for S&R": "PrimitiveString",
+        "ttNbgOverride": {
+          "bgcolor": "#355",
+          "groupcolor": "#8AA",
+          "color": "#233"
+        }
+      },
+      "order": 13
+    },
+    {
+      "outputs": [
+        {
+          "name": "image",
+          "slot_index": 0,
+          "links": [
+            825,
+            828,
+            832
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "mask_L",
+          "label": "mask_L",
+          "type": "MASK",
+          "localized_name": "mask_L"
+        },
+        {
+          "name": "mask_R",
+          "label": "mask_R",
+          "type": "MASK",
+          "localized_name": "mask_R"
+        },
+        {
+          "name": "mask_combined",
+          "slot_index": 3,
+          "links": [
+            826
+          ],
+          "label": "mask_combined",
+          "type": "MASK",
+          "localized_name": "mask_combined"
+        },
+        {
+          "name": "gender_L",
+          "slot_index": 4,
+          "links": [],
+          "label": "gender_L",
+          "type": "INT",
+          "localized_name": "gender_L"
+        },
+        {
+          "name": "gender_R",
+          "slot_index": 5,
+          "links": [],
+          "label": "gender_R",
+          "type": "INT",
+          "localized_name": "gender_R"
+        },
+        {
+          "name": "mode_code",
+          "slot_index": 6,
+          "links": [
+            863,
+            898
+          ],
+          "label": "mode_code",
+          "type": "INT",
+          "localized_name": "mode_code"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "half_body",
+        "white",
+        0,
+        -0.29890677847522795,
+        0.8042304934973004,
+        2.458936401456043,
+        0.9500000000000002,
+        1.0000000000000002,
+        9,
+        -5,
+        "insightface",
+        1024,
+        1024
+      ],
+      "inputs": [
+        {
+          "name": "image_L",
+          "link": 821,
+          "label": "image_L",
+          "type": "IMAGE",
+          "localized_name": "image_L"
+        },
+        {
+          "name": "mask_L",
+          "link": 917,
+          "label": "mask_L",
+          "type": "MASK",
+          "localized_name": "mask_L"
+        },
+        {
+          "name": "image_R",
+          "link": 823,
+          "label": "image_R",
+          "type": "IMAGE",
+          "localized_name": "image_R"
+        },
+        {
+          "name": "mask_R",
+          "link": 919,
+          "label": "mask_R",
+          "type": "MASK",
+          "localized_name": "mask_R"
+        },
+        {
+          "widget": {
+            "name": "mode"
+          },
+          "name": "mode",
+          "link": 910,
+          "label": "mode",
+          "type": "COMBO"
+        }
+      ],
+      "flags": {},
+      "type": "FaceAutoFitDouble",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        242.18775939941406,
+        466
+      ],
+      "pos": [
+        -7847.3896484375,
+        -4445.67529296875
+      ],
+      "id": 469,
+      "properties": {
+        "cnr_id": "ComfyUI_FaceAlignPaste",
+        "ver": "1e9016b81cceefadc8a1b3369400a41574c72b56",
+        "Node name for S&R": "FaceAutoFitDouble"
+      },
+      "order": 28
+    },
+    {
+      "outputs": [
+        {
+          "name": "value",
+          "links": [
+            910
+          ],
+          "label": "value",
+          "type": "*",
+          "localized_name": "value"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        0
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "value0",
+          "link": 905,
+          "label": "value0",
+          "type": "*",
+          "localized_name": "value0"
+        },
+        {
+          "shape": 7,
+          "name": "value1",
+          "link": 906,
+          "label": "value1",
+          "type": "*",
+          "localized_name": "value1"
+        },
+        {
+          "name": "value2",
+          "link": 907,
+          "label": "value2",
+          "type": "*"
+        },
+        {
+          "name": "value3",
+          "link": 908,
+          "label": "value3",
+          "type": "*"
+        },
+        {
+          "widget": {
+            "name": "index"
+          },
+          "name": "index",
+          "link": 909,
+          "label": "index",
+          "type": "INT"
+        },
+        {
+          "widget": {
+            "name": "index"
+          },
+          "name": "index",
+          "label": "index",
+          "type": "INT"
+        },
+        {
+          "name": "value4",
+          "label": "value4",
+          "type": "*"
+        }
+      ],
+      "flags": {},
+      "type": "easy anythingIndexSwitch",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        170
+      ],
+      "pos": [
+        -8103.5185546875,
+        -4302.23779296875
+      ],
+      "id": 575,
+      "properties": {
+        "Node name for S&R": "easy anythingIndexSwitch",
+        "ttNbgOverride": {
+          "bgcolor": "#355",
+          "groupcolor": "#8AA",
+          "color": "#233"
+        }
+      },
+      "order": 25
+    },
+    {
+      "outputs": [
+        {
+          "name": "prompt",
+          "slot_index": 0,
+          "links": [
+            899,
+            900
+          ],
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "prompt_info",
+          "slot_index": 1,
+          "links": [
+            901
+          ],
+          "label": "prompt_info",
+          "type": "STRING",
+          "localized_name": "prompt_info"
+        },
+        {
+          "name": "mode_name",
+          "slot_index": 2,
+          "links": [
+            902
+          ],
+          "label": "mode_name",
+          "type": "STRING",
+          "localized_name": "mode_name"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        0,
+        "random",
+        0,
+        1366,
+        "randomize",
+        "A fashionable portrait captures two female celebrities, positioned side-by-side with one on the left and the other on the right. They both exude a stylish and playful charm in their fashionable and cute attire. The clothing might involve trendy dresses, stylish separates, or a mix of both, chosen to complement their individual styles and create a harmonious overall look. Soft, diffused lighting enhances their features and creates a warm, inviting atmosphere. Their poses are relaxed yet stylish, conveying a sense of effortless cool and camaraderie. The background is a smooth, solid-colored backdrop, perhaps a pastel shade or a more vibrant hue that complements their outfits, ensuring the focus remains on the two stars and their fashionable presence. The overall impression is one of modern glamour, playful sophistication, and the vibrant energy of these two fashionable icons.\nA casual yet stylish upper-body portrait captures two female celebrities, positioned side-by-side, with one on the left and the other on the right. They are dressed in relaxed yet fashionable outfits, perhaps a mix of trendy separates or stylishly casual dresses, exuding effortless cool. The lighting is bright and even, typical of a television studio, while still maintaining a flattering and natural look. Their poses are relaxed and engaging, perhaps mid-conversation or sharing a lighthearted moment, reflecting a comfortable and friendly dynamic. The background subtly features elements of a television studio – perhaps blurred monitors, lighting equipment, or a glimpse of a news desk – suggesting a behind-the-scenes glimpse into their professional lives. The overall impression is one of effortless glamour, sophisticated casualness, and a captivating glimpse into the personalities of these two stars in a professional yet relaxed setting.\nImagine a natural,  two women standing side by side in an outdoor setting, their attire casual yet vibrant. Both are wearing colorful t-shirts with the word 'CHAOS' printed boldly across the chest, adding a playful and edgy touch to their look. The woman on the left might be in a warm orange t-shirt, while her companion on the right could be wearing a cool teal one, their colors complementing each other beautifully.Their hairstyles are relaxed and natural, perhaps one with her hair loosely tied back and the other with a carefree, wind-swept look. Their expressions are genuine and friendly, with soft smiles that suggest a shared moment of joy or an inside joke.The background is an outdoor scene, softly blurred to keep the focus on the women but still providing a sense of place. It could be a park with lush greenery, a city street with buildings and pedestrians in the distance, or a beach with the hint of waves and sky. The lighting is natural, suggesting a sunny day, with the sunlight casting gentle shadows and highlighting the colors of their t-shirts.The overall composition is balanced, with the women positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed and comfortable, reflecting their ease with each other and the setting. The image captures a moment of genuine connection and enjoyment, set against the backdrop of a day spent outdoors, blending the subjects seamlessly with their environment.\nVisualize a natural, full-body portrait of two young female students standing together in a classroom bathed in soft, natural light. They are dressed in neat school uniforms that include dark blazers adorned with their school's emblem, signifying a sense of pride and belonging. Underneath, they wear crisp white shirts, each neatly tied with a ribbon, adding a touch of elegance to their attire.Their hairstyles are tidy and school-appropriate, perhaps one with her hair pulled back into a neat ponytail and the other with a classic bob that frames her face. Their expressions are bright and youthful, with gentle smiles that convey the innocence and optimism of their age.The classroom setting is visible but softly blurred, creating a gentle backdrop that allows the focus to remain on the students. The background might include rows of desks arranged neatly, a chalkboard filled with lessons, and large windows that let in streams of sunlight, casting a warm glow on the scene. The outdoor elements visible through the windows suggest a serene schoolyard, with perhaps the hint of trees or a playground, adding depth to the setting.The overall composition is harmonious, with the students positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed and comfortable, reflecting their ease with each other and the familiar environment of their classroom. The image captures a moment of academic life, blending the subjects seamlessly with their educational surroundings, and evoking a sense of youthful ambition and camaraderie.\nEnvision a professional, full-body portrait capturing two brides standing elegantly side by side, their postures poised and serene. Both brides are adorned in pristine white wedding gowns that exude a sense of grace and sophistication. The gowns might feature intricate lace detailing, delicate beading, or flowing skirts that add a dreamy quality to their appearance.Their hairstyles are meticulously styled to complement their bridal look, perhaps one with a romantic half-up, half-down hairstyle that frames her face elegantly, and the other with a classic updo that showcases her neckline. Soft, natural makeup enhances their features, with a focus on highlighting their eyes and a gentle blush that brings a warm glow to their cheeks.The setting is outdoors, with a stage-like backdrop that is softly blurred, allowing the focus to remain on the brides while still providing a sense of location. The stage might be decorated with elegant drapery, floral arrangements, or subtle lighting that adds a touch of magic to the scene. The outdoor elements, such as the hint of a garden or a picturesque landscape, contribute to the overall ambiance of celebration and elegance.The lighting is natural and flattering, suggesting a sunny day with soft shadows that accentuate the contours of their gowns and faces. The overall composition is balanced and harmonious, with the brides positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their expressions are joyful and content, reflecting the happiness of their special day.This image captures a moment of shared joy and elegance, set against the backdrop of a beautiful outdoor stage, creating a snapshot that is both personal and universally relatable, encapsulating the beauty and emotion of a wedding day.",
+        "A half-body portrait captures two young women in elegant attire. Their outfits, classic and tasteful, accentuate their figures with understated sophistication. The image emphasizes a clean, artistic aesthetic with careful attention to composition. The background features subtle, out-of-focus details that add context without distraction. Their expressions are poised and confident, yet their poses suggest a natural comfort with each other. Soft, natural lighting illuminates their faces, highlighting their youth and natural beauty. The overall impression is one of quiet grace, feminine strength, and a subtle blend of formal elegance and artistic sensitivity.\nA half-body portrait captures two female students in crisp school uniforms standing in a sunlit classroom. Their uniforms feature dark blazers with school emblems, white shirts with neatly tied ribbons, and pleated skirts. One girl has her hair in a practical ponytail, while the other wears hers in a neat bob. They stand close together, perhaps one with her arm around the other's shoulder, suggesting friendship and camaraderie. The classroom setting is visible but softly blurred - rows of desks, a chalkboard, and large windows letting in streams of natural light. Their expressions are youthful and bright, with genuine smiles that convey academic optimism and the special bond of school friendship. The overall impression is one of youthful innocence, academic pride, and the meaningful connections formed during school years.\nA professional half-body portrait shows two brides standing side-by-side, the first on the left and the second on the right. Both are radiant in their white wedding gowns; the fabric and details of the dresses are subtly highlighted by soft, natural lighting. Their postures are elegant and composed, conveying a sense of joy and shared happiness. Their expressions are warm and genuine, reflecting their connection and the significance of the occasion. The outdoor environment is visible but softly blurred, creating a dreamy, romantic atmosphere. Hints of nature—perhaps lush greenery, a scenic vista, or a softly lit sky—are discernible but not sharply defined, allowing the focus to remain on the brides and their wedding attire. The overall impression is one of timeless elegance, shared joy, and the celebration of love and commitment, captured in a beautifully softened outdoor setting.\nCapture a half-body portrait of two stylish young women enjoying a leisurely stroll through a bustling shopping mall. They are dressed in trendy, contemporary outfits that reflect their unique fashion sense. One woman sports a chic pair of high-waisted jeans paired with a vibrant crop top, while the other opts for a flowing midi skirt and a fitted blazer. Their outfits are complemented by trendy accessories like statement sunglasses and bold earrings, adding a touch of glamour to their ensembles.Their hairstyles are equally fashionable, with one sporting a sleek, straight fringe and the other showcasing soft waves that frame her face. They walk side by side, perhaps with one's arm linked through the other's, symbolizing their close friendship and shared enjoyment of the shopping experience.The mall setting forms a lively backdrop, with softly blurred images of store fronts, bright display windows, and the occasional passerby adding to the dynamic atmosphere. Large, modern light fixtures cast a warm glow on the scene, highlighting the women's radiant expressions. Their smiles are genuine and lively, conveying a sense of joy and the special bond formed through shared experiences.The overall impression is one of youthful exuberance, fashion-forward style, and the meaningful connections that thrive in the vibrant setting of a modern shopping mall.\nA professional half-body portrait captures two women standing side-by-side, the first on the left and the second on the right. Both are wearing brightly colored t-shirts and light-wash jeans, their casual attire conveying a sense of youthful energy and effortless style. Their postures are relaxed and natural, perhaps engaged in light conversation or sharing a smile. The background is a bustling pedestrian street, but the details are softly blurred, creating a dreamy, atmospheric effect. Hints of shops, streetlights, or passersby are visible, but not sharply defined, keeping the focus firmly on the two women. The overall impression is one of casual chic, youthful vibrancy, and a connection shared within a lively urban environment. The professional lighting and composition ensure a polished, high-quality image.",
+        "Envision a full-body portrait of two fashionable young women strolling confidently through a modern shopping mall. They are dressed in stylish, on-trend attire that showcases their individual tastes. The first girl is wearing a chic, oversized sweater paired with high-waisted leggings and trendy sneakers, her outfit accentuated by a bold statement necklace. Her hair is styled in loose waves that cascade over her shoulders, and she carries a sleek crossbody bag.Her companion opts for a more structured look with a tailored blazer over a graphic tee, matched with slim-fit jeans and ankle boots. Her hair is pulled back into a chic bun, and she accessorizes with minimalist jewelry that complements her outfit.As they walk side by side, their arms are linked, indicating a close friendship. They are smiling and appear to be engaged in a lively conversation, their expressions radiating joy and camaraderie. The mall around them is vibrant, with blurred images of store displays, bright signage, and other shoppers contributing to the lively atmosphere.Large windows allow natural light to flood the space, casting a warm glow on the scene and highlighting the girls' outfits. The overall impression is one of youthful energy, fashion-forward style, and the enjoyment of a day spent shopping with a best friend. This image captures the essence of modern friendship and the pleasure of exploring the latest fashion trends together.\nCreate a full-body portrait of two radiant young women standing side by side, their gazes meeting the camera with a mix of joy and anticipation. They are adorned in elegant white bridal gowns that cascade down to the ground, each with its own unique design. One dress features delicate lace detailing and a flowing skirt, while the other showcases a sleek silhouette with a modest train. Their hair is styled in soft waves, and they wear minimal makeup that enhances their natural beauty.The women are holding hands, symbolizing their bond and shared experience. Their expressions are warm and genuine, reflecting both excitement and a sense of solemnity appropriate for the occasion. They stand against a backdrop that is softly blurred, suggesting an outdoor setting with hints of greenery and perhaps a distant water feature or garden path.The lighting is soft and natural, likely from a setting sun or a cloudy day, casting a gentle glow on the scene and highlighting the intricate details of their dresses. The overall impression is one of elegance, grace, and the special bond between the two women, capturing a moment of pure joy and anticipation on their wedding day. This image is perfect for a bridal magazine feature or a wedding album, encapsulating the beauty and emotion of the occasion.\nCapture a full-body portrait of two radiant young women standing side by side, their gazes meeting the camera with a mix of anticipation and joy. They are adorned in elegant white bridal gowns that cascade down to the floor, each with its unique design elements that add a touch of sophistication and grace. One gown might feature delicate lace detailing, while the other could have a flowing, ethereal skirt that adds a dreamy quality to her appearance.Their hairstyles are meticulously styled, perhaps one with a half-up, half-down look that frames her face beautifully, and the other with a classic updo that showcases her neckline. Soft, natural makeup enhances their features, with a focus on highlighting their eyes and a gentle blush that brings a warm glow to their cheeks.The indoor setting is softly blurred, creating a gentle backdrop that keeps the focus on the girls. The room might be a luxurious bridal suite or a well-lit reception hall, with hints of elegant decor like draped fabrics, floral arrangements, and soft lighting that casts a warm, inviting glow. The overall ambiance is one of celebration and elegance, with the girls' joyful expressions and the pristine white of their gowns standing out against the subtly detailed background.This image captures a moment of shared happiness and the special bond between the two girls, possibly sisters or best friends, as they prepare for a significant event in their lives, surrounded by the beauty and warmth of a carefully curated indoor environment.\nA full-body photo captures two female students in crisp school uniforms standing in a sunlit classroom. Their uniforms feature dark blazers with school emblems, white shirts with neatly tied ribbons, and pleated skirts. One girl has her hair in a practical ponytail, while the other wears hers in a neat bob. They stand close together, perhaps one with her arm around the other's shoulder, suggesting friendship and camaraderie. The classroom setting is visible but softly blurred - rows of desks, a chalkboard, and large windows letting in streams of natural light. Their expressions are youthful and bright, with genuine smiles that convey academic optimism and the special bond of school friendship. The overall impression is one of youthful innocence, academic pride, and the meaningful connections formed during school years.\nEnvision a casual, full-length photograph capturing two women strolling leisurely down a bustling pedestrian street. Both are dressed in vibrant, colorful t-shirts emblazoned with the word 'CHAOS' across the chest in bold, eye-catching letters. Their attire suggests a sense of fun and nonconformity, fitting perfectly with the lively atmosphere of the street.The woman on the left might be wearing a bright blue t-shirt paired with comfortable jeans, while her companion on the right opts for a lively green shirt with similar casual bottoms. Their outfits are completed with practical yet stylish footwear, suitable for a day of walking and exploring.Their hair is styled in a way that is both fashionable and carefree, perhaps one with loose waves and the other in a playful ponytail. They walk naturally, arms linked or hands in pockets, embodying the spirit of friendship and shared adventure. Their expressions are relaxed and content, perhaps sharing a private joke or simply enjoying each other's company.The background is a soft blur of the pedestrian street, allowing the focus to remain on the women while still conveying the setting. The street is lined with a variety of shops and cafes, their facades and signage just out of focus, adding depth and context to the scene. The lighting is natural, suggesting a sunny day, with shadows cast naturally on the ground, enhancing the realism of the photograph.This image captures a moment of everyday life, blending the subjects seamlessly into the vibrant, dynamic environment of the pedestrian street, creating a snapshot that is both personal and universally relatable.",
+        "Envision a full-body portrait of two fashionable young women strolling confidently through a modern shopping mall. They are dressed in stylish, on-trend attire that showcases their individual tastes. The first girl is wearing a chic, oversized sweater paired with high-waisted leggings and trendy sneakers, her outfit accentuated by a bold statement necklace. Her hair is styled in loose waves that cascade over her shoulders, and she carries a sleek crossbody bag.Her companion opts for a more structured look with a tailored blazer over a graphic tee, matched with slim-fit jeans and ankle boots. Her hair is pulled back into a chic bun, and she accessorizes with minimalist jewelry that complements her outfit.As they walk side by side, their arms are linked, indicating a close friendship. They are smiling and appear to be engaged in a lively conversation, their expressions radiating joy and camaraderie. The mall around them is vibrant, with blurred images of store displays, bright signage, and other shoppers contributing to the lively atmosphere.Large windows allow natural light to flood the space, casting a warm glow on the scene and highlighting the girls' outfits. The overall impression is one of youthful energy, fashion-forward style, and the enjoyment of a day spent shopping with a best friend. This image captures the essence of modern friendship and the pleasure of exploring the latest fashion trends together.\nCreate a full-body portrait of two radiant young women standing side by side, their gazes meeting the camera with a mix of joy and anticipation. They are adorned in elegant white bridal gowns that cascade down to the ground, each with its own unique design. One dress features delicate lace detailing and a flowing skirt, while the other showcases a sleek silhouette with a modest train. Their hair is styled in soft waves, and they wear minimal makeup that enhances their natural beauty.The women are holding hands, symbolizing their bond and shared experience. Their expressions are warm and genuine, reflecting both excitement and a sense of solemnity appropriate for the occasion. They stand against a backdrop that is softly blurred, suggesting an outdoor setting with hints of greenery and perhaps a distant water feature or garden path.The lighting is soft and natural, likely from a setting sun or a cloudy day, casting a gentle glow on the scene and highlighting the intricate details of their dresses. The overall impression is one of elegance, grace, and the special bond between the two women, capturing a moment of pure joy and anticipation on their wedding day. This image is perfect for a bridal magazine feature or a wedding album, encapsulating the beauty and emotion of the occasion.\nCapture a full-body portrait of two radiant young women standing side by side, their gazes meeting the camera with a mix of anticipation and joy. They are adorned in elegant white bridal gowns that cascade down to the floor, each with its unique design elements that add a touch of sophistication and grace. One gown might feature delicate lace detailing, while the other could have a flowing, ethereal skirt that adds a dreamy quality to her appearance.Their hairstyles are meticulously styled, perhaps one with a half-up, half-down look that frames her face beautifully, and the other with a classic updo that showcases her neckline. Soft, natural makeup enhances their features, with a focus on highlighting their eyes and a gentle blush that brings a warm glow to their cheeks.The indoor setting is softly blurred, creating a gentle backdrop that keeps the focus on the girls. The room might be a luxurious bridal suite or a well-lit reception hall, with hints of elegant decor like draped fabrics, floral arrangements, and soft lighting that casts a warm, inviting glow. The overall ambiance is one of celebration and elegance, with the girls' joyful expressions and the pristine white of their gowns standing out against the subtly detailed background.This image captures a moment of shared happiness and the special bond between the two girls, possibly sisters or best friends, as they prepare for a significant event in their lives, surrounded by the beauty and warmth of a carefully curated indoor environment.\nA full-body photo captures two female students in crisp school uniforms standing in a sunlit classroom. Their uniforms feature dark blazers with school emblems, white shirts with neatly tied ribbons, and pleated skirts. One girl has her hair in a practical ponytail, while the other wears hers in a neat bob. They stand close together, perhaps one with her arm around the other's shoulder, suggesting friendship and camaraderie. The classroom setting is visible but softly blurred - rows of desks, a chalkboard, and large windows letting in streams of natural light. Their expressions are youthful and bright, with genuine smiles that convey academic optimism and the special bond of school friendship. The overall impression is one of youthful innocence, academic pride, and the meaningful connections formed during school years.\nEnvision a casual, full-length photograph capturing two women strolling leisurely down a bustling pedestrian street. Both are dressed in vibrant, colorful t-shirts emblazoned with the word 'CHAOS' across the chest in bold, eye-catching letters. Their attire suggests a sense of fun and nonconformity, fitting perfectly with the lively atmosphere of the street.The woman on the left might be wearing a bright blue t-shirt paired with comfortable jeans, while her companion on the right opts for a lively green shirt with similar casual bottoms. Their outfits are completed with practical yet stylish footwear, suitable for a day of walking and exploring.Their hair is styled in a way that is both fashionable and carefree, perhaps one with loose waves and the other in a playful ponytail. They walk naturally, arms linked or hands in pockets, embodying the spirit of friendship and shared adventure. Their expressions are relaxed and content, perhaps sharing a private joke or simply enjoying each other's company.The background is a soft blur of the pedestrian street, allowing the focus to remain on the women while still conveying the setting. The street is lined with a variety of shops and cafes, their facades and signage just out of focus, adding depth and context to the scene. The lighting is natural, suggesting a sunny day, with shadows cast naturally on the ground, enhancing the realism of the photograph.This image captures a moment of everyday life, blending the subjects seamlessly into the vibrant, dynamic environment of the pedestrian street, creating a snapshot that is both personal and universally relatable.",
+        "A professional portrait captures a young couple against a neutral studio background.The background is smooth, monochromatic,seamless. The woman on the left wears a simple, elegant blouse in a soft color, while the man on the right is in a well-fitted button-down shirt. Their bodies are slightly angled toward each other, creating a sense of connection while allowing both faces to be clearly visible to the camera. The lighting is soft and flattering, with gentle shadows that create dimension without harshness. Their expressions are warm and genuine - perhaps soft smiles or a look of quiet contentment that suggests their comfort with each other. The composition is classic and balanced, with their faces at similar heights in the frame. The overall impression is one of authentic partnership, mutual respect, and the subtle intimacy of a couple who are at ease in each other's presence.\nA stylish portrait captures a woman and man, side-by-side, the woman positioned on the left and the man on the right. They both wear casual yet fashionable attire, perhaps trendy streetwear or designer separates, with the word 'CHAOS' emblazoned across their shirts. The lighting is carefully crafted to create a mood of cool sophistication, highlighting their features and the stylish details of their clothing. Their poses are relaxed yet confident, conveying a sense of effortless cool. The background is  smooth, monochromatic,seamless,keeping the focus on the couple and their shared sense of style. The overall impression is one of modern fashion, youthful rebellion, and a strong connection between the two individuals.\nA professional portrait captures a woman and a man, positioned side-by-side with the woman on the left and the man on the right. They are both dressed in formal attire. The woman might wear a sophisticated dress or a tailored suit, while the man wears a sharp suit and tie. The lighting is carefully controlled and balanced, highlighting their features and creating a polished, sophisticated look. Their posture is confident and composed, their expressions conveying professionalism and approachability. The background is smooth, monochromatic,seamless, typically a neutral color that doesn't distract from the subjects. The overall impression is one of competence, sophistication, and a strong, professional presence. The composition emphasizes their partnership and shared purpose, while also allowing their individual personalities to shine through.",
+        "A half-body portrait showcases a stylish couple at a formal evening event. The woman on the left wears an elegant evening dress with statement jewelry and sophisticated styling, while the man on the right is in a perfectly tailored tuxedo or formal suit. The background suggests an upscale venue - perhaps with crystal chandeliers, architectural details, or soft lights creating a bokeh effect. The lighting is dramatic yet flattering, with highlights that catch on fabric textures, jewelry, and glassware. They might be holding champagne flutes or positioned near a formal dining table. Their posture is poised and confident, with a subtle connection between them - perhaps his hand lightly touching her back or their shoulders nearly touching. Their expressions convey the elevated mood of the occasion - perhaps slight smiles or an air of sophisticated enjoyment. The overall impression is one of elegance, social refinement, and the special chemistry of a couple navigating a formal social setting together.\nA half-body portrait captures a young couple in casual weekend attire against the backdrop of a cozy café. The woman on the left wears a soft sweater and simple necklace, while the man on the right is in a casual button-down with rolled sleeves. They sit at a small round table, perhaps with coffee cups or dessert plates visible in the foreground. The café setting is suggested through soft bokeh of warm lights, wooden elements, and perhaps hints of other patrons blurred in the background. The lighting is warm and intimate, suggesting afternoon or evening hours. Their posture shows them leaning slightly toward each other, engaged in conversation or sharing a moment of connection. Their expressions are relaxed and authentic - perhaps mid-laugh or exchanging warm glances. The overall impression is one of everyday intimacy, comfortable companionship, and the simple pleasure of shared time together.\nA professional half-body portrait captures a bride and groom, positioned side-by-side with the woman on the left and the man on the right. The bride radiates elegance in a beautiful wedding gown, its intricate details and flowing fabric highlighted by soft, flattering lighting. The groom stands tall and proud beside her, wearing an expensive, impeccably tailored suit. A unique detail catches the eye: an elaborate brooch pinned to his lapel, bearing the word 'CHAOS' The couple's expressions are warm and loving as they gaze at each other, their connection palpable. The background is subtly blurred, perhaps a tastefully decorated interior or a picturesque outdoor setting, keeping the focus on the couple and their elegant attire. The overall impression is one of sophistication, romance, and a touch of intriguing individuality hinted at by the groom's unusual accessory.\nA candid, half-body shot captures a man and woman, side-by-side, amidst the bustling backdrop of a shopping mall. The woman is on the left, the man on the right. Both wear casual attire, likely t-shirts or sweatshirts, prominently featuring the word 'CHAOS' across the chest. The photo captures a spontaneous moment – perhaps mid-conversation or sharing a laugh – their expressions natural and unguarded. The bustling mall environment, with its blurred shoppers and brightly lit storefronts, adds a sense of dynamic energy to the scene. The focus remains on the couple, their matching attire suggesting a shared interest or connection. The overall impression is one of casual coolness, youthful energy, and a shared sense of style within the vibrant atmosphere of a modern shopping mall.",
+        "A full-body photograph captures a couple in athletic wear on a morning run through a scenic park. The woman on the left wears fitted running leggings and a lightweight performance top, while the man on the right is in running shorts and a technical t-shirt. Both wear quality running shoes and perhaps smart watches or fitness trackers. The park setting is lush and vibrant - with a clear path, green trees, and perhaps early morning light creating a golden glow. They are captured in motion, with natural running postures that suggest energy and vitality. The composition captures them from a slight distance, showing their full bodies while including enough of the environment to establish the setting. Their expressions show focus mixed with enjoyment - the satisfaction of shared physical activity. The overall impression is one of health, vitality, and the special bond of couples who pursue fitness goals together.\nA full-body photograph presents a couple dressed for a formal occasion, standing at the entrance to an elegant venue. The woman on the left wears a floor-length evening gown that flatters her figure, complemented by carefully chosen accessories and formal styling. The man on the right is in a well-tailored suit or tuxedo with appropriate formal details. The venue entrance might feature architectural elements like columns, grand doors, or decorative details that suggest luxury and occasion. The lighting is sophisticated - perhaps with venue lighting creating a warm glow or professional lighting that highlights the couple while maintaining the ambiance of the setting. Their posture is formal yet natural, standing close together with subtle body language that indicates their relationship. Their expressions convey the significance of the occasion - perhaps subtle smiles or a look of confident anticipation. The overall impression is one of celebration, partnership, and the special moments in life marked by formal attire and meaningful venues.\nA stylish, full-body portrait captures a woman and man standing side-by-side, the woman on the left and the man on the right. Both wear casual yet fashionable attire, featuring jeans and matching 'CHAOS' emblazoned tops - perhaps t-shirts, hoodies, or sweatshirts. Their coordinated 'couple shoes' add a touch of playfulness and reinforce their connection. The poses are relaxed and natural, conveying a sense of effortless cool. The lighting is carefully designed to enhance their features and the details of their clothing, creating a mood of modern sophistication. The background is simple and uncluttered, allowing the focus to remain on the couple and their coordinated style. The overall impression is one of youthful confidence, shared style, and a strong bond between the two individuals.\nA professional full-body portrait captures a bride and groom standing side-by-side, with the woman on the left and the man on the right. The bride radiates elegance in a beautiful, flowing wedding gown, its intricate details and luxurious fabric highlighted by soft, flattering lighting. The groom stands tall and proud beside her in an expensive, impeccably tailored suit. A small, subtle logo bearing the word 'CHAOS' is visible on his chest, adding a touch of unique personality to his formal attire. Their postures are graceful and composed, their expressions reflecting the joy and love of the occasion. The background is elegant and understated, perhaps a tastefully decorated interior or a picturesque outdoor setting. The overall impression is one of sophistication, romance, and a subtle hint of individuality, creating a timeless and memorable image of their special day.\nVisualize a formal portrait of a couple dressed in celebratory attire against a warm, terracotta-colored backdrop. The woman is adorned in a traditional Chinese wedding dress known as a 'qun gua,' which is richly embroidered with intricate golden patterns featuring floral motifs and a mythical phoenix. The dress is predominantly red, a color symbolizing good fortune and joy in Chinese culture. She accessorizes with delicate drop earrings and holds a small, ornate clutch in her hands.Her footwear is a pair of red shoes with white accents, complementing the dress's color scheme. Her hair is styled in an elegant updo, decorated with ornamental hairpins that echo the traditional aesthetic of her outfit.The man stands beside her, dressed in a classic black tuxedo with a sharp, clean lines that provide a modern contrast to the woman's traditional attire. His tuxedo is paired with a crisp white shirt and a red bow tie that matches the woman's dress, creating a harmonious couple's look. He holds a white pocket square in his hand, adding a touch of sophistication to his ensemble.Both individuals exude a sense of happiness and pride, their postures straight and their expressions gentle. The lighting is soft and even, highlighting the details of their outfits and creating a warm, inviting atmosphere. This image captures a moment of cultural significance and personal celebration, blending traditional elements with modern elegance.\nCapture a candid moment of a stylish couple crossing a street, set against the backdrop of an urban environment. The woman is elegantly dressed in a long-sleeved white dress that falls to her knees, accentuating her figure with a high slit on one side. She accessorizes with a patterned handbag and wears open-toed high heels that complement her outfit. Her long hair flows down her back, adding to her graceful appearance.Her partner, the man, is clad in a sleek black shirt paired with matching black trousers, creating a monochromatic look that contrasts with the woman's white dress. His attire is completed with black dress shoes, maintaining the uniformity of his ensemble. His hair is styled in a casual yet fashionable manner, and he wears glasses that add an intellectual touch to his appearance.They are holding hands, suggesting a close relationship as they navigate the crosswalk together. The background features a cityscape with buildings and a parked car, indicating a bustling urban setting. The lighting is natural, likely from a sunny day, casting soft shadows and highlighting the couple's attire against the city backdrop.This image captures a moment of everyday romance and style, with the couple's coordinated outfits and the urban environment creating a scene of modern life and fashion.\n",
+        "A half-body portrait showcases a stylish couple at a formal evening event. The woman on the left wears an elegant evening dress with statement jewelry and sophisticated styling, while the man on the right is in a perfectly tailored tuxedo or formal suit. The background suggests an upscale venue - perhaps with crystal chandeliers, architectural details, or soft lights creating a bokeh effect. The lighting is dramatic yet flattering, with highlights that catch on fabric textures, jewelry, and glassware. They might be holding champagne flutes or positioned near a formal dining table. Their posture is poised and confident, with a subtle connection between them - perhaps his hand lightly touching her back or their shoulders nearly touching. Their expressions convey the elevated mood of the occasion - perhaps slight smiles or an air of sophisticated enjoyment. The overall impression is one of elegance, social refinement, and the special chemistry of a couple navigating a formal social setting together.\nA half-body portrait captures a young couple in casual weekend attire against the backdrop of a cozy café. The woman on the left wears a soft sweater and simple necklace, while the man on the right is in a casual button-down with rolled sleeves. They sit at a small round table, perhaps with coffee cups or dessert plates visible in the foreground. The café setting is suggested through soft bokeh of warm lights, wooden elements, and perhaps hints of other patrons blurred in the background. The lighting is warm and intimate, suggesting afternoon or evening hours. Their posture shows them leaning slightly toward each other, engaged in conversation or sharing a moment of connection. Their expressions are relaxed and authentic - perhaps mid-laugh or exchanging warm glances. The overall impression is one of everyday intimacy, comfortable companionship, and the simple pleasure of shared time together.\nA professional half-body portrait captures a bride and groom, positioned side-by-side with the woman on the left and the man on the right. The bride radiates elegance in a beautiful wedding gown, its intricate details and flowing fabric highlighted by soft, flattering lighting. The groom stands tall and proud beside her, wearing an expensive, impeccably tailored suit. A unique detail catches the eye: an elaborate brooch pinned to his lapel, bearing the word ‘CHAOS’. The couple's expressions are warm and loving as they gaze at each other, their connection palpable. The background is subtly blurred, perhaps a tastefully decorated interior or a picturesque outdoor setting, keeping the focus on the couple and their elegant attire. The overall impression is one of sophistication, romance, and a touch of intriguing individuality hinted at by the groom's unusual accessory.\nA candid, half-body shot captures a man and woman, side-by-side, amidst the bustling backdrop of a shopping mall. The woman is on the left, the man on the right. Both wear casual attire, likely t-shirts or sweatshirts, prominently featuring the word‘CHAOS’ across the chest. The photo captures a spontaneous moment – perhaps mid-conversation or sharing a laugh – their expressions natural and unguarded. The bustling mall environment, with its blurred shoppers and brightly lit storefronts, adds a sense of dynamic energy to the scene. The focus remains on the couple, their matching attire suggesting a shared interest or connection. The overall impression is one of casual coolness, youthful energy, and a shared sense of style within the vibrant atmosphere of a modern shopping mall.",
+        "A casual portrait features a man and woman, positioned with the man on the left and the woman on the right, standing close together in front of a lecture hall podium. They wear matching or coordinating couple outfits, perhaps t-shirts, sweaters, or jackets, that subtly convey their connection. Their postures are relaxed and natural, suggesting a comfortable intimacy. They might be looking at each other, at the camera, or towards the audience, their expressions reflecting a shared moment or a shared interest in the lecture setting. The podium, perhaps with a microphone or a nameplate, adds a touch of academic or professional context to the scene. The lighting is soft and even, enhancing the casual and approachable atmosphere. The overall impression is one of connection, shared interests, and the easy comfort of a couple in a semi-formal setting.\nA casual portrait captures a man and woman at a music festival, the man positioned on the left and the woman on the right. They wear matching or coordinating band t-shirts, showcasing their shared musical taste and enthusiasm for the event. Their faces are lit up with excitement, their expressions capturing the energy and exhilaration of the festival atmosphere. They might be smiling brightly, singing along to the music, or looking out at the stage with expressions of awe. The background is a vibrant blur of festival activity – colorful lights, a crowd of people, perhaps a glimpse of the stage or a musical instrument. The overall impression is one of shared passion, joyful connection, and the immersive experience of a live music event. The image is dynamic and energetic, reflecting the vibrant atmosphere of the music festival.\nA formal portrait captures a man and woman, positioned with the man on the left and the woman on the right. They are dressed impeccably in professional attire – perhaps a suit and tie for him and a tailored dress or suit for her. Their posture is poised and confident, their expressions serious yet approachable. A small, intricate gold pin bearing the word 'CHAOS'is affixed to each of their lapels, adding a touch of intrigue and suggesting a shared affiliation or a subtle hint of rebellion beneath their polished exteriors. The background is a neutral color, allowing the focus to remain on the subjects and the subtle details of their attire. The lighting is even and balanced, creating a sense of timeless elegance and sophistication. The overall impression is one of professionalism, power, and a shared secret hinted at by the matching pins.\nA formal wedding portrait captures a bride and groom indoors, positioned with the groom on the left and the bride on the right. Both wear crisp white shirts, creating a clean and classic look. A small, intricate gold pin bearing the word 'CHAOS'is affixed to each of their shirts near the heart, adding an unexpected touch of personality and shared rebellion to the traditional attire. Their postures are composed and elegant, their expressions reflecting the joy and solemnity of the occasion. They might be holding hands or gazing into each other's eyes, their connection palpable. The background is a simple, uncluttered indoor setting, perhaps a tastefully decorated room or a classic architectural space, that allows the focus to remain on the couple and the subtle details of their attire. The lighting is soft and even, creating a sense of timeless romance and intimacy. The overall impression is one of love, tradition with a twist, and a shared secret hinted at by the matching 'CHAOS'pins.",
+        "A professional half-body wedding portrait captures a bride and groom outdoors, the groom positioned on the left and the bride on the right. The groom looks dashing in a stylish tuxedo, its details sharply defined in the soft light. The bride radiates beauty in a stunning gown, the intricate details of the bodice and sleeves beautifully showcased. They stand close together, their expressions reflecting love and happiness. The background, perhaps a garden, a beach, or a scenic overlook, is softly blurred, drawing the viewer's attention to the couple and their connection. The overall impression is one of romance, elegance, and the intimate joy of a wedding celebration. The image is expertly lit and composed, capturing the couple's happiness and the beauty of their attire.\nA professional half-body shot captures a male and female model on a brightly lit runway, the man positioned on the left and the woman on the right. Both wear stylish white ensembles, the designs crisp and modern, perhaps with avant-garde details or elegant draping. The bright runway lights create dramatic highlights and shadows, emphasizing the textures of the fabric and the contours of their bodies from the waist up. Their poses are confident and striking, showcasing the clothes and their professional modeling skills. The background is a blur of vibrant colors and flashing lights, capturing the energy and excitement of a high-fashion runway show. The overall impression is one of glamour, sophistication, and the dynamic world of high fashion. The image is sharp and well-composed, highlighting the models, their outfits, and the electric atmosphere of the runway.\nA casual, half-body shot captures a man and woman dressed in relaxed student attire inside a classroom, a large chalkboard serving as the backdrop. The man is positioned on the left, the woman on the right. They stand comfortably, perhaps holding books or leaning against a desk, their postures natural and conveying a sense of youthful ease. They might be looking at each other, at the camera, or towards the chalkboard, suggesting a moment of connection or contemplation within the academic setting. Their clothing is simple and relatable – jeans, t-shirts, sweaters, perhaps a school logo or emblem subtly displayed. The chalkboard, perhaps filled with equations, notes, or drawings, adds a touch of academic authenticity to the scene. The lighting is soft and natural, mimicking the light from classroom windows. The overall impression is one of youthful energy, the comfortable familiarity of student life, and the potential for learning and growth within the academic environment.\nA casual, half-body shot captures a man and woman indoors, the man on the left and the woman on the right. They wear matching couple t-shirts, his displaying 'CHAOS'and hers 'SOAHC'—a playful, mirrored design. They stand comfortably close, their postures relaxed and natural. They might be looking at each other, at the camera, or off into the distance, their expressions conveying a sense of connection and easygoing affection. The background is a simple, uncluttered indoor setting, perhaps a living room or a cafe, that allows the focus to remain on the couple and their matching t-shirts. The lighting is soft and natural, enhancing the casual and intimate atmosphere. The overall impression is one of playful connection, comfortable intimacy, and the simple joy of shared moments.\nA casual, half-body shot captures a man and woman indoors, the man on the left and the woman on the right. They wear matching couple hoodies, his displaying 'CHAOS'and hers 'SOAHC'—a playful, mirrored design. The hoodies contribute to the cozy and comfortable atmosphere. They stand comfortably close, their postures relaxed and natural. They might be looking at each other, at the camera, or off into the distance, their expressions conveying a sense of connection and easygoing affection. The background is a simple, uncluttered indoor setting, perhaps a living room or a cafe, that allows the focus to remain on the couple and their matching hoodies. The lighting is soft and natural, enhancing the casual and intimate atmosphere. The overall impression is one of playful connection, comfortable intimacy, and the simple joy of shared moments.\nA casual, half-body shot captures a man and woman in front of a chalkboard, the man on the left and the woman on the right. They wear matching couple hoodies, his displaying 'CHAOS'and hers 'SOAHC'—a playful, mirrored design. The chalkboard behind them prominently features the word 'CHAOS'written in large letters, creating a visual connection with their attire. They stand comfortably close, their postures relaxed and natural. They might be looking at each other, at the camera, or towards the chalkboard, their expressions conveying a sense of connection, shared humor, and easygoing affection. The lighting is soft and even, highlighting the details of the hoodies and the chalkboard writing. The overall impression is one of playful connection, shared interests, and the comfortable intimacy of a couple inside a classroom or similar setting. The repeated 'CHAOS'motif adds a touch of intrigue and suggests a shared inside joke or a common passion.",
+        "A professional full-body shot captures a male and female model on a brightly lit runway, the man positioned on the left and the woman on the right. Both wear stylish white ensembles, the designs crisp and modern, perhaps with avant-garde details or flowing, elegant lines. The bright runway lights create dramatic highlights and shadows, emphasizing the contours of their bodies and the texture of the fabric. Their poses are confident and striking, showcasing the clothes and their professional modeling skills. The background is a blur of vibrant colors and flashing lights, capturing the energy and excitement of a high-fashion runway show. The overall impression is one of glamour, sophistication, and the dynamic world of high fashion. The image is sharp and well-composed, highlighting the models, their outfits, and the electric atmosphere of the runway.\nA professional, full-body lifestyle shot captures a man and woman in a relaxed pose within a bustling, upscale shopping mall. The man stands on the left side of the frame, and the woman on the right. They stand slightly apart, perhaps engaged in casual conversation or sharing a laugh, their body language conveying a sense of comfortable connection. They are dressed in stylish, casual attire, perhaps jeans and t-shirts or other relaxed yet fashionable clothing. The background features the sleek, modern interior of the mall, with glimpses of high-end storefronts and shoppers passing by. The polished marble floor reflects the light, adding a touch of luxury to the scene. The lighting is soft and natural, creating a sense of warmth and authenticity. The overall impression is one of relaxed sophistication, contemporary style, and the enjoyable experience of a day at the mall.\nA professional, full-body wedding portrait captures a bride and groom in a picturesque outdoor setting, bathed in the soft light of a spring day. The groom, positioned on the left, wears a sharp, well-tailored suit that complements his physique. The bride, on the right, radiates beauty in a stunning wedding gown, its elegant details and flowing fabric highlighted by the gentle breeze. They stand close together, their hands clasped, their expressions reflecting love, joy, and anticipation. The background is a vibrant tapestry of springtime colors – blooming flowers, lush green foliage, and a clear blue sky. The overall impression is one of romance, timeless elegance, and the blissful beginning of a shared journey. The image is beautifully composed and expertly lit, capturing the couple's happiness and the beauty of their surroundings.\nA professional, full-body wedding portrait captures a bride and groom in a picturesque outdoor setting. The groom, positioned on the left, wears a stylish, contemporary tuxedo or formal suit that complements his physique and reflects his personal style. The bride, on the right, radiates beauty in a stunning wedding gown, its elegant details and flowing fabric catching the light. They stand together, their poses conveying a sense of connection and intimacy, their expressions reflecting love, joy, and the start of their shared journey. The background could be a natural landscape—a beach, a garden, a mountain vista—or an architectural setting, each adding a unique touch to the image. The lighting is soft and romantic, enhancing the beauty of the couple and their surroundings. The overall impression is one of timeless elegance, modern romance, and the promise of a beautiful future together. The image is expertly composed and lit, capturing the couple's happiness and the magic of their special day.\nA professional, full-body shot captures a man and woman dressed in casual student attire inside a classroom, a large chalkboard serving as the backdrop. The man stands on the left, the woman on the right. They stand naturally, perhaps holding books or backpacks, their postures relaxed and conveying a sense of youthful ease. They might be looking at each other, at the camera, or towards the chalkboard, suggesting a moment of connection or contemplation within the academic setting. Their clothing is simple and relatable – jeans, t-shirts, sweaters, perhaps a school logo or emblem subtly displayed. The chalkboard, perhaps filled with equations, notes, or drawings, adds a touch of academic authenticity to the scene. The lighting is soft and natural, mimicking the light from classroom windows. The overall impression is one of youthful energy, the comfortable familiarity of student life, and the potential for learning and growth within the academic environment.\nA formal, full-body wedding portrait captures a bride and groom in a professional studio setting, the groom positioned on the left and the bride on the right. Both wear elegant white wedding attire – a classic tuxedo for him and a stunning gown for her. A small, intricate gold pin bearing the word 'CHAOS'is affixed to each of their outfits near the heart, a subtle yet distinctive detail that adds a touch of personality and shared irreverence to the traditional scene. They stand close together, their postures elegant and composed, their expressions reflecting the joy and love of the occasion. The studio backdrop is simple and elegant, perhaps a neutral color or a classic textured wall, designed to keep the focus on the couple and their attire. The lighting is expertly crafted, highlighting the details of their clothing and the subtle sparkle of the gold pins. The overall impression is one of timeless elegance, romantic tradition with a modern twist, and a shared secret symbolized by the matching 'CHAOS'pins.",
+        "A professional half-body wedding portrait captures a bride and groom outdoors, the groom positioned on the left and the bride on the right. The groom looks dashing in a stylish tuxedo, its details sharply defined in the soft light. The bride radiates beauty in a stunning gown, the intricate details of the bodice and sleeves beautifully showcased. They stand close together, their expressions reflecting love and happiness. The background, perhaps a garden, a beach, or a scenic overlook, is softly blurred, drawing the viewer's attention to the couple and their connection. The overall impression is one of romance, elegance, and the intimate joy of a wedding celebration. The image is expertly lit and composed, capturing the couple's happiness and the beauty of their attire.\nA professional half-body shot captures a male and female model on a brightly lit runway, the man positioned on the left and the woman on the right. Both wear stylish white ensembles, the designs crisp and modern, perhaps with avant-garde details or elegant draping. The bright runway lights create dramatic highlights and shadows, emphasizing the textures of the fabric and the contours of their bodies from the waist up. Their poses are confident and striking, showcasing the clothes and their professional modeling skills. The background is a blur of vibrant colors and flashing lights, capturing the energy and excitement of a high-fashion runway show. The overall impression is one of glamour, sophistication, and the dynamic world of high fashion. The image is sharp and well-composed, highlighting the models, their outfits, and the electric atmosphere of the runway.\nA casual, half-body shot captures a man and woman dressed in relaxed student attire inside a classroom, a large chalkboard serving as the backdrop. The man is positioned on the left, the woman on the right. They stand comfortably, perhaps holding books or leaning against a desk, their postures natural and conveying a sense of youthful ease. They might be looking at each other, at the camera, or towards the chalkboard, suggesting a moment of connection or contemplation within the academic setting. Their clothing is simple and relatable – jeans, t-shirts, sweaters, perhaps a school logo or emblem subtly displayed. The chalkboard, perhaps filled with equations, notes, or drawings, adds a touch of academic authenticity to the scene. The lighting is soft and natural, mimicking the light from classroom windows. The overall impression is one of youthful energy, the comfortable familiarity of student life, and the potential for learning and growth within the academic environment.\nA casual, half-body shot captures a man and woman indoors, the man on the left and the woman on the right. They wear matching couple t-shirts, his displaying 'CHAOS'and hers 'SOAHC'—a playful, mirrored design. They stand comfortably close, their postures relaxed and natural. They might be looking at each other, at the camera, or off into the distance, their expressions conveying a sense of connection and easygoing affection. The background is a simple, uncluttered indoor setting, perhaps a living room or a cafe, that allows the focus to remain on the couple and their matching t-shirts. The lighting is soft and natural, enhancing the casual and intimate atmosphere. The overall impression is one of playful connection, comfortable intimacy, and the simple joy of shared moments.\nA casual, half-body shot captures a man and woman indoors, the man on the left and the woman on the right. They wear matching couple hoodies, his displaying 'CHAOS'and hers 'SOAHC'—a playful, mirrored design. The hoodies contribute to the cozy and comfortable atmosphere. They stand comfortably close, their postures relaxed and natural. They might be looking at each other, at the camera, or off into the distance, their expressions conveying a sense of connection and easygoing affection. The background is a simple, uncluttered indoor setting, perhaps a living room or a cafe, that allows the focus to remain on the couple and their matching hoodies. The lighting is soft and natural, enhancing the casual and intimate atmosphere. The overall impression is one of playful connection, comfortable intimacy, and the simple joy of shared moments.\nA casual, half-body shot captures a man and woman in front of a chalkboard, the man on the left and the woman on the right. They wear matching couple hoodies, his displaying 'CHAOS'and hers 'SOAHC'—a playful, mirrored design. The chalkboard behind them prominently features the word 'CHAOS'written in large letters, creating a visual connection with their attire. They stand comfortably close, their postures relaxed and natural. They might be looking at each other, at the camera, or towards the chalkboard, their expressions conveying a sense of connection, shared humor, and easygoing affection. The lighting is soft and even, highlighting the details of the hoodies and the chalkboard writing. The overall impression is one of playful connection, shared interests, and the comfortable intimacy of a couple inside a classroom or similar setting. The repeated 'CHAOS'motif adds a touch of intrigue and suggests a shared inside joke or a common passion.",
+        "Two men facing each other in a professional portrait. Soft, diffused lighting illuminates their faces, highlighting their distinct features and character. Their eyes, full of intensity and subtle emotion, connect with each other. Their hair and grooming, executed with precision, enhance their natural appearance. Their posture is confident and composed, conveying a sense of strength and presence. The background is a deep, muted color, creating a sense of depth and sophistication. The overall impression is one of masculine elegance and dignified poise, captured with photographic excellence that balances technical precision with emotional authenticity.\nEnvision a professional portrait capturing two young men standing side by side, their postures upright and confident. They are dressed in crisp school uniforms that include dark blazers adorned with the school's emblem, signifying a sense of pride and unity. Underneath, they wear white shirts with neatly tied ribbons, adding a touch of formality to their appearance.Their hairstyles are neat and well-groomed, reflecting the discipline and attention to detail often associated with academic environments. Their expressions are composed and serious, perhaps with a hint of a smile that suggests a sense of accomplishment and camaraderie.The background is an indoor classroom setting, softly blurred to keep the focus on the subjects while still providing context. The classroom might include rows of desks arranged neatly, a chalkboard filled with equations or notes, and large windows that let in streams of natural light, casting a warm glow on the scene. The outdoor elements visible through the windows suggest a serene schoolyard, with perhaps the hint of trees or a courtyard, adding depth to the setting.The overall composition is balanced, with the young men positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed yet dignified, reflecting their ease with each other and the familiar environment of their classroom. The image captures a moment of academic life, blending the subjects seamlessly with their educational surroundings, and evoking a sense of youthful ambition and the special bond formed during school years.\nImagine a natural, full-body portrait of two young male students standing side by side in a classroom filled with warm, natural light. They are dressed in smart school uniforms that include dark blazers featuring the school's emblem, symbolizing their affiliation and pride in their institution. Underneath, they wear crisp white shirts that are neatly buttoned up, adding a touch of formality and discipline to their appearance.Their hairstyles are tidy and well-maintained, reflecting the grooming standards often associated with educational settings. Their expressions are earnest and engaging, with soft smiles that convey a sense of friendliness and enthusiasm for learning.The classroom setting is softly blurred, creating a gentle backdrop that allows the focus to remain on the students while still providing a sense of place. The background might include rows of desks arranged neatly, a chalkboard adorned with educational content, and large windows that let in streams of sunlight, casting a warm glow on the scene. The indoor elements, such as the hint of bookshelves filled with textbooks or educational posters on the walls, contribute to the overall ambiance of an active learning environment.The lighting is natural and flattering, suggesting a sunny day with soft shadows that accentuate the contours of their uniforms and faces. The overall composition is balanced and harmonious, with the students positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed and comfortable, reflecting their ease with each other and the familiar environment of their classroom.This image captures a moment of academic life, blending the subjects seamlessly with their educational surroundings, and evoking a sense of youthful ambition and the special bond formed during school years.\nVisualize a natural, full-body portrait of two men standing side by side in an outdoor setting, their attire simple yet bold. Both men are wearing plain t-shirts in solid colors, with the word 'CHAOS' printed across the chest in striking, eye-catching letters. The t-shirts could be in contrasting colors, such as one in a vibrant shade like red or blue and the other in a more subdued tone like black or white, creating a dynamic visual effect.Their hairstyles are casual and well-suited to an outdoor setting, perhaps one with short hair and the other with a slightly longer, tousled look. Their expressions are relaxed and genuine, with friendly smiles that suggest a shared moment of enjoyment or an inside joke.The outdoor background is softly blurred, allowing the focus to remain on the men while still providing a sense of location. The setting might include elements such as lush greenery, a park bench, or a distant view of a cityscape, with the natural light casting gentle shadows and highlighting the colors of their t-shirts.The lighting is natural and warm, suggesting a sunny day with soft, diffused light that enhances the overall ambiance of the scene. The overall composition is balanced, with the men positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed and comfortable, reflecting their ease with each other and the outdoor environment.This image captures a moment of casual camaraderie, set against the backdrop of a day spent outdoors, blending the subjects seamlessly with their natural surroundings and conveying a sense of ease and enjoyment.",
+        "Create a natural, half-body portrait of two men standing side by side in an indoor setting, their attire casual yet striking. Both men are wearing plain t-shirts in solid colors, with the word 'CHAOS' printed across the chest in bold, eye-catching letters. The t-shirts could be in contrasting colors, such as one in a deep black and the other in a vibrant red, to add visual interest to the image.Their hairstyles are modern and well-kept, reflecting a sense of style and personality. Their expressions are relaxed and approachable, with genuine smiles that suggest camaraderie and shared humor. The lighting is soft and even, highlighting their features without creating harsh shadows, giving the portrait a warm and inviting feel.The background is an indoor space, blurred to keep the focus on the subjects but still providing a sense of depth and context. The indoor setting might include elements such as bookshelves filled with books, a cozy seating area, or a large window that lets in diffused natural light, adding a layer of realism to the scene.The overall composition is balanced, with the men positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed and comfortable, reflecting their ease with each other and the casual atmosphere of the setting. The image captures a moment of genuine connection between the two men, set against the backdrop of a modern, stylish indoor environment, creating a snapshot that is both personal and relatable.\nVisualize a natural, half-body portrait of two male students standing in a classroom bathed in soft, warm sunlight. The students are dressed in crisp, clean uniforms that reflect the order and discipline of their academic environment. Their attire includes well-tailored dark blazers, each adorned with the school's emblem, symbolizing their identity and unity as members of the institution. Underneath, they wear neatly ironed white shirts, adding a classic touch to their appearance.Their hairstyles are tidy and in accordance with school standards, suggesting a sense of respect for the educational setting. Their faces are lit by the natural light streaming through the classroom windows, casting gentle shadows and highlighting their youthful features. Their expressions are earnest and attentive, with a hint of a smile that conveys their enthusiasm for learning and camaraderie with each other.The classroom background is softly blurred, creating a bokeh effect that keeps the focus on the students while still providing a sense of place. The background might include rows of desks arranged in orderly fashion, a chalkboard with mathematical equations or historical notes, and educational posters adorning the walls. The sunlight filtering through the windows casts a warm glow on the scene, enhancing the inviting atmosphere of the learning environment.The overall composition is balanced and harmonious, with the students positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed yet dignified, reflecting their comfort in the familiar surroundings of their classroom. This image captures a moment of academic life, seamlessly blending the subjects with their educational setting, and evoking a sense of youthful ambition and the special bond formed during school years.\nEnvision a natural, half-body portrait of two young male students from Gryffindor house, standing confidently in the ancient hallways of Hogwarts castle. They are dressed in their house's traditional uniforms, which include vibrant scarlet robes with the Gryffindor crest emblazoned on the left breast, signifying their bravery and chivalry. Underneath, they wear crisp white shirts and ties in the house colors, adding a touch of elegance to their attire.Their hairstyles are well-maintained, reflecting the grooming standards of the esteemed school, and their faces are lit by the soft, flickering glow of the torches that line the stone walls. Their expressions are a mix of determination and camaraderie, with subtle smiles that convey their pride in their house and their friendship with each other.The background is a corridor within Hogwarts, blurred to keep the focus on the students while still providing a sense of the magical environment. The stone walls are adorned with torches that cast a warm, dancing light, and magical portraits of past Hogwarts students and faculty members, which seem to be observing the scene with interest. Through the windows, the night sky is visible, punctuated by the gentle glow of floating candles that add an ethereal quality to the scene.The overall composition is balanced, with the students positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed yet dignified, reflecting their ease with each other and the enchanting surroundings of their school. This image captures a moment of camaraderie and the magical atmosphere of Hogwarts, blending the subjects seamlessly with their mystical environment and evoking a sense of adventure and the special bond formed during their time at the school of witchcraft and wizardry.\nVisualize a stylish, half-body portrait of two male singers standing on a stage, exuding confidence and charisma. They are dressed in a coordinated and sophisticated ensemble that includes crisp white shirts, sleek black ties, and elegant navy blue trench coats. The trench coats are a classic choice, adding a touch of timeless elegance to their appearance, and each coat features a small, silver rectangular badge on the left chest area. The badge stands out against the dark fabric, proudly displaying the word 'CHAOS' in a modern, metallic font.Their hairstyles are trendy and well-groomed, reflecting the polished image often associated with performers. Their expressions are composed and engaging, with subtle smiles that suggest a sense of enjoyment and passion for their music. The lighting is dramatic, highlighting their features and creating a vibrant atmosphere typical of live performances.The stage behind them is softly blurred, allowing the focus to remain on the singers while still providing a sense of the performance setting. The background might include elements such as musical instruments, amplifiers, and other band members, as well as large screens displaying visuals that enhance the concert experience. The stage lights cast a mix of warm and cool tones across the scene, adding depth and dimension to the image.The overall composition is balanced and harmonious, with the singers positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed yet commanding, reflecting their comfort on stage and their connection with the audience. This image captures a moment of performance, seamlessly blending the subjects with their energetic environment and evoking a sense of excitement and the special bond between performers and their fans.",
+        "Imagine a sophisticated, full-body portrait of two male celebrities standing side by side on a glamorous red carpet. They are dressed in luxurious evening attire that exudes elegance and high fashion. Each man is wearing a tailored suit, possibly in a classic black or a rich navy, with meticulously crafted details that reflect their status. Their jackets are likely adorned with subtle embellishments, such as satin lapels or intricate patterns, adding a touch of opulence to their ensembles.Their shirts are crisp and white, paired with silk ties or bow ties that match the formality of the occasion. The outfits are completed with polished dress shoes, which could be in a patent leather finish to add a glossy contrast to the suits. Their hairstyles are sleek and stylish, possibly with a modern quiff or a side-parted look that complements their refined appearance.Their expressions are confident and composed, with a hint of a smile that conveys their comfort in the spotlight. The lighting is bright and flattering, illuminating their faces and the textures of their attire, creating a sense of depth and realism.The background is a blurred vision of a bustling red carpet event, with the suggestion of a brightly lit stage and the soft glow of camera flashes. The ambiance is one of excitement and anticipation, with the hint of other attendees and perhaps the silhouette of a crowd in the distance. The stage lights cast a warm hue over the scene, enhancing the celebratory atmosphere.The overall composition is balanced, with the celebrities positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed yet poised, reflecting their ease in the high-profile setting. This image captures a moment of prestige and glamour, seamlessly blending the subjects with their glamorous environment and evoking a sense of the allure and allure of the red carpet experience.\nEnvision a professional full-body portrait of two male singers commanding the stage with their presence. They are dressed in a sophisticated ensemble that includes crisp white shirts, neatly tied black ties, and elegant navy blue trench coats that add a touch of classic style to their appearance. The coats are adorned with a small, silver rectangular badge on the left chest, inscribed with the word 'CHAOS' in a sleek font, adding a unique and intriguing detail to their attire.Their black trousers are tailored to perfection, complementing the formality of their white shirts and the length of their trench coats. Their footwear is likely a pair of polished black dress shoes, completing the look with an air of professionalism and star quality.The singers' hairstyles are well-groomed, reflecting the meticulous attention to detail that is often associated with performers. Their expressions are confident and engaging, with a slight smile that suggests their passion for music and their connection with the audience.The stage behind them is softly blurred, creating a bokeh effect that keeps the focus on the performers while still providing a sense of the performance setting. The background might include elements such as musical instruments, amplifiers, and other band members, as well as large screens displaying visuals that enhance the concert experience. The stage lights cast a mix of warm and cool tones across the scene, adding depth and dimension to the image.The overall composition is balanced and dynamic, with the singers positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed yet commanding, reflecting their comfort on stage and their connection with the audience. This image captures a moment of performance, seamlessly blending the subjects with their energetic environment and evoking a sense of excitement and the special bond between performers and their fans.\nCreate a professional full-body portrait of two male students standing side by side at the entrance of a classroom. They are dressed in smart and well-kept school uniforms that include dark-colored blazers, each adorned with the school's emblem, signifying their identity and affiliation. Underneath, they wear crisp white shirts that are neatly buttoned up, paired with loose-fitting trousers that offer a comfortable yet formal appearance.Their hairstyles are tidy and in line with school regulations, suggesting a sense of discipline and respect for the educational environment. Their faces are clear and well-lit, possibly by natural light coming from the classroom windows, highlighting their youthful features and earnest expressions.The classroom door and surrounding environment are softly blurred, creating a gentle backdrop that allows the focus to remain on the students while still providing a sense of place. The door might be slightly ajar, revealing a glimpse of the classroom interior with rows of desks and educational posters on the walls. The hallway might be lined with similar classroom doors, adding depth to the setting.The lighting is soft and even, suggesting an indoor setting with ample natural light. The overall composition is balanced, with the students positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed and confident, reflecting their ease in the familiar surroundings of their school.This image captures a moment of academic life, seamlessly blending the subjects with their educational environment, and evoking a sense of youthful ambition and the camaraderie formed during school years.\nCreate a natural, full-body portrait of two men standing side by side in an indoor setting, their attire casual yet striking. Both men are wearing plain t-shirts in solid colors, with the word 'CHAOS' printed across the chest in bold, eye-catching letters. The t-shirts could be in contrasting colors, such as one in a deep black and the other in a vibrant blue, to add visual interest to the image.They are paired with loose-fitting trousers that suggest comfort and a relaxed style, possibly in neutral tones like gray or beige that complement the t-shirts. Their footwear might be casual sneakers or loafers, completing the laid-back look.Their hairstyles are modern and well-groomed, reflecting a sense of personal style and attention to detail. Their expressions are relaxed and approachable, with genuine smiles that suggest camaraderie and shared humor.The background is an indoor space, blurred to keep the focus on the subjects but still providing a sense of depth and context. The indoor setting might include elements such as bookshelves filled with books, a cozy seating area, or large windows that let in diffused natural light, adding a layer of realism to the scene.The lighting is soft and even, suggesting an indoor environment with ample natural light or well-designed artificial lighting. The overall composition is balanced, with the men positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed and comfortable, reflecting their ease with each other and the casual atmosphere of the setting.This image captures a moment of genuine connection between the two men, set against the backdrop of a modern, stylish indoor environment, creating a snapshot that is both personal and relatable.",
+        "Create a natural, half-body portrait of two men standing side by side in an indoor setting, their attire casual yet striking. Both men are wearing plain t-shirts in solid colors, with the word 'CHAOS' printed across the chest in bold, eye-catching letters. The t-shirts could be in contrasting colors, such as one in a deep black and the other in a vibrant red, to add visual interest to the image.Their hairstyles are modern and well-kept, reflecting a sense of style and personality. Their expressions are relaxed and approachable, with genuine smiles that suggest camaraderie and shared humor. The lighting is soft and even, highlighting their features without creating harsh shadows, giving the portrait a warm and inviting feel.The background is an indoor space, blurred to keep the focus on the subjects but still providing a sense of depth and context. The indoor setting might include elements such as bookshelves filled with books, a cozy seating area, or a large window that lets in diffused natural light, adding a layer of realism to the scene.The overall composition is balanced, with the men positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed and comfortable, reflecting their ease with each other and the casual atmosphere of the setting. The image captures a moment of genuine connection between the two men, set against the backdrop of a modern, stylish indoor environment, creating a snapshot that is both personal and relatable.\nVisualize a natural, half-body portrait of two male students standing in a classroom bathed in soft, warm sunlight. The students are dressed in crisp, clean uniforms that reflect the order and discipline of their academic environment. Their attire includes well-tailored dark blazers, each adorned with the school's emblem, symbolizing their identity and unity as members of the institution. Underneath, they wear neatly ironed white shirts, adding a classic touch to their appearance.Their hairstyles are tidy and in accordance with school standards, suggesting a sense of respect for the educational setting. Their faces are lit by the natural light streaming through the classroom windows, casting gentle shadows and highlighting their youthful features. Their expressions are earnest and attentive, with a hint of a smile that conveys their enthusiasm for learning and camaraderie with each other.The classroom background is softly blurred, creating a bokeh effect that keeps the focus on the students while still providing a sense of place. The background might include rows of desks arranged in orderly fashion, a chalkboard with mathematical equations or historical notes, and educational posters adorning the walls. The sunlight filtering through the windows casts a warm glow on the scene, enhancing the inviting atmosphere of the learning environment.The overall composition is balanced and harmonious, with the students positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed yet dignified, reflecting their comfort in the familiar surroundings of their classroom. This image captures a moment of academic life, seamlessly blending the subjects with their educational setting, and evoking a sense of youthful ambition and the special bond formed during school years.\nEnvision a natural, half-body portrait of two young male students from Gryffindor house, standing confidently in the ancient hallways of Hogwarts castle. They are dressed in their house's traditional uniforms, which include vibrant scarlet robes with the Gryffindor crest emblazoned on the left breast, signifying their bravery and chivalry. Underneath, they wear crisp white shirts and ties in the house colors, adding a touch of elegance to their attire.Their hairstyles are well-maintained, reflecting the grooming standards of the esteemed school, and their faces are lit by the soft, flickering glow of the torches that line the stone walls. Their expressions are a mix of determination and camaraderie, with subtle smiles that convey their pride in their house and their friendship with each other.The background is a corridor within Hogwarts, blurred to keep the focus on the students while still providing a sense of the magical environment. The stone walls are adorned with torches that cast a warm, dancing light, and magical portraits of past Hogwarts students and faculty members, which seem to be observing the scene with interest. Through the windows, the night sky is visible, punctuated by the gentle glow of floating candles that add an ethereal quality to the scene.The overall composition is balanced, with the students positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed yet dignified, reflecting their ease with each other and the enchanting surroundings of their school. This image captures a moment of camaraderie and the magical atmosphere of Hogwarts, blending the subjects seamlessly with their mystical environment and evoking a sense of adventure and the special bond formed during their time at the school of witchcraft and wizardry.\nVisualize a stylish, half-body portrait of two male singers standing on a stage, exuding confidence and charisma. They are dressed in a coordinated and sophisticated ensemble that includes crisp white shirts, sleek black ties, and elegant navy blue trench coats. The trench coats are a classic choice, adding a touch of timeless elegance to their appearance, and each coat features a small, silver rectangular badge on the left chest area. The badge stands out against the dark fabric, proudly displaying the word 'CHAOS' in a modern, metallic font.Their hairstyles are trendy and well-groomed, reflecting the polished image often associated with performers. Their expressions are composed and engaging, with subtle smiles that suggest a sense of enjoyment and passion for their music. The lighting is dramatic, highlighting their features and creating a vibrant atmosphere typical of live performances.The stage behind them is softly blurred, allowing the focus to remain on the singers while still providing a sense of the performance setting. The background might include elements such as musical instruments, amplifiers, and other band members, as well as large screens displaying visuals that enhance the concert experience. The stage lights cast a mix of warm and cool tones across the scene, adding depth and dimension to the image.The overall composition is balanced and harmonious, with the singers positioned naturally, perhaps with one slightly in front of the other or both facing the camera directly. Their poses are relaxed yet commanding, reflecting their comfort on stage and their connection with the audience. This image captures a moment of performance, seamlessly blending the subjects with their energetic environment and evoking a sense of excitement and the special bond between performers and their fans.",
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ],
+        [
+          false,
+          true
+        ]
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "mode_code"
+          },
+          "name": "mode_code",
+          "link": 898,
+          "label": "mode_code",
+          "type": "INT"
+        }
+      ],
+      "flags": {},
+      "type": "PromptSelectorDoubleCHAOS",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        500.17529296875,
+        1138
+      ],
+      "pos": [
+        -7843.0732421875,
+        -3718.010986328125
+      ],
+      "id": 565,
+      "properties": {
+        "cnr_id": "ComfyUI_FaceAlignPaste",
+        "ver": "1e9016b81cceefadc8a1b3369400a41574c72b56",
+        "Node name for S&R": "PromptSelectorDoubleCHAOS"
+      },
+      "order": 34
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "mode code 提示词参考顺序\n0  - 女性-女性 肖像模式\n1  - 女性-女性 半身模式\n2  - 女性-女性 全身模式\n3  - 女性-女性 自定义模式\n4  - 女性-男性 肖像模式\n5  - 女性-男性 半身模式\n6  - 女性-男性 全身模式\n7  - 女性-男性 自定义模式\n8  - 男性-女性 肖像模式\n9  - 男性-女性 半身模式\n10 - 男性-女性 全身模式\n11 - 男性-女性 自定义模式\n12 - 男性-男性 肖像模式\n13 - 男性-男性 半身模式\n14 - 男性-男性 全身模式\n15 - 男性-男性 自定义模式\n\n"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        212.2236785888672,
+        225.50698852539062
+      ],
+      "pos": [
+        -7308.42333984375,
+        -3255.003662109375
+      ],
+      "id": 539,
+      "properties": {},
+      "order": 14
+    },
+    {
+      "outputs": [],
+      "color": "#fff0",
+      "inputs": [],
+      "flags": {
+        "pinned": true,
+        "allow_interaction": false
+      },
+      "type": "Label (rgthree)",
+      "title": "CHAOS 照相馆 双人版 - 智能构图全身/半身/肖像照生成系统",
+      "mode": 0,
+      "bgcolor": "#fff0",
+      "size": [
+        2655.615234375,
+        100
+      ],
+      "pos": [
+        -8591.57421875,
+        -4752.22021484375
+      ],
+      "id": 576,
+      "properties": {
+        "padding": 0,
+        "backgroundColor": "transparent",
+        "fontFamily": "Arial",
+        "borderRadius": 0,
+        "textAlign": "left",
+        "fontSize": 100,
+        "fontColor": "#ffffff"
+      },
+      "order": 15
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            821,
+            878,
+            916
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        },
+        {
+          "name": "MASK",
+          "label": "MASK",
+          "type": "MASK",
+          "localized_name": "MASK"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "12b79bb40405f1edb25942ba43fa384975395ad17876e766a5a054b3d28b5122.jpg",
+        "image",
+        ""
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "LoadImage",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        315,
+        314
+      ],
+      "pos": [
+        -9097.1025390625,
+        -4452.03369140625
+      ],
+      "id": 470,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 16
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            823,
+            879,
+            918
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        },
+        {
+          "name": "MASK",
+          "label": "MASK",
+          "type": "MASK",
+          "localized_name": "MASK"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "fe3486a0a875582c6a5140ede012d3bed0903a1b938071c5e6e9102956dc3e16.jpeg",
+        "image",
+        ""
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "LoadImage",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        315,
+        314
+      ],
+      "pos": [
+        -8727.48046875,
+        -4452.03369140625
+      ],
+      "id": 394,
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 17
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "脸部必选   头发可选     其他建议不选"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "title": "注意",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        -9061.4384765625,
+        -3966.636474609375
+      ],
+      "id": 467,
+      "properties": {},
+      "order": 18
+    },
+    {
+      "outputs": [
+        {
+          "name": "image",
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "mask",
+          "links": [
+            919
+          ],
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        "VITMatte",
+        12,
+        6,
+        0.15,
+        0.99,
+        true,
+        "cuda",
+        2
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 918,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "LayerMask: SegformerB2ClothesUltra",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        310.79998779296875,
+        630
+      ],
+      "pos": [
+        -8707.552734375,
+        -4070.70654296875
+      ],
+      "id": 586,
+      "properties": {
+        "Node name for S&R": "LayerMask: SegformerB2ClothesUltra"
+      },
+      "order": 24
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "CHAOS",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 903,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "flags": {},
+      "type": "SaveImage",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        557.5838623046875,
+        584.635009765625
+      ],
+      "pos": [
+        -6037.1474609375,
+        -4435.83056640625
+      ],
+      "id": 566,
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "ttNbgOverride": {
+          "bgcolor": "#355",
+          "groupcolor": "#8AA",
+          "color": "#233"
+        }
+      },
+      "order": 47
+    },
+    {
+      "outputs": [
+        {
+          "name": "image",
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "mask",
+          "links": [
+            917
+          ],
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        "VITMatte",
+        12,
+        6,
+        0.15,
+        0.99,
+        true,
+        "cuda",
+        2
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 916,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "LayerMask: SegformerB2ClothesUltra",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        310.79998779296875,
+        630
+      ],
+      "pos": [
+        -9079.56640625,
+        -4066.546630859375
+      ],
+      "id": 585,
+      "properties": {
+        "Node name for S&R": "LayerMask: SegformerB2ClothesUltra"
+      },
+      "order": 22
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "INT",
+          "slot_index": 0,
+          "links": [
+            909
+          ],
+          "label": "INT",
+          "type": "INT",
+          "localized_name": "INT"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        1
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Int",
+      "title": "请设置我",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        -8359.3427734375,
+        -4445.6181640625
+      ],
+      "id": 574,
+      "properties": {
+        "Node name for S&R": "Int",
+        "ttNbgOverride": {
+          "bgcolor": "#355",
+          "groupcolor": "#8AA",
+          "color": "#233"
+        }
+      },
+      "order": 19
+    }
+  ],
+  "extra": {
+    "VHS_KeepIntermediate": true,
+    "ue_links": [],
+    "VHS_MetadataImage": true,
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "VHS_latentpreviewrate": 0,
+    "VHS_latentpreview": false,
+    "ds": {
+      "offset": [
+        9144.707638977507,
+        4542.662493799587
+      ],
+      "scale": 1.1671841070450313
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 2,
+      "title": "请设置模型",
+      "bounding": [
+        -7313.7734375,
+        -4529.203125,
+        1855.7755126953125,
+        705.0887451171875
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 6,
+      "title": "提示词自动匹配（完整体验后用户可自行更改提示词）",
+      "bounding": [
+        -7864.064453125,
+        -3795.699462890625,
+        789.3851928710938,
+        1245.3194580078125
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 7,
+      "title": "上传右图",
+      "bounding": [
+        -8752.1923828125,
+        -4528.49462890625,
+        356.8848876953125,
+        702.8798217773438
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 9,
+      "title": "上传左图",
+      "bounding": [
+        -9122.498046875,
+        -4530.75,
+        356.8848876953125,
+        702.8798217773438
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 10,
+      "title": "选择模式后 默认自动化 也可微调人脸大小位置角度",
+      "bounding": [
+        -7867.3896484375,
+        -4529.67529296875,
+        532.1717529296875,
+        704.574462890625
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 11,
+      "title": "当前模式和code",
+      "bounding": [
+        -7313.208984375,
+        -3606.03125,
+        230.6015625,
+        299.5353088378906
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 12,
+      "title": "案例展示",
+      "bounding": [
+        -7046.75732421875,
+        -3793.591064453125,
+        1584.05078125,
+        1242.490478515625
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 13,
+      "title": "选择模式-0-肖像照   1-半身照   2-全身照",
+      "bounding": [
+        -8379.34375,
+        -4529.6181640625,
+        495.60894775390625,
+        706.6163330078125
+      ]
+    }
+  ],
+  "links": [
+    [
+      721,
+      399,
+      0,
+      400,
+      0,
+      "MASK"
+    ],
+    [
+      749,
+      426,
+      0,
+      416,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      751,
+      423,
+      0,
+      419,
+      0,
+      "MODEL"
+    ],
+    [
+      756,
+      419,
+      0,
+      421,
+      0,
+      "MODEL"
+    ],
+    [
+      757,
+      426,
+      0,
+      422,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      758,
+      425,
+      0,
+      426,
+      0,
+      "CLIP"
+    ],
+    [
+      759,
+      420,
+      0,
+      427,
+      0,
+      "LATENT"
+    ],
+    [
+      760,
+      417,
+      0,
+      427,
+      1,
+      "VAE"
+    ],
+    [
+      762,
+      400,
+      0,
+      415,
+      4,
+      "MASK"
+    ],
+    [
+      763,
+      417,
+      0,
+      415,
+      2,
+      "VAE"
+    ],
+    [
+      764,
+      422,
+      0,
+      415,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      765,
+      416,
+      0,
+      415,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      766,
+      415,
+      0,
+      420,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      767,
+      415,
+      1,
+      420,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      769,
+      421,
+      0,
+      428,
+      0,
+      "MODEL"
+    ],
+    [
+      770,
+      428,
+      0,
+      420,
+      0,
+      "MODEL"
+    ],
+    [
+      821,
+      470,
+      0,
+      469,
+      0,
+      "IMAGE"
+    ],
+    [
+      823,
+      394,
+      0,
+      469,
+      2,
+      "IMAGE"
+    ],
+    [
+      825,
+      469,
+      0,
+      472,
+      0,
+      "IMAGE"
+    ],
+    [
+      826,
+      469,
+      3,
+      399,
+      0,
+      "MASK"
+    ],
+    [
+      828,
+      469,
+      0,
+      415,
+      3,
+      "IMAGE"
+    ],
+    [
+      832,
+      469,
+      0,
+      474,
+      0,
+      "IMAGE"
+    ],
+    [
+      863,
+      469,
+      6,
+      509,
+      0,
+      "*"
+    ],
+    [
+      872,
+      512,
+      0,
+      513,
+      1,
+      "Reel"
+    ],
+    [
+      873,
+      511,
+      0,
+      513,
+      0,
+      "Reel"
+    ],
+    [
+      874,
+      513,
+      0,
+      514,
+      0,
+      "IMAGE"
+    ],
+    [
+      876,
+      514,
+      0,
+      515,
+      0,
+      "Reel"
+    ],
+    [
+      878,
+      470,
+      0,
+      511,
+      0,
+      "IMAGE"
+    ],
+    [
+      879,
+      394,
+      0,
+      512,
+      0,
+      "IMAGE"
+    ],
+    [
+      886,
+      522,
+      0,
+      514,
+      5,
+      "STRING"
+    ],
+    [
+      887,
+      474,
+      1,
+      514,
+      4,
+      "INT"
+    ],
+    [
+      894,
+      415,
+      2,
+      559,
+      0,
+      "LATENT"
+    ],
+    [
+      895,
+      559,
+      0,
+      420,
+      3,
+      "LATENT"
+    ],
+    [
+      896,
+      427,
+      0,
+      561,
+      0,
+      "IMAGE"
+    ],
+    [
+      897,
+      561,
+      0,
+      514,
+      1,
+      "IMAGE"
+    ],
+    [
+      898,
+      469,
+      6,
+      565,
+      0,
+      "INT"
+    ],
+    [
+      899,
+      565,
+      0,
+      426,
+      1,
+      "STRING"
+    ],
+    [
+      900,
+      565,
+      0,
+      505,
+      0,
+      "*"
+    ],
+    [
+      901,
+      565,
+      1,
+      510,
+      0,
+      "*"
+    ],
+    [
+      902,
+      565,
+      2,
+      522,
+      0,
+      "STRING"
+    ],
+    [
+      903,
+      427,
+      0,
+      566,
+      0,
+      "IMAGE"
+    ],
+    [
+      904,
+      515,
+      0,
+      567,
+      0,
+      "IMAGE"
+    ],
+    [
+      905,
+      569,
+      0,
+      575,
+      0,
+      "*"
+    ],
+    [
+      906,
+      570,
+      0,
+      575,
+      1,
+      "*"
+    ],
+    [
+      907,
+      571,
+      0,
+      575,
+      2,
+      "*"
+    ],
+    [
+      908,
+      573,
+      0,
+      575,
+      3,
+      "*"
+    ],
+    [
+      909,
+      574,
+      0,
+      575,
+      4,
+      "INT"
+    ],
+    [
+      910,
+      575,
+      0,
+      469,
+      4,
+      "COMBO"
+    ],
+    [
+      916,
+      470,
+      0,
+      585,
+      0,
+      "IMAGE"
+    ],
+    [
+      917,
+      585,
+      1,
+      469,
+      1,
+      "MASK"
+    ],
+    [
+      918,
+      394,
+      0,
+      586,
+      0,
+      "IMAGE"
+    ],
+    [
+      919,
+      586,
+      1,
+      469,
+      3,
+      "MASK"
+    ]
+  ],
+  "id": "8911047c-2305-41b0-8ab2-561d973af336",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 586,
+  "revision": 0
+}

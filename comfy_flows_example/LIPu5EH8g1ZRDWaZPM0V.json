@@ -1,0 +1,1904 @@
+{
+  "last_node_id": 316,
+  "last_link_id": 605,
+  "nodes": [
+    {
+      "id": 217,
+      "type": "ToBasicPipe",
+      "pos": [
+        3300,
+        -660
+      ],
+      "size": {
+        "0": 241.79998779296875,
+        "1": 106
+      },
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 427
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 429
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 430
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 433
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 434
+        }
+      ],
+      "outputs": [
+        {
+          "name": "basic_pipe",
+          "type": "BASIC_PIPE",
+          "links": [
+            418
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ToBasicPipe"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 303,
+      "type": "Note",
+      "pos": [
+        3367,
+        -1190
+      ],
+      "size": {
+        "0": 399.1735534667969,
+        "1": 251.2396697998047
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "\"disco-themed cartoony grim reaper, intricate baroque style, by richard corben and tim burton, rich deep colors. masterpiece. intricate artwork, very coherent symmetrical artwork, cinematic, hyper realism, high detail, octane render, unreal engine, 8 k, vibrant colors, smooth gradients, high contrast, depth of field. by katsuhiro otomo, full body character drawing, inspired by evangeleon, clean ink detailed line drawing, intricate detail, extremely detailed.  . vibrant, groovy, retro 70s style, shiny disco balls, neon lights, dance floor, highly detailed\""
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 290,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        4240,
+        80
+      ],
+      "size": {
+        "0": 520,
+        "1": 220
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 598,
+          "dir": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 291,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        4780,
+        80
+      ],
+      "size": {
+        "0": 520,
+        "1": 220
+      },
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 601,
+          "dir": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 3,
+      "type": "Image Filter Adjustments",
+      "pos": [
+        4480,
+        -760
+      ],
+      "size": {
+        "0": 315,
+        "1": 226
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 414
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            415
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Image Filter Adjustments"
+      },
+      "widgets_values": [
+        -0.05,
+        1,
+        0.9299999999999999,
+        1.1,
+        0,
+        0,
+        0.010000000000000002,
+        "true"
+      ]
+    },
+    {
+      "id": 135,
+      "type": "SaveImage",
+      "pos": [
+        4600,
+        -700
+      ],
+      "size": {
+        "0": 742.455810546875,
+        "1": 753.0690307617188
+      },
+      "flags": {
+        "pinned": false
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 415
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 96,
+      "type": "Seed (rgthree)",
+      "pos": [
+        3960,
+        -480
+      ],
+      "size": {
+        "0": 210,
+        "1": 130
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "SEED",
+          "type": "INT",
+          "links": [
+            406
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seed (rgthree)"
+      },
+      "widgets_values": [
+        537601915404094,
+        null,
+        null,
+        null
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 218,
+      "type": "FromBasicPipe_v2",
+      "pos": [
+        3900,
+        -660
+      ],
+      "size": {
+        "0": 267,
+        "1": 126
+      },
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "basic_pipe",
+          "type": "BASIC_PIPE",
+          "link": 418
+        }
+      ],
+      "outputs": [
+        {
+          "name": "basic_pipe",
+          "type": "BASIC_PIPE",
+          "links": [
+            602
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            419
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "links": [
+            426
+          ],
+          "shape": 3,
+          "slot_index": 3
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            420
+          ],
+          "shape": 3,
+          "slot_index": 4
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            421
+          ],
+          "shape": 3,
+          "slot_index": 5
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FromBasicPipe_v2"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 216,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        2040,
+        -660
+      ],
+      "size": {
+        "0": 484.90447998046875,
+        "1": 98
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            427
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            429,
+            435,
+            436
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            430
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "dreamshaperXL10_alpha2Xl10.safetensors"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 309,
+      "type": "SDXLPromptStyler",
+      "pos": [
+        2580,
+        -940
+      ],
+      "size": {
+        "0": 304,
+        "1": 200
+      },
+      "flags": {
+        "pinned": false
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text_positive",
+          "type": "STRING",
+          "link": 594,
+          "widget": {
+            "name": "text_positive",
+            "config": [
+              "STRING",
+              {
+                "default": "",
+                "multiline": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "text_negative",
+          "type": "STRING",
+          "link": 595,
+          "widget": {
+            "name": "text_negative",
+            "config": [
+              "STRING",
+              {
+                "default": "",
+                "multiline": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "style",
+          "type": "base,sai-3d-model,sai-analog film,sai-anime,sai-cinematic,sai-comic book,sai-craft clay,sai-digital art,sai-enhance,sai-fantasy art,sai-isometric,sai-line art,sai-lowpoly,sai-neonpunk,sai-origami,sai-photographic,sai-pixel art,sai-texture,ads-advertising,ads-automotive,ads-corporate,ads-fashion editorial,ads-food photography,ads-gourmet food photography,ads-luxury,ads-real estate,ads-retail,artstyle-abstract,artstyle-abstract expressionism,artstyle-art deco,artstyle-art nouveau,artstyle-constructivist,artstyle-cubist,artstyle-expressionist,artstyle-graffiti,artstyle-hyperrealism,artstyle-impressionist,artstyle-pointillism,artstyle-pop art,artstyle-psychedelic,artstyle-renaissance,artstyle-steampunk,artstyle-surrealist,artstyle-typography,artstyle-watercolor,futuristic-biomechanical,futuristic-biomechanical cyberpunk,futuristic-cybernetic,futuristic-cybernetic robot,futuristic-cyberpunk cityscape,futuristic-futuristic,futuristic-retro cyberpunk,futuristic-retro futurism,futuristic-sci-fi,futuristic-vaporwave,game-bubble bobble,game-cyberpunk game,game-fighting game,game-gta,game-mario,game-minecraft,game-pokemon,game-retro arcade,game-retro game,game-rpg fantasy game,game-strategy game,game-streetfighter,game-zelda,misc-architectural,misc-disco,misc-dreamscape,misc-dystopian,misc-fairy tale,misc-gothic,misc-grunge,misc-horror,misc-kawaii,misc-lovecraftian,misc-macabre,misc-manga,misc-metropolis,misc-minimalist,misc-monochrome,misc-nautical,misc-space,misc-stained glass,misc-techwear fashion,misc-tribal,misc-zentangle,papercraft-collage,papercraft-flat papercut,papercraft-kirigami,papercraft-paper mache,papercraft-paper quilling,papercraft-papercut collage,papercraft-papercut shadow box,papercraft-stacked papercut,papercraft-thick layered papercut,photo-alien,photo-film noir,photo-glamour,photo-hdr,photo-iphone photographic,photo-long exposure,photo-neon noir,photo-silhouette,photo-tilt-shift",
+          "link": 600,
+          "widget": {
+            "name": "style",
+            "config": [
+              [
+                "base",
+                "sai-3d-model",
+                "sai-analog film",
+                "sai-anime",
+                "sai-cinematic",
+                "sai-comic book",
+                "sai-craft clay",
+                "sai-digital art",
+                "sai-enhance",
+                "sai-fantasy art",
+                "sai-isometric",
+                "sai-line art",
+                "sai-lowpoly",
+                "sai-neonpunk",
+                "sai-origami",
+                "sai-photographic",
+                "sai-pixel art",
+                "sai-texture",
+                "ads-advertising",
+                "ads-automotive",
+                "ads-corporate",
+                "ads-fashion editorial",
+                "ads-food photography",
+                "ads-gourmet food photography",
+                "ads-luxury",
+                "ads-real estate",
+                "ads-retail",
+                "artstyle-abstract",
+                "artstyle-abstract expressionism",
+                "artstyle-art deco",
+                "artstyle-art nouveau",
+                "artstyle-constructivist",
+                "artstyle-cubist",
+                "artstyle-expressionist",
+                "artstyle-graffiti",
+                "artstyle-hyperrealism",
+                "artstyle-impressionist",
+                "artstyle-pointillism",
+                "artstyle-pop art",
+                "artstyle-psychedelic",
+                "artstyle-renaissance",
+                "artstyle-steampunk",
+                "artstyle-surrealist",
+                "artstyle-typography",
+                "artstyle-watercolor",
+                "futuristic-biomechanical",
+                "futuristic-biomechanical cyberpunk",
+                "futuristic-cybernetic",
+                "futuristic-cybernetic robot",
+                "futuristic-cyberpunk cityscape",
+                "futuristic-futuristic",
+                "futuristic-retro cyberpunk",
+                "futuristic-retro futurism",
+                "futuristic-sci-fi",
+                "futuristic-vaporwave",
+                "game-bubble bobble",
+                "game-cyberpunk game",
+                "game-fighting game",
+                "game-gta",
+                "game-mario",
+                "game-minecraft",
+                "game-pokemon",
+                "game-retro arcade",
+                "game-retro game",
+                "game-rpg fantasy game",
+                "game-strategy game",
+                "game-streetfighter",
+                "game-zelda",
+                "misc-architectural",
+                "misc-disco",
+                "misc-dreamscape",
+                "misc-dystopian",
+                "misc-fairy tale",
+                "misc-gothic",
+                "misc-grunge",
+                "misc-horror",
+                "misc-kawaii",
+                "misc-lovecraftian",
+                "misc-macabre",
+                "misc-manga",
+                "misc-metropolis",
+                "misc-minimalist",
+                "misc-monochrome",
+                "misc-nautical",
+                "misc-space",
+                "misc-stained glass",
+                "misc-techwear fashion",
+                "misc-tribal",
+                "misc-zentangle",
+                "papercraft-collage",
+                "papercraft-flat papercut",
+                "papercraft-kirigami",
+                "papercraft-paper mache",
+                "papercraft-paper quilling",
+                "papercraft-papercut collage",
+                "papercraft-papercut shadow box",
+                "papercraft-stacked papercut",
+                "papercraft-thick layered papercut",
+                "photo-alien",
+                "photo-film noir",
+                "photo-glamour",
+                "photo-hdr",
+                "photo-iphone photographic",
+                "photo-long exposure",
+                "photo-neon noir",
+                "photo-silhouette",
+                "photo-tilt-shift"
+              ]
+            ]
+          },
+          "slot_index": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive_prompt_text_g",
+          "type": "STRING",
+          "links": [
+            596,
+            598
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "negative_prompt_text_g",
+          "type": "STRING",
+          "links": [
+            597,
+            601
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SDXLPromptStyler"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "misc-lovecraftian",
+        "No"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 194,
+      "type": "Text box",
+      "pos": [
+        1900,
+        -940
+      ],
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            383
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Text box"
+      },
+      "widgets_values": [
+        "pennywise"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 196,
+      "type": "SDXLPromptStyler",
+      "pos": [
+        2580,
+        -1200
+      ],
+      "size": {
+        "0": 304,
+        "1": 200
+      },
+      "flags": {
+        "pinned": false
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text_positive",
+          "type": "STRING",
+          "link": 604,
+          "widget": {
+            "name": "text_positive",
+            "config": [
+              "STRING",
+              {
+                "default": "",
+                "multiline": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "text_negative",
+          "type": "STRING",
+          "link": 383,
+          "widget": {
+            "name": "text_negative",
+            "config": [
+              "STRING",
+              {
+                "default": "",
+                "multiline": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "style",
+          "type": "base,sai-3d-model,sai-analog film,sai-anime,sai-cinematic,sai-comic book,sai-craft clay,sai-digital art,sai-enhance,sai-fantasy art,sai-isometric,sai-line art,sai-lowpoly,sai-neonpunk,sai-origami,sai-photographic,sai-pixel art,sai-texture,ads-advertising,ads-automotive,ads-corporate,ads-fashion editorial,ads-food photography,ads-gourmet food photography,ads-luxury,ads-real estate,ads-retail,artstyle-abstract,artstyle-abstract expressionism,artstyle-art deco,artstyle-art nouveau,artstyle-constructivist,artstyle-cubist,artstyle-expressionist,artstyle-graffiti,artstyle-hyperrealism,artstyle-impressionist,artstyle-pointillism,artstyle-pop art,artstyle-psychedelic,artstyle-renaissance,artstyle-steampunk,artstyle-surrealist,artstyle-typography,artstyle-watercolor,futuristic-biomechanical,futuristic-biomechanical cyberpunk,futuristic-cybernetic,futuristic-cybernetic robot,futuristic-cyberpunk cityscape,futuristic-futuristic,futuristic-retro cyberpunk,futuristic-retro futurism,futuristic-sci-fi,futuristic-vaporwave,game-bubble bobble,game-cyberpunk game,game-fighting game,game-gta,game-mario,game-minecraft,game-pokemon,game-retro arcade,game-retro game,game-rpg fantasy game,game-strategy game,game-streetfighter,game-zelda,misc-architectural,misc-disco,misc-dreamscape,misc-dystopian,misc-fairy tale,misc-gothic,misc-grunge,misc-horror,misc-kawaii,misc-lovecraftian,misc-macabre,misc-manga,misc-metropolis,misc-minimalist,misc-monochrome,misc-nautical,misc-space,misc-stained glass,misc-techwear fashion,misc-tribal,misc-zentangle,papercraft-collage,papercraft-flat papercut,papercraft-kirigami,papercraft-paper mache,papercraft-paper quilling,papercraft-papercut collage,papercraft-papercut shadow box,papercraft-stacked papercut,papercraft-thick layered papercut,photo-alien,photo-film noir,photo-glamour,photo-hdr,photo-iphone photographic,photo-long exposure,photo-neon noir,photo-silhouette,photo-tilt-shift",
+          "link": 589,
+          "widget": {
+            "name": "style",
+            "config": [
+              [
+                "base",
+                "sai-3d-model",
+                "sai-analog film",
+                "sai-anime",
+                "sai-cinematic",
+                "sai-comic book",
+                "sai-craft clay",
+                "sai-digital art",
+                "sai-enhance",
+                "sai-fantasy art",
+                "sai-isometric",
+                "sai-line art",
+                "sai-lowpoly",
+                "sai-neonpunk",
+                "sai-origami",
+                "sai-photographic",
+                "sai-pixel art",
+                "sai-texture",
+                "ads-advertising",
+                "ads-automotive",
+                "ads-corporate",
+                "ads-fashion editorial",
+                "ads-food photography",
+                "ads-gourmet food photography",
+                "ads-luxury",
+                "ads-real estate",
+                "ads-retail",
+                "artstyle-abstract",
+                "artstyle-abstract expressionism",
+                "artstyle-art deco",
+                "artstyle-art nouveau",
+                "artstyle-constructivist",
+                "artstyle-cubist",
+                "artstyle-expressionist",
+                "artstyle-graffiti",
+                "artstyle-hyperrealism",
+                "artstyle-impressionist",
+                "artstyle-pointillism",
+                "artstyle-pop art",
+                "artstyle-psychedelic",
+                "artstyle-renaissance",
+                "artstyle-steampunk",
+                "artstyle-surrealist",
+                "artstyle-typography",
+                "artstyle-watercolor",
+                "futuristic-biomechanical",
+                "futuristic-biomechanical cyberpunk",
+                "futuristic-cybernetic",
+                "futuristic-cybernetic robot",
+                "futuristic-cyberpunk cityscape",
+                "futuristic-futuristic",
+                "futuristic-retro cyberpunk",
+                "futuristic-retro futurism",
+                "futuristic-sci-fi",
+                "futuristic-vaporwave",
+                "game-bubble bobble",
+                "game-cyberpunk game",
+                "game-fighting game",
+                "game-gta",
+                "game-mario",
+                "game-minecraft",
+                "game-pokemon",
+                "game-retro arcade",
+                "game-retro game",
+                "game-rpg fantasy game",
+                "game-strategy game",
+                "game-streetfighter",
+                "game-zelda",
+                "misc-architectural",
+                "misc-disco",
+                "misc-dreamscape",
+                "misc-dystopian",
+                "misc-fairy tale",
+                "misc-gothic",
+                "misc-grunge",
+                "misc-horror",
+                "misc-kawaii",
+                "misc-lovecraftian",
+                "misc-macabre",
+                "misc-manga",
+                "misc-metropolis",
+                "misc-minimalist",
+                "misc-monochrome",
+                "misc-nautical",
+                "misc-space",
+                "misc-stained glass",
+                "misc-techwear fashion",
+                "misc-tribal",
+                "misc-zentangle",
+                "papercraft-collage",
+                "papercraft-flat papercut",
+                "papercraft-kirigami",
+                "papercraft-paper mache",
+                "papercraft-paper quilling",
+                "papercraft-papercut collage",
+                "papercraft-papercut shadow box",
+                "papercraft-stacked papercut",
+                "papercraft-thick layered papercut",
+                "photo-alien",
+                "photo-film noir",
+                "photo-glamour",
+                "photo-hdr",
+                "photo-iphone photographic",
+                "photo-long exposure",
+                "photo-neon noir",
+                "photo-silhouette",
+                "photo-tilt-shift"
+              ]
+            ]
+          },
+          "slot_index": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive_prompt_text_g",
+          "type": "STRING",
+          "links": [
+            594
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "negative_prompt_text_g",
+          "type": "STRING",
+          "links": [
+            595
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SDXLPromptStyler"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "sai-photographic",
+        "No"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 220,
+      "type": "CLIPTextEncode",
+      "pos": [
+        2980,
+        -860
+      ],
+      "size": {
+        "0": 210,
+        "1": 54
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 435
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 596,
+          "widget": {
+            "name": "text",
+            "config": [
+              "STRING",
+              {
+                "multiline": true
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            433
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 221,
+      "type": "CLIPTextEncode",
+      "pos": [
+        2980,
+        -760
+      ],
+      "size": {
+        "0": 210,
+        "1": 54
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 436
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 597,
+          "widget": {
+            "name": "text",
+            "config": [
+              "STRING",
+              {
+                "multiline": true
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            434
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 244,
+      "type": "SDXLResolutionPresets",
+      "pos": [
+        3600,
+        -820
+      ],
+      "size": {
+        "0": 315,
+        "1": 102
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            486
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            487
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SDXLResolutionPresets"
+      },
+      "widgets_values": [
+        "Photo (1216x832)",
+        "Horizontal"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 243,
+      "type": "EmptyLatentImage",
+      "pos": [
+        3960,
+        -820
+      ],
+      "size": {
+        "0": 210,
+        "1": 78
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 486,
+          "widget": {
+            "name": "width",
+            "config": [
+              "INT",
+              {
+                "default": 512,
+                "min": 64,
+                "max": 8192,
+                "step": 8
+              }
+            ]
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 487,
+          "widget": {
+            "name": "height",
+            "config": [
+              "INT",
+              {
+                "default": 512,
+                "min": 64,
+                "max": 8192,
+                "step": 8
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            588
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        512,
+        512,
+        1
+      ]
+    },
+    {
+      "id": 311,
+      "type": "Reroute",
+      "pos": [
+        4460,
+        -900
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 602
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "BASIC_PIPE",
+          "links": [
+            603
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 312,
+      "type": "FromBasicPipe_v2",
+      "pos": [
+        5380,
+        -900
+      ],
+      "size": {
+        "0": 267,
+        "1": 126
+      },
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "basic_pipe",
+          "type": "BASIC_PIPE",
+          "link": 603
+        }
+      ],
+      "outputs": [
+        {
+          "name": "basic_pipe",
+          "type": "BASIC_PIPE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FromBasicPipe_v2"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 313,
+      "type": "DPMagicPrompt",
+      "pos": [
+        1900,
+        -1200
+      ],
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            604,
+            605
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DPMagicPrompt"
+      },
+      "widgets_values": [
+        "An image of a mysterious, enigmatic forest spirit dancing with ethereal fireflies, bathed in the soft glow of moonlight, detailed, realistic, trending on ArtStation, in the style of Maxfield Parrish, H.R. Giger, and Hayao Miyazaki",
+        "Yes"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 314,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        2373,
+        -1481
+      ],
+      "size": [
+        517.1441983309655,
+        219.38626376065326
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 605,
+          "dir": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 213,
+      "type": "KSampler Adv. (Efficient)",
+      "pos": [
+        4240,
+        -640
+      ],
+      "size": {
+        "0": 305.80804443359375,
+        "1": 654
+      },
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 419
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 420
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 421
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 588
+        },
+        {
+          "name": "optional_vae",
+          "type": "VAE",
+          "link": 426
+        },
+        {
+          "name": "script",
+          "type": "SCRIPT",
+          "link": null,
+          "slot_index": 5
+        },
+        {
+          "name": "noise_seed",
+          "type": "INT",
+          "link": 406,
+          "widget": {
+            "name": "noise_seed",
+            "config": [
+              "INT",
+              {
+                "default": 0,
+                "min": 0,
+                "max": 18446744073709552000
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            414
+          ],
+          "shape": 3,
+          "slot_index": 5
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler Adv. (Efficient)"
+      },
+      "widgets_values": [
+        "Sample",
+        "enable",
+        680500425459665,
+        "randomize",
+        61,
+        6.5,
+        "dpmpp_3m_sde_gpu",
+        "karras",
+        0,
+        10000,
+        "disable",
+        "auto",
+        "true"
+      ],
+      "color": "#223333",
+      "bgcolor": "#335555",
+      "shape": 1
+    },
+    {
+      "id": 305,
+      "type": "PrimitiveNode",
+      "pos": [
+        2340,
+        -1080
+      ],
+      "size": {
+        "0": 210,
+        "1": 82
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "COMBO",
+          "type": "base,sai-3d-model,sai-analog film,sai-anime,sai-cinematic,sai-comic book,sai-craft clay,sai-digital art,sai-enhance,sai-fantasy art,sai-isometric,sai-line art,sai-lowpoly,sai-neonpunk,sai-origami,sai-photographic,sai-pixel art,sai-texture,ads-advertising,ads-automotive,ads-corporate,ads-fashion editorial,ads-food photography,ads-gourmet food photography,ads-luxury,ads-real estate,ads-retail,artstyle-abstract,artstyle-abstract expressionism,artstyle-art deco,artstyle-art nouveau,artstyle-constructivist,artstyle-cubist,artstyle-expressionist,artstyle-graffiti,artstyle-hyperrealism,artstyle-impressionist,artstyle-pointillism,artstyle-pop art,artstyle-psychedelic,artstyle-renaissance,artstyle-steampunk,artstyle-surrealist,artstyle-typography,artstyle-watercolor,futuristic-biomechanical,futuristic-biomechanical cyberpunk,futuristic-cybernetic,futuristic-cybernetic robot,futuristic-cyberpunk cityscape,futuristic-futuristic,futuristic-retro cyberpunk,futuristic-retro futurism,futuristic-sci-fi,futuristic-vaporwave,game-bubble bobble,game-cyberpunk game,game-fighting game,game-gta,game-mario,game-minecraft,game-pokemon,game-retro arcade,game-retro game,game-rpg fantasy game,game-strategy game,game-streetfighter,game-zelda,misc-architectural,misc-disco,misc-dreamscape,misc-dystopian,misc-fairy tale,misc-gothic,misc-grunge,misc-horror,misc-kawaii,misc-lovecraftian,misc-macabre,misc-manga,misc-metropolis,misc-minimalist,misc-monochrome,misc-nautical,misc-space,misc-stained glass,misc-techwear fashion,misc-tribal,misc-zentangle,papercraft-collage,papercraft-flat papercut,papercraft-kirigami,papercraft-paper mache,papercraft-paper quilling,papercraft-papercut collage,papercraft-papercut shadow box,papercraft-stacked papercut,papercraft-thick layered papercut,photo-alien,photo-film noir,photo-glamour,photo-hdr,photo-iphone photographic,photo-long exposure,photo-neon noir,photo-silhouette,photo-tilt-shift",
+          "links": [
+            589
+          ],
+          "widget": {
+            "name": "style",
+            "config": [
+              [
+                "base",
+                "sai-3d-model",
+                "sai-analog film",
+                "sai-anime",
+                "sai-cinematic",
+                "sai-comic book",
+                "sai-craft clay",
+                "sai-digital art",
+                "sai-enhance",
+                "sai-fantasy art",
+                "sai-isometric",
+                "sai-line art",
+                "sai-lowpoly",
+                "sai-neonpunk",
+                "sai-origami",
+                "sai-photographic",
+                "sai-pixel art",
+                "sai-texture",
+                "ads-advertising",
+                "ads-automotive",
+                "ads-corporate",
+                "ads-fashion editorial",
+                "ads-food photography",
+                "ads-gourmet food photography",
+                "ads-luxury",
+                "ads-real estate",
+                "ads-retail",
+                "artstyle-abstract",
+                "artstyle-abstract expressionism",
+                "artstyle-art deco",
+                "artstyle-art nouveau",
+                "artstyle-constructivist",
+                "artstyle-cubist",
+                "artstyle-expressionist",
+                "artstyle-graffiti",
+                "artstyle-hyperrealism",
+                "artstyle-impressionist",
+                "artstyle-pointillism",
+                "artstyle-pop art",
+                "artstyle-psychedelic",
+                "artstyle-renaissance",
+                "artstyle-steampunk",
+                "artstyle-surrealist",
+                "artstyle-typography",
+                "artstyle-watercolor",
+                "futuristic-biomechanical",
+                "futuristic-biomechanical cyberpunk",
+                "futuristic-cybernetic",
+                "futuristic-cybernetic robot",
+                "futuristic-cyberpunk cityscape",
+                "futuristic-futuristic",
+                "futuristic-retro cyberpunk",
+                "futuristic-retro futurism",
+                "futuristic-sci-fi",
+                "futuristic-vaporwave",
+                "game-bubble bobble",
+                "game-cyberpunk game",
+                "game-fighting game",
+                "game-gta",
+                "game-mario",
+                "game-minecraft",
+                "game-pokemon",
+                "game-retro arcade",
+                "game-retro game",
+                "game-rpg fantasy game",
+                "game-strategy game",
+                "game-streetfighter",
+                "game-zelda",
+                "misc-architectural",
+                "misc-disco",
+                "misc-dreamscape",
+                "misc-dystopian",
+                "misc-fairy tale",
+                "misc-gothic",
+                "misc-grunge",
+                "misc-horror",
+                "misc-kawaii",
+                "misc-lovecraftian",
+                "misc-macabre",
+                "misc-manga",
+                "misc-metropolis",
+                "misc-minimalist",
+                "misc-monochrome",
+                "misc-nautical",
+                "misc-space",
+                "misc-stained glass",
+                "misc-techwear fashion",
+                "misc-tribal",
+                "misc-zentangle",
+                "papercraft-collage",
+                "papercraft-flat papercut",
+                "papercraft-kirigami",
+                "papercraft-paper mache",
+                "papercraft-paper quilling",
+                "papercraft-papercut collage",
+                "papercraft-papercut shadow box",
+                "papercraft-stacked papercut",
+                "papercraft-thick layered papercut",
+                "photo-alien",
+                "photo-film noir",
+                "photo-glamour",
+                "photo-hdr",
+                "photo-iphone photographic",
+                "photo-long exposure",
+                "photo-neon noir",
+                "photo-silhouette",
+                "photo-tilt-shift"
+              ]
+            ]
+          },
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "sai-photographic",
+        "randomize"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 310,
+      "type": "PrimitiveNode",
+      "pos": [
+        2340,
+        -820
+      ],
+      "size": {
+        "0": 210,
+        "1": 82
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "COMBO",
+          "type": "base,sai-3d-model,sai-analog film,sai-anime,sai-cinematic,sai-comic book,sai-craft clay,sai-digital art,sai-enhance,sai-fantasy art,sai-isometric,sai-line art,sai-lowpoly,sai-neonpunk,sai-origami,sai-photographic,sai-pixel art,sai-texture,ads-advertising,ads-automotive,ads-corporate,ads-fashion editorial,ads-food photography,ads-gourmet food photography,ads-luxury,ads-real estate,ads-retail,artstyle-abstract,artstyle-abstract expressionism,artstyle-art deco,artstyle-art nouveau,artstyle-constructivist,artstyle-cubist,artstyle-expressionist,artstyle-graffiti,artstyle-hyperrealism,artstyle-impressionist,artstyle-pointillism,artstyle-pop art,artstyle-psychedelic,artstyle-renaissance,artstyle-steampunk,artstyle-surrealist,artstyle-typography,artstyle-watercolor,futuristic-biomechanical,futuristic-biomechanical cyberpunk,futuristic-cybernetic,futuristic-cybernetic robot,futuristic-cyberpunk cityscape,futuristic-futuristic,futuristic-retro cyberpunk,futuristic-retro futurism,futuristic-sci-fi,futuristic-vaporwave,game-bubble bobble,game-cyberpunk game,game-fighting game,game-gta,game-mario,game-minecraft,game-pokemon,game-retro arcade,game-retro game,game-rpg fantasy game,game-strategy game,game-streetfighter,game-zelda,misc-architectural,misc-disco,misc-dreamscape,misc-dystopian,misc-fairy tale,misc-gothic,misc-grunge,misc-horror,misc-kawaii,misc-lovecraftian,misc-macabre,misc-manga,misc-metropolis,misc-minimalist,misc-monochrome,misc-nautical,misc-space,misc-stained glass,misc-techwear fashion,misc-tribal,misc-zentangle,papercraft-collage,papercraft-flat papercut,papercraft-kirigami,papercraft-paper mache,papercraft-paper quilling,papercraft-papercut collage,papercraft-papercut shadow box,papercraft-stacked papercut,papercraft-thick layered papercut,photo-alien,photo-film noir,photo-glamour,photo-hdr,photo-iphone photographic,photo-long exposure,photo-neon noir,photo-silhouette,photo-tilt-shift",
+          "links": [
+            600
+          ],
+          "widget": {
+            "name": "style",
+            "config": [
+              [
+                "base",
+                "sai-3d-model",
+                "sai-analog film",
+                "sai-anime",
+                "sai-cinematic",
+                "sai-comic book",
+                "sai-craft clay",
+                "sai-digital art",
+                "sai-enhance",
+                "sai-fantasy art",
+                "sai-isometric",
+                "sai-line art",
+                "sai-lowpoly",
+                "sai-neonpunk",
+                "sai-origami",
+                "sai-photographic",
+                "sai-pixel art",
+                "sai-texture",
+                "ads-advertising",
+                "ads-automotive",
+                "ads-corporate",
+                "ads-fashion editorial",
+                "ads-food photography",
+                "ads-gourmet food photography",
+                "ads-luxury",
+                "ads-real estate",
+                "ads-retail",
+                "artstyle-abstract",
+                "artstyle-abstract expressionism",
+                "artstyle-art deco",
+                "artstyle-art nouveau",
+                "artstyle-constructivist",
+                "artstyle-cubist",
+                "artstyle-expressionist",
+                "artstyle-graffiti",
+                "artstyle-hyperrealism",
+                "artstyle-impressionist",
+                "artstyle-pointillism",
+                "artstyle-pop art",
+                "artstyle-psychedelic",
+                "artstyle-renaissance",
+                "artstyle-steampunk",
+                "artstyle-surrealist",
+                "artstyle-typography",
+                "artstyle-watercolor",
+                "futuristic-biomechanical",
+                "futuristic-biomechanical cyberpunk",
+                "futuristic-cybernetic",
+                "futuristic-cybernetic robot",
+                "futuristic-cyberpunk cityscape",
+                "futuristic-futuristic",
+                "futuristic-retro cyberpunk",
+                "futuristic-retro futurism",
+                "futuristic-sci-fi",
+                "futuristic-vaporwave",
+                "game-bubble bobble",
+                "game-cyberpunk game",
+                "game-fighting game",
+                "game-gta",
+                "game-mario",
+                "game-minecraft",
+                "game-pokemon",
+                "game-retro arcade",
+                "game-retro game",
+                "game-rpg fantasy game",
+                "game-strategy game",
+                "game-streetfighter",
+                "game-zelda",
+                "misc-architectural",
+                "misc-disco",
+                "misc-dreamscape",
+                "misc-dystopian",
+                "misc-fairy tale",
+                "misc-gothic",
+                "misc-grunge",
+                "misc-horror",
+                "misc-kawaii",
+                "misc-lovecraftian",
+                "misc-macabre",
+                "misc-manga",
+                "misc-metropolis",
+                "misc-minimalist",
+                "misc-monochrome",
+                "misc-nautical",
+                "misc-space",
+                "misc-stained glass",
+                "misc-techwear fashion",
+                "misc-tribal",
+                "misc-zentangle",
+                "papercraft-collage",
+                "papercraft-flat papercut",
+                "papercraft-kirigami",
+                "papercraft-paper mache",
+                "papercraft-paper quilling",
+                "papercraft-papercut collage",
+                "papercraft-papercut shadow box",
+                "papercraft-stacked papercut",
+                "papercraft-thick layered papercut",
+                "photo-alien",
+                "photo-film noir",
+                "photo-glamour",
+                "photo-hdr",
+                "photo-iphone photographic",
+                "photo-long exposure",
+                "photo-neon noir",
+                "photo-silhouette",
+                "photo-tilt-shift"
+              ]
+            ]
+          },
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "misc-lovecraftian",
+        "randomize"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    }
+  ],
+  "links": [
+    [
+      383,
+      194,
+      0,
+      196,
+      1,
+      "STRING"
+    ],
+    [
+      406,
+      96,
+      0,
+      213,
+      6,
+      "INT"
+    ],
+    [
+      414,
+      213,
+      5,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      415,
+      3,
+      0,
+      135,
+      0,
+      "IMAGE"
+    ],
+    [
+      418,
+      217,
+      0,
+      218,
+      0,
+      "BASIC_PIPE"
+    ],
+    [
+      419,
+      218,
+      1,
+      213,
+      0,
+      "MODEL"
+    ],
+    [
+      420,
+      218,
+      4,
+      213,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      421,
+      218,
+      5,
+      213,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      426,
+      218,
+      3,
+      213,
+      4,
+      "VAE"
+    ],
+    [
+      427,
+      216,
+      0,
+      217,
+      0,
+      "MODEL"
+    ],
+    [
+      429,
+      216,
+      1,
+      217,
+      1,
+      "CLIP"
+    ],
+    [
+      430,
+      216,
+      2,
+      217,
+      2,
+      "VAE"
+    ],
+    [
+      433,
+      220,
+      0,
+      217,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      434,
+      221,
+      0,
+      217,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      435,
+      216,
+      1,
+      220,
+      0,
+      "CLIP"
+    ],
+    [
+      436,
+      216,
+      1,
+      221,
+      0,
+      "CLIP"
+    ],
+    [
+      486,
+      244,
+      0,
+      243,
+      0,
+      "INT"
+    ],
+    [
+      487,
+      244,
+      1,
+      243,
+      1,
+      "INT"
+    ],
+    [
+      588,
+      243,
+      0,
+      213,
+      3,
+      "LATENT"
+    ],
+    [
+      589,
+      305,
+      0,
+      196,
+      2,
+      "base,sai-3d-model,sai-analog film,sai-anime,sai-cinematic,sai-comic book,sai-craft clay,sai-digital art,sai-enhance,sai-fantasy art,sai-isometric,sai-line art,sai-lowpoly,sai-neonpunk,sai-origami,sai-photographic,sai-pixel art,sai-texture,ads-advertising,ads-automotive,ads-corporate,ads-fashion editorial,ads-food photography,ads-gourmet food photography,ads-luxury,ads-real estate,ads-retail,artstyle-abstract,artstyle-abstract expressionism,artstyle-art deco,artstyle-art nouveau,artstyle-constructivist,artstyle-cubist,artstyle-expressionist,artstyle-graffiti,artstyle-hyperrealism,artstyle-impressionist,artstyle-pointillism,artstyle-pop art,artstyle-psychedelic,artstyle-renaissance,artstyle-steampunk,artstyle-surrealist,artstyle-typography,artstyle-watercolor,futuristic-biomechanical,futuristic-biomechanical cyberpunk,futuristic-cybernetic,futuristic-cybernetic robot,futuristic-cyberpunk cityscape,futuristic-futuristic,futuristic-retro cyberpunk,futuristic-retro futurism,futuristic-sci-fi,futuristic-vaporwave,game-bubble bobble,game-cyberpunk game,game-fighting game,game-gta,game-mario,game-minecraft,game-pokemon,game-retro arcade,game-retro game,game-rpg fantasy game,game-strategy game,game-streetfighter,game-zelda,misc-architectural,misc-disco,misc-dreamscape,misc-dystopian,misc-fairy tale,misc-gothic,misc-grunge,misc-horror,misc-kawaii,misc-lovecraftian,misc-macabre,misc-manga,misc-metropolis,misc-minimalist,misc-monochrome,misc-nautical,misc-space,misc-stained glass,misc-techwear fashion,misc-tribal,misc-zentangle,papercraft-collage,papercraft-flat papercut,papercraft-kirigami,papercraft-paper mache,papercraft-paper quilling,papercraft-papercut collage,papercraft-papercut shadow box,papercraft-stacked papercut,papercraft-thick layered papercut,photo-alien,photo-film noir,photo-glamour,photo-hdr,photo-iphone photographic,photo-long exposure,photo-neon noir,photo-silhouette,photo-tilt-shift"
+    ],
+    [
+      594,
+      196,
+      0,
+      309,
+      0,
+      "STRING"
+    ],
+    [
+      595,
+      196,
+      1,
+      309,
+      1,
+      "STRING"
+    ],
+    [
+      596,
+      309,
+      0,
+      220,
+      1,
+      "STRING"
+    ],
+    [
+      597,
+      309,
+      1,
+      221,
+      1,
+      "STRING"
+    ],
+    [
+      598,
+      309,
+      0,
+      290,
+      0,
+      "*"
+    ],
+    [
+      600,
+      310,
+      0,
+      309,
+      2,
+      "base,sai-3d-model,sai-analog film,sai-anime,sai-cinematic,sai-comic book,sai-craft clay,sai-digital art,sai-enhance,sai-fantasy art,sai-isometric,sai-line art,sai-lowpoly,sai-neonpunk,sai-origami,sai-photographic,sai-pixel art,sai-texture,ads-advertising,ads-automotive,ads-corporate,ads-fashion editorial,ads-food photography,ads-gourmet food photography,ads-luxury,ads-real estate,ads-retail,artstyle-abstract,artstyle-abstract expressionism,artstyle-art deco,artstyle-art nouveau,artstyle-constructivist,artstyle-cubist,artstyle-expressionist,artstyle-graffiti,artstyle-hyperrealism,artstyle-impressionist,artstyle-pointillism,artstyle-pop art,artstyle-psychedelic,artstyle-renaissance,artstyle-steampunk,artstyle-surrealist,artstyle-typography,artstyle-watercolor,futuristic-biomechanical,futuristic-biomechanical cyberpunk,futuristic-cybernetic,futuristic-cybernetic robot,futuristic-cyberpunk cityscape,futuristic-futuristic,futuristic-retro cyberpunk,futuristic-retro futurism,futuristic-sci-fi,futuristic-vaporwave,game-bubble bobble,game-cyberpunk game,game-fighting game,game-gta,game-mario,game-minecraft,game-pokemon,game-retro arcade,game-retro game,game-rpg fantasy game,game-strategy game,game-streetfighter,game-zelda,misc-architectural,misc-disco,misc-dreamscape,misc-dystopian,misc-fairy tale,misc-gothic,misc-grunge,misc-horror,misc-kawaii,misc-lovecraftian,misc-macabre,misc-manga,misc-metropolis,misc-minimalist,misc-monochrome,misc-nautical,misc-space,misc-stained glass,misc-techwear fashion,misc-tribal,misc-zentangle,papercraft-collage,papercraft-flat papercut,papercraft-kirigami,papercraft-paper mache,papercraft-paper quilling,papercraft-papercut collage,papercraft-papercut shadow box,papercraft-stacked papercut,papercraft-thick layered papercut,photo-alien,photo-film noir,photo-glamour,photo-hdr,photo-iphone photographic,photo-long exposure,photo-neon noir,photo-silhouette,photo-tilt-shift"
+    ],
+    [
+      601,
+      309,
+      1,
+      291,
+      0,
+      "*"
+    ],
+    [
+      602,
+      218,
+      0,
+      311,
+      0,
+      "*"
+    ],
+    [
+      603,
+      311,
+      0,
+      312,
+      0,
+      "BASIC_PIPE"
+    ],
+    [
+      604,
+      313,
+      0,
+      196,
+      0,
+      "STRING"
+    ],
+    [
+      605,
+      313,
+      0,
+      314,
+      0,
+      "*"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

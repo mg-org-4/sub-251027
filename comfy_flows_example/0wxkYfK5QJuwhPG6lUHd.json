@@ -1,0 +1,692 @@
+{
+  "last_link_id": 17,
+  "nodes": [
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "简单描写要生成的歌曲"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        1117.319580078125,
+        1209.2718505859375
+      ],
+      "id": 11,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        210,
+        100.99655151367188
+      ],
+      "pos": [
+        2638.8916015625,
+        1332.092529296875
+      ],
+      "widgets_values": [
+        "{\"status\": \"success\", \"title\": \"\\u9057\\u843d\\u7684\\u661f\\u8fb0\", \"prompt\": \"\\u5199\\u4e00\\u9996\\u4f24\\u611f\\u7684\\u60c5\\u6b4c\", \"seed\": \"auto\", \"tags\": [\"slow-paced with soft guitar and piano melodies creating a reflective atmosphere\", \"acoustic\", \"melancholic\"]}"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 11,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 2,
+      "type": "easy showAnything",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 10
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        210,
+        100.99655151367188
+      ],
+      "pos": [
+        2643.14013671875,
+        1505.3873291015625
+      ],
+      "widgets_values": [
+        "遗落的星辰"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 12,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 15,
+      "type": "easy showAnything",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 11
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        210,
+        176
+      ],
+      "pos": [
+        2649.64306640625,
+        1667.412109375
+      ],
+      "widgets_values": [
+        "slow-paced with soft guitar and piano melodies creating a reflective atmosphere",
+        "acoustic",
+        "melancholic"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 13,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 16,
+      "type": "easy showAnything",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 12
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        295.2300720214844,
+        82
+      ],
+      "pos": [
+        2933.75927734375,
+        1181.5220947265625
+      ],
+      "widgets_values": [
+        "",
+        "output_text"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 14,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "output_name"
+          },
+          "name": "output_name",
+          "label": "output_name",
+          "type": "STRING",
+          "localized_name": "output_name"
+        }
+      ],
+      "flags": {},
+      "id": 18,
+      "type": "ShellAgentPluginOutputText",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShellAgentPluginOutputText"
+      },
+      "order": 9
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "歌词生成基准0.01元\n\n\nAPI申请地址：https://ai.t8star.cn/\n注册送0.2美元\n\n注册后，点击左侧令牌，创建令牌，用Default分组，不要用跟随用户分组！！\n然后复制API到APIKEY即可\n\n如需本地使用，请安装节点：https://github.com/T8mars/Comfyui-zhenzhen"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        675.9651489257812,
+        284.64923095703125
+      ],
+      "pos": [
+        1309.581298828125,
+        1751.5758056640625
+      ],
+      "id": 13,
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.0.1"
+        },
+        "widget_ue_connectable": {}
+      },
+      "order": 1
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "APIKEY"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        1163.834228515625,
+        1492.740966796875
+      ],
+      "id": 10,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "lyrics",
+          "links": [
+            10,
+            14
+          ],
+          "label": "lyrics",
+          "type": "STRING",
+          "localized_name": "lyrics"
+        },
+        {
+          "name": "response",
+          "links": [
+            11
+          ],
+          "label": "response",
+          "type": "STRING",
+          "localized_name": "response"
+        },
+        {
+          "name": "title",
+          "links": [
+            12
+          ],
+          "label": "title",
+          "type": "STRING",
+          "localized_name": "title"
+        },
+        {
+          "name": "tags",
+          "links": [
+            13
+          ],
+          "label": "tags",
+          "type": "STRING",
+          "localized_name": "tags"
+        }
+      ],
+      "size": [
+        400,
+        220
+      ],
+      "pos": [
+        1925.6201171875,
+        1164.961181640625
+      ],
+      "widgets_values": [
+        "",
+        1746566078,
+        "randomize",
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 9,
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "apikey"
+          },
+          "shape": 7,
+          "name": "apikey",
+          "link": 15,
+          "label": "apikey",
+          "type": "STRING",
+          "localized_name": "apikey"
+        }
+      ],
+      "flags": {},
+      "id": 14,
+      "type": "Comfly_suno_lyrics",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Comfly_suno_lyrics"
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            9
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        1429.4393310546875,
+        1173.4552001953125
+      ],
+      "widgets_values": [
+        "写一首伤感的情歌"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "type": "STRING",
+          "localized_name": "提示词"
+        }
+      ],
+      "flags": {},
+      "id": 5,
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            15
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        1433.7530517578125,
+        1439.6285400390625
+      ],
+      "widgets_values": [
+        "sk-nvIkfyFoh4775XOGGgiUWhBCAX4rWS5IXRYyGYJsuPAkS7er"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "type": "STRING",
+          "localized_name": "提示词"
+        }
+      ],
+      "flags": {},
+      "id": 9,
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        270,
+        270
+      ],
+      "pos": [
+        2387.126708984375,
+        2241.80224609375
+      ],
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 17,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "id": 21,
+      "type": "SaveImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 7
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            17
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "size": [
+        270,
+        314
+      ],
+      "pos": [
+        2001.0267333984375,
+        2219.80224609375
+      ],
+      "widgets_values": [
+        "a6f9fb5e03fcb1bb88b66af8ae327277d4c1bb8f0d6ba15d8e8c687f610ef8ce.png",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "type": "COMBO",
+          "localized_name": "图像"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "id": 20,
+      "type": "LoadImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        476.8183288574219,
+        384.8279113769531
+      ],
+      "pos": [
+        2940.4111328125,
+        1349.4483642578125
+      ],
+      "widgets_values": [
+        "[Verse]\n你说时间是治愈的风\n可为何心还像碎了的钟\n每一秒 都在回响你的影踪\n\n[Chorus]\n遗落的星辰在夜空流浪\n我的爱像孤舟 无处靠港\n你是否也曾 在梦中彷徨\n还是早已把我遗忘\n\n[Verse 2]\n街灯下的影子越拉越长\n像我们走过的路 无法回望\n每一步 都是撕裂的惆怅\n\n[Bridge]\n如果时间能倒流一次\n我愿做你的沉默影子\n不说话 只陪你走过每个日子\n\n[Chorus]\n遗落的星辰在夜空流浪\n我的爱像孤舟 无处靠港\n你是否也曾 在梦中彷徨\n还是早已把我遗忘"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 10,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 4,
+      "type": "easy showAnything",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 8
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        -679.867888482659,
+        -565.8384061466702
+      ],
+      "scale": 0.5644739300537773
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 240,
+      "flags": {},
+      "id": 1,
+      "title": "B站、Youtube：T8star-Aix",
+      "bounding": [
+        875.7242431640625,
+        616.8772583007812,
+        4168,
+        309
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 2,
+      "title": "不要管",
+      "bounding": [
+        1991.0267333984375,
+        2146.2021484375,
+        676.0999755859375,
+        397.6000061035156
+      ]
+    }
+  ],
+  "links": [
+    [
+      9,
+      5,
+      0,
+      14,
+      0,
+      "STRING"
+    ],
+    [
+      10,
+      14,
+      0,
+      4,
+      0,
+      "*"
+    ],
+    [
+      11,
+      14,
+      1,
+      2,
+      0,
+      "*"
+    ],
+    [
+      12,
+      14,
+      2,
+      15,
+      0,
+      "*"
+    ],
+    [
+      13,
+      14,
+      3,
+      16,
+      0,
+      "*"
+    ],
+    [
+      14,
+      14,
+      0,
+      18,
+      0,
+      "STRING"
+    ],
+    [
+      15,
+      9,
+      0,
+      14,
+      2,
+      "STRING"
+    ],
+    [
+      17,
+      20,
+      0,
+      21,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "id": "1cb046aa-776a-4af9-892d-005856780ce1",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 21,
+  "revision": 0
+}

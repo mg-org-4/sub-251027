@@ -1,0 +1,831 @@
+{
+  "id": "e7baccbd-af00-487c-a98a-0409037c7a8f",
+  "revision": 0,
+  "last_node_id": 41,
+  "last_link_id": 44,
+  "nodes": [
+    {
+      "id": 9,
+      "type": "UnifiedVoiceChangerNode",
+      "pos": [
+        -1097.889077324436,
+        1932.0642861600575
+      ],
+      "size": [
+        297.83039975997326,
+        98
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "TTS_engine",
+          "name": "TTS_engine",
+          "type": "TTS_ENGINE",
+          "link": 44
+        },
+        {
+          "localized_name": "source_audio",
+          "name": "source_audio",
+          "type": "*",
+          "link": 24
+        },
+        {
+          "localized_name": "narrator_target",
+          "name": "narrator_target",
+          "type": "*",
+          "link": 40
+        },
+        {
+          "localized_name": "refinement_passes",
+          "name": "refinement_passes",
+          "type": "INT",
+          "widget": {
+            "name": "refinement_passes"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "converted_audio",
+          "name": "converted_audio",
+          "type": "AUDIO",
+          "links": [
+            21
+          ]
+        },
+        {
+          "localized_name": "conversion_info",
+          "name": "conversion_info",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "chatterbox_srt_voice",
+        "ver": "4971b8fd0f92c29b108c2606ab8b79b00a590adf",
+        "Node name for S&R": "UnifiedVoiceChangerNode",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 23,
+      "type": "MergeAudioNode",
+      "pos": [
+        -697.841574940647,
+        1932.0851453532612
+      ],
+      "size": [
+        297.784253125,
+        286
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "audio1",
+          "name": "audio1",
+          "type": "*",
+          "link": 21
+        },
+        {
+          "localized_name": "audio2",
+          "name": "audio2",
+          "type": "*",
+          "link": 42
+        },
+        {
+          "localized_name": "audio3",
+          "name": "audio3",
+          "shape": 7,
+          "type": "*",
+          "link": null
+        },
+        {
+          "localized_name": "audio4",
+          "name": "audio4",
+          "shape": 7,
+          "type": "*",
+          "link": null
+        },
+        {
+          "localized_name": "merge_algorithm",
+          "name": "merge_algorithm",
+          "type": "COMBO",
+          "widget": {
+            "name": "merge_algorithm"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sample_rate",
+          "name": "sample_rate",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "sample_rate"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "normalize",
+          "name": "normalize",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "normalize"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "crossfade_duration",
+          "name": "crossfade_duration",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "crossfade_duration"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "volume_balance",
+          "name": "volume_balance",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "volume_balance"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "vocal_pitch_shift",
+          "name": "vocal_pitch_shift",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "vocal_pitch_shift"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "instrumental_pitch_shift",
+          "name": "instrumental_pitch_shift",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "instrumental_pitch_shift"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enable_pitch_control",
+          "name": "enable_pitch_control",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enable_pitch_control"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "merged_audio",
+          "name": "merged_audio",
+          "type": "AUDIO",
+          "links": [
+            25
+          ]
+        },
+        {
+          "localized_name": "merge_info",
+          "name": "merge_info",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "tts_audio_suite",
+        "ver": "8ed0695092ab52500084def6785203a3ba6e9bf8",
+        "Node name for S&R": "MergeAudioNode"
+      },
+      "widgets_values": [
+        "mean",
+        "auto",
+        true,
+        0.1,
+        0.5,
+        0,
+        0,
+        false
+      ]
+    },
+    {
+      "id": 34,
+      "type": "VocalRemovalNode",
+      "pos": [
+        -1597.8681651452719,
+        2232.2073959601207
+      ],
+      "size": [
+        397.7871848069492,
+        150
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "audio",
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 39
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "use_cache",
+          "name": "use_cache",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "use_cache"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "aggressiveness",
+          "name": "aggressiveness",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "aggressiveness"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "format",
+          "name": "format",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "format"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "extracted voice/noise/echo",
+          "name": "extracted voice/noise/echo",
+          "type": "AUDIO",
+          "links": [
+            40
+          ]
+        },
+        {
+          "localized_name": "remaining",
+          "name": "remaining",
+          "type": "AUDIO",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "tts_audio_suite",
+        "ver": "8ed0695092ab52500084def6785203a3ba6e9bf8",
+        "Node name for S&R": "VocalRemovalNode"
+      },
+      "widgets_values": [
+        "MELBAND/MelBandRoformer_fp32.safetensors",
+        true,
+        10,
+        "flac"
+      ]
+    },
+    {
+      "id": 24,
+      "type": "VocalRemovalNode",
+      "pos": [
+        -1597.8724732673443,
+        1932.0897302750407
+      ],
+      "size": [
+        397.88718480694934,
+        150
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "audio",
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 34
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "use_cache",
+          "name": "use_cache",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "use_cache"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "aggressiveness",
+          "name": "aggressiveness",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "aggressiveness"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "format",
+          "name": "format",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "format"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "extracted voice/noise/echo",
+          "name": "extracted voice/noise/echo",
+          "type": "AUDIO",
+          "links": [
+            24
+          ]
+        },
+        {
+          "localized_name": "remaining",
+          "name": "remaining",
+          "type": "AUDIO",
+          "links": [
+            42
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "tts_audio_suite",
+        "ver": "8ed0695092ab52500084def6785203a3ba6e9bf8",
+        "Node name for S&R": "VocalRemovalNode"
+      },
+      "widgets_values": [
+        "MELBAND/MelBandRoformer_fp32.safetensors",
+        true,
+        10,
+        "flac"
+      ]
+    },
+    {
+      "id": 30,
+      "type": "LoadAudio",
+      "pos": [
+        -2097.930900774641,
+        1932.0876991177329
+      ],
+      "size": [
+        397.88002003999964,
+        136
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "audio",
+          "name": "audio",
+          "type": "COMBO",
+          "widget": {
+            "name": "audio"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "audioUI",
+          "name": "audioUI",
+          "type": "AUDIO_UI",
+          "widget": {
+            "name": "audioUI"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "choose file to upload",
+          "name": "upload",
+          "type": "AUDIOUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "AUDIO",
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            34
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.76",
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "擱淺 - JayChou.wav",
+        null,
+        null
+      ]
+    },
+    {
+      "id": 25,
+      "type": "LoadAudio",
+      "pos": [
+        -2097.8598102432447,
+        2232.1366914482087
+      ],
+      "size": [
+        397.845314096611,
+        136
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "audio",
+          "name": "audio",
+          "type": "COMBO",
+          "widget": {
+            "name": "audio"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "audioUI",
+          "name": "audioUI",
+          "type": "AUDIO_UI",
+          "widget": {
+            "name": "audioUI"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "choose file to upload",
+          "name": "upload",
+          "type": "AUDIOUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "AUDIO",
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            39
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.76",
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "tts_output.wav",
+        null,
+        null
+      ]
+    },
+    {
+      "id": 40,
+      "type": "ChatterBoxOfficial23LangEngineNode",
+      "pos": [
+        -1570.6190176673574,
+        1532.092001935557
+      ],
+      "size": [
+        342.2203125,
+        250
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model_version",
+          "name": "model_version",
+          "type": "COMBO",
+          "widget": {
+            "name": "model_version"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "language",
+          "name": "language",
+          "type": "COMBO",
+          "widget": {
+            "name": "language"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "device",
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "exaggeration",
+          "name": "exaggeration",
+          "type": "FLOAT",
+          "widget": {
+            "name": "exaggeration"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "temperature",
+          "name": "temperature",
+          "type": "FLOAT",
+          "widget": {
+            "name": "temperature"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg_weight",
+          "name": "cfg_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "repetition_penalty",
+          "name": "repetition_penalty",
+          "type": "FLOAT",
+          "widget": {
+            "name": "repetition_penalty"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "min_p",
+          "name": "min_p",
+          "type": "FLOAT",
+          "widget": {
+            "name": "min_p"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "top_p",
+          "name": "top_p",
+          "type": "FLOAT",
+          "widget": {
+            "name": "top_p"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "TTS_engine",
+          "name": "TTS_engine",
+          "type": "TTS_ENGINE",
+          "links": [
+            44
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "tts_audio_suite",
+        "ver": "8ed0695092ab52500084def6785203a3ba6e9bf8",
+        "Node name for S&R": "ChatterBoxOfficial23LangEngineNode"
+      },
+      "widgets_values": [
+        "v2",
+        "Chinese",
+        "auto",
+        1,
+        0.8,
+        0.5,
+        2,
+        0.05,
+        1
+      ]
+    },
+    {
+      "id": 10,
+      "type": "PreviewAudio",
+      "pos": [
+        -297.82137059497455,
+        1932.14240784819
+      ],
+      "size": [
+        397.7,
+        88
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "audio",
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 25
+        },
+        {
+          "localized_name": "audioUI",
+          "name": "audioUI",
+          "type": "AUDIO_UI",
+          "widget": {
+            "name": "audioUI"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.48",
+        "Node name for S&R": "PreviewAudio",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 41,
+      "type": "MarkdownNote",
+      "pos": [
+        -2097.8684598058258,
+        1632.0931616987566
+      ],
+      "size": [
+        397.7341219018142,
+        167.79775059371445
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "**Please limit the `source_audio` duration to within 1 minute 30 seconds; exceeding this will result in OOM errors.** ChatterBox is likely more appropriate for converting spoken audio than complete songs.\n\nIn my instance, I used **edgetts** to convert the lyrics into TTS and routed the output into **narrator_target**, which to some extent improves the usability of the song conversion results.\n\n**ComfyUI TTS Audio Suite is a powerful AI audio processing suite. Prior to use, ensure your ComfyUI is a clean, dedicated installation rather than an existing production environment, as integrating it may damage your current setup.**"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      21,
+      9,
+      0,
+      23,
+      0,
+      "*"
+    ],
+    [
+      24,
+      24,
+      0,
+      9,
+      1,
+      "*"
+    ],
+    [
+      25,
+      23,
+      0,
+      10,
+      0,
+      "AUDIO"
+    ],
+    [
+      34,
+      30,
+      0,
+      24,
+      0,
+      "AUDIO"
+    ],
+    [
+      39,
+      25,
+      0,
+      34,
+      0,
+      "AUDIO"
+    ],
+    [
+      40,
+      34,
+      0,
+      9,
+      2,
+      "*"
+    ],
+    [
+      42,
+      24,
+      1,
+      23,
+      1,
+      "*"
+    ],
+    [
+      44,
+      40,
+      0,
+      9,
+      0,
+      "TTS_ENGINE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.9784466890013521,
+      "offset": [
+        2419.2599830315735,
+        -1535.8029703945137
+      ]
+    },
+    "frontendVersion": "1.23.4",
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "VHS_latentpreview": true,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "workflowRendererVersion": "LG"
+  },
+  "version": 0.4
+}

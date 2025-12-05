@@ -1,0 +1,1057 @@
+{
+  "last_node_id": 24,
+  "last_link_id": 37,
+  "nodes": [
+    {
+      "id": 9,
+      "type": "DepthflowEffectVignette",
+      "pos": {
+        "0": -629.0703125,
+        "1": -846.272705078125
+      },
+      "size": {
+        "0": 352.79998779296875,
+        "1": 222
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "feature",
+          "type": "FEATURE",
+          "link": null,
+          "label": "feature"
+        },
+        {
+          "name": "effects",
+          "type": "DEPTHFLOW_EFFECTS",
+          "link": null,
+          "label": "effects"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "DEPTHFLOW_EFFECTS",
+          "type": "DEPTHFLOW_EFFECTS",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "DEPTHFLOW_EFFECTS"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DepthflowEffectVignette"
+      },
+      "widgets_values": [
+        1,
+        0,
+        "vignette_intensity",
+        "relative",
+        true,
+        30,
+        0.1
+      ]
+    },
+    {
+      "id": 15,
+      "type": "DepthflowEffectDOF",
+      "pos": {
+        "0": -614,
+        "1": -578
+      },
+      "size": {
+        "0": 317.4000244140625,
+        "1": 318
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "feature",
+          "type": "FEATURE",
+          "link": null,
+          "label": "feature"
+        },
+        {
+          "name": "effects",
+          "type": "DEPTHFLOW_EFFECTS",
+          "link": null,
+          "label": "effects"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "DEPTHFLOW_EFFECTS",
+          "type": "DEPTHFLOW_EFFECTS",
+          "links": [
+            26,
+            29
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "DEPTHFLOW_EFFECTS"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DepthflowEffectDOF"
+      },
+      "widgets_values": [
+        1,
+        0,
+        "dof_intensity",
+        "relative",
+        true,
+        0.6,
+        1,
+        2,
+        1,
+        4,
+        16
+      ]
+    },
+    {
+      "id": 17,
+      "type": "DepthflowMotionPresetDolly",
+      "pos": {
+        "0": -200,
+        "1": -392
+      },
+      "size": {
+        "0": 403.1999816894531,
+        "1": 250
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "feature",
+          "type": "FEATURE",
+          "link": null,
+          "label": "feature"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "DEPTHFLOW_MOTION",
+          "type": "DEPTHFLOW_MOTION",
+          "links": [
+            32
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "DEPTHFLOW_MOTION"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DepthflowMotionPresetDolly"
+      },
+      "widgets_values": [
+        1,
+        0,
+        "intensity",
+        "relative",
+        0.5,
+        false,
+        true,
+        true,
+        0.5
+      ]
+    },
+    {
+      "id": 6,
+      "type": "DepthAnythingPreprocessor",
+      "pos": {
+        "0": -202,
+        "1": -1155
+      },
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 17,
+          "label": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            20,
+            27,
+            33
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "IMAGE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DepthAnythingPreprocessor"
+      },
+      "widgets_values": [
+        "depth_anything_vitl14.pth",
+        1024
+      ]
+    },
+    {
+      "id": 18,
+      "type": "DepthflowMotionPresetCircle",
+      "pos": {
+        "0": -216,
+        "1": -88
+      },
+      "size": {
+        "0": 415.8000183105469,
+        "1": 370
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "feature",
+          "type": "FEATURE",
+          "link": null,
+          "label": "feature"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "DEPTHFLOW_MOTION",
+          "type": "DEPTHFLOW_MOTION",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "DEPTHFLOW_MOTION"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DepthflowMotionPresetCircle"
+      },
+      "widgets_values": [
+        1,
+        0,
+        "intensity",
+        "relative",
+        0.3,
+        false,
+        true,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0.3
+      ]
+    },
+    {
+      "id": 14,
+      "type": "DepthflowMotionPresetZoom",
+      "pos": {
+        "0": -191,
+        "1": -698
+      },
+      "size": {
+        "0": 390.5999755859375,
+        "1": 250
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "feature",
+          "type": "FEATURE",
+          "link": null,
+          "label": "feature"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "DEPTHFLOW_MOTION",
+          "type": "DEPTHFLOW_MOTION",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "DEPTHFLOW_MOTION"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DepthflowMotionPresetZoom"
+      },
+      "widgets_values": [
+        1,
+        0,
+        "intensity",
+        "relative",
+        0.5,
+        false,
+        true,
+        0,
+        false
+      ]
+    },
+    {
+      "id": 19,
+      "type": "DepthflowMotionPresetVertical",
+      "pos": {
+        "0": -204,
+        "1": 328
+      },
+      "size": {
+        "0": 405.380615234375,
+        "1": 274
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "feature",
+          "type": "FEATURE",
+          "link": null,
+          "label": "feature"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "DEPTHFLOW_MOTION",
+          "type": "DEPTHFLOW_MOTION",
+          "links": [
+            37
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "DEPTHFLOW_MOTION"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DepthflowMotionPresetVertical"
+      },
+      "widgets_values": [
+        1,
+        0,
+        "intensity",
+        "relative",
+        0.5,
+        false,
+        true,
+        true,
+        0,
+        0.3
+      ]
+    },
+    {
+      "id": 13,
+      "type": "DepthflowMotionPresetOrbital",
+      "pos": {
+        "0": -195,
+        "1": -949
+      },
+      "size": {
+        "0": 396.8545837402344,
+        "1": 202
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "feature",
+          "type": "FEATURE",
+          "link": null,
+          "label": "feature"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "DEPTHFLOW_MOTION",
+          "type": "DEPTHFLOW_MOTION",
+          "links": [
+            25
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "DEPTHFLOW_MOTION"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DepthflowMotionPresetOrbital"
+      },
+      "widgets_values": [
+        0.5,
+        0.1,
+        "intensity",
+        "relative",
+        0.5,
+        false,
+        1
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Depthflow",
+      "pos": {
+        "0": 248,
+        "1": -1067
+      },
+      "size": {
+        "0": 315,
+        "1": 286
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 19,
+          "label": "image"
+        },
+        {
+          "name": "depth_map",
+          "type": "IMAGE",
+          "link": 20,
+          "label": "depth_map"
+        },
+        {
+          "name": "motion",
+          "type": "DEPTHFLOW_MOTION",
+          "link": 25,
+          "label": "motion"
+        },
+        {
+          "name": "effects",
+          "type": "DEPTHFLOW_EFFECTS",
+          "link": 26,
+          "label": "effects"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            6
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "IMAGE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Depthflow"
+      },
+      "widgets_values": [
+        1,
+        30,
+        30,
+        60,
+        100,
+        0,
+        0,
+        "mirror"
+      ]
+    },
+    {
+      "id": 20,
+      "type": "Depthflow",
+      "pos": {
+        "0": 246,
+        "1": -733
+      },
+      "size": {
+        "0": 315,
+        "1": 286
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 28,
+          "label": "image"
+        },
+        {
+          "name": "depth_map",
+          "type": "IMAGE",
+          "link": 27,
+          "label": "depth_map"
+        },
+        {
+          "name": "motion",
+          "type": "DEPTHFLOW_MOTION",
+          "link": 37,
+          "label": "motion"
+        },
+        {
+          "name": "effects",
+          "type": "DEPTHFLOW_EFFECTS",
+          "link": 29,
+          "label": "effects"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            31
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "IMAGE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Depthflow"
+      },
+      "widgets_values": [
+        1,
+        30,
+        30,
+        60,
+        100,
+        0,
+        0.2,
+        "mirror"
+      ]
+    },
+    {
+      "id": 22,
+      "type": "Depthflow",
+      "pos": {
+        "0": 251,
+        "1": -395
+      },
+      "size": {
+        "0": 315,
+        "1": 286
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 34,
+          "label": "image"
+        },
+        {
+          "name": "depth_map",
+          "type": "IMAGE",
+          "link": 33,
+          "label": "depth_map"
+        },
+        {
+          "name": "motion",
+          "type": "DEPTHFLOW_MOTION",
+          "link": 32,
+          "label": "motion"
+        },
+        {
+          "name": "effects",
+          "type": "DEPTHFLOW_EFFECTS",
+          "link": null,
+          "label": "effects"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            35
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "IMAGE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Depthflow"
+      },
+      "widgets_values": [
+        1,
+        30,
+        30,
+        60,
+        100,
+        1,
+        0,
+        "mirror"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "VHS_VideoCombine",
+      "pos": {
+        "0": 596,
+        "1": -1074
+      },
+      "size": [
+        571.8041381835938,
+        1243.673563639323
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 6,
+          "label": "images"
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null,
+          "label": "audio"
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null,
+          "label": "meta_batch"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "label": "vae"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "shape": 3,
+          "label": "Filenames"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_00093.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 16
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "VHS_VideoCombine",
+      "pos": {
+        "0": 1190,
+        "1": -1063
+      },
+      "size": [
+        569.5911865234375,
+        1239.985310872396
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 31,
+          "label": "images"
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null,
+          "label": "audio"
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null,
+          "label": "meta_batch"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "label": "vae"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "shape": 3,
+          "label": "Filenames"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_00094.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 16
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": "VHS_VideoCombine",
+      "pos": {
+        "0": 1795,
+        "1": -1070
+      },
+      "size": [
+        634.9954833984375,
+        1348.9924723307292
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 35,
+          "label": "images"
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null,
+          "label": "audio"
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null,
+          "label": "meta_batch"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "label": "vae"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "shape": 3,
+          "label": "Filenames"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_00092.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 16
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "LoadImage",
+      "pos": {
+        "0": -608,
+        "1": -1286
+      },
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            17,
+            19,
+            28,
+            34
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "IMAGE"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "MASK"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "ComfyUI_temp_nelkj_00003_.png",
+        "image"
+      ]
+    },
+    {
+      "id": 24,
+      "type": "Note",
+      "pos": {
+        "0": 245,
+        "1": -1312
+      },
+      "size": [
+        441.3437183735855,
+        163.51155814265326
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "节点下载地址：https://github.com/akatz-ai/ComfyUI-Depthflow-Nodes\ndepthflow参数说明：https://brokensrc.dev/depthflow/learn/parameters/"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      6,
+      2,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ],
+    [
+      17,
+      5,
+      0,
+      6,
+      0,
+      "IMAGE"
+    ],
+    [
+      19,
+      5,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      20,
+      6,
+      0,
+      2,
+      1,
+      "IMAGE"
+    ],
+    [
+      25,
+      13,
+      0,
+      2,
+      2,
+      "DEPTHFLOW_MOTION"
+    ],
+    [
+      26,
+      15,
+      0,
+      2,
+      3,
+      "DEPTHFLOW_EFFECTS"
+    ],
+    [
+      27,
+      6,
+      0,
+      20,
+      1,
+      "IMAGE"
+    ],
+    [
+      28,
+      5,
+      0,
+      20,
+      0,
+      "IMAGE"
+    ],
+    [
+      29,
+      15,
+      0,
+      20,
+      3,
+      "DEPTHFLOW_EFFECTS"
+    ],
+    [
+      31,
+      20,
+      0,
+      21,
+      0,
+      "IMAGE"
+    ],
+    [
+      32,
+      17,
+      0,
+      22,
+      2,
+      "DEPTHFLOW_MOTION"
+    ],
+    [
+      33,
+      6,
+      0,
+      22,
+      1,
+      "IMAGE"
+    ],
+    [
+      34,
+      5,
+      0,
+      22,
+      0,
+      "IMAGE"
+    ],
+    [
+      35,
+      22,
+      0,
+      23,
+      0,
+      "IMAGE"
+    ],
+    [
+      37,
+      19,
+      0,
+      20,
+      2,
+      "DEPTHFLOW_MOTION"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "Motion",
+      "bounding": [
+        -220,
+        -1031,
+        435,
+        1745
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Effect",
+      "bounding": [
+        -652,
+        -948,
+        402,
+        715
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.30735605491428225,
+      "offset": [
+        2041.026211682494,
+        2282.515669000605
+      ]
+    }
+  },
+  "version": 0.4
+}

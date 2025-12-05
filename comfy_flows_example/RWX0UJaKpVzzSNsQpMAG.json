@@ -1,0 +1,475 @@
+{
+  "last_node_id": 94,
+  "last_link_id": 157,
+  "nodes": [
+    {
+      "id": 76,
+      "type": "BizyAir_VAEDecode",
+      "pos": {
+        "0": 2256,
+        "1": 1282
+      },
+      "size": {
+        "0": 365.06793212890625,
+        "1": 46
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 130
+        },
+        {
+          "name": "vae",
+          "type": "BIZYAIR_VAE",
+          "link": 129
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            145
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 91,
+      "type": "Note",
+      "pos": {
+        "0": 1518,
+        "1": 1149
+      },
+      "size": {
+        "0": 487.4825134277344,
+        "1": 79.29678344726562
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Kolors 文生图示例。\n你可以在 ChatGLM3 文本节点中填写正向提示词、反向提示词。\n可以在 Empty Latent Image 里调整生成的图片大小以及数量。\n在 KSampler 里设置种子等参数。"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 80,
+      "type": "BizyAir_MinusZoneChatGLM3TextEncode",
+      "pos": {
+        "0": 1079,
+        "1": 1411
+      },
+      "size": [
+        389.34320068359375,
+        76
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 155,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BIZYAIR_CONDITIONING",
+          "type": "BIZYAIR_CONDITIONING",
+          "links": [
+            152
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MinusZoneChatGLM3TextEncode"
+      },
+      "widgets_values": [
+        "真实的照片,20岁女生,红色外套,城市夜景"
+      ]
+    },
+    {
+      "id": 73,
+      "type": "BizyAir_KSampler",
+      "pos": {
+        "0": 1925,
+        "1": 1274
+      },
+      "size": {
+        "0": 315,
+        "1": 262
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "BIZYAIR_MODEL",
+          "link": 125
+        },
+        {
+          "name": "positive",
+          "type": "BIZYAIR_CONDITIONING",
+          "link": 152
+        },
+        {
+          "name": "negative",
+          "type": "BIZYAIR_CONDITIONING",
+          "link": 154
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 144,
+          "slot_index": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            130
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_KSampler"
+      },
+      "widgets_values": [
+        20,
+        "fixed",
+        20,
+        4.5,
+        "dpmpp_sde_gpu",
+        "karras",
+        1
+      ]
+    },
+    {
+      "id": 70,
+      "type": "BizyAir_MZ_KolorsUNETLoaderV2",
+      "pos": {
+        "0": 1509,
+        "1": 1279
+      },
+      "size": {
+        "0": 398.9453430175781,
+        "1": 58
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "BIZYAIR_MODEL",
+          "links": [
+            125
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MZ_KolorsUNETLoaderV2"
+      },
+      "widgets_values": [
+        "kolors/Kolors.safetensors"
+      ]
+    },
+    {
+      "id": 81,
+      "type": "BizyAir_MinusZoneChatGLM3TextEncode",
+      "pos": {
+        "0": 1085,
+        "1": 1548
+      },
+      "size": [
+        379.9140319824219,
+        76
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 157,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BIZYAIR_CONDITIONING",
+          "type": "BIZYAIR_CONDITIONING",
+          "links": [
+            154
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_MinusZoneChatGLM3TextEncode"
+      },
+      "widgets_values": [
+        "nsfw，脸部阴影，低分辨率，jpeg伪影、模糊、糟糕，黑脸，霓虹灯"
+      ]
+    },
+    {
+      "id": 75,
+      "type": "BizyAir_VAELoader",
+      "pos": {
+        "0": 1519,
+        "1": 1620
+      },
+      "size": {
+        "0": 374.62469482421875,
+        "1": 58
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "vae",
+          "type": "BIZYAIR_VAE",
+          "links": [
+            129
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAir_VAELoader"
+      },
+      "widgets_values": [
+        "sdxl/sdxl_vae.safetensors"
+      ]
+    },
+    {
+      "id": 85,
+      "type": "EmptyLatentImage",
+      "pos": {
+        "0": 1937,
+        "1": 1660
+      },
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            144
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        768,
+        1080,
+        4
+      ]
+    },
+    {
+      "id": 86,
+      "type": "PreviewImage",
+      "pos": {
+        "0": 2687,
+        "1": 1056
+      },
+      "size": [
+        595.238880988135,
+        766.338857123163
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 145
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 92,
+      "type": "BizyAirSiliconCloudLLMAPI",
+      "pos": {
+        "0": 1027,
+        "1": 1056
+      },
+      "size": {
+        "0": 400,
+        "1": 248
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            155,
+            157
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAirSiliconCloudLLMAPI"
+      },
+      "widgets_values": [
+        "(Free)GLM4 9B Chat",
+        "你是一个 stable diffusion prompt 专家，为我生成适用于 Stable Diffusion 模型的prompt。\n我给你相关的单词，你帮我扩写为适合 Stable Diffusion 文生图的 prompt。要求：\n1. 英文输出\n2. 除了 prompt 外，不要输出任何其它的信息\n",
+        "想象一只小而可爱的猫，它的毛柔软而蓬松，在一个金色的、阳光照耀的下午晒太阳。它周围的世界是充满活力和旋转的色彩混合，让人想起文森特·梵高的标志性作品。猫的眼睛，深邃的蓝色阴影，以一种几乎超凡脱俗的强度凝视着观看者，捕捉到了艺术家情感深度的本质。这个场景沐浴在温暖、空灵的光辉中，仿佛是用艺术家自己的调色刀绘制的，传达出一种超越画布的运动和生命感。在这件数字艺术品中，猫的形态和特征被精心渲染，以与抽象但和谐的背景无缝融合，创造出一件既向猫的魅力又向梵高艺术风格的表现力致敬的作品。",
+        512,
+        0.7,
+        "\nA tiny and adorable cat, its fur soft and fluffy, basking in the glow of a golden, sunlit afternoon. The world around it is a burst of vibrant, swirling colors reminiscent of Vincent van Gogh's iconic works. The cat's eyes, with their deep blue shadows, gaze intently at the viewer with an almost ethereal intensity, capturing the essence of the artist's emotional depth. The scene is bathed in a warm, ethereal radiance, as if painted with the artist's own palette knife, conveying a sense of movement and life beyond the canvas. In this digital artwork, the cat's form and features are meticulously rendered to seamlessly blend with the abstract yet harmonious background, creating a piece that pays homage to both the charm of the cat and the expressiveness of van Gogh's artistic style."
+      ]
+    }
+  ],
+  "links": [
+    [
+      125,
+      70,
+      0,
+      73,
+      0,
+      "BIZYAIR_MODEL"
+    ],
+    [
+      129,
+      75,
+      0,
+      76,
+      1,
+      "BIZYAIR_VAE"
+    ],
+    [
+      130,
+      73,
+      0,
+      76,
+      0,
+      "LATENT"
+    ],
+    [
+      144,
+      85,
+      0,
+      73,
+      3,
+      "LATENT"
+    ],
+    [
+      145,
+      76,
+      0,
+      86,
+      0,
+      "IMAGE"
+    ],
+    [
+      152,
+      80,
+      0,
+      73,
+      1,
+      "BIZYAIR_CONDITIONING"
+    ],
+    [
+      154,
+      81,
+      0,
+      73,
+      2,
+      "BIZYAIR_CONDITIONING"
+    ],
+    [
+      155,
+      92,
+      0,
+      80,
+      0,
+      "STRING"
+    ],
+    [
+      157,
+      92,
+      0,
+      81,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8264462809917354,
+      "offset": [
+        -1004.4468557160685,
+        -744.8580553349705
+      ]
+    },
+    "workspace_info": {
+      "id": "ckS1tBu-IMHBxD8SZ6K-k",
+      "saveLock": false,
+      "cloudID": null,
+      "coverMediaPath": null
+    }
+  },
+  "version": 0.4
+}

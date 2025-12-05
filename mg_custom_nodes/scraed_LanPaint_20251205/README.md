@@ -13,6 +13,12 @@
 Universally applicable inpainting ability for every model. LanPaint sampler lets the model "think" through multiple iterations before denoising, enabling you to invest more computation time for superior inpainting quality.  
 
 This is the official implementation of ["Lanpaint: Training-Free Diffusion Inpainting with Exact and Fast Conditional Inference"](https://arxiv.org/abs/2502.03491), accepted by TMLR. The repository is for ComfyUI extension. Local Python benchmark code is published here: [LanPaintBench](https://github.com/scraed/LanPaintBench).
+**🎬 NEW: LanPaint now supports inpainting and outpainting based on Z-Image!**
+
+| Original | Masked | Inpainted |
+|:--------:|:------:|:---------:|
+| ![Original Z-image](https://github.com/scraed/LanPaint/blob/master/examples/Example_21/Original_No_Mask.png) | ![Masked Z-image](https://github.com/scraed/LanPaint/blob/master/examples/Example_21/Masked_Load_Me_in_Loader.png) | ![Inpainted Z-image](https://github.com/scraed/LanPaint/blob/master/examples/Example_21/InPainted_Drag_Me_to_ComfyUI.png) |
+
 
 **🎬 NEW: LanPaint now supports video inpainting and outpainting based on Wan 2.2!**
 
@@ -40,6 +46,7 @@ Check our latest [Wan 2.2 Video Examples](#video-examples-beta), [Wan 2.2 Image 
   - [Wan 2.2 Video Outpainting](#wan-22-video-outpainting)
   - [Resource Consumption](#resource-consumption)
 - [Image Examples](#image-examples)
+  - [Z-image](#example-z-image-inpaintlanpaint-k-sampler-5-steps-of-thinking)
   - [Hunyuan T2I](#example-hunyuan-t2i-inpaintlanpaint-k-sampler-5-steps-of-thinking)
   - [Wan 2.2 T2I](#example-wan22-inpaintlanpaint-k-sampler-5-steps-of-thinking)
   - [Wan 2.2 T2I with reference](#example-wan22-partial-inpaintlanpaint-k-sampler-5-steps-of-thinking)
@@ -197,7 +204,7 @@ You need to follow the ComfyUI version of [Wan2.2 T2V workflow](https://docs.com
 **Model Used**: `wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors` and `wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors`.<br>
 **Processing Steps**:  20 sampling steps x 2 (LanPaint steps of thinking).</sub>
 
-**Note:** To further reduce VRAM requirements, we recommend loading CLIP on CPU.
+**Note:** Vram is required by the model, not LanPaint. To further reduce VRAM requirements, we recommend generating less frames and loading CLIP on CPU.
 
 ## Image Examples
 
@@ -218,6 +225,33 @@ We are excited to announce that LanPaint now supports Wan2.2 text to image gener
 
 You need to follow the ComfyUI version of [Wan2.2 T2V workflow](https://docs.comfy.org/tutorials/video/wan/wan2_2) to download and install the T2V model.
 
+### Example Z-image: InPaint(LanPaint K Sampler, 5 steps of thinking)
+LanPaint also supports inpainting with the Z-image text-to-image model.
+
+<details open>
+<summary>View Original / Masked / Inpainted Comparison</summary>
+
+| Original | Masked | Inpainted |
+|:--------:|:------:|:---------:|
+| ![Original Z-image](https://github.com/scraed/LanPaint/blob/master/examples/Example_21/Original_No_Mask.png) | ![Masked Z-image](https://github.com/scraed/LanPaint/blob/master/examples/Example_21/Masked_Load_Me_in_Loader.png) | ![Inpainted Z-image](https://github.com/scraed/LanPaint/blob/master/examples/Example_21/InPainted_Drag_Me_to_ComfyUI.png) |
+
+</details>
+
+[View Workflow & Masks](https://github.com/scraed/LanPaint/tree/master/examples/Example_21)
+
+<details open>
+<summary>View Z-image Outpainting (Original / Masked / Outpainted)</summary>
+
+| Original | Masked | Outpainted |
+|:--------:|:------:|:----------:|
+| ![Original Z-image Outpaint](https://github.com/scraed/LanPaint/blob/master/examples/Example_22/Original_No_Mask.png) | ![Masked Z-image Outpaint](https://github.com/scraed/LanPaint/blob/master/examples/Example_22/Masked_Load_Me_in_Loader.png) | ![Outpainted Z-image](https://github.com/scraed/LanPaint/blob/master/examples/Example_22/InPainted_Drag_Me_to_ComfyUI.png) |
+
+</details>
+
+[View Outpaint Workflow & Masks](https://github.com/scraed/LanPaint/tree/master/examples/Example_22)
+
+You can download the Z-image model for ComfyUI from [Z-image](https://docs.comfy.org/zh-CN/tutorials/image/z-image/z-image-turbo).
+
 ### Example Wan2.2: Partial InPaint(LanPaint K Sampler, 5 steps of thinking)
 Sometimes we don't want to inpaint completely new content, but rather let the inpainted image reference the original image. One option to achieve this is to inpaint with an edit model like Qwen Image Edit. Another option is to perform a partial inpaint: allowing the diffusion process to start at some middle steps rather than from 0.
 
@@ -226,6 +260,7 @@ Sometimes we don't want to inpaint completely new content, but rather let the in
 
 
 You need to follow the ComfyUI version of [Wan2.2 T2V workflow](https://docs.comfy.org/tutorials/video/wan/wan2_2) to download and install the T2V model.
+
 
 ### Example Qwen Edit 2509: InPaint
 Check our latest updated [Mased Qwen Edit Workflow](https://github.com/scraed/LanPaint/tree/master/examples/Example_14) for Qwen Image Edit 2509. Download the model at [Qwen Image Edit 2509 Comfy](https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/tree/main/split_files/diffusion_models).

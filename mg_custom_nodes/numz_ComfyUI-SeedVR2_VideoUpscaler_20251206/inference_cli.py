@@ -1222,14 +1222,14 @@ def main() -> None:
     Raises:
         SystemExit: On argument validation failure or processing error
     """
-    # print header
-    debug.print_header(cli=True)
-    
     # Parse arguments
     args = parse_arguments()
-    
+
     # Update debug instance with --debug flag
     debug.enabled = args.debug
+
+    # print header
+    debug.print_header(cli=True)
     
     debug.log("Arguments:", category="setup")
     for key, value in vars(args).items():

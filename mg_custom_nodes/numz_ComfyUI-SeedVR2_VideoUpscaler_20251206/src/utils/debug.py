@@ -145,6 +145,72 @@ class Debug:
 
         self.log(" ╚══════════════════════════════════════════════════════════╝", category="none", force=True)
         self.log("", category="none", force=True)
+        
+        # Environment info - only in debug mode
+        if self.enabled:
+            self._print_environment_info(cli)
+
+    def _print_environment_info(self, cli: bool = False) -> None:
+        """Print concise environment info for bug reports - zero cost when debug disabled"""
+        import platform
+        import sys
+        
+        # OS
+        os_name = platform.system()
+        if os_name == "Windows":
+            os_str = f"Windows ({platform.version()})"
+        elif os_name == "Darwin":
+            os_str = f"macOS {platform.mac_ver()[0]}"
+        else:
+            try:
+                distro = platform.freedesktop_os_release()
+                os_str = f"{distro.get('NAME', 'Linux')} {distro.get('VERSION_ID', '')}"
+            except (OSError, AttributeError):
+                os_str = f"Linux {platform.release()}"
+        
+        # Python & PyTorch & CUDA
+        py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        torch_ver = torch.__version__
+        cuda_ver = getattr(torch.version, 'cuda', None) or "N/A"
+        
+        # GPU
+        if torch.cuda.is_available():
+            try:
+                props = torch.cuda.get_device_properties(0)
+                gpu_str = f"{props.name} ({round(props.total_memory / (1024**3))}GB)"
+                cudnn_ver = str(torch.backends.cudnn.version()) if torch.backends.cudnn.is_available() else "N/A"
+            except Exception:
+                gpu_str = "CUDA"
+                cudnn_ver = "N/A"
+        elif getattr(getattr(torch, 'mps', None), 'is_available', lambda: False)():
+            gpu_str = "Apple Silicon (MPS)"
+            cudnn_ver = "N/A"
+        else:
+            gpu_str = "CPU"
+            cudnn_ver = "N/A"
+        
+        # Flash Attn & Triton - reuse existing module constants
+        try:
+            from ..optimization.compatibility import FLASH_ATTN_AVAILABLE, TRITON_AVAILABLE
+            flash_str, triton_str = ("✓" if FLASH_ATTN_AVAILABLE else "✗"), ("✓" if TRITON_AVAILABLE else "✗")
+        except ImportError:
+            flash_str = triton_str = "?"
+        
+        # ComfyUI version
+        comfy_str = None
+        if not cli:
+            try:
+                from comfyui_version import __version__ as comfy_ver
+                comfy_str = comfy_ver
+            except ImportError:
+                pass
+        
+        # Print
+        self.log(f"OS: {os_str} | GPU: {gpu_str}", category="info")
+        self.log(f"Python: {py_ver} | PyTorch: {torch_ver} | Flash Attn: {flash_str} | Triton: {triton_str}", category="info")
+        cuda_line = f"CUDA: {cuda_ver} | cuDNN: {cudnn_ver}"
+        self.log(f"{cuda_line} | ComfyUI: {comfy_str}" if comfy_str else cuda_line, category="info")
+        self.log("", category="none")
 
     def print_footer(self) -> None:
         """Print the footer with links - always displayed"""

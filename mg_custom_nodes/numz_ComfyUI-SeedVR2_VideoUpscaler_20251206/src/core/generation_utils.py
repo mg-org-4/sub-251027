@@ -36,7 +36,7 @@ from .model_configuration import configure_runner
 from .infer import VideoDiffusionInfer
 from ..data.image.transforms.divisible_crop import DivisiblePad
 from ..data.image.transforms.na_resize import NaResize
-from ..optimization.compatibility import get_supported_compute_dtype
+from ..optimization.compatibility import COMPUTE_DTYPE, BFLOAT16_SUPPORTED
 from ..optimization.memory_manager import manage_tensor
 from ..utils.constants import get_script_directory
 
@@ -372,7 +372,7 @@ def setup_generation_context(
         'dit_offload_device': dit_offload_device,
         'vae_offload_device': vae_offload_device,
         'tensor_offload_device': tensor_offload_device,
-        'compute_dtype': get_supported_compute_dtype(debug),  # Auto-detect best dtype for hardware
+        'compute_dtype': COMPUTE_DTYPE,
         'interrupt_fn': interrupt_fn,
         'video_transform': None,
         'text_embeds': None,
@@ -404,10 +404,10 @@ def setup_generation_context(
         )
         if ctx['compute_dtype'] == torch.float32:
             reason = "quality"
-        elif ctx['compute_dtype'] == torch.float16:
-            reason = "compatibility (GPU does not support bfloat16)"
+        elif not BFLOAT16_SUPPORTED:
+            reason = "compatibility (GPU lacks bfloat16 CUBLAS - 7B models unsupported, 3B may have artifacts)"
         else:
-            reason = "compatibility"
+            reason = "performance"
         debug.log(f"Unified compute dtype: {ctx['compute_dtype']} across entire pipeline for maximum {reason}", category="precision")
     
     return ctx

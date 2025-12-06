@@ -36,6 +36,17 @@ We're actively working on improvements and new features. To stay informed:
 
 ## 🚀 Updates
 
+**2025.12.05 - Version 2.5.17**
+
+- **🔧 Fix: Older GPU compatibility (GTX 970, etc.)** - Runtime bf16 CUBLAS probe replaces compute capability heuristics, correctly detecting unsupported GPUs without affecting RTX 20XX
+
+**2025.12.05 - Version 2.5.16**
+
+- **🔧 Fix: Older GPU compatibility (GTX 970, etc.)** - Automatic fallback for GPUs without bfloat16 support
+- **🐛 Fix: Quality regression** - Reverted bfloat16 detection that was causing artifact issues
+- **📋 Debug: Environment info display** - Shows system info in debug mode to help with issue reporting
+- **📚 Docs: Simplified contribution workflow** - Streamlined to main branch only
+
 **2025.12.03 - Version 2.5.15**
 
 - **🍎 Fix: MPS compatibility** - Disable antialias for MPS tensors and fix bfloat16 arange issues
@@ -948,7 +959,7 @@ For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request to **main** branch for stable features or **nightly** branch for experimental features
+5. Open a Pull Request to the **main** branch
 
 **Get Help:**
 - YouTube: [AInVFX Channel](https://www.youtube.com/@AInVFX)

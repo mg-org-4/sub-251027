@@ -4,17 +4,17 @@ import os
 import numpy as np
 import pytest
 import torch
-from transformers import AutoConfig, AutoTokenizer, CLIPTextModel
+from transformers import AutoConfig, AutoTokenizer, LlamaModel
 import gc
 from fastvideo.configs.pipelines import PipelineConfig
 from fastvideo.forward_context import set_forward_context
 from fastvideo.fastvideo_args import FastVideoArgs
 from fastvideo.logger import init_logger
+from fastvideo.models.loader.component_loader import TextEncoderLoader
 from fastvideo.utils import maybe_download_model
-from fastvideo.configs.models.encoders import CLIPTextConfig
+from fastvideo.configs.models.encoders import LlamaConfig
 from torch.distributed.tensor import DTensor
 from torch.testing import assert_close
-
 logger = init_logger(__name__)
 
 os.environ["MASTER_ADDR"] = "localhost"
@@ -22,14 +22,14 @@ os.environ["MASTER_PORT"] = "29503"
 
 BASE_MODEL_PATH = "hunyuanvideo-community/HunyuanVideo"
 MODEL_PATH = maybe_download_model(BASE_MODEL_PATH,
-                                  local_dir=os.path.join(
-                                      "data", BASE_MODEL_PATH))
-TEXT_ENCODER_PATH = os.path.join(MODEL_PATH, "text_encoder_2")
-TOKENIZER_PATH = os.path.join(MODEL_PATH, "tokenizer_2")
+                                  local_dir=os.path.join("data", BASE_MODEL_PATH) # store in the large /workspace disk on Runpod
+                                  )
+TEXT_ENCODER_PATH = os.path.join(MODEL_PATH, "text_encoder")
+TOKENIZER_PATH = os.path.join(MODEL_PATH, "tokenizer")
 
 
 @pytest.mark.usefixtures("distributed_setup")
-def test_clip_encoder():
+def test_llama_encoder():
     """
     Tests compatibility between two different implementations for loading text encoders:
     1. load_text_encoder from fastvideo.models.hunyuan.text_encoder
@@ -39,27 +39,23 @@ def test_clip_encoder():
     - Load models with the same weights and parameters
     - Produce nearly identical outputs for the same input prompts
     """
-    args = FastVideoArgs(model_path="openai/clip-vit-large-patch14",
-                         pipeline_config=PipelineConfig(text_encoder_configs=(CLIPTextConfig(),), text_encoder_precisions=("fp16",)))
+    args = FastVideoArgs(model_path="meta-llama/Llama-2-7b-hf",
+                         pipeline_config=PipelineConfig(text_encoder_configs=(LlamaConfig(),), text_encoder_precisions=("fp16",)))
+
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+    # Initialize the two model implementations
     logger.info("Loading models from %s", args.model_path)
-
-    # config = json.load(open(os.path.join(model_path, "config.json")))
-
     hf_config = AutoConfig.from_pretrained(TEXT_ENCODER_PATH)
     print(hf_config)
-    print(hf_config.use_return_dict)
 
     # Load HuggingFace implementation
-    model1 = CLIPTextModel.from_pretrained(TEXT_ENCODER_PATH).to(torch.float16).to(device).eval()
-
-    from fastvideo.models.loader.component_loader import TextEncoderLoader
+    model1 = LlamaModel.from_pretrained(TEXT_ENCODER_PATH).to(torch.float16).to(device).eval()
     loader = TextEncoderLoader()
+    device = torch.device("cuda:0")
     model2 = loader.load(TEXT_ENCODER_PATH, args)
 
-    # Load the HuggingFace implementation directly
-    # model2 = CLIPTextModel(hf_config)
+    # Convert to float16 and move to device
     # model2 = model2.to(torch.float16)
     model2.eval()
 
@@ -71,6 +67,28 @@ def test_clip_encoder():
     # Check number of parameters
     logger.info("Model1 has %d parameters", len(params1))
     logger.info("Model2 has %d parameters", len(params2))
+
+
+    # check if embed_tokens are the same
+    device = model1.embed_tokens.weight.device
+    assert torch.allclose(model1.embed_tokens.weight,
+                          model2.embed_tokens.weight.to_local().to(device) if isinstance(model2.embed_tokens.weight, DTensor) else model2.embed_tokens.weight.to(device))
+    weights = [
+        "layers.{}.input_layernorm.weight",
+        "layers.{}.post_attention_layernorm.weight"
+    ]
+    for layer_idx in range(hf_config.num_hidden_layers):
+        for w in weights:
+            name1 = w.format(layer_idx)
+            name2 = w.format(layer_idx)
+            p1 = params1[name1]
+            p2 = params2[name2]
+            if "gate_up" in name2:
+                # print("skipping gate_up")
+                continue
+            p1 = p1.to_local().to(device) if isinstance(p1, DTensor) else p1.to(device)
+            p2 = p2.to_local().to(device) if isinstance(p2, DTensor) else p2.to(device)
+            assert_close(p1, p2, atol=1e-4, rtol=1e-4)
 
     for name1, param1 in sorted(params1.items()):
         name2 = name1
@@ -86,16 +104,17 @@ def test_clip_encoder():
         assert_close(param1, param2, atol=1e-4, rtol=1e-4)
     gc.collect()
     torch.cuda.empty_cache()
-    # Load tokenizer
+
     tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_PATH)
 
     # Test with some sample prompts
     prompts = [
-        "a photo of a cat", "a beautiful landscape with mountains",
-        "an astronaut riding a horse on the moon"
+        "Once upon a time",
+        # "The quick brown fox jumps over",
+        # "In a galaxy far, far away"
     ]
 
-    logger.info("Testing CLIP text encoder with sample prompts")
+    logger.info("Testing LLaMA encoder with sample prompts")
 
     with torch.no_grad():
         for prompt in prompts:
@@ -104,66 +123,31 @@ def test_clip_encoder():
             # Tokenize the prompt
             tokens = tokenizer(prompt,
                                padding="max_length",
-                               max_length=77,
+                               max_length=512,
                                truncation=True,
                                return_tensors="pt").to(device)
-            # Get embeddings from our implementation
+
+            # Get outputs from our implementation
+            # filter out padding input_ids
+            # tokens.input_ids = tokens.input_ids[tokens.attention_mask==1]
+            # tokens.attention_mask = tokens.attention_mask[tokens.attention_mask==1]
             outputs1 = model1(input_ids=tokens.input_ids,
                               output_hidden_states=True)
-
-            logger.info("Testing model2")
             print("--------------------------------")
-            # Get embeddings from HuggingFace implementation
+            logger.info("Testing model2")
+
+            # Get outputs from HuggingFace implementation
             with set_forward_context(current_timestep=0, attn_metadata=None):
-                outputs2 = model2(
-                    input_ids=tokens.input_ids,
-                    # attention_mask=tokens.attention_mask,
-                    output_hidden_states=True)
+                outputs2 = model2(input_ids=tokens.input_ids,
+                                  attention_mask=tokens.attention_mask,
+                                  output_hidden_states=True)
 
             # Compare last hidden states
             last_hidden_state1 = outputs1.last_hidden_state[
                 tokens.attention_mask == 1]
             last_hidden_state2 = outputs2.last_hidden_state[
                 tokens.attention_mask == 1]
-            # print("last_hidden_state1", last_hidden_state1)
-            # print("last_hidden_state2", last_hidden_state2)
 
             assert last_hidden_state1.shape == last_hidden_state2.shape, \
                 f"Hidden state shapes don't match: {last_hidden_state1.shape} vs {last_hidden_state2.shape}"
-
-            max_diff_hidden = torch.max(
-                torch.abs(last_hidden_state1 - last_hidden_state2))
-            mean_diff_hidden = torch.mean(
-                torch.abs(last_hidden_state1 - last_hidden_state2))
-
-            logger.info("Maximum difference in last hidden states: %f",
-                        max_diff_hidden.item())
-            logger.info("Mean difference in last hidden states: %f",
-                        mean_diff_hidden.item())
-
-            # Compare pooler outputs
-            pooler_output1 = outputs1.pooler_output
-            pooler_output2 = outputs2.pooler_output
-
-            assert pooler_output1.shape == pooler_output2.shape, \
-                f"Pooler output shapes don't match: {pooler_output1.shape} vs {pooler_output2.shape}"
-
-            max_diff_pooler = torch.max(
-                torch.abs(pooler_output1 - pooler_output2))
-            mean_diff_pooler = torch.mean(
-                torch.abs(pooler_output1 - pooler_output2))
-
-            logger.info("Maximum difference in pooler outputs: %f",
-                        max_diff_pooler.item())
-            logger.info("Mean difference in pooler outputs: %f",
-                        mean_diff_pooler.item())
-
-            # Check if outputs are similar (allowing for small numerical differences)
-            assert mean_diff_hidden < 1e-2, \
-                f"Hidden states differ significantly: mean diff = {mean_diff_hidden.item()}"
-            assert mean_diff_pooler < 1e-2, \
-                f"Pooler outputs differ significantly: mean diff = {mean_diff_pooler.item()}"
-            assert max_diff_hidden < 1e-1, \
-                f"Hidden states differ significantly: max diff = {max_diff_hidden.item()}"
-            assert max_diff_pooler < 2e-2, \
-                f"Pooler outputs differ significantly: max diff = {max_diff_pooler.item()}"
+            assert_close(last_hidden_state1, last_hidden_state2, atol=1e-1, rtol=1e-4)

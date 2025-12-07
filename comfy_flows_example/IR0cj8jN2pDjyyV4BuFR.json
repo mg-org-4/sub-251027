@@ -1,0 +1,964 @@
+{
+  "last_node_id": 22,
+  "last_link_id": 22,
+  "nodes": [
+    {
+      "id": 8,
+      "type": "OmostLLMLoaderNode",
+      "pos": [
+        -1100,
+        432
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OMOST_LLM",
+          "type": "OMOST_LLM",
+          "links": [
+            4
+          ],
+          "shape": 3,
+          "label": "OMOST_LLM"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OmostLLMLoaderNode"
+      },
+      "widgets_values": [
+        "omost-llama-3-8b-4bits"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "SomethingToString",
+      "pos": [
+        -1127.6038818359375,
+        866.6787719726562
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input",
+          "type": "*",
+          "link": 6,
+          "label": "输入"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            7,
+            19
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "字符串"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SomethingToString"
+      },
+      "widgets_values": [
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 20,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -669.0346069335938,
+        427.764892578125
+      ],
+      "size": [
+        436.0819396972656,
+        263.7738952636719
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 19,
+          "widget": {
+            "name": "text"
+          },
+          "label": "文本"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "label": "字符串"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "",
+        "{'rect': (0, 90, 0, 90), 'prefixes': ['A little squirrel.'], 'suffixes': ['A small, fluffy squirrel is the central focus of this image.', 'The squirrel has soft, brown fur and bright, inquisitive eyes.', 'Its tiny paws are gripping a branch, and its bushy tail is visible behind it.', 'The squirrel is surrounded by a lush, green forest with tall trees and dense foliage.', 'Sunlight filters through the leaves, casting dappled shadows on the forest floor.', 'A few colorful flowers add pops of color to the scene.', 'The atmosphere is serene and peaceful, capturing the simple beauty of nature.', 'squirrel, fluffy, brown fur, inquisitive eyes, tiny paws, branch, bushy tail, lush forest, green trees, dense foliage, sunlight, shadows, forest floor, colorful flowers, serene, peaceful, nature, beauty, wildlife, forest, trees, leaves, dappled shadows.'], 'color': (34, 139, 34)}, {'color': (218, 165, 32), 'rect': [0, 35, 5, 65], 'prefixes': ['A little squirrel.', 'Sunlight filtering through leaves.'], 'suffixes': ['The sunlight filters through the dense leaves, creating a beautiful display of light and shadow.', 'The rays of sunlight are soft and diffuse, casting dappled shadows on the forest floor below.', 'The light is warm and golden, enhancing the vibrant colors of the leaves and the surrounding foliage.', 'The interplay of light and shadow creates a dynamic and ever-changing scene.', 'The sunlight adds a sense of warmth and tranquility to the forest, making it feel alive and vibrant.', 'sunlight, filtering, dense leaves, light and shadow, soft rays, diffuse light, dappled shadows, warm light, golden light, vibrant colors, interplay of light, dynamic scene, ever-changing, warmth, tranquility, alive, vibrant.', 'Warm and tranquil, with a sense of light and life.', 'Dynamic and ever-changing, with a focus on the interplay of light and shadow.', 'High-quality depiction with realistic lighting and shadows.']}, {'color': (0, 100, 0), 'rect': [0, 90, 0, 45], 'prefixes': ['A little squirrel.', 'Tall trees.'], 'suffixes': ['The tall trees are a prominent feature on the left side of the image.', 'The trees are large, with thick trunks and branches that spread out widely.', 'The bark is rough and textured, showing the age and strength of the trees.', 'The leaves are dense, creating a canopy that filters the sunlight.', 'Some of the branches have small twigs and leaves, adding to the lushness of the forest.', 'The trees are covered in a variety of green hues, from deep emerald to light lime.', 'trees, tall, thick trunks, branches, rough bark, textured bark, aged trees, strong trees, dense leaves, canopy, sunlight, small twigs, lush forest, green hues, emerald, lime.', 'Lush and vibrant, with a sense of strength and endurance.', 'Realistic and detailed, with a focus on the texture of the bark and leaves.', 'High-quality depiction with realistic textures and colors.']}, {'color': (0, 128, 0), 'rect': [0, 90, 45, 90], 'prefixes': ['A little squirrel.', 'Dense foliage.'], 'suffixes': ['The dense foliage on the right side of the image adds to the lushness of the forest.', 'The leaves are thick and vibrant, creating a dense green backdrop.', 'The foliage includes various types of plants, from broad-leafed trees to smaller shrubs and undergrowth.', 'The leaves are a mix of different shades of green, from deep forest green to lighter, more vibrant hues.', 'The foliage is so dense that it almost forms a wall, blocking out most of the light.', 'The texture of the leaves is detailed, showing veins and natural imperfections.', 'foliage, dense, thick leaves, vibrant leaves, green backdrop, broad-leafed trees, shrubs, undergrowth, forest green, vibrant green, dense wall, blocking light, detailed texture, leaf veins, natural imperfections.', 'Lush and dense, creating a sense of enclosure and growth.', 'Detailed and realistic, with a focus on the texture and variety of the foliage.', 'High-quality depiction with detailed textures and vibrant colors.']}, {'color': (139, 69, 19), 'rect': [15, 75, 15, 75], 'prefixes': ['A little squirrel.', 'The squirrel.'], 'suffixes': ['The squirrel is small, fluffy, and has soft, brown fur.', 'Its bright, inquisitive eyes are full of curiosity and wonder.', 'The squirrel is gripping a branch with its tiny paws, and its bushy tail is visible behind it.', 'The fur is well-groomed, and the squirrel looks healthy and vibrant.', 'The branch it is holding is sturdy, with rough bark and a few leaves.', \"The squirrel's posture is alert, as if it is ready to scamper away at any moment.\", 'squirrel, small, fluffy, brown fur, inquisitive eyes, tiny paws, branch, bushy tail, well-groomed, healthy, vibrant, sturdy branch, rough bark, leaves, alert posture.', 'Curious and alert, with a sense of readiness.', 'Detailed and lifelike, with a focus on the texture of the fur and bark.', 'High-quality, lifelike depiction with detailed textures.']}, {'color': (139, 69, 19), 'rect': [50, 90, 5, 85], 'prefixes': ['A little squirrel.', 'Forest floor.'], 'suffixes': ['The forest floor is covered with a variety of materials, including fallen leaves, twigs, and small plants.', 'The ground is uneven, with patches of dirt and moss adding texture to the scene.', 'The fallen leaves are in different stages of decay, ranging from fresh and vibrant to brown and crumbly.', 'The twigs are scattered, some lying flat and others standing upright.', 'Small plants and mushrooms grow among the debris, adding to the diversity of the forest floor.', 'The forest floor is a rich tapestry of organic matter and new life.', 'forest floor, fallen leaves, twigs, small plants, uneven ground, dirt patches, moss, texture, leaf decay, fresh leaves, vibrant leaves, brown leaves, crumbly leaves, scattered twigs, upright twigs, small plants, mushrooms, organic matter, new life.', 'Rich and diverse, with a sense of decay and rebirth.', 'Detailed and textured, with a focus on the variety and decay of the forest floor.', 'High-quality depiction with detailed textures and natural imperfections.']}"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "SaveText|pysssss",
+      "pos": [
+        -669.4187622070312,
+        755.0662231445312
+      ],
+      "size": [
+        441.5731506347656,
+        265.4404296875
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 7,
+          "slot_index": 0,
+          "widget": {
+            "name": "text"
+          },
+          "label": "文本"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveText|pysssss"
+      },
+      "widgets_values": [
+        "input",
+        "tsc.txt",
+        "overwrite",
+        true,
+        "",
+        [
+          false,
+          true
+        ]
+      ]
+    },
+    {
+      "id": 5,
+      "type": "LoadText|pysssss",
+      "pos": [
+        -32.780452728271484,
+        452.52154541015625
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            3
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "字符串"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadText|pysssss"
+      },
+      "widgets_values": [
+        "input",
+        "[none]"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -36.473289489746094,
+        594.106689453125
+      ],
+      "size": [
+        422.28192138671875,
+        340.23388671875
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 3,
+          "widget": {
+            "name": "text"
+          },
+          "label": "文本"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            8
+          ],
+          "slot_index": 0,
+          "shape": 6,
+          "label": "字符串"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "",
+        "{'rect': (0, 90, 0, 90), 'prefixes': ['A little squirrel.'], 'suffixes': ['The image features a small, adorable squirrel.', 'The squirrel is sitting on a tree branch, surrounded by lush green foliage and vibrant flowers.', 'The sky is a bright blue with a few fluffy white clouds.', 'The squirrel has a bushy tail and its fur is a mix of brown and white.', 'Its eyes are bright and curious, and it appears to be looking around its surroundings.', 'The overall atmosphere is serene and peaceful, with a sense of natural beauty and tranquility.', 'The image captures the essence of a typical day in a forest, filled with life and the simple joys of nature.', 'squirrel, tree branch, foliage, flowers, blue sky, white clouds, bushy tail, brown fur, white fur, curious eyes, serene, peaceful, natural beauty, tranquility, forest, life, nature, day, simple joys.'], 'color': (34, 139, 34)}, {'color': (135, 206, 235), 'rect': [0, 45, 0, 80], 'prefixes': ['A little squirrel.', 'Bright blue sky.'], 'suffixes': ['The sky at the top of the image is a bright blue, with a few fluffy white clouds scattered across it.', 'The blue color is vibrant and clear, indicating a beautiful day in the forest.', 'The clouds are soft and white, adding a touch of whimsy to the otherwise clear sky.', 'The sunlight bathes the entire scene in a warm, golden glow, enhancing the colors of the foliage and flowers.', 'The bright blue sky adds a sense of openness and freedom to the image, making the forest feel expansive and inviting.', 'sky, bright blue, fluffy white clouds, vibrant, clear, beautiful day, whimsical, sunlight, warm glow, golden, colors, openness, freedom, expansive, inviting, forest.', 'The bright blue sky adds a sense of openness and freedom to the image.', 'The sky is depicted with a focus on its vibrant blue color and fluffy clouds.', 'The sky is rendered with high detail and vibrant colors.']}, {'color': (139, 69, 19), 'rect': [50, 90, 0, 40], 'prefixes': ['A little squirrel.', 'Tree trunk.'], 'suffixes': ['The tree trunk on the bottom-left of the image is thick and sturdy, with a rough texture that indicates age and strength.', 'The bark is a deep brown color, with patches of moss and lichen adding to its rustic appearance.', 'The trunk is partially covered in moss, and small roots extend from its base, digging into the forest floor.', 'The tree trunk adds a sense of stability and permanence to the image, grounding the scene in the natural world.', 'The sunlight filters through the leaves above, casting shadows on the trunk and creating a play of light and dark.', 'tree trunk, thick, sturdy, rough texture, age, strength, deep brown, moss, lichen, rustic, stability, permanence, natural world, sunlight, shadows, light, dark.', 'The tree trunk adds a sense of stability and permanence to the image.', 'The tree trunk is depicted with a focus on its rough texture and rustic appearance.', 'The tree trunk is rendered with high detail and realistic textures.']}, {'color': (34, 139, 34), 'rect': [0, 75, 0, 40], 'prefixes': ['A little squirrel.', 'Lush green foliage.'], 'suffixes': ['The foliage on the left side of the image is vibrant and lush, consisting of various types of leaves.', 'The green hues range from deep emerald to lighter shades, creating a rich and varied texture.', 'The leaves are large and have a glossy appearance, indicating that they are healthy and well-nourished.', 'The foliage adds a sense of depth and richness to the image, making the forest feel alive and thriving.', 'The sunlight filters through the leaves, casting dappled shadows on the ground below.', 'foliage, green leaves, vibrant, lush, emerald, glossy leaves, healthy, well-nourished, depth, richness, alive, thriving, sunlight, shadows.', 'The foliage adds a sense of depth and richness to the image.', 'The foliage is depicted with a focus on its vibrant colors and glossy texture.', 'The foliage is rendered with high detail and vibrant colors.']}, {'color': (255, 0, 0), 'rect': [15, 90, 50, 90], 'prefixes': ['A little squirrel.', 'Vibrant flowers.'], 'suffixes': ['The flowers on the right side of the image are vibrant and colorful, adding a splash of color to the green foliage.', 'The flowers are a mix of different species, with petals ranging in color from bright reds to soft pinks and yellows.', 'The petals are delicate and appear to be gently swaying in the breeze.', 'The stems are slender and green, supporting the flowers as they reach towards the sky.', 'The flowers add a sense of beauty and life to the image, enhancing the overall tranquility of the forest scene.', 'flowers, vibrant, colorful, green foliage, different species, bright reds, soft pinks, yellows, delicate petals, swaying, slender stems, beauty, life, tranquility, forest.', 'The flowers add a sense of beauty and life to the image.', 'The flowers are depicted with a focus on their vibrant colors and delicate petals.', 'The flowers are rendered with high detail and vibrant colors.']}, {'color': (139, 69, 19), 'rect': [15, 75, 15, 75], 'prefixes': ['A little squirrel.', 'A small squirrel.'], 'suffixes': ['The squirrel is the focal point of the image.', 'It sits comfortably on a tree branch, its bushy tail curled around it.', \"The squirrel's fur is a mix of brown and white, giving it a soft and fluffy appearance.\", 'Its eyes are large and bright, full of curiosity as it looks around.', \"The squirrel's tiny paws grip the branch gently, and it seems to be enjoying the view of its surroundings.\", 'The overall impression of the squirrel is one of cuteness and charm, embodying the innocence and playfulness of forest life.', 'squirrel, tree branch, bushy tail, brown fur, white fur, large eyes, bright eyes, curious, tiny paws, cute, charming, innocence, playfulness, forest life.', 'The atmosphere around the squirrel is one of innocence and playfulness.', 'The squirrel is depicted with a focus on its cuteness and charm.', 'The squirrel is rendered with high detail and clarity.']}"
+      ]
+    },
+    {
+      "id": 12,
+      "type": "OmostLoadCanvasConditioningNode",
+      "pos": [
+        -36.23293685913086,
+        1001.9286499023438
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "json_str",
+          "type": "STRING",
+          "link": 8,
+          "widget": {
+            "name": "json_str"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OMOST_CANVAS_CONDITIONING",
+          "type": "OMOST_CANVAS_CONDITIONING",
+          "links": [
+            9
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "OMOST_CANVAS_CONDITIONING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OmostLoadCanvasConditioningNode"
+      },
+      "widgets_values": [
+        "",
+        [
+          false,
+          true
+        ]
+      ]
+    },
+    {
+      "id": 14,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -28.789947509765625,
+        1287.658203125
+      ],
+      "size": [
+        315,
+        98
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            10
+          ],
+          "shape": 3,
+          "label": "模型"
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            11,
+            20
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "CLIP"
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            17
+          ],
+          "shape": 3,
+          "label": "VAE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "xl\\万享XL_超写实摄影V8.4_V8.4.safetensors"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "EmptyLatentImage",
+      "pos": [
+        462.5564880371094,
+        450.25103759765625
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            15
+          ],
+          "shape": 3,
+          "label": "Latent"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        768,
+        1024,
+        1
+      ]
+    },
+    {
+      "id": 15,
+      "type": "KSampler",
+      "pos": [
+        854.7527465820312,
+        457.7171630859375
+      ],
+      "size": [
+        315,
+        262
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 12,
+          "label": "模型"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 13,
+          "label": "正面条件"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 14,
+          "slot_index": 2,
+          "label": "负面条件"
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 15,
+          "slot_index": 3,
+          "label": "Latent"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            16
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "Latent"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        505528311046320,
+        "randomize",
+        30,
+        7,
+        "euler",
+        "sgm_uniform",
+        1
+      ]
+    },
+    {
+      "id": 13,
+      "type": "OmostDenseDiffusionLayoutNode",
+      "pos": [
+        466.14678955078125,
+        645.892578125
+      ],
+      "size": [
+        327.6000061035156,
+        66
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 10,
+          "slot_index": 0,
+          "label": "model"
+        },
+        {
+          "name": "canvas_conds",
+          "type": "OMOST_CANVAS_CONDITIONING",
+          "link": 9,
+          "label": "canvas_conds"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 11,
+          "label": "clip"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            12
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "MODEL"
+        },
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            13
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "CONDITIONING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OmostDenseDiffusionLayoutNode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 16,
+      "type": "CLIPTextEncode",
+      "pos": [
+        474.1617431640625,
+        819.714599609375
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 20,
+          "slot_index": 0,
+          "label": "CLIP"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            14
+          ],
+          "shape": 3,
+          "label": "条件"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "",
+        [
+          false,
+          true
+        ]
+      ]
+    },
+    {
+      "id": 18,
+      "type": "VAEDecode",
+      "pos": [
+        954.5326538085938,
+        814.1156005859375
+      ],
+      "size": [
+        210,
+        46
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 16,
+          "label": "Latent"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 17,
+          "slot_index": 1,
+          "label": "VAE"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            18
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "图像"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 19,
+      "type": "PreviewImage",
+      "pos": [
+        951.7455444335938,
+        935.3085327148438
+      ],
+      "size": [
+        210,
+        26
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 18,
+          "label": "图像"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 7,
+      "type": "OmostLLMChatNode",
+      "pos": [
+        -1143.286376953125,
+        564
+      ],
+      "size": [
+        422,
+        225
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "llm",
+          "type": "OMOST_LLM",
+          "link": 4,
+          "slot_index": 0,
+          "label": "llm"
+        },
+        {
+          "name": "conversation",
+          "type": "OMOST_CONVERSATION",
+          "link": null,
+          "label": "conversation",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OMOST_CONVERSATION",
+          "type": "OMOST_CONVERSATION",
+          "links": null,
+          "shape": 3,
+          "label": "OMOST_CONVERSATION"
+        },
+        {
+          "name": "OMOST_CANVAS_CONDITIONING",
+          "type": "OMOST_CANVAS_CONDITIONING",
+          "links": [
+            6,
+            21
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "OMOST_CANVAS_CONDITIONING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OmostLLMChatNode"
+      },
+      "widgets_values": [
+        "A little squirrel",
+        4096,
+        0.9,
+        0.6,
+        691019918549117,
+        "randomize",
+        [
+          false,
+          true
+        ]
+      ]
+    },
+    {
+      "id": 21,
+      "type": "OmostRenderCanvasConditioningNode",
+      "pos": [
+        -1116.0830078125,
+        1005.3270263671875
+      ],
+      "size": [
+        403.1999816894531,
+        46
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "canvas_conds",
+          "type": "OMOST_CANVAS_CONDITIONING",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            22
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "OmostRenderCanvasConditioningNode"
+      }
+    },
+    {
+      "id": 22,
+      "type": "PreviewImage",
+      "pos": [
+        -655.8382568359375,
+        1073.3023681640625
+      ],
+      "size": [
+        434.6355285644531,
+        306.7123107910156
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 22
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    }
+  ],
+  "links": [
+    [
+      3,
+      5,
+      0,
+      6,
+      0,
+      "STRING"
+    ],
+    [
+      4,
+      8,
+      0,
+      7,
+      0,
+      "OMOST_LLM"
+    ],
+    [
+      6,
+      7,
+      1,
+      10,
+      0,
+      "*"
+    ],
+    [
+      7,
+      10,
+      0,
+      2,
+      0,
+      "STRING"
+    ],
+    [
+      8,
+      6,
+      0,
+      12,
+      0,
+      "STRING"
+    ],
+    [
+      9,
+      12,
+      0,
+      13,
+      1,
+      "OMOST_CANVAS_CONDITIONING"
+    ],
+    [
+      10,
+      14,
+      0,
+      13,
+      0,
+      "MODEL"
+    ],
+    [
+      11,
+      14,
+      1,
+      13,
+      2,
+      "CLIP"
+    ],
+    [
+      12,
+      13,
+      0,
+      15,
+      0,
+      "MODEL"
+    ],
+    [
+      13,
+      13,
+      1,
+      15,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      16,
+      0,
+      15,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      15,
+      17,
+      0,
+      15,
+      3,
+      "LATENT"
+    ],
+    [
+      16,
+      15,
+      0,
+      18,
+      0,
+      "LATENT"
+    ],
+    [
+      17,
+      14,
+      2,
+      18,
+      1,
+      "VAE"
+    ],
+    [
+      18,
+      18,
+      0,
+      19,
+      0,
+      "IMAGE"
+    ],
+    [
+      19,
+      10,
+      0,
+      20,
+      0,
+      "STRING"
+    ],
+    [
+      20,
+      14,
+      1,
+      16,
+      0,
+      "CLIP"
+    ],
+    [
+      21,
+      7,
+      1,
+      21,
+      0,
+      "OMOST_CANVAS_CONDITIONING"
+    ],
+    [
+      22,
+      21,
+      0,
+      22,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Group",
+      "bounding": [
+        -1153.286376953125,
+        354.1648864746094,
+        942.0836181640625,
+        1035.8497314453125
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "Group",
+      "bounding": [
+        -46.473289489746094,
+        376.6510314941406,
+        1226.2259521484375,
+        1019.0071411132812
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.6588450000000265,
+      "offset": [
+        1115.362493785386,
+        -264.50361015610724
+      ]
+    },
+    "groupNodes": {},
+    "ue_links": []
+  },
+  "version": 0.4
+}

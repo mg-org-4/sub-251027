@@ -1,0 +1,315 @@
+{
+  "last_node_id": 8,
+  "last_link_id": 5,
+  "nodes": [
+    {
+      "id": 5,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        -427.7637634277344,
+        636.33251953125
+      ],
+      "size": [
+        264.5999755859375,
+        88
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "dir": 3,
+          "link": 3
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "rgthree-comfy",
+        "ver": "5dc53323e07a021038af9f2a4a06ebc071f7218c",
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 6,
+      "type": "GFDeepTranslate",
+      "pos": [
+        -89.65996551513672,
+        518.7496337890625
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "translated_text",
+          "type": "STRING",
+          "links": [
+            5
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "GF_translate",
+        "ver": "bc000d787ff1903c991ac1bc3f5015f9b7f2a091",
+        "Node name for S&R": "GFDeepTranslate"
+      },
+      "widgets_values": [
+        "Hey how your going sorry you can't get through.",
+        "auto",
+        "english"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "Display Any (rgthree)",
+      "pos": [
+        384.8998107910156,
+        560.3954467773438
+      ],
+      "size": [
+        264.5999755859375,
+        88
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "dir": 3,
+          "link": 5
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "rgthree-comfy",
+        "ver": "5dc53323e07a021038af9f2a4a06ebc071f7218c",
+        "Node name for S&R": "Display Any (rgthree)"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 1,
+      "type": "F5TTSAudio",
+      "pos": [
+        -342.45111083984375,
+        853.12353515625
+      ],
+      "size": [
+        400,
+        256
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "speech",
+          "type": "STRING",
+          "widget": {
+            "name": "speech"
+          },
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-f5-tts",
+        "ver": "712bdfbd9185bd66ef49a160381cdd4f22e039d1",
+        "Node name for S&R": "F5TTSAudio"
+      },
+      "widgets_values": [
+        "fr_example.wav",
+        "无论等待我的是什么… 为了艾瑟瑞尔，为了沉睡的守护者，为了我们失落的一切… 我别无选择。",
+        1536,
+        "randomize",
+        "F5-FR",
+        "auto",
+        1,
+        "F5TTS_Base"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "GFDeepTranslate",
+      "pos": [
+        -937.8400268554688,
+        778.4172973632812
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "translated_text",
+          "type": "STRING",
+          "links": [
+            2,
+            3,
+            4
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "GF_translate",
+        "ver": "bc000d787ff1903c991ac1bc3f5015f9b7f2a091",
+        "Node name for S&R": "GFDeepTranslate"
+      },
+      "widgets_values": [
+        "Hey, how you going. sorry you can't get through.",
+        "auto",
+        "french"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "PreviewAudio",
+      "pos": [
+        138.61209106445312,
+        881.6187133789062
+      ],
+      "size": [
+        315,
+        88
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 1
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.29",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 8,
+      "type": "Note",
+      "pos": [
+        -912.794677734375,
+        415.90887451171875
+      ],
+      "size": [
+        371.40496826171875,
+        179.834716796875
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "You only need less than 15secs of your voice speaking in another language.\n\n* Put your voice in a .wav file. \n* Write down what you said in a .txt\n* Put these two files into \"input/audio\"\n\nType what you want to say in the first node. Press \"Queue\".  Check the right node to see that the translation is what you wanted it to be."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "AUDIO"
+    ],
+    [
+      2,
+      4,
+      0,
+      1,
+      0,
+      "STRING"
+    ],
+    [
+      3,
+      4,
+      0,
+      5,
+      0,
+      "*"
+    ],
+    [
+      4,
+      4,
+      0,
+      6,
+      0,
+      "STRING"
+    ],
+    [
+      5,
+      6,
+      0,
+      7,
+      0,
+      "*"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1,
+      "offset": [
+        1322.9298391903303,
+        -206.7519729338744
+      ]
+    },
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

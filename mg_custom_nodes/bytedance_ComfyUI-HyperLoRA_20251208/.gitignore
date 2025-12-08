@@ -1,0 +1,17 @@
+.vscode/
+.tmp/
+.bak/
+__pycache__/
+log/
+logs/
+
+*.pyc
+*.pyd
+*.log
+*.png
+*.jpg
+*.mp4
+*.pth
+*.pt
+*.bin
+*.safetensors

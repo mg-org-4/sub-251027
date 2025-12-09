@@ -5,7 +5,6 @@ on:
     - cron: '0 * * * *'
   workflow_dispatch:
 
-# 授予必要权限（GITHUB_TOKEN 自动获得 contents + workflows 权限）
 permissions:
   contents: write
 
@@ -13,101 +12,89 @@ jobs:
   sync-nodes:
     runs-on: ubuntu-latest
     steps:
-
-      # 检出主仓库（使用默认 GITHUB_TOKEN，不指定 token）
       - name: Checkout Your Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 获取完整历史以便 merge
+          fetch-depth: 0
+          lfs: false
 
-      # 配置 Git 使用 GITHUB_TOKEN 进行推送（关键！）
-      - name: Configure Git credentials for push
+      - name: Configure Git credentials
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          # 将 origin URL 改为带 GITHUB_TOKEN 的 HTTPS 格式
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-      # 设置 Python 环境
-      - name: Setup Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
+          # 这里的配置是为了防止 checkout 阶段意外触发 LFS
+          git config --global filter.lfs.smudge "cat"
+          git config --global filter.lfs.clean "cat"
 
-      # 执行同步脚本
       - name: Run sync script
         run: |
-          # 设置环境变量跳过 LFS 下载
-          export GIT_LFS_SKIP_SMUDGE=1
-                    
+          # === 1. 彻底“阉割” LFS 功能 ===
+          # 移除所有 LFS 相关的过滤器和钩子
+          # 这样 Git 就会把 LFS 文件当成普通文本（指针）处理，而不会尝试上传到 LFS 服务器
+          git config --global --unset-all filter.lfs.required || true
+          git config --global --unset-all filter.lfs.smudge || true
+          git config --global --unset-all filter.lfs.clean || true
+          git config --global --unset-all filter.lfs.process || true
+          
+          # 允许推送“不完整”的 LFS（即只推指针，不推实体文件）
+          git config --global lfs.allowincompletepush true
+          
+          # 移除可能存在的 pre-push 钩子
+          rm -f .git/hooks/pre-push
+
+          # === 2. 准备上游 ===
           git remote add upstream https://github.com/mg-org-1/ComfyUI.git 2>/dev/null || true
           git fetch upstream
           git checkout master
           
-          # === 备份本地关键文件 ===
+          # === 3. 备份本地关键文件 ===
           LOCAL_README_EXIST=0
-          if [ -f "README.md" ]; then
-            cp README.md /tmp/README.md.backup
-            LOCAL_README_EXIST=1
-          fi
+          [ -f "README.md" ] && { cp README.md /tmp/README.md.backup; LOCAL_README_EXIST=1; }
           
           LOCAL_WORKFLOWS_EXIST=0
-          if [ -d ".github/workflows" ]; then
-            cp -r .github/workflows /tmp/workflows.backup
-            LOCAL_WORKFLOWS_EXIST=1
+          [ -d ".github/workflows" ] && { cp -r .github/workflows /tmp/workflows.backup; LOCAL_WORKFLOWS_EXIST=1; }
+          
+          # === 4. 清理 .gitattributes 中的 LFS 规则 ===
+          # 这一步是为了防止以后别人 clone 时自动触发 LFS 下载
+          if [ -f ".gitattributes" ]; then
+            cp .gitattributes /tmp/gitattributes.backup
+            grep -v 'filter=lfs' /tmp/gitattributes.backup > .gitattributes.new
+            mv .gitattributes.new .gitattributes
+            git add .gitattributes
           fi
           
-          # === 合并上游 ===
-          # --no-ff 确保总是创建一个合并提交，--no-commit 阻止自动提交
+          # === 5. 合并上游 ===
           if ! git merge --no-ff --no-commit upstream/master; then
-            echo "Merge conflict detected. Resolving by taking upstream version..."
-            # 如果有冲突, 用 'theirs' (上游) 版本解决 *所有* 冲突
+            echo "Merge conflict detected. Taking upstream version for all files..."
             git checkout --theirs .
             git add .
-            # 注意：这里我们也不 commit
           fi
           
-          # 此时，所有上游更改都在暂存区 (staged)，但未提交
-          
-          # === 恢复本地文件 ===
-          # 现在恢复你的本地文件，这将覆盖暂存区中的上游版本
+          # === 6. 恢复本地文件 ===
           if [ "$LOCAL_README_EXIST" = "1" ]; then
             cp /tmp/README.md.backup README.md
             git add README.md
-            echo "Restored local README.md"
-          else
-            # 如果本地没有，就删除上游的
-            rm -f README.md
-            git add README.md 2>/dev/null || true
-            echo "Removed upstream README.md (not present locally)"
           fi
           
           if [ "$LOCAL_WORKFLOWS_EXIST" = "1" ]; then
             rm -rf .github/workflows
             cp -r /tmp/workflows.backup .github/workflows
             git add .github/workflows
-            echo "Restored local .github/workflows"
-          else
-            # 如果本地没有，就删除上游的
-            rm -rf .github/workflows 2>/dev/null || true
-            git add .github 2>/dev/null || true
-            echo "Removed upstream .github/workflows (not present locally)"
           fi
           
-          # 清理空的 .github 目录
-          if [ -d ".github" ] && [ -z "$(ls -A .github)" ]; then
+          # 清理空目录
+          if [ -d ".github" ] && [ -z "$(ls -A .github 2>/dev/null)" ]; then
             rmdir .github
             git add -A
           fi
-          # === 统一提交 ===
-          # 检查暂存区是否有任何更改。
-          # 如果上游没有新内容，且本地文件也无变化，则暂存区是空的
-          if ! git diff --cached --quiet; then
-            echo "Committing merged changes and local file restorations..."
-            git commit -m "Sync with upstream/master and restore local files (README.md, .github/workflows)"
-          else
-            echo "No new changes from upstream to commit."
-          fi
           
-          # === 推送 ===
-          echo "Pushing changes to origin master..."
-          git push origin master
+          git add -A
+          
+          # === 7. 提交并推送 ===
+          if ! git diff --cached --quiet; then
+            git commit -m "Sync with upstream/master and restore local files"
+            # 使用 --no-verify 跳过所有钩子检查
+            git push origin master --no-verify
+          else
+            echo "No changes to commit."
+          fi

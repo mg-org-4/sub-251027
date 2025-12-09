@@ -1,0 +1,16 @@
+{
+    "Baidu": {
+        "AppId": "APPID",
+        "Secret": "SECRET"
+    },
+    "Google": {"proxy": ""}, 
+    "DeepSeek": {
+        "api_key": ""
+    },
+    "bailian": {
+        "api_key": ""
+    },
+    "volcengine": {
+        "api_key": ""
+    }
+}

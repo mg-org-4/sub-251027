@@ -103,7 +103,7 @@ def calculate_decay_score(last_updated_str, half_life_days=180):
         raise ValueError("更新时间为空或非字符串")
 
 
-def load_sorted_repos(json_path, top_n=300):
+def load_sorted_repos(json_path, top_n=500):
     """加载并排序 GitHub 仓库 - 基于 star 数和活跃度综合排序（严格模式：无更新时间则排除）"""
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)

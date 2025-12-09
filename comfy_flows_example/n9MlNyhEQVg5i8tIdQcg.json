@@ -1,0 +1,646 @@
+{
+  "last_node_id": 103,
+  "last_link_id": 128,
+  "nodes": [
+    {
+      "id": 74,
+      "type": "BizyAirDepthAnythingV2Preprocessor",
+      "pos": {
+        "0": -103,
+        "1": 572
+      },
+      "size": {
+        "0": 458.4947814941406,
+        "1": 95.27467346191406
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 112,
+          "label": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            84,
+            85
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "IMAGE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAirDepthAnythingV2Preprocessor"
+      },
+      "widgets_values": [
+        "depth_anything_v2_vitl.pth",
+        512
+      ],
+      "shape": 1
+    },
+    {
+      "id": 89,
+      "type": "Note",
+      "pos": {
+        "0": -641,
+        "1": 714
+      },
+      "size": {
+        "0": 313.1090087890625,
+        "1": 69.14137268066406
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "这里当做一个变量使用，方便修改 Load Image 的方式（调试的时候用 ComfyUI、API调用用 base64 编码）"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 83,
+      "type": "ImageScaleToTotalPixels",
+      "pos": {
+        "0": -157,
+        "1": 1198
+      },
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 114
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            103,
+            104
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageScaleToTotalPixels"
+      },
+      "widgets_values": [
+        "nearest-exact",
+        0.5
+      ]
+    },
+    {
+      "id": 86,
+      "type": "Note",
+      "pos": {
+        "0": 348,
+        "1": 943
+      },
+      "size": {
+        "0": 210,
+        "1": 58
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "压缩图像供 VLM 识别主体内容，可以提速"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 82,
+      "type": "PreviewImage",
+      "pos": {
+        "0": 347,
+        "1": 1061
+      },
+      "size": {
+        "0": 210,
+        "1": 246
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 103
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 100,
+      "type": "Display Any (rgthree)",
+      "pos": {
+        "0": 922,
+        "1": 1554
+      },
+      "size": [
+        516.6671674144027,
+        132.88424669352662
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 125,
+          "dir": 3
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "prompt"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 91,
+      "type": "ImageScaleBy",
+      "pos": {
+        "0": -643,
+        "1": 824
+      },
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 128
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            112,
+            113,
+            114
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageScaleBy"
+      },
+      "widgets_values": [
+        "nearest-exact",
+        1
+      ]
+    },
+    {
+      "id": 69,
+      "type": "StableDiffusionXLControlNetUnionPipeline",
+      "pos": {
+        "0": 952.510498046875,
+        "1": 766.828125
+      },
+      "size": {
+        "0": 396.334716796875,
+        "1": 597.64599609375
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "openpose_image",
+          "type": "IMAGE",
+          "link": null,
+          "label": "openpose_image",
+          "shape": 7
+        },
+        {
+          "name": "depth_image",
+          "type": "IMAGE",
+          "link": 85,
+          "label": "depth_image",
+          "shape": 7
+        },
+        {
+          "name": "hed_pidi_scribble_ted_image",
+          "type": "IMAGE",
+          "link": null,
+          "label": "hed_pidi_scribble_ted_image",
+          "shape": 7
+        },
+        {
+          "name": "canny_lineart_anime_lineart_mlsd_image",
+          "type": "IMAGE",
+          "link": 113,
+          "label": "canny_lineart_anime_lineart_mlsd_image",
+          "shape": 7
+        },
+        {
+          "name": "normal_image",
+          "type": "IMAGE",
+          "link": null,
+          "label": "normal_image",
+          "shape": 7
+        },
+        {
+          "name": "segment_image",
+          "type": "IMAGE",
+          "link": null,
+          "label": "segment_image",
+          "shape": 7
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 126,
+          "widget": {
+            "name": "prompt"
+          },
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            120
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "IMAGE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StableDiffusionXLControlNetUnionPipeline"
+      },
+      "widgets_values": [
+        101,
+        "increment",
+        20,
+        2,
+        4.9,
+        "a submarine in cyberpunk style, with a futuristic and sci-fi aesthetic",
+        "watermark, text",
+        0,
+        0.5
+      ],
+      "shape": 1
+    },
+    {
+      "id": 72,
+      "type": "PreviewImage",
+      "pos": {
+        "0": 506,
+        "1": 246
+      },
+      "size": {
+        "0": 302.92633056640625,
+        "1": 273.948486328125
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 84,
+          "label": "images"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": [],
+      "shape": 1
+    },
+    {
+      "id": 92,
+      "type": "Note",
+      "pos": {
+        "0": 130,
+        "1": 1388
+      },
+      "size": {
+        "0": 210,
+        "1": 173.47244262695312
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "提示词、风格和要求改这里"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 79,
+      "type": "BizyAirSiliconCloudVLMAPI",
+      "pos": {
+        "0": 350,
+        "1": 1383
+      },
+      "size": {
+        "0": 428.6536865234375,
+        "1": 299.9222106933594
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 104
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            125,
+            126
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BizyAirSiliconCloudVLMAPI"
+      },
+      "widgets_values": [
+        "Qwen/Qwen2-VL-72B-Instruct",
+        "你是一个 stable diffusion prompt 专家，为用户生成适用于 Stable Diffusion 模型的 prompt，该 prompt 的作用是将给定的图片转绘为其他风格的形式。 请结合用户的目标，帮用户扩写为适合 Stable Diffusion 文生图的 prompt。\n<requirements> 1. 英文输出  2. 可以发挥想象力，适当的对背景和画面中的内容做一些调整。3. 除了 prompt 外，不要输出任何其它的信息，你的输出将直接提供给渲染器。</requirements>\n\n用户的目标是：",
+        "炫酷的赛博朋克风格",
+        1024,
+        0.7,
+        "auto"
+      ]
+    },
+    {
+      "id": 102,
+      "type": "LoadImage",
+      "pos": {
+        "0": -1023,
+        "1": 825
+      },
+      "size": [
+        315,
+        314
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            128
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "WechatIMG768.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 97,
+      "type": "SaveImage",
+      "pos": {
+        "0": 1551,
+        "1": 767
+      },
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 120
+        }
+      ],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 103,
+      "type": "Note",
+      "pos": {
+        "0": -293.4908142089844,
+        "1": 358.5713806152344
+      },
+      "size": [
+        210,
+        58
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "压缩图像供 VLM 识别主体内容，可以提速"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      84,
+      74,
+      0,
+      72,
+      0,
+      "IMAGE"
+    ],
+    [
+      85,
+      74,
+      0,
+      69,
+      1,
+      "IMAGE"
+    ],
+    [
+      103,
+      83,
+      0,
+      82,
+      0,
+      "IMAGE"
+    ],
+    [
+      104,
+      83,
+      0,
+      79,
+      0,
+      "IMAGE"
+    ],
+    [
+      112,
+      91,
+      0,
+      74,
+      0,
+      "IMAGE"
+    ],
+    [
+      113,
+      91,
+      0,
+      69,
+      3,
+      "IMAGE"
+    ],
+    [
+      114,
+      91,
+      0,
+      83,
+      0,
+      "IMAGE"
+    ],
+    [
+      120,
+      69,
+      0,
+      97,
+      0,
+      "IMAGE"
+    ],
+    [
+      125,
+      79,
+      0,
+      100,
+      0,
+      "*"
+    ],
+    [
+      126,
+      79,
+      0,
+      69,
+      6,
+      "STRING"
+    ],
+    [
+      128,
+      102,
+      0,
+      91,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "SDXL",
+      "bounding": [
+        924,
+        689,
+        450,
+        703
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "中间预览图（深度图）",
+      "bounding": [
+        449,
+        157,
+        390,
+        398
+      ],
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5131581182307071,
+      "offset": [
+        1088.1182597439895,
+        -186.3839664664269
+      ]
+    }
+  },
+  "version": 0.4
+}

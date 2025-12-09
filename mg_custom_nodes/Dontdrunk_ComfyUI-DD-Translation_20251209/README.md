@@ -42,7 +42,7 @@ https://github.com/user-attachments/assets/1ec662ba-da6c-4712-8be7-61168b08940e
 方法2（推荐）：
 直接在Manager或启动器中使用git进行安装
 
-`https://github.com/1761696257/ComfyUI-DD-Translation.git`
+`https://github.com/Dontdrunk/ComfyUI-DD-Translation.git`
 
 方法3（推荐）：
 直接在Manager中搜索插件名称安装
@@ -50,9 +50,18 @@ https://github.com/user-attachments/assets/1ec662ba-da6c-4712-8be7-61168b08940e
 ## 贡献者名单
 感谢以下贡献者对于ComfyUI中文开源生态的支持
 
-- msola-ht丶是小张啊丶alinuo666丶猪的飞行梦丶ZXSZS丶tanglangxia丶AIGCZero丶Artistjjw丶henrylaobai丶FanXiangTM丶xuchenxu168丶LovedeHua丶uiiiaiii丶fuxijun-max丶ANe5s
+- msola-ht丶是小张啊丶alinuo666丶猪的飞行梦丶ZXSZS丶tanglangxia丶AIGCZero丶Artistjjw丶henrylaobai丶FanXiangTM丶xuchenxu168丶LovedeHua丶uiiiaiii丶fuxijun-max丶ANe5s丶cnolka 丶XXXAbit7 丶Yifo98
 
 ## 更新日志
+
+### v2.0.0(2025-12-08) 【兼容性更新】
+- 添加了VUE NODES 2.0节点的全面翻译支持，全面适配最新版本的新节点系统，对最新版本UI做全面的兼容性支持
+- 修复了节点输入有些带_符号的翻译内容没有正确翻译的问题
+- 感谢贡献者(Yifo98)提供的新版本兼容示例，修复了ComfyUI Nodes 2.0节点的连线异常问题
+- 合并贡献者(cnolka)的PR，现在通过Comfyui原生设置面板来开关翻译，并移除导致BUG的错误翻译文件
+- 合并贡献者(cnolka) 对于ComfyUI-Easy-SAM3插件的翻译完善
+- 合并贡献者(XXXAbit7)对于Depthflow节点的翻译补全
+
 ### v1.9.20(2025-11-22) 
 - 合并贡献者（ANe5s）对于Comfyui-fluxtrainer插件的翻译完善
 - 合并贡献者（ZXSZS）对于SeedVR2LoadDiTModel与SDPoseOODLoader插件的翻译完善

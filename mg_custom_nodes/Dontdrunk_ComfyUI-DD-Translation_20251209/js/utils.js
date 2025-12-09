@@ -145,3 +145,34 @@ export async function toggleTranslation() {
         error("切换翻译状态失败");
     }
 }
+
+/**
+ * Check if running in ComfyUI Nodes 2.0 (Vue) mode
+ * @returns {boolean}
+ */
+export function isVueNodes2() {
+    return typeof window.comfyAPI !== 'undefined';
+}
+export function applySuffixHeuristic(key) {
+    if (!key || typeof key !== 'string') return null;
+    const idx = key.lastIndexOf('_');
+    if (idx <= 0) return null;
+    const base = key.slice(0, idx);
+    const suffix = key.slice(idx + 1);
+    if (suffix === 'embeds') return `${base}嵌入`;
+    if (suffix === 'args') return `${base}参数`;
+    return null;
+}
+
+export function shouldSkipNode(node, extraClassList = [], extraClosestSelectors = '') {
+    try {
+        if (!node) return true;
+        if (extraClassList.some(cls => node.classList?.contains(cls))) return true;
+        const container = node.closest?.(extraClosestSelectors || '.workflow-list, .workflow, .workflows, .file-list, .file-browser, .p-tree, .p-treenode, .p-inputtext');
+        if (container) return true;
+        if (node.tagName === 'INPUT' || node.tagName === 'TEXTAREA' || node.isContentEditable) return true;
+        return false;
+    } catch {
+        return false;
+    }
+}

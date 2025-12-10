@@ -1,0 +1,15 @@
+{
+    "ComfyUI-Only": {
+        "nodes": {
+            "Workflow Image Loader (File)": "Workflow图片文件加载器",
+            "Workflow Image Loader (Image)": "Workflow图片加载器",
+            "Workflow JSON Parser": "Workflow JSON解析器",
+            "Load Latent (Advanced)": "高级Latent加载器"
+        },
+        "properties": {
+            "Optional: Manually input workflow JSON if the image lacks workflow information.": "可选：手动输入workflow JSON，如果图片中没有workflow信息",
+            "Manual workflow JSON is required as the IMAGE type does not contain original metadata.": "必须手动输入workflow JSON，因为IMAGE类型不包含原始图片元数据",
+            "Paste ComfyUI workflow JSON here": "粘贴ComfyUI workflow JSON"
+        }
+    }
+}

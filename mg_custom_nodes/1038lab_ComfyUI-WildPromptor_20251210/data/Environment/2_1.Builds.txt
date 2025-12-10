@@ -1,0 +1,88 @@
+Airport
+Amusement park
+Arena
+Art gallery
+Barn
+Bed and breakfast
+Bridge
+Campground
+Castle
+Cathedral
+Chalet
+Chemical plant
+Church
+City street
+Clinic
+Conservatory
+Cottage
+Department store
+Doghouse
+Dungeon
+Eiffel Tower
+Farmhouse
+Farmhouse kitchen
+Floating hotel
+Fort
+Fortress
+Fossil fuel power station
+Gas station
+Giant sequoia tree
+Greenhouse
+Gymnasium
+Hagia Sophia
+High School
+Hotel
+Hotel room
+Hydroelectric power plant
+Ice cream stand
+Laboratory
+Lake House
+Library
+Mansion
+Marina
+Market
+Megalopolis
+Minaret
+Motel
+Museum
+Nuclear missile silo
+Nuclear power plant
+Office building
+Oil platform
+Oil refinery
+Palace
+Parking garage
+Power plant
+Pyramid
+Ranch house
+Research facility
+Resort
+Restaurant
+Sagrada Familia
+Sea fort
+Skate park
+Skyscraper
+Solar power station
+Sports complex
+St. Basil's Cathedral
+St. Peter's Basilica
+Stadium
+Stonehenge
+Space elevator
+Space station
+Suspension bridge
+Synagogue
+Temple
+Tower
+Train station
+Trolley station
+University
+Vault
+Vineyard
+Viaduct
+Wind farm
+Wind turbine
+Water tower
+Warehouse
+Water treatment plant
+Workshop

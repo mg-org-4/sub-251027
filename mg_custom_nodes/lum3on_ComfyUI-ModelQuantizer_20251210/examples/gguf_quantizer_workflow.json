@@ -1,0 +1,214 @@
+{
+  "id": "fac53e6c-027e-4d62-b631-9502460b54fa",
+  "revision": 0,
+  "last_node_id": 12,
+  "last_link_id": 11,
+  "nodes": [
+    {
+      "id": 12,
+      "type": "UNETLoader",
+      "pos": [
+        -116.2187271118164,
+        70.46971893310547
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.40",
+        "Node name for S&R": "UNETLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "DG_Wan_1_3b_t2v_boost_stock_V1_new.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "PreviewAny",
+      "pos": [
+        599.5283813476562,
+        65.43692779541016
+      ],
+      "size": [
+        241.1754913330078,
+        389.3494873046875
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 8
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.40",
+        "Node name for S&R": "PreviewAny",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 2,
+      "type": "GGUFQuantizerNode",
+      "pos": [
+        169.37864685058594,
+        62.260032653808594
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "status_message",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "output_gguf_path_or_dir",
+          "type": "STRING",
+          "slot_index": 1,
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "lum3on/ComfyUI-ModelQuantizer",
+        "ver": "7c4af70596c4e57e15284eca28487254b369c633",
+        "Node name for S&R": "GGUFQuantizerNode",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "Q5_0",
+        "C:\\Users\\RAIIN Studios\\Documents\\protable\\ComfyUI\\models\\unet\\ace",
+        true,
+        true,
+        true
+      ]
+    }
+  ],
+  "links": [
+    [
+      3,
+      2,
+      1,
+      4,
+      0,
+      "STRING"
+    ],
+    [
+      7,
+      1,
+      0,
+      7,
+      0,
+      "*"
+    ],
+    [
+      8,
+      2,
+      0,
+      9,
+      0,
+      "*"
+    ],
+    [
+      11,
+      12,
+      0,
+      2,
+      0,
+      "MODEL"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 2,
+      "title": "Group",
+      "bounding": [
+        -128.0432891845703,
+        -10.42851448059082,
+        977.8348999023438,
+        477.9517822265625
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ue_links": [],
+    "ds": {
+      "scale": 0.7972024500000005,
+      "offset": [
+        158.59439579954568,
+        333.5982287869171
+      ]
+    },
+    "links_added_by_ue": [],
+    "frontendVersion": "1.21.7",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

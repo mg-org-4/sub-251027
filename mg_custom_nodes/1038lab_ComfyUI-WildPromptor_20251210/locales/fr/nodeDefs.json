@@ -1,0 +1,401 @@
+{
+  "WildPromptorAllInOne": {
+    "display_name": "Liste WildPromptor Tout-en-Un 📋+🔀",
+    "inputs": {
+      "batch_size": {
+        "name": "Taille du lot"
+      },
+      "seed": {
+        "name": "Graine"
+      },
+      "allow_duplicates": { 
+        "name": "Autoriser les doublons"
+      }
+    }
+  },
+  "WildPromptor_dataToPromptList": {
+    "display_name": "Liste de Données WildPromptor à Prompts 🔀+📋",
+    "inputs": {
+      "path": {
+        "name": "Chemin"
+      },
+      "separator": {
+        "name": "Séparateur"
+      },
+      "batch_size": {
+        "name": "Taille du lot"
+      },
+      "count_start_from": {
+        "name": "Compter à partir de"
+      },
+      "allow_duplicates": {
+        "name": "Autoriser les doublons"
+      },
+      "mode": {
+        "name": "Mode"
+      },
+      "seed": { 
+        "name": "Graine"
+      },
+      "text": {
+        "name": "Texte"
+      } 
+    }
+  },
+  "WildPromptorGenerator": {
+    "display_name": "Générateur WildPromptor 🔀",
+    "inputs": {
+      "selected_options": {
+        "name": "Options Sélectionnées"  
+      },
+      "batch_size": {
+        "name": "Taille du lot"
+      },
+      "seed": {
+        "name": "Graine"  
+      },
+      "allow_duplicates": {
+        "name": "Autoriser les doublons"
+      }
+    }
+  },
+  "AllInOneList": {
+    "display_name": "Liste Tout-en-Un 📋",
+    "inputs": {
+      "selected_options": {
+        "name": "Options Sélectionnées"
+      } 
+    }
+  },
+  "PromptConcat": {
+    "display_name": "Concaténation de Prompts 🔀",
+    "inputs": {
+      "prefix": {
+        "name": "Préfixe"
+      },
+      "suffix": {
+        "name": "Suffixe"
+      },
+      "separator": {
+        "name": "Séparateur"
+      },
+      "remove_duplicates": {
+        "name": "Supprimer les Doublons"
+      },
+      "sort": {
+        "name": "Trier"
+      } 
+    } 
+  },
+  "PromptBuilder": {
+    "display_name": "Constructeur de Prompts 🔀",
+    "inputs": {
+      "prefix": {
+        "name": "Préfixe" 
+      },
+      "content": {
+        "name": "Contenu"
+      },
+      "suffix": {
+        "name": "Suffixe"
+      }
+    }
+  },
+  "KeywordPicker": {
+    "display_name": "Sélecteur de Mots-Clés 🔀",
+    "inputs": {
+      "input_keywords": {
+        "name": "Mots-Clés d'Entrée"
+      },
+      "keywords": {
+        "name": "Mots-Clés"
+      },
+      "pick_count": {
+        "name": "Nombre de Sélections"
+      },
+      "pick_mode": {
+        "name": "Mode de Sélection"
+      },
+      "seed": { 
+        "name": "Graine"
+      }
+    }
+  },
+  "WildPromptor_Enhancer": {
+    "display_name": "Améliorateur WildPromptor 🤖",
+    "inputs": {
+      "prompt": {
+        "name": "Invite"
+      },
+      "batch_size": {
+        "name": "Taille du lot"
+      },
+      "combine_output": {
+        "name": "Combiner la Sortie"  
+      },
+      "seed": {
+        "name": "Graine"
+      }
+    }
+  },
+  "WildPromptor_Florence2": {
+    "display_name": "🤖 Florence 2 👁️",
+    "inputs": {
+      "Image_Folder_Path": {
+        "name": "Chemin du Dossier d'Images"
+      },
+      "Model": {
+        "name": "Modèle"
+      },
+      "Vision_To_Prompt": {
+        "name": "Vision à Invite"
+      },
+      "max_token": {
+        "name": "Max Token"
+      },
+      "Vision_Detail_Level": {
+        "name": "Niveau de Détail de la Vision"
+      },
+      "Prefix": {
+        "name": "Préfixe"
+      },
+      "Suffix": {
+        "name": "Suffixe"
+      },
+      "images": {
+        "name": "Images"
+      },
+      "seed": {
+        "name": "Graine"
+      }
+    } 
+  },  
+  "AIOutputCleaner": {
+    "display_name": "Nettoyeur de Sortie AI 🤖",
+    "inputs": {
+      "text": {
+        "name": "Texte"
+      },
+      "remove_think_content": {
+        "name": "Supprimer le Contenu de Réflexion"
+      },
+      "preserve_think_content": {
+        "name": "Préserver le Contenu de Réflexion"
+      },
+      "remove_ai_artifacts": {
+        "name": "Supprimer les Artefacts AI"
+      },
+      "remove_markdown": {
+        "name": "Supprimer le Markdown"
+      },
+      "remove_line_numbers": {
+        "name": "Supprimer les Numéros de Ligne"
+      },
+      "remove_code_blocks": {
+        "name": "Supprimer les Blocs de Code"
+      },
+      "remove_timestamps": {
+        "name": "Supprimer les Horodatages"
+      },
+      "remove_urls": {
+        "name": "Supprimer les URLs"
+      },
+      "remove_html_tags": {
+        "name": "Supprimer les Balises HTML"
+      },
+      "fix_spacing": {
+        "name": "Corriger l'Espacement"
+      },
+      "remove_special_chars": {
+        "name": "Supprimer les Caractères Spéciaux"
+      },
+      "remove_image_prefixes": {
+        "name": "Supprimer les Préfixes d'Images"
+      },
+      "remove_style_references": {
+        "name": "Supprimer les Références de Style"
+      },
+      "remove_colons": {
+        "name": "Supprimer les Deux-Ponts"
+      },
+      "remove_asterisks": {
+        "name": "Supprimer les Astérisques"
+      },
+      "custom_patterns": {
+        "name": "Modèles Personnalisés"
+      },
+      "preserve_newlines": {
+        "name": "Préserver les Sauts de Ligne"
+      }
+    }
+  },
+  "WildPromptor_GeminiVision": {
+    "display_name": "🤖 Gemini + Vision 👁️",
+    "inputs": {
+      "keywords": {
+        "name": "Mots-Clés"
+      },
+      "model": {
+        "name": "Modèle"
+      },
+      "max_length": {
+        "name": "Longueur Max"
+      },
+      "temperature": {
+        "name": "Température"
+      },
+      "api_key": {
+        "name": "Clé API"
+      },
+      "image": {
+        "name": "Image"
+      },
+      "seed": {
+        "name": "Graine"
+      }
+    }
+  },
+  "WildPromptor_GeminiImageGen": {
+    "display_name": "🤖 Générateur d'Images Gemini 🖼️",
+    "inputs": {
+      "prompt": {
+        "name": "Invite"  
+      },
+      "aspect_ratio": {
+        "name": "Ratio d'Aspect"
+      },
+      "temperature": {
+        "name": "Température" 
+      },
+      "image": {
+        "name": "Image"
+      },
+      "seed": {
+        "name": "Graine"  
+      }
+    }
+  },
+  "WildPromptor_hfgpt": {
+    "display_name": "🤖 HFGPT 🤖",
+    "inputs": {
+      "keywords": {
+        "name": "Mots-Clés"
+      },
+      "model_repo": {
+        "name": "Dépôt de Modèle"
+      },
+      "max_length": {
+        "name": "Longueur Max"
+      },
+      "temperature": {
+        "name": "Température"
+      }
+    }
+  },
+  "WildPromptor_minicpm": {
+    "display_name": "🤖 MiniCPM 🤖",
+    "inputs": {
+      "text": {
+        "name": "Texte"  
+      },
+      "model": {
+        "name": "Modèle"
+      },
+      "language": {
+        "name": "Langue"  
+      },
+      "temperature": {
+        "name": "Température"
+      },
+      "seed": {
+        "name": "Graine"  
+      },
+      "image": {
+        "name": "Image"
+      }
+    }
+  },
+  "WildPromptor_OllamaVision": {
+    "display_name": "🤖 Ollama 🤖",
+    "inputs": {
+      "keywords": {
+        "name": "Mots-Clés"
+      },
+      "server_url": {
+        "name": "URL du Serveur"
+      },
+      "model": {
+        "name": "Modèle"
+      },
+      "temperature": {
+        "name": "Température"
+      },
+      "keep_alive": {
+        "name": "Maintenir Actif"
+      },
+      "seed": {
+        "name": "Graine"
+      },
+      "image": {
+        "name": "Image"
+      }
+    }
+  },
+  "WildPromptor_PromptCleaner": {
+    "display_name": "🤖 Nettoyeur de Prompts 🤖",
+    "inputs": {
+      "text": {
+        "name": "Texte"
+      },
+      "custom_filters": {
+        "name": "Filtres Personnalisés"
+      },
+      "keep_words": {
+        "name": "Conserver les Mots"
+      },
+      "replace_words": {
+        "name": "Remplacer les Mots"
+      }
+    }
+  },
+  "WildPromptor_Qwen": {
+    "display_name": "🤖 Qwen 🤖",
+    "inputs": {
+      "image": {
+        "name": "Image" 
+      },
+      "prompt": {
+        "name": "Invite"
+      },
+      "temperature": {
+        "name": "Température" 
+      },
+      "seed": {
+        "name": "Graine"
+      }
+    }
+  },
+  "WildPromptor_Vision": {
+    "display_name": "🤖 Vision 🤖",
+    "inputs": {
+      "description_mode": {
+        "name": "Mode de Description"  
+      },
+      "detail_level": {
+        "name": "Niveau de Détail"
+      },
+      "seed": {
+        "name": "Graine"  
+      },
+      "images": {
+        "name": "Images"
+      },
+      "max_token": {
+        "name": "Max Token"
+      },
+      "image_folder": {
+        "name": "Dossier d'Images"
+      }
+    }
+  } 
+}

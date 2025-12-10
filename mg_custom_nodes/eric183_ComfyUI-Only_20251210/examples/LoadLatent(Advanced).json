@@ -1,0 +1,275 @@
+{
+  "id": "24b2ce68-e9a8-49ff-9181-ac878bbfe9ec",
+  "revision": 0,
+  "last_node_id": 48,
+  "last_link_id": 51,
+  "nodes": [
+    {
+      "id": 35,
+      "type": "VAELoaderKJ",
+      "pos": [
+        2999.4052734375,
+        2415.117431640625
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            44
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "aeab1a7de581dc7253f48257392e8287bbeee4a9",
+        "Node name for S&R": "VAELoaderKJ"
+      },
+      "widgets_values": [
+        "wan_2.1_vae.safetensors",
+        "main_device",
+        "bf16"
+      ]
+    },
+    {
+      "id": 46,
+      "type": "LatentLoaderAdvanced",
+      "pos": [
+        2956.920654296875,
+        2247.622802734375
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            49
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "eric183/ComfyUI-Only",
+        "ver": "bc1b6c548d3b397c30496234a7d4763a3c03cd75",
+        "Node name for S&R": "LatentLoaderAdvanced"
+      },
+      "widgets_values": [
+        "ComfyUI_00008_elsyf_1754594946.latent",
+        "Upload Latent"
+      ]
+    },
+    {
+      "id": 30,
+      "type": "VAEDecode",
+      "pos": [
+        3548.76318359375,
+        2248.583740234375
+      ],
+      "size": [
+        210,
+        46
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "samples",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 49
+        },
+        {
+          "label": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 44
+        }
+      ],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            51
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "VAEDecode",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 48,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        3836.902099609375,
+        2253.438720703125
+      ],
+      "size": [
+        214.7587890625,
+        334
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 51
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "8e4d79471bf1952154768e8435a9300077b534fa",
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "WanVideo2_1",
+        "format": "video/nvenc_h264-mp4",
+        "pix_fmt": "yuv420p",
+        "bitrate": 19,
+        "megabit": true,
+        "save_metadata": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {}
+        }
+      }
+    }
+  ],
+  "links": [
+    [
+      44,
+      35,
+      0,
+      30,
+      1,
+      "VAE"
+    ],
+    [
+      49,
+      46,
+      0,
+      30,
+      0,
+      "LATENT"
+    ],
+    [
+      51,
+      30,
+      0,
+      48,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 2,
+      "title": "本地解码",
+      "bounding": [
+        2873.5078125,
+        2151.720703125,
+        1801.552490234375,
+        971.8341064453125
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9646149645000158,
+      "offset": [
+        -2799.8853740068635,
+        -2062.2213846986806
+      ]
+    },
+    "frontendVersion": "1.23.4",
+    "reroutes": [
+      {
+        "id": 1,
+        "pos": [
+          3439.515625,
+          2357.138671875
+        ],
+        "linkIds": [
+          44
+        ]
+      }
+    ],
+    "VHS_KeepIntermediate": true,
+    "links_added_by_ue": [],
+    "VHS_MetadataImage": true,
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "VHS_latentpreviewrate": 0,
+    "VHS_latentpreview": false,
+    "linkExtensions": [
+      {
+        "id": 44,
+        "parentId": 1
+      }
+    ]
+  },
+  "version": 0.4
+}

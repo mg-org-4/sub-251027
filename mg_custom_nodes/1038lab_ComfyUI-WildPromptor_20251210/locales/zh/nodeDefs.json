@@ -1,0 +1,401 @@
+{
+  "WildPromptorAllInOne": {
+    "display_name": "WildPromptor 全能列表 📋+🔀",
+    "inputs": {
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "seed": {
+        "name": "种子"
+      },
+      "allow_duplicates": { 
+        "name": "允许重复"
+      }
+    }
+  },
+  "WildPromptor_dataToPromptList": {
+    "display_name": "WildPromptor 数据到提示列表 🔀+📋",
+    "inputs": {
+      "path": {
+        "name": "路径"
+      },
+      "separator": {
+        "name": "分隔符"
+      },
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "count_start_from": {
+        "name": "从此计数"
+      },
+      "allow_duplicates": {
+        "name": "允许重复"
+      },
+      "mode": {
+        "name": "模式"
+      },
+      "seed": { 
+        "name": "种子"
+      },
+      "text": {
+        "name": "文本"
+      } 
+    }
+  },
+  "WildPromptorGenerator": {
+    "display_name": "WildPromptor 生成器 🔀",
+    "inputs": {
+      "selected_options": {
+        "name": "选择的选项"  
+      },
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "seed": {
+        "name": "种子"  
+      },
+      "allow_duplicates": {
+        "name": "允许重复"
+      }
+    }
+  },
+  "AllInOneList": {
+    "display_name": "全能列表 📋",
+    "inputs": {
+      "selected_options": {
+        "name": "选择的选项"
+      } 
+    }
+  },
+  "PromptConcat": {
+    "display_name": "提示连接 🔀",
+    "inputs": {
+      "prefix": {
+        "name": "前缀"
+      },
+      "suffix": {
+        "name": "后缀"
+      },
+      "separator": {
+        "name": "分隔符"
+      },
+      "remove_duplicates": {
+        "name": "删除重复"
+      },
+      "sort": {
+        "name": "排序"
+      } 
+    } 
+  },
+  "PromptBuilder": {
+    "display_name": "提示构建器 🔀",
+    "inputs": {
+      "prefix": {
+        "name": "前缀" 
+      },
+      "content": {
+        "name": "内容"
+      },
+      "suffix": {
+        "name": "后缀"
+      }
+    }
+  },
+  "KeywordPicker": {
+    "display_name": "关键词选择器 🔀",
+    "inputs": {
+      "input_keywords": {
+        "name": "输入关键词"
+      },
+      "keywords": {
+        "name": "关键词"
+      },
+      "pick_count": {
+        "name": "选择数量"
+      },
+      "pick_mode": {
+        "name": "选择模式"
+      },
+      "seed": { 
+        "name": "种子"
+      }
+    }
+  },
+  "WildPromptor_Enhancer": {
+    "display_name": "WildPromptor 增强器 🤖",
+    "inputs": {
+      "prompt": {
+        "name": "提示"
+      },
+      "batch_size": {
+        "name": "批量大小"
+      },
+      "combine_output": {
+        "name": "合并输出"  
+      },
+      "seed": {
+        "name": "种子"
+      }
+    }
+  },
+  "WildPromptor_Florence2": {
+    "display_name": "🤖 Florence 2 👁️",
+    "inputs": {
+      "Image_Folder_Path": {
+        "name": "图像文件夹路径"
+      },
+      "Model": {
+        "name": "模型"
+      },
+      "Vision_To_Prompt": {
+        "name": "视觉到提示"
+      },
+      "max_token": {
+        "name": "最大令牌"
+      },
+      "Vision_Detail_Level": {
+        "name": "视觉细节级别"
+      },
+      "Prefix": {
+        "name": "前缀"
+      },
+      "Suffix": {
+        "name": "后缀"
+      },
+      "images": {
+        "name": "图像"
+      },
+      "seed": {
+        "name": "种子"
+      }
+    } 
+  },  
+  "AIOutputCleaner": {
+    "display_name": "AI 输出清理器 🤖",
+    "inputs": {
+      "text": {
+        "name": "文本"
+      },
+      "remove_think_content": {
+        "name": "删除思考内容"
+      },
+      "preserve_think_content": {
+        "name": "保留思考内容"
+      },
+      "remove_ai_artifacts": {
+        "name": "删除 AI 伪影"
+      },
+      "remove_markdown": {
+        "name": "删除 Markdown"
+      },
+      "remove_line_numbers": {
+        "name": "删除行号"
+      },
+      "remove_code_blocks": {
+        "name": "删除代码块"
+      },
+      "remove_timestamps": {
+        "name": "删除时间戳"
+      },
+      "remove_urls": {
+        "name": "删除 URL"
+      },
+      "remove_html_tags": {
+        "name": "删除 HTML 标签"
+      },
+      "fix_spacing": {
+        "name": "修复间距"
+      },
+      "remove_special_chars": {
+        "name": "删除特殊字符"
+      },
+      "remove_image_prefixes": {
+        "name": "删除图像前缀"
+      },
+      "remove_style_references": {
+        "name": "删除样式引用"
+      },
+      "remove_colons": {
+        "name": "删除冒号"
+      },
+      "remove_asterisks": {
+        "name": "删除星号"
+      },
+      "custom_patterns": {
+        "name": "自定义模式"
+      },
+      "preserve_newlines": {
+        "name": "保留换行"
+      }
+    }
+  },
+  "WildPromptor_GeminiVision": {
+    "display_name": "🤖 Gemini + 视觉 👁️",
+    "inputs": {
+      "keywords": {
+        "name": "关键词"
+      },
+      "model": {
+        "name": "模型"
+      },
+      "max_length": {
+        "name": "最大长度"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "api_key": {
+        "name": "API 密钥"
+      },
+      "image": {
+        "name": "图像"
+      },
+      "seed": {
+        "name": "种子"
+      }
+    }
+  },
+  "WildPromptor_GeminiImageGen": {
+    "display_name": "🤖 Gemini 图像生成器 🖼️",
+    "inputs": {
+      "prompt": {
+        "name": "提示"  
+      },
+      "aspect_ratio": {
+        "name": "宽高比"
+      },
+      "temperature": {
+        "name": "温度" 
+      },
+      "image": {
+        "name": "图像"
+      },
+      "seed": {
+        "name": "种子"  
+      }
+    }
+  },
+  "WildPromptor_hfgpt": {
+    "display_name": "🤖 HFGPT 🤖",
+    "inputs": {
+      "keywords": {
+        "name": "关键词"
+      },
+      "model_repo": {
+        "name": "模型库"
+      },
+      "max_length": {
+        "name": "最大长度"
+      },
+      "temperature": {
+        "name": "温度"
+      }
+    }
+  },
+  "WildPromptor_minicpm": {
+    "display_name": "🤖 MiniCPM 🤖",
+    "inputs": {
+      "text": {
+        "name": "文本"  
+      },
+      "model": {
+        "name": "模型"
+      },
+      "language": {
+        "name": "语言"  
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "seed": {
+        "name": "种子"  
+      },
+      "image": {
+        "name": "图像"
+      }
+    }
+  },
+  "WildPromptor_OllamaVision": {
+    "display_name": "🤖 Ollama 🤖",
+    "inputs": {
+      "keywords": {
+        "name": "关键词"
+      },
+      "server_url": {
+        "name": "服务器 URL"
+      },
+      "model": {
+        "name": "模型"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "keep_alive": {
+        "name": "保持活动"
+      },
+      "seed": {
+        "name": "种子"
+      },
+      "image": {
+        "name": "图像"
+      }
+    }
+  },
+  "WildPromptor_PromptCleaner": {
+    "display_name": "🤖 提示清理器 🤖",
+    "inputs": {
+      "text": {
+        "name": "文本"
+      },
+      "custom_filters": {
+        "name": "自定义过滤器"
+      },
+      "keep_words": {
+        "name": "保留单词"
+      },
+      "replace_words": {
+        "name": "替换单词"
+      }
+    }
+  },
+  "WildPromptor_Qwen": {
+    "display_name": "🤖 Qwen 🤖",
+    "inputs": {
+      "image": {
+        "name": "图像" 
+      },
+      "prompt": {
+        "name": "提示"
+      },
+      "temperature": {
+        "name": "温度" 
+      },
+      "seed": {
+        "name": "种子"
+      }
+    }
+  },
+  "WildPromptor_Vision": {
+    "display_name": "🤖 视觉 🤖",
+    "inputs": {
+      "description_mode": {
+        "name": "描述模式"  
+      },
+      "detail_level": {
+        "name": "细节级别"
+      },
+      "seed": {
+        "name": "种子"  
+      },
+      "images": {
+        "name": "图像"
+      },
+      "max_token": {
+        "name": "最大令牌"
+      },
+      "image_folder": {
+        "name": "图像文件夹"
+      }
+    }
+  } 
+}

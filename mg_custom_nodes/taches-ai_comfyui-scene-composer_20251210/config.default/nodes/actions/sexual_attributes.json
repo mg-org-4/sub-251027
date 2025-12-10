@@ -1,0 +1,49 @@
+{
+  "name": "🍑 Sexual Attributes",
+  "settings": {
+    "show_variables": true
+  },
+  "variables": {
+    "nipple_color": {
+      "probability": 0.2,
+      "distribution": [0.95, 0.05],
+      "tags": ["dark", "{color}"],
+      "suffix": " nipples"
+    },
+    "nipple_style": {
+      "probability": 0.4,
+      "tags": [
+        "puffy nipples",
+        "huge nipples",
+        "inverted nipples",
+        "long nipples",
+        "small nipples",
+        "large areolae"
+      ]
+    },
+    "nipple_piercing": {
+      "probability": 0.1,
+      "prefix": "nipple piercing,",
+      "tags": ["nipple bar", "nipple chain", "nipple rings"]
+    },
+    "pussy_hair": {
+      "probability": 0.2,
+      "tags": [
+        "pubic hair",
+        "pubic stubble",
+        "sparse pubic hair",
+        "excessive pubic hair",
+        "heart-shaped pubic hair"
+      ]
+    },
+    "pussy": {
+      "show": false,
+      "tags": "pussy, {pussy_hair}"
+    },
+    "nipples": {
+      "show": false,
+      "tags": "{nipple_color},{nipple_style},{nipple_piercing}"
+    }
+  },
+  "output": false
+}

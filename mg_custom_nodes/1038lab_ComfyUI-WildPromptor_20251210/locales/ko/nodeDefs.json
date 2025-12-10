@@ -1,0 +1,401 @@
+{
+  "WildPromptorAllInOne": {
+    "display_name": "와일드프롬프터 올인원 목록 📋+🔀",
+    "inputs": {
+      "batch_size": {
+        "name": "배치 크기"
+      },
+      "seed": {
+        "name": "시드"
+      },
+      "allow_duplicates": { 
+        "name": "중복 허용"
+      }
+    }
+  },
+  "WildPromptor_dataToPromptList": {
+    "display_name": "와일드프롬프터 데이터에서 프롬프트 목록으로 🔀+📋",
+    "inputs": {
+      "path": {
+        "name": "경로"
+      },
+      "separator": {
+        "name": "구분자"
+      },
+      "batch_size": {
+        "name": "배치 크기"
+      },
+      "count_start_from": {
+        "name": "시작 카운트"
+      },
+      "allow_duplicates": {
+        "name": "중복 허용"
+      },
+      "mode": {
+        "name": "모드"
+      },
+      "seed": { 
+        "name": "시드"
+      },
+      "text": {
+        "name": "텍스트"
+      } 
+    }
+  },
+  "WildPromptorGenerator": {
+    "display_name": "와일드프롬프터 생성기 🔀",
+    "inputs": {
+      "selected_options": {
+        "name": "선택된 옵션"  
+      },
+      "batch_size": {
+        "name": "배치 크기"
+      },
+      "seed": {
+        "name": "시드"  
+      },
+      "allow_duplicates": {
+        "name": "중복 허용"
+      }
+    }
+  },
+  "AllInOneList": {
+    "display_name": "올인원 목록 📋",
+    "inputs": {
+      "selected_options": {
+        "name": "선택된 옵션"
+      } 
+    }
+  },
+  "PromptConcat": {
+    "display_name": "프롬프트 연결 🔀",
+    "inputs": {
+      "prefix": {
+        "name": "접두사"
+      },
+      "suffix": {
+        "name": "접미사"
+      },
+      "separator": {
+        "name": "구분자"
+      },
+      "remove_duplicates": {
+        "name": "중복 제거"
+      },
+      "sort": {
+        "name": "정렬"
+      } 
+    } 
+  },
+  "PromptBuilder": {
+    "display_name": "프롬프트 빌더 🔀",
+    "inputs": {
+      "prefix": {
+        "name": "접두사" 
+      },
+      "content": {
+        "name": "내용"
+      },
+      "suffix": {
+        "name": "접미사"
+      }
+    }
+  },
+  "KeywordPicker": {
+    "display_name": "키워드 선택기 🔀",
+    "inputs": {
+      "input_keywords": {
+        "name": "입력 키워드"
+      },
+      "keywords": {
+        "name": "키워드"
+      },
+      "pick_count": {
+        "name": "선택 수"
+      },
+      "pick_mode": {
+        "name": "선택 모드"
+      },
+      "seed": { 
+        "name": "시드"
+      }
+    }
+  },
+  "WildPromptor_Enhancer": {
+    "display_name": "와일드프롬프터 향상기 🤖",
+    "inputs": {
+      "prompt": {
+        "name": "프롬프트"
+      },
+      "batch_size": {
+        "name": "배치 크기"
+      },
+      "combine_output": {
+        "name": "출력 결합"  
+      },
+      "seed": {
+        "name": "시드"
+      }
+    }
+  },
+  "WildPromptor_Florence2": {
+    "display_name": "🤖 플로렌스2 👁️",
+    "inputs": {
+      "image_folder_path": {
+        "name": "이미지 폴더 경로"
+      },
+      "model": {
+        "name": "모델"
+      },
+      "vision_to_prompt": {
+        "name": "비전에서 프롬프트로"
+      },
+      "max_token": {
+        "name": "최대 토큰"
+      },
+      "vision_detail_level": {
+        "name": "비전 세부 수준"
+      },
+      "prefix": {
+        "name": "접두사"
+      },
+      "suffix": {
+        "name": "접미사"
+      },
+      "images": {
+        "name": "이미지"
+      },
+      "seed": {
+        "name": "시드"
+      }
+    } 
+  },  
+  "AIOutputCleaner": {
+    "display_name": "AI 출력 정리기 🤖",
+    "inputs": {
+      "text": {
+        "name": "텍스트"
+      },
+      "remove_think_content": {
+        "name": "생각 내용 제거"
+      },
+      "preserve_think_content": {
+        "name": "생각 내용 유지"
+      },
+      "remove_ai_artifacts": {
+        "name": "AI 아티팩트 제거"
+      },
+      "remove_markdown": {
+        "name": "마크다운 제거"
+      },
+      "remove_line_numbers": {
+        "name": "행 번호 제거"
+      },
+      "remove_code_blocks": {
+        "name": "코드 블록 제거"
+      },
+      "remove_timestamps": {
+        "name": "타임스탬프 제거"
+      },
+      "remove_urls": {
+        "name": "URL 제거"
+      },
+      "remove_html_tags": {
+        "name": "HTML 태그 제거"
+      },
+      "fix_spacing": {
+        "name": "간격 수정"
+      },
+      "remove_special_chars": {
+        "name": "특수 문자 제거"
+      },
+      "remove_image_prefixes": {
+        "name": "이미지 접두사 제거"
+      },
+      "remove_style_references": {
+        "name": "스타일 참조 제거"
+      },
+      "remove_colons": {
+        "name": "콜론 제거"
+      },
+      "remove_asterisks": {
+        "name": "별표 제거"
+      },
+      "custom_patterns": {
+        "name": "사용자 정의 패턴"
+      },
+      "preserve_newlines": {
+        "name": "줄 바꿈 유지"
+      }
+    }
+  },
+  "WildPromptor_GeminiVision": {
+    "display_name": "🤖 제미니 + 비전 👁️",
+    "inputs": {
+      "keywords": {
+        "name": "키워드"
+      },
+      "model": {
+        "name": "모델"
+      },
+      "max_length": {
+        "name": "최대 길이"
+      },
+      "temperature": {
+        "name": "온도"
+      },
+      "api_key": {
+        "name": "API 키"
+      },
+      "image": {
+        "name": "이미지"
+      },
+      "seed": {
+        "name": "시드"
+      }
+    }
+  },
+  "WildPromptor_GeminiImageGen": {
+    "display_name": "🤖 제미니 이미지 생성기 🖼️",
+    "inputs": {
+      "prompt": {
+        "name": "프롬프트"  
+      },
+      "aspect_ratio": {
+        "name": "종횡비"
+      },
+      "temperature": {
+        "name": "온도" 
+      },
+      "image": {
+        "name": "이미지"
+      },
+      "seed": {
+        "name": "시드"  
+      }
+    }
+  },
+  "WildPromptor_hfgpt": {
+    "display_name": "🤖 HFGPT 🤖",
+    "inputs": {
+      "keywords": {
+        "name": "키워드"
+      },
+      "model_repo": {
+        "name": "모델 리포지토리"
+      },
+      "max_length": {
+        "name": "최대 길이"
+      },
+      "temperature": {
+        "name": "온도"
+      }
+    }
+  },
+  "WildPromptor_minicpm": {
+    "display_name": "🤖 MiniCPM 🤖",
+    "inputs": {
+      "text": {
+        "name": "텍스트"  
+      },
+      "model": {
+        "name": "모델"
+      },
+      "language": {
+        "name": "언어"  
+      },
+      "temperature": {
+        "name": "온도"
+      },
+      "seed": {
+        "name": "시드"  
+      },
+      "image": {
+        "name": "이미지"
+      }
+    }
+  },
+  "WildPromptor_OllamaVision": {
+    "display_name": "🤖 올라마 🤖",
+    "inputs": {
+      "keywords": {
+        "name": "키워드"
+      },
+      "server_url": {
+        "name": "서버 URL"
+      },
+      "model": {
+        "name": "모델"
+      },
+      "temperature": {
+        "name": "온도"
+      },
+      "keep_alive": {
+        "name": "유지"
+      },
+      "seed": {
+        "name": "시드"
+      },
+      "image": {
+        "name": "이미지"
+      }
+    }
+  },
+  "WildPromptor_PromptCleaner": {
+    "display_name": "🤖 프롬프트 클리너 🤖",
+    "inputs": {
+      "text": {
+        "name": "텍스트"
+      },
+      "custom_filters": {
+        "name": "사용자 정의 필터"
+      },
+      "keep_words": {
+        "name": "단어 유지"
+      },
+      "replace_words": {
+        "name": "단어 교체"
+      }
+    }
+  },
+  "WildPromptor_Qwen": {
+    "display_name": "🤖 Qwen 🤖",
+    "inputs": {
+      "image": {
+        "name": "이미지" 
+      },
+      "prompt": {
+        "name": "프롬프트"
+      },
+      "temperature": {
+        "name": "온도" 
+      },
+      "seed": {
+        "name": "시드"
+      }
+    }
+  },
+  "WildPromptor_Vision": {
+    "display_name": "🤖 비전 🤖",
+    "inputs": {
+      "description_mode": {
+        "name": "설명 모드"  
+      },
+      "detail_level": {
+        "name": "세부 수준"
+      },
+      "seed": {
+        "name": "시드"  
+      },
+      "images": {
+        "name": "이미지"
+      },
+      "max_token": {
+        "name": "최대 토큰"
+      },
+      "image_folder": {
+        "name": "이미지 폴더"
+      }
+    }
+  } 
+}

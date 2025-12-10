@@ -1,0 +1,118 @@
+{
+  "SparkTTS_VoiceCreator" : {
+    "display_name": "SparkTTS 음성 생성기 🔊",
+    "inputs": {
+      "text": {
+        "name": "텍스트"
+      },
+      "gender": {
+        "name": "성별"
+      },
+      "pitch": {
+        "name": "음조"
+      },
+      "speed": {
+        "name": "속도"
+      },
+      "max_tokens": {
+        "name": "최대 토큰 수"
+      },
+      "batch_texts": {
+        "name": "배치 텍스트"
+      },
+      "temperature": {
+        "name": "온도"
+      },
+      "top_k": {
+        "name": "상위 K"
+      },
+      "top_p": {
+        "name": "상위 P"
+      }
+    }
+  },
+  "SparkTTS_VoiceClone" : {
+    "display_name": "SparkTTS 음성 클론 🔊",
+    "inputs": {
+      "text": {
+        "name": "텍스트"
+      },
+      "reference_audio": {
+        "name": "참조 오디오"
+      },
+      "reference_text": {
+        "name": "참조 텍스트"
+      },
+      "max_tokens": {
+        "name": "최대 토큰 수"
+      },
+      "batch_texts": {
+        "name": "배치 텍스트"
+      },
+      "temperature": {
+        "name": "온도"
+      },
+      "top_k": {
+        "name": "상위 K"
+      },
+      "top_p": {
+        "name": "상위 P"
+      }
+    }
+  },
+  "SparkTTS_AdvVoiceClone" : {
+    "display_name": "SparkTTS 고급 음성 클론 🔊",
+    "inputs": {
+      "text": {
+        "name": "텍스트"
+      },
+      "reference_audio": {
+        "name": "참조 오디오"
+      },
+      "reference_text": {
+        "name": "참조 텍스트"
+      },
+      "max_tokens": {
+        "name": "최대 토큰 수"
+      },
+      "pitch": {
+        "name": "음조"
+      },
+      "speed": {
+        "name": "속도"
+      },
+      "batch_texts": {
+        "name": "배치 텍스트"
+      },
+      "temperature": {
+        "name": "온도"
+      },
+      "top_k": {
+        "name": "상위 K"
+      },
+      "top_p": {
+        "name": "상위 P"
+      }
+    }
+  },
+  "SparkTTS_AudioRecorder" : {
+    "display_name": "SparkTTS 오디오 레코더 🔊",
+    "inputs": {
+      "recording": {
+        "name": "녹음"
+      },
+      "recording_duration": {
+        "name": "녹음 시간"
+      },
+      "sample_rate": {
+        "name": "샘플링 비율"
+      },
+      "noise_threshold": {
+        "name": "노이즈 임계값"
+      },
+      "smoothing_kernel_size": {
+        "name": "스무딩 커널 크기"
+      }
+    }
+  }
+}

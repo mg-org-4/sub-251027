@@ -1,0 +1,51 @@
+{
+  "id": "test-workflow", 
+  "nodes": [
+    {
+      "id": 115, 
+      "type": "PreviewTextNode", 
+      "properties": {
+        "cnr_id": "comfyui_custom_nodes_alekpet", 
+        "ver": "f41482d5f3b5d31d8abf6fa21480c8ab4440cb8c", 
+        "Node name for S&R": "PreviewTextNode"
+      }, 
+      "widgets_values": [
+        "<lora:AddMicroDetails_Illustrious_v4:0.4>,addmicrodetails,\nmasterpiece, best quality, amazing quality,high quality,detailed eyes,anime screencap, digital art,  intricate details,\nhighres, absurdres, 8k, subject_focus, depth_of_field, PG, male_out_of_frame,\nfloating_hair, door,hotel_room,   rear view,(looking_at_viewer:1.3), \nvaporwave_colors,  kaleidoscopic fragments, kaleidoscopic_crystals, flirty,\n(faceless_male:1.2), (clothed_female_nude_male:1.5),faceless_male,huge_penis,panties,(panties_aside:1.5), panties_removed,  \nBREAK,\n<lora:Extreme-Sex-v2.0-IllustriousXLNoobAI:0.8>, extreme sex,\n1girl, laying on side, pussy, cum dripping, anus, medium perky breasts,, uncovered breasts,,spread_legs,legs_up, \ngrab her hair,gangbang, multiple_boys,money_bath, \nBREAK,\nexcessive_cum, cum_on_breasts, facial, parted lips,\ntorn_pantyhose, (cum on legwear:1.2),(clothed sex:1.2),(torn legwear:1.2),,  <lora:tsumugi-kotobuki-s2-illustriousxl-lora-nochekaiser:1>,tsumugi kotobuki, kotobuki tsumugi, long hair, blue eyes, blonde hair, thick eyebrows, mature female, medium breasts,, makeup,\nperfect beautiful face,\nRose gold to peach ombre waves, oversized pink hoodie with kawaii bunny ears, white tennis skirt with pink trim, cream leather boots, knee-high thigh boots, , pearl and crystal heart earrings, pink metallic heart backpack,\ncrystal clear pantyhose,\nfine_fabric_emphasis,", 
+        [false, true]
+      ]
+    },
+    {
+      "id": 138, 
+      "type": "PreviewTextNode", 
+      "properties": {
+        "cnr_id": "comfyui_custom_nodes_alekpet", 
+        "ver": "f41482d5f3b5d31d8abf6fa21480c8ab4440cb8c", 
+        "Node name for S&R": "PreviewTextNode"
+      }, 
+      "widgets_values": [
+        "worst quality,normal quality,anatomical nonsense,bad anatomy,interlocked fingers,extra fingers,watermark,simple background,transparent,low quality,logo,text,signature,barefoot,extra finger,bad penis,\nembedding:lazyneg, embedding:lazyhand,", 
+        [false, true]
+      ]
+    },
+    {
+      "id": 7,
+      "type": "CheckpointLoaderSimple",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.31",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "uncannyValley_ilxl10Noob.safetensors"
+      ]
+    },
+    {
+      "id": 1,
+      "type": "VAEDecode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "VAEDecode"
+      }
+    }
+  ]
+} 

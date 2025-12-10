@@ -1,0 +1,349 @@
+{
+  "id": "418a17f1-fce3-46a3-8e6d-035b3399740f",
+  "revision": 0,
+  "last_node_id": 9,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 4,
+      "type": "SaveAudioMP3",
+      "pos": [
+        1105.8284912109375,
+        157.3507843017578
+      ],
+      "size": [
+        270,
+        136
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 2
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.64",
+        "Node name for S&R": "SaveAudioMP3",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4.1"
+        }
+      },
+      "widgets_values": [
+        "audio/ComfyUI",
+        "320k"
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Maya1TTS_Combined",
+      "pos": [
+        547.344970703125,
+        154.19032287597656
+      ],
+      "size": [
+        513.5526123046875,
+        935
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyUI-Maya1_TTS",
+        "ver": "2152b6fc507e414bc8538059e1f228bfe7be2dec",
+        "Node name for S&R": "Maya1TTS_Combined",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4.1"
+        }
+      },
+      "widgets_values": [
+        "maya1",
+        "bfloat16",
+        "sdpa",
+        "cuda",
+        "Realistic male voice in the 30s age with american accent. Normal pitch, warm timbre, conversational pacing.",
+        "Hello! This is Maya1 <laugh> the best open source voice AI model with emotions.",
+        true,
+        0.4,
+        0.9,
+        4000,
+        1.1,
+        380055393262059,
+        "randomize",
+        false
+      ]
+    },
+    {
+      "id": 9,
+      "type": "MarkdownNote",
+      "pos": [
+        1109.0732421875,
+        -32.40277099609375
+      ],
+      "size": [
+        361.2737731933594,
+        126.04345703125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "# If you are facing JS Loading / rendering issues with the bottom node use the top native node"
+      ],
+      "color": "#422342",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 6,
+      "type": "MarkdownNote",
+      "pos": [
+        -16.587236404418945,
+        296.7104797363281
+      ],
+      "size": [
+        504.536376953125,
+        795.1909790039062
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Voice Description examples",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.4.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "# Realistic Voices\n\n## 1. Professional Podcast Host\nRealistic male voice in his 30s with an American accent. Normal pitch, warm timbre, conversational pacing, neutral emotion at medium intensity. Podcast domain, podcast host role, formal register.\n\n## 2. Energetic Young Instructor\nRealistic female voice in her 20s with a British accent. High pitch, smooth timbre, brisk pacing, energetic emotion at high intensity. Education domain, elearning instructor role, neutral register.\n\n## 3. Customer Support Agent\nRealistic female voice in her 30s with an Indian accent. Normal pitch, warm timbre, conversational pacing, neutral emotion at medium intensity. Support domain, customer support agent role, neutral register.\n\n## 4. Corporate Explainer Voice\nRealistic male voice in his 40s with a Middle Eastern accent. Low pitch, deep timbre, slow pacing, neutral emotion at medium intensity. Corporate domain, explainer video voice role, formal register.\n\n## 5. Social Media Creator\nRealistic female voice in her 20s with an American accent. Normal pitch, smooth timbre, brisk pacing, energetic emotion at medium intensity. Social content domain, social media creator role, casual register.\n\n<br>\n\n# Creative Voices\n\n## 1. AI Robot Voice\nCreative, AI machine voice character. Male voice in his 20s with an American accent. Normal pitch, robotic timbre, conversational pacing, neutral emotion at medium intensity.\n\n## 2. Pirate\nCreative pirate character. Male voice in his 30s with a British accent. Low pitch, gravelly timbre, slow pacing, energetic emotion at high intensity.\n\n## 3. Mythical Godlike Voice\nCreative, mythical godlike magical character. Female voice in her 40s with an American accent. Low pitch, ethereal timbre, very slow pacing, neutral emotion at medium intensity.\n\n## 4. Flirty Anime Character\nCreative, anime and flirty character. Female voice in her 20s with an Asian American accent. High pitch, smooth timbre, slow pacing, energetic emotion at medium intensity.\n\n## 5. Dark Villain\nCreative dark villain character. Male voice in his 30s with a Middle Eastern accent. Low pitch, raspy timbre, conversational pacing, sarcastic emotion at high intensity.\n"
+      ],
+      "color": "#006691",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 8,
+      "type": "MarkdownNote",
+      "pos": [
+        -24.692302703857422,
+        -1134.520751953125
+      ],
+      "size": [
+        1406.847900390625,
+        697.9292602539062
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.4.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "# TTS Prompts with Full Emotion Tag Variety (30-Second Each)\n\n## 1. Professional Podcast Host\nWelcome to today’s episode! <excited> We’re diving deep into the latest tech trends, exploring breakthroughs in AI, robotics, and space exploration. <curious> Later, we’ll speak with an expert about how these technologies are shaping industries and impacting daily life. <gasp> Stay tuned, because some of these developments might completely change the way you think about the future. By the end, you’ll feel inspired and ready to explore these innovations yourself.\n\n## 2. Energetic Young Instructor\nGood morning class! <giggle> Today we’re exploring some of the most exciting physics concepts that can seem tricky at first. <snort> Don’t worry—I’ll break them down step by step, using simple experiments and examples you can relate to. <exhale> We’ll cover motion, energy, and forces in ways that make sense. <curious> By the end of the session, you’ll understand why these principles govern everything around us, and you might even start seeing the world differently.\n\n## 3. Customer Support Agent\nHello, I’m here to help with your issue today. <sigh> I know how frustrating it can be when things don’t work as expected, but we’ll figure it out together. <whisper> Let’s carefully go through every step, from troubleshooting your settings to checking account details. <gulp> If anything goes wrong, I’ll guide you patiently until it’s fixed. <exhale> By the end of this call, everything should be running smoothly, and you’ll feel confident using the system again.\n\n## 4. Corporate Explainer Voice\nOur new platform enhances productivity and streamlines operations like never before. <curious> From scheduling and task management to analytics and reporting, every feature is designed to save time and reduce errors. <exhale> You’ll notice a smoother workflow immediately, whether you’re collaborating with a team or managing projects individually. <sarcastic> Trust me, once you start using this, you’ll wonder how you ever survived without it. By the end, your efficiency will be transformed, and your team will thank you.\n\n## 5. Casual YouTube Influencer\nHey everyone! <laugh> Today I’m sharing my top 10 life hacks that have completely changed how I organize my day. <snort> Some of them are really unexpected, like using everyday items in creative ways. <giggle> I’ll also give tips for saving money, boosting productivity, and making small routines fun. <curious> Stick around for the last hack—it’s a game-changer you’ll definitely want to try. By the end of this video, you’ll have at least a few new tricks to make life easier and more exciting.\n\n## 6. AI Robot Voice\nGreetings, human. <exhale> I am your AI assistant, programmed to optimize your environment, manage tasks efficiently, and provide detailed data analysis. <curious> Today, I will guide you through scheduling, prioritizing important notifications, and organizing your workflow. <gasp> Please provide your input carefully, as my systems will adapt to your preferences in real-time. By the end of this session, you will notice increased productivity and a fully organized digital environment.\n\n## 7. Pirate Captain\nAhoy, mateys! <laugh_harder> Today we set sail on treacherous seas in search of hidden treasure. <scream> The waves are rough, and the winds are fierce, but only the bravest shall prevail. <angry> Keep your eyes on the horizon, sharpen your swords, and be ready for anything. <giggle> Along the journey, we’ll swap tales of old adventures, sing shanties to lift our spirits, and outwit rival crews. By the end of the voyage, either the treasure will be ours or we’ll have epic stories to tell.\n\n## 8. Mythical Godlike Voice\nListen carefully, mortals. <gasp> The heavens speak through me, revealing ancient secrets hidden in the cosmos. <whisper> Those who pay attention will gain wisdom, understanding the delicate balance of the universe. <cry> Ignore these warnings, and consequences may follow. <sigh> Today, I will guide you through visions of stars, planets, and forces that govern existence. By the end of this message, you will feel both awe and responsibility for the knowledge granted to you.\n\n## 9. Flirty Anime Character\nOh my, you didn’t expect to see me here, did you? <giggle> I’ve got a little surprise waiting just for you, something playful and fun. <whisper> Let’s enjoy the moment together, teasing, laughing, and sharing a few secrets. <laugh> I might even challenge you to a small game or dare to make it more exciting. <curious> By the end, I hope you’ll remember this encounter fondly, feeling entertained and charmed in equal measure.\n\n## 10. Dark Villain\nSo, you finally arrive. <chuckle> Did you really think it would be easy to find me? <angry> Every step you took has brought you straight into my plan. <scream> The traps, the misdirections, everything was set for this moment. <snort> Now, witness the full extent of my scheme and see whether you can survive. By the end of this encounter, either you’ll escape, or you’ll be part of my legacy forever.\n"
+      ],
+      "color": "#006691",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 2,
+      "type": "Maya1TTS_Barebones",
+      "pos": [
+        548.1511840820312,
+        -377.1851806640625
+      ],
+      "size": [
+        498.0000305175781,
+        468
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyUI-Maya1_TTS",
+        "ver": "2152b6fc507e414bc8538059e1f228bfe7be2dec",
+        "Node name for S&R": "Maya1TTS_Barebones",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4.1"
+        }
+      },
+      "widgets_values": [
+        "Creative pirate character. Male voice in his 30s with a British accent. Low pitch, gravelly timbre, slow pacing, energetic emotion at high intensity.",
+        "Ahoy, mateys! <laugh_harder> Today we set sail on treacherous seas in search of hidden treasure. <scream> The waves are rough, and the winds are fierce, but only the bravest shall prevail. <angry> Keep your eyes on the horizon, sharpen your swords, and be ready for anything. <giggle> Along the journey, we’ll swap tales of old adventures, sing shanties to lift our spirits, and outwit rival crews. By the end of the voyage, either the treasure will be ours or we’ll have epic stories to tell.",
+        "maya1",
+        "bfloat16",
+        "sdpa",
+        "cuda",
+        true,
+        false,
+        4000,
+        0.4,
+        0.9,
+        1.1,
+        477370007007039,
+        "randomize"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SaveAudioMP3",
+      "pos": [
+        1106.2691650390625,
+        -376.3995666503906
+      ],
+      "size": [
+        270,
+        136
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 1
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.64",
+        "Node name for S&R": "SaveAudioMP3",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4.1"
+        }
+      },
+      "widgets_values": [
+        "audio/ComfyUI",
+        "320k"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "MarkdownNote",
+      "pos": [
+        -21.270532608032227,
+        -378.1773376464844
+      ],
+      "size": [
+        508.7115173339844,
+        613.2767333984375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Maya1 Model dir instruction",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.4.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "# [Maya1 Huggingface](https://huggingface.co/maya-research/maya1/tree/main)\n\n\n\n\n### Model Location\n\nModels go in: `ComfyUI/models/maya1-TTS/`\n\n\n### Expected Folder Structure\n\nAfter downloading, your model folder should look like this:\n\n```\nComfyUI/\n└── models/\n    └── maya1-TTS/\n        └── maya1/                                # Model name (can be anything)\n            ├── chat_template.jinja               # Chat template\n            ├── config.json                       # Model configuration\n            ├── generation_config.json            # Generation settings\n            ├── model-00001-of-00002.safetensors  # Model weights (shard 1)\n            ├── model-00002-of-00002.safetensors  # Model weights (shard 2)\n            ├── model.safetensors.index.json      # Weight index\n            ├── special_tokens_map.json           # Special tokens\n            └── tokenizer/                        # Tokenizer subfolder\n                ├── chat_template.jinja           # Chat template (duplicate)\n                ├── special_tokens_map.json       # Special tokens (duplicate)\n                ├── tokenizer.json                # Tokenizer vocabulary (22.9 MB)\n                └── tokenizer_config.json         # Tokenizer config\n\n```\n\n# Install HF CLI\n```pip install huggingface-hub```\n\n# Create directory\n```cd ComfyUI``` <br>\n```mkdir -p models/maya1-TTS```\n\n# Download model\n```hf download maya-research/maya1 --local-dir models/maya1-TTS/maya1```\n\n"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      3,
+      0,
+      "AUDIO"
+    ],
+    [
+      2,
+      1,
+      0,
+      4,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ue_links": [],
+    "ds": {
+      "scale": 0.5131581182307068,
+      "offset": [
+        850.4592685668841,
+        1247.5450982664793
+      ]
+    },
+    "links_added_by_ue": [],
+    "frontendVersion": "1.27.10",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

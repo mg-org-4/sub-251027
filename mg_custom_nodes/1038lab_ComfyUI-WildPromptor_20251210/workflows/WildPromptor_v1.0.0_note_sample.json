@@ -1,0 +1,1592 @@
+{
+  "last_node_id": 112,
+  "last_link_id": 121,
+  "nodes": [
+    {
+      "id": 24,
+      "type": "ShowText|pysssss",
+      "pos": [
+        280,
+        713
+      ],
+      "size": [
+        232.7904052734375,
+        362.12274169921875
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 67,
+          "widget": {
+            "name": "text"
+          },
+          "label": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "label": "STRING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "an older woman,Clear sky with a single white cloud",
+        "a muscular woman,Double rainbow arcing over a clear blue sky",
+        "a voluptuous woman,Clear sky with a single white cloud",
+        "a sad woman,Clear sky with a single white cloud"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 81,
+      "type": "Environment 📋",
+      "pos": [
+        571.383544921875,
+        1049.177001953125
+      ],
+      "size": [
+        315,
+        442
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            85
+          ],
+          "slot_index": 0,
+          "shape": 6,
+          "label": "prompt"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Environment 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "❌disabled",
+        "🎲Random",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        1,
+        461118401826177,
+        "randomize"
+      ]
+    },
+    {
+      "id": 77,
+      "type": "Negative 📋",
+      "pos": [
+        1694.2498779296875,
+        910.5103759765625
+      ],
+      "size": [
+        315,
+        202
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            81
+          ],
+          "slot_index": 0,
+          "shape": 6,
+          "label": "prompt"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Negative 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "Anime 1",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        1,
+        589881706745266,
+        "randomize"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 82,
+      "type": "Subject 📋",
+      "pos": [
+        569.383544921875,
+        548.1770629882812
+      ],
+      "size": [
+        315,
+        442
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            87
+          ],
+          "slot_index": 0,
+          "shape": 6,
+          "label": "prompt"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Subject 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "🎲Random",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        2,
+        136431373521051,
+        "randomize"
+      ]
+    },
+    {
+      "id": 98,
+      "type": "KeywordPicker",
+      "pos": [
+        566.2457275390625,
+        1613.0072021484375
+      ],
+      "size": [
+        343.64471435546875,
+        200.6158905029297
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_keywords",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_keywords"
+          },
+          "label": "input_keywords"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "picked_keywords",
+          "type": "STRING",
+          "links": [
+            100
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "picked_keywords"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KeywordPicker",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "1,2,3,4,5,apple,orange,man,boy,girl, monster, skin, face, camera",
+        3,
+        "🎲Random",
+        587791656680041,
+        "randomize"
+      ]
+    },
+    {
+      "id": 42,
+      "type": "PromptConcat",
+      "pos": [
+        1263.6719970703125,
+        543.3878784179688
+      ],
+      "size": [
+        400,
+        420
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "subject",
+          "type": "STRING",
+          "link": 87,
+          "widget": {
+            "name": "subject"
+          },
+          "label": "subject"
+        },
+        {
+          "name": "environment",
+          "type": "STRING",
+          "link": 85,
+          "widget": {
+            "name": "environment"
+          },
+          "label": "environment"
+        },
+        {
+          "name": "virtual",
+          "type": "STRING",
+          "link": 113,
+          "widget": {
+            "name": "virtual"
+          },
+          "label": "virtual"
+        },
+        {
+          "name": "styles",
+          "type": "STRING",
+          "link": 93,
+          "slot_index": 3,
+          "widget": {
+            "name": "styles"
+          },
+          "label": "styles"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            45
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "prompt"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PromptConcat",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "masterpiece, high quality",
+        "",
+        "",
+        "",
+        "",
+        "beautiful composition, fine detail",
+        "comma",
+        false,
+        false
+      ]
+    },
+    {
+      "id": 48,
+      "type": "ShowText|pysssss",
+      "pos": [
+        1264.6529541015625,
+        1009.9906005859375
+      ],
+      "size": [
+        389.0188293457031,
+        465.4714050292969
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 45,
+          "widget": {
+            "name": "text"
+          },
+          "label": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "label": "STRING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "masterpiece, high quality, a casually dressed man, Greenhouse, Agfa APX 400, style by José Garnelo, beautiful composition, fine detail",
+        "masterpiece, high quality, an adventurous man, Greenhouse, Agfa APX 400, style by Kyffin Williams, beautiful composition, fine detail",
+        "masterpiece, high quality, an adventurous man, Greenhouse, Agfa APX 400, style by František Dvořák, beautiful composition, fine detail"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 90,
+      "type": "Styles 📋",
+      "pos": [
+        901.3836059570312,
+        635.00732421875
+      ],
+      "size": [
+        315,
+        178
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            93
+          ],
+          "shape": 6,
+          "label": "prompt"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Styles 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "🎲Random",
+        "❌disabled",
+        "❌disabled",
+        3,
+        255041954573407,
+        "randomize"
+      ]
+    },
+    {
+      "id": 103,
+      "type": "Virtual 📋",
+      "pos": [
+        907.8458251953125,
+        864.6397094726562
+      ],
+      "size": [
+        315,
+        346
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            113
+          ],
+          "slot_index": 0,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Virtual 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "❌disabled",
+        "❌disabled",
+        "🎲Random",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        1,
+        641831078313448,
+        "randomize"
+      ]
+    },
+    {
+      "id": 70,
+      "type": "WildPromptorGenerator",
+      "pos": [
+        274,
+        530
+      ],
+      "size": [
+        244.82901000976562,
+        130
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "selected_options",
+          "type": "DPROMPT_DATA",
+          "link": 80,
+          "slot_index": 0,
+          "label": "selected_options"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            67
+          ],
+          "slot_index": 0,
+          "shape": 6,
+          "label": "prompt"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WildPromptorGenerator",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        4,
+        638543018398378,
+        "randomize",
+        true
+      ]
+    },
+    {
+      "id": 50,
+      "type": "PromptBuilder",
+      "pos": [
+        -844.1211547851562,
+        530.3199462890625
+      ],
+      "size": [
+        349.1126708984375,
+        202.15997314453125
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "content",
+          "type": "STRING",
+          "link": 116,
+          "widget": {
+            "name": "content"
+          },
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            49
+          ],
+          "slot_index": 0,
+          "shape": 6,
+          "label": "prompt"
+        },
+        {
+          "name": "content_only",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "label": "prompt_debug"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PromptBuilder",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "high quality",
+        "",
+        "in Pixar style"
+      ]
+    },
+    {
+      "id": 47,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -474.52099609375,
+        542.9599609375
+      ],
+      "size": [
+        284.68524169921875,
+        241.59170532226562
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 49,
+          "slot_index": 0,
+          "widget": {
+            "name": "text"
+          },
+          "label": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "label": "STRING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "high quality, a creative man,Toujinbou, in Pixar style",
+        "high quality, a surprising man,dramatic landscapes of Iceland are like something out of a fairy tale, with waterfalls, glaciers, and volcanic terrain, in Pixar style",
+        "high quality, a surprising man,Forbidden City, in Pixar style"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 16,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -467.8216247558594,
+        852.6192016601562
+      ],
+      "size": [
+        275.31494140625,
+        358.2110900878906
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 115,
+          "slot_index": 0,
+          "widget": {
+            "name": "text"
+          },
+          "label": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "label": "STRING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "a creative man,Toujinbou",
+        "a surprising man,dramatic landscapes of Iceland are like something out of a fairy tale, with waterfalls, glaciers, and volcanic terrain",
+        "a surprising man,Forbidden City"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 76,
+      "type": "AllInOneList",
+      "pos": [
+        -138,
+        521
+      ],
+      "size": [
+        387.238037109375,
+        998.0822143554688
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "selected_options",
+          "type": "DPROMPT_DATA",
+          "links": [
+            80
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "selected_options"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AllInOneList",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "❌disabled",
+        "🎲Random",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "🎲Random",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled"
+      ]
+    },
+    {
+      "id": 52,
+      "type": "ShowText|pysssss",
+      "pos": [
+        916.9169921875,
+        1615.384033203125
+      ],
+      "size": [
+        316.3191833496094,
+        201.82408142089844
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 100,
+          "widget": {
+            "name": "text"
+          },
+          "label": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "label": "STRING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "1, apple, 4"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 105,
+      "type": "WildPromptor_Enhancer",
+      "pos": [
+        1268.9013671875,
+        1607.5595703125
+      ],
+      "size": [
+        380.0467834472656,
+        217.88511657714844
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WildPromptor_Enhancer",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        1,
+        false,
+        861385704067835,
+        "randomize"
+      ]
+    },
+    {
+      "id": 106,
+      "type": "Collections 📋",
+      "pos": [
+        1694.2498779296875,
+        531.6942138671875
+      ],
+      "size": [
+        315,
+        274
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            118
+          ],
+          "slot_index": 0,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Collections 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "🎲Random",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        1,
+        802862092924600,
+        "randomize"
+      ]
+    },
+    {
+      "id": 110,
+      "type": "ShowText|pysssss",
+      "pos": [
+        2034.591064453125,
+        1218.9564208984375
+      ],
+      "size": [
+        328.55194091796875,
+        226
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 119,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "banana",
+        "Orange",
+        "peach",
+        "Raspberry"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 112,
+      "type": "PrimitiveNode",
+      "pos": [
+        1696.37939453125,
+        1211.3201904296875
+      ],
+      "size": [
+        303.9774169921875,
+        205.81529235839844
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            121
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "apple\nbanana\nOrange\npeach\nRaspberry\npineapple"
+      ]
+    },
+    {
+      "id": 46,
+      "type": "ShowText|pysssss",
+      "pos": [
+        2032.4615478515625,
+        906.5103759765625
+      ],
+      "size": [
+        330,
+        210
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 81,
+          "widget": {
+            "name": "text"
+          },
+          "label": "text"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "label": "STRING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "(worst quality, low quality:1.4), (illustration, 3d, 3d render, painting1.2), disfigured, mutation, bad anatomy, warped hands, long fingers, twisted body, many fingers, redness of female genitals,, corner, pubic hair, multiple cuts, Restricted hat, hat, float,"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 107,
+      "type": "WildPromptor_DataToPromptList",
+      "pos": [
+        1696.37939453125,
+        1467.503662109375
+      ],
+      "size": [
+        319.20001220703125,
+        344.72515869140625
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 121,
+          "widget": {
+            "name": "text"
+          },
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            119
+          ],
+          "slot_index": 0,
+          "shape": 6
+        },
+        {
+          "name": "prompt_list",
+          "type": "STRING",
+          "links": [
+            120
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WildPromptor_DataToPromptList",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "",
+        4,
+        2,
+        true,
+        "⬇️Sequential",
+        699982081687400,
+        "randomize",
+        "apple\nbanana\nOrange\npeach\nRaspberry\npineapple"
+      ]
+    },
+    {
+      "id": 109,
+      "type": "ShowText|pysssss",
+      "pos": [
+        2032.4615478515625,
+        525.9654541015625
+      ],
+      "size": [
+        322.1011657714844,
+        285.4003601074219
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 118,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "ral-apoctvisn, dark, chiaroscuro, low-key, Create an intense and captivating scene featuring a tiny, lost rubber ducky, adorned with stylish sunglasses, embarking on a daring surfing adventure amidst colossal waves. The action shot captures the rubber ducky inside the tube of a massive wave, evoking a sense of excitement and peril. The rubber ducky's expression conveys a mix of determination and vulnerability, highlighting its solitary journey through the tumultuous waters"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 111,
+      "type": "ShowText|pysssss",
+      "pos": [
+        2034.591064453125,
+        1510.13232421875
+      ],
+      "size": [
+        330.0718688964844,
+        300.77587890625
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 120,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "banana\n\nOrange\n\npeach\n\nRaspberry"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 104,
+      "type": "WildPromptorAllInOne",
+      "pos": [
+        -852.5133056640625,
+        779.1884155273438
+      ],
+      "size": [
+        365.4000244140625,
+        1090
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            115,
+            116
+          ],
+          "slot_index": 0,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WildPromptorAllInOne",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        3,
+        906295518851487,
+        "randomize",
+        true,
+        "🎲Random",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "🎲Random",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled"
+      ]
+    }
+  ],
+  "links": [
+    [
+      45,
+      42,
+      0,
+      48,
+      0,
+      "STRING"
+    ],
+    [
+      49,
+      50,
+      0,
+      47,
+      0,
+      "STRING"
+    ],
+    [
+      67,
+      70,
+      0,
+      24,
+      0,
+      "STRING"
+    ],
+    [
+      80,
+      76,
+      0,
+      70,
+      0,
+      "DPROMPT_DATA"
+    ],
+    [
+      81,
+      77,
+      0,
+      46,
+      0,
+      "STRING"
+    ],
+    [
+      85,
+      81,
+      0,
+      42,
+      1,
+      "STRING"
+    ],
+    [
+      87,
+      82,
+      0,
+      42,
+      0,
+      "STRING"
+    ],
+    [
+      93,
+      90,
+      0,
+      42,
+      3,
+      "STRING"
+    ],
+    [
+      100,
+      98,
+      0,
+      52,
+      0,
+      "STRING"
+    ],
+    [
+      113,
+      103,
+      0,
+      42,
+      2,
+      "STRING"
+    ],
+    [
+      115,
+      104,
+      0,
+      16,
+      0,
+      "STRING"
+    ],
+    [
+      116,
+      104,
+      0,
+      50,
+      0,
+      "STRING"
+    ],
+    [
+      118,
+      106,
+      0,
+      109,
+      0,
+      "STRING"
+    ],
+    [
+      119,
+      107,
+      0,
+      110,
+      0,
+      "STRING"
+    ],
+    [
+      120,
+      107,
+      1,
+      111,
+      0,
+      "STRING"
+    ],
+    [
+      121,
+      112,
+      0,
+      107,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "WildPrompter All in one + Prompt builder",
+      "bounding": [
+        -860.921142578125,
+        450,
+        685.4608764648438,
+        1433.002685546875
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "WildPromptor Generator",
+      "bounding": [
+        -160,
+        450,
+        701,
+        1075
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Negative",
+      "bounding": [
+        1686.0921630859375,
+        836.4617309570312,
+        679.5757446289062,
+        286.15069580078125
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "Prompt Concat",
+      "bounding": [
+        552,
+        449,
+        1111.4815673828125,
+        1072.74951171875
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "Keyword picker",
+      "bounding": [
+        557.2457275390625,
+        1535.0072021484375,
+        686.98095703125,
+        289.5768737792969
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 11,
+      "title": "AI - Prompt Enhancer",
+      "bounding": [
+        1258.9013671875,
+        1533.9595947265625,
+        399.3856201171875,
+        294.8736572265625
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 12,
+      "title": "Data to Prompt",
+      "bounding": [
+        1686.37939453125,
+        1137.72021484375,
+        681.0950317382812,
+        691.5949096679688
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 13,
+      "title": "Collections",
+      "bounding": [
+        1684.45654296875,
+        452.36553955078125,
+        676.0882568359375,
+        363.6763916015625
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5131581182307069,
+      "offset": [
+        548.3104141531492,
+        -212.52424822988212
+      ]
+    },
+    "ue_links": [],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0
+  },
+  "version": 0.4
+}

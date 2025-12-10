@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comfyui-only"
+version = "2.1.1"
+description = "A collection of custom nodes for ComfyUI, providing advanced file loading and workflow parsing features."
+
+[project.urls]
+Repository = "https://github.com/eric183/ComfyUI-Only"
+#  Issues = "https://github.com/your-username/ComfyUI-Only/issues"
+
+[tool.comfyui]
+custom_nodes = "ComfyUI-Only"
+i18n = "ComfyUI-Only" 

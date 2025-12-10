@@ -1,0 +1,14 @@
+[project]
+name = "comfyui_stable_makeup"
+description = "you can using stable makeup when use comfyUI"
+version = "1.0.2"
+license = { file = "LICENSE" }
+
+[project.urls]
+Repository = "https://github.com/smthemex/ComfyUI_Stable_Makeup"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "smthemex"
+DisplayName = "ComfyUI_Stable_Makeup"
+Icon = ""

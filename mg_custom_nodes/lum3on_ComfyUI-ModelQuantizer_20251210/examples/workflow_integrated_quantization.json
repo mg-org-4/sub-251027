@@ -1,0 +1,518 @@
+{
+  "id": "dd73e3fe-ef87-4f21-ad20-fbc711ebc0f7",
+  "revision": 0,
+  "last_node_id": 18,
+  "last_link_id": 22,
+  "nodes": [
+    {
+      "id": 9,
+      "type": "ControlNetFP8QuantizeNode",
+      "pos": [
+        614.6102294921875,
+        109.16492462158203
+      ],
+      "size": [
+        400,
+        280
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "custom_output_name",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "custom_output_name"
+          },
+          "link": 22
+        }
+      ],
+      "outputs": [
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "name": "metadata_info",
+          "type": "STRING",
+          "links": [
+            10
+          ]
+        },
+        {
+          "name": "quantization_stats",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "aux_id": "lum3on/ComfyUI-ModelQuantizer",
+        "ver": "07592b8f05b40a2a185be9c7c7539a427b466c5d",
+        "Node name for S&R": "ControlNetFP8QuantizeNode",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "models/controlnet/control_v11p_sd15_openpose.safetensors",
+        "float8_e4m3fn",
+        "per_channel",
+        true,
+        "models/controlnet/quantized/control_v11p_sd15_openpose_fp8.safetensors",
+        100,
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 18,
+      "type": "PrimitiveNode",
+      "pos": [
+        1038.4066162109375,
+        132.72703552246094
+      ],
+      "size": [
+        310.17529296875,
+        140.4438018798828
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "widget": {
+            "name": "custom_output_name"
+          },
+          "links": [
+            22
+          ]
+        }
+      ],
+      "title": "output path",
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "models/controlnet/quantized/control_v11p_sd15_openpose_fp8.safetensors"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "SaveAsSafeTensor",
+      "pos": [
+        -179.10694885253906,
+        411.8915100097656
+      ],
+      "size": [
+        350,
+        100
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "quantized_model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "link": 4
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "aux_id": "lum3on/ComfyUI-ModelQuantizer",
+        "ver": "07592b8f05b40a2a185be9c7c7539a427b466c5d",
+        "Node name for S&R": "SaveAsSafeTensor",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "models/quantized/diffusion_model_fp8_direct.safetensors"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "QuantizeFP8Format",
+      "pos": [
+        -176.1340789794922,
+        237.16087341308594
+      ],
+      "size": [
+        350,
+        120
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "quantized_model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "lum3on/ComfyUI-ModelQuantizer",
+        "ver": "07592b8f05b40a2a185be9c7c7539a427b466c5d",
+        "Node name for S&R": "QuantizeFP8Format",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "float8_e4m3fn"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "ModelToStateDict",
+      "pos": [
+        226.8387908935547,
+        108.50463104248047
+      ],
+      "size": [
+        300,
+        100
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "links": [
+            2,
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "lum3on/ComfyUI-ModelQuantizer",
+        "ver": "07592b8f05b40a2a185be9c7c7539a427b466c5d",
+        "Node name for S&R": "ModelToStateDict",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 4,
+      "type": "QuantizeModel",
+      "pos": [
+        220.89305114746094,
+        178.23707580566406
+      ],
+      "size": [
+        350,
+        160
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "quantized_model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "lum3on/ComfyUI-ModelQuantizer",
+        "ver": "07592b8f05b40a2a185be9c7c7539a427b466c5d",
+        "Node name for S&R": "QuantizeModel",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "per_channel",
+        "Auto",
+        "float16"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "SaveAsSafeTensor",
+      "pos": [
+        220.89305114746094,
+        390.1286926269531
+      ],
+      "size": [
+        350,
+        100
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "quantized_model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "link": 5
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "aux_id": "lum3on/ComfyUI-ModelQuantizer",
+        "ver": "07592b8f05b40a2a185be9c7c7539a427b466c5d",
+        "Node name for S&R": "SaveAsSafeTensor",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "models/quantized/diffusion_model_scaled_fp16.safetensors"
+      ]
+    },
+    {
+      "id": 16,
+      "type": "UNETLoader",
+      "pos": [
+        -188.74542236328125,
+        97.2307357788086
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.37",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "UNETLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "DG_Wan_1_3b_t2v_boost_stock_V1_new.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 12,
+      "type": "Note",
+      "pos": [
+        134.60061645507812,
+        563.052978515625
+      ],
+      "size": [
+        750,
+        150
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": "Integrated Quantization Workflow\n\nLeft side: Standard diffusion model quantization using existing nodes\n- LoadCheckpoint → ModelToStateDict → QuantizeFP8Format/QuantizeModel → SaveAsSafeTensor\n\nRight side: ControlNet-specific FP8 quantization using new nodes\n- ControlNetMetadataViewerNode → ControlNetFP8QuantizeNode\n\nThis demonstrates how the new ControlNet nodes complement the existing quantization workflow.",
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "Integrated Quantization Workflow\n\nLeft side: Standard diffusion model quantization using existing nodes\n- LoadCheckpoint → ModelToStateDict → QuantizeFP8Format/QuantizeModel → SaveAsSafeTensor\n\nRight side: ControlNet-specific FP8 quantization using new nodes\n- ControlNetMetadataViewerNode → ControlNetFP8QuantizeNode\n\nThis demonstrates how the new ControlNet nodes complement the existing quantization workflow."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "MODEL_STATE_DICT"
+    ],
+    [
+      3,
+      2,
+      0,
+      4,
+      0,
+      "MODEL_STATE_DICT"
+    ],
+    [
+      4,
+      3,
+      0,
+      5,
+      0,
+      "MODEL_STATE_DICT"
+    ],
+    [
+      5,
+      4,
+      0,
+      6,
+      0,
+      "MODEL_STATE_DICT"
+    ],
+    [
+      10,
+      9,
+      1,
+      10,
+      0,
+      "STRING"
+    ],
+    [
+      21,
+      16,
+      0,
+      2,
+      0,
+      "MODEL"
+    ],
+    [
+      22,
+      18,
+      0,
+      9,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Standard Model Quantization",
+      "bounding": [
+        -199.10694885253906,
+        30,
+        391.63507080078125,
+        495.94573974609375
+      ],
+      "color": "#A88",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "ControlNet FP8 Quantization",
+      "bounding": [
+        598.7603759765625,
+        36.06060791015625,
+        770,
+        490
+      ],
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Scaled Model Quantization",
+      "bounding": [
+        210.89305114746094,
+        34.904640197753906,
+        370,
+        465.2240295410156
+      ],
+      "color": "#A88",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5559917313492252,
+      "offset": [
+        924.9485001083959,
+        104.78444059193227
+      ]
+    },
+    "ue_links": [],
+    "frontendVersion": "1.20.6",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

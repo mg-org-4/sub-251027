@@ -1,0 +1,10 @@
+numpy
+torch
+opencv-python
+pillow
+moviepy
+einops
+transformers
+safetensors
+openai
+aiohttp

@@ -57,7 +57,7 @@ class StepAudioEditXHandler(BaseEngineHandler):
                     quantized_modules = [m for m in model.llm.modules() if 'Int8' in str(type(m).__name__) or 'Int4' in str(type(m).__name__)]
                     if quantized_modules:
                         is_quantized = True
-                        print(f"DEBUG: Found {len(quantized_modules)} quantized modules in model.llm")
+                        # print(f"DEBUG: Found {len(quantized_modules)} quantized modules in model.llm")
 
                     # Also check for Linear8bitLt or Linear4bit classes from bitsandbytes
                     try:
@@ -66,11 +66,11 @@ class StepAudioEditXHandler(BaseEngineHandler):
                         has_4bit = any(hasattr(bnb.nn, 'Linear4bit') and isinstance(m, bnb.nn.Linear4bit) for m in model.llm.modules())
                         if has_8bit or has_4bit:
                             is_quantized = True
-                            print(f"DEBUG: Found bitsandbytes quantization - 8bit={has_8bit}, 4bit={has_4bit}")
+                            # print(f"DEBUG: Found bitsandbytes quantization - 8bit={has_8bit}, 4bit={has_4bit}")
                     except ImportError:
                         pass
                 except Exception as e:
-                    print(f"DEBUG: Error checking llm modules: {e}")
+                    pass  # print(f"DEBUG: Error checking llm modules: {e}")
 
             # Check inner TTS engine if it exists (for wrapped models)
             if hasattr(model, '_tts_engine') and model._tts_engine is not None:
@@ -81,12 +81,12 @@ class StepAudioEditXHandler(BaseEngineHandler):
                             'Int8' in str(type(m).__name__) or 'Int4' in str(type(m).__name__)
                             for m in tts_engine.llm.modules()
                         )
-                        if is_quantized:
-                            print(f"DEBUG: Found quantized modules in _tts_engine.llm")
+                        # if is_quantized:
+                        #     print(f"DEBUG: Found quantized modules in _tts_engine.llm")
                     except Exception:
                         pass
 
-            print(f"DEBUG: Quantization check for {model_info} - is_quantized={is_quantized}")
+            # print(f"DEBUG: Quantization check for {model_info} - is_quantized={is_quantized}")
 
             if is_quantized:
                 # Bitsandbytes quantized models can't use .to()
@@ -139,19 +139,38 @@ class StepAudioEditXHandler(BaseEngineHandler):
                 else:
                     freed_memory = wrapper._memory_size
             else:
-                # Regular model - use standard .to() method
-                if hasattr(model, 'to'):
-                    try:
-                        model.to(device)
-                        freed_memory = wrapper._memory_size
-                        wrapper.current_device = device
-                        wrapper._is_loaded_on_gpu = False
-                        print(f"🔄 Moved {model_info} to {device}, freed {freed_memory // 1024 // 1024}MB")
-                    except Exception as e:
-                        print(f"⚠️ Failed to move {model_info} to {device}: {e}")
-                        freed_memory = wrapper._memory_size
-                        wrapper.current_device = device
-                        wrapper._is_loaded_on_gpu = False
+                # Regular (non-quantized) model - move components to CPU
+                print(f"🔄 Moving non-quantized {model_info} to {device}...")
+                try:
+                    # Handle raw StepAudioTTS (has llm, cosy_model)
+                    if hasattr(model, 'llm') and model.llm is not None:
+                        model.llm = model.llm.to(device)
+                        print(f"  ✓ Moved LLM to {device}")
+                    if hasattr(model, 'cosy_model') and model.cosy_model is not None:
+                        # CosyVoice wrapper - move the inner cosy_impl module
+                        if hasattr(model.cosy_model, 'cosy_impl') and model.cosy_model.cosy_impl is not None:
+                            model.cosy_model.cosy_impl = model.cosy_model.cosy_impl.to(device)
+                            model.cosy_model.device = torch.device(device)  # Update device tracker
+                            print(f"  ✓ Moved CosyVoice to {device}")
+                        else:
+                            print(f"  ⚠️ CosyVoice has no cosy_impl to move")
+
+                    # Handle wrapped StepAudioEditXEngine (has _tts_engine)
+                    if hasattr(model, '_tts_engine') and model._tts_engine is not None:
+                        if hasattr(model._tts_engine, 'llm') and model._tts_engine.llm is not None:
+                            model._tts_engine.llm = model._tts_engine.llm.to(device)
+                        if hasattr(model._tts_engine, 'cosy_model') and model._tts_engine.cosy_model is not None:
+                            model._tts_engine.cosy_model = model._tts_engine.cosy_model.to(device)
+
+                    freed_memory = wrapper._memory_size
+                    wrapper.current_device = device
+                    wrapper._is_loaded_on_gpu = False
+                    print(f"✅ Moved {model_info} to {device}, freed {freed_memory // 1024 // 1024}MB")
+                except Exception as e:
+                    print(f"⚠️ Failed to move {model_info} to {device}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    freed_memory = 0
 
         except Exception as e:
             print(f"⚠️ Error unloading {wrapper.model_info.engine} model: {e}")

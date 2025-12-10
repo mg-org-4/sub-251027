@@ -1,0 +1,484 @@
+#code originally taken from: https://github.com/ChenyangSi/FreeU (under MIT License)
+
+import torch
+import torch as th
+import torch.fft as fft
+import torch.nn as nn
+import math
+
+def normalize(latent, target_min=None, target_max=None):
+    """
+    Normalize a tensor `latent` between `target_min` and `target_max`.
+
+    Args:
+        latent (torch.Tensor): The input tensor to be normalized.
+        target_min (float, optional): The minimum value after normalization.
+            - When `None` min will be tensor min range value.
+        target_max (float, optional): The maximum value after normalization.
+            - When `None` max will be tensor max range value.
+
+    Returns:
+        torch.Tensor: The normalized tensor
+    """
+    min_val = latent.min()
+    max_val = latent.max()
+
+    if target_min is None:
+        target_min = min_val
+    if target_max is None:
+        target_max = max_val
+
+    normalized = (latent - min_val) / (max_val - min_val)
+    scaled = normalized * (target_max - target_min) + target_min
+    return scaled
+
+def hslerp(a, b, t):
+    """
+    Perform Hybrid Spherical Linear Interpolation (HSLERP) between two tensors.
+
+    This function combines two input tensors `a` and `b` using HSLERP, which is a specialized
+    interpolation method for smooth transitions between orientations or colors.
+
+    Args:
+        a (tensor): The first input tensor.
+        b (tensor): The second input tensor.
+        t (float): The blending factor, a value between 0 and 1 that controls the interpolation.
+
+    Returns:
+        tensor: The result of HSLERP interpolation between `a` and `b`.
+
+    Note:
+        HSLERP provides smooth transitions between orientations or colors, particularly useful
+        in applications like image processing and 3D graphics.
+    """
+    if a.shape != b.shape:
+        raise ValueError("Input tensors a and b must have the same shape.")
+
+    num_channels = a.size(1)
+
+    interpolation_tensor = torch.zeros(1, num_channels, 1, 1, device=a.device, dtype=a.dtype)
+    interpolation_tensor[0, 0, 0, 0] = 1.0
+
+    result = (1 - t) * a + t * b
+
+    if t < 0.5:
+        result += (torch.norm(b - a, dim=1, keepdim=True) / 6) * interpolation_tensor
+    else:
+        result -= (torch.norm(b - a, dim=1, keepdim=True) / 6) * interpolation_tensor
+
+    return result
+
+def stable_slerp(a, b, t: float, eps: float = 1e-6):
+    """
+    Numerically stable spherical linear interpolation over the channel dimension.
+
+    Treat each BCHW location's C-vector as a point on a hypersphere and SLERP from a->b.
+    Falls back to LERP when the angle is very small or vectors are near-zero.
+    """
+    if a.shape != b.shape:
+        raise ValueError("Input tensors a and b must have the same shape.")
+
+    # Norms across channel dimension
+    a_norm = torch.linalg.norm(a, dim=1, keepdim=True).clamp_min(eps)
+    b_norm = torch.linalg.norm(b, dim=1, keepdim=True).clamp_min(eps)
+    a_n = a / a_norm
+    b_n = b / b_norm
+
+    # Cosine of angle between vectors
+    dot = (a_n * b_n).sum(dim=1, keepdim=True).clamp(-1.0 + eps, 1.0 - eps)
+    theta = torch.acos(dot)
+    sin_theta = torch.sin(theta).clamp_min(eps)
+
+    # Scalar t is expected; keep broadcast-friendly
+    s0 = torch.sin((1.0 - t) * theta) / sin_theta
+    s1 = torch.sin(t * theta) / sin_theta
+
+    slerp_out = s0 * a + s1 * b
+    lerp_out = (1.0 - t) * a + t * b
+
+    # When angle is too small, prefer LERP to avoid instabilities
+    use_lerp = (theta < 1e-3).squeeze(1)
+    out = torch.where(use_lerp.unsqueeze(1), lerp_out, slerp_out)
+    return out
+
+blending_modes = {
+    # Args:
+    #   - a (tensor): Latent input 1
+    #   - b (tensor): Latent input 2
+    #   - t (float): Blending factor
+
+    # Interpolates between tensors a and b using normalized linear interpolation.
+    'bislerp': lambda a, b, t: normalize((1 - t) * a + t * b),
+    # Transfer the color from `b` to `a` by t` factor
+    'colorize': lambda a, b, t: a + (b - a) * t,
+    # Interpolates between tensors a and b using cosine interpolation.
+    'cosine interp': lambda a, b, t: (a + b - (a - b) * torch.cos(t * torch.tensor(math.pi))) / 2,
+    # Interpolates between tensors a and b using cubic interpolation.
+    'cuberp': lambda a, b, t: a + (b - a) * (3 * t ** 2 - 2 * t ** 3),
+    # Interpolates between tensors a and b using normalized linear interpolation,
+    # with a twist when t is greater than or equal to 0.5.
+    'hslerp': hslerp,
+    # Numerically stable SLERP over channel vectors
+    'stable_slerp': stable_slerp,
+    # Adds tensor b to tensor a, scaled by t.
+    'inject': lambda a, b, t: a + b * t,
+    # Interpolates between tensors a and b using linear interpolation.
+    'lerp': lambda a, b, t: (1 - t) * a + t * b,
+    # Simulates a brightening effect by adding tensor b to tensor a, scaled by t.
+    'linear dodge': lambda a, b, t: normalize(a + b * t),
+}
+
+mscales = {
+    "Default": None,
+    "Low-Pass": [
+        (10, 1.0),   # Allows low-frequency components, suppresses high-frequency components
+    ],
+    "Pass-Through": [
+        (10, 1.0),   # Passes all frequencies unchanged, no filtering
+    ],
+    "Gaussian-Blur": [
+        (10, 0.5),   # Blurs the image by allowing a range of frequencies with a Gaussian shape
+    ],
+    "Edge-Enhancement": [
+        (10, 2.0),   # Enhances edges and high-frequency features while suppressing low-frequency details
+    ],
+    "Sharpen": [
+        (10, 1.5),   # Increases the sharpness of the image by emphasizing high-frequency components
+    ],
+    "Multi-Bandpass": [
+        [(5, 0.0), (15, 1.0), (25, 0.0)],  # Multi-scale bandpass filter
+    ],
+    "Multi-Low-Pass": [
+        [(5, 1.0), (10, 0.5), (15, 0.2)],  # Multi-scale low-pass filter
+    ],
+    "Multi-High-Pass": [
+        [(5, 0.0), (10, 0.5), (15, 0.8)],  # Multi-scale high-pass filter
+    ],
+    "Multi-Pass-Through": [
+        [(5, 1.0), (10, 1.0), (15, 1.0)],  # Pass-through at different scales
+    ],
+    "Multi-Gaussian-Blur": [
+        [(5, 0.5), (10, 0.8), (15, 0.2)],  # Multi-scale Gaussian blur
+    ],
+    "Multi-Edge-Enhancement": [
+        [(5, 1.2), (10, 1.5), (15, 2.0)],  # Multi-scale edge enhancement
+    ],
+    "Multi-Sharpen": [
+        [(5, 1.5), (10, 2.0), (15, 2.5)],  # Multi-scale sharpening
+    ],
+}
+
+
+
+def Fourier_filter(x, threshold, scale, scales=None, strength=1.0):
+    # FFT
+    if isinstance(x, list):
+        x = x[0]
+    if isinstance(x, torch.Tensor):
+        x_freq = fft.fftn(x.float(), dim=(-2, -1))
+        x_freq = fft.fftshift(x_freq, dim=(-2, -1))
+
+        B, C, H, W = x_freq.shape
+        mask = torch.ones((B, C, H, W), device=x.device)
+
+        crow, ccol = H // 2, W // 2
+        mask[..., crow - threshold:crow + threshold, ccol - threshold:ccol + threshold] = scale
+
+        if scales is not None:
+            if isinstance(scales[0], tuple):
+                # Single-scale mode
+                for scale_params in scales:
+                    if len(scale_params) == 2:
+                        scale_threshold, scale_value = scale_params
+                        scaled_scale_value = scale_value * strength
+                        scale_mask = torch.ones((B, C, H, W), device=x.device)
+                        scale_mask[..., crow - scale_threshold:crow + scale_threshold, ccol - scale_threshold:ccol + scale_threshold] = scaled_scale_value
+                        mask = mask + (scale_mask - mask) * strength
+            else:
+                # Multi-scale mode
+                for scale_params in scales:
+                    if isinstance(scale_params, list):
+                        for scale_tuple in scale_params:
+                            if len(scale_tuple) == 2:
+                                scale_threshold, scale_value = scale_tuple
+                                scaled_scale_value = scale_value * strength
+                                scale_mask = torch.ones((B, C, H, W), device=x.device)
+                                scale_mask[..., crow - scale_threshold:crow + scale_threshold, ccol - scale_threshold:ccol + scale_threshold] = scaled_scale_value
+                                mask = mask + (scale_mask - mask) * strength
+
+        x_freq = x_freq * mask
+
+        # IFFT
+        x_freq = fft.ifftshift(x_freq, dim=(-2, -1))
+        x_filtered = fft.ifftn(x_freq, dim=(-2, -1)).real
+
+        return x_filtered.to(x.dtype)
+
+    return x
+
+class WAS_FreeU:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+                    "model": ("MODEL",),
+                    "target_block": (["output_block", "middle_block", "input_block", "all"], {"tooltip": "Which UNet block(s) to patch."}),
+                    "multiscale_mode": (list(mscales.keys()), {"tooltip": "Frequency shaping preset used by Fourier_filter."}),
+                    "multiscale_strength": ("FLOAT", {"default": 1.0, "max": 1.0, "min": 0, "step": 0.001, "tooltip": "Intensity of multi-scale shaping [0-1]."}),
+                    "slice_b1": ("INT", {"default": 640, "min": 64, "max": 1280, "step": 1, "tooltip": "Slice width (channels) affected in 1280-channel features."}),
+                    "slice_b2": ("INT", {"default": 320, "min": 64, "max": 640, "step": 1, "tooltip": "Slice width (channels) affected in 640-channel features."}),
+                    "b1": ("FLOAT", {"default": 1.1, "min": 0.0, "max": 10.0, "step": 0.001, "tooltip": "Gain multiplier applied to the b1 slice (1280-ch)."}),
+                    "b2": ("FLOAT", {"default": 1.2, "min": 0.0, "max": 10.0, "step": 0.001, "tooltip": "Gain multiplier applied to the b2 slice (640-ch)."}),
+                    "s1": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 10.0, "step": 0.001, "tooltip": "Fourier scale at threshold for 1280-ch features."}),
+                    "s2": ("FLOAT", {"default": 0.2, "min": 0.0, "max": 10.0, "step": 0.001, "tooltip": "Fourier scale at threshold for 640-ch features."}),
+                },
+                "optional": {
+                    "b1_mode": (list(blending_modes.keys()), {"tooltip": "Blending mode for b1 path."}),
+                    "b1_blend": ("FLOAT", {"default": 1.0, "max": 100, "min": 0, "step": 0.001, "tooltip": "Blend strength for b1 path."}),
+                    "b2_mode": (list(blending_modes.keys()), {"tooltip": "Blending mode for b2 path."}),
+                    "b2_blend": ("FLOAT", {"default": 1.0, "max": 100, "min": 0, "step": 0.001, "tooltip": "Blend strength for b2 path."}),
+                    "threshold": ("INT", {"default": 1.0, "max": 10, "min": 1, "step": 1, "tooltip": "Base radius for the Fourier mask."}),
+                    "use_override_scales": (["false", "true"], {"tooltip": "Enable manual override of scale presets."}),
+                    "override_scales": ("STRING", {"default": '''# OVERRIDE SCALES
+
+# Sharpen
+# 10, 1.5''', "multiline": True, "tooltip": "Custom scale lines: '<radius>, <scale>'. Comments with #,//,!"}),
+                }
+        }
+
+    RETURN_TYPES = ("MODEL",)
+    FUNCTION = "patch"
+
+    CATEGORY = "_for_testing"
+
+    def patch(self, model, target_block, multiscale_mode, multiscale_strength, slice_b1, slice_b2, b1, b2, s1, s2, b1_mode="add", b1_blend=1.0, b2_mode="add", b2_blend=1.0, threshold=1.0, use_override_scales="false", override_scales=""):
+
+        min_slice = 64
+        max_slice_b1 = 1280
+        max_slice_b2 = 640
+        slice_b1 = max(min(max_slice_b1, slice_b1), min_slice)
+        slice_b2 = max(min(min(slice_b1, max_slice_b2), slice_b2), min_slice)
+
+        scales_list = []
+        if use_override_scales == "true":
+            if override_scales.strip() != "":
+                scales_str = override_scales.strip().splitlines()
+                for line in scales_str:
+                    if not line.strip().startswith('#') and not line.strip().startswith('!') and not line.strip().startswith('//'):
+                        scale_values = line.split(',')
+                        if len(scale_values) == 2:
+                            scales_list.append((int(scale_values[0]), float(scale_values[1])))
+
+        if use_override_scales == "true" and not scales_list:
+            print("No valid override scales found. Using default scale.")
+            scales_list = None
+
+        scales = mscales[multiscale_mode] if use_override_scales == "false" else scales_list
+
+        print(f"FreeU Plate Portions: {slice_b1} over {slice_b2}")
+        print(f"FreeU Multi-Scales: {scales}")
+
+        def block_patch(h, transformer_options):
+            if h.shape[1] == 1280:
+                h_t = h[:,:slice_b1]
+                h_r = h_t * b1
+                h[:,:slice_b1] = blending_modes[b1_mode](h_t, h_r, b1_blend)
+            if h.shape[1] == 640:
+                h_t = h[:,:slice_b2]
+                h_r = h_t * b2
+                h[:,:slice_b2] = blending_modes[b2_mode](h_t, h_r, b2_blend)
+            return h
+
+        def block_patch_hsp(h, hsp, transformer_options):
+            if h.shape[1] == 1280:
+                h = block_patch(h, transformer_options)
+                hsp = Fourier_filter(hsp, threshold=threshold, scale=s1, scales=scales, strength=multiscale_strength)
+            if h.shape[1] == 640:
+                h = block_patch(h, transformer_options)
+                hsp = Fourier_filter(hsp, threshold=threshold, scale=s2, scales=scales, strength=multiscale_strength)
+            return h, hsp
+
+        print(f"Patching {target_block}")
+
+        m = model.clone()
+
+        if target_block == "all" or target_block == "output_block":
+            m.set_model_output_block_patch(block_patch_hsp)
+        if target_block == "all" or target_block == "input_block":
+            m.set_model_input_block_patch(block_patch)
+        if target_block == "all" or target_block == "middle_block":
+            m.set_model_patch(block_patch, "middle_block_patch")
+        return (m, )
+
+
+
+class WAS_PostCFGShift:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+                    "model": ("MODEL",),
+                    "steps": ("INT", {"default": 20, "min": 1, "max": 1000, "step": 1, "tooltip": "Number of steps to apply SHIFT."}),
+                    "mode": (list(blending_modes.keys()), {"tooltip": "Blend strategy for denoised vs denoised*b (e.g., inject, stable_slerp)."}),
+                    "blend": ("FLOAT", {"default": 1.0, "max": 100.0, "min": 0.0, "step": 0.001, "tooltip": "Blend amount between base and scaled tensors."}),
+                    "b": ("FLOAT", {"default": 1.1, "min": 0.0, "max": 10.0, "step": 0.001, "tooltip": "Scale factor for the injected path (higher = stronger)."}),
+                    "apply_fourier": ("BOOLEAN", {"default": False, "tooltip": "Apply frequency-domain shaping (Fourier_filter)."}),
+                    "multiscale_mode": (list(mscales.keys()), {"tooltip": "Preset shaping curves for Fourier_filter."}),
+                    "multiscale_strength": ("FLOAT", {"default": 1.0, "max": 1.0, "min": 0.0, "step": 0.001, "tooltip": "Intensity of multi-scale shaping [0-1]."}),
+                    "threshold": ("INT", {"default": 1, "min": 1, "max": 10, "step": 1, "tooltip": "Base radius for frequency mask."}),
+                    "s": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 10.0, "step": 0.001, "tooltip": "Base scale value applied at threshold radius."}),
+                    "force_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 100.0, "step": 0.01, "tooltip": "Final multiplier to boost or attenuate effect."}),
+                }
+        }
+
+    RETURN_TYPES = ("MODEL",)
+    FUNCTION = "patch"
+
+    CATEGORY = "_for_testing"
+
+    def patch(self, model, steps, mode, blend, b, apply_fourier, multiscale_mode, multiscale_strength, threshold, s, force_gain):
+
+        scales = mscales[multiscale_mode]
+        steps = max(1, min(1000, steps))
+        current_step = 0
+
+        print(
+            "[FluxU] inputs:",
+            f"mode={mode}", f"blend={blend}", f"b={b}",
+            f"apply_fourier={apply_fourier}", f"multiscale_mode={multiscale_mode}", f"multiscale_strength={multiscale_strength}",
+            f"threshold={threshold}", f"s={s}", f"force_gain={force_gain}"
+            )
+
+        m = model.clone()
+
+        def post_cfg_function(args):
+
+            nonlocal current_step
+            current_step += 1
+            if current_step > steps:
+                return args.get("denoised")
+
+            denoised = args.get("denoised")
+            eff_blend = float(blend)
+            t_scaled = denoised * b
+            y = blending_modes[mode](denoised, t_scaled, eff_blend)
+
+            if apply_fourier:
+                y = Fourier_filter(y, threshold=threshold, scale=s, scales=scales, strength=multiscale_strength)
+
+            if force_gain != 1.0:
+                y = y * float(force_gain)
+            return y
+
+
+        try:
+            m.set_model_sampler_post_cfg_function(post_cfg_function)
+            print("[FluxU] set_model_sampler_post_cfg_function registered")
+        except Exception as e:
+            print(f"[FluxU] set_model_sampler_post_cfg_function failed: {e}")
+        return (m, )
+
+class WAS_FreeU_V2:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+                    "model": ("MODEL",),
+                    "input_block": ("BOOLEAN", {"default": False, "tooltip": "Enable patching on the input block."}),
+                    "middle_block": ("BOOLEAN", {"default": False, "tooltip": "Enable patching on the middle block."}),
+                    "output_block": ("BOOLEAN", {"default": False, "tooltip": "Enable patching on the output block."}),
+                    "multiscale_mode": (list(mscales.keys()), {"tooltip": "Frequency shaping preset used by Fourier_filter."}),
+                    "multiscale_strength": ("FLOAT", {"default": 1.0, "max": 1.0, "min": 0, "step": 0.001, "tooltip": "Intensity of multi-scale shaping [0-1]."}),
+                    "slice_b1": ("INT", {"default": 640, "min": 64, "max": 1280, "step": 1, "tooltip": "Slice width (channels) affected in 1280-channel features."}),
+                    "slice_b2": ("INT", {"default": 320, "min": 64, "max": 640, "step": 1, "tooltip": "Slice width (channels) affected in 640-channel features."}),
+                    "b1": ("FLOAT", {"default": 1.1, "min": 0.0, "max": 10.0, "step": 0.001, "tooltip": "Gain multiplier for 1280-channel slice."}),
+                    "b2": ("FLOAT", {"default": 1.2, "min": 0.0, "max": 10.0, "step": 0.001, "tooltip": "Gain multiplier for 640-channel slice."}),
+                    "s1": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 10.0, "step": 0.001, "tooltip": "Fourier scale at threshold for 1280-ch features."}),
+                    "s2": ("FLOAT", {"default": 0.2, "min": 0.0, "max": 10.0, "step": 0.001, "tooltip": "Fourier scale at threshold for 640-ch features."}),
+                },
+                "optional": {
+                    "threshold": ("INT", {"default": 1.0, "max": 10, "min": 1, "step": 1, "tooltip": "Base radius for the Fourier mask."}),
+                    "use_override_scales": (["false", "true"], {"tooltip": "Enable manual override of scale presets."}),
+                    "override_scales": ("STRING", {"default": '''# OVERRIDE SCALES
+
+# Sharpen
+# 10, 1.5''', "multiline": True, "tooltip": "Custom scale lines: '<radius>, <scale>'. Comments with #,//,!"}),
+                }
+        }
+
+    RETURN_TYPES = ("MODEL",)
+    FUNCTION = "patch"
+
+    CATEGORY = "_for_testing"
+
+    def patch(self, model, input_block, middle_block, output_block, multiscale_mode, multiscale_strength, slice_b1, slice_b2, b1, b2, s1, s2, threshold=1.0, use_override_scales="false", override_scales=""):
+
+        min_slice = 64
+        max_slice_b1 = 1280
+        max_slice_b2 = 640
+        slice_b1 = max(min(max_slice_b1, slice_b1), min_slice)
+        slice_b2 = max(min(min(slice_b1, max_slice_b2), slice_b2), min_slice)
+
+        scales_list = []
+        if use_override_scales == "true":
+            if override_scales.strip() != "":
+                scales_str = override_scales.strip().splitlines()
+                for line in scales_str:
+                    if not line.strip().startswith('#') and not line.strip().startswith('!') and not line.strip().startswith('//'):
+                        scale_values = line.split(',')
+                        if len(scale_values) == 2:
+                            scales_list.append((int(scale_values[0]), float(scale_values[1])))
+
+        if use_override_scales == "true" and not scales_list:
+            print("No valid override scales found. Using default scale.")
+            scales_list = None
+
+        scales = mscales[multiscale_mode] if use_override_scales == "false" else scales_list
+
+        def _hidden_mean(h):
+            hidden_mean = h.mean(1).unsqueeze(1)
+            B = hidden_mean.shape[0]
+            hidden_max, _ = torch.max(hidden_mean.view(B, -1), dim=-1, keepdim=True)
+            hidden_min, _ = torch.min(hidden_mean.view(B, -1), dim=-1, keepdim=True)
+            hidden_mean = (hidden_mean - hidden_min.unsqueeze(2).unsqueeze(3)) / (hidden_max - hidden_min).unsqueeze(2).unsqueeze(3)
+            return hidden_mean
+
+        def block_patch(h, transformer_options):
+            if h.shape[1] == 1280:
+                hidden_mean = _hidden_mean(h)
+                h[:,:slice_b1] = h[:,:slice_b1] * ((b1 - 1 ) * hidden_mean + 1)
+            if h.shape[1] == 640:
+                hidden_mean = _hidden_mean(h)
+                h[:,:slice_b2] = h[:,:slice_b2] * ((b2 - 1 ) * hidden_mean + 1)
+            return h
+
+        def block_patch_hsp(h, hsp, transformer_options):
+            if h.shape[1] == 1280:
+                h = block_patch(h, transformer_options)
+                hsp = Fourier_filter(hsp, threshold=threshold, scale=s1, scales=scales, strength=multiscale_strength)
+            if h.shape[1] == 640:
+                h = block_patch(h, transformer_options)
+                hsp = Fourier_filter(hsp, threshold=threshold, scale=s2, scales=scales, strength=multiscale_strength)
+            return h, hsp
+
+        m = model.clone()
+        if output_block:
+            print("Patching output block")
+            m.set_model_output_block_patch(block_patch_hsp)
+        if input_block:
+            print("Patching input block")
+            m.set_model_input_block_patch(block_patch)
+        if middle_block:
+            print("Patching middle block")
+            m.set_model_patch(block_patch, "middle_block_patch")
+        return (m, )
+
+NODE_CLASS_MAPPINGS = {
+    "WAS_FreeU": WAS_FreeU,
+    "WAS_FreeU_V2": WAS_FreeU_V2,
+    "WAS_PostCFGShift": WAS_PostCFGShift,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "WAS_FreeU": "FreeU (Advanced Plus)",
+    "WAS_FreeU_V2": "FreeU V2 (Advanced Plus)",
+    "WAS_PostCFGShift": "Post-CFG SHIFT",
+}
+

@@ -1,0 +1,716 @@
+{
+  "last_node_id": 33,
+  "last_link_id": 69,
+  "nodes": [
+    {
+      "id": 5,
+      "type": "SaveImage",
+      "pos": {
+        "0": 1152,
+        "1": 170
+      },
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 5
+        }
+      ],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": {
+        "0": -1392,
+        "1": 82
+      },
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            14
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "1744330994914_ComfyUI_00001_ - 2025-03-24T202425.118.png",
+        "image"
+      ]
+    },
+    {
+      "id": 32,
+      "type": "JoinStrings",
+      "pos": {
+        "0": 271,
+        "1": -108
+      },
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "string1",
+          "type": "STRING",
+          "link": 66,
+          "widget": {
+            "name": "string1"
+          }
+        },
+        {
+          "name": "string2",
+          "type": "STRING",
+          "link": 65,
+          "widget": {
+            "name": "string2"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            67
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JoinStrings"
+      },
+      "widgets_values": [
+        "",
+        "",
+        " "
+      ]
+    },
+    {
+      "id": 33,
+      "type": "EasyControlLoadLora",
+      "pos": {
+        "0": -720,
+        "1": 45
+      },
+      "size": {
+        "0": 443.4000244140625,
+        "1": 106
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "transformer",
+          "type": "EASYCONTROL_TRANSFORMER",
+          "link": 68
+        }
+      ],
+      "outputs": [
+        {
+          "name": "EASYCONTROL_TRANSFORMER",
+          "type": "EASYCONTROL_TRANSFORMER",
+          "links": [
+            69
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EasyControlLoadLora"
+      },
+      "widgets_values": [
+        "easycontrol/pose.safetensors",
+        1,
+        512
+      ]
+    },
+    {
+      "id": 4,
+      "type": "EasyControlGenerate",
+      "pos": {
+        "0": 650,
+        "1": 121
+      },
+      "size": {
+        "0": 400,
+        "1": 402
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "type": "EASYCONTROL_PIPE",
+          "link": 30
+        },
+        {
+          "name": "transformer",
+          "type": "EASYCONTROL_TRANSFORMER",
+          "link": 69
+        },
+        {
+          "name": "spatial_image",
+          "type": "IMAGE",
+          "link": 16,
+          "shape": 7
+        },
+        {
+          "name": "subject_image",
+          "type": "IMAGE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 8,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 9,
+          "widget": {
+            "name": "height"
+          }
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 67,
+          "widget": {
+            "name": "prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            5
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EasyControlGenerate"
+      },
+      "widgets_values": [
+        "3d pixar style",
+        "",
+        768,
+        1024,
+        3.5,
+        25,
+        959892168245768,
+        "randomize",
+        512,
+        false,
+        1
+      ]
+    },
+    {
+      "id": 6,
+      "type": "ImageResize+",
+      "pos": {
+        "0": -891,
+        "1": 242
+      },
+      "size": {
+        "0": 315,
+        "1": 218
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            15,
+            64
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            8
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            9
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageResize+"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        "nearest",
+        "keep proportion",
+        "always",
+        8
+      ]
+    },
+    {
+      "id": 9,
+      "type": "DWPreprocessor",
+      "pos": {
+        "0": 151,
+        "1": 303
+      },
+      "size": {
+        "0": 315,
+        "1": 222
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            16
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "POSE_KEYPOINT",
+          "type": "POSE_KEYPOINT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DWPreprocessor"
+      },
+      "widgets_values": [
+        "enable",
+        "enable",
+        "enable",
+        768,
+        "yolox_l.onnx",
+        "dw-ll_ucoco_384_bs5.torchscript.pt",
+        "disable"
+      ]
+    },
+    {
+      "id": 20,
+      "type": "Text Multiline",
+      "pos": {
+        "0": 294,
+        "1": -370
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            66
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Text Multiline"
+      },
+      "widgets_values": [
+        "bold lines,cartoon, flat, Round eyes, white background\n"
+      ]
+    },
+    {
+      "id": 22,
+      "type": "Note",
+      "pos": {
+        "0": -554,
+        "1": -786
+      },
+      "size": {
+        "0": 704.7333984375,
+        "1": 454.6095886230469
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "some lora:\n\nhttps://civitai.com/models/180891?modelVersionId=838667\nid:838667\ntrigger word: \"Flat colour anime style image showing\"\n\n\nhttps://civitai.com/models/650251?modelVersionId=733001\nid: 733001\ntrigger word: \"3D pixar style\"\n\n\n\nhttps://civitai.com/models/1235436/flux-snoopy-cute-cartoon-style-character-generation\nid: 1392285\ntrigger word: bold lines,cartoon, flat, Round eyes, white background\n\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 19,
+      "type": "EasyControlLoadStyleLoraFromCivitai",
+      "pos": {
+        "0": -745,
+        "1": -75
+      },
+      "size": {
+        "0": 504,
+        "1": 82
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "type": "EASYCONTROL_PIPE",
+          "link": 29
+        }
+      ],
+      "outputs": [
+        {
+          "name": "EASYCONTROL_PIPE",
+          "type": "EASYCONTROL_PIPE",
+          "links": [
+            30
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EasyControlLoadStyleLoraFromCivitai"
+      },
+      "widgets_values": [
+        1,
+        "1392285"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "EasyControlLoadFlux",
+      "pos": {
+        "0": -1375,
+        "1": -281
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "EASYCONTROL_PIPE",
+          "type": "EASYCONTROL_PIPE",
+          "links": [
+            29
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "EASYCONTROL_TRANSFORMER",
+          "type": "EASYCONTROL_TRANSFORMER",
+          "links": [
+            68
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EasyControlLoadFlux"
+      },
+      "widgets_values": [
+        "",
+        false,
+        true
+      ]
+    },
+    {
+      "id": 31,
+      "type": "LayerMask: LoadFlorence2Model",
+      "pos": {
+        "0": -909,
+        "1": 504
+      },
+      "size": {
+        "0": 390.5999755859375,
+        "1": 58
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "florence2_model",
+          "type": "FLORENCE2",
+          "links": [
+            63
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerMask: LoadFlorence2Model"
+      },
+      "widgets_values": [
+        "base-PromptGen-v1.5"
+      ],
+      "color": "rgba(27, 80, 119, 0.7)"
+    },
+    {
+      "id": 30,
+      "type": "LayerUtility: Florence2Image2Prompt",
+      "pos": {
+        "0": -437,
+        "1": 438
+      },
+      "size": {
+        "0": 453.5999755859375,
+        "1": 198
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "florence2_model",
+          "type": "FLORENCE2",
+          "link": 63
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 64
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": [
+            65
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "preview_image",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LayerUtility: Florence2Image2Prompt"
+      },
+      "widgets_values": [
+        "caption",
+        "",
+        1024,
+        3,
+        false,
+        false
+      ],
+      "color": "rgba(38, 73, 116, 0.7)"
+    }
+  ],
+  "links": [
+    [
+      5,
+      4,
+      0,
+      5,
+      0,
+      "IMAGE"
+    ],
+    [
+      8,
+      6,
+      1,
+      4,
+      4,
+      "INT"
+    ],
+    [
+      9,
+      6,
+      2,
+      4,
+      5,
+      "INT"
+    ],
+    [
+      14,
+      1,
+      0,
+      6,
+      0,
+      "IMAGE"
+    ],
+    [
+      15,
+      6,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      16,
+      9,
+      0,
+      4,
+      2,
+      "IMAGE"
+    ],
+    [
+      29,
+      2,
+      0,
+      19,
+      0,
+      "EASYCONTROL_PIPE"
+    ],
+    [
+      30,
+      19,
+      0,
+      4,
+      0,
+      "EASYCONTROL_PIPE"
+    ],
+    [
+      63,
+      31,
+      0,
+      30,
+      0,
+      "FLORENCE2"
+    ],
+    [
+      64,
+      6,
+      0,
+      30,
+      1,
+      "IMAGE"
+    ],
+    [
+      65,
+      30,
+      0,
+      32,
+      1,
+      "STRING"
+    ],
+    [
+      66,
+      20,
+      0,
+      32,
+      0,
+      "STRING"
+    ],
+    [
+      67,
+      32,
+      0,
+      4,
+      6,
+      "STRING"
+    ],
+    [
+      68,
+      2,
+      1,
+      33,
+      0,
+      "EASYCONTROL_TRANSFORMER"
+    ],
+    [
+      69,
+      33,
+      0,
+      4,
+      1,
+      "EASYCONTROL_TRANSFORMER"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.3855432894295319,
+      "offset": [
+        1617.2745608243945,
+        719.13833627455
+      ]
+    }
+  },
+  "version": 0.4
+}

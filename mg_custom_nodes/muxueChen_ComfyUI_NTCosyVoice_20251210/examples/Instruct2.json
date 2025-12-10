@@ -1,0 +1,139 @@
+{
+  "last_node_id": 5,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadAudio",
+      "pos": [
+        -81.06248474121094,
+        -627.4505615234375
+      ],
+      "size": [
+        338.2475891113281,
+        126.5556869506836
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "",
+        null,
+        ""
+      ]
+    },
+    {
+      "id": 3,
+      "type": "PreviewAudio",
+      "pos": [
+        888.1553344726562,
+        -627.6224365234375
+      ],
+      "size": [
+        433.8606262207031,
+        167.7429962158203
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 4
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": [
+        null
+      ]
+    },
+    {
+      "id": 5,
+      "type": "NTCosyVoiceInstruct2Sampler",
+      "pos": [
+        357.6646728515625,
+        -628.6502075195312
+      ],
+      "size": [
+        483.8872985839844,
+        235.1954345703125
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "tts_speech",
+          "type": "AUDIO",
+          "links": [
+            4
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NTCosyVoiceInstruct2Sampler"
+      },
+      "widgets_values": [
+        1,
+        "逻辑者，乃思维之秩序与理性之推理也。吾观世间万物，皆有其内在之条理与次序，此即逻辑之所在。在思辨之域，逻辑乃是我们把握真理、辨明是非之利器。它教我们以条理清晰之方式组织思想，以确凿无疑之论据支持论点，从而得出合乎理性之结论。具体而言，逻辑包括演绎推理与归纳推理两大范畴。演绎推理者，由一般而个别之方法也，自普遍之原则推导出特殊之结论。其过程犹如由已知之因推导出未知之果，步步为营，无懈可击。归纳推理则反其道而行之，由个别而一般，从特殊之事实中提炼出普遍之规律。此二者相辅相成，共同构成了逻辑学之核心。吾辈学者研习逻辑，旨在培养清晰之思维、严谨之态度与准确之表达能力。于个人而言，逻辑使我们能更好地理解世界、把握自身；于社会而言，逻辑则是促进文明进步、维护公平正义之基石。故逻辑之学，实乃人生不可或缺之智慧也。",
+        "请用悲伤的语气阅读这段话"
+      ]
+    }
+  ],
+  "links": [
+    [
+      3,
+      1,
+      0,
+      5,
+      0,
+      "AUDIO"
+    ],
+    [
+      4,
+      5,
+      0,
+      3,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.2839025177495025,
+      "offset": [
+        156.24695224003256,
+        872.3227271653814
+      ]
+    }
+  },
+  "version": 0.4
+}

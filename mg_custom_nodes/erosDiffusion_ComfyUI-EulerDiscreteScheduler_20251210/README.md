@@ -37,6 +37,13 @@ Example output (more below)
   2. Connect its SIGMAS output to **SamplerCustom** node's sigmas input
   3. Adjust parameters to control the sampling behavior, you have ALL the parameters to play with.
 
+## Troubleshoot
+- if the scheduler does not appear when you have res4lyf package installed you can try:
+  -- workaround 1: adding an samplerCustom node and connect the sigmas to a  basicScheduler node. this way the scheduler should be available in the list
+  -- workaround 2: disable res4lyf if you don't need that
+  -- workaround 3 use the flowmatch scheduler (custom) and connect to the sigmas of the samplerCustom.
+- if your install fails you might have to use the correct version of peft package, some users reported this as issue, check startup logs and install the proper version
+
 ## Tech bits:
 
 - https://huggingface.co/docs/diffusers/api/schedulers/flow_match_euler_discrete
@@ -53,7 +60,8 @@ More examples:
 <img width="1536" height="1088" alt="image" src="https://github.com/user-attachments/assets/1931af7e-1b3e-47c9-ac20-27add5135a71" />
 
 ## Changelog
-
+**1.0.8**
+- attempt fixing incompatibility with res4lyf by adding the scheduler to the list.
 **1.0.7**
 
 - nunchaku qwen patch fix, tiled diffusion patch fix

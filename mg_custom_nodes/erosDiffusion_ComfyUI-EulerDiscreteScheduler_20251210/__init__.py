@@ -25,6 +25,12 @@ except ImportError as e:
         "Please install dependencies from requirements.txt"
     ) from e
 
+try:
+    from diffusers import VQDiffusionScheduler
+except ImportError:
+    VQDiffusionScheduler = None
+    print("[FlowMatch Scheduler] Warning: VQDiffusionScheduler not found in diffusers.")
+
 from comfy.samplers import SchedulerHandler, SCHEDULER_HANDLERS, SCHEDULER_NAMES
 
 # Import Nunchaku compatibility patches (auto-applies on import)
@@ -58,11 +64,49 @@ def flow_match_euler_scheduler_handler(model_sampling, steps):
     sigmas = scheduler.sigmas
     return sigmas
 
-# Register the scheduler in ComfyUI
+def vq_diffusion_scheduler_handler(model_sampling, steps):
+    if VQDiffusionScheduler is None:
+        raise ImportError("VQDiffusionScheduler is not available.")
+    
+    # VQDiffusionScheduler requires num_vec_classes. 
+    print("[FlowMatch Scheduler] WARNING: VQDiffusionScheduler is for discrete models (VQ-Diffusion).")
+    print("It does not produce 'sigmas' for continuous diffusion.")
+    print("Returning dummy linear sigmas to prevent crash, but sampling will likely fail with standard models.")
+    
+    # Dummy initialization
+    # scheduler = VQDiffusionScheduler(num_vec_classes=4096, num_train_timesteps=1000)
+    
+    # Return dummy sigmas
+    sigmas = torch.linspace(1.0, 0.0, steps + 1)
+    if hasattr(model_sampling, 'device'):
+        sigmas = sigmas.to(model_sampling.device)
+    return sigmas
+
+# Register the schedulers in ComfyUI
 if "FlowMatchEulerDiscreteScheduler" not in SCHEDULER_HANDLERS:
     handler = SchedulerHandler(handler=flow_match_euler_scheduler_handler, use_ms=True)
     SCHEDULER_HANDLERS["FlowMatchEulerDiscreteScheduler"] = handler
     SCHEDULER_NAMES.append("FlowMatchEulerDiscreteScheduler")
+
+# Explicitly add to KSampler.SCHEDULERS to ensure compatibility with nodes 
+# that might replace the list object (like RES4LYF)
+try:
+    from comfy.samplers import KSampler
+    if "FlowMatchEulerDiscreteScheduler" not in KSampler.SCHEDULERS:
+        KSampler.SCHEDULERS.append("FlowMatchEulerDiscreteScheduler")
+except ImportError:
+    pass
+
+# if "VQDiffusionScheduler" not in SCHEDULER_HANDLERS:
+#     SCHEDULER_HANDLERS["VQDiffusionScheduler"] = SchedulerHandler(handler=vq_diffusion_scheduler_handler, use_ms=True)
+#     SCHEDULER_NAMES.append("VQDiffusionScheduler")
+
+# try:
+#     from comfy.samplers import KSampler
+#     if "VQDiffusionScheduler" not in KSampler.SCHEDULERS:
+#         KSampler.SCHEDULERS.append("VQDiffusionScheduler")
+# except ImportError:
+#     pass
 
 class FlowMatchEulerSchedulerNode:
     @classmethod
@@ -75,13 +119,13 @@ class FlowMatchEulerSchedulerNode:
                     "max": 10000,
                     "tooltip": "Total number of diffusion steps to generate the full sigma schedule."
                 }),
-                "start_at_step": ("INT", { # <-- NEW INPUT
+                "start_at_step": ("INT", {
                     "default": 0,
                     "min": 0,
                     "max": 10000,
                     "tooltip": "The starting step (index) of the sigma schedule to use. Set to 0 to start at the beginning (first step)."
                 }),
-                "end_at_step": ("INT", { # <-- NEW INPUT
+                "end_at_step": ("INT", {
                     "default": 9999,
                     "min": 0,
                     "max": 10000,
@@ -93,6 +137,7 @@ class FlowMatchEulerSchedulerNode:
                 }),
                 "base_shift": ("FLOAT", {
                     "default": 0.5,
+                    "step": 0.01,
                     "tooltip": "Stabilizes generation. Higher values = more consistent/predictable outputs. Z-Image-Turbo uses default 0.5."
                 }),
                 "invert_sigmas": (["disable", "enable"], {
@@ -105,6 +150,7 @@ class FlowMatchEulerSchedulerNode:
                 }),
                 "max_shift": ("FLOAT", {
                     "default": 1.15,
+                    "step": 0.01,
                     "tooltip": "Maximum variation allowed. Higher = more exaggerated/stylized results. Z-Image-Turbo uses default 1.15."
                 }),
                 "num_train_timesteps": ("INT", {
@@ -113,10 +159,12 @@ class FlowMatchEulerSchedulerNode:
                 }),
                 "shift": ("FLOAT", {
                     "default": 3.0,
+                    "step": 0.01,
                     "tooltip": "Global timestep schedule shift. Z-Image-Turbo uses 3.0 for optimal performance with the Turbo model."
                 }),
                 "shift_terminal": ("FLOAT", {
                     "default": 0.0,
+                    "step": 0.01,
                     "tooltip": "End value for shifted schedule. Set to 0.0 to disable. Advanced parameter for timestep schedule control."
                 }),
                 "stochastic_sampling": (["disable", "enable"], {
@@ -159,8 +207,8 @@ class FlowMatchEulerSchedulerNode:
     def create(
         self,
         steps,
-        start_at_step,  # <-- New parameter
-        end_at_step,    # <-- New parameter
+        start_at_step,
+        end_at_step,
         base_image_seq_len,
         base_shift,
         invert_sigmas,
@@ -228,10 +276,58 @@ class FlowMatchEulerSchedulerNode:
             
         return (sigmas_sliced,)
 
+class VQDiffusionSchedulerNode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
+                "num_vec_classes": ("INT", {"default": 4096, "min": 1, "max": 65536, "tooltip": "Number of vector classes for VQ model."}),
+                "num_train_timesteps": ("INT", {"default": 1000}),
+            }
+        }
+
+    RETURN_TYPES = ("SIGMAS",)
+    RETURN_NAMES = ("sigmas",)
+    FUNCTION = "create"
+    CATEGORY = "sampling/schedulers"
+    DESCRIPTION = "VQ Diffusion Scheduler (Experimental). For VQ-Diffusion models. Returns dummy sigmas for compatibility."
+
+    def create(self, steps, num_vec_classes, num_train_timesteps):
+        if VQDiffusionScheduler is None:
+            raise ImportError("VQDiffusionScheduler not found.")
+            
+        print("[FlowMatch Scheduler] Creating VQDiffusionScheduler (Experimental)")
+        print("[FlowMatch Scheduler] WARNING: Returning dummy sigmas. This scheduler is for discrete latent models.")
+        
+        # We don't actually use the scheduler to generate sigmas because it can't.
+        # We just return the dummy sigmas.
+        sigmas = torch.linspace(1.0, 0.0, steps + 1)
+        # Default to CPU, KSampler will move it if needed or we can try to detect
+        # But here we don't have model context easily.
+        return (sigmas,)
+
 NODE_CLASS_MAPPINGS = {
     "FlowMatchEulerDiscreteScheduler (Custom)": FlowMatchEulerSchedulerNode,
+    # "VQDiffusionScheduler": VQDiffusionSchedulerNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FlowMatchEulerDiscreteScheduler (Custom)": "FlowMatch Euler Discrete Scheduler (Custom)",
+    # "VQDiffusionScheduler": "VQ Diffusion Scheduler (Experimental)",
 }
+
+from .extract_metadata_node import NODE_CLASS_MAPPINGS as METADATA_NODE_MAPPINGS
+from .extract_metadata_node import NODE_DISPLAY_NAME_MAPPINGS as METADATA_DISPLAY_MAPPINGS
+
+NODE_CLASS_MAPPINGS.update(METADATA_NODE_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(METADATA_DISPLAY_MAPPINGS)
+
+# Import Nunchaku nodes
+try:
+    from .nunchaku_compat import NODE_CLASS_MAPPINGS as NUNCHAKU_NODES
+    from .nunchaku_compat import NODE_DISPLAY_NAME_MAPPINGS as NUNCHAKU_NAMES
+    NODE_CLASS_MAPPINGS.update(NUNCHAKU_NODES)
+    NODE_DISPLAY_NAME_MAPPINGS.update(NUNCHAKU_NAMES)
+except Exception as e:
+    print(f"[FlowMatch Scheduler] Could not load Nunchaku nodes: {e}")

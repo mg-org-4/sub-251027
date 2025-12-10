@@ -1,0 +1,115 @@
+{
+  "SparkTTS_VoiceCreator" : {
+    "display_name": "Создатель Голоса SparkTTS 🔊",
+    "inputs": {
+      "text": {
+        "name": "Текст"
+      },
+      "gender": {
+        "name": "Пол"
+      },
+      "pitch": {
+        "name": "Высота"
+      },
+      "speed": {
+        "name": "Скорость"
+      },
+      "batch_texts": {
+        "name": "Пакетные Тексты"
+      },
+      "temperature": {
+        "name": "Температура"
+      },
+      "top_k": {
+        "name": "Топ K"
+      },
+      "top_p": {
+        "name": "Топ P"
+      }
+    }
+  },
+  "SparkTTS_VoiceClone" : {
+    "display_name": "Клон Голоса SparkTTS 🔊",
+    "inputs": {
+      "text": {
+        "name": "Текст"
+      },
+      "reference_audio": {
+        "name": "Аудио Ссылка"
+      },
+      "reference_text": {
+        "name": "Текст Ссылка"
+      },
+      "max_tokens": {
+        "name": "Максимальное количество токенов"
+      },
+      "batch_texts": {
+        "name": "Пакетные Тексты"
+      },
+      "temperature": {
+        "name": "Температура"
+      },
+      "top_k": {
+        "name": "Топ K"
+      },
+      "top_p": {
+        "name": "Топ P"
+      }
+    }
+  },
+  "SparkTTS_AdvVoiceClone" : {
+    "display_name": "Расширенный Клон Голоса SparkTTS 🔊",
+    "inputs": {
+      "text": {
+        "name": "Текст"
+      },
+      "reference_audio": {
+        "name": "Аудио Ссылка"
+      },
+      "reference_text": {
+        "name": "Текст Ссылка"
+      },
+      "max_tokens": {
+        "name": "Максимальное количество токенов"
+      },
+      "pitch": {
+        "name": "Высота"
+      },
+      "speed": {
+        "name": "Скорость"
+      },
+      "batch_texts": {
+        "name": "Пакетные Тексты"
+      },
+      "temperature": {
+        "name": "Температура"
+      },
+      "top_k": {
+        "name": "Топ K"
+      },
+      "top_p": {
+        "name": "Топ P"
+      }
+    }
+  },
+  "SparkTTS_AudioRecorder" : {
+    "display_name": "Запись Аудио SparkTTS 🔊",
+    "inputs": {
+      "recording": {
+        "name": "Запись"
+      },
+      "recording_duration": {
+        "name": "Длительность Записи"
+      },
+      "sample_rate": {
+        "name": "Частота Дискретизации"
+      },
+      "noise_threshold": {
+        "name": "Порог Шума"
+      },
+      "smoothing_kernel_size": {
+        "name": "Размер Ядра Сглаживания"
+      }
+    }
+  }
+}

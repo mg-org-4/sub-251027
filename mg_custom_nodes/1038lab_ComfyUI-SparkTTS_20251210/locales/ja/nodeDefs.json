@@ -1,0 +1,115 @@
+{
+  "SparkTTS_VoiceCreator" : {
+    "display_name": "SparkTTS 音声クリエイター 🔊",
+    "inputs": {
+      "text": {
+        "name": "テキスト"
+      },
+      "gender": {
+        "name": "性別"
+      },
+      "pitch": {
+        "name": "ピッチ"
+      },
+      "speed": {
+        "name": "速度"
+      },
+      "batch_texts": {
+        "name": "バッチテキスト"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "top_k": {
+        "name": "トップK"
+      },
+      "top_p": {
+        "name": "トップP"
+      }
+    }
+  },
+  "SparkTTS_VoiceClone" : {
+    "display_name": "SparkTTS 音声クローン 🔊",
+    "inputs": {
+      "text": {
+        "name": "テキスト"
+      },
+      "reference_audio": {
+        "name": "参照音声"
+      },
+      "reference_text": {
+        "name": "参照テキスト"
+      },
+      "max_tokens": {
+        "name": "最大トークン数"
+      },
+      "batch_texts": {
+        "name": "バッチテキスト"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "top_k": {
+        "name": "トップK"
+      },
+      "top_p": {
+        "name": "トップP"
+      }
+    }
+  },
+  "SparkTTS_AdvVoiceClone" : {
+    "display_name": "SparkTTS 高度音声クローン 🔊",
+    "inputs": {
+      "text": {
+        "name": "テキスト"
+      },
+      "reference_audio": {
+        "name": "参照音声"
+      },
+      "reference_text": {
+        "name": "参照テキスト"
+      },
+      "max_tokens": {
+        "name": "最大トークン数"
+      },
+      "pitch": {
+        "name": "ピッチ"
+      },
+      "speed": {
+        "name": "速度"
+      },
+      "batch_texts": {
+        "name": "バッチテキスト"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "top_k": {
+        "name": "トップK"
+      },
+      "top_p": {
+        "name": "トップP"
+      }
+    }
+  },
+  "SparkTTS_AudioRecorder" : {
+    "display_name": "SparkTTS オーディオレコーダー 🔊",
+    "inputs": {
+      "recording": {
+        "name": "録音"
+      },
+      "recording_duration": {
+        "name": "録音時間"
+      },
+      "sample_rate": {
+        "name": "サンプリングレート"
+      },
+      "noise_threshold": {
+        "name": "ノイズ閾値"
+      },
+      "smoothing_kernel_size": {
+        "name": "スムージングカーネルサイズ"
+      }
+    }
+  }
+}

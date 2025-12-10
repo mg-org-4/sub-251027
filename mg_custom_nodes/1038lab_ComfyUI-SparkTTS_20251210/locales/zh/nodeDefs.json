@@ -1,0 +1,116 @@
+{
+  "SparkTTS_VoiceCreator" : {
+    "display_name": "SparkTTS 语音生成器 🔊",
+    "inputs": {
+      "text": {
+        "name": "文本",
+        "tooltip": "输入要合成的文本。使用双行分隔符分隔段落"
+      },
+      "gender": {
+        "name": "性别"        
+      },
+      "pitch": {
+        "name": "音调"
+      },
+      "speed": {
+        "name": "速度"
+      },
+      "batch_texts": {
+        "name": "批量文本"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "top_k": {
+        "name": "Top K"
+      },
+      "top_p": {
+        "name": "Top P"
+      }
+    }
+  },
+  "SparkTTS_VoiceClone" : {
+    "display_name": "SparkTTS 语音克隆 🔊",
+    "inputs": {
+      "text": {
+        "name": "文本"
+      },
+      "reference_audio": {
+        "name": "参考音频"
+      },
+      "reference_text": {
+        "name": "参考文本"
+      },
+      "max_tokens": {
+        "name": "最大令牌数"
+      },
+      "batch_texts": {
+        "name": "批量文本"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "top_k": {
+        "name": "Top K"
+      },
+      "top_p": {
+        "name": "Top P"
+      }
+    }
+  },
+  "SparkTTS_AdvVoiceClone" : {
+    "display_name": "SparkTTS 高级语音克隆 🔊",
+    "inputs": {
+      "text": {
+        "name": "文本"
+      },
+      "reference_audio": {
+        "name": "参考音频"
+      },
+      "reference_text": {
+        "name": "参考文本"
+      },
+      "max_tokens": {
+        "name": "最大令牌数"
+      },
+      "pitch": {
+        "name": "音调"
+      },
+      "speed": {
+        "name": "速度"
+      },
+      "batch_texts": {
+        "name": "批量文本"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "top_k": {
+        "name": "Top K"
+      },
+      "top_p": {
+        "name": "Top P"
+      }
+    }
+  },
+  "SparkTTS_AudioRecorder" : {
+    "display_name": "SparkTTS 音频录制器 🔊",
+    "inputs": {
+      "recording": {
+        "name": "录音"
+      },
+      "recording_duration": {
+        "name": "录音时长"
+      },
+      "sample_rate": {
+        "name": "采样率"
+      },
+      "noise_threshold": {
+        "name": "噪声阈值"
+      },
+      "smoothing_kernel_size": {
+        "name": "平滑核大小"
+      }
+    }
+  }
+}

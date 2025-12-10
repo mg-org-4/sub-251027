@@ -1,0 +1,70 @@
+Angry
+Annoyed
+Appreciative
+Blinking
+Bored
+Confused
+Contemplative
+Crossing fingers
+Crying
+Determined
+Disgusted
+Eager
+Embarrassed
+Frowning
+Frustrated
+Giving thumbs down
+Giving thumbs up
+Grateful
+Holding hands
+Holding up a crescent moon
+Holding up a cross
+Holding up a heart sign
+Holding up a menorah
+Holding up a peace sign
+Holding up a rock and roll sign
+Holding up a star of David
+Holding up a yin and yang symbol
+Hugging
+Indifferent
+Joyful
+Kissing
+Laughing
+Looking down
+Looking left
+Looking right
+Looking up
+Making a heart sign
+Making a peace sign
+Making a rock and roll sign
+Nervous
+Nodding
+Overwhelmed
+Pointing
+Pouting
+Praying
+Proud
+Puzzled
+Reflective
+Relieved
+Saluting
+Sarcastic
+Scared
+Shaking head
+Shocked
+Shrugging
+Shy
+Skeptical
+Sleepy
+Smiling
+Smirking
+Sticking out tongue
+Surprised
+Thoughtful
+Waving
+Winking
+Yawning
+Inquisitive
+Amused
+Frustrated
+Admiring

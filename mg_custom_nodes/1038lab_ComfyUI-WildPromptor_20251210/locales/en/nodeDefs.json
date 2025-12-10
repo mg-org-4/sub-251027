@@ -1,0 +1,401 @@
+{
+  "WildPromptorAllInOne": {
+    "display_name": "WildPromptor All-In-One List 📋+🔀",
+    "inputs": {
+      "batch_size": {
+        "name": "Batch Size"
+      },
+      "seed": {
+        "name": "Seed"
+      },
+      "allow_duplicates": { 
+        "name": "Allow Duplicates"
+      }
+    }
+  },
+  "WildPromptorDataToPromptList": {
+    "display_name": "WildPromptor Data To Prompt List 🔀+📋",
+    "inputs": {
+      "path": {
+        "name": "Path"
+      },
+      "separator": {
+        "name": "Separator"
+      },
+      "batch_size": {
+        "name": "Batch Size"
+      },
+      "count_start_from": {
+        "name": "Count Start From"
+      },
+      "allow_duplicates": {
+        "name": "Allow Duplicates"
+      },
+      "mode": {
+        "name": "Mode"
+      },
+      "seed": { 
+        "name": "Seed"
+      },
+      "text": {
+        "name": "Text"
+      } 
+    }
+  },
+  "WildPromptorGenerator": {
+    "display_name": "WildPromptor Generator 🔀",
+    "inputs": {
+      "selected_options": {
+        "name": "Selected Options"  
+      },
+      "batch_size": {
+        "name": "Batch Size"
+      },
+      "seed": {
+        "name": "Seed"  
+      },
+      "allow_duplicates": {
+        "name": "Allow Duplicates"
+      }
+    }
+  },
+  "AllInOneList": {
+    "display_name": "All-In-One List 📋",
+    "inputs": {
+      "selected_options": {
+        "name": "Selected Options"
+      } 
+    }
+  },
+  "PromptConcat": {
+    "display_name": "Prompt Concat 🔀",
+    "inputs": {
+      "prefix": {
+        "name": "Prefix"
+      },
+      "suffix": {
+        "name": "Suffix"
+      },
+      "separator": {
+        "name": "Separator"
+      },
+      "remove_duplicates": {
+        "name": "Remove Duplicates"
+      },
+      "sort": {
+        "name": "Sort"
+      } 
+    } 
+  },
+  "PromptBuilder": {
+    "display_name": "Prompt Builder 🔀",
+    "inputs": {
+      "prefix": {
+        "name": "Prefix" 
+      },
+      "content": {
+        "name": "Content"
+      },
+      "suffix": {
+        "name": "Suffix"
+      }
+    }
+  },
+  "KeywordPicker": {
+    "display_name": "Keyword Picker 🔀",
+    "inputs": {
+      "input_keywords": {
+        "name": "Input Keywords"
+      },
+      "keywords": {
+        "name": "Keywords"
+      },
+      "pick_count": {
+        "name": "Pick Count"
+      },
+      "pick_mode": {
+        "name": "Pick Mode"
+      },
+      "seed": { 
+        "name": "Seed"
+      }
+    }
+  },
+  "WildPromptor_Enhancer": {
+    "display_name": "WildPromptor Enhancer 🤖",
+    "inputs": {
+      "prompt": {
+        "name": "Prompt"
+      },
+      "batch_size": {
+        "name": "Batch Size"
+      },
+      "combine_output": {
+        "name": "Combine Output"  
+      },
+      "seed": {
+        "name": "Seed"
+      }
+    }
+  },
+  "WildPromptor_Florence2": {
+    "display_name": "🤖 Florence 2 👁️",
+    "inputs": {
+      "Image_Folder_Path": {
+        "name": "Image Folder Path"
+      },
+      "Model": {
+        "name": "Model"
+      },
+      "Vision_To_Prompt": {
+        "name": "Vision To Prompt"
+      },
+      "max_token": {
+        "name": "Max Token"
+      },
+      "Vision_Detail_Level": {
+        "name": "Vision Detail Level"
+      },
+      "Prefix": {
+        "name": "Prefix"
+      },
+      "Suffix": {
+        "name": "Suffix"
+      },
+      "images": {
+        "name": "Images"
+      },
+      "seed": {
+        "name": "Seed"
+      }
+    } 
+  },  
+  "AIOutputCleaner": {
+    "display_name": "AI Output Cleaner 🤖",
+    "inputs": {
+      "text": {
+        "name": "Text"
+      },
+      "remove_think_content": {
+        "name": "Remove Think Content"
+      },
+      "preserve_think_content": {
+        "name": "Preserve Think Content"
+      },
+      "remove_ai_artifacts": {
+        "name": "Remove AI Artifacts"
+      },
+      "remove_markdown": {
+        "name": "Remove Markdown"
+      },
+      "remove_line_numbers": {
+        "name": "Remove Line Numbers"
+      },
+      "remove_code_blocks": {
+        "name": "Remove Code Blocks"
+      },
+      "remove_timestamps": {
+        "name": "Remove Timestamps"
+      },
+      "remove_urls": {
+        "name": "Remove URLs"
+      },
+      "remove_html_tags": {
+        "name": "Remove HTML Tags"
+      },
+      "fix_spacing": {
+        "name": "Fix Spacing"
+      },
+      "remove_special_chars": {
+        "name": "Remove Special Chars"
+      },
+      "remove_image_prefixes": {
+        "name": "Remove Image Prefixes"
+      },
+      "remove_style_references": {
+        "name": "Remove Style References"
+      },
+      "remove_colons": {
+        "name": "Remove Colons"
+      },
+      "remove_asterisks": {
+        "name": "Remove Asterisks"
+      },
+      "custom_patterns": {
+        "name": "Custom Patterns"
+      },
+      "preserve_newlines": {
+        "name": "Preserve Newlines"
+      }
+    }
+  },
+  "WildPromptor_GeminiVision": {
+    "display_name": "🤖 Gemini + Vision 👁️",
+    "inputs": {
+      "keywords": {
+        "name": "Keywords"
+      },
+      "model": {
+        "name": "Model"
+      },
+      "max_length": {
+        "name": "Max Length"
+      },
+      "temperature": {
+        "name": "Temperature"
+      },
+      "api_key": {
+        "name": "API Key"
+      },
+      "image": {
+        "name": "Image"
+      },
+      "seed": {
+        "name": "Seed"
+      }
+    }
+  },
+  "WildPromptor_GeminiImageGen": {
+    "display_name": "🤖 Gemini Image Generator 🖼️",
+    "inputs": {
+      "prompt": {
+        "name": "Prompt"  
+      },
+      "aspect_ratio": {
+        "name": "Aspect Ratio"
+      },
+      "temperature": {
+        "name": "Temperature" 
+      },
+      "image": {
+        "name": "Image"
+      },
+      "seed": {
+        "name": "Seed"  
+      }
+    }
+  },
+  "WildPromptor_hfgpt": {
+    "display_name": "🤖 HFGPT 🤖",
+    "inputs": {
+      "keywords": {
+        "name": "Keywords"
+      },
+      "model_repo": {
+        "name": "Model Repo"
+      },
+      "max_length": {
+        "name": "Max Length"
+      },
+      "temperature": {
+        "name": "Temperature"
+      }
+    }
+  },
+  "WildPromptor_minicpm": {
+    "display_name": "🤖 MiniCPM 🤖",
+    "inputs": {
+      "text": {
+        "name": "Text"  
+      },
+      "model": {
+        "name": "Model"
+      },
+      "language": {
+        "name": "Language"  
+      },
+      "temperature": {
+        "name": "Temperature"
+      },
+      "seed": {
+        "name": "Seed"  
+      },
+      "image": {
+        "name": "Image"
+      }
+    }
+  },
+  "WildPromptor_OllamaVision": {
+    "display_name": "🤖 Ollama 🤖",
+    "inputs": {
+      "keywords": {
+        "name": "Keywords"
+      },
+      "server_url": {
+        "name": "Server URL"
+      },
+      "model": {
+        "name": "Model"
+      },
+      "temperature": {
+        "name": "Temperature"
+      },
+      "keep_alive": {
+        "name": "Keep Alive"
+      },
+      "seed": {
+        "name": "Seed"
+      },
+      "image": {
+        "name": "Image"
+      }
+    }
+  },
+  "WildPromptor_PromptCleaner": {
+    "display_name": "🤖 Prompt Cleaner 🤖",
+    "inputs": {
+      "text": {
+        "name": "Text"
+      },
+      "custom_filters": {
+        "name": "Custom Filters"
+      },
+      "keep_words": {
+        "name": "Keep Words"
+      },
+      "replace_words": {
+        "name": "Replace Words"
+      }
+    }
+  },
+  "WildPromptor_Qwen": {
+    "display_name": "🤖 Qwen 🤖",
+    "inputs": {
+      "image": {
+        "name": "Image" 
+      },
+      "prompt": {
+        "name": "Prompt"
+      },
+      "temperature": {
+        "name": "Temperature" 
+      },
+      "seed": {
+        "name": "Seed"
+      }
+    }
+  },
+  "WildPromptor_Vision": {
+    "display_name": "🤖 Vision 🤖",
+    "inputs": {
+      "description_mode": {
+        "name": "Description Mode"  
+      },
+      "detail_level": {
+        "name": "Detail Level"
+      },
+      "seed": {
+        "name": "Seed"  
+      },
+      "images": {
+        "name": "Images"
+      },
+      "max_token": {
+        "name": "Max Token"
+      },
+      "image_folder": {
+        "name": "Image Folder"
+      }
+    }
+  } 
+}

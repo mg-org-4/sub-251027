@@ -1,0 +1,42 @@
+{
+  "name": "🪽 SFW",
+  "tags": {
+    "position": {
+      "probability": 0.5,
+      "distribution": [0.3, 0.3, 0.1, 0.1],
+      "tags": ["standing", "sitting", "lying", "kneeling", "squatting"]
+    },
+    "action": {
+      "group_labels": true,
+      "distribution": [0.7],
+      "tags": {
+        "simple gesture": [
+          "crossed arms",
+          "hand on own hip",
+          "hand in own hair, adjusting hair",
+          "hand on own face",
+          "hand on own chest",
+          "v sign",
+          "finger to face"
+        ],
+        "on phone": "holding cellphone",
+        "gaming": {
+          "prefix": "holding ",
+          "tags": ["game controller", "handlheld console", "desktop"]
+        },
+        "reading": {
+          "number": [1, 2],
+          "tags": ["holding book", "reading book"]
+        },
+        "drinking": {
+          "prefix": "holding drink,",
+          "number": 2,
+          "tags": {
+            "drink_action": { "probability": 0.6, "tags": "drinking" },
+            "drink_type": ["beer mug", "sake bottle", "coffee mug", "soda can"]
+          }
+        }
+      }
+    }
+  }
+}

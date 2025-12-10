@@ -1,0 +1,39 @@
+{
+  "name": "👁️ Eyes",
+  "variables": {
+    "makeup-color": {
+      "hide": true,
+      "tags": ["black", "blue", "aqua", "red", "green", "purple"]
+    }
+  },
+  "tags": {
+    "eye_color": {
+      "tags": "{color}",
+      "suffix": " eyes"
+    },
+    "eyewear": {
+      "probability": 0.2,
+      "number": [1, 2],
+      "prefix": ", {color} eyewear, ",
+      "tags": {
+        "eyewear-style": {
+          "distribution": [0.8],
+          "tags": ["glasses", "sunglasses", "tinted glasses"]
+        },
+        "eyewear-shape": ["rectangular eyewear", "round eyewear"]
+      }
+    },
+    "makeup": {
+      "probability": 0.2,
+      "tags": {
+        "eyeliner": "{makeup-color} eyeliner",
+        "eyeshadow": "{makeup-color} eyeshadow",
+        "mascara": "{makeup-color} mascara"
+      }
+    },
+    "eye_effect": {
+      "probability": 0.05,
+      "tags": ["glowing eyes", "no pupils"]
+    }
+  }
+}

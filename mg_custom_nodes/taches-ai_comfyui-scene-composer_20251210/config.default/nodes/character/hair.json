@@ -1,0 +1,48 @@
+{
+  "name": "🪮 Hair",
+  "tags": {
+    "hair-color": {
+      "tags": [
+        "blonde",
+        "ginger",
+        "{color}"
+      ],
+      "suffix": " hair"
+    },
+    "multicolored": {
+      "probability": 0.1,
+      "prefix": "{color} hair, multicolored hair,",
+      "tags": ["colored tips", "gradient hair"]
+    },
+    "hair-length": {
+      "distribution": [0.3, 0.3, 0.3, 0.1],
+      "tags": ["short", "medium", "long", "very long", "big"],
+      "suffix": " hair"
+    },
+    "hair-style": {
+      "probability": 0.4,
+      "tags": [
+        "afro",
+        "bangs",
+        "single braid",
+        "twin braids",
+        "crown braid",
+        "curly hair",
+        "double bun",
+        "drill hair",
+        "hair bun",
+        "messy hair",
+        "mohawk",
+        "ponytail",
+        "side ponytail",
+        "sidecut",
+        "sidelocks",
+        "spiked hair",
+        "twintails",
+        "wavy hair",
+        "hair slicked back",
+        "hair pulled back"
+      ]
+    }
+  }
+}

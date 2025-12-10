@@ -1414,7 +1414,7 @@ def postprocess_all_batches(
                     total_computed += (num_valid_samples - 1) * actual_overlap
                 frame_info += f" ({total_computed} computed with {' + '.join(adjustments)} removed)"
             
-            debug.log(f"Final output assembled: {frame_info}, Resolution: {Wf}x{Hf}px, Channels: {channels_str}", 
+            debug.log(f"Output assembled: {frame_info}, Resolution: {Wf}x{Hf}px, Channels: {channels_str}", 
                     category="generation", force=True)
         else:
             ctx['final_video'] = torch.empty((0, 0, 0, 0), dtype=ctx['compute_dtype'])

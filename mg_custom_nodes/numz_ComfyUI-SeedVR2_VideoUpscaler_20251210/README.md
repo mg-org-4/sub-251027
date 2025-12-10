@@ -36,6 +36,12 @@ We're actively working on improvements and new features. To stay informed:
 
 ## 🚀 Updates
 
+**2025.12.09 - Version 2.5.18**
+
+- **🚀 CLI: Streaming mode for long videos** - New `--chunk_size` flag processes videos in memory-bounded chunks, enabling arbitrarily long videos without RAM limits. Works with model caching (`--cache_dit`/`--cache_vae`) for chunk-to-chunk reuse *(inspired by [disk02](https://github.com/disk02) PR contribution)*
+- **⚡ CLI: Multi-GPU streaming** - Each GPU now streams its segment internally with independent model caching, improving memory efficiency and enabling `--temporal_overlap` blending at GPU boundaries
+- **🔧 CLI: Fix large video MemoryError** - Shared memory transfer replaces numpy pickling, preventing crashes on high-resolution/long video outputs *(inspired by  [FurkanGozukara](https://github.com/FurkanGozukara) PR contribution)*
+
 **2025.12.05 - Version 2.5.17**
 
 - **🔧 Fix: Older GPU compatibility (GTX 970, etc.)** - Runtime bf16 CUBLAS probe replaces compute capability heuristics, correctly detecting unsupported GPUs without affecting RTX 20XX
@@ -771,8 +777,17 @@ The CLI provides comprehensive options for single-GPU, multi-GPU, and batch proc
 # Basic image upscaling
 python inference_cli.py image.jpg
 
-# Basic video video upscaling with temporal consistency
+# Basic video upscaling with temporal consistency
 python inference_cli.py video.mp4 --resolution 720 --batch_size 33
+
+# Streaming mode for long videos (memory-efficient)
+# Processes video in chunks of 330 frames to avoid loading entire video into RAM
+# Use --temporal_overlap to ensure smooth transitions between chunks
+python inference_cli.py long_video.mp4 \
+    --resolution 1080 \
+    --batch_size 33 \
+    --chunk_size 330 \
+    --temporal_overlap 3
 
 # Multi-GPU processing with temporal overlap
 python inference_cli.py video.mp4 \
@@ -830,7 +845,8 @@ python inference_cli.py media_folder/ \
 - `--batch_size`: Frames per batch (must follow 4n+1: 1, 5, 9, 13, 17, 21...). Ideally matches shot length for best temporal consistency (default: 5)
 - `--seed`: Random seed for reproducibility (default: 42)
 - `--skip_first_frames`: Skip N initial frames (default: 0)
-- `--load_cap`: Load maximum N frames from video. 0 = load all (default: 0)
+- `--load_cap`: Maximum total frames to load from video. 0 = load all (default: 0)
+- `--chunk_size`: Frames per chunk for streaming mode. When > 0, processes video in memory-bounded chunks of N frames, writing each chunk before loading the next. Essential for long videos that would otherwise exceed RAM. Use with `--temporal_overlap` for seamless chunk transitions. 0 = load all frames at once (default: 0)
 - `--prepend_frames`: Prepend N reversed frames to reduce start artifacts (auto-removed) (default: 0)
 - `--temporal_overlap`: Frames to overlap between batches/GPUs for smooth blending (default: 0)
 

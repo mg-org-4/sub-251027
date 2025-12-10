@@ -1,0 +1,6053 @@
+{
+  "last_node_id": 246,
+  "last_link_id": 755,
+  "nodes": [
+    {
+      "id": 16,
+      "type": "KSamplerSelect",
+      "pos": {
+        "0": 2580,
+        "1": 420
+      },
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            85
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "SAMPLER"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler"
+      ]
+    },
+    {
+      "id": 25,
+      "type": "RandomNoise",
+      "pos": {
+        "0": 2580,
+        "1": 590
+      },
+      "size": {
+        "0": 310.9460754394531,
+        "1": 82
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            84
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "NOISE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise"
+      },
+      "widgets_values": [
+        372297103057167,
+        "randomize"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 149,
+      "type": "FluxGuidance",
+      "pos": {
+        "0": 2580,
+        "1": 710
+      },
+      "size": {
+        "0": 317.4000244140625,
+        "1": 58
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 705
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            328,
+            564,
+            566
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FluxGuidance"
+      },
+      "widgets_values": [
+        3.5
+      ]
+    },
+    {
+      "id": 47,
+      "type": "BasicGuider",
+      "pos": {
+        "0": 2580,
+        "1": 520
+      },
+      "size": {
+        "0": 311.16015625,
+        "1": 46
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 414,
+          "label": "model"
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 704,
+          "label": "conditioning"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            288,
+            290
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "GUIDER"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicGuider"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 51,
+      "type": "PulidFluxEvaClipLoader",
+      "pos": {
+        "0": 1640,
+        "1": 0
+      },
+      "size": {
+        "0": 314.6647033691406,
+        "1": 26
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "EVA_CLIP",
+          "type": "EVA_CLIP",
+          "links": [
+            123
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "EVA_CLIP"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PulidFluxEvaClipLoader"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 45,
+      "type": "PulidFluxModelLoader",
+      "pos": {
+        "0": 1640,
+        "1": -200
+      },
+      "size": {
+        "0": 315.77459716796875,
+        "1": 155.26345825195312
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "PULIDFLUX",
+          "type": "PULIDFLUX",
+          "links": [
+            125
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "PULIDFLUX"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PulidFluxModelLoader"
+      },
+      "widgets_values": [
+        "pulid_flux_v0.9.0.safetensors"
+      ]
+    },
+    {
+      "id": 153,
+      "type": "Reroute",
+      "pos": {
+        "0": 3030,
+        "1": 210
+      },
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 334
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 17,
+      "type": "BasicScheduler",
+      "pos": {
+        "0": 2570,
+        "1": 280
+      },
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 410,
+          "slot_index": 0,
+          "label": "model"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            93
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "SIGMAS"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicScheduler"
+      },
+      "widgets_values": [
+        "beta",
+        30,
+        1
+      ]
+    },
+    {
+      "id": 106,
+      "type": "Reroute",
+      "pos": {
+        "0": 2920,
+        "1": 210
+      },
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 47,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 470,
+          "label": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            469
+          ],
+          "slot_index": 0,
+          "label": ""
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 48,
+      "type": "SamplerCustomAdvanced",
+      "pos": {
+        "0": 2910,
+        "1": 280
+      },
+      "size": {
+        "0": 870.20068359375,
+        "1": 588.0336303710938
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 84,
+          "label": "noise"
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 290,
+          "label": "guider"
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 85,
+          "label": "sampler"
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 93,
+          "label": "sigmas"
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 635,
+          "label": "latent_image"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            87
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "output"
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3,
+          "label": "denoised_output"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 108,
+      "type": "Reroute",
+      "pos": {
+        "0": 2815.660888671875,
+        "1": 895.20068359375
+      },
+      "size": [
+        75,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 53,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 468,
+          "label": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 0,
+          "label": ""
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 100,
+      "type": "Bus Node",
+      "pos": {
+        "0": 3489,
+        "1": -230
+      },
+      "size": {
+        "0": 220.8492431640625,
+        "1": 126
+      },
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 52,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "bus",
+          "type": "BUS",
+          "link": 207,
+          "label": "bus",
+          "shape": 7
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "label": "model",
+          "shape": 7
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 411,
+          "label": "clip",
+          "shape": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "label": "vae",
+          "shape": 7
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": null,
+          "label": "positive",
+          "shape": 7
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": null,
+          "label": "negative",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "bus",
+          "type": "BUS",
+          "links": null,
+          "shape": 3,
+          "label": "bus"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [],
+          "shape": 3,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": [],
+          "slot_index": 2,
+          "shape": 3,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "links": [
+            455,
+            476,
+            483,
+            490,
+            497,
+            562,
+            565,
+            615,
+            629,
+            717,
+            729,
+            737
+          ],
+          "slot_index": 3,
+          "shape": 3,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            457,
+            477,
+            484,
+            491,
+            498,
+            558,
+            616,
+            630,
+            718,
+            730,
+            738
+          ],
+          "slot_index": 4,
+          "shape": 3,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            458,
+            478,
+            485,
+            492,
+            499,
+            559,
+            617,
+            631,
+            719,
+            731,
+            739
+          ],
+          "slot_index": 5,
+          "shape": 3,
+          "label": "negative"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Bus Node"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 220,
+      "type": "SaveImage",
+      "pos": {
+        "0": 4904,
+        "1": -223
+      },
+      "size": {
+        "0": 1571.1986083984375,
+        "1": 1115.477294921875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 71,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 608
+        }
+      ],
+      "outputs": [],
+      "title": "ORIGINAL VS FINAL",
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 216,
+      "type": "Note",
+      "pos": {
+        "0": 6505.22509765625,
+        "1": 117.3800048828125
+      },
+      "size": {
+        "0": 1032.2010498046875,
+        "1": 111.44781494140625
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "TO ACTIVATE LORA INSTEAD OF PULID :",
+      "properties": {},
+      "widgets_values": [
+        "This section is only for people that has already A lora model for a subject : \n\n1-DISABLE Pulid Node (use the switcher for that) (NEVER USE A CHARACTER LORA WITH A PULID)\nWhy, well it's simple it will confuse the AI cause there is 2 ID (one from Pulid and the other from Lora)\n2-Reconnect model wire from \"Lora Loader Stack\" to Model in \"LOAD DIFFUSION NODE\"\n3-Set the weight for your Lora (you can keep it to 1).\n4-Well ? N'Joy ?"
+      ],
+      "color": "#322",
+      "bgcolor": "#533",
+      "shape": "card"
+    },
+    {
+      "id": 219,
+      "type": "CR Simple Image Compare",
+      "pos": {
+        "0": 5157,
+        "1": -263
+      },
+      "size": {
+        "0": 400,
+        "1": 266
+      },
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 70,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image1",
+          "type": "IMAGE",
+          "link": 610,
+          "shape": 7
+        },
+        {
+          "name": "image2",
+          "type": "IMAGE",
+          "link": 611,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            608
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CR Simple Image Compare"
+      },
+      "widgets_values": [
+        "BEFORE",
+        "AFTER",
+        100,
+        "impact.ttf",
+        75,
+        "dark",
+        20
+      ]
+    },
+    {
+      "id": 228,
+      "type": "SDXLEmptyLatentSizePicker+",
+      "pos": {
+        "0": 1950,
+        "1": 680
+      },
+      "size": {
+        "0": 268.7359313964844,
+        "1": 191.68380737304688
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width_override",
+          "type": "INT",
+          "link": 753,
+          "widget": {
+            "name": "width_override"
+          }
+        },
+        {
+          "name": "height_override",
+          "type": "INT",
+          "link": 674,
+          "widget": {
+            "name": "height_override"
+          }
+        },
+        {
+          "name": "batch_size",
+          "type": "INT",
+          "link": 675,
+          "widget": {
+            "name": "batch_size"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            635
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "title": "RATIO IMAGE SELECTOR",
+      "properties": {
+        "Node name for S&R": "SDXLEmptyLatentSizePicker+"
+      },
+      "widgets_values": [
+        "768x1280 (0.6)",
+        1,
+        0,
+        0
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 194,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 2829.6904296875,
+        "1": 2179.88916015625
+      },
+      "size": {
+        "0": 532.1861572265625,
+        "1": 80.83361053466797
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            638
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "BBOX_DETECTOR"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [
+            661
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "SEGM_DETECTOR"
+        }
+      ],
+      "title": "CLOTHING",
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "segm/Clothes.pt"
+      ]
+    },
+    {
+      "id": 191,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 2299.691162109375,
+        "1": 969.887451171875
+      },
+      "size": {
+        "0": 519.3536987304688,
+        "1": 1172.34814453125
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 57,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 502,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 481,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 482,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 483,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 484,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 485,
+          "label": "negative"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 636,
+          "label": "bbox_detector"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": null,
+          "label": "sam_model_opt",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": null,
+          "label": "segm_detector_opt",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "detailer_hook",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            503
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "image"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "cropped_refined"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cropped_enhanced_alpha"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "detailer_pipe"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "title": "LIPS",
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        true,
+        1024,
+        638239811578789,
+        "randomize",
+        15,
+        3.5,
+        "euler",
+        "beta",
+        0.35000000000000003,
+        5,
+        true,
+        true,
+        0.5,
+        10,
+        3,
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 189,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 1759.693603515625,
+        "1": 969.887451171875
+      },
+      "size": {
+        "0": 534.9176635742188,
+        "1": 1167.52001953125
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 56,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 642,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 474,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 475,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 476,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 477,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 478,
+          "label": "negative"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 637,
+          "label": "bbox_detector"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": null,
+          "label": "sam_model_opt",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": 659,
+          "label": "segm_detector_opt",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "detailer_hook",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            502
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "image"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "cropped_refined"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cropped_enhanced_alpha"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "detailer_pipe"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "title": "EYES",
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        true,
+        1024,
+        139271459983728,
+        "randomize",
+        15,
+        3.5,
+        "euler",
+        "beta",
+        0.4,
+        5,
+        true,
+        true,
+        0.5,
+        10,
+        3,
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 185,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 1219.69482421875,
+        "1": 969.887451171875
+      },
+      "size": {
+        "0": 532.9205322265625,
+        "1": 1169.1595458984375
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 55,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 442,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 446,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 448,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 455,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 457,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 458,
+          "label": "negative"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 651,
+          "label": "bbox_detector"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": null,
+          "label": "sam_model_opt",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": null,
+          "label": "segm_detector_opt",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "detailer_hook",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            642
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "image"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "cropped_refined"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cropped_enhanced_alpha"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "detailer_pipe"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "title": "FACE",
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        true,
+        1024,
+        706599813677763,
+        "randomize",
+        15,
+        3.5,
+        "euler",
+        "beta",
+        0.3,
+        5,
+        true,
+        true,
+        0.5,
+        10,
+        1.7000000000000002,
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 222,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 3849.689453125,
+        "1": 969.887451171875
+      },
+      "size": {
+        "0": 520.3345336914062,
+        "1": 1178.240478515625
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 60,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 643,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 613,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 614,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 615,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 616,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 617,
+          "label": "negative"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 640,
+          "label": "bbox_detector"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": null,
+          "label": "sam_model_opt",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": 665,
+          "label": "segm_detector_opt",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "detailer_hook",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            724
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "image"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "cropped_refined"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cropped_enhanced_alpha"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "detailer_pipe"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "title": "HAIRS",
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        true,
+        1024,
+        904802298349796,
+        "randomize",
+        15,
+        3.5,
+        "euler",
+        "beta",
+        0.55,
+        5,
+        true,
+        true,
+        0.5,
+        10,
+        3,
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 193,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 2829.6904296875,
+        "1": 969.887451171875
+      },
+      "size": {
+        "0": 521.0198974609375,
+        "1": 1169.3109130859375
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 58,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 503,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 488,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 489,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 490,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 491,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 492,
+          "label": "negative"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 638,
+          "label": "bbox_detector"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": null,
+          "label": "sam_model_opt",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": 661,
+          "label": "segm_detector_opt",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "detailer_hook",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            504
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "image"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "cropped_refined"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cropped_enhanced_alpha"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "detailer_pipe"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "title": "CLOTHING",
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        true,
+        1024,
+        1114379672327558,
+        "randomize",
+        15,
+        3.5,
+        "euler",
+        "beta",
+        0.5,
+        5,
+        true,
+        true,
+        0.5,
+        10,
+        6,
+        "center-1",
+        412,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 195,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 3355.8525390625,
+        "1": 968.887451171875
+      },
+      "size": {
+        "0": 484.76953125,
+        "1": 1174.373779296875
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 59,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 504,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 495,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 496,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 497,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 498,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 499,
+          "label": "negative"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 639,
+          "label": "bbox_detector"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": null,
+          "label": "sam_model_opt",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": 664,
+          "label": "segm_detector_opt",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "detailer_hook",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            643
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "image"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "cropped_refined"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cropped_enhanced_alpha"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "detailer_pipe"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "title": "HANDS",
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        true,
+        1024,
+        862502441597219,
+        "randomize",
+        15,
+        3.5,
+        "euler",
+        "beta",
+        0.55,
+        5,
+        true,
+        true,
+        0.5,
+        10,
+        3,
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 234,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 4376.1328125,
+        "1": 966.7008056640625
+      },
+      "size": {
+        "0": 520,
+        "1": 1180
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 61,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 724,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 715,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 716,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 717,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 718,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 719,
+          "label": "negative"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 720,
+          "label": "bbox_detector"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": null,
+          "label": "sam_model_opt",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": 721,
+          "label": "segm_detector_opt",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "detailer_hook",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            743
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "image"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "cropped_refined"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cropped_enhanced_alpha"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "detailer_pipe"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "title": "SOCKS",
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        true,
+        1024,
+        429858492908055,
+        "randomize",
+        15,
+        3.5,
+        "euler",
+        "beta",
+        0.45,
+        5,
+        true,
+        true,
+        0.5,
+        10,
+        3,
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 235,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 4380.1328125,
+        "1": 2180.701171875
+      },
+      "size": {
+        "0": 510,
+        "1": 80
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            720
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "BBOX_DETECTOR"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [
+            721
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "SEGM_DETECTOR"
+        }
+      ],
+      "title": "SOCK",
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "segm/socks_seg_s_yolov8.pt"
+      ]
+    },
+    {
+      "id": 238,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 5430.1337890625,
+        "1": 969.7008056640625
+      },
+      "size": {
+        "0": 520,
+        "1": 1180
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 63,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 742,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 735,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 736,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 737,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 738,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 739,
+          "label": "negative"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 740,
+          "label": "bbox_detector"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": null,
+          "label": "sam_model_opt",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": 741,
+          "label": "segm_detector_opt",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "detailer_hook",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            744
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "image"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "cropped_refined"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cropped_enhanced_alpha"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "detailer_pipe"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "title": "EYEWEAR /SUNGLASSES",
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        true,
+        1024,
+        950433378852635,
+        "randomize",
+        15,
+        3.5,
+        "euler",
+        "beta",
+        0.5,
+        5,
+        true,
+        true,
+        0.5,
+        10,
+        3,
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 237,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 4905.13330078125,
+        "1": 2181.701171875
+      },
+      "size": {
+        "0": 510,
+        "1": 80
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            732
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "BBOX_DETECTOR"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "SEGM_DETECTOR"
+        }
+      ],
+      "title": "SOCK",
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "bbox/foot-yolov8l.pt"
+      ]
+    },
+    {
+      "id": 227,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 5968.13330078125,
+        "1": 2183.701171875
+      },
+      "size": {
+        "0": 498.09033203125,
+        "1": 78
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            641
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "BBOX_DETECTOR"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "SEGM_DETECTOR"
+        }
+      ],
+      "title": "FOOT",
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "bbox/Phone.pt"
+      ]
+    },
+    {
+      "id": 239,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 5436.1337890625,
+        "1": 2181.701171875
+      },
+      "size": {
+        "0": 510,
+        "1": 80
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            740
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "BBOX_DETECTOR"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [
+            741
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "SEGM_DETECTOR"
+        }
+      ],
+      "title": "SOCK",
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "segm/EyeWear.pt"
+      ]
+    },
+    {
+      "id": 226,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 5957.13330078125,
+        "1": 969.7008056640625
+      },
+      "size": {
+        "0": 520.2949829101562,
+        "1": 1177.13720703125
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 64,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 744,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 627,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 628,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 629,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 630,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 631,
+          "label": "negative"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 641,
+          "label": "bbox_detector"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": null,
+          "label": "sam_model_opt",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": null,
+          "label": "segm_detector_opt",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "detailer_hook",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            633,
+            644,
+            645,
+            646
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "image"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "cropped_refined"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cropped_enhanced_alpha"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "detailer_pipe"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "title": "PHONE",
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        true,
+        1024,
+        901544298600658,
+        "randomize",
+        15,
+        3.5,
+        "euler",
+        "beta",
+        0.5,
+        5,
+        true,
+        true,
+        0.5,
+        10,
+        3,
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 105,
+      "type": "Image Comparer (rgthree)",
+      "pos": {
+        "0": 6492,
+        "1": 917
+      },
+      "size": {
+        "0": 1058.1422119140625,
+        "1": 1351.8033447265625
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 65,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 746,
+          "label": "image_a",
+          "dir": 3
+        },
+        {
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 633,
+          "label": "image_b",
+          "dir": 3
+        }
+      ],
+      "outputs": [],
+      "title": "SPECTRAL CLONE VS FULL DETAILER",
+      "properties": {
+        "comparer_mode": "Slide"
+      },
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_kupij_00017_.png&type=temp&subfolder=&rand=0.6855155724326316"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_kupij_00018_.png&type=temp&subfolder=&rand=0.6667778281733179"
+          }
+        ]
+      ]
+    },
+    {
+      "id": 104,
+      "type": "SaveImage",
+      "pos": {
+        "0": 7556,
+        "1": 915
+      },
+      "size": {
+        "0": 1053.0958251953125,
+        "1": 1355.23681640625
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 67,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 645,
+          "label": "images"
+        }
+      ],
+      "outputs": [],
+      "title": "FINAL SPECTRAL IMAGE (NO UPSCLAE)",
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 223,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 3856,
+        "1": 2186
+      },
+      "size": {
+        "0": 510,
+        "1": 80
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            640
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "BBOX_DETECTOR"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [
+            665
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "SEGM_DETECTOR"
+        }
+      ],
+      "title": "HAIRS",
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "segm/Hairs.pt"
+      ]
+    },
+    {
+      "id": 192,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 2308,
+        "1": 2181
+      },
+      "size": {
+        "0": 510.75439453125,
+        "1": 82.50614166259766
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            636
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "BBOX_DETECTOR"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "SEGM_DETECTOR"
+        }
+      ],
+      "title": "LIPS",
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "bbox/lips_v1.pt"
+      ]
+    },
+    {
+      "id": 190,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 1764,
+        "1": 2180
+      },
+      "size": {
+        "0": 537.3155517578125,
+        "1": 83.50614166259766
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            637
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "BBOX_DETECTOR"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [
+            659
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "SEGM_DETECTOR"
+        }
+      ],
+      "title": "EYES",
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "segm/PitEyeDetailer-v2-seg.pt"
+      ]
+    },
+    {
+      "id": 229,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 1231,
+        "1": 2180
+      },
+      "size": {
+        "0": 522.943115234375,
+        "1": 82.55594635009766
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            651
+          ]
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [],
+          "slot_index": 1
+        }
+      ],
+      "title": "FACE",
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "bbox/face_yolov9c.pt"
+      ]
+    },
+    {
+      "id": 198,
+      "type": "UpscaleModelLoader",
+      "pos": {
+        "0": 681.4877319335938,
+        "1": 2358.84423828125
+      },
+      "size": {
+        "0": 1391.5286865234375,
+        "1": 1775.46826171875
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "UPSCALE_MODEL",
+          "type": "UPSCALE_MODEL",
+          "links": [
+            521
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UpscaleModelLoader"
+      },
+      "widgets_values": [
+        "4x_NMKD-Siax_200k.pth"
+      ]
+    },
+    {
+      "id": 174,
+      "type": "SaveImage",
+      "pos": {
+        "0": 6490,
+        "1": 2370
+      },
+      "size": {
+        "0": 2105.158447265625,
+        "1": 1772.3302001953125
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 69,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 604
+        }
+      ],
+      "outputs": [],
+      "title": "FINAL IMAGE (WITH UPSCALE)",
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 175,
+      "type": "Image Comparer (rgthree)",
+      "pos": {
+        "0": 4430,
+        "1": 2370
+      },
+      "size": {
+        "0": 2050.793212890625,
+        "1": 1770.483154296875
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 68,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 646,
+          "label": "image_a",
+          "dir": 3
+        },
+        {
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 515,
+          "label": "image_b",
+          "dir": 3
+        }
+      ],
+      "outputs": [],
+      "title": "NO UPSCALE VS UPSCLAER",
+      "properties": {
+        "comparer_mode": "Slide"
+      },
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_yphao_00015_.png&type=temp&subfolder=&rand=0.36626993437833577"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_yphao_00016_.png&type=temp&subfolder=&rand=0.2870358252521028"
+          }
+        ]
+      ]
+    },
+    {
+      "id": 197,
+      "type": "UltimateSDUpscale",
+      "pos": {
+        "0": 2084,
+        "1": 2362
+      },
+      "size": {
+        "0": 2336.029541015625,
+        "1": 1778.00341796875
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 66,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 644
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 551
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 564
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 566
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 565
+        },
+        {
+          "name": "upscale_model",
+          "type": "UPSCALE_MODEL",
+          "link": 521
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            515,
+            604,
+            611
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UltimateSDUpscale"
+      },
+      "widgets_values": [
+        2,
+        133512687905186,
+        "randomize",
+        5,
+        3.5,
+        "euler",
+        "beta",
+        0.2,
+        "Linear",
+        1024,
+        1024,
+        8,
+        32,
+        "None",
+        1,
+        64,
+        8,
+        16,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 196,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 3368,
+        "1": 2181
+      },
+      "size": {
+        "0": 483.0166015625,
+        "1": 82.24524688720703
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            639
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "BBOX_DETECTOR"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [
+            664
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "SEGM_DETECTOR"
+        }
+      ],
+      "title": "HANDS",
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "segm/PitHandDetailer-v1b-seg.pt"
+      ]
+    },
+    {
+      "id": 49,
+      "type": "VAEDecode",
+      "pos": {
+        "0": 2580,
+        "1": 810
+      },
+      "size": {
+        "0": 311.12451171875,
+        "1": 54.87119674682617
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 45,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 87,
+          "label": "samples"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 88,
+          "label": "vae"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            470,
+            576,
+            745
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "IMAGE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 236,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 4903,
+        "1": 966
+      },
+      "size": {
+        "0": 520,
+        "1": 1180
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 62,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 743,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 727,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 728,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 729,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 730,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 731,
+          "label": "negative"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 732,
+          "label": "bbox_detector"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": null,
+          "label": "sam_model_opt",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": null,
+          "label": "segm_detector_opt",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "detailer_hook",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            742
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "image"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "cropped_refined"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cropped_enhanced_alpha"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "detailer_pipe"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "title": "FOOT",
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        true,
+        1024,
+        72705039728977,
+        "randomize",
+        15,
+        3.5,
+        "euler",
+        "beta",
+        0.55,
+        5,
+        true,
+        true,
+        0.5,
+        10,
+        3,
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 98,
+      "type": "ImpactNegativeConditioningPlaceholder",
+      "pos": {
+        "0": 2172,
+        "1": 253
+      },
+      "size": {
+        "0": 315,
+        "1": 26
+      },
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            203
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "CONDITIONING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImpactNegativeConditioningPlaceholder"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 182,
+      "type": "FL_ImageDimensionDisplay",
+      "pos": {
+        "0": 1975,
+        "1": 253
+      },
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 437
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            438
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FL_ImageDimensionDisplay"
+      },
+      "widgets_values": [],
+      "color": "#16727c",
+      "bgcolor": "#4F0074"
+    },
+    {
+      "id": 99,
+      "type": "Reroute",
+      "pos": {
+        "0": 2452,
+        "1": 221
+      },
+      "size": [
+        75,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 46,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 205,
+          "label": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "BUS",
+          "links": [
+            251
+          ],
+          "slot_index": 0,
+          "label": ""
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 101,
+      "type": "Reroute",
+      "pos": {
+        "0": 2741,
+        "1": 221
+      },
+      "size": [
+        75,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 50,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 251,
+          "label": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "BUS",
+          "links": [
+            207
+          ],
+          "slot_index": 0,
+          "label": ""
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 62,
+      "type": "ApplyPulidFlux",
+      "pos": {
+        "0": 1970,
+        "1": -200
+      },
+      "size": {
+        "0": 417.63690185546875,
+        "1": 409.938232421875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 30,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 231,
+          "label": "model"
+        },
+        {
+          "name": "pulid_flux",
+          "type": "PULIDFLUX",
+          "link": 125,
+          "label": "pulid_flux"
+        },
+        {
+          "name": "eva_clip",
+          "type": "EVA_CLIP",
+          "link": 123,
+          "label": "eva_clip"
+        },
+        {
+          "name": "face_analysis",
+          "type": "FACEANALYSIS",
+          "link": 124,
+          "label": "face_analysis"
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 126,
+          "label": "image"
+        },
+        {
+          "name": "attn_mask",
+          "type": "MASK",
+          "link": null,
+          "label": "attn_mask",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "MODEL"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ApplyPulidFlux"
+      },
+      "widgets_values": [
+        0.8,
+        0,
+        1,
+        "mean",
+        1,
+        0,
+        3000,
+        true
+      ]
+    },
+    {
+      "id": 53,
+      "type": "PulidFluxInsightFaceLoader",
+      "pos": {
+        "0": 1640,
+        "1": 60
+      },
+      "size": {
+        "0": 318.5473937988281,
+        "1": 147.81402587890625
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 17,
+      "mode": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "FACEANALYSIS",
+          "type": "FACEANALYSIS",
+          "links": [
+            124
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "FACEANALYSIS"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PulidFluxInsightFaceLoader"
+      },
+      "widgets_values": [
+        "CUDA"
+      ]
+    },
+    {
+      "id": 54,
+      "type": "LoadImage",
+      "pos": {
+        "0": 701,
+        "1": -187
+      },
+      "size": {
+        "0": 928.9683227539062,
+        "1": 395.0089111328125
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 18,
+      "mode": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            126
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "IMAGE"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "MASK"
+        }
+      ],
+      "title": "SPECTRAL CLONE PULID",
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "ukjAgatheSks (59).jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 176,
+      "type": "Fast Groups Muter (rgthree)",
+      "pos": {
+        "0": 2220,
+        "1": 540
+      },
+      "size": {
+        "0": 347.0056457519531,
+        "1": 331.4239196777344
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "title": "SWITCHER",
+      "properties": {
+        "matchColors": "",
+        "matchTitle": "",
+        "showNav": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 240,
+      "type": "Note",
+      "pos": {
+        "0": 5949,
+        "1": -336
+      },
+      "size": {
+        "0": 524.5862426757812,
+        "1": 76.12628936767578
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "SHOW YOUR SUPPORT <3 !",
+      "properties": {},
+      "widgets_values": [
+        "Did you like this workflow ?\nIf you many thanks to show your support on Civitai <3\nhttps://civitai.com/user/EKKIVOK <3 Thanks again! \nTrust me it was a lot of Hard work to bring that masterpiece to you :)"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 95,
+      "type": "FaceDetailer",
+      "pos": {
+        "0": 677,
+        "1": 971
+      },
+      "size": {
+        "0": 528.6290283203125,
+        "1": 1167.216796875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 54,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 219,
+          "label": "image"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 552,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 553,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 562,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 558,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 559,
+          "label": "negative"
+        },
+        {
+          "name": "bbox_detector",
+          "type": "BBOX_DETECTOR",
+          "link": 557,
+          "label": "bbox_detector"
+        },
+        {
+          "name": "sam_model_opt",
+          "type": "SAM_MODEL",
+          "link": null,
+          "label": "sam_model_opt",
+          "shape": 7
+        },
+        {
+          "name": "segm_detector_opt",
+          "type": "SEGM_DETECTOR",
+          "link": 658,
+          "label": "segm_detector_opt",
+          "shape": 7
+        },
+        {
+          "name": "detailer_hook",
+          "type": "DETAILER_HOOK",
+          "link": null,
+          "label": "detailer_hook",
+          "shape": 7
+        },
+        {
+          "name": "scheduler_func_opt",
+          "type": "SCHEDULER_FUNC",
+          "link": null,
+          "label": "scheduler_func_opt",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            442
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "image"
+        },
+        {
+          "name": "cropped_refined",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 1,
+          "shape": 6,
+          "label": "cropped_refined"
+        },
+        {
+          "name": "cropped_enhanced_alpha",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cropped_enhanced_alpha"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "label": "mask"
+        },
+        {
+          "name": "detailer_pipe",
+          "type": "DETAILER_PIPE",
+          "links": null,
+          "shape": 3,
+          "label": "detailer_pipe"
+        },
+        {
+          "name": "cnet_images",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 6,
+          "label": "cnet_images"
+        }
+      ],
+      "title": "SKIN",
+      "properties": {
+        "Node name for S&R": "FaceDetailer"
+      },
+      "widgets_values": [
+        512,
+        true,
+        1024,
+        1078274354559736,
+        "randomize",
+        15,
+        3.5,
+        "euler",
+        "beta",
+        0.15,
+        5,
+        true,
+        true,
+        0.5,
+        10,
+        3,
+        "center-1",
+        0,
+        0.93,
+        0,
+        0.7,
+        "False",
+        10,
+        "",
+        1,
+        false,
+        20
+      ]
+    },
+    {
+      "id": 107,
+      "type": "Reroute",
+      "pos": {
+        "0": 1434,
+        "1": -254
+      },
+      "size": [
+        75,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 51,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 469,
+          "label": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            219,
+            468
+          ],
+          "slot_index": 0,
+          "label": ""
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 241,
+      "type": "Reroute",
+      "pos": {
+        "0": 5669,
+        "1": 920
+      },
+      "size": [
+        75,
+        26
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 745
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            746
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 177,
+      "type": "SaveImage",
+      "pos": {
+        "0": 3808,
+        "1": -224
+      },
+      "size": {
+        "0": 1085.84033203125,
+        "1": 1113.07275390625
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 576
+        }
+      ],
+      "outputs": [],
+      "title": "PREVIEW ONLY (Without any enhancement) (Yeah i know it's great :D, BUT look below, and prepare to Cry :p)",
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 102,
+      "type": "UltralyticsDetectorProvider",
+      "pos": {
+        "0": 678,
+        "1": 2185
+      },
+      "size": {
+        "0": 529.3621826171875,
+        "1": 78
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 21,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "BBOX_DETECTOR",
+          "type": "BBOX_DETECTOR",
+          "links": [
+            557
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "BBOX_DETECTOR"
+        },
+        {
+          "name": "SEGM_DETECTOR",
+          "type": "SEGM_DETECTOR",
+          "links": [
+            658
+          ],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "SEGM_DETECTOR"
+        }
+      ],
+      "title": "SKIN",
+      "properties": {
+        "Node name for S&R": "UltralyticsDetectorProvider"
+      },
+      "widgets_values": [
+        "segm/skin_yolov8n-seg_800.pt"
+      ]
+    },
+    {
+      "id": 178,
+      "type": "Lora Loader Stack (rgthree)",
+      "pos": {
+        "0": 2407,
+        "1": -183
+      },
+      "size": {
+        "0": 489.6174621582031,
+        "1": 389.4298095703125
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 597
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 409
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            410,
+            414,
+            446,
+            474,
+            481,
+            488,
+            495,
+            551,
+            552,
+            613,
+            627,
+            715,
+            727,
+            735
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            411,
+            448,
+            475,
+            482,
+            489,
+            496,
+            553,
+            614,
+            628,
+            716,
+            728,
+            736
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Lora Loader Stack (rgthree)"
+      },
+      "widgets_values": [
+        "agathe-greV4.safetensors",
+        1,
+        "detailed photorealism style v3.safetensors",
+        0.75,
+        "None",
+        1,
+        "None",
+        1
+      ]
+    },
+    {
+      "id": 217,
+      "type": "Note",
+      "pos": {
+        "0": 6506.22509765625,
+        "1": 268.37982177734375
+      },
+      "size": {
+        "0": 1031.8367919921875,
+        "1": 192.2073516845703
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "ADD LORA FOR STYLE CONCEPT ETC (WITH PULID OR ANOTHER SUBjECT LORA MODEL)",
+      "properties": {},
+      "widgets_values": [
+        "Well well well, ok we can set a lora or Pulid for some magics, But what if i want to instead do the the same but add a special lora ?\nwell, i didn't forgot that :D (sometimes i'm a genius, sometime not lol) Follow this steps:\n1-Follow the Note \"TO ACTIVATE PULID\", and then add a lora (whatever you want BUT, remember ? not a character model!) \n-> See the second note to know why .....you know it can cause your house on fire, birds and planes falling from the sky....Etc...\nYou don't want that right ? So let go to step 2..\n2-For styles and concept and even other lora put it in second slot on the \"Lora Stacker\" don't put the weight to 1, 0.4-0.75 should be enough.\n3-Enjoy !\nNow let's talk about that : you want to add a character lora model instead of PULID BUT you want to apply lora style too..\nWell, ok, remember when i said put the lora concept lora style in seconde slot and leave thefirst one empty ? \nAnd why the style lora or concept etc.... should be at 0.4-0.75 ? it is for that. a weight of 1 can affect (destroy) your lora character. Simple.\nso ->\n1) deactivate the Pulid Node see the 2nd note for that -> load your character to the first slot AND your wanted style in second slot.\n2) Hit \"Queue\" and LET THE MAGIC COME TO YOU MY LITTLE WHITE RABBIT ! "
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 215,
+      "type": "Note",
+      "pos": {
+        "0": 6500.22509765625,
+        "1": -50.620479583740234
+      },
+      "size": {
+        "0": 1041.340576171875,
+        "1": 120.38809204101562
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 23,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "TO ACTIVATE PULID :",
+      "properties": {},
+      "widgets_values": [
+        "To switch to PULID:\n\n1- Enable it in activator.\n2- upload an ID of your character.\n3- Connect The MODEL Wire from \"Apply PULID Flux\" into \"LORA MODEL STACK\"\n\n----N'JOY!----\n"
+      ],
+      "color": "#322",
+      "bgcolor": "#533",
+      "shape": "box"
+    },
+    {
+      "id": 63,
+      "type": "UNETLoader",
+      "pos": {
+        "0": 1631,
+        "1": 280
+      },
+      "size": {
+        "0": 302.5058288574219,
+        "1": 82
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 24,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            199,
+            231,
+            597
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "MODEL"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "flux1DevFp8_v10.safetensors",
+        "fp8_e4m3fn"
+      ]
+    },
+    {
+      "id": 184,
+      "type": "ShowText|pysssss",
+      "pos": {
+        "0": 1633,
+        "1": 809
+      },
+      "size": {
+        "0": 315,
+        "1": 76
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 438,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "title": "ORIGINAL IMAGE REZ",
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "",
+        "Width: 896, Height: 1152"
+      ]
+    },
+    {
+      "id": 96,
+      "type": "Bus Node",
+      "pos": {
+        "0": 1630,
+        "1": 643
+      },
+      "size": {
+        "0": 313.8661804199219,
+        "1": 126
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 44,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "bus",
+          "type": "BUS",
+          "link": null,
+          "label": "bus",
+          "shape": 7
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 199,
+          "label": "model",
+          "shape": 7
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 418,
+          "label": "clip",
+          "shape": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 201,
+          "label": "vae",
+          "shape": 7
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 328,
+          "label": "positive",
+          "shape": 7
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 203,
+          "label": "negative",
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "bus",
+          "type": "BUS",
+          "links": [
+            205
+          ],
+          "shape": 3,
+          "label": "bus"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3,
+          "label": "model"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": null,
+          "shape": 3,
+          "label": "clip"
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "links": [],
+          "slot_index": 3,
+          "shape": 3,
+          "label": "vae"
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [],
+          "slot_index": 4,
+          "shape": 3,
+          "label": "positive"
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [],
+          "slot_index": 5,
+          "shape": 3,
+          "label": "negative"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Bus Node"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 10,
+      "type": "VAELoader",
+      "pos": {
+        "0": 1629,
+        "1": 540
+      },
+      "size": {
+        "0": 311.81634521484375,
+        "1": 60.429901123046875
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 25,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            88,
+            201
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "VAE"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "FLUX1\\ae.safetensors"
+      ]
+    },
+    {
+      "id": 64,
+      "type": "DualCLIPLoader",
+      "pos": {
+        "0": 1633,
+        "1": 398
+      },
+      "size": {
+        "0": 301.76580810546875,
+        "1": 106
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 26,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            409,
+            418,
+            708
+          ],
+          "slot_index": 0,
+          "shape": 3,
+          "label": "CLIP"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DualCLIPLoader"
+      },
+      "widgets_values": [
+        "t5xxl_fp8_e4m3fn.safetensors",
+        "clip_l.safetensors",
+        "flux"
+      ]
+    },
+    {
+      "id": 115,
+      "type": "CLIPTextEncode",
+      "pos": {
+        "0": 1977,
+        "1": 533
+      },
+      "size": {
+        "0": 270.0652770996094,
+        "1": 112.22151184082031
+      },
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 708
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 750,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            704,
+            705
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "A young woman with blonde long hair flowing freely around her shoulders, giving her an almost ghostly appearance. Her skin is pale, and her eyes are closed, a soft, serene smile on her lips as if lost in a dream. She is wearing a delicate, translucent chiffon gown that shimmers with every movement. The lighting is dim, with soft spotlights creating a hazy glow around her, enhancing the misty atmosphere. The background is a blur of muted blues and greys, adding to the ethereal effect. Her pose is graceful, with one hand raised delicately as if poised mid-dance."
+      ]
+    },
+    {
+      "id": 179,
+      "type": "GetImageSize+",
+      "pos": {
+        "0": 1974,
+        "1": 573
+      },
+      "size": {
+        "0": 214.20001220703125,
+        "1": 66
+      },
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 752
+        }
+      ],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            753
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            674
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "count",
+          "type": "INT",
+          "links": [
+            675
+          ],
+          "slot_index": 2
+        }
+      ],
+      "title": "COPY ORIGINAL SIZE",
+      "properties": {
+        "Node name for S&R": "GetImageSize+"
+      },
+      "widgets_values": [],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 218,
+      "type": "Note",
+      "pos": {
+        "0": 6804,
+        "1": 774.9817504882812
+      },
+      "size": {
+        "0": 481.56280517578125,
+        "1": 86.75514221191406
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 27,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "IMPORTANT INFORMATION !!",
+      "properties": {},
+      "widgets_values": [
+        "My instagram if you have question or a workflow or model request :)\n-> https://www.instagram.com/ekkiv0k/ See you there Folks !!\nI hope you will like my works :) if you like it !\ni'm not against buzz, follow, likes you know the story :) Thanks <3\n"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930",
+      "shape": "box"
+    },
+    {
+      "id": 245,
+      "type": "JoyCaption",
+      "pos": {
+        "0": 2922,
+        "1": -182
+      },
+      "size": {
+        "0": 864.9691162109375,
+        "1": 389.2369689941406
+      },
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 754
+        }
+      ],
+      "outputs": [
+        {
+          "name": "captions",
+          "type": "STRING",
+          "links": [
+            755
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "LAMA 3.1 AUTO DETECTION CAPTIONS",
+      "properties": {
+        "Node name for S&R": "JoyCaption"
+      },
+      "widgets_values": [
+        "A descriptive caption for this image:\n",
+        "Meta-Llama-3.1-8B-bnb-4bit",
+        300,
+        10,
+        0.5,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 114,
+      "type": "ShowText|pysssss",
+      "pos": {
+        "0": 1940,
+        "1": 290
+      },
+      "size": {
+        "0": 626.2570190429688,
+        "1": 216.8926239013672
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 755,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            750
+          ],
+          "slot_index": 0,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "",
+        "This image is a digitally created artwork promoting the video game \"Spec Ops: The Line\" by Kravov. The central subject is a profile view of a woman's face and upper torso, facing left, with her eyes closed in a serene expression. Her skin is a dark, metallic texture, resembling a futuristic, cybernetic material, and is adorned with intricate, glowing circuit patterns and small, glowing particles, giving it a high-tech, sci-fi appearance. \n\nThe background is a gradient of dark blue to light blue, creating a cool and serene atmosphere. The text \"SPEC OPS\" is written in bold, white letters above the woman's head, while \"THE LINE\" is in smaller, white letters below her chin. The text \"BY KRAVOK\" is in smaller, white letters near the bottom right corner. The game's logo, a stylized \"L,\" is positioned below the woman's chin in white letters. \n\nAt the bottom of the image, in large, bold, white letters, is the text \"LAMA 31-1 - Edition.\" The overall style is futuristic, with a blend of realistic and digital art techniques, emphasizing the high-tech, immersive nature of the game. The woman's expression and the metallic texture of her"
+      ]
+    },
+    {
+      "id": 244,
+      "type": "Note",
+      "pos": {
+        "0": 6598,
+        "1": 536.98193359375
+      },
+      "size": {
+        "0": 899.8858642578125,
+        "1": 170.66455078125
+      },
+      "flags": {
+        "pinned": true
+      },
+      "order": 28,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "ORIGINAL CLONED RATIO AND CUSTOM RATIO (DIMENSION)",
+      "properties": {},
+      "widgets_values": [
+        "The \"COPY ORIGINAL SIZE\" Node, is the key here.\n1- To copy the original size -> Just link the \"SPECTRAL CLONE TARGET\" Image output to Image in \"RATIO IMAGE SELECTOR\".\n2- Link Width / Height / Count to -> Width / Height / Count TO -> Width Override / Height Override / Batch Size to \"RATIO IMAGE SELECTOR\".\nIt will Override the default ratio image selector in \"RATIO IMAGE SELECTOR\" node.\n\nOk now, what if i want to get back in Default Ratio Selector ?\nJust unlink (delete it) the Width Override / Height Override / Batch Size in \"RATIO IMAGE SELECTOR\".\nThere is a bug that the \"RATIO IMAGE SELECTOR\" with Red Links (it think it is always connected even after switching off the \"COPY ORIGINAL RAITO IMAGE\".\nIf you have that problem just right click on \"RATIO IMAGE SELECTOR\" and -> \"FIX NODE\" -> and you will be able to select a ratio for your image.\n\nAnd Voila ! (Et vive la France !!)\n"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 113,
+      "type": "LoadImage",
+      "pos": {
+        "0": 690,
+        "1": 256
+      },
+      "size": {
+        "0": 923.0291748046875,
+        "1": 634.2230224609375
+      },
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            334,
+            437,
+            610,
+            752,
+            754
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "title": "SPECTRAL CLONE TARGET",
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "00014-780334143.png",
+        "image"
+      ]
+    }
+  ],
+  "links": [
+    [
+      84,
+      25,
+      0,
+      48,
+      0,
+      "NOISE"
+    ],
+    [
+      85,
+      16,
+      0,
+      48,
+      2,
+      "SAMPLER"
+    ],
+    [
+      87,
+      48,
+      0,
+      49,
+      0,
+      "LATENT"
+    ],
+    [
+      88,
+      10,
+      0,
+      49,
+      1,
+      "VAE"
+    ],
+    [
+      93,
+      17,
+      0,
+      48,
+      3,
+      "SIGMAS"
+    ],
+    [
+      123,
+      51,
+      0,
+      62,
+      2,
+      "EVA_CLIP"
+    ],
+    [
+      124,
+      53,
+      0,
+      62,
+      3,
+      "FACEANALYSIS"
+    ],
+    [
+      125,
+      45,
+      0,
+      62,
+      1,
+      "PULIDFLUX"
+    ],
+    [
+      126,
+      54,
+      0,
+      62,
+      4,
+      "IMAGE"
+    ],
+    [
+      199,
+      63,
+      0,
+      96,
+      1,
+      "MODEL"
+    ],
+    [
+      201,
+      10,
+      0,
+      96,
+      3,
+      "VAE"
+    ],
+    [
+      203,
+      98,
+      0,
+      96,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      205,
+      96,
+      0,
+      99,
+      0,
+      "*"
+    ],
+    [
+      207,
+      101,
+      0,
+      100,
+      0,
+      "BUS"
+    ],
+    [
+      219,
+      107,
+      0,
+      95,
+      0,
+      "IMAGE"
+    ],
+    [
+      231,
+      63,
+      0,
+      62,
+      0,
+      "MODEL"
+    ],
+    [
+      251,
+      99,
+      0,
+      101,
+      0,
+      "*"
+    ],
+    [
+      288,
+      47,
+      0,
+      134,
+      0,
+      "GUIDER"
+    ],
+    [
+      290,
+      47,
+      0,
+      48,
+      1,
+      "GUIDER"
+    ],
+    [
+      328,
+      149,
+      0,
+      96,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      334,
+      113,
+      0,
+      153,
+      0,
+      "*"
+    ],
+    [
+      409,
+      64,
+      0,
+      178,
+      1,
+      "CLIP"
+    ],
+    [
+      410,
+      178,
+      0,
+      17,
+      0,
+      "MODEL"
+    ],
+    [
+      411,
+      178,
+      1,
+      100,
+      2,
+      "CLIP"
+    ],
+    [
+      414,
+      178,
+      0,
+      47,
+      0,
+      "MODEL"
+    ],
+    [
+      418,
+      64,
+      0,
+      96,
+      2,
+      "CLIP"
+    ],
+    [
+      437,
+      113,
+      0,
+      182,
+      0,
+      "IMAGE"
+    ],
+    [
+      438,
+      182,
+      0,
+      184,
+      0,
+      "STRING"
+    ],
+    [
+      442,
+      95,
+      0,
+      185,
+      0,
+      "IMAGE"
+    ],
+    [
+      446,
+      178,
+      0,
+      185,
+      1,
+      "MODEL"
+    ],
+    [
+      448,
+      178,
+      1,
+      185,
+      2,
+      "CLIP"
+    ],
+    [
+      455,
+      100,
+      3,
+      185,
+      3,
+      "VAE"
+    ],
+    [
+      457,
+      100,
+      4,
+      185,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      458,
+      100,
+      5,
+      185,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      468,
+      107,
+      0,
+      108,
+      0,
+      "*"
+    ],
+    [
+      469,
+      106,
+      0,
+      107,
+      0,
+      "*"
+    ],
+    [
+      470,
+      49,
+      0,
+      106,
+      0,
+      "*"
+    ],
+    [
+      474,
+      178,
+      0,
+      189,
+      1,
+      "MODEL"
+    ],
+    [
+      475,
+      178,
+      1,
+      189,
+      2,
+      "CLIP"
+    ],
+    [
+      476,
+      100,
+      3,
+      189,
+      3,
+      "VAE"
+    ],
+    [
+      477,
+      100,
+      4,
+      189,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      478,
+      100,
+      5,
+      189,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      481,
+      178,
+      0,
+      191,
+      1,
+      "MODEL"
+    ],
+    [
+      482,
+      178,
+      1,
+      191,
+      2,
+      "CLIP"
+    ],
+    [
+      483,
+      100,
+      3,
+      191,
+      3,
+      "VAE"
+    ],
+    [
+      484,
+      100,
+      4,
+      191,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      485,
+      100,
+      5,
+      191,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      488,
+      178,
+      0,
+      193,
+      1,
+      "MODEL"
+    ],
+    [
+      489,
+      178,
+      1,
+      193,
+      2,
+      "CLIP"
+    ],
+    [
+      490,
+      100,
+      3,
+      193,
+      3,
+      "VAE"
+    ],
+    [
+      491,
+      100,
+      4,
+      193,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      492,
+      100,
+      5,
+      193,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      495,
+      178,
+      0,
+      195,
+      1,
+      "MODEL"
+    ],
+    [
+      496,
+      178,
+      1,
+      195,
+      2,
+      "CLIP"
+    ],
+    [
+      497,
+      100,
+      3,
+      195,
+      3,
+      "VAE"
+    ],
+    [
+      498,
+      100,
+      4,
+      195,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      499,
+      100,
+      5,
+      195,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      502,
+      189,
+      0,
+      191,
+      0,
+      "IMAGE"
+    ],
+    [
+      503,
+      191,
+      0,
+      193,
+      0,
+      "IMAGE"
+    ],
+    [
+      504,
+      193,
+      0,
+      195,
+      0,
+      "IMAGE"
+    ],
+    [
+      515,
+      197,
+      0,
+      175,
+      1,
+      "IMAGE"
+    ],
+    [
+      521,
+      198,
+      0,
+      197,
+      5,
+      "UPSCALE_MODEL"
+    ],
+    [
+      551,
+      178,
+      0,
+      197,
+      1,
+      "MODEL"
+    ],
+    [
+      552,
+      178,
+      0,
+      95,
+      1,
+      "MODEL"
+    ],
+    [
+      553,
+      178,
+      1,
+      95,
+      2,
+      "CLIP"
+    ],
+    [
+      557,
+      102,
+      0,
+      95,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      558,
+      100,
+      4,
+      95,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      559,
+      100,
+      5,
+      95,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      562,
+      100,
+      3,
+      95,
+      3,
+      "VAE"
+    ],
+    [
+      564,
+      149,
+      0,
+      197,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      565,
+      100,
+      3,
+      197,
+      4,
+      "VAE"
+    ],
+    [
+      566,
+      149,
+      0,
+      197,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      576,
+      49,
+      0,
+      177,
+      0,
+      "IMAGE"
+    ],
+    [
+      597,
+      63,
+      0,
+      178,
+      0,
+      "MODEL"
+    ],
+    [
+      604,
+      197,
+      0,
+      174,
+      0,
+      "IMAGE"
+    ],
+    [
+      608,
+      219,
+      0,
+      220,
+      0,
+      "IMAGE"
+    ],
+    [
+      610,
+      113,
+      0,
+      219,
+      0,
+      "IMAGE"
+    ],
+    [
+      611,
+      197,
+      0,
+      219,
+      1,
+      "IMAGE"
+    ],
+    [
+      613,
+      178,
+      0,
+      222,
+      1,
+      "MODEL"
+    ],
+    [
+      614,
+      178,
+      1,
+      222,
+      2,
+      "CLIP"
+    ],
+    [
+      615,
+      100,
+      3,
+      222,
+      3,
+      "VAE"
+    ],
+    [
+      616,
+      100,
+      4,
+      222,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      617,
+      100,
+      5,
+      222,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      627,
+      178,
+      0,
+      226,
+      1,
+      "MODEL"
+    ],
+    [
+      628,
+      178,
+      1,
+      226,
+      2,
+      "CLIP"
+    ],
+    [
+      629,
+      100,
+      3,
+      226,
+      3,
+      "VAE"
+    ],
+    [
+      630,
+      100,
+      4,
+      226,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      631,
+      100,
+      5,
+      226,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      633,
+      226,
+      0,
+      105,
+      1,
+      "IMAGE"
+    ],
+    [
+      635,
+      228,
+      0,
+      48,
+      4,
+      "LATENT"
+    ],
+    [
+      636,
+      192,
+      0,
+      191,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      637,
+      190,
+      0,
+      189,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      638,
+      194,
+      0,
+      193,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      639,
+      196,
+      0,
+      195,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      640,
+      223,
+      0,
+      222,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      641,
+      227,
+      0,
+      226,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      642,
+      185,
+      0,
+      189,
+      0,
+      "IMAGE"
+    ],
+    [
+      643,
+      195,
+      0,
+      222,
+      0,
+      "IMAGE"
+    ],
+    [
+      644,
+      226,
+      0,
+      197,
+      0,
+      "IMAGE"
+    ],
+    [
+      645,
+      226,
+      0,
+      104,
+      0,
+      "IMAGE"
+    ],
+    [
+      646,
+      226,
+      0,
+      175,
+      0,
+      "IMAGE"
+    ],
+    [
+      651,
+      229,
+      0,
+      185,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      658,
+      102,
+      1,
+      95,
+      8,
+      "SEGM_DETECTOR"
+    ],
+    [
+      659,
+      190,
+      1,
+      189,
+      8,
+      "SEGM_DETECTOR"
+    ],
+    [
+      661,
+      194,
+      1,
+      193,
+      8,
+      "SEGM_DETECTOR"
+    ],
+    [
+      664,
+      196,
+      1,
+      195,
+      8,
+      "SEGM_DETECTOR"
+    ],
+    [
+      665,
+      223,
+      1,
+      222,
+      8,
+      "SEGM_DETECTOR"
+    ],
+    [
+      674,
+      179,
+      1,
+      228,
+      1,
+      "INT"
+    ],
+    [
+      675,
+      179,
+      2,
+      228,
+      2,
+      "INT"
+    ],
+    [
+      704,
+      115,
+      0,
+      47,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      705,
+      115,
+      0,
+      149,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      708,
+      64,
+      0,
+      115,
+      0,
+      "CLIP"
+    ],
+    [
+      715,
+      178,
+      0,
+      234,
+      1,
+      "MODEL"
+    ],
+    [
+      716,
+      178,
+      1,
+      234,
+      2,
+      "CLIP"
+    ],
+    [
+      717,
+      100,
+      3,
+      234,
+      3,
+      "VAE"
+    ],
+    [
+      718,
+      100,
+      4,
+      234,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      719,
+      100,
+      5,
+      234,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      720,
+      235,
+      0,
+      234,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      721,
+      235,
+      1,
+      234,
+      8,
+      "SEGM_DETECTOR"
+    ],
+    [
+      724,
+      222,
+      0,
+      234,
+      0,
+      "IMAGE"
+    ],
+    [
+      727,
+      178,
+      0,
+      236,
+      1,
+      "MODEL"
+    ],
+    [
+      728,
+      178,
+      1,
+      236,
+      2,
+      "CLIP"
+    ],
+    [
+      729,
+      100,
+      3,
+      236,
+      3,
+      "VAE"
+    ],
+    [
+      730,
+      100,
+      4,
+      236,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      731,
+      100,
+      5,
+      236,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      732,
+      237,
+      0,
+      236,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      735,
+      178,
+      0,
+      238,
+      1,
+      "MODEL"
+    ],
+    [
+      736,
+      178,
+      1,
+      238,
+      2,
+      "CLIP"
+    ],
+    [
+      737,
+      100,
+      3,
+      238,
+      3,
+      "VAE"
+    ],
+    [
+      738,
+      100,
+      4,
+      238,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      739,
+      100,
+      5,
+      238,
+      5,
+      "CONDITIONING"
+    ],
+    [
+      740,
+      239,
+      0,
+      238,
+      6,
+      "BBOX_DETECTOR"
+    ],
+    [
+      741,
+      239,
+      1,
+      238,
+      8,
+      "SEGM_DETECTOR"
+    ],
+    [
+      742,
+      236,
+      0,
+      238,
+      0,
+      "IMAGE"
+    ],
+    [
+      743,
+      234,
+      0,
+      236,
+      0,
+      "IMAGE"
+    ],
+    [
+      744,
+      238,
+      0,
+      226,
+      0,
+      "IMAGE"
+    ],
+    [
+      745,
+      49,
+      0,
+      241,
+      0,
+      "*"
+    ],
+    [
+      746,
+      241,
+      0,
+      105,
+      0,
+      "IMAGE"
+    ],
+    [
+      750,
+      114,
+      0,
+      115,
+      1,
+      "STRING"
+    ],
+    [
+      752,
+      113,
+      0,
+      179,
+      0,
+      "IMAGE"
+    ],
+    [
+      753,
+      179,
+      0,
+      228,
+      0,
+      "INT"
+    ],
+    [
+      754,
+      113,
+      0,
+      245,
+      0,
+      "IMAGE"
+    ],
+    [
+      755,
+      245,
+      0,
+      114,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ULTIMATE FULL DETAILER (DON'T CHANGE VALUES)",
+      "bounding": [
+        666,
+        899,
+        5818,
+        1374
+      ],
+      "color": "#b06634",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "--------------------------------------------------------------------------------ULTIMATE",
+      "bounding": [
+        2198,
+        -357,
+        1601,
+        94
+      ],
+      "color": "#a1309b",
+      "font_size": 50,
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "title": "-----------------------LAMA 3.1 EDITION--",
+      "bounding": [
+        2199,
+        -486,
+        1600,
+        122
+      ],
+      "color": "#b06634",
+      "font_size": 90,
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "title": "---Spectral Clone V1--",
+      "bounding": [
+        691,
+        -487,
+        1503,
+        219
+      ],
+      "color": "#b06634",
+      "font_size": 150,
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "title": "LAMA 3.1 (AUTO CAPTION)",
+      "bounding": [
+        2906,
+        -260,
+        893,
+        480
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "title": "Pulid",
+      "bounding": [
+        690,
+        -262,
+        1706,
+        479
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Lora",
+      "bounding": [
+        2400,
+        -260,
+        503,
+        478
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "title": "Flux",
+      "bounding": [
+        1622,
+        221,
+        2178,
+        671
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "title": "EKKIVOK' WORKFLOWS SERIES",
+      "bounding": [
+        689,
+        -772,
+        3109,
+        219
+      ],
+      "color": "#a1309b",
+      "font_size": 200,
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "title": "UPSCALER",
+      "bounding": [
+        666,
+        2283,
+        7947,
+        1870
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "title": "QUICK, SMALL FUNNY TUTORIAL..LIKE YOUR.....:D (Calm down, just kiddin ;P)",
+      "bounding": [
+        6490,
+        -126,
+        1059,
+        1006
+      ],
+      "color": "#88A",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.45,
+      "offset": [
+        279.59652370876734,
+        1096.8884887695312
+      ]
+    },
+    "workspace_info": {
+      "id": "PwahhQWHaQ15ZlMgRO8Mr",
+      "saveLock": false,
+      "cloudID": null,
+      "coverMediaPath": null
+    }
+  },
+  "version": 0.4
+}

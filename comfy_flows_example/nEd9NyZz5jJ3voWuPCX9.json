@@ -1,0 +1,21 @@
+{
+  "id": "86598142-c9d5-4942-bb51-df03bf7c697f",
+  "revision": 0,
+  "last_node_id": 0,
+  "last_link_id": 0,
+  "nodes": [],
+  "links": [],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1,
+      "offset": [
+        20.95703125,
+        -18.98828125
+      ]
+    },
+    "frontendVersion": "1.23.4"
+  },
+  "version": 0.4
+}

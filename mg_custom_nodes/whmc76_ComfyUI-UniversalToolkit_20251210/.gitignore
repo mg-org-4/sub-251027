@@ -1,0 +1,100 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints
+
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ComfyUI
+*.ckpt
+*.safetensors
+*.pth
+*.pt
+*.onnx
+*.npz
+*.npz
+*.log
+*.tmp
+
+# Node
+node_modules/
+
+# Others
+*.swp
+*.bak
+*.tmp
+*.old
+*.orig
+
+# Custom
+web/__pycache__/
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ComfyUI specific
+*.ckpt
+*.safetensors
+*.vae
+*.pt
+*.pth
+*.bin
+*.onnx
+*.engine
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Reference code directory - ignore updates
+reference_code/
+
+# 临时目录
+temp_*/
+temp_mingnodes/
+
+# 测试文件
+test_nodes.py
+
+# Python缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# IDE文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db 

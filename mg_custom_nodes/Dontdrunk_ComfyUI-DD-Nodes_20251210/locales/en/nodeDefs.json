@@ -1,0 +1,402 @@
+{
+  "DD-DimensionCalculator": {
+    "display_name": "DD Dimension Calculator",
+    "description": "Calculate and adjust image dimension ratios",
+    "inputs": {
+      "原始宽度": {
+        "name": "Original Width",
+        "tooltip": "Width of the original image"
+      },
+      "原始高度": {
+        "name": "Original Height",
+        "tooltip": "Height of the original image"
+      },
+      "缩放比例": {
+        "name": "Scale Ratio",
+        "tooltip": "Scaling ratio for resizing"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Width",
+        "tooltip": "Calculated width"
+      },
+      "1": {
+        "name": "Height",
+        "tooltip": "Calculated height"
+      }
+    }
+  },
+  "DD-ImageToVideo": {
+    "display_name": "DD Image To Video",
+    "description": "Convert images to video frames",
+    "inputs": {
+      "图像": {
+        "name": "Image",
+        "tooltip": "Input image"
+      },
+      "帧率": {
+        "name": "FPS",
+        "tooltip": "Frames per second for the video"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Video Frames",
+        "tooltip": "Generated video frame sequence"
+      }
+    }
+  },
+  "DD-AdvancedFusion": {
+    "display_name": "DD Advanced Fusion",
+    "description": "Advanced image fusion techniques",
+    "inputs": {
+      "图像A": {
+        "name": "Image A",
+        "tooltip": "First input image"
+      },
+      "图像B": {
+        "name": "Image B",
+        "tooltip": "Second input image"
+      },
+      "融合强度": {
+        "name": "Fusion Strength",
+        "tooltip": "Controls the strength of the fusion effect"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Fused Image",
+        "tooltip": "The resulting fused image"
+      }
+    }
+  },
+  "DD-SimpleLatent": {
+    "display_name": "DD Simple Latent",
+    "description": "Simplified latent space generator that creates empty latent of specified dimensions",
+    "inputs": {
+      "宽度": {
+        "name": "Width",
+        "tooltip": "Width of the generated latent space (pixels)"
+      },
+      "高度": {
+        "name": "Height",
+        "tooltip": "Height of the generated latent space (pixels)"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "LATENT",
+        "tooltip": "Generated latent representation"
+      },
+      "1": {
+        "name": "Width",
+        "tooltip": "Actual width used (aligned to multiples of 8)"
+      },
+      "2": {
+        "name": "Height",
+        "tooltip": "Actual height used (aligned to multiples of 8)"
+      }
+    }
+  },
+  "DD-ModelOptimizer": {
+    "display_name": "DD Model Optimizer",
+    "description": "Optimize model loading and performance",
+    "inputs": {
+      "模型文件": {
+        "name": "Model File",
+        "tooltip": "Model file to load"
+      },
+      "智能模式": {
+        "name": "Smart Mode",
+        "tooltip": "Whether to use smart optimization mode"
+      },
+      "加载模式": {
+        "name": "Loading Mode",
+        "tooltip": "Select model loading method"
+      },
+      "优化模式": {
+        "name": "Optimization Mode",
+        "tooltip": "Select model optimization method"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "MODEL",
+        "tooltip": "Optimized model"
+      }
+    }
+  },
+  "DD-ImageUniformSize": {
+    "display_name": "DD Image Uniform Size",
+    "description": "Uniformly resize images",
+    "inputs": {
+      "图像": {
+        "name": "Image",
+        "tooltip": "Image to resize"
+      },
+      "宽度": {
+        "name": "Width",
+        "tooltip": "Target width"
+      },
+      "高度": {
+        "name": "Height",
+        "tooltip": "Target height"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "IMAGE",
+        "tooltip": "Resized image"
+      }
+    }
+  },
+  "DD-MaskUniformSize": {
+    "display_name": "DD Mask Uniform Size",
+    "description": "Uniformly resize masks",
+    "inputs": {
+      "遮罩": {
+        "name": "Mask",
+        "tooltip": "Mask to resize"
+      },
+      "宽度": {
+        "name": "Width",
+        "tooltip": "Target width"
+      },
+      "高度": {
+        "name": "Height",
+        "tooltip": "Target height"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "MASK",
+        "tooltip": "Resized mask"
+      }
+    }
+  },
+  "DD-ImageSizeLimiter": {
+    "display_name": "DD Image Size Limiter",
+    "description": "Limit image dimensions within a specific range",
+    "inputs": {
+      "图像": {
+        "name": "Image",
+        "tooltip": "Input image"
+      },
+      "最大尺寸": {
+        "name": "Max Size",
+        "tooltip": "Maximum dimension of the image"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "IMAGE",
+        "tooltip": "Resized image"
+      }
+    }
+  },
+  "DD-ModelSwitcher": {
+    "display_name": "DD Model Switcher",
+    "description": "Switch between multiple models",
+    "inputs": {
+      "模型1": {
+        "name": "Model 1",
+        "tooltip": "First model"
+      },
+      "模型2": {
+        "name": "Model 2",
+        "tooltip": "Second model"
+      },
+      "选择输出": {
+        "name": "Select Output",
+        "tooltip": "Choose which model to output (1-4)"
+      },
+      "模型3": {
+        "name": "Model 3",
+        "tooltip": "Third model (optional)"
+      },
+      "模型4": {
+        "name": "Model 4",
+        "tooltip": "Fourth model (optional)"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "MODEL",
+        "tooltip": "Selected model"
+      }
+    }
+  },
+  "DD-ConditionSwitcher": {
+    "display_name": "DD Condition Switcher",
+    "description": "Switch between multiple conditions",
+    "inputs": {
+      "条件1": {
+        "name": "Condition 1",
+        "tooltip": "First condition"
+      },
+      "条件2": {
+        "name": "Condition 2",
+        "tooltip": "Second condition"
+      },
+      "选择输出": {
+        "name": "Select Output",
+        "tooltip": "Choose which condition to output (1-4)"
+      },
+      "条件3": {
+        "name": "Condition 3",
+        "tooltip": "Third condition (optional)"
+      },
+      "条件4": {
+        "name": "Condition 4",
+        "tooltip": "Fourth condition (optional)"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "CONDITIONING",
+        "tooltip": "Selected condition"
+      }
+    }
+  },
+  "DD-LatentSwitcher": {
+    "display_name": "DD Latent Switcher",
+    "description": "Switch between multiple latent spaces",
+    "inputs": {
+      "潜空间1": {
+        "name": "Latent 1",
+        "tooltip": "First latent space"
+      },
+      "潜空间2": {
+        "name": "Latent 2",
+        "tooltip": "Second latent space"
+      },
+      "选择输出": {
+        "name": "Select Output",
+        "tooltip": "Choose which latent space to output (1-4)"
+      },
+      "潜空间3": {
+        "name": "Latent 3",
+        "tooltip": "Third latent space (optional)"
+      },
+      "潜空间4": {
+        "name": "Latent 4",
+        "tooltip": "Fourth latent space (optional)"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "LATENT",
+        "tooltip": "Selected latent space"
+      }
+    }
+  },
+  "DD-ImageStroke": {
+    "display_name": "DD Image Stroke",
+    "description": "Add stroke effects to images, supports transparent and regular images",
+    "inputs": {
+      "图片": {
+        "name": "Image",
+        "tooltip": "Input image to add stroke effect"
+      },
+      "关闭遮罩": {
+        "name": "Disable Mask",
+        "tooltip": "Disable mask input when enabled"
+      },
+      "位置": {
+        "name": "Position",
+        "tooltip": "Stroke position: Outer stroke, Inner stroke, or Center stroke"
+      },
+      "大小": {
+        "name": "Size",
+        "tooltip": "Stroke size in pixels (1-200)"
+      },
+      "不透明度": {
+        "name": "Opacity",
+        "tooltip": "Stroke opacity (1-100)"
+      },
+      "描边颜色": {
+        "name": "Stroke Color",
+        "tooltip": "Stroke color, click to open color picker"
+      },
+      "遮罩": {
+        "name": "Mask",
+        "tooltip": "Optional mask to define transparent areas of the image"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Stroked Image",
+        "tooltip": "Image with stroke effect applied"
+      }
+    }
+  },
+  "DD-ImageSplitter": {
+    "display_name": "DD Image Splitter",
+    "description": "Split image by ratio and output specified part",
+    "inputs": {
+      "图像": {
+        "name": "Image",
+        "tooltip": "Input image to be split"
+      },
+      "切分方向": {
+        "name": "Split Direction",
+        "tooltip": "Choose split direction: horizontal (left-right) or vertical (top-bottom)"
+      },
+      "切分份数": {
+        "name": "Split Count",
+        "tooltip": "Number of parts to split the image into (2-10)"
+      },
+      "输出位置": {
+        "name": "Output Position",
+        "tooltip": "Select which part to output (starting from 1)"
+      },
+      "切分比例": {
+        "name": "Split Ratio",
+        "tooltip": "Split ratio, e.g., '1:1' for equal split, '2:1' for 2:1 ratio split"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Image",
+        "tooltip": "Split image at specified position"
+      }
+    }
+  },
+  "DD-VideoFrameExtractor": {
+    "display_name": "DD Video Frame Extractor",
+    "description": "Extract first or last frame from video",
+    "inputs": {
+      "视频": {
+        "name": "Video",
+        "tooltip": "Input video frame sequence"
+      },
+      "提取模式": {
+        "name": "Extract Mode",
+        "tooltip": "Choose to extract first frame or last frame"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Image",
+        "tooltip": "Extracted single frame image"
+      }
+    }
+  },
+  "DD-TxtFileMerger": {
+    "display_name": "DD TXT File Merger",
+    "description": "Merge all TXT files from a folder and its subfolders into a single text content",
+    "inputs": {
+      "input_folder": {
+        "name": "Input Folder",
+        "tooltip": "Folder path containing TXT files, will recursively scan all subfolders"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Merged Text",
+        "tooltip": "Complete merged text content with file path identifiers"
+      }
+    }
+  }
+}

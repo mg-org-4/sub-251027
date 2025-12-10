@@ -1,0 +1,595 @@
+{
+  "id": "0c605522-962a-4c82-9089-e97d4235261f",
+  "revision": 0,
+  "last_node_id": 18,
+  "last_link_id": 18,
+  "nodes": [
+    {
+      "id": 14,
+      "type": "SaveAsSafeTensor",
+      "pos": [
+        510.0681457519531,
+        550.5472412109375
+      ],
+      "size": [
+        363.431396484375,
+        83.39691162109375
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "quantized_model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "link": 14
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveAsSafeTensor",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "C:\\Users\\RAIIN Studios\\Documents\\protable\\ComfyUI\\models\\fluxfill-fp8e4m3fn.safetensors"
+      ]
+    },
+    {
+      "id": 16,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -421.72259521484375,
+        332.6713562011719
+      ],
+      "size": [
+        290.4454650878906,
+        98
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            17
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.32",
+        "Node name for S&R": "CheckpointLoaderSimple",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "SD1.5\\epicphotogasm_ultimateFidelity.safetensors"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "UnetLoaderGGUF",
+      "pos": [
+        -415.4770202636719,
+        572.0929565429688
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-gguf",
+        "ver": "47bec6147569a138dd30ad3e14f190a36a3be456",
+        "Node name for S&R": "UnetLoaderGGUF",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "flux1-dev-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "UNETLoader",
+      "pos": [
+        -422.3947448730469,
+        134.14698791503906
+      ],
+      "size": [
+        287.13525390625,
+        83.07095336914062
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.32",
+        "Node name for S&R": "UNETLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "flux\\flux1-fill-dev.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "QuantizeModel",
+      "pos": [
+        139.14344787597656,
+        542.1537475585938
+      ],
+      "size": [
+        345.158203125,
+        106
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "quantized_model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QuantizeModel",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "per_tensor",
+        "Auto",
+        "float16"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "Note",
+      "pos": [
+        934.3568115234375,
+        514.1301879882812
+      ],
+      "size": [
+        371.62591552734375,
+        149.91725158691406
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Available Scaling Strategies:\n\n- per_tensor  : Uses a single scale factor for the entire tensor (fast, less precise).\n\n- per_channel : Computes a separate scale for each output channel (more accurate)."
+      ],
+      "color": "#ffbbff",
+      "bgcolor": "#f1a7fb"
+    },
+    {
+      "id": 11,
+      "type": "QuantizeFP8Format",
+      "pos": [
+        459.6412048339844,
+        222.2886199951172
+      ],
+      "size": [
+        367.9277648925781,
+        59.94718933105469
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "quantized_model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QuantizeFP8Format",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "float8_e4m3fn"
+      ]
+    },
+    {
+      "id": 15,
+      "type": "Any Switch (rgthree)",
+      "pos": [
+        -70.95974731445312,
+        314.68389892578125
+      ],
+      "size": [
+        166.72030639648438,
+        108.85087585449219
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "any_01",
+          "type": "MODEL",
+          "link": 16
+        },
+        {
+          "name": "any_02",
+          "type": "MODEL",
+          "link": 17
+        },
+        {
+          "name": "any_03",
+          "type": "MODEL",
+          "link": 18
+        },
+        {
+          "name": "any_04",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "any_05",
+          "type": "MODEL",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "dir": 4,
+          "label": "MODEL",
+          "name": "*",
+          "shape": 3,
+          "type": "MODEL",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "rgthree-comfy",
+        "ver": "32142fe476878a354dda6e2d4b5ea98960de3ced"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 2,
+      "type": "ModelToStateDict",
+      "pos": [
+        145.28746032714844,
+        277.02728271484375
+      ],
+      "size": [
+        291.43902587890625,
+        79.07095336914062
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "slot_index": 0,
+          "links": [
+            11,
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelToStateDict",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 4,
+      "type": "SaveAsSafeTensor",
+      "pos": [
+        456.5610656738281,
+        336.84515380859375
+      ],
+      "size": [
+        379.96441650390625,
+        69.17916870117188
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "quantized_model_state_dict",
+          "type": "MODEL_STATE_DICT",
+          "link": 12
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveAsSafeTensor",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "C:\\Users\\RAIIN Studios\\Documents\\protable\\ComfyUI\\models\\fluxfill-fp8e4m3fn.safetensors"
+      ]
+    },
+    {
+      "id": 18,
+      "type": "Note",
+      "pos": [
+        883.9888916015625,
+        249.35699462890625
+      ],
+      "size": [
+        415.2137145996094,
+        122.82212829589844
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "If zou want to safe tensor file zou will always have to name the model correctly in zour path like in this example:\nC:\\Users\\RAIIN Studios\\Documents\\protable\\ComfyUI\\models\\fluxfill-fp8e4m3fn.safetensors"
+      ],
+      "color": "#ffbbff",
+      "bgcolor": "#f1a7fb"
+    }
+  ],
+  "links": [
+    [
+      11,
+      2,
+      0,
+      11,
+      0,
+      "MODEL_STATE_DICT"
+    ],
+    [
+      12,
+      11,
+      0,
+      4,
+      0,
+      "MODEL_STATE_DICT"
+    ],
+    [
+      13,
+      2,
+      0,
+      13,
+      0,
+      "MODEL_STATE_DICT"
+    ],
+    [
+      14,
+      13,
+      0,
+      14,
+      0,
+      "MODEL_STATE_DICT"
+    ],
+    [
+      15,
+      15,
+      0,
+      2,
+      0,
+      "MODEL"
+    ],
+    [
+      16,
+      5,
+      0,
+      15,
+      0,
+      "MODEL"
+    ],
+    [
+      17,
+      16,
+      0,
+      15,
+      1,
+      "MODEL"
+    ],
+    [
+      18,
+      17,
+      0,
+      15,
+      2,
+      "MODEL"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "fp8",
+      "bounding": [
+        126.80980682373047,
+        139.11367797851562,
+        728.5076293945312,
+        311.2386169433594
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "fp/bf16",
+      "bounding": [
+        129.14346313476562,
+        468.5540771484375,
+        775.532958984375,
+        198.77328491210938
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Diffmodel",
+      "bounding": [
+        -431.82818603515625,
+        61.81802749633789,
+        304.28436279296875,
+        173.7981414794922
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "ckpt",
+      "bounding": [
+        -430.8782958984375,
+        260.8616638183594,
+        310.4454650878906,
+        181.60000610351562
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "Unet",
+      "bounding": [
+        -429.7647399902344,
+        502.79107666015625,
+        310.23577880859375,
+        143.02545166015625
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.18.9",
+    "ue_links": [],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

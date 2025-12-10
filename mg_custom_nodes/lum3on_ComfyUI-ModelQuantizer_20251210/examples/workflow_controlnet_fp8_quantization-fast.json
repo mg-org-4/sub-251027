@@ -1,0 +1,163 @@
+{
+  "id": "a6338bdf-6b8a-421c-acc9-cd6aaa53fdc9",
+  "revision": 0,
+  "last_node_id": 20,
+  "last_link_id": 23,
+  "nodes": [
+    {
+      "id": 5,
+      "type": "ControlNetFP8QuantizeNode",
+      "pos": [
+        466.84832763671875,
+        164.81739807128906
+      ],
+      "size": [
+        718.7396240234375,
+        304.13946533203125
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "custom_output_name",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "custom_output_name"
+          },
+          "link": 23
+        }
+      ],
+      "outputs": [
+        {
+          "name": "status",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        },
+        {
+          "name": "metadata_info",
+          "type": "STRING",
+          "slot_index": 1,
+          "links": []
+        },
+        {
+          "name": "quantization_stats",
+          "type": "STRING",
+          "slot_index": 2,
+          "links": []
+        }
+      ],
+      "properties": {
+        "aux_id": "lum3on/ComfyUI-ModelQuantizer",
+        "ver": "07592b8f05b40a2a185be9c7c7539a427b466c5d",
+        "Node name for S&R": "ControlNetFP8QuantizeNode",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "flux\\Flux.1-dev-Controlnet-Upscaler.safetensors",
+        "float8_e4m3fn",
+        "per_tensor",
+        true,
+        "fluxcn-up.fp8",
+        100,
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 20,
+      "type": "String Literal",
+      "pos": [
+        479.8630065917969,
+        522.4603881835938
+      ],
+      "size": [
+        705.0504760742188,
+        210.10101318359375
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            23
+          ]
+        }
+      ],
+      "title": "outputname",
+      "properties": {
+        "cnr_id": "comfy-image-saver",
+        "ver": "65e6903eff274a50f8b5cd768f0f96baf37baea1",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "String Literal",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      23,
+      20,
+      0,
+      5,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 2,
+      "title": "FP8 E4M3FN  Quantization",
+      "bounding": [
+        420.9110412597656,
+        68.4666519165039,
+        791.4306030273438,
+        695.5747680664062
+      ],
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.3719008264462851,
+      "offset": [
+        1014.0693446689652,
+        50.9154350884251
+      ]
+    },
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "frontendVersion": "1.20.6",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

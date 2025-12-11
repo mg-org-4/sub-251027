@@ -1,8 +1,8 @@
 {
   "id": "6e50dd9c-3346-49b3-b8fe-69c77b45da78",
   "revision": 0,
-  "last_node_id": 43,
-  "last_link_id": 88,
+  "last_node_id": 44,
+  "last_link_id": 93,
   "nodes": [
     {
       "id": 28,
@@ -78,37 +78,6 @@
       ]
     },
     {
-      "id": 24,
-      "type": "VAELoader",
-      "pos": [
-        1923.68359375,
-        -12.729696273803711
-      ],
-      "size": [
-        270,
-        58
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "links": [
-            60
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAELoader"
-      },
-      "widgets_values": [
-        "ae.safetensors"
-      ]
-    },
-    {
       "id": 7,
       "type": "CLIPTextEncode",
       "pos": [
@@ -144,64 +113,55 @@
       ]
     },
     {
-      "id": 1,
-      "type": "LucidFlux_SM_Model",
+      "id": 5,
+      "type": "LoadImage",
       "pos": [
-        1245.7091064453125,
-        -3.9737699031829834
+        306.2716979980469,
+        409.0683898925781
       ],
       "size": [
-        270,
-        102
+        406.7806701660156,
+        482.0671081542969
       ],
       "flags": {},
-      "order": 3,
+      "order": 2,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "cf_model",
-          "shape": 7,
-          "type": "MODEL",
-          "link": null
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
-          "name": "LucidFlux_SM",
-          "type": "LucidFlux_SM",
+          "name": "IMAGE",
+          "type": "IMAGE",
           "links": [
-            69
+            76
           ]
         },
         {
-          "name": "LucidFlux_SD",
-          "type": "LucidFlux_SD",
-          "links": [
-            81
-          ]
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
         }
       ],
       "properties": {
-        "Node name for S&R": "LucidFlux_SM_Model"
+        "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "lucidflux.pth",
-        "flux1-kj-dev-fp8.safetensors"
+        "pasted/image (1).png",
+        "image"
       ]
     },
     {
       "id": 9,
       "type": "CLIPVisionLoader",
       "pos": [
-        1244.3853759765625,
-        144.80416870117188
+        1255.5103798497955,
+        189.57568086393232
       ],
       "size": [
         270,
         58
       ],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -209,7 +169,7 @@
           "name": "CLIP_VISION",
           "type": "CLIP_VISION",
           "links": [
-            82
+            91
           ]
         }
       ],
@@ -221,11 +181,11 @@
       ]
     },
     {
-      "id": 40,
+      "id": 44,
       "type": "LucidFlux_SM_Encode",
       "pos": [
-        1601.5631103515625,
-        154.61138916015625
+        1582.3671862815377,
+        135.7691301464428
       ],
       "size": [
         270,
@@ -236,19 +196,19 @@
       "mode": 0,
       "inputs": [
         {
-          "name": "state_dict",
+          "name": "state",
           "type": "LucidFlux_SD",
-          "link": 81
+          "link": 90
         },
         {
           "name": "CLIP_VISION",
           "type": "CLIP_VISION",
-          "link": 82
+          "link": 91
         },
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 86
+          "link": 92
         },
         {
           "name": "positive",
@@ -262,7 +222,7 @@
           "name": "condition",
           "type": "CONDITIONING",
           "links": [
-            84
+            93
           ]
         }
       ],
@@ -274,102 +234,48 @@
       ]
     },
     {
-      "id": 34,
-      "type": "LucidFlux_SM_Cond",
+      "id": 43,
+      "type": "LoadImage",
       "pos": [
-        1614.508056640625,
-        -29.912227630615234
+        1299.713610202764,
+        454.24399790884786
       ],
       "size": [
-        270,
-        130
+        406.7806701660156,
+        482.0671081542969
       ],
       "flags": {},
-      "order": 9,
+      "order": 4,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "LucidFlux_SM",
-          "link": 69
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
-          "name": "LucidFlux_SM",
-          "type": "LucidFlux_SM",
-          "links": [
-            70
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LucidFlux_SM_Cond"
-      },
-      "widgets_values": [
-        "flux-turbo.safetensors",
-        "none",
-        1,
-        1
-      ]
-    },
-    {
-      "id": 31,
-      "type": "LucidFlux_SM_KSampler",
-      "pos": [
-        1880.2340087890625,
-        149.29428100585938
-      ],
-      "size": [
-        270,
-        194
-      ],
-      "flags": {},
-      "order": 15,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "LucidFlux_SM",
-          "link": 70
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 60
-        },
-        {
-          "name": "condition",
-          "type": "CONDITIONING",
-          "link": 84
-        }
-      ],
-      "outputs": [
-        {
-          "name": "Image",
+          "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            58
+            88
           ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
         }
       ],
       "properties": {
-        "Node name for S&R": "LucidFlux_SM_KSampler"
+        "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        8,
-        774859650,
-        "randomize",
-        4,
-        true
+        "pasted/image (2).png",
+        "image"
       ]
     },
     {
       "id": 37,
       "type": "LucidFlux_SM_Diffbir",
       "pos": [
-        1269.947998046875,
-        256.2774353027344
+        1252.0393931817712,
+        309.8838689453488
       ],
       "size": [
         270,
@@ -408,6 +314,221 @@
       ]
     },
     {
+      "id": 24,
+      "type": "VAELoader",
+      "pos": [
+        1892.3503977601113,
+        -44.325454610952
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            60
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "ae.safetensors"
+      ]
+    },
+    {
+      "id": 41,
+      "type": "ImageBlur",
+      "pos": [
+        1587.6636696422638,
+        307.652512048482
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 88
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            87,
+            92
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageBlur"
+      },
+      "widgets_values": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": 34,
+      "type": "LucidFlux_SM_Cond",
+      "pos": [
+        1585.8648178794713,
+        -43.154635167928355
+      ],
+      "size": [
+        270,
+        130
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "LucidFlux_SM",
+          "link": 69
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LucidFlux_SM",
+          "type": "LucidFlux_SM",
+          "links": [
+            70
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LucidFlux_SM_Cond"
+      },
+      "widgets_values": [
+        "flux-turbo.safetensors",
+        "none",
+        1,
+        1
+      ]
+    },
+    {
+      "id": 31,
+      "type": "LucidFlux_SM_KSampler",
+      "pos": [
+        1892.9689790434816,
+        122.33188115532623
+      ],
+      "size": [
+        264.03050148011516,
+        214.264036462224
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "LucidFlux_SM",
+          "link": 70
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 60
+        },
+        {
+          "name": "condition",
+          "type": "CONDITIONING",
+          "link": 93
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Image",
+          "type": "IMAGE",
+          "links": [
+            58
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LucidFlux_SM_KSampler"
+      },
+      "widgets_values": [
+        8,
+        1267809222,
+        "fixed",
+        4,
+        true
+      ]
+    },
+    {
+      "id": 25,
+      "type": "SaveImage",
+      "pos": [
+        2244.7917362971957,
+        -71.49938210778471
+      ],
+      "size": [
+        628.4735705793846,
+        497.93119292626915
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 58
+        }
+      ],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 42,
+      "type": "PreviewImage",
+      "pos": [
+        1717.5609209670522,
+        471.19810934308623
+      ],
+      "size": [
+        520.6141967773438,
+        478.749267578125
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 87
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
       "id": 36,
       "type": "LucidFlux_SM_Diff_Model",
       "pos": [
@@ -419,7 +540,7 @@
         82
       ],
       "flags": {},
-      "order": 5,
+      "order": 6,
       "mode": 4,
       "inputs": [],
       "outputs": [
@@ -440,94 +561,18 @@
       ]
     },
     {
-      "id": 41,
-      "type": "ImageBlur",
-      "pos": [
-        1593.6881103515625,
-        316.78216552734375
-      ],
-      "size": [
-        270,
-        82
-      ],
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 88
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            86,
-            87
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageBlur"
-      },
-      "widgets_values": [
-        1,
-        1
-      ]
-    },
-    {
-      "id": 5,
-      "type": "LoadImage",
-      "pos": [
-        306.2716979980469,
-        409.0683898925781
-      ],
-      "size": [
-        406.7806701660156,
-        482.0671081542969
-      ],
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            76
-          ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": null
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "pasted/image (1).png",
-        "image"
-      ]
-    },
-    {
       "id": 38,
       "type": "PreviewImage",
       "pos": [
-        732.3981323242188,
-        436.0823669433594
+        720.0827438542141,
+        448.66270642900895
       ],
       "size": [
         499.508056640625,
         432.97503662109375
       ],
       "flags": {},
-      "order": 12,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
@@ -543,95 +588,55 @@
       "widgets_values": []
     },
     {
-      "id": 25,
-      "type": "SaveImage",
+      "id": 1,
+      "type": "LucidFlux_SM_Model",
       "pos": [
-        2344.44482421875,
-        81.33345031738281
+        1259.7284617132782,
+        -73.76634934610702
       ],
       "size": [
-        937.0341796875,
-        793.4863891601562
-      ],
-      "flags": {},
-      "order": 16,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 58
-        }
-      ],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "ComfyUI"
-      ]
-    },
-    {
-      "id": 43,
-      "type": "LoadImage",
-      "pos": [
-        1338.237060546875,
-        449.4285583496094
-      ],
-      "size": [
-        406.7806701660156,
-        482.0671081542969
+        270,
+        222
       ],
       "flags": {},
       "order": 7,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "cf_model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        }
+      ],
       "outputs": [
         {
-          "name": "IMAGE",
-          "type": "IMAGE",
+          "name": "model",
+          "type": "LucidFlux_SM",
           "links": [
-            88
+            69
           ]
         },
         {
-          "name": "MASK",
-          "type": "MASK",
-          "links": null
+          "name": "state",
+          "type": "LucidFlux_SD",
+          "links": [
+            90
+          ]
         }
       ],
       "properties": {
-        "Node name for S&R": "LoadImage"
+        "Node name for S&R": "LucidFlux_SM_Model"
       },
       "widgets_values": [
-        "pasted/image (2).png",
-        "image"
+        "lucidflux.pth",
+        "flux1-kj-dev-fp8.safetensors",
+        false,
+        false,
+        true,
+        false,
+        2
       ]
-    },
-    {
-      "id": 42,
-      "type": "PreviewImage",
-      "pos": [
-        1762.1036376953125,
-        461.5672302246094
-      ],
-      "size": [
-        520.6141967773438,
-        478.749267578125
-      ],
-      "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 87
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "Node name for S&R": "PreviewImage"
-      },
-      "widgets_values": []
     }
   ],
   "links": [
@@ -700,38 +705,6 @@
       "IMAGE"
     ],
     [
-      81,
-      1,
-      1,
-      40,
-      0,
-      "LucidFlux_SD"
-    ],
-    [
-      82,
-      9,
-      0,
-      40,
-      1,
-      "CLIP_VISION"
-    ],
-    [
-      84,
-      40,
-      0,
-      31,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      86,
-      41,
-      0,
-      40,
-      2,
-      "IMAGE"
-    ],
-    [
       87,
       41,
       0,
@@ -746,6 +719,38 @@
       41,
       0,
       "IMAGE"
+    ],
+    [
+      90,
+      1,
+      1,
+      44,
+      0,
+      "LucidFlux_SD"
+    ],
+    [
+      91,
+      9,
+      0,
+      44,
+      1,
+      "CLIP_VISION"
+    ],
+    [
+      92,
+      41,
+      0,
+      44,
+      2,
+      "IMAGE"
+    ],
+    [
+      93,
+      44,
+      0,
+      31,
+      2,
+      "CONDITIONING"
     ]
   ],
   "groups": [
@@ -766,17 +771,18 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.5730855330116973,
+      "scale": 0.8390545288824328,
       "offset": [
-        -151.39797770595132,
-        244.07732990412632
+        -499.8980837964146,
+        288.13297006172644
       ]
     },
-    "frontendVersion": "1.26.13",
+    "frontendVersion": "1.32.9",
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,
     "VHS_MetadataImage": true,
-    "VHS_KeepIntermediate": true
+    "VHS_KeepIntermediate": true,
+    "workflowRendererVersion": "LG"
   },
   "version": 0.4
 }

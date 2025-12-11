@@ -19,6 +19,7 @@ import torch
 from PIL import Image
 from torchvision.transforms import functional as TVF
 from torchvision.transforms.functional import InterpolationMode
+from ....optimization.memory_manager import is_mps_available
 
 
 class AreaResize:
@@ -31,7 +32,7 @@ class AreaResize:
         self.max_area = max_area
         self.downsample_only = downsample_only
         self.interpolation = interpolation
-        if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        if is_mps_available():
             self.interpolation = InterpolationMode.BILINEAR
 
     def __call__(self, image: Union[torch.Tensor, Image.Image]):

@@ -5,9 +5,10 @@ Contains FP8/FP16 compatibility layers and wrappers for different model architec
 Extracted from: seedvr2.py (lines 1045-1630)
 """
 
-# Triton compatibility shim for bitsandbytes 0.45+ with triton 3.0+
-# Must be called before any diffusers import
+# Compatibility shims - Must run before any torch/diffusers import
 import sys
+import types
+
 
 def ensure_triton_compat():
     """Create minimal triton.ops stubs only if missing, to allow bitsandbytes import."""
@@ -20,8 +21,6 @@ def ensure_triton_compat():
     except (ImportError, ModuleNotFoundError, AttributeError):
         pass
     
-    import types
-    
     if 'triton.ops' not in sys.modules:
         sys.modules['triton.ops'] = types.ModuleType('triton.ops')
     
@@ -32,12 +31,62 @@ def ensure_triton_compat():
     sys.modules['triton.ops'].matmul_perf_model = matmul_perf
     sys.modules['triton.ops.matmul_perf_model'] = matmul_perf
 
-# Run immediately on import
+
+def ensure_flash_attn_safe():
+    """
+    Pre-test flash_attn package; stub if DLL is broken.
+    Prevents diffusers from crashing when flash_attn has broken DLLs.
+    """
+    if 'flash_attn' in sys.modules:
+        return  # Already loaded
+    
+    try:
+        import flash_attn
+    except (ImportError, OSError):
+        # DLL broken or not installed - create stub with proper __spec__
+        import importlib.machinery
+        
+        stub = types.ModuleType('flash_attn')
+        stub.__spec__ = importlib.machinery.ModuleSpec('flash_attn', None)
+        stub.__file__ = None
+        stub.__path__ = []
+        stub.__loader__ = None
+        # Provide attributes that diffusers/transformers import
+        stub.flash_attn_func = None
+        stub.flash_attn_varlen_func = None
+        sys.modules['flash_attn'] = stub
+
+
+def ensure_xformers_flash_compat():
+    """
+    Pre-test xformers._C_flashattention; stub if DLL is broken.
+    Prevents xformers.ops.fmha.flash from crashing on import.
+    """
+    if 'xformers._C_flashattention' in sys.modules:
+        return  # Already loaded
+    
+    try:
+        from xformers import _C_flashattention  # noqa: F401
+    except (ImportError, OSError):
+        # DLL broken or not installed - create stub that fails gracefully
+        class _FailingStub(types.ModuleType):
+            """Stub that lets xformers gracefully disable its flash backend."""
+            def __getattr__(self, name):
+                # Dunder attributes: raise AttributeError (normal Python behavior)
+                if name.startswith('__') and name.endswith('__'):
+                    raise AttributeError(name)
+                # xformers functional attributes: raise ImportError so xformers catches it
+                raise ImportError("_C_flashattention unavailable")
+        sys.modules['xformers._C_flashattention'] = _FailingStub('xformers._C_flashattention')
+
+
+# Run all shims immediately on import, before torch/diffusers
 ensure_triton_compat()
+ensure_flash_attn_safe()
+ensure_xformers_flash_compat()
 
 
 import torch
-import types
 import os
 
 
@@ -45,8 +94,10 @@ import os
 # 1. Flash Attention - speedup for attention operations
 try:
     from flash_attn import flash_attn_varlen_func
+    # Force load the CUDA extension to verify it's not corrupted
+    import flash_attn_2_cuda  # noqa: F401
     FLASH_ATTN_AVAILABLE = True
-except ImportError:
+except (ImportError, AttributeError, OSError):
     flash_attn_varlen_func = None
     FLASH_ATTN_AVAILABLE = False
 
@@ -282,11 +333,6 @@ class FP8CompatibleDiT(torch.nn.Module):
         self.debug.start_timer("_stabilize_rope_computations")
         self._stabilize_rope_computations()
         self.debug.end_timer("_stabilize_rope_computations", "RoPE stabilization")
-
-        # 🚀 FLASH ATTENTION OPTIMIZATION (Phase 2)
-        self.debug.start_timer("_apply_flash_attention_optimization")
-        self._apply_flash_attention_optimization()
-        self.debug.end_timer("_apply_flash_attention_optimization", "Flash Attention application")
     
     def _detect_model_dtype(self) -> torch.dtype:
         """Detect main model dtype"""
@@ -409,210 +455,6 @@ class FP8CompatibleDiT(torch.nn.Module):
         
         if rope_count > 0:
             self.debug.log(f"Stabilized {rope_count} RoPE modules", category="success")
-
-    def _apply_flash_attention_optimization(self) -> None:
-        """🚀 FLASH ATTENTION OPTIMIZATION - 30-50% speedup of attention layers"""
-        attention_layers_optimized = 0
-        flash_attention_available = self._check_flash_attention_support()
-        
-        for name, module in self.dit_model.named_modules():
-            # Identify all attention layers
-            if self._is_attention_layer(name, module):
-                # Apply optimization based on availability
-                if self._optimize_attention_layer(name, module, flash_attention_available):
-                    attention_layers_optimized += 1
-        
-        if not flash_attention_available:
-            self.debug.log("Flash Attention not available, using PyTorch SDPA as fallback", category="info", force=True)
-    
-    def _check_flash_attention_support(self) -> bool:
-        """Check if Flash Attention is available"""
-        # Check PyTorch SDPA (includes Flash Attention on H100/A100)
-        if hasattr(torch.nn.functional, 'scaled_dot_product_attention'):
-            return True
-        
-        # Check flash-attn package (uses module-level check from top of file)
-        return FLASH_ATTN_AVAILABLE
-    
-    def _is_attention_layer(self, name: str, module: torch.nn.Module) -> bool:
-        """Identify if a module is an attention layer"""
-        attention_keywords = [
-            'attention', 'attn', 'self_attn', 'cross_attn', 'mhattn', 'multihead',
-            'transformer_block', 'dit_block'
-        ]
-        
-        # Check by name
-        if any(keyword in name.lower() for keyword in attention_keywords):
-            return True
-        
-        # Check by module type
-        module_type = type(module).__name__.lower()
-        if any(keyword in module_type for keyword in attention_keywords):
-            return True
-        
-        # Check by attributes (modules with q, k, v projections)
-        if hasattr(module, 'q_proj') or hasattr(module, 'qkv') or hasattr(module, 'to_q'):
-            return True
-        
-        return False
-    
-    def _optimize_attention_layer(self, name: str, module: torch.nn.Module, flash_attention_available: bool) -> bool:
-        """Optimize a specific attention layer"""
-        try:
-            # Save original forward method
-            if not hasattr(module, '_original_forward'):
-                module._original_forward = module.forward
-            
-            # Create new optimized forward method
-            if flash_attention_available:
-                optimized_forward = self._create_flash_attention_forward(module, name)
-            else:
-                optimized_forward = self._create_sdpa_forward(module, name)
-            
-            # Replace forward method
-            module.forward = optimized_forward
-            return True
-            
-        except Exception as e:
-            self.debug.log(f"Failed to optimize attention layer '{name}': {e}", level="WARNING", category="dit", force=True)
-            return False
-    
-    def _create_flash_attention_forward(self, module: torch.nn.Module, layer_name: str):
-        """Create optimized forward with Flash Attention"""
-        original_forward = module._original_forward
-        
-        def flash_attention_forward(*args, **kwargs):
-            try:
-                # Try to use Flash Attention via SDPA
-                return self._sdpa_attention_forward(original_forward, module, *args, **kwargs)
-            except Exception as e:
-                # Fallback to original implementation
-                self.debug.log(f"Flash Attention failed for {layer_name}, using original: {e}", level="WARNING", category="dit", force=True)
-                return original_forward(*args, **kwargs)
-        
-        return flash_attention_forward
-    
-    def _create_sdpa_forward(self, module: torch.nn.Module, layer_name: str):
-        """Create optimized forward with PyTorch SDPA"""
-        original_forward = module._original_forward
-        
-        def sdpa_forward(*args, **kwargs):
-            try:
-                return self._sdpa_attention_forward(original_forward, module, *args, **kwargs)
-            except Exception as e:
-                # Fallback to original implementation
-                return original_forward(*args, **kwargs)
-        
-        return sdpa_forward
-    
-    def _sdpa_attention_forward(self, original_forward, module: torch.nn.Module, *args, **kwargs):
-        """Optimized forward pass using SDPA (Scaled Dot Product Attention)"""
-        # Detect if we can intercept and optimize this layer
-        if len(args) >= 1 and isinstance(args[0], torch.Tensor):
-            input_tensor = args[0]
-            
-            # Check dimensions to ensure it's standard attention
-            if len(input_tensor.shape) >= 3:  # [batch, seq_len, hidden_dim] or similar
-                try:
-                    return self._optimized_attention_computation(module, input_tensor, *args[1:], **kwargs)
-                except:
-                    pass
-        
-        # Fallback to original implementation
-        return original_forward(*args, **kwargs)
-    
-    def _optimized_attention_computation(self, module: torch.nn.Module, input_tensor: torch.Tensor, *args, **kwargs):
-        """Optimized attention computation with SDPA"""
-        # Try to detect standard attention format
-        batch_size, seq_len = input_tensor.shape[:2]
-        
-        # Check if module has standard Q, K, V projections
-        if hasattr(module, 'qkv') or (hasattr(module, 'q_proj') and hasattr(module, 'k_proj') and hasattr(module, 'v_proj')):
-            return self._compute_sdpa_attention(module, input_tensor, *args, **kwargs)
-        
-        # If no standard format detected, use original
-        return module._original_forward(input_tensor, *args, **kwargs)
-    
-    def _compute_sdpa_attention(self, module: torch.nn.Module, x: torch.Tensor, *args, **kwargs):
-        """Optimized SDPA computation for standard attention modules"""
-        try:
-            # Case 1: Module with combined QKV projection
-            if hasattr(module, 'qkv'):
-                qkv = module.qkv(x)
-                # Reshape to separate Q, K, V
-                batch_size, seq_len, _ = qkv.shape
-                qkv = qkv.reshape(batch_size, seq_len, 3, -1)
-                q, k, v = qkv.unbind(dim=2)
-                
-            # Case 2: Separate Q, K, V projections
-            elif hasattr(module, 'q_proj') and hasattr(module, 'k_proj') and hasattr(module, 'v_proj'):
-                q = module.q_proj(x)
-                k = module.k_proj(x)
-                v = module.v_proj(x)
-            else:
-                # Unsupported format, use original
-                return module._original_forward(x, *args, **kwargs)
-            
-            # Detect number of heads
-            head_dim = getattr(module, 'head_dim', None)
-            num_heads = getattr(module, 'num_heads', None)
-            
-            if head_dim is None or num_heads is None:
-                # Try to guess from dimensions
-                hidden_dim = q.shape[-1]
-                if hasattr(module, 'num_heads'):
-                    num_heads = module.num_heads
-                    head_dim = hidden_dim // num_heads
-                else:
-                    # Reasonable defaults
-                    head_dim = 64
-                    num_heads = hidden_dim // head_dim
-            
-            # Reshape for multi-head attention
-            batch_size, seq_len = q.shape[:2]
-            q = q.view(batch_size, seq_len, num_heads, head_dim).transpose(1, 2)
-            k = k.view(batch_size, seq_len, num_heads, head_dim).transpose(1, 2)
-            v = v.view(batch_size, seq_len, num_heads, head_dim).transpose(1, 2)
-            
-            if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-                attn_output = torch.nn.functional.scaled_dot_product_attention(
-                    q, k, v,
-                    dropout_p=0.0,
-                    is_causal=False
-                )
-            else:
-                # Use optimized SDPA - PyTorch 2.3+ API with CUDNN support, fallback for older versions
-                if hasattr(torch.nn.attention, 'sdpa_kernel'):
-                    ctx = torch.nn.attention.sdpa_kernel([
-                        torch.nn.attention.SDPBackend.FLASH_ATTENTION,
-                        torch.nn.attention.SDPBackend.EFFICIENT_ATTENTION,
-                        torch.nn.attention.SDPBackend.CUDNN_ATTENTION,
-                        torch.nn.attention.SDPBackend.MATH])
-                else:
-                    ctx = torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=True, enable_mem_efficient=True)
-                
-                with ctx:
-                    attn_output = torch.nn.functional.scaled_dot_product_attention(
-                        q, k, v,
-                        dropout_p=0.0,
-                        is_causal=False
-                    )
-            
-            # Reshape back
-            attn_output = attn_output.transpose(1, 2).contiguous().view(
-                batch_size, seq_len, num_heads * head_dim
-            )
-            
-            # Output projection if it exists
-            if hasattr(module, 'out_proj') or hasattr(module, 'o_proj'):
-                proj = getattr(module, 'out_proj', None) or getattr(module, 'o_proj', None)
-                attn_output = proj(attn_output)
-            
-            return attn_output
-            
-        except Exception as e:
-            # In case of error, use original implementation
-            return module._original_forward(x, *args, **kwargs)
     
     def forward(self, *args, **kwargs):
         """

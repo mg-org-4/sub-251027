@@ -36,6 +36,15 @@ We're actively working on improvements and new features. To stay informed:
 
 ## 🚀 Updates
 
+**2025.12.10 - Version 2.5.19**
+
+- **🎨 New header logo design** - Refreshed ASCII art banner *(thanks [@naxci1](https://github.com/naxci1))*
+- **🧹 Remove dead flash attention wrapper** - Removed legacy code from FP8CompatibleDiT; FlashAttentionVarlen already handles backend switching via its `attention_mode` attribute
+- **🛡️ Fix graceful fallback from flash-attn** - Add compatibility shims for corrupted flash_attn/xformers DLLs, preventing startup crashes when CUDA extensions are broken
+- **📊 Improved VRAM tracking** - Separate allocated vs reserved memory tracking, Windows-only overflow detection (WDDM paging behavior)
+- **♻️ Centralize backend detection** - Unified `is_mps_available()`, `is_cuda_available()`, `get_gpu_backend()` helpers across codebase
+- **🔄 Revert 2.5.14 VRAM limit enforcement** - Removed `set_per_process_memory_fraction` call; Overflow detection and warnings remain.
+
 **2025.12.09 - Version 2.5.18**
 
 - **🚀 CLI: Streaming mode for long videos** - New `--chunk_size` flag processes videos in memory-bounded chunks, enabling arbitrarily long videos without RAM limits. Works with model caching (`--cache_dit`/`--cache_vae`) for chunk-to-chunk reuse *(inspired by [disk02](https://github.com/disk02) PR contribution)*
@@ -872,6 +881,7 @@ python inference_cli.py media_folder/ \
 - `--tile_debug`: Visualize tiles: 'false' (default), 'encode', or 'decode'
 
 **Performance Optimization:**
+- `--allow_vram_overflow`: Allow VRAM overflow to system RAM. Prevents OOM but may cause severe slowdown
 - `--attention_mode`: Attention backend: 'sdpa' (default, stable) or 'flash_attn' (faster, requires package)
 - `--compile_dit`: Enable torch.compile for DiT model (20-40% speedup, requires PyTorch 2.0+ and Triton)
 - `--compile_vae`: Enable torch.compile for VAE model (15-25% speedup, requires PyTorch 2.0+ and Triton)

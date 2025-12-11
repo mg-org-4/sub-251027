@@ -17,6 +17,7 @@ import torch
 from PIL import Image
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms import functional as TVF
+from ....optimization.memory_manager import is_mps_available
 
 class SideResize:
     def __init__(
@@ -30,7 +31,7 @@ class SideResize:
         self.max_size = max_size
         self.downsample_only = downsample_only
         self.interpolation = interpolation
-        if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        if is_mps_available():
             self.interpolation = InterpolationMode.BILINEAR
 
     def __call__(self, image: Union[torch.Tensor, Image.Image]):

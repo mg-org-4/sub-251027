@@ -1833,11 +1833,11 @@ class Z_ImagePromptEnhancer:
             
         debug_lines.append(f"\n[TOKEN ESTIMATE]")
         debug_lines.append(f"Estimated words: ~{int(estimated_words)}")
-        debug_lines.append(f"Estimated tokens: ~{int(estimated_tokens)} (Z-Image-Turbo limit: 512 default, 1024 max)")
-        if estimated_tokens > 1024:
-            debug_lines.append(f"WARNING: Prompt may exceed Z-Image-Turbo's 1024 token limit!")
-        elif estimated_tokens > 512:
-            debug_lines.append(f"INFO: Exceeds default 512 tokens. Users should set max_sequence_length=1024 in their pipeline.")
+        debug_lines.append(f"Estimated tokens: ~{int(estimated_tokens)} (Z-Image in ComfyUI supports unlimited tokens)")
+        
+        # Only warn if unreasonably long (e.g. > 8000 tokens which might hit other limits)
+        if estimated_tokens > 8000:
+             debug_lines.append(f"WARNING: Extremely long prompt (>8000 tokens). This may impact generation quality.")
         
         logger.info(f"Enhancement successful. Length: {len(enhanced)}")
         

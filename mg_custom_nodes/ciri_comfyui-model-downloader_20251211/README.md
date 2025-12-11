@@ -56,7 +56,7 @@ Troubleshooting: this node is experimental and may not work as expected. If it d
 Clone the repository or download the extension directly into your ComfyUI project's `custom_nodes` folder:
 
 ```
-git clone https://github.com/ciri/model-downloader-comfyui.git
+git clone https://github.com/ciri/comfyui-model-downloader.git
 ```
 
 ## Usage
@@ -86,5 +86,6 @@ Contributions are welcome! Please:
 For support, questions, or contributions, please open an issue on the GitHub repository page. Contributions are welcome!
 
 ## License
+
 
 GNU Affero General Public License v3.0

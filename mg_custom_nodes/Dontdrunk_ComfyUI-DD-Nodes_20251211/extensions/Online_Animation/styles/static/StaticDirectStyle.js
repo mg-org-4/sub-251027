@@ -1,10 +1,10 @@
-import { BaseStyle } from './BaseStyle.js';
+import { StaticBaseStyle } from './StaticBaseStyle.js';
 
 /**
- * 直线渲染样式
- * 简单的从输出点到输入点的直线连接
+ * 静态直线渲染样式
+ * 两点间直接连接，与动画直线保持一致的路径
  */
-export class DirectStyle extends BaseStyle {
+export class StaticDirectStyle extends StaticBaseStyle {
     constructor(animationManager) {
         super(animationManager);
     }
@@ -18,8 +18,8 @@ export class DirectStyle extends BaseStyle {
      * @param {Object} link - 连线数据
      * @returns {Object} 路径信息 { points: Array, type: String }
      */
-    calculatePath(outNode, inNode, outPos, inPos, link) {
-        // 直线：只需要起点和终点
+    calculatePath(_outNode, _inNode, outPos, inPos, _link) {
+        // 直线：直接连接两点
         const pathPoints = [outPos, inPos];
         
         return {

@@ -1,10 +1,10 @@
-import { BaseStyle } from './BaseStyle.js';
+import { StaticBaseStyle } from './StaticBaseStyle.js';
 
 /**
- * 直角线渲染样式
- * 形成精确的90度拐角连接
+ * 静态直角线渲染样式
+ * L型连接，与动画直角线保持一致的路径
  */
-export class AngledStyle extends BaseStyle {
+export class StaticAngledStyle extends StaticBaseStyle {
     constructor(animationManager) {
         super(animationManager);
     }
@@ -18,7 +18,7 @@ export class AngledStyle extends BaseStyle {
      * @param {Object} link - 连线数据
      * @returns {Object} 路径信息 { points: Array, type: String }
      */
-    calculatePath(outNode, inNode, outPos, inPos, link) {
+    calculatePath(_outNode, _inNode, outPos, inPos, _link) {
         // 使用ComfyUI官方的STRAIGHT_LINK算法
         // 控制点延伸长度为10像素
         const l = 10;

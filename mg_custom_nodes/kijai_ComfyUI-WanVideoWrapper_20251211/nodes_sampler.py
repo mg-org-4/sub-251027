@@ -308,7 +308,7 @@ class WanVideoSampler:
                 track_pos = wanmove_embeds["track_pos"]
                 if any(not math.isclose(c, 1.0) for c in cfg):
                     image_cond_neg = torch.cat([image_embeds["mask"], image_cond])
-                image_cond = replace_feature(image_cond.unsqueeze(0), track_pos.unsqueeze(0))[0]
+                image_cond = replace_feature(image_cond.unsqueeze(0).clone(), track_pos.unsqueeze(0), wanmove_embeds.get("strength", 1.0))[0]
 
             if transformer.in_dim == 16:
                 raise ValueError("T2V (text to video) model detected, encoded images only work with I2V (Image to video) models")
@@ -1202,12 +1202,14 @@ class WanVideoSampler:
             one_to_all_data = one_to_all_embeds.copy()
             one_to_all_data = dict_to_device(one_to_all_data, device, dtype)
             if one_to_all_embeds.get("pose_images") is not None:
+                transformer.input_hint_block.to(device)
                 pose_images_in = one_to_all_data.pop("pose_images")
                 pose_images = transformer.input_hint_block(pose_images_in)
                 if one_to_all_embeds.get("ref_latent_pos") is not None:
                     pose_prefix_image = transformer.input_hint_block(one_to_all_data.pop("pose_prefix_image"))
                     pose_images = torch.cat([pose_prefix_image, pose_images],dim=2)
                 one_to_all_data["controlnet_tokens"] = pose_images.flatten(2).transpose(1, 2)
+                transformer.input_hint_block.to(offload_device)
             prev_latents = one_to_all_data.get("prev_latents", None)
             if prev_latents is not None:
                 log.info(f"Using previous latents for One-to-All Animation with shape: {prev_latents.shape}")
@@ -1545,7 +1547,7 @@ class WanVideoSampler:
                         base_params['is_uncond'] = True
                         base_params['clip_fea'] = clip_fea_neg if clip_fea_neg is not None else clip_fea
                         base_params["add_text_emb"] = qwenvl_embeds_neg.to(device) if qwenvl_embeds_neg is not None else None # QwenVL embeddings for Bindweave
-                        base_params['y'] = image_cond_neg if image_cond_neg is not None else base_params['y']
+                        base_params['y'] = [image_cond_neg.to(z)] if image_cond_neg is not None else base_params['y']
                         if wananim_face_pixels is not None:
                             base_params['wananim_face_pixel_values'] = torch.zeros_like(wananim_face_pixels).to(device, torch.float32) - 1
                         if humo_audio_input_neg is not None:

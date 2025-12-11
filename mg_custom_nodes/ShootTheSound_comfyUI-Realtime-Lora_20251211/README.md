@@ -19,6 +19,9 @@ If this node saves you time or helps your workflow, consider [buying me a coffee
 - SDXL (any checkpoint) - tested with Juggernaut XL Ragnarok, base SDXL will work too
 - SD 1.5 (any checkpoint) - blazingly fast, ~2 mins for 500 steps on a 5090
 
+**Via Musubi Tuner (Recommended for Z-Image):**
+- Z-Image - faster training, smaller LoRA files, no diffusers dependency. Requires the de-distilled model for training, but trained LoRAs work with the regular distilled Z-Image Turbo model.
+
 **Via AI-Toolkit:**
 - Z-Image Turbo
 - FLUX.1-dev
@@ -37,9 +40,16 @@ You need to install the training backend(s) separately:
 **For SDXL / SD 1.5 training:**
 1. Install sd-scripts: https://github.com/kohya-ss/sd-scripts
 2. Follow their install instructions
-3. Run `accelerate config` in the venv (just press Enter to accept defaults for each question)
 
-**For FLUX/Z-Image/Wan training:**
+**For Z-Image training (Musubi Tuner - Recommended):**
+1. Install Musubi Tuner: https://github.com/kohya-ss/musubi-tuner
+2. Follow their install instructions
+3. Download the de-distilled Z-Image model for training:
+   - Get it from: https://huggingface.co/ostris/Z-Image-De-Turbo/tree/main
+   - Save to your ComfyUI `models/diffusion_models` folder
+   - Note: This model is only needed for training. Your trained LoRAs will work with the regular distilled Z-Image Turbo model.
+
+**For FLUX/Z-Image/Wan training (AI-Toolkit):**
 1. Install AI-Toolkit: https://github.com/ostris/ai-toolkit
 2. Follow their install instructions
 
@@ -63,6 +73,7 @@ Restart ComfyUI.
 Search for these in ComfyUI:
 
 - **Realtime LoRA Trainer** - Trains using AI-Toolkit (FLUX, Z-Image, Wan)
+- **Realtime LoRA Trainer (Z-Image - Musubi Tuner)** - Trains Z-Image using Musubi Tuner (recommended)
 - **Realtime LoRA Trainer (SDXL - sd-scripts)** - Trains using sd-scripts (SDXL)
 - **Realtime LoRA Trainer (SD 1.5 - sd-scripts)** - Trains using sd-scripts (SD 1.5)
 - **Apply Trained LoRA** - Applies the trained LoRA to your model
@@ -71,9 +82,10 @@ Search for these in ComfyUI:
 
 There are example workflows included in the custom_nodes/comfyUI-Realtime-Lora folder. Open one in ComfyUI and:
 
-1. Paste the path to your sd-scripts or AI-Toolkit installation into the node
-2. For SDXL: select your checkpoint from the dropdown
-3. For AI-Toolkit models: the first run will download the model from HuggingFace automatically
+1. Paste the path to your training backend installation (sd-scripts, Musubi Tuner, or AI-Toolkit)
+2. For SDXL/SD1.5: select your checkpoint from the dropdown
+3. For Musubi Tuner Z-Image: select your de-distilled model, VAE, and text encoder from the dropdowns
+4. For AI-Toolkit models: the first run will download the model from HuggingFace automatically
 
 **First run with AI-Toolkit:** The model will download to your HuggingFace cache folder. On Windows this is `C:\Users\%USERNAME%\.cache\huggingface\hub`. You can watch that folder to monitor download progress - these models are large (several GB).
 
@@ -81,7 +93,7 @@ There are example workflows included in the custom_nodes/comfyUI-Realtime-Lora f
 
 1. Add the trainer node for your model type
 2. Connect your training image(s)
-3. Set the path to your AI-Toolkit or sd-scripts installation
+3. Set the path to your training backend installation
 4. Queue the workflow
 5. Connect the lora_path output to the Apply Trained LoRA node
 
@@ -94,20 +106,20 @@ There are example workflows included in the custom_nodes/comfyUI-Realtime-Lora f
 - VRAM presets for different GPU sizes
 - Settings are saved between sessions
 
-## Defaults
+## Defaults (Z-Image example)
 
-- 500 training steps
-- Learning rate 0.0005
+- 400 training steps
+- Learning rate 0.0002
 - LoRA rank 16
 - Low VRAM mode (768px)
 
 These defaults are starting points for experimentation, not ideal values. Every subject and style is different.
 
 **Learning rate advice:**
-- 0.0005 trains fast but can overshoot, causing artifacts or burning in the subject too hard
+- 0.0002 trains fast but can overshoot, causing artifacts or burning in the subject too hard
 - Try lowering to 0.0001 or 0.00005 for more stable, gradual training
 - If your LoRA looks overcooked or the subject bleeds into everything, lower the learning rate
-- If your LoRA is too weak after 500 steps, try more steps before raising the learning rate
+- If your LoRA is too weak after 400 steps, try more steps before raising the learning rate
 
 ## Credits
 
@@ -115,6 +127,7 @@ This project is a thin wrapper that calls these excellent training tools:
 
 - **AI-Toolkit** by ostris: https://github.com/ostris/ai-toolkit
 - **sd-scripts** by kohya-ss: https://github.com/kohya-ss/sd-scripts
+- **Musubi Tuner** by kohya-ss: https://github.com/kohya-ss/musubi-tuner
 
 All the heavy lifting is done by these projects. This node just makes them accessible from within ComfyUI.
 

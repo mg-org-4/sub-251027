@@ -1,0 +1,2184 @@
+{
+  "last_node_id": 96,
+  "last_link_id": 242,
+  "nodes": [
+    {
+      "id": 66,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        17.27668985611574,
+        998.4353035617185
+      ],
+      "size": {
+        "0": 380,
+        "1": 100
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            143
+          ],
+          "shape": 3
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            159
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            158
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "SD1.5/epicrealism_naturalSin.safetensors"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 76,
+      "type": "Anything Everywhere?",
+      "pos": [
+        154.3154512147094,
+        875.9591429414063
+      ],
+      "size": {
+        "0": 210,
+        "1": 82
+      },
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "CLIP",
+          "type": "*",
+          "link": 159,
+          "color_on": "#FFD500"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere?",
+        "group_restricted": false,
+        "color_restricted": false
+      },
+      "widgets_values": [
+        ".*SD",
+        ".*"
+      ],
+      "color": "#978425",
+      "bgcolor": "#837011"
+    },
+    {
+      "id": 77,
+      "type": "Anything Everywhere?",
+      "pos": [
+        154.3154512147094,
+        1135.9591429414052
+      ],
+      "size": {
+        "0": 210,
+        "1": 82
+      },
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "VAE",
+          "type": "*",
+          "link": 158,
+          "color_on": "#FF6E6E"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere?",
+        "group_restricted": false,
+        "color_restricted": false
+      },
+      "widgets_values": [
+        ".*SD",
+        ".*"
+      ],
+      "color": "#9c2222",
+      "bgcolor": "#880e0e"
+    },
+    {
+      "id": 65,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        420.3438943450925,
+        885.3834232148436
+      ],
+      "size": {
+        "0": 430,
+        "1": 82
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 143,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            213
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "SD15/sd15_LCM_pytorch_lora_weights.safetensors",
+        1.05
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 50,
+      "type": "PreviewImage",
+      "pos": [
+        908.401674628906,
+        228.0076441796875
+      ],
+      "size": {
+        "0": 510,
+        "1": 540
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 90,
+      "type": "PreviewImage",
+      "pos": [
+        1438.4016746289083,
+        228.0076441796875
+      ],
+      "size": {
+        "0": 510,
+        "1": 540
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "title": "Detailed Preview Image",
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 70,
+      "type": "VAEDecode",
+      "pos": [
+        1197.6860725526021,
+        955.3834232148436
+      ],
+      "size": {
+        "0": 160,
+        "1": 50
+      },
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 150
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            215
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "title": "SD1.5 VAE Decode",
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 91,
+      "type": "Anything Everywhere?",
+      "pos": [
+        1371.343598706056,
+        957.4916275390624
+      ],
+      "size": {
+        "0": 210,
+        "1": 82
+      },
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "IMAGE",
+          "type": "*",
+          "link": 215,
+          "color_on": "#64B5F6"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere?",
+        "group_restricted": false,
+        "color_restricted": false
+      },
+      "widgets_values": [
+        ".*Detailed",
+        ".*"
+      ],
+      "color": "#3085ec",
+      "bgcolor": "#1c71d8"
+    },
+    {
+      "id": 54,
+      "type": "CLIPTextEncode",
+      "pos": [
+        435.92356522730057,
+        398.98268755326717
+      ],
+      "size": {
+        "0": 210,
+        "1": 54
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null,
+          "slot_index": 0
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 174,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            131
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "3d render of a peacock on the moon, vibrant colours, drinking tea, soft pastel shades, delightful evening, photorealis poun glowing blue, bh1"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 93,
+      "type": "ConditioningBlend",
+      "pos": [
+        681.3435987060544,
+        1007.4916275390624
+      ],
+      "size": {
+        "0": 253.60000610351562,
+        "1": 142
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning_a",
+          "type": "CONDITIONING",
+          "link": 220
+        },
+        {
+          "name": "conditioning_b",
+          "type": "CONDITIONING",
+          "link": 221
+        },
+        {
+          "name": "blending_mode",
+          "type": "COMBO",
+          "link": 223,
+          "widget": {
+            "name": "blending_mode"
+          },
+          "slot_index": 2
+        },
+        {
+          "name": "blending_strength",
+          "type": "FLOAT",
+          "link": 224,
+          "widget": {
+            "name": "blending_strength"
+          },
+          "slot_index": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "links": [
+            222
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningBlend"
+      },
+      "widgets_values": [
+        "random",
+        0.775,
+        412906937599782,
+        "fixed"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 67,
+      "type": "CLIPTextEncode",
+      "pos": [
+        420.3438943450925,
+        1057.4916275390622
+      ],
+      "size": {
+        "0": 260.3999938964844,
+        "1": 54
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null,
+          "slot_index": 0
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 216,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            220
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "title": "SD1.5 CLIP Text Encode (Prompt)",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "3d render of a peacock on the moon, vibrant colours, drinking tea, soft pastel shades, delightful evening, photorealis poun glowing blue, bh1"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 94,
+      "type": "CLIPTextEncode",
+      "pos": [
+        420.3438943450925,
+        1117.4916275390622
+      ],
+      "size": {
+        "0": 260.3999938964844,
+        "1": 54
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 218,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            221
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "title": "SD1.5 CLIP Text Encode (Prompt)",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "HDR photo of a cyberpunk knight, armour, powerful cinematic shot taken with the canon m50 50mm focus, leica 35mm summilux, Nikon photography, macro-art photography colour enhanced balance. Metallic chrome, red, gold, orange, blue, #CC00F1, reflections"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 68,
+      "type": "CLIPTextEncode",
+      "pos": [
+        420.3438943450925,
+        1177.4916275390622
+      ],
+      "size": {
+        "0": 260.3999938964844,
+        "1": 54
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 178,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            148
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "title": "SD1.5 CLIP Text Encode (Prompt)",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "blurry, boring, dull, drab, extra paws"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 72,
+      "type": "VAEEncode",
+      "pos": [
+        701.3435987060544,
+        1167.4916275390622
+      ],
+      "size": {
+        "0": 160,
+        "1": 50
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            153
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "title": "SD1.5 VAE Encode",
+      "properties": {
+        "Node name for S&R": "VAEEncode"
+      },
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        435.92356522730057,
+        778.9826875532668
+      ],
+      "size": {
+        "0": 210,
+        "1": 54
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 176,
+          "widget": {
+            "name": "text"
+          },
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            70
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "blurry, boring, dull, drab, extra paws"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [
+        435.92356522730057,
+        738.9826875532668
+      ],
+      "size": {
+        "0": 210,
+        "1": 54
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null,
+          "slot_index": 0
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 175,
+          "widget": {
+            "name": "text"
+          },
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            132
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "HDR photo of a cyberpunk knight, armour, powerful cinematic shot taken with the canon m50 50mm focus, leica 35mm summilux, Nikon photography, macro-art photography colour enhanced balance. Metallic chrome, red, gold, orange, blue, #CC00F1, reflections"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 63,
+      "type": "ConditioningBlend",
+      "pos": [
+        695.9235652273004,
+        568.9826875532667
+      ],
+      "size": {
+        "0": 253.60000610351562,
+        "1": 142
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning_a",
+          "type": "CONDITIONING",
+          "link": 131
+        },
+        {
+          "name": "conditioning_b",
+          "type": "CONDITIONING",
+          "link": 132
+        },
+        {
+          "name": "blending_mode",
+          "type": "COMBO",
+          "link": 225,
+          "widget": {
+            "name": "blending_mode"
+          }
+        },
+        {
+          "name": "blending_strength",
+          "type": "FLOAT",
+          "link": 226,
+          "widget": {
+            "name": "blending_strength"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "links": [
+            133
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningBlend"
+      },
+      "widgets_values": [
+        "random",
+        0.775,
+        412906937599782,
+        "fixed"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 33,
+      "type": "Prompts Everywhere",
+      "pos": [
+        695.9235652273004,
+        628.9826875532666
+      ],
+      "size": {
+        "0": 170,
+        "1": 50
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "*",
+          "link": 133,
+          "color_on": "#FFA931"
+        },
+        {
+          "name": "CONDITIONING",
+          "type": "*",
+          "link": 70,
+          "color_on": "#FFA931"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Prompts Everywhere",
+        "group_restricted": false,
+        "color_restricted": false
+      },
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 5,
+      "type": "EmptyLatentImage",
+      "pos": [
+        910,
+        80
+      ],
+      "size": {
+        "0": 310,
+        "1": 110
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            110
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        512,
+        512,
+        1
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 14,
+      "type": "KSamplerSelect",
+      "pos": [
+        910,
+        -20
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            18
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "lcm"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 22,
+      "type": "SDTurboScheduler",
+      "pos": [
+        910,
+        -120
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            49
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SDTurboScheduler"
+      },
+      "widgets_values": [
+        1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 20,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        910,
+        -280
+      ],
+      "size": {
+        "0": 340,
+        "1": 100
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            212
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            113
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            114
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "SDXL/sd_xl_turbo_1.0_fp16.safetensors"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 53,
+      "type": "Anything Everywhere3",
+      "pos": [
+        1260,
+        -280
+      ],
+      "size": {
+        "0": 180,
+        "1": 70
+      },
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "MODEL",
+          "type": "*",
+          "link": 212,
+          "color_on": "#B39DDB"
+        },
+        {
+          "name": "CLIP",
+          "type": "*",
+          "link": 113,
+          "color_on": "#FFD500"
+        },
+        {
+          "name": "VAE",
+          "type": "*",
+          "link": 114,
+          "color_on": "#FF6E6E"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere3",
+        "group_restricted": false,
+        "color_restricted": false
+      },
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        1540,
+        -120
+      ],
+      "size": {
+        "0": 140,
+        "1": 50
+      },
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 66
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            119
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 55,
+      "type": "Anything Everywhere",
+      "pos": [
+        1690,
+        -120
+      ],
+      "size": {
+        "0": 180,
+        "1": 30
+      },
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "IMAGE",
+          "type": "*",
+          "link": 119,
+          "color_on": "#64B5F6"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Anything Everywhere",
+        "group_restricted": false,
+        "color_restricted": false
+      },
+      "color": "#3085ec",
+      "bgcolor": "#1c71d8"
+    },
+    {
+      "id": 81,
+      "type": "PrimitiveNode",
+      "pos": [
+        10,
+        680
+      ],
+      "size": {
+        "0": 420,
+        "1": 100
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            176,
+            178
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "title": "Negative",
+      "properties": {},
+      "widgets_values": [
+        "blurry, boring, dull, drab, extra paws"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 13,
+      "type": "SamplerCustom",
+      "pos": [
+        1240,
+        -120
+      ],
+      "size": {
+        "0": 290,
+        "1": 230
+      },
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "slot_index": 0
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": null,
+          "slot_index": 1
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 18,
+          "slot_index": 3
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 49,
+          "slot_index": 4
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 110,
+          "slot_index": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            66
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": [],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustom"
+      },
+      "widgets_values": [
+        true,
+        976172646934337,
+        "fixed",
+        1.2
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 69,
+      "type": "KSampler",
+      "pos": [
+        877.6860725525993,
+        955.3834232148436
+      ],
+      "size": {
+        "0": 315,
+        "1": 262
+      },
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 213
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 222
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 148
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 153
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            150
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        1055602451892706,
+        "fixed",
+        4,
+        1.6,
+        "lcm",
+        "sgm_uniform",
+        0.1
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 80,
+      "type": "PrimitiveNode",
+      "pos": [
+        10,
+        540
+      ],
+      "size": {
+        "0": 420,
+        "1": 100
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            175,
+            218
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "title": "Prompt B",
+      "properties": {},
+      "widgets_values": [
+        "HDR photo of a cyberpunk knight, armour, powerful cinematic shot taken with the canon m50 50mm focus, leica 35mm summilux, Nikon photography, macro-art photography colour enhanced balance. Metallic chrome, red, gold, orange, blue, #CC00F1, reflections"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 78,
+      "type": "PrimitiveNode",
+      "pos": [
+        10,
+        400
+      ],
+      "size": {
+        "0": 420,
+        "1": 100
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            174,
+            216
+          ],
+          "slot_index": 0,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "title": "Prompt A",
+      "properties": {},
+      "widgets_values": [
+        "3d render of a peacock on the moon, vibrant colours, drinking tea, soft pastel shades, delightful evening, photorealis poun glowing blue, bh1"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 95,
+      "type": "PrimitiveNode",
+      "pos": [
+        435.92356522730057,
+        448.98268755326706
+      ],
+      "size": {
+        "0": 210,
+        "1": 110
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "COMBO",
+          "type": "COMBO",
+          "links": [
+            223,
+            225
+          ],
+          "widget": {
+            "name": "blending_mode"
+          },
+          "slot_index": 0
+        }
+      ],
+      "title": "Blending Mode",
+      "properties": {},
+      "widgets_values": [
+        "random",
+        "fixed",
+        ""
+      ],
+      "color": "#775940",
+      "bgcolor": "#63452c"
+    },
+    {
+      "id": 96,
+      "type": "PrimitiveNode",
+      "pos": [
+        440,
+        610
+      ],
+      "size": {
+        "0": 210,
+        "1": 80
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [
+            224,
+            226
+          ],
+          "widget": {
+            "name": "blending_strength"
+          },
+          "slot_index": 0
+        }
+      ],
+      "title": "Blending Strength",
+      "properties": {},
+      "widgets_values": [
+        0.775,
+        "fixed"
+      ],
+      "color": "#775940",
+      "bgcolor": "#63452c"
+    },
+    {
+      "id": 88,
+      "type": "Note",
+      "pos": [
+        0,
+        40
+      ],
+      "size": {
+        "0": 880,
+        "1": 270
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "\"Quality Realtime interpolation\"\n-------------------------------\n\nBenefit from the prompting capabilities and the speed of SDXL Turbo combined with the SD1.5 LCM LoRA and a 1.5 model to get decent quality images in 0.6 seconds on an RTX 3090. Enable \"Extra Options\" and then \"Auto Queue\" for \"realtime\" interpolations!\n\nMultiple \"Blending Modes\" are available, so play with them all! Want to turn a cat into a rodent (and let's face it, who doesn't)? Enter \"cat\" in Prompt A, \"rodent\" in Prompt B, select \"bislerp\" blending mode and then change the Blending Strength. Exclusion is the only one that doesn't really work.\n\nYou can change prompts in realtime too for even more fun! Note that max prompt token lengths should match for Prompt A and Prompt B (e.g. 77 or 154 in each, etc)\n\nNote that images aren't saved by default as you'd get a lot - plus they're in your temp directory already. Note that if you are changing the final image node from a preview to a save node, remember to include the word \"Detailed\" (or update the image regex).\n\nInspired by this post on reddit - https://t.co/d3UuEVwBFV"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    }
+  ],
+  "links": [
+    [
+      18,
+      14,
+      0,
+      13,
+      3,
+      "SAMPLER"
+    ],
+    [
+      49,
+      22,
+      0,
+      13,
+      4,
+      "SIGMAS"
+    ],
+    [
+      66,
+      13,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      70,
+      7,
+      0,
+      33,
+      1,
+      "*"
+    ],
+    [
+      110,
+      5,
+      0,
+      13,
+      5,
+      "LATENT"
+    ],
+    [
+      113,
+      20,
+      1,
+      53,
+      1,
+      "*"
+    ],
+    [
+      114,
+      20,
+      2,
+      53,
+      2,
+      "*"
+    ],
+    [
+      119,
+      8,
+      0,
+      55,
+      0,
+      "*"
+    ],
+    [
+      131,
+      54,
+      0,
+      63,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      132,
+      6,
+      0,
+      63,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      133,
+      63,
+      0,
+      33,
+      0,
+      "*"
+    ],
+    [
+      134,
+      20,
+      2,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      135,
+      8,
+      0,
+      50,
+      0,
+      "IMAGE"
+    ],
+    [
+      136,
+      20,
+      0,
+      22,
+      0,
+      "MODEL"
+    ],
+    [
+      137,
+      20,
+      1,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      138,
+      20,
+      1,
+      54,
+      0,
+      "CLIP"
+    ],
+    [
+      139,
+      20,
+      1,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      140,
+      20,
+      0,
+      13,
+      0,
+      "MODEL"
+    ],
+    [
+      141,
+      63,
+      0,
+      13,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      142,
+      7,
+      0,
+      13,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      143,
+      66,
+      0,
+      65,
+      0,
+      "MODEL"
+    ],
+    [
+      148,
+      68,
+      0,
+      69,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      150,
+      69,
+      0,
+      70,
+      0,
+      "LATENT"
+    ],
+    [
+      153,
+      72,
+      0,
+      69,
+      3,
+      "LATENT"
+    ],
+    [
+      158,
+      66,
+      2,
+      77,
+      0,
+      "*"
+    ],
+    [
+      159,
+      66,
+      1,
+      76,
+      0,
+      "*"
+    ],
+    [
+      160,
+      20,
+      2,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      161,
+      8,
+      0,
+      50,
+      0,
+      "IMAGE"
+    ],
+    [
+      162,
+      20,
+      0,
+      22,
+      0,
+      "MODEL"
+    ],
+    [
+      163,
+      20,
+      0,
+      13,
+      0,
+      "MODEL"
+    ],
+    [
+      164,
+      63,
+      0,
+      13,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      165,
+      7,
+      0,
+      13,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      166,
+      20,
+      1,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      167,
+      20,
+      1,
+      54,
+      0,
+      "CLIP"
+    ],
+    [
+      168,
+      20,
+      1,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      169,
+      66,
+      1,
+      68,
+      0,
+      "CLIP"
+    ],
+    [
+      170,
+      66,
+      2,
+      70,
+      1,
+      "VAE"
+    ],
+    [
+      171,
+      8,
+      0,
+      72,
+      0,
+      "IMAGE"
+    ],
+    [
+      172,
+      66,
+      2,
+      72,
+      1,
+      "VAE"
+    ],
+    [
+      173,
+      66,
+      1,
+      67,
+      0,
+      "CLIP"
+    ],
+    [
+      174,
+      78,
+      0,
+      54,
+      1,
+      "STRING"
+    ],
+    [
+      175,
+      80,
+      0,
+      6,
+      1,
+      "STRING"
+    ],
+    [
+      176,
+      81,
+      0,
+      7,
+      1,
+      "STRING"
+    ],
+    [
+      178,
+      81,
+      0,
+      68,
+      1,
+      "STRING"
+    ],
+    [
+      179,
+      20,
+      2,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      180,
+      20,
+      0,
+      22,
+      0,
+      "MODEL"
+    ],
+    [
+      181,
+      66,
+      2,
+      70,
+      1,
+      "VAE"
+    ],
+    [
+      182,
+      20,
+      1,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      183,
+      20,
+      1,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      184,
+      20,
+      1,
+      54,
+      0,
+      "CLIP"
+    ],
+    [
+      185,
+      66,
+      1,
+      67,
+      0,
+      "CLIP"
+    ],
+    [
+      186,
+      66,
+      1,
+      68,
+      0,
+      "CLIP"
+    ],
+    [
+      187,
+      8,
+      0,
+      72,
+      0,
+      "IMAGE"
+    ],
+    [
+      188,
+      66,
+      2,
+      72,
+      1,
+      "VAE"
+    ],
+    [
+      189,
+      20,
+      0,
+      13,
+      0,
+      "MODEL"
+    ],
+    [
+      190,
+      63,
+      0,
+      13,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      191,
+      7,
+      0,
+      13,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      192,
+      8,
+      0,
+      50,
+      0,
+      "IMAGE"
+    ],
+    [
+      212,
+      20,
+      0,
+      53,
+      0,
+      "*"
+    ],
+    [
+      213,
+      65,
+      0,
+      69,
+      0,
+      "MODEL"
+    ],
+    [
+      215,
+      70,
+      0,
+      91,
+      0,
+      "*"
+    ],
+    [
+      216,
+      78,
+      0,
+      67,
+      1,
+      "STRING"
+    ],
+    [
+      218,
+      80,
+      0,
+      94,
+      1,
+      "STRING"
+    ],
+    [
+      220,
+      67,
+      0,
+      93,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      221,
+      94,
+      0,
+      93,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      222,
+      93,
+      0,
+      69,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      223,
+      95,
+      0,
+      93,
+      2,
+      "COMBO"
+    ],
+    [
+      224,
+      96,
+      0,
+      93,
+      3,
+      "FLOAT"
+    ],
+    [
+      225,
+      95,
+      0,
+      63,
+      2,
+      "COMBO"
+    ],
+    [
+      226,
+      96,
+      0,
+      63,
+      3,
+      "FLOAT"
+    ],
+    [
+      227,
+      8,
+      0,
+      50,
+      0,
+      "IMAGE"
+    ],
+    [
+      228,
+      70,
+      0,
+      90,
+      0,
+      "IMAGE"
+    ],
+    [
+      229,
+      66,
+      2,
+      70,
+      1,
+      "VAE"
+    ],
+    [
+      230,
+      20,
+      1,
+      54,
+      0,
+      "CLIP"
+    ],
+    [
+      231,
+      66,
+      1,
+      67,
+      0,
+      "CLIP"
+    ],
+    [
+      232,
+      66,
+      1,
+      94,
+      0,
+      "CLIP"
+    ],
+    [
+      233,
+      66,
+      1,
+      68,
+      0,
+      "CLIP"
+    ],
+    [
+      234,
+      8,
+      0,
+      72,
+      0,
+      "IMAGE"
+    ],
+    [
+      235,
+      66,
+      2,
+      72,
+      1,
+      "VAE"
+    ],
+    [
+      236,
+      20,
+      1,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      237,
+      20,
+      1,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      238,
+      20,
+      0,
+      22,
+      0,
+      "MODEL"
+    ],
+    [
+      239,
+      20,
+      2,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      240,
+      20,
+      0,
+      13,
+      0,
+      "MODEL"
+    ],
+    [
+      241,
+      63,
+      0,
+      13,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      242,
+      7,
+      0,
+      13,
+      2,
+      "CONDITIONING"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "SD Turbo",
+      "bounding": [
+        899,
+        -386,
+        1071,
+        1178
+      ],
+      "color": "#A88",
+      "font_size": 24,
+      "locked": false
+    },
+    {
+      "title": "\"Live\" Prompts",
+      "bounding": [
+        4,
+        331,
+        885,
+        461
+      ],
+      "color": "#8A8",
+      "font_size": 24,
+      "locked": false
+    },
+    {
+      "title": "SD 1.5",
+      "bounding": [
+        6,
+        803,
+        1586,
+        430
+      ],
+      "color": "#2e3bc9",
+      "font_size": 24,
+      "locked": false
+    }
+  ],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

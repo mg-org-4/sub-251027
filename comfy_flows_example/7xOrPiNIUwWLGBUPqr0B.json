@@ -1,0 +1,2398 @@
+{
+  "id": "017536c2-df8e-457e-9d13-99d3494c34fd",
+  "revision": 0,
+  "last_node_id": 64,
+  "last_link_id": 158,
+  "nodes": [
+    {
+      "id": 11,
+      "type": "UNETLoader",
+      "pos": [
+        -2040,
+        -350
+      ],
+      "size": [
+        480,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "模型",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            25
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "UNETLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "f1d.a/f1d-krea-unstable-evolution_fp811gb.safetensors",
+        "fp8_e4m3fn"
+      ]
+    },
+    {
+      "id": 39,
+      "type": "SetNode",
+      "pos": [
+        -1590,
+        -1390
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "link": 48
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "title": "PromptPositive",
+      "properties": {
+        "previousName": "PromptPositive"
+      },
+      "widgets_values": [
+        "PromptPositive"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 32,
+      "type": "GetImageSize+",
+      "pos": [
+        10,
+        -290
+      ],
+      "size": [
+        157.7467803955078,
+        66
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 37
+        }
+      ],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            38
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            39
+          ]
+        },
+        {
+          "name": "count",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui_essentials",
+        "ver": "9d9f4bedfc9f0321c19faf71855e228c93bd0dc9",
+        "Node name for S&R": "GetImageSize+",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "EmptySD3LatentImage",
+      "pos": [
+        -160,
+        -180
+      ],
+      "size": [
+        331.86468505859375,
+        146.47488403320312
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 38
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 39
+        }
+      ],
+      "outputs": [
+        {
+          "label": "Latent",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "EmptySD3LatentImage",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        1344,
+        1536,
+        2
+      ]
+    },
+    {
+      "id": 30,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -1600,
+        -1280
+      ],
+      "size": [
+        680,
+        370
+      ],
+      "flags": {},
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 55
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "f2838ed5e59de4d73cde5c98354b87a8d3200190",
+        "Node name for S&R": "ShowText|pysssss",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "a modern seinen flat illustration of one adult Japanese male, aged over twenty-five, portrayed with mature sensuality and subtle suggestion, his dark, slightly tousled hair framing a face with piercing blue eyes that hold a captivating, introspective gaze, lips subtly parted in a faint, knowing smirk that conveys both a quiet confidence and an alluring mystery, captured in motion, masterpiece, best quality, world-class fine art, daylight white balance, shadow details retained, gentle highlight roll-off, face illuminated with luminous soft light, daylight-balanced ~6500K, clean white point, neutral gray card reference, strictly neutral color balance, no warm tones, no yellow cast, the background is a modern city street with a shallow depth of field, rendering the distant urban lights and rainy reflections beautifully blurred, adding a pervasive mood of contemplative urban charm and understated elegance, with a profound emotional resonance."
+      ]
+    },
+    {
+      "id": 44,
+      "type": "Note",
+      "pos": [
+        -2310,
+        -1820
+      ],
+      "size": [
+        950,
+        290
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "You are a prompt writer. Produce ONE single-line HIGH Artistic and SOUL-STIRRING prompt for an image generator.\n\nRules (follow strictly):\n1) Do NOT reference any provided image’s style, artists, or brands or COLOR. \n2) The prompt MUST start with: “a modern seinen flat illustration of …”\n3) Always cast ADULT slutty Japanese or Korean or Twaiwanese lead (25+). Keep the tone mature, sensual, and suggestive (tasteful, a little questionable, non-explicit). Keep gender unchanged. \n4) Vividly describe the character’s facial expression.\n5) Apply ALL of these phrases verbatim in the body: \n   “captured in motion, masterpiece, best quality, world-class fine art, daylight white balance, shadow details retained, gentle highlight roll-off, face illuminated with luminous soft light, daylight-balanced ~6500K, clean white point, neutral gray card reference”\n6) Background: choose exactly ONE — “modern city street” OR “a windowed library” OR \"living/bed room\".\n7) Keep language neutral and professional; \n\nOutput format:\n- Single English sentence starting with “a modern seinen flat illustration of …”\n- No extra commentary, bullets, or quotes. no less than 150 words.\n\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 37,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        -1740,
+        -70
+      ],
+      "size": [
+        430,
+        100
+      ],
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "模型",
+          "name": "model",
+          "type": "MODEL",
+          "link": 46
+        }
+      ],
+      "outputs": [
+        {
+          "label": "模型",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            47
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "f1d/f1d-artaug-lora-v1.safetensors",
+        0.3
+      ]
+    },
+    {
+      "id": 24,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        -2220,
+        -70
+      ],
+      "size": [
+        430,
+        100
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "模型",
+          "name": "model",
+          "type": "MODEL",
+          "link": 27
+        }
+      ],
+      "outputs": [
+        {
+          "label": "模型",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            46
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "f1d/f1d-enhance-merged_lora-f1d.safetensors",
+        0.48
+      ]
+    },
+    {
+      "id": 26,
+      "type": "MarkdownNote",
+      "pos": [
+        -1890,
+        -2410
+      ],
+      "size": [
+        570,
+        400
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "\n\n## SRPO（Semantic Relative Preference Optimization）\n\nSRPO 是腾讯混元团队研发的一种面向文本到图像生成任务的优化方法。\n\n### 效果\n在 FLUX.1-dev 模型上的实验证明，SRPO 显著提升了生成图像在人类评估中的真实感与美学品质：\n- **真实感优秀率**：从 8.2% → 38.9%\n- **美学质量优秀率**：从 9.8% → 40.5%\n- **总体偏好度优秀率**：29.4%\n\n### 模型下载\n| 名称 | 量化格式 | 下载地址 |\n|---|---|---|\n| Flux.1-Dev SRPO 大模型 | BF16 | [LibLib 模型页](https://www.liblib.art/modelinfo/55a6cf2503bb4780bdc0d1cd97b0f1c4) |\n| Flux.1-Dev SRPO 大模型 | FP8  | [LibLib 模型页](https://www.liblib.art/modelinfo/c21755b704e6488cbb5564cfbe8647e3) |\n| SRPO LoRAs | — | [LibLib 模型页](https://www.liblib.art/modelinfo/2f8ca51dc7634dc4b70c2e296c14bfa0) |\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 38,
+      "type": "Note",
+      "pos": [
+        -1200,
+        -2090
+      ],
+      "size": [
+        1010,
+        570
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "- Choose one style from those items: [ Editorial Flat, Grainy Flat, Neo-Ukiyoe Inspired Flat, Graphic Brutalism Flat, Neo-Constructivist Flat, Swiss International flat, Corporate Minimal Noir flat]\n\nYou are a prompt writer. Produce ONE concise, single-line prompt for an image generator.\n\nRules (follow strictly):\n\n1) Do NOT reference any provided image’s style, artists, or brands. No negative prompt syntax.\n2) The prompt MUST start with: “a seinen flat illustration of …”\n3) Always cast the SAME NUMBER of characters as in the reference image. If there are TWO people in the reference, keep TWO in the output. Keep their genders consistent with the reference.\n4) All leads must be ADULT Chinese characters (18+). The tone is mature, sensual, and a bit suggestive (tasteful, non-explicit).\n5) Vividly describe each character’s facial expression in Chinese (用中文、生动地描写表情，避免幼稚化).\n6) Apply ALL of these phrases verbatim in the body:\n   “captured in motion, masterpiece, best quality, world-class fine art, daylight white balance, shadow details retained, gentle highlight roll-off, face illuminated with luminous soft light, daylight-balanced ~6500K, clean white point, neutral gray card reference”\n   **Additionally enforce: strictly neutral color balance, no warm tones, no yellow cast.**\n7) Background: choose exactly ONE — “modern city street” OR “a windowed library”.\n8) Keep language neutral and professional; avoid childish cues, slang, or explicit sexual details. No text, no logos, no watermarks.\n\nOutput format:\n- Single English sentence starting with “a seinen flat illustration of …”\n- If there are two characters: describe both, with distinct but complementary poses and expressions.\n- No extra commentary, bullets, or quotes.\n\nExample skeleton (two characters, fill in … with subject specifics):\na seinen flat illustration of two adult Chinese leads, captured in motion, masterpiece, best quality, world-class fine art, daylight white balance, shadow details retained, gentle highlight roll-off, faces illuminated with luminous soft light, daylight-balanced ~6500K, clean white point, neutral gray card reference, strictly neutral colors (no warm tones, no yellow cast), background is a windowed library, expression：……(character 1), ……(character 2)\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 29,
+      "type": "ZanePromptExpandOpenAI",
+      "pos": [
+        -2410,
+        -1420
+      ],
+      "size": [
+        750,
+        770
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 104
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            48,
+            55
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "hzane/ComfyUI-OpenAI",
+        "ver": "d7c0cbb6fff2a0ce53cbf821de0dc791fc6533b0",
+        "Node name for S&R": "ZanePromptExpandOpenAI",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "user": true,
+            "model": true,
+            "system": true,
+            "api2": true
+          },
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "You are a prompt writer. Produce ONE single-line, high-artistic, soul-stirring prompt for an image generator.\n\nRules (follow strictly):\n\n1) Do NOT reference any provided image’s style, artists, or brands. No negative prompt syntax.\n2) The prompt MUST start with: “a modern seinen flat illustration of …”\n3) Always cast the SAME NUMBER of characters as in the reference image. If there are TWO people in the reference, keep TWO in the output. Keep their genders consistent with the reference (e.g. one male + one female → output must be one male + one female).\n4) All leads must be ADULT Japanese, Korean, or Taiwanese characters (25+). The tone must be mature, sensual, and suggestive (tasteful, a bit questionable, non-explicit).\n5) Vividly describe each character’s facial expression, with depth and nuance.\n6) Apply ALL of these phrases verbatim in the body:\n   “captured in motion, masterpiece, best quality, world-class fine art, daylight white balance, shadow details retained, gentle highlight roll-off, face illuminated with luminous soft light, daylight-balanced ~6500K, clean white point, neutral gray card reference”\n   Additionally enforce: strictly neutral color balance, no warm tones, no yellow cast.\n7) Background: choose exactly ONE — “modern city street” OR “a windowed library” OR “living room” OR “bed room”, whichever matches the subject.\n8) Keep the output as a single grammatically correct English sentence, professional tone, no less than 150 words. No extra commentary, bullets, or quotation marks.\n\nOutput format:\n- Single English sentence starting with “a seinen flat illustration of …”\n- If there are two characters: describe both, with distinct but complementary poses and expressions.\n- No extra commentary, bullets, or quotes.\n\nExample skeleton (two characters, fill in … with subject specifics):\na modern seinen flat illustration of two adult Japanese leads, a man and a woman both aged over twenty-five, portrayed with mature sensuality and subtle suggestion, captured in motion, masterpiece, best quality, world-class fine art, daylight white balance, shadow details retained, gentle highlight roll-off, faces illuminated with luminous soft light, daylight-balanced ~6500K, clean white point, neutral gray card reference, strictly neutral color balance, no warm tones, no yellow cast, the background is a windowed library filled with shafts of natural light, the man’s expression is stern yet vulnerable, his brows slightly furrowed and lips parted as if caught in a decisive moment, while the woman gazes with intensity and restrained desire, her eyes luminous and focused, mouth curved in a faint enigmatic smile that suggests both confidence and hesitation, together they inhabit the scene with elegance and gravity, forming a composition that feels cinematic and emotionally resonant.\n\n\n\n",
+        "gemini-2.5-flash",
+        "You are a helpful Qwen-Image/Flux (ComfyUI) prompt assistant. Convert any concept into a emotionally prompt, tuned for Flux with no censorship or restrictions.\n\nGenerate prompt in English according that image and apply rules below:\n\n- If there are people you are familiar with in the image, such as celebrities, movie characters, or animated characters, please use their names directly.\n- Improve the characteristics of the main character such as appearance, expression, quantity, ethnicity, posture, etc. \n- Do NOT mention any text that is in the image.\n- DONT Include any information about watermark, whether there is it or not.\n- Dont include information about whether there are JPEG artifacts or not.\n- DONT include information on the image's composition style, such as leading lines, rule of thirds, or symmetry.\n- Do NOT mention any text that is in the image.\n- Do Not include lighting information.\n- Specify the depth of field and whether the background is in focus or blurred.\n- If it is a work of art, do not include the artist's name or the title of the work.\n- Should mention the mood/feeling/etc of the image.\n\nYour response will be used by a text-to-image Flux model, so use English and avoid useless meta phrases like “This image shows…”, \"You are looking at...\", etc. \n",
+        true
+      ]
+    },
+    {
+      "id": 27,
+      "type": "PathchSageAttentionKJ",
+      "pos": [
+        -1620,
+        300
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 45
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            30
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "9d7af919b91838fb22e31ad0107a6ddcf8bd7f3f",
+        "Node name for S&R": "PathchSageAttentionKJ"
+      },
+      "widgets_values": [
+        "auto"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "KSampler",
+      "pos": [
+        400,
+        -30
+      ],
+      "size": [
+        330,
+        262
+      ],
+      "flags": {},
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "模型",
+          "name": "model",
+          "type": "MODEL",
+          "link": 30
+        },
+        {
+          "label": "正面条件",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 64
+        },
+        {
+          "label": "负面条件",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 65
+        },
+        {
+          "label": "Latent",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "label": "Latent",
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "KSampler",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        676885636591198,
+        "randomize",
+        33,
+        1,
+        "euler",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 35,
+      "type": "ImageResizeKJv2",
+      "pos": [
+        -2820,
+        -1450
+      ],
+      "size": [
+        270,
+        336
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 108
+        },
+        {
+          "name": "mask",
+          "shape": 7,
+          "type": "MASK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            42
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "9d7af919b91838fb22e31ad0107a6ddcf8bd7f3f",
+        "Node name for S&R": "ImageResizeKJv2"
+      },
+      "widgets_values": [
+        1536,
+        1920,
+        "nearest-exact",
+        "resize",
+        "0, 0, 0",
+        "center",
+        32,
+        "cpu",
+        "<tr><td>Output: </td><td><b>1</b> x <b>1280</b> x <b>1920 | 28.12MB</b></td></tr>"
+      ]
+    },
+    {
+      "id": 50,
+      "type": "ControlNetLoader",
+      "pos": [
+        -1090,
+        550
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONTROL_NET",
+          "type": "CONTROL_NET",
+          "links": [
+            58,
+            67
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "ControlNetLoader"
+      },
+      "widgets_values": [
+        "flux.1-dev-controlnet-union-pro-2-fp8.safetensors"
+      ]
+    },
+    {
+      "id": 51,
+      "type": "DWPreprocessor",
+      "pos": [
+        -350,
+        310
+      ],
+      "size": [
+        294.72265625,
+        222
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 60
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            59,
+            66
+          ]
+        },
+        {
+          "name": "POSE_KEYPOINT",
+          "type": "POSE_KEYPOINT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui_controlnet_aux",
+        "ver": "cc6b232f4a47f0cdf70f4e1bfa24b74bd0d75bf1",
+        "Node name for S&R": "DWPreprocessor"
+      },
+      "widgets_values": [
+        "enable",
+        "enable",
+        "enable",
+        1024,
+        "yolox_l.onnx",
+        "dw-ll_ucoco_384_bs5.torchscript.pt",
+        "disable"
+      ]
+    },
+    {
+      "id": 52,
+      "type": "GetNode",
+      "pos": [
+        -1090,
+        370
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            60,
+            73,
+            76
+          ]
+        }
+      ],
+      "title": "ImageReference",
+      "properties": {},
+      "widgets_values": [
+        "ImageReference"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 56,
+      "type": "DepthAnythingPreprocessor",
+      "pos": [
+        -730,
+        540
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 73
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui_controlnet_aux",
+        "ver": "cc6b232f4a47f0cdf70f4e1bfa24b74bd0d75bf1",
+        "Node name for S&R": "DepthAnythingPreprocessor"
+      },
+      "widgets_values": [
+        "depth_anything_vitb14.pth",
+        1024
+      ]
+    },
+    {
+      "id": 58,
+      "type": "DepthAnythingV2Preprocessor",
+      "pos": [
+        -740,
+        400
+      ],
+      "size": [
+        279.6646423339844,
+        82
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 76
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            77,
+            78
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui_controlnet_aux",
+        "ver": "cc6b232f4a47f0cdf70f4e1bfa24b74bd0d75bf1",
+        "Node name for S&R": "DepthAnythingV2Preprocessor"
+      },
+      "widgets_values": [
+        "depth_anything_v2_vitb.pth",
+        1024
+      ]
+    },
+    {
+      "id": 59,
+      "type": "Anything Everywhere",
+      "pos": [
+        -390,
+        -180
+      ],
+      "size": [
+        172.18905639648438,
+        46
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "color_on": "#FF6E6E",
+          "label": "VAE",
+          "name": "anything",
+          "shape": 7,
+          "type": "VAE",
+          "link": 80
+        },
+        {
+          "label": "anything",
+          "name": "anything11",
+          "type": "*",
+          "link": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "cg-use-everywhere",
+        "ver": "1ea3fcf5ce5d907772f9b2610bc7431a6239d1f8",
+        "Node name for S&R": "Anything Everywhere",
+        "ue_properties": {
+          "version": "7.1",
+          "group_restricted": 0,
+          "color_restricted": 0,
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "title_regex": null,
+          "input_regex": null,
+          "group_regex": null,
+          "repeated_type_rule": 0,
+          "next_input_index": 11
+        }
+      }
+    },
+    {
+      "id": 17,
+      "type": "VAELoader",
+      "pos": [
+        -780,
+        -230
+      ],
+      "size": [
+        270,
+        60
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            80,
+            81
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "VAELoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "ae.safetensors"
+      ]
+    },
+    {
+      "id": 34,
+      "type": "GetNode",
+      "pos": [
+        -290,
+        -290
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            37
+          ]
+        }
+      ],
+      "title": "ImageReference",
+      "properties": {},
+      "widgets_values": [
+        "ImageReference"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 49,
+      "type": "SetUnionControlNetType",
+      "pos": [
+        -740,
+        680
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "control_net",
+          "type": "CONTROL_NET",
+          "link": 58
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONTROL_NET",
+          "type": "CONTROL_NET",
+          "links": [
+            57
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "SetUnionControlNetType"
+      },
+      "widgets_values": [
+        "openpose"
+      ]
+    },
+    {
+      "id": 55,
+      "type": "SetUnionControlNetType",
+      "pos": [
+        -730,
+        800
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "control_net",
+          "type": "CONTROL_NET",
+          "link": 67
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONTROL_NET",
+          "type": "CONTROL_NET",
+          "links": [
+            68
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "SetUnionControlNetType"
+      },
+      "widgets_values": [
+        "depth"
+      ]
+    },
+    {
+      "id": 53,
+      "type": "PreviewImage",
+      "pos": [
+        10,
+        220
+      ],
+      "size": [
+        260,
+        300
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 66
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 57,
+      "type": "PreviewImage",
+      "pos": [
+        350,
+        410
+      ],
+      "size": [
+        260,
+        300
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 78
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -1120,
+        -40
+      ],
+      "size": [
+        400,
+        88
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "CLIP",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 17
+        },
+        {
+          "label": "文本",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 50
+        }
+      ],
+      "outputs": [
+        {
+          "label": "条件",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "CLIPTextEncode",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "text": true
+          },
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "beautiful scenery nature glass bottle landscape, , purple galaxy bottle,"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -840,
+        140
+      ],
+      "size": [
+        350,
+        88
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "CLIP",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "label": "条件",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            23
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "CLIPTextEncode",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 22,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        -710,
+        290
+      ],
+      "size": [
+        210,
+        26
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "条件",
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 23
+        }
+      ],
+      "outputs": [
+        {
+          "label": "条件",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            69
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "ConditioningZeroOut",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 21,
+      "type": "FluxGuidance",
+      "pos": [
+        -680,
+        -30
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "条件",
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "label": "条件",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            70
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "FluxGuidance",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        4.5
+      ]
+    },
+    {
+      "id": 19,
+      "type": "DualCLIPLoader",
+      "pos": [
+        -1210,
+        130
+      ],
+      "size": [
+        315,
+        130
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            17,
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "DualCLIPLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "clip_l.safetensors",
+        "t5xxl_fp8_e4m3fn.safetensors",
+        "flux",
+        "default"
+      ]
+    },
+    {
+      "id": 40,
+      "type": "GetNode",
+      "pos": [
+        -1110,
+        -170
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            50
+          ]
+        }
+      ],
+      "title": "PromptPositive",
+      "properties": {},
+      "widgets_values": [
+        "PromptPositive"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        760,
+        -270
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "Latent",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "label": "VAE",
+          "name": "vae",
+          "type": "VAE",
+          "link": 81
+        }
+      ],
+      "outputs": [
+        {
+          "label": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "VAEDecode",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 33,
+      "type": "SetNode",
+      "pos": [
+        -2810,
+        -960
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "link": 42
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            104
+          ]
+        }
+      ],
+      "title": "ImageReference",
+      "properties": {
+        "previousName": "ImageReference"
+      },
+      "widgets_values": [
+        "ImageReference"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 28,
+      "type": "ZaneImageDirectoryLoader",
+      "pos": [
+        -3220,
+        -1330
+      ],
+      "size": [
+        281.9888610839844,
+        126
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            108
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "hzane/ComfyUI-OpenAI",
+        "ver": "d7c0cbb6fff2a0ce53cbf821de0dc791fc6533b0",
+        "Node name for S&R": "ZaneImageDirectoryLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "directory": true,
+            "seed": true
+          },
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "/home/hzane/Downloads/xwa-handsome",
+        866783544027515,
+        "randomize"
+      ]
+    },
+    {
+      "id": 43,
+      "type": "PreviewImage",
+      "pos": [
+        1450,
+        -130
+      ],
+      "size": [
+        370,
+        530
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 54
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 42,
+      "type": "GetNode",
+      "pos": [
+        1460,
+        -240
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            54
+          ]
+        }
+      ],
+      "title": "ImageReference",
+      "properties": {},
+      "widgets_values": [
+        "ImageReference"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 63,
+      "type": "LoadAndResizeImage",
+      "pos": [
+        -3220,
+        -1110
+      ],
+      "size": [
+        270,
+        566
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "image_path",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "9d7af919b91838fb22e31ad0107a6ddcf8bd7f3f",
+        "Node name for S&R": "LoadAndResizeImage"
+      },
+      "widgets_values": [
+        "07390f11b7d7ebce2d170bc83f1d883ad8ff580f0cb2d09f3fbebaef2eff4395.png",
+        false,
+        1536,
+        1920,
+        1,
+        true,
+        32,
+        "alpha",
+        "",
+        "image"
+      ]
+    },
+    {
+      "id": 54,
+      "type": "ControlNetApplyAdvanced",
+      "pos": [
+        -340,
+        590
+      ],
+      "size": [
+        270,
+        186
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 70
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 69
+        },
+        {
+          "name": "control_net",
+          "type": "CONTROL_NET",
+          "link": 68
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 77
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            71
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            72
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "ControlNetApplyAdvanced"
+      },
+      "widgets_values": [
+        1,
+        0,
+        0.5
+      ]
+    },
+    {
+      "id": 48,
+      "type": "ControlNetApplyAdvanced",
+      "pos": [
+        10,
+        590
+      ],
+      "size": [
+        270,
+        186
+      ],
+      "flags": {},
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 71
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 72
+        },
+        {
+          "name": "control_net",
+          "type": "CONTROL_NET",
+          "link": 57
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 59
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            64
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            65
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "ControlNetApplyAdvanced"
+      },
+      "widgets_values": [
+        1,
+        0,
+        0.5
+      ]
+    },
+    {
+      "id": 36,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        -2140,
+        120
+      ],
+      "size": [
+        430,
+        100
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "模型",
+          "name": "model",
+          "type": "MODEL",
+          "link": 47
+        }
+      ],
+      "outputs": [
+        {
+          "label": "模型",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            45
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "f1ds/f1d-SamYoung_Illustration.safetensors",
+        0.5
+      ]
+    },
+    {
+      "id": 23,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        -2010,
+        -220
+      ],
+      "size": [
+        440,
+        82
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "模型",
+          "name": "model",
+          "type": "MODEL",
+          "link": 25
+        }
+      ],
+      "outputs": [
+        {
+          "label": "模型",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            27
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "f1ds/f1d_阿里嘎呆_时尚动漫插画风_v2.0.safetensors",
+        0.73
+      ]
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [
+        810,
+        -140
+      ],
+      "size": [
+        610,
+        540
+      ],
+      "flags": {},
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "图像",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 9
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.60",
+        "Node name for S&R": "SaveImage",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "kreaevo"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    }
+  ],
+  "links": [
+    [
+      7,
+      3,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      9,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      17,
+      19,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      19,
+      19,
+      0,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      20,
+      20,
+      0,
+      3,
+      3,
+      "LATENT"
+    ],
+    [
+      21,
+      6,
+      0,
+      21,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      23,
+      7,
+      0,
+      22,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      25,
+      11,
+      0,
+      23,
+      0,
+      "MODEL"
+    ],
+    [
+      27,
+      23,
+      0,
+      24,
+      0,
+      "MODEL"
+    ],
+    [
+      30,
+      27,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      37,
+      34,
+      0,
+      32,
+      0,
+      "IMAGE"
+    ],
+    [
+      38,
+      32,
+      0,
+      20,
+      0,
+      "INT"
+    ],
+    [
+      39,
+      32,
+      1,
+      20,
+      1,
+      "INT"
+    ],
+    [
+      42,
+      35,
+      0,
+      33,
+      0,
+      "IMAGE"
+    ],
+    [
+      45,
+      36,
+      0,
+      27,
+      0,
+      "MODEL"
+    ],
+    [
+      46,
+      24,
+      0,
+      37,
+      0,
+      "MODEL"
+    ],
+    [
+      47,
+      37,
+      0,
+      36,
+      0,
+      "MODEL"
+    ],
+    [
+      48,
+      29,
+      0,
+      39,
+      0,
+      "*"
+    ],
+    [
+      50,
+      40,
+      0,
+      6,
+      1,
+      "STRING"
+    ],
+    [
+      54,
+      42,
+      0,
+      43,
+      0,
+      "IMAGE"
+    ],
+    [
+      55,
+      29,
+      0,
+      30,
+      0,
+      "STRING"
+    ],
+    [
+      57,
+      49,
+      0,
+      48,
+      2,
+      "CONTROL_NET"
+    ],
+    [
+      58,
+      50,
+      0,
+      49,
+      0,
+      "CONTROL_NET"
+    ],
+    [
+      59,
+      51,
+      0,
+      48,
+      3,
+      "IMAGE"
+    ],
+    [
+      60,
+      52,
+      0,
+      51,
+      0,
+      "IMAGE"
+    ],
+    [
+      64,
+      48,
+      0,
+      3,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      65,
+      48,
+      1,
+      3,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      66,
+      51,
+      0,
+      53,
+      0,
+      "IMAGE"
+    ],
+    [
+      67,
+      50,
+      0,
+      55,
+      0,
+      "CONTROL_NET"
+    ],
+    [
+      68,
+      55,
+      0,
+      54,
+      2,
+      "CONTROL_NET"
+    ],
+    [
+      69,
+      22,
+      0,
+      54,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      70,
+      21,
+      0,
+      54,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      71,
+      54,
+      0,
+      48,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      72,
+      54,
+      1,
+      48,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      73,
+      52,
+      0,
+      56,
+      0,
+      "IMAGE"
+    ],
+    [
+      76,
+      52,
+      0,
+      58,
+      0,
+      "IMAGE"
+    ],
+    [
+      77,
+      58,
+      0,
+      54,
+      3,
+      "IMAGE"
+    ],
+    [
+      78,
+      58,
+      0,
+      57,
+      0,
+      "IMAGE"
+    ],
+    [
+      80,
+      17,
+      0,
+      59,
+      0,
+      "VAE"
+    ],
+    [
+      81,
+      17,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      104,
+      33,
+      0,
+      29,
+      0,
+      "IMAGE"
+    ],
+    [
+      108,
+      28,
+      0,
+      35,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 7,
+      "title": "Group",
+      "bounding": [
+        -2230,
+        -420,
+        930,
+        653.5999755859375
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8140274938684551,
+      "offset": [
+        -117.04232484488521,
+        395.15183072868075
+      ]
+    },
+    "ue_links": [
+      {
+        "downstream": 54,
+        "downstream_slot": 4,
+        "upstream": "17",
+        "upstream_slot": 0,
+        "controller": 59,
+        "type": "VAE"
+      },
+      {
+        "downstream": 48,
+        "downstream_slot": 4,
+        "upstream": "17",
+        "upstream_slot": 0,
+        "controller": 59,
+        "type": "VAE"
+      }
+    ],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 1,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "links_added_by_ue": [
+      157,
+      158
+    ],
+    "frontendVersion": "1.28.3"
+  },
+  "version": 0.4
+}

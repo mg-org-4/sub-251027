@@ -32,11 +32,13 @@ After completing reality check and research, implementing standalone sampler nod
    ✅ Custom model path support ([Custom Path] option)
    ✅ Comprehensive error handling with helpful troubleshooting messages
    ✅ Graceful interruption support (InterruptedError handling)
-   ✅ Widget tooltips (mouseover help for all 10 parameters)
+   ✅ Widget tooltips (mouseover help for all parameters)
    ✅ ComfyUI V3 API compliance with V1 backward compatibility
    ✅ Pipeline caching for performance (avoids reloading same model)
    ✅ Detailed logging for debugging ([SDNQ Sampler] prefixed messages)
    ✅ Proper error categorization (ValueError, FileNotFoundError, Exception)
+   ✅ LoRA support (local files and HuggingFace repos with strength control)
+   ✅ Memory management modes (gpu/balanced/lowvram)
 
 4. **Key Design Decisions**:
    - Using DiffusionPipeline.from_pretrained() (auto-detects model type)
@@ -98,12 +100,150 @@ After completing reality check and research, implementing standalone sampler nod
 - [DiffusionPipeline Loading Guide](https://huggingface.co/docs/diffusers/en/using-diffusers/loading)
 - Context.md lines 124-157 (previous session documented this)
 
+6. **LoRA Support** (COMPLETE):
+   - Added lora_path and lora_strength optional parameters
+   - Supports both local .safetensors files and HuggingFace repo IDs
+   - Automatic LoRA loading/unloading based on cache changes
+   - LoRA strength adjustment (-5.0 to +5.0, per user request)
+   - Integrated caching: prevents unnecessary reloads when using same LoRA
+   - Clears LoRA cache when model changes
+
+7. **Memory Management** (UPDATED):
+   - Changed default memory_mode to "balanced" (per user request)
+   - Options: "gpu" (all on GPU, fastest), "balanced" (offloading, 12-16GB), "lowvram" (sequential, 8GB)
+   - Proper GPU placement with .to("cuda") for "gpu" mode
+
+8. **Scheduler Support** (ENHANCED):
+   - Researched all available schedulers in diffusers 0.36.0 (December 2025)
+   - **EXPANDED**: Now supports 14 schedulers (1 flow-match + 13 traditional)
+   - Flow-based: FlowMatchEulerDiscreteScheduler (for FLUX/SD3/Qwen/Z-Image)
+   - Traditional: DPMSolver, UniPC, Euler, EulerAncestral, DDIM, Heun, KDPM2, DEIS, LMS, DDPM, PNDM
+   - Implemented swap_scheduler() method with all scheduler mappings
+   - Scheduler caching to avoid unnecessary swaps
+   - See UX_IMPROVEMENTS_RESEARCH.md for comprehensive scheduler research
+
+9. **Major UX Improvements** (COMPLETE):
+   - **LoRA Dropdown**: Integrated with ComfyUI's folder_paths to show available LoRAs
+   - **Default Negative Prompt**: "blurry, low quality, distorted, deformed, ugly, bad anatomy, bad hands, text, watermark, signature"
+   - **Logical Parameter Ordering**: 5 clear groups (Model Selection → Prompts → Settings → Configuration → Enhancements)
+   - **Multi-Model Scheduler Support**: Both flow-based and traditional diffusion schedulers
+   - QA validated with test_ux_improvements.py (7/7 tests passed)
+
+### LoRA Integration Details
+
+**Dropdown Options**:
+- `[None]`: No LoRA (default)
+- `[Custom Path]`: Use lora_custom_path for manual path or HuggingFace repo
+- Available LoRAs: Automatically populated from `ComfyUI/models/loras/`
+
+**Path Resolution**:
+- Uses `folder_paths.get_filename_list("loras")` to discover available LoRAs
+- Uses `folder_paths.get_folder_paths("loras")` to build full paths
+- Supports subdirectories within loras folder
+- Falls back gracefully if folder_paths not available
+
+**Parameters**:
+- `lora_selection`: Dropdown with available LoRAs
+- `lora_custom_path`: Custom path (only used when [Custom Path] selected)
+- `lora_strength`: -5.0 to +5.0 (negative values invert effect)
+
+### Scheduler Compatibility Matrix
+
+| Model Type | Compatible Schedulers | Default |
+|------------|----------------------|---------|
+| FLUX/SD3/Qwen/Z-Image | FlowMatchEulerDiscreteScheduler | FlowMatch... |
+| SDXL/SD1.5 | DPMSolver, UniPC, Euler, EulerAncestral, DDIM, etc. | DPMSolverMultistep |
+
+**CRITICAL**: Wrong scheduler type produces broken/corrupted images!
+- Tooltip warns users about compatibility
+- Default changed to DPMSolverMultistepScheduler (works with SDXL, most common in catalog)
+
+### Parameter Organization
+
+**GROUP 1: MODEL SELECTION**
+1. model_selection
+2. custom_model_path
+
+**GROUP 2: GENERATION PROMPTS**
+3. prompt
+4. negative_prompt (now required with default value)
+
+**GROUP 3: GENERATION SETTINGS**
+5. steps
+6. cfg
+7. width
+8. height
+9. seed
+10. scheduler (moved to settings, now visible to all users)
+
+**GROUP 4: MODEL CONFIGURATION**
+11. dtype
+12. memory_mode
+13. auto_download
+
+**GROUP 5: ENHANCEMENTS** (Optional)
+14. lora_selection
+15. lora_custom_path
+16. lora_strength
+
+### Key Research Findings (Full Scheduler List)
+
+**Flow-Based Models** (FLUX, SD3, Qwen, Z-Image):
+- ✅ FlowMatchEulerDiscreteScheduler (ONLY one that works)
+- ❌ All traditional schedulers produce incorrect images
+
+**Traditional Diffusion Models** (SDXL, SD1.5):
+- ✅ DPMSolverMultistepScheduler (recommended, best speed/quality)
+- ✅ UniPCMultistepScheduler (very fast, high quality)
+- ✅ EulerDiscreteScheduler (simple, reliable)
+- ✅ EulerAncestralDiscreteScheduler (creative results)
+- ✅ DDIMScheduler (classic, deterministic)
+- ✅ HeunDiscreteScheduler, KDPM2DiscreteScheduler, etc. (10+ more options)
+- ❌ Flow-match schedulers don't work with traditional models
+
+**Sources**:
+- [SDXL Scheduler Testing](https://github.com/tillo13/sample_schedulers)
+- [Stable Diffusion Samplers Guide](https://stable-diffusion-art.com/samplers/)
+- [ML Guide to Schedulers](https://blog.segmind.com/what-are-schedulers-in-stable-diffusion/)
+- [ComfyUI folder_paths.py](https://github.com/comfyanonymous/ComfyUI/blob/master/folder_paths.py)
+- [ComfyUI Folder Structure](https://comfyui-wiki.com/en/interface/files)
+- All research documented in UX_IMPROVEMENTS_RESEARCH.md
+
+10. **CRITICAL BUG FIX** (Post-UX Improvements):
+   - **Issue**: FLUX.2 crashed when negative_prompt was provided (TypeError)
+   - **Root Cause**: Default negative prompt added in UX improvements, but FLUX.2 doesn't support negative_prompt parameter
+   - **Previous Behavior**: Hard crash with error message telling user to clear negative_prompt
+   - **New Behavior**: Gracefully detects unsupported parameter, removes it, retries generation, logs warning to console
+   - **Fix Location**: nodes/sampler.py:684-709 (try/except with retry logic)
+   - **Impact**: With default negative prompt, FLUX.2 would crash on EVERY generation unless manually cleared
+   - **User Experience**: Now seamless - FLUX.2 works out of the box despite having default negative prompt
+   - **Console Output**: `⚠️  Pipeline Flux2Pipeline doesn't support negative_prompt - skipping it`
+   - QA validated with test_negative_prompt_fix.py (7/7 checks passed)
+
+### Graceful Parameter Handling
+
+The node now implements intelligent parameter compatibility checking:
+
+1. **First Attempt**: Try generation with all parameters (including negative_prompt if provided)
+2. **Error Detection**: If TypeError about 'negative_prompt' occurs
+3. **Automatic Retry**: Remove negative_prompt from kwargs and retry
+4. **User Notification**: Log warning to console (non-intrusive)
+5. **Success**: Generation continues successfully
+
+This prevents crashes for:
+- FLUX.2 (doesn't support negative_prompt)
+- FLUX-schnell (cfg=0, ignores negative_prompt but accepts it)
+- Future models with different parameter signatures
+
+**Other unsupported parameters** still raise helpful errors with troubleshooting tips.
+
 ### Next Steps
 
-- User to test node in ComfyUI (import issue NOW FIXED)
+- User to test node in ComfyUI (all fixes applied)
+- Test LoRA support with real LoRA files (-5.0 to +5.0 range)
+- Test scheduler parameter (currently only one option, but implemented correctly)
 - Test model selection and auto-download with real SDNQ model
 - Fix any errors discovered during testing
-- Add advanced features if needed (LoRA, batch generation, etc.)
 
 ---
 

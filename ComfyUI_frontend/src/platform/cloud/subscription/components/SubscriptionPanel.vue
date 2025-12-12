@@ -21,7 +21,7 @@
             <div class="flex items-center justify-between">
               <div class="flex flex-col gap-2">
                 <div class="text-sm font-bold text-text-primary">
-                  {{ tierName }}
+                  {{ subscriptionTierName }}
                 </div>
                 <div class="flex items-baseline gap-1 font-inter font-semibold">
                   <span class="text-2xl">${{ tierPrice }}</span>
@@ -138,19 +138,6 @@
                         >
                           {{ $t('subscription.creditsRemainingThisMonth') }}
                         </div>
-                        <Button
-                          v-tooltip="refreshTooltip"
-                          icon="pi pi-question-circle"
-                          text
-                          rounded
-                          size="small"
-                          class="h-4 w-4 shrink-0"
-                          :pt="{
-                            icon: {
-                              class: 'text-text-secondary text-xs'
-                            }
-                          }"
-                        />
                       </div>
                     </div>
                     <div class="flex items-center gap-4">
@@ -353,7 +340,22 @@ import { useSubscription } from '@/platform/cloud/subscription/composables/useSu
 import { useSubscriptionActions } from '@/platform/cloud/subscription/composables/useSubscriptionActions'
 import { useSubscriptionCredits } from '@/platform/cloud/subscription/composables/useSubscriptionCredits'
 import { useSubscriptionDialog } from '@/platform/cloud/subscription/composables/useSubscriptionDialog'
+import type { components } from '@/types/comfyRegistryTypes'
 import { cn } from '@/utils/tailwindUtil'
+
+type SubscriptionTier = components['schemas']['SubscriptionTier']
+
+/** Maps API subscription tier values to i18n translation keys */
+const TIER_TO_I18N_KEY = {
+  STANDARD: 'standard',
+  CREATOR: 'creator',
+  PRO: 'pro',
+  FOUNDERS_EDITION: 'founder'
+} as const satisfies Record<SubscriptionTier, string>
+
+type TierKey = (typeof TIER_TO_I18N_KEY)[SubscriptionTier]
+
+const DEFAULT_TIER_KEY: TierKey = 'standard'
 
 const { buildDocsUrl } = useExternalLink()
 const { t } = useI18n()
@@ -363,14 +365,19 @@ const {
   isCancelled,
   formattedRenewalDate,
   formattedEndDate,
+  subscriptionTier,
+  subscriptionTierName,
   handleInvoiceHistory
 } = useSubscription()
 
 const { show: showSubscriptionDialog } = useSubscriptionDialog()
 
-// Tier data - hardcoded for Creator tier as requested
-const tierName = computed(() => t('subscription.tiers.creator.name'))
-const tierPrice = computed(() => t('subscription.tiers.creator.price'))
+const tierKey = computed(() => {
+  const tier = subscriptionTier.value
+  if (!tier) return DEFAULT_TIER_KEY
+  return TIER_TO_I18N_KEY[tier] ?? DEFAULT_TIER_KEY
+})
+const tierPrice = computed(() => t(`subscription.tiers.${tierKey.value}.price`))
 
 // Tier benefits for v-for loop
 type BenefitType = 'metric' | 'feature'
@@ -382,38 +389,49 @@ interface Benefit {
   value?: string
 }
 
-const tierBenefits = computed(() => {
-  const baseBenefits: Benefit[] = [
-    {
-      key: 'monthlyCredits',
-      type: 'metric',
-      value: t('subscription.tiers.creator.benefits.monthlyCredits'),
-      label: t('subscription.tiers.creator.benefits.monthlyCreditsLabel')
-    },
-    {
-      key: 'maxDuration',
-      type: 'metric',
-      value: t('subscription.tiers.creator.benefits.maxDuration'),
-      label: t('subscription.tiers.creator.benefits.maxDurationLabel')
-    },
-    {
-      key: 'gpu',
-      type: 'feature',
-      label: t('subscription.tiers.creator.benefits.gpuLabel')
-    },
-    {
-      key: 'addCredits',
-      type: 'feature',
-      label: t('subscription.tiers.creator.benefits.addCreditsLabel')
-    },
-    {
-      key: 'customLoRAs',
-      type: 'feature',
-      label: t('subscription.tiers.creator.benefits.customLoRAsLabel')
-    }
+const BENEFITS_BY_TIER: Record<
+  TierKey,
+  ReadonlyArray<Omit<Benefit, 'label' | 'value'>>
+> = {
+  standard: [
+    { key: 'monthlyCredits', type: 'metric' },
+    { key: 'maxDuration', type: 'metric' },
+    { key: 'gpu', type: 'feature' },
+    { key: 'addCredits', type: 'feature' }
+  ],
+  creator: [
+    { key: 'monthlyCredits', type: 'metric' },
+    { key: 'maxDuration', type: 'metric' },
+    { key: 'gpu', type: 'feature' },
+    { key: 'addCredits', type: 'feature' },
+    { key: 'customLoRAs', type: 'feature' }
+  ],
+  pro: [
+    { key: 'monthlyCredits', type: 'metric' },
+    { key: 'maxDuration', type: 'metric' },
+    { key: 'gpu', type: 'feature' },
+    { key: 'addCredits', type: 'feature' },
+    { key: 'customLoRAs', type: 'feature' }
+  ],
+  founder: [
+    { key: 'monthlyCredits', type: 'metric' },
+    { key: 'maxDuration', type: 'metric' },
+    { key: 'gpu', type: 'feature' },
+    { key: 'addCredits', type: 'feature' }
   ]
+}
 
-  return baseBenefits
+const tierBenefits = computed(() => {
+  const key = tierKey.value
+  const benefitConfig = BENEFITS_BY_TIER[key]
+
+  return benefitConfig.map((config) => ({
+    ...config,
+    ...(config.type === 'metric' && {
+      value: t(`subscription.tiers.${key}.benefits.${config.key}`)
+    }),
+    label: t(`subscription.tiers.${key}.benefits.${config.key}Label`)
+  }))
 })
 
 const { totalCredits, monthlyBonusCredits, prepaidCredits, isLoadingBalance } =
@@ -421,7 +439,6 @@ const { totalCredits, monthlyBonusCredits, prepaidCredits, isLoadingBalance } =
 
 const {
   isLoadingSupport,
-  refreshTooltip,
   handleAddApiCredits,
   handleMessageSupport,
   handleRefresh,

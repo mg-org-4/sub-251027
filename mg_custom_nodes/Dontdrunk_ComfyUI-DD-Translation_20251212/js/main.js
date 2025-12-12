@@ -1,6 +1,5 @@
 import { app } from "../../../scripts/app.js";
-import { $el } from "../../../scripts/ui.js";
-import { applyMenuTranslation, observeFactory } from "./MenuTranslate.js";
+import { applyMenuTranslation } from "./MenuTranslate.js";
 import {
   containsChineseCharacters,
   isAlreadyTranslated,
@@ -88,34 +87,23 @@ export class TUtils {
       OnFinished();
     }
   }
-    static enhandeDrawNodeWidgets() {
-    try {
-      let drawNodeWidgets = LGraphCanvas.prototype.drawNodeWidgets;
-      LGraphCanvas.prototype.drawNodeWidgets = function (node, posY, ctx, active_widget) {
-        if (!node.widgets || !node.widgets.length) {
-          return 0;
-        }
-        const widgets = node.widgets.filter((w) => w.type === "slider");
-        widgets.forEach((widget) => {
-          widget._ori_label = widget.label;
-          const fixed = widget.options.precision != null ? widget.options.precision : 3;
-          widget.label = (widget.label || widget.name) + ": " + Number(widget.value).toFixed(fixed).toString();
-        });
-        let result;
-        try {
-          result = drawNodeWidgets.call(this, node, posY, ctx, active_widget);
-        } finally {
-          widgets.forEach((widget) => {
-            widget.label = widget._ori_label;
-            delete widget._ori_label;
-          });
-        }
-        return result;
-      };
-    } catch (e) {
-      error("增强节点小部件绘制失败:", e);
+  static getInputTranslationDict(t, key) {
+    if (!t) return null;
+    if (t["inputs"] && key in t["inputs"]) return t["inputs"][key];
+    if (t["widgets"] && key in t["widgets"]) return t["widgets"][key];
+    if (t["inputs"] && t["inputs"]["*"]) return t["inputs"]["*"];
+    const h = applySuffixHeuristic(key);
+    return h || null;
+  }
+  static setItemText(item, text) {
+    if (!text) return;
+    if (TUtils.needsTranslation(item)) {
+      if (!item._original_name) item._original_name = item.name;
+      if ("label" in item) item.label = text;
+      if ("localized_name" in item) item.localized_name = text;
     }
-  }  static applyNodeTypeTranslationEx(nodeName) {
+  }
+  static applyNodeTypeTranslationEx(nodeName) {
     try {
       let nodesT = this.T.Nodes;
       var nodeType = LiteGraph.registered_node_types[nodeName];
@@ -171,25 +159,10 @@ export class TUtils {
         const translateInputs = (inputObj) => {
             if (!inputObj) return;
             for (const key in inputObj) {
-                // Try 'inputs' dictionary first, then 'widgets' (as widgets are defined in inputs)
-                let translation = null;
-                if (t["inputs"] && key in t["inputs"]) {
-                    translation = t["inputs"][key];
-                } else if (t["widgets"] && key in t["widgets"]) {
-                    translation = t["widgets"][key];
-                } else if (t["inputs"] && t["inputs"]["*"]) {
-                    translation = t["inputs"]["*"];
-                } else {
-                    const h = applySuffixHeuristic(key);
-                    if (h) translation = h;
-                }
-
+                const translation = TUtils.getInputTranslationDict(t, key);
                 if (translation) {
                     const val = inputObj[key];
-                    // val is [TYPE, OPTIONS]
                     if (Array.isArray(val) && val.length > 1 && typeof val[1] === 'object') {
-                        // Inject label into options
-                        // Avoid overwriting if native translation exists (check if label has Chinese)
                         if (!val[1].label || !containsChineseCharacters(val[1].label)) {
                             val[1].label = translation;
                         }
@@ -208,21 +181,12 @@ export class TUtils {
          if (t["outputs"] && nodeDef.output_name && Array.isArray(nodeDef.output_name)) {
              for (let i = 0; i < nodeDef.output_name.length; i++) {
                  const originalName = nodeDef.output_name[i];
-                 if (originalName in t["outputs"]) {
-                      const translation = t["outputs"][originalName];
-                      if (translation && !containsChineseCharacters(originalName)) {
-                          nodeDef.output_name[i] = translation;
-                      }
-                 } else if (t["outputs"]["*"]) {
-                      const translation = t["outputs"]["*"];
-                      if (translation) {
-                          nodeDef.output_name[i] = translation;
-                      }
-                 } else if (t["outputs"]["samples"] && /_samples$/.test(originalName)) {
-                      const translation = t["outputs"]["samples"];
-                      if (translation) {
-                          nodeDef.output_name[i] = translation;
-                      }
+                 let translation = null;
+                 if (originalName in t["outputs"]) translation = t["outputs"][originalName];
+                 else if (t["outputs"]["*"]) translation = t["outputs"]["*"];
+                 else if (t["outputs"]["samples"] && /_samples$/.test(originalName)) translation = t["outputs"]["samples"];
+                 if (translation && !containsChineseCharacters(originalName)) {
+                     nodeDef.output_name[i] = translation;
                  }
              }
          }
@@ -325,26 +289,21 @@ export class TUtils {
       if (!t) return;
       
       for (let key of keys) {
-        if (!t.hasOwnProperty(key)) continue;
         if (!node.hasOwnProperty(key)) continue;
         if (!node[key] || !Array.isArray(node[key])) continue;
-        
         node[key].forEach((item) => {
           if (!item || !item.name) return;
-          if (item.name in t[key]) {
-            // 检查是否有原生翻译（特殊处理：排除有_original_name的项）
-            const hasNative = hasNativeTranslation(item, 'label') && !item._original_name;
-            
-            // 如果没有原生翻译，才应用我们的翻译
-            if (!hasNative) {
-              this.safeApplyTranslation(item, t[key][item.name]);
-            }
-          } else if (key === 'inputs' || key === 'widgets') {
-            const trans = applySuffixHeuristic(item.name);
-            if (trans) {
-              const hasNative = hasNativeTranslation(item, 'label') && !item._original_name;
-              if (!hasNative) this.safeApplyTranslation(item, trans);
-            }
+          const hasNative = hasNativeTranslation(item, 'label') && !item._original_name;
+          if (hasNative) return;
+          if (key === 'inputs' || key === 'widgets') {
+            const tr = TUtils.getInputTranslationDict(t, item.name);
+            if (tr) TUtils.setItemText(item, tr);
+          } else if (key === 'outputs') {
+            let tr = null;
+            if (t["outputs"] && item.name in t["outputs"]) tr = t["outputs"][item.name];
+            else if (t["outputs"] && t["outputs"]["*"]) tr = t["outputs"]["*"];
+            else if (t["outputs"] && t["outputs"]["samples"] && /_samples$/.test(item.name)) tr = t["outputs"]["samples"];
+            if (tr) TUtils.setItemText(item, tr);
           }
         });
       }
@@ -373,25 +332,21 @@ export class TUtils {
         if (this.inputs && Array.isArray(this.inputs)) {
           this.inputs.forEach((i) => {
             if (oldInputs.includes(i.name)) return;
-            if (t["widgets"] && i.widget?.name in t["widgets"]) {
-              TUtils.safeApplyTranslation(i, t["widgets"][i.widget?.name]);
-            }
+            const tr = TUtils.getInputTranslationDict(t, i.widget?.name || i.name);
+            if (tr) TUtils.setItemText(i, tr);
           });
         }
         return res;
       };
-        let onInputAdded = node.onInputAdded;
+      let onInputAdded = node.onInputAdded;
       node.onInputAdded = function (slot) {
         let res;
         if (onInputAdded) {
           res = onInputAdded.apply(this, arguments);
         }
         let t = TUtils.T.Nodes[this.comfyClass];
-        if (t?.["widgets"] && slot.name in t["widgets"]) {
-          if (TUtils.needsTranslation(slot)) {
-            slot.localized_name = t["widgets"][slot.name];
-          }
-        }
+        const tr = TUtils.getInputTranslationDict(t, slot.name);
+        if (tr) TUtils.setItemText(slot, tr);
         return res;
       };
     } catch (e) {
@@ -440,22 +395,6 @@ export class TUtils {
       if (!isTranslationEnabled()) return;
       
       applyMenuTranslation(TUtils.T);
-      
-      // Queue size 单独处理
-      const dragHandle = app.ui.menuContainer.querySelector(".drag-handle");
-      if (dragHandle && dragHandle.childNodes[1]) {
-        observeFactory(dragHandle.childNodes[1], (mutationsList, observer) => {
-          for (let mutation of mutationsList) {
-            for (let node of mutation.addedNodes) {
-              var match = node.data?.match(/(Queue size:) (\w+)/);
-              if (match?.length == 3) {
-                const t = TUtils.T.Menu[match[1]] ? TUtils.T.Menu[match[1]] : match[1];
-                node.data = t + " " + match[2];
-              }
-            }
-          }
-        });
-      }
     } catch (e) {
       error("应用菜单翻译失败:", e);
     }
@@ -638,27 +577,7 @@ export class TUtils {
   }
   static addPanelButtons(app) {
   }
-  static addNodeTitleMonitoring(app) {
-    try {
-      if (typeof LGraphNode === 'undefined') {
-        error("LGraphNode未定义，无法设置标题监听");
-        return;
-      }
-      
-      const originalSetTitle = LGraphNode.prototype.setTitle || function(title) {
-        this.title = title;
-      };
-      
-      LGraphNode.prototype.setTitle = function(title) {
-        if (title && title !== this.constructor.title) {
-          this._dd_custom_title = true;
-        }
-        return originalSetTitle.call(this, title);
-      };
-    } catch (e) {
-      error("添加节点标题监听失败:", e);
-    }
-  }
+  
 }
 
 const ext = {
@@ -666,9 +585,6 @@ const ext = {
     async init(app) {
     try {
       await initConfig();
-      if (!isVueNodes2()) {
-        TUtils.enhandeDrawNodeWidgets();
-      }
       await TUtils.syncTranslation();
     } catch (e) {
       error("扩展初始化失败:", e);
@@ -677,10 +593,6 @@ const ext = {
     async setup(app) {
     try {      
       const isComfyUIChineseNative = document.documentElement.lang === 'zh-CN';
-      
-      if (!isVueNodes2()) {
-        TUtils.addNodeTitleMonitoring(app);
-      }
       
       app.ui.settings.addSetting({
         id: "🌐翻译设置.语言开关.Enable",
@@ -693,29 +605,20 @@ const ext = {
             }
         },
       });
-
+      
       if (isTranslationEnabled()) {
         if (!isVueNodes2()) {
           TUtils.applyNodeTypeTranslation(app);
           TUtils.applyContextMenuTranslation(app);
-        }
-        
-        // In Vue mode, allow text-only replacement regardless of native locale
-        if (!isComfyUIChineseNative || isVueNodes2()) {
-          TUtils.applyMenuTranslation(app);
-        }
-        
-        if (!isVueNodes2()) {
           TUtils.addRegisterNodeDefCB(app);
-        }
-        if (isVueNodes2()) {
+        } else {
+          if (!isComfyUIChineseNative) {
+            TUtils.applyMenuTranslation(app);
+          }
           TUtils.applyVueI18nNodeDefs();
         }
       }
       
-      if (!isVueNodes2()) {
-        TUtils.addPanelButtons(app);
-      }
     } catch (e) {
       error("扩展设置失败:", e);
     }

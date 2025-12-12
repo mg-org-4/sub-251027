@@ -388,6 +388,7 @@ class MapLinks {
 		if (isBlocked[blockedNodeId] > 3) {
 			// Blocked too many times, let's return the direct path
 			console.log('CircuitBoardLines: Too many blocked, node id:', blockedNodeId, 'output', outputXY, 'input', inputXY); // eslint-disable-line no-console
+			isBlocked.blocked = true;
 			return [outputXY, inputXY];
 		}
 		if (isBlocked[blockedNodeId])
@@ -451,7 +452,8 @@ class MapLinks {
 	}
 
 	mapLinks(nodesByExecution) {
-		if (!this.canvas.graph.links) {
+		const graphLinks = this.canvas.graph.links;
+		if (!graphLinks) {
 			console.error('Missing graph.links', this.canvas.graph); // eslint-disable-line no-console
 			return;
 		}
@@ -488,13 +490,22 @@ class MapLinks {
 		//			(a, b) => (a.area[1]) - (b.area[1]),
 		//		);
 
+		const nodesByRightId = this.nodesByRight.reduce(
+			(a, x) => {
+				a[x.node.id] = x.node;
+				return a;
+			},
+			{},
+		);
 		this.nodesByRight.filter((nodeI) => {
 			const { node } = nodeI;
-			if (!node.outputs) {
+			const outputs = node.outputs;
+			if (!outputs) {
 				return false;
 			}
-			node.outputs.filter((output, slot) => {
-				if (!output.links) {
+			outputs.filter((output, slot) => {
+				const links = output.links;
+				if (!links) {
 					return false;
 				}
 
@@ -507,13 +518,17 @@ class MapLinks {
 						: node.getOutputPos(slot);
 				const outputNodeInfo = this.nodesById[node.id];
 				let outputXY = Array.from(outputXYConnection);
-				output.links.filter((linkId) => {
+				links.filter((linkId) => {
 					outputXY[0] = outputNodeInfo.linesArea[2];
-					const link = this.canvas.graph.links[linkId];
+					const link = graphLinks[linkId];
 					if (!link) {
 						return false;
 					}
-					const targetNode = this.canvas.graph.getNodeById(link.target_id);
+					let targetNode = this.canvas.graph.getNodeById(link.target_id);
+					if (!targetNode) {
+						// maybe this is the in / out node in a subgraph
+						targetNode = nodesByRightId[link.target_id];
+					}
 					if (!targetNode) {
 						return false;
 					}
@@ -538,8 +553,10 @@ class MapLinks {
 					// console.log('blocked', inputBlockedByNode, outputBlockedByNode,
 					//	'inputXY', inputXY, 'outputXY', outputXY);
 					if (!inputBlockedByNode && !outputBlockedByNode) {
-						const pathFound = this.mapLink(outputXY, inputXY, nodeInfo, {}, null);
-						if (pathFound && pathFound.length > 2) {
+						const isBlocked = {};
+						const pathFound = this.mapLink(outputXY, inputXY, nodeInfo, isBlocked, null);
+						// Draw a direct line when it's blocked (isBlocked.blocked)
+						if (!isBlocked.blocked && pathFound && pathFound.length > 2) {
 							// mapLink() may have expanded the linesArea,
 							// lets put it back into the inputXY so the line is straight
 							path = [outputXYConnection, ...pathFound, inputXYConnection];
@@ -568,6 +585,9 @@ class MapLinks {
 		});
 		this.lastCalculate = new Date().getTime();
 		this.lastCalcTime = this.lastCalculate - startCalcTime;
+		if (this.lastCalcTime > 30000) {
+			this.lastCalcTime = 30000; // might have paused in debugger
+		}
 
 		if (this.debug)
 			console.log('last calc time', this.lastCalcTime); // eslint-disable-line no-console
@@ -721,6 +741,86 @@ class MapLinks {
 	}
 }
 
+// pretend the subgraph in / out blocks to be normal nodes.
+class SubgraphSlotProxy {
+	constructor(slot) {
+		this.slot = slot;
+	}
+
+	get links() {
+		return this.slot.linkIds;
+	}
+}
+
+class SubgraphInOutNodeProxy {
+	constructor(subgraphNode, isInput) {
+		this.subgraphNode = subgraphNode;
+		this.isInput = isInput;
+		this.slots = [];
+		for (const slot of this.subgraphNode.slots) {
+			this.slots.push(new SubgraphSlotProxy(slot));
+		}
+	}
+
+	get id() {
+		return this.subgraphNode.id;
+	}
+
+	get outputs() {
+		if (!this.isInput) {
+			// output node in subgraph has no outputs, only inputs
+			return [];
+		}
+		return this.slots;
+	}
+
+	getSlotPosition(slot, isInput) {
+		return this.subgraphNode.slots[slot].pos;
+	}
+
+	getInputPos(slot) {
+		return this.getSlotPosition(slot, true);
+	}
+
+	getOutputPos(slot) {
+		return this.getSlotPosition(slot, false);
+	}
+
+	getBounding(area) {
+		area[0] = this.subgraphNode.boundingRect[0];
+		area[1] = this.subgraphNode.boundingRect[1];
+		area[2] = this.subgraphNode.boundingRect[2];
+		area[3] = this.subgraphNode.boundingRect[3];
+		return area;
+
+		/*
+		let xLeft = 0;
+		let yTop = Number.MAX_VALUE;
+		let yBottom = -Number.MAX_VALUE;
+
+		for (const output of this.subgraphNode.slots) { // eslint-disable-line no-restricted-syntax
+			const [x, y] = output.pos;
+console.log('outputpos', this.id, output.pos, x, y );
+			const yt = y - 100;
+			const yb = y + 100;
+			if (yt < yTop) {
+				yTop = yt;
+			}
+			if (yb > yBottom) {
+				yBottom = yb;
+			}
+			xLeft = x;
+		}
+		area[0] = xLeft;
+		area[1] = yTop;
+		area[2] = 100;
+		area[3] = yBottom - yTop;
+console.log('area', this.id, area, 'slots', this.subgraphNode.slots, 'topy', yTop, yBottom );
+		return area;
+*/
+	}
+}
+
 class EyeButton {
 	constructor() {
 		this.hidden = null;
@@ -825,7 +925,19 @@ export class CircuitBoardLines {
 		this.mapLinks.maxDirectLineDistance = this.maxDirectLineDistance;
 		this.mapLinks.debug = this.debug;
 		const nodesByExecution = this.canvas.graph.computeExecutionOrder() || [];
-		this.mapLinks.mapLinks(nodesByExecution);
+		if (this.canvas.subgraph) {
+			// add subgraph nodes
+			const proxyInputNode = new SubgraphInOutNodeProxy(this.canvas.subgraph.inputNode, true);
+			const proxyOutputNode = new SubgraphInOutNodeProxy(this.canvas.subgraph.outputNode, false);
+
+			nodesByExecution.push(proxyInputNode);
+			nodesByExecution.push(proxyOutputNode);
+		}
+		try {
+			this.mapLinks.mapLinks(nodesByExecution);
+		} catch (e) {
+			console.error('mapLinks error', e); // eslint-disable-line no-console
+		}
 	}
 
 	drawConnections(
@@ -840,9 +952,9 @@ export class CircuitBoardLines {
 
 			this.mapLinks.drawLinks(ctx);
 
-			if (this.canvas.subgraph) {
-				this.drawSubgraphConnections(ctx, this.canvas.graph, this.canvas.subgraph);
-			}
+			//			if (this.canvas.subgraph) {
+			//				this.drawSubgraphConnections(ctx, this.canvas.graph, this.canvas.subgraph);
+			//			}
 		} finally {
 			this.lastDrawConnections = new Date().getTime();
 		}
@@ -850,6 +962,7 @@ export class CircuitBoardLines {
 		return true;
 	}
 
+	/*
 	drawSubgraphConnections(
 		ctx,
 		graph,
@@ -869,7 +982,12 @@ export class CircuitBoardLines {
 				if (!inputNode || !input)
 					continue;
 
-				const endPos = inputNode.getInputPos(link.target_slot);
+				const endPos = (LiteGraph.vueNodesMode && inputNode.getSlotPosition)
+					? inputNode.getSlotPosition(
+						link.target_slot,
+						true,
+					)
+					: inputNode.getInputPos(link.target_slot);
 
 				const startDir = input.dir || LiteGraph.RIGHT;
 				const endDir = input.dir || LiteGraph.LEFT;
@@ -898,7 +1016,13 @@ export class CircuitBoardLines {
 			const { link, outputNode, output } = resolved;
 			if (!outputNode || !output) continue;
 
-			const startPos = outputNode.getOutputPos(link.origin_slot);
+			const startPos =
+				(LiteGraph.vueNodesMode && outputNode.getSlotPosition)
+					? outputNode.getSlotPosition(
+						link.origin_slot,
+						false,
+					)
+					: outputNode.getOutputPos(link.origin_slot);
 
 			const startDir = output.dir || LiteGraph.RIGHT;
 			const endDir = input.dir || LiteGraph.LEFT;
@@ -916,6 +1040,7 @@ export class CircuitBoardLines {
 			);
 		}
 	}
+	*/
 
 	init() {
 		const oldDrawConnections = LGraphCanvas.prototype.drawConnections;

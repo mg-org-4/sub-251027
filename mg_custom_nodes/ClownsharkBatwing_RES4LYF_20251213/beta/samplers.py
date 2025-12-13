@@ -13,6 +13,7 @@ import comfy.model_sampling
 import comfy.latent_formats
 import comfy.sd
 import comfy.supported_models
+import comfy.utils
 from comfy.samplers import CFGGuider, sampling_function
 
 import latent_preview
@@ -566,11 +567,29 @@ class SharkSampler:
                     noise *= noise_stdev
                     noise = (noise - noise.mean()) + noise_mean
                     
+                    noise_mask = latent_unbatch["noise_mask"] if "noise_mask" in latent_unbatch else None
+
+                    x_input = x
+                    if noise_mask is not None and 'noise_initial' in state_info:
+                        stored_noise = state_info.get('noise_initial')
+                        if stored_noise is not None:
+                            if stored_noise.dim() > 3 and stored_noise.shape[0] > batch_num:
+                                stored_noise = stored_noise[batch_num]
+                            if stored_noise.shape == noise.shape:
+                                noise = stored_noise.to(noise.device, dtype=noise.dtype)
+                                RESplain("Using stored noise_initial from previous sampler", debug=True)
+
+                        stored_image = state_info.get('image_initial')
+                        if stored_image is not None:
+                            if stored_image.dim() > 3 and stored_image.shape[0] > batch_num:
+                                stored_image = stored_image[batch_num]
+                            if stored_image.shape == x.shape:
+                                x_input = stored_image.to(x.device, dtype=x.dtype)
+                                RESplain("Using stored image_initial from previous sampler", debug=True)
+
                     if 'BONGMATH' in sampler.extra_options:
                         sampler.extra_options['noise_initial'] = noise
-                        sampler.extra_options['image_initial'] = x
-
-                    noise_mask = latent_unbatch["noise_mask"] if "noise_mask" in latent_unbatch else None
+                        sampler.extra_options['image_initial'] = x_input
 
                     x0_output = {}
 
@@ -587,6 +606,10 @@ class SharkSampler:
                             sampler.extra_options['state_info']['data_prev_']       = state_info['data_prev_']      [batch_num]
                             sampler.extra_options['state_info']['last_rng']         = state_info['last_rng']        [batch_num]
                             sampler.extra_options['state_info']['last_rng_substep'] = state_info['last_rng_substep'][batch_num]
+                            if 'image_initial' in state_info and state_info['image_initial'].dim() > 3:
+                                sampler.extra_options['state_info']['image_initial'] = state_info['image_initial'][batch_num]
+                            if 'noise_initial' in state_info and state_info['noise_initial'].dim() > 3:
+                                sampler.extra_options['state_info']['noise_initial'] = state_info['noise_initial'][batch_num]
                         #state_info     = copy.deepcopy(latent_image['state_info']) if 'state_info' in latent_image else {}
                         state_info_out = {}
                         sampler.extra_options['state_info_out'] = state_info_out
@@ -755,7 +778,7 @@ class SharkSampler:
                         etas_substep_decay  = etas_substep_cached
                         unsample_etas_decay = unsample_etas
 
-                    samples = guider.sample(noise, x.clone(), sampler, sigmas, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise_seed)
+                    samples = guider.sample(noise, x_input.clone(), sampler, sigmas, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=noise_seed)
 
                     if rebounds > 0: 
                         noise_seed_cached   = sampler.extra_options['noise_seed']
@@ -827,8 +850,21 @@ class SharkSampler:
                         sampler.extra_options['etas']         = etas_cached
                         sampler.extra_options['rk_type']      = rk_type_cached
                         sampler.extra_options['steps_to_run'] = steps_to_run_cached   # TODO: verify this is carried on
-        
 
+                    if noise_mask is not None:
+                        if 'BONGMATH' in sampler.extra_options:
+                            batch_state_info = sampler.extra_options.get('state_info', {})
+                            latent_for_mask = batch_state_info.get('image_initial', x)
+                        else:
+                            stored_image = state_info.get('image_initial')
+                            if stored_image is not None and stored_image.dim() > 3:
+                                latent_for_mask = stored_image[batch_num]
+                            elif stored_image is not None:
+                                latent_for_mask = stored_image
+                            else:
+                                latent_for_mask = x
+                        reshaped_mask = comfy.utils.reshape_mask(noise_mask, samples.shape).to(samples.device)
+                        samples = samples * reshaped_mask + latent_for_mask.to(samples.device) * (1.0 - reshaped_mask)
 
                     out = latent_unbatch.copy()
                     out["samples"] = samples
@@ -871,6 +907,10 @@ class SharkSampler:
                 state_info_out['data_prev_']       = torch.stack([out_state_info[_]['data_prev_']       for _ in range(len(out_state_info))])
                 state_info_out['last_rng']         = torch.stack([out_state_info[_]['last_rng']         for _ in range(len(out_state_info))])
                 state_info_out['last_rng_substep'] = torch.stack([out_state_info[_]['last_rng_substep'] for _ in range(len(out_state_info))])
+                if 'image_initial' in out_state_info[0]:
+                    state_info_out['image_initial'] = torch.stack([out_state_info[_]['image_initial'] for _ in range(len(out_state_info))])
+                if 'noise_initial' in out_state_info[0]:
+                    state_info_out['noise_initial'] = torch.stack([out_state_info[_]['noise_initial'] for _ in range(len(out_state_info))])
             elif 'raw_x' in state_info:
                 state_info_out = state_info
 

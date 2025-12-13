@@ -2104,9 +2104,14 @@ def sample_rk_beta(
     #progress_bar.close()
     RK.update_transformer_options({'update_cross_attn':  None})
     if step == len(sigmas)-2 and sigmas[-1] == 0 and sigmas[-2] == NS.sigma_min and not INIT_SAMPLE_LOOP:
-        eps, denoised = RK(x, NS.sigma_min, x, NS.sigma_min)
-        x = denoised
-        #progress_bar.update(1)
+        if EO("skip_final_model_call"):
+            sigma_min = NS.sigma_min.view(x.shape[:1] + (1,) * (x.ndim - 1)).to(x)
+            denoised  = model.inner_model.inner_model.model_sampling.calculate_denoised(sigma_min, eps, x)
+            x = denoised
+        else:
+            eps, denoised = RK(x, NS.sigma_min, x, NS.sigma_min)
+            x = denoised
+            #progress_bar.update(1)
 
     eps      = eps     .to(model_device)
     denoised = denoised.to(model_device)
@@ -2159,6 +2164,11 @@ def sample_rk_beta(
         state_info_out['y0_inv_standard_guide']  = y0_inv_standard_guide
         state_info_out['data_prev_y_']      = data_prev_y_
         state_info_out['data_prev_x_']      = data_prev_x_
+
+        if noise_initial is not None:
+            state_info_out['noise_initial'] = noise_initial.to('cpu')
+        if image_initial is not None:
+            state_info_out['image_initial'] = image_initial.to('cpu')
 
         if FLOW_STARTED and not FLOW_STOPPED:
             state_info_out['y0']           = y0.to('cpu') 

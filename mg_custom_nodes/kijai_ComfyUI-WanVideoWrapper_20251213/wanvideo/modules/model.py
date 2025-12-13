@@ -21,6 +21,7 @@ from ...utils import log, get_module_memory_mb
 from ...cache_methods.cache_methods import TeaCacheState, MagCacheState, EasyCacheState, relative_l1_distance
 from ...multitalk.multitalk import get_attn_map_with_target
 from ...echoshot.echoshot import rope_apply_z, rope_apply_c, rope_apply_echoshot
+from ...custom_linear import update_lora_step
 
 from ...MTV.mtv import apply_rotary_emb
 from comfy.ldm.flux.math import apply_rope1 as apply_rope_comfy1
@@ -2211,7 +2212,7 @@ class WanModel(torch.nn.Module):
         num_cond_latents=None,
         add_text_emb=None,
         sdancer_input=None,  # SteadyDancer
-        one_to_all_input=None, # One-to-All
+        one_to_all_input=None, one_to_all_controlnet_strength=0.0 # One-to-All
     ):
         r"""
         Forward pass through the diffusion model
@@ -2251,10 +2252,7 @@ class WanModel(torch.nn.Module):
                 ip_scale = fantasy_portrait_input.get("strength", 1.0)
 
         if self.lora_scheduling_enabled:
-            for name, submodule in self.named_modules():
-                if isinstance(submodule, nn.Linear):
-                    if hasattr(submodule, 'step'):
-                        submodule.step = current_step
+            update_lora_step(self, current_step)
 
         # lynx
         lynx_x_ip = lynx_ref_feature = lynx_ref_buffer = lynx_ref_feature_extractor = None
@@ -2340,9 +2338,8 @@ class WanModel(torch.nn.Module):
                 self.refextractor.to(self.offload_device)
             # pose controlnet
             controlnet_tokens = one_to_all_input.get("controlnet_tokens", None)
-            if not is_uncond and controlnet_tokens is not None and one_to_all_input['controlnet_start_percent'] <= current_step_percentage <= one_to_all_input['controlnet_end_percent']:
-                onetoall_control_enabled = True
-                onetoall_control_strength = one_to_all_input.get("controlnet_strength", 1.0)
+            if controlnet_tokens is not None and one_to_all_input['controlnet_start_percent'] <= current_step_percentage <= one_to_all_input['controlnet_end_percent']:
+                onetoall_control_enabled = one_to_all_controlnet_strength != 0.0
             # token replace
             if one_to_all_input.get("token_replace", False):
                 use_token_replace = True
@@ -3042,7 +3039,7 @@ class WanModel(torch.nn.Module):
                 # One-to-All-Animation controlnet
                 if onetoall_control_enabled:
                     if prev_x is not None and (b - 1) < len(self.controlnet.blocks):
-                        tqdm.write(f"Applying One-to-All ControlNet at block {b}")
+                        #tqdm.write(f"Applying One-to-All ControlNet at block {b}")
                         if b == 1:
                             ctrl_in = prev_x + controlnet_tokens
                         elif prev_control is not None:
@@ -3054,7 +3051,7 @@ class WanModel(torch.nn.Module):
                         prev_control = control_out
 
                         control_out_proj = self.controlnet_zero[b - 1](control_out)
-                        x = x + control_out_proj * onetoall_control_strength
+                        x = x + control_out_proj * one_to_all_controlnet_strength
                     if b < len(self.controlnet.blocks): # Store prev_x only while controlnet is active
                         prev_x = x
                     elif b == len(self.controlnet.blocks): # Controlnet done, free memory

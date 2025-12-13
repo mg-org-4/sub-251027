@@ -1,6 +1,6 @@
 import os
 os.environ["MASTER_ADDR"] = "localhost"
-os.environ["MASTER_PORT"] = "29513"
+os.environ["MASTER_PORT"] = "29512"
 import sys
 import subprocess
 from pathlib import Path
@@ -10,11 +10,12 @@ from huggingface_hub import snapshot_download
 from fastvideo.utils import logger
 # Import the training pipeline
 sys.path.append(str(Path(__file__).parent.parent.parent.parent.parent))
-from fastvideo.training.wan_self_forcing_distillation_pipeline import WanSelfForcingDistillationPipeline
+from fastvideo.training.wan_training_pipeline import main
 from fastvideo.fastvideo_args import FastVideoArgs, TrainingArgs
 from fastvideo.utils import FlexibleArgumentParser
+from fastvideo.training.wan_distillation_pipeline import WanDistillationPipeline
 
-wandb_name = "test_self_forcing_distill"
+wandb_name = "test_distill_dmd"
 
 NUM_NODES = "1"
 NUM_GPUS_PER_NODE = "2"
@@ -27,25 +28,25 @@ def run_worker():
     parser = TrainingArgs.add_cli_args(parser)
     parser = FastVideoArgs.add_cli_args(parser)
     
-    # Set the arguments based on the distill_dmd_t2v_1.3B.sh script
+    # Set the arguments as they are in finetune_v1_test.sh
     args = parser.parse_args([
-        "--model_path", "wlsaidhi/SFWan2.1-T2V-1.3B-Diffusers",
+        "--model_path", "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
         "--inference_mode", "False",
-        "--pretrained_model_name_or_path", "wlsaidhi/SFWan2.1-T2V-1.3B-Diffusers",
+        "--pretrained_model_name_or_path", "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
         "--real_score_model_path", "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
         "--fake_score_model_path", "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
         "--data_path", "data/crush-smol_processed_t2v/combined_parquet_dataset",
         "--validation_dataset_file", "examples/training/finetune/wan_t2v_1.3B/crush_smol/validation.json",
         "--train_batch_size", "1",
-        "--num_latent_t", "21", 
+        "--num_latent_t", "4",
         "--num_gpus", "2",
-        "--sp_size", "1",
+        "--sp_size", "2",
         "--tp_size", "1",
         "--hsdp_replicate_dim", "1",
         "--hsdp_shard_dim", "2",
         "--train_sp_batch_size", "1",
         "--dataloader_num_workers", "1",
-        "--gradient_accumulation_steps", "1", 
+        "--gradient_accumulation_steps", "2",
         "--max_train_steps", "2",
         "--learning_rate", "1e-5",
         "--mixed_precision", "bf16",
@@ -57,51 +58,32 @@ def run_worker():
         "--checkpoints_total_limit", "3",
         "--ema_start_step", "0",
         "--training_cfg_rate", "0.0",
-        "--output_dir", "data/wan_self_forcing_test",
-        "--tracker_project_name", "wan_self_forcing_ci",
+        "--output_dir", "data/wan_finetune_test",
+        "--tracker_project_name", "wan_finetune_ci",
         "--wandb_run_name", wandb_name,
         "--num_height", "480",
         "--num_width", "832",
-        "--num_frames", "21",
-        "--flow_shift", "5",
-        "--validation_guidance_scale", "1.0",
+        "--num_frames", "13",
+        "--flow_shift", "8",
         "--weight_decay", "0.01",
         "--dit_precision", "fp32",
         "--max_grad_norm", "1.0",
-        # DMD args
-        "--dmd_denoising_steps", "1000,750,500",  # Reduced steps for testing
+        "--generator_update_interval", "5",
+        "--dmd_denoising_steps", "1000,757,522",
         "--min_timestep_ratio", "0.02",
         "--max_timestep_ratio", "0.98",
-        "--dfake_gen_update_ratio", "5",
-        "--real_score_guidance_scale", "3.0",
-        "--fake_score_learning_rate", "8e-6",
-        "--fake_score_betas", "0.0,0.999",
-        "--warp_denoising_step",
-        "--enable_gradient_checkpointing_type", "full",
-        # Self-forcing specific args
-        "--log_visualization",
-        "--simulate_generator_forward",
-        "--num_frame_per_block", "3",
-        "--enable_gradient_masking",
-        "--gradient_mask_last_n_frames", "21",
-        "--independent_first_frame", "False",
-        "--same_step_across_blocks", "True",
-        "--last_step_only", "False",
-        "--context_noise", "0",
-        "--use_ema", "True",
-        "--ema_decay", "0.99",
-        "--ema_start_step", "100",
+        "--real_score_guidance_scale", "3.5",
+        "--enable_gradient_checkpointing_type", "full"
     ])
-    
     # Call the main training function
-    pipeline = WanSelfForcingDistillationPipeline.from_pretrained(
+    pipeline = WanDistillationPipeline.from_pretrained(
         args.pretrained_model_name_or_path, args=args)
     args = pipeline.training_args
     pipeline.train()
-    logger.info("Self-forcing distillation training pipeline done")
+    logger.info("Training pipeline done")
 
 def test_distributed_training():
-    """Test the distributed self-forcing training setup"""
+    """Test the distributed training setup"""
     os.environ["WANDB_MODE"] = "offline"
 
     data_dir = Path("data/crush-smol_processed_t2v")
@@ -146,4 +128,3 @@ if __name__ == "__main__":
     else:
         # We're being run directly
         test_distributed_training()
-

@@ -118,7 +118,9 @@ from src.core.generation_utils import (
     prepare_runner, 
     compute_generation_info, 
     log_generation_start,
-    blend_overlapping_frames
+    blend_overlapping_frames,
+    load_text_embeddings,
+    script_directory
 )
 from src.core.generation_phases import (
     encode_all_batches, 
@@ -858,6 +860,10 @@ def _process_frames_core(
     if runner_cache is not None:
         runner_cache['runner'] = runner
     
+    # Preload text embeddings before Phase 1 to avoid sync stall in Phase 2
+    ctx['text_embeds'] = load_text_embeddings(script_directory, ctx['dit_device'], ctx['compute_dtype'], debug)
+    debug.log("Loaded text embeddings for DiT", category="dit")
+    
     # Compute generation info and log start (handles prepending internally)
     frames_tensor, gen_info = compute_generation_info(
         ctx=ctx,
@@ -1327,9 +1333,10 @@ Examples:
     blockswap_group = parser.add_argument_group('Memory optimization (BlockSwap)')
     blockswap_group.add_argument("--blocks_to_swap", type=int, default=0,
                         help="Transformer blocks to swap for VRAM savings. 0-32 (3B) or 0-36 (7B). "
-                             "Requires --dit_offload_device. Default: 0 (disabled)")
+                             "Requires --dit_offload_device. Not available on macOS. Default: 0 (disabled)")
     blockswap_group.add_argument("--swap_io_components", action="store_true",
-                        help="Offload DiT I/O layers for extra VRAM savings. Requires --dit_offload_device")
+                        help="Offload DiT I/O layers for extra VRAM savings. Requires --dit_offload_device. "
+                             "Not available on macOS")
     
     # VAE Tiling
     vae_group = parser.add_argument_group('VAE tiling (for high resolution upscale)')
@@ -1351,8 +1358,8 @@ Examples:
     # Performance
     perf_group = parser.add_argument_group('Performance optimization')
     perf_group.add_argument("--attention_mode", type=str, default="sdpa",
-                        choices=["sdpa", "flash_attn"],
-                        help="Attention backend: 'sdpa' (default, always available) or 'flash_attn' (faster, requires package)")
+                        choices=["sdpa", "flash_attn_2", "flash_attn_3", "sageattn_2", "sageattn_3"],
+                        help="Attention backend: 'sdpa' (default), 'flash_attn_2', 'flash_attn_3', 'sageattn_2', or 'sageattn_3' (Blackwell GPUs)")
     perf_group.add_argument("--compile_dit", action="store_true", 
                         help="Enable torch.compile for DiT model (20-40%% speedup, requires PyTorch 2.0+ and Triton)")
     perf_group.add_argument("--compile_vae", action="store_true",
@@ -1374,9 +1381,11 @@ Examples:
     # Model Caching (for batch processing)
     cache_group = parser.add_argument_group('Model caching (batch processing)')
     cache_group.add_argument("--cache_dit", action="store_true",
-                        help="Cache DiT model between files (single GPU only, speeds up directory processing)")
+                        help="Keep DiT model in memory between generations. Works with single-GPU directory processing "
+                             "or multi-GPU streaming (--chunk_size). Requires --dit_offload_device")
     cache_group.add_argument("--cache_vae", action="store_true",
-                        help="Cache VAE model between files (single GPU only, speeds up directory processing)")
+                        help="Keep VAE model in memory between generations. Works with single-GPU directory processing "
+                             "or multi-GPU streaming (--chunk_size). Requires --vae_offload_device")
     
     # Debugging
     debug_group = parser.add_argument_group('Debugging')
@@ -1433,24 +1442,6 @@ def main() -> None:
     
     if args.vae_decode_tiled and args.vae_decode_tile_overlap >= args.vae_decode_tile_size:
         debug.log(f"VAE decode tile overlap ({args.vae_decode_tile_overlap}) must be smaller than tile size ({args.vae_decode_tile_size})", level="ERROR", category="vae", force=True)
-        sys.exit(1)
-    
-    # Validate BlockSwap configuration - either blocks_to_swap or swap_io_components requires dit_offload_device
-    blockswap_enabled = args.blocks_to_swap > 0 or args.swap_io_components
-    if blockswap_enabled and args.dit_offload_device == "none":
-        config_details = []
-        if args.blocks_to_swap > 0:
-            config_details.append(f"blocks_to_swap={args.blocks_to_swap}")
-        if args.swap_io_components:
-            config_details.append("swap_io_components=True")
-        
-        debug.log(
-            f"BlockSwap enabled ({', '.join(config_details)}) but dit_offload_device='none'. "
-            "BlockSwap requires dit_offload_device to be set (typically 'cpu'). "
-            "Either set --dit_offload_device cpu or disable BlockSwap "
-            "(--blocks_to_swap 0 and do not use --swap_io_components)",
-            level="ERROR", category="blockswap", force=True
-        )
         sys.exit(1)
     
     # Inform about caching defaults

@@ -702,7 +702,7 @@ def manage_model_device(model: torch.nn.Module, target_device: torch.device, mod
         
         if has_blockswap_config:
             is_blockswap_model = True
-            # Get the actual model (handle FP8CompatibleDiT wrapper)
+            # Get the actual model (handle CompatibleDiT wrapper)
             if hasattr(model, "dit_model"):
                 actual_model = model.dit_model
 
@@ -1050,15 +1050,17 @@ def cleanup_dit(runner: Any, debug: Optional['Debug'] = None, cache_model: bool 
         
         # Move model off GPU if needed
         if param_device.type not in ['meta', 'cpu']:
-            # Get offload target - default to 'cpu' if not configured or set to 'none'
-            offload_target = getattr(runner, '_dit_offload_device', None)
-            if offload_target is None or offload_target == 'none':
-                offload_target = torch.device('cpu')
-            
-            # Move model off GPU (either for caching or before deletion)
-            reason = "model caching" if cache_model else "releasing GPU memory"
-            manage_model_device(model=runner.dit, target_device=offload_target, model_name="DiT", 
-                               debug=debug, reason=reason, runner=runner)
+            # MPS: skip CPU movement before deletion (unified memory, just causes sync)
+            if param_device.type == 'mps' and not cache_model:
+                if debug:
+                    debug.log("DiT on MPS - skipping CPU movement before deletion", category="cleanup")
+            else:
+                offload_target = getattr(runner, '_dit_offload_device', None)
+                if offload_target is None or offload_target == 'none':
+                    offload_target = torch.device('cpu')
+                reason = "model caching" if cache_model else "releasing GPU memory"
+                manage_model_device(model=runner.dit, target_device=offload_target, model_name="DiT", 
+                                   debug=debug, reason=reason, runner=runner)
         elif param_device.type == 'meta' and debug:
             debug.log("DiT on meta device - keeping structure for cache", category="cleanup")
     except StopIteration:
@@ -1126,15 +1128,17 @@ def cleanup_vae(runner: Any, debug: Optional['Debug'] = None, cache_model: bool 
         
         # Move model off GPU if needed
         if param_device.type not in ['meta', 'cpu']:
-            # Get offload target - default to 'cpu' if not configured or set to 'none'
-            offload_target = getattr(runner, '_vae_offload_device', None)
-            if offload_target is None or offload_target == 'none':
-                offload_target = torch.device('cpu')
-            
-            # Move model off GPU (either for caching or before deletion)
-            reason = "model caching" if cache_model else "releasing GPU memory"
-            manage_model_device(model=runner.vae, target_device=offload_target, model_name="VAE", 
-                               debug=debug, reason=reason, runner=runner)
+            # MPS: skip CPU movement before deletion (unified memory, just causes sync)
+            if param_device.type == 'mps' and not cache_model:
+                if debug:
+                    debug.log("VAE on MPS - skipping CPU movement before deletion", category="cleanup")
+            else:
+                offload_target = getattr(runner, '_vae_offload_device', None)
+                if offload_target is None or offload_target == 'none':
+                    offload_target = torch.device('cpu')
+                reason = "model caching" if cache_model else "releasing GPU memory"
+                manage_model_device(model=runner.vae, target_device=offload_target, model_name="VAE", 
+                                   debug=debug, reason=reason, runner=runner)
         elif param_device.type == 'meta' and debug:
             debug.log("VAE on meta device - keeping structure for cache", category="cleanup")
     except StopIteration:

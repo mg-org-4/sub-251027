@@ -214,12 +214,30 @@ class Debug:
             gpu_str = "CPU"
             cudnn_ver = "N/A"
         
-        # Flash Attn & Triton - reuse existing module constants
+        # Flash Attn, SageAttn & Triton - reuse existing module constants
         try:
-            from ..optimization.compatibility import FLASH_ATTN_AVAILABLE, TRITON_AVAILABLE
-            flash_str, triton_str = ("✓" if FLASH_ATTN_AVAILABLE else "✗"), ("✓" if TRITON_AVAILABLE else "✗")
+            from ..optimization.compatibility import (
+                FLASH_ATTN_2_AVAILABLE, FLASH_ATTN_3_AVAILABLE,
+                SAGE_ATTN_2_AVAILABLE, SAGE_ATTN_3_AVAILABLE,
+                TRITON_AVAILABLE
+            )
+            fa_parts = []
+            if FLASH_ATTN_3_AVAILABLE:
+                fa_parts.append("3")
+            if FLASH_ATTN_2_AVAILABLE:
+                fa_parts.append("2")
+            flash_str = f"v{','.join(fa_parts)} ✓" if fa_parts else "✗"
+            
+            sa_parts = []
+            if SAGE_ATTN_3_AVAILABLE:
+                sa_parts.append("3")
+            if SAGE_ATTN_2_AVAILABLE:
+                sa_parts.append("2")
+            sage_str = f"v{','.join(sa_parts)} ✓" if sa_parts else "✗"
+            
+            triton_str = "✓" if TRITON_AVAILABLE else "✗"
         except ImportError:
-            flash_str = triton_str = "?"
+            flash_str = sage_str = triton_str = "?"
         
         # ComfyUI version
         comfy_str = None
@@ -232,7 +250,7 @@ class Debug:
         
         # Print
         self.log(f"OS: {os_str} | GPU: {gpu_str}", category="info")
-        self.log(f"Python: {py_ver} | PyTorch: {torch_ver} | Flash Attn: {flash_str} | Triton: {triton_str}", category="info")
+        self.log(f"Python: {py_ver} | PyTorch: {torch_ver} | FlashAttn: {flash_str} | SageAttn: {sage_str} | Triton: {triton_str}", category="info")
         cuda_line = f"CUDA: {cuda_ver} | cuDNN: {cudnn_ver}"
         self.log(f"{cuda_line} | ComfyUI: {comfy_str}" if comfy_str else cuda_line, category="info")
         self.log("", category="none")

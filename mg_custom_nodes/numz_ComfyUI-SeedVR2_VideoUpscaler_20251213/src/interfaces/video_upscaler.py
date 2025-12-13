@@ -19,7 +19,9 @@ from ..core.generation_utils import (
     setup_generation_context, 
     prepare_runner,
     compute_generation_info,
-    log_generation_start
+    log_generation_start,
+    load_text_embeddings,
+    script_directory
 )
 from ..optimization.memory_manager import (
     cleanup_text_embeddings,
@@ -349,13 +351,12 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
 
         block_swap_config = None
         if blocks_to_swap > 0 or swap_io_components:
-            # Convert offload device string to torch.device for BlockSwap
+            block_swap_config = {
+                "blocks_to_swap": blocks_to_swap,
+                "swap_io_components": swap_io_components,
+            }
             if dit_offload_str != "none":
-                block_swap_config = {
-                    "blocks_to_swap": blocks_to_swap,
-                    "swap_io_components": swap_io_components,
-                    "offload_device": torch.device(dit_offload_str)
-                }
+                block_swap_config["offload_device"] = torch.device(dit_offload_str)
 
         # Device configuration for offloading - convert "none" to None, else torch.device
         vae_offload_str = vae.get("offload_device", "none")
@@ -437,6 +438,10 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
 
             # Store cache context in ctx for use in generation phases
             ctx['cache_context'] = cache_context
+
+            # Preload text embeddings before Phase 1 to avoid sync stall in Phase 2
+            ctx['text_embeds'] = load_text_embeddings(script_directory, ctx['dit_device'], ctx['compute_dtype'], debug)
+            debug.log("Loaded text embeddings for DiT", category="dit")
 
             debug.log_memory_state("After model preparation", show_tensors=False, detailed_tensors=False)
             debug.end_timer("model_preparation", "Model preparation", force=True, show_breakdown=True)

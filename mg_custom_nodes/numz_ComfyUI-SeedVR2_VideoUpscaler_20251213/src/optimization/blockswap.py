@@ -47,6 +47,78 @@ def is_blockswap_enabled(config: Optional[Dict[str, Any]]) -> bool:
     return blocks_to_swap > 0 or swap_io_components
 
 
+def validate_blockswap_config(
+    block_swap_config: Optional[Dict[str, Any]],
+    dit_device: 'torch.device',
+    dit_offload_device: Optional['torch.device'],
+    debug: 'Debug'
+) -> Optional[Dict[str, Any]]:
+    """
+    Validate and potentially modify BlockSwap configuration.
+    
+    Performs platform-specific validation and configuration adjustment:
+    - On macOS (MPS): Auto-disables BlockSwap since unified memory makes it meaningless
+    - On other platforms: Validates that offload_device is properly configured
+    
+    This is the single authoritative validation point for BlockSwap configuration,
+    called early in configure_runner() before any model loading.
+    
+    Args:
+        block_swap_config: BlockSwap configuration dictionary (may be None)
+        dit_device: Target device for DiT model inference
+        dit_offload_device: Device for offloading DiT blocks (may be None)
+        debug: Debug instance for logging warnings/errors
+        
+    Returns:
+        Validated/modified block_swap_config (may be None or modified copy)
+        
+    Raises:
+        ValueError: If BlockSwap is enabled but offload_device is invalid (non-MPS only)
+    """
+    if not is_blockswap_enabled(block_swap_config):
+        return block_swap_config
+    
+    blocks_to_swap = block_swap_config.get("blocks_to_swap", 0)
+    swap_io_components = block_swap_config.get("swap_io_components", False)
+    
+    # Check for macOS unified memory - BlockSwap is meaningless there
+    if dit_device.type == "mps":
+        debug.log(
+            f"BlockSwap disabled: macOS uses unified memory (no separate VRAM/RAM). "
+            f"Ignoring blocks_to_swap={blocks_to_swap}, swap_io_components={swap_io_components}",
+            level="WARNING", category="blockswap", force=True
+        )
+        # Return disabled config
+        return {
+            **block_swap_config,
+            "blocks_to_swap": 0,
+            "swap_io_components": False
+        }
+    
+    # Validate offload_device is set and different from dit_device
+    offload_device_valid = (
+        dit_offload_device is not None and 
+        str(dit_offload_device) != str(dit_device)
+    )
+    
+    if not offload_device_valid:
+        config_details = []
+        if blocks_to_swap > 0:
+            config_details.append(f"blocks_to_swap={blocks_to_swap}")
+        if swap_io_components:
+            config_details.append("swap_io_components=True")
+        
+        offload_str = str(dit_offload_device) if dit_offload_device else "none"
+        raise ValueError(
+            f"BlockSwap enabled ({', '.join(config_details)}) but dit_offload_device is invalid. "
+            f"Current: device='{dit_device}', dit_offload_device='{offload_str}'. "
+            f"BlockSwap requires offload_device on the DiT Model to be set and different from device. "
+            f"Set --dit_offload_device cpu or disable BlockSwap."
+        )
+    
+    return block_swap_config
+
+
 # Timing helpers marked to skip torch.compile tracing
 # These functions are excluded from Dynamo's graph tracing to avoid warnings
 # about non-traceable builtins like time.time(), but they still execute normally
@@ -125,7 +197,7 @@ def apply_block_swap_to_dit(
     
     debug.start_timer("apply_blockswap")
 
-    # Get the actual model (handle FP8CompatibleDiT wrapper)
+    # Get the actual model (handle CompatibleDiT wrapper)
     model = runner.dit
     if hasattr(model, "dit_model"):
         model = model.dit_model
@@ -723,7 +795,7 @@ def set_blockswap_bypass(runner, bypass: bool, debug):
     if not hasattr(runner, "_blockswap_active") or not runner._blockswap_active:
         return
     
-    # Get the actual model (handle FP8CompatibleDiT wrapper)
+    # Get the actual model (handle CompatibleDiT wrapper)
     model = runner.dit
     if hasattr(model, "dit_model"):
         model = model.dit_model
@@ -758,7 +830,7 @@ def cleanup_blockswap(runner, keep_state_for_cache=False):
     
     debug = runner.debug
     
-    # Get the actual model (handle FP8CompatibleDiT wrapper)
+    # Get the actual model (handle CompatibleDiT wrapper)
     model = runner.dit
     if hasattr(model, "dit_model"):
         model = model.dit_model
@@ -786,7 +858,7 @@ def cleanup_blockswap(runner, keep_state_for_cache=False):
         return
 
     # Full cleanup when not caching
-    # Get the actual model (handle FP8CompatibleDiT wrapper)
+    # Get the actual model (handle CompatibleDiT wrapper)
     model = runner.dit
     if hasattr(model, "dit_model"):
         model = model.dit_model

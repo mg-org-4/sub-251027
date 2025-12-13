@@ -1,9 +1,8 @@
 """
-Musubi Tuner Qwen Image LoRA Trainer Node for ComfyUI
+Musubi Tuner Z-Image LoRA Trainer Node for ComfyUI
 
-Trains Qwen Image LoRAs using kohya-ss/musubi-tuner.
-Supports Qwen-Image, Qwen-Image-Edit, and Qwen-Image-Edit-2509.
-For style/subject LoRAs (without control images).
+Trains Z-Image LoRAs using kohya-ss/musubi-tuner.
+Alternative to AI-Toolkit for Z-Image training.
 """
 
 import os
@@ -19,63 +18,63 @@ from PIL import Image
 
 import folder_paths
 
-from .musubi_qwen_image_config_template import (
+from .musubi_zimage_config_template import (
     generate_dataset_config,
     save_config,
-    MUSUBI_QWEN_IMAGE_VRAM_PRESETS,
+    MUSUBI_ZIMAGE_VRAM_PRESETS,
 )
 
 
-# Global config for Musubi Qwen Image trainer
-_musubi_qwen_config = {}
-_musubi_qwen_config_file = os.path.join(os.path.dirname(__file__), ".musubi_qwen_image_config.json")
+# Global config for Musubi Z-Image trainer
+_musubi_config = {}
+_musubi_config_file = os.path.join(os.path.dirname(__file__), ".musubi_zimage_config.json")
 
 # Global cache for trained LoRAs
-_musubi_qwen_lora_cache = {}
-_musubi_qwen_cache_file = os.path.join(os.path.dirname(__file__), ".musubi_qwen_image_lora_cache.json")
+_musubi_lora_cache = {}
+_musubi_cache_file = os.path.join(os.path.dirname(__file__), ".musubi_zimage_lora_cache.json")
 
 
-def _load_musubi_qwen_config():
-    """Load Musubi Qwen config from disk."""
-    global _musubi_qwen_config
-    if os.path.exists(_musubi_qwen_config_file):
+def _load_musubi_config():
+    """Load Musubi config from disk."""
+    global _musubi_config
+    if os.path.exists(_musubi_config_file):
         try:
-            with open(_musubi_qwen_config_file, 'r', encoding='utf-8') as f:
-                _musubi_qwen_config = json.load(f)
+            with open(_musubi_config_file, 'r', encoding='utf-8') as f:
+                _musubi_config = json.load(f)
         except:
-            _musubi_qwen_config = {}
+            _musubi_config = {}
 
 
-def _save_musubi_qwen_config():
-    """Save Musubi Qwen config to disk."""
+def _save_musubi_config():
+    """Save Musubi config to disk."""
     try:
-        with open(_musubi_qwen_config_file, 'w', encoding='utf-8') as f:
-            json.dump(_musubi_qwen_config, f, indent=2)
+        with open(_musubi_config_file, 'w', encoding='utf-8') as f:
+            json.dump(_musubi_config, f, indent=2)
     except:
         pass
 
 
-def _load_musubi_qwen_cache():
-    """Load Musubi Qwen LoRA cache from disk."""
-    global _musubi_qwen_lora_cache
-    if os.path.exists(_musubi_qwen_cache_file):
+def _load_musubi_cache():
+    """Load Musubi LoRA cache from disk."""
+    global _musubi_lora_cache
+    if os.path.exists(_musubi_cache_file):
         try:
-            with open(_musubi_qwen_cache_file, 'r', encoding='utf-8') as f:
-                _musubi_qwen_lora_cache = json.load(f)
+            with open(_musubi_cache_file, 'r', encoding='utf-8') as f:
+                _musubi_lora_cache = json.load(f)
         except:
-            _musubi_qwen_lora_cache = {}
+            _musubi_lora_cache = {}
 
 
-def _save_musubi_qwen_cache():
-    """Save Musubi Qwen LoRA cache to disk."""
+def _save_musubi_cache():
+    """Save Musubi LoRA cache to disk."""
     try:
-        with open(_musubi_qwen_cache_file, 'w', encoding='utf-8') as f:
-            json.dump(_musubi_qwen_lora_cache, f)
+        with open(_musubi_cache_file, 'w', encoding='utf-8') as f:
+            json.dump(_musubi_lora_cache, f)
     except:
         pass
 
 
-def _compute_image_hash(images, captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, model_mode, use_folder_path=False):
+def _compute_image_hash(images, captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, use_folder_path=False):
     """Compute a hash of all images, captions, and training parameters."""
     hasher = hashlib.sha256()
 
@@ -92,9 +91,9 @@ def _compute_image_hash(images, captions, training_steps, learning_rate, lora_ra
             img_bytes = img_np.tobytes()
             hasher.update(img_bytes)
 
-    # Include all captions and mode in hash
+    # Include all captions in hash
     captions_str = "|".join(captions)
-    params_str = f"musubi_qwen_image|{model_mode}|{captions_str}|{training_steps}|{learning_rate}|{lora_rank}|{vram_mode}|{output_name}|{len(images)}"
+    params_str = f"musubi_zimage|{captions_str}|{training_steps}|{learning_rate}|{lora_rank}|{vram_mode}|{output_name}|{len(images)}"
     hasher.update(params_str.encode('utf-8'))
 
     return hasher.hexdigest()[:16]
@@ -158,15 +157,13 @@ def _get_model_path(name, folder_type):
 
 
 # Load config and cache on module import
-_load_musubi_qwen_config()
-_load_musubi_qwen_cache()
+_load_musubi_config()
+_load_musubi_cache()
 
 
-class MusubiQwenImageLoraTrainer:
+class MusubiZImageLoraTrainer:
     """
-    Trains a Qwen Image LoRA from one or more images using Musubi Tuner.
-    Supports Qwen-Image, Qwen-Image-Edit, and Qwen-Image-Edit-2509.
-    For style/subject LoRAs (without control images).
+    Trains a Z-Image LoRA from one or more images using Musubi Tuner.
     """
 
     def __init__(self):
@@ -180,7 +177,7 @@ class MusubiQwenImageLoraTrainer:
         else:
             musubi_fallback = '~/musubi-tuner'
 
-        saved = _musubi_qwen_config.get('trainer_settings', {})
+        saved = _musubi_config.get('trainer_settings', {})
 
         # Get available models from ComfyUI folders
         diffusion_models = folder_paths.get_filename_list("diffusion_models")
@@ -202,15 +199,15 @@ class MusubiQwenImageLoraTrainer:
         saved_te = saved.get('text_encoder', '')
 
         # Build dropdown configs with saved defaults if available
-        dit_config = {"tooltip": "Qwen Image DiT model from diffusion_models folder. Match model to selected mode."}
+        dit_config = {"tooltip": "Z-Image DiT model (transformer) from diffusion_models folder."}
         if saved_dit and saved_dit in diffusion_models:
             dit_config["default"] = saved_dit
 
-        vae_config = {"tooltip": "Qwen Image VAE model from vae folder (qwen_image_vae.safetensors)."}
+        vae_config = {"tooltip": "Z-Image VAE model from vae folder."}
         if saved_vae and saved_vae in vae_models:
             vae_config["default"] = saved_vae
 
-        te_config = {"tooltip": "Qwen2.5-VL text encoder from text_encoders or clip folder."}
+        te_config = {"tooltip": "Qwen3 text encoder from text_encoders or clip folder."}
         if saved_te and saved_te in text_encoder_list:
             te_config["default"] = saved_te
 
@@ -223,12 +220,8 @@ class MusubiQwenImageLoraTrainer:
                     "tooltip": "Optional: Path to folder containing training images. If provided, images from this folder are used instead of image inputs. Caption .txt files with matching names are used if present."
                 }),
                 "musubi_path": ("STRING", {
-                    "default": _musubi_qwen_config.get('musubi_path', musubi_fallback),
+                    "default": _musubi_config.get('musubi_path', musubi_fallback),
                     "tooltip": "Path to musubi-tuner installation."
-                }),
-                "model_mode": (["Qwen-Image", "Qwen-Image-Edit", "Qwen-Image-Edit-2509"], {
-                    "default": saved.get('model_mode', "Qwen-Image"),
-                    "tooltip": "Model type. Use Qwen-Image for text-to-image, Edit variants for image editing models. For edit training WITH control images, use the separate Edit trainer node."
                 }),
                 "dit_model": (diffusion_models, dit_config),
                 "vae_model": (vae_models, vae_config),
@@ -239,41 +232,41 @@ class MusubiQwenImageLoraTrainer:
                     "tooltip": "Default caption for all images. Per-image caption inputs override this."
                 }),
                 "training_steps": ("INT", {
-                    "default": saved.get('training_steps', 500),
+                    "default": saved.get('training_steps', 400),
                     "min": 10,
                     "max": 5000,
                     "step": 10,
-                    "tooltip": "Number of training steps. 500 is a good starting point."
+                    "tooltip": "Number of training steps. 400 is a good starting point."
                 }),
                 "learning_rate": ("FLOAT", {
-                    "default": saved.get('learning_rate', 0.0003),
+                    "default": saved.get('learning_rate', 0.0002),
                     "min": 0.00001,
                     "max": 0.1,
                     "step": 0.00001,
-                    "tooltip": "Learning rate. 3e-4 (0.0003) is recommended for Qwen Image training."
+                    "tooltip": "Learning rate. 0.0002 is recommended for Z-Image training."
                 }),
                 "lora_rank": ("INT", {
                     "default": saved.get('lora_rank', 16),
                     "min": 4,
                     "max": 128,
                     "step": 4,
-                    "tooltip": "LoRA rank/dimension. 16 is recommended for Qwen Image."
+                    "tooltip": "LoRA rank/dimension. 16 is recommended for Z-Image."
                 }),
-                "vram_mode": (["Max (1024px)", "Max (1024px) fp8", "Medium (768px)", "Medium (768px) fp8", "Low (512px)", "Low (512px) fp8"], {
-                    "default": saved.get('vram_mode', "Medium (768px) fp8"),
-                    "tooltip": "VRAM optimization preset. Controls resolution, fp8, and gradient checkpointing."
-                }),
-                "blocks_to_swap": ([str(i) for i in range(46)], {
-                    "default": saved.get('blocks_to_swap', "30"),
-                    "tooltip": "Number of transformer blocks to offload to CPU (0-45). Higher = less VRAM but slower. 30 is a good balance."
+                "vram_mode": (["Max (1256px)", "Max (1256px) fp8", "Max (1256px) fp8 offload", "Medium (1024px)", "Medium (1024px) fp8", "Medium (1024px) fp8 offload", "Low (768px)", "Min (512px)"], {
+                    "default": saved.get('vram_mode', "Low (768px)"),
+                    "tooltip": "VRAM optimization preset. Low/Min always use fp8. Min adds pre-caching for lowest VRAM."
                 }),
                 "keep_lora": ("BOOLEAN", {
                     "default": saved.get('keep_lora', True),
                     "tooltip": "If True, keeps the trained LoRA file."
                 }),
                 "output_name": ("STRING", {
-                    "default": saved.get('output_name', "MyQwenLora"),
+                    "default": saved.get('output_name', "MyLora"),
                     "tooltip": "Custom name for the output LoRA. Timestamp will be appended."
+                }),
+                "custom_python_exe": ("STRING", {
+                    "default": saved.get('custom_python_exe', ""),
+                    "tooltip": "Advanced: Optionally enter the full path to a custom python.exe (e.g. C:\\my-venv\\Scripts\\python.exe). If empty, uses the venv inside musubi_path. The musubi_path field is still required for locating training scripts."
                 }),
             },
             "optional": {
@@ -290,17 +283,16 @@ class MusubiQwenImageLoraTrainer:
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("lora_path",)
-    OUTPUT_TOOLTIPS = ("Path to the trained Qwen Image LoRA file.",)
-    FUNCTION = "train_qwen_image_lora"
+    OUTPUT_TOOLTIPS = ("Path to the trained Z-Image LoRA file (ComfyUI format).",)
+    FUNCTION = "train_zimage_lora"
     CATEGORY = "loaders"
-    DESCRIPTION = "Trains a Qwen Image LoRA from images using Musubi Tuner. For style/subject LoRAs without control images."
+    DESCRIPTION = "Trains a Z-Image LoRA from images using Musubi Tuner. Lighter alternative to AI-Toolkit."
 
-    def train_qwen_image_lora(
+    def train_zimage_lora(
         self,
         inputcount,
         images_path,
         musubi_path,
-        model_mode,
         dit_model,
         vae_model,
         text_encoder,
@@ -309,13 +301,13 @@ class MusubiQwenImageLoraTrainer:
         learning_rate,
         lora_rank,
         vram_mode,
-        blocks_to_swap,
         keep_lora=True,
-        output_name="MyQwenLora",
+        output_name="MyLora",
+        custom_python_exe="",
         image_1=None,
         **kwargs
     ):
-        global _musubi_qwen_lora_cache
+        global _musubi_lora_cache
 
         # Expand paths
         musubi_path = os.path.expanduser(musubi_path.strip())
@@ -327,13 +319,6 @@ class MusubiQwenImageLoraTrainer:
         text_encoder_path = _get_model_path(text_encoder, "text_encoders")
         if not text_encoder_path or not os.path.exists(text_encoder_path):
             text_encoder_path = _get_model_path(text_encoder, "clip")
-
-        # Determine edit flags based on mode
-        edit_flag = None
-        if model_mode == "Qwen-Image-Edit":
-            edit_flag = "--edit"
-        elif model_mode == "Qwen-Image-Edit-2509":
-            edit_flag = "--edit_plus"
 
         # Check if using folder path for images
         use_folder_path = False
@@ -361,11 +346,11 @@ class MusubiQwenImageLoraTrainer:
 
                 if folder_images:
                     use_folder_path = True
-                    print(f"[Musubi Qwen Image] Using {len(folder_images)} images from folder: {images_path}")
+                    print(f"[Musubi Z-Image] Using {len(folder_images)} images from folder: {images_path}")
                 else:
-                    print(f"[Musubi Qwen Image] No images found in folder: {images_path}, falling back to inputs")
+                    print(f"[Musubi Z-Image] No images found in folder: {images_path}, falling back to inputs")
             else:
-                print(f"[Musubi Qwen Image] Invalid folder path: {images_path}, falling back to inputs")
+                print(f"[Musubi Z-Image] Invalid folder path: {images_path}, falling back to inputs")
 
         if not use_folder_path:
             # Collect all images and captions from inputs
@@ -388,25 +373,26 @@ class MusubiQwenImageLoraTrainer:
                 raise ValueError("No images provided. Either set images_path to a folder containing images, or connect at least one image input.")
 
         num_images = len(folder_images) if use_folder_path else len(all_images)
-        print(f"[Musubi Qwen Image] Training with {num_images} image(s)")
-        print(f"[Musubi Qwen Image] Mode: {model_mode}")
-        print(f"[Musubi Qwen Image] DiT: {dit_model}")
-        print(f"[Musubi Qwen Image] VAE: {vae_model}")
-        print(f"[Musubi Qwen Image] Text Encoder: {text_encoder}")
+        print(f"[Musubi Z-Image] Training with {num_images} image(s)")
+        print(f"[Musubi Z-Image] DiT: {dit_model}")
+        print(f"[Musubi Z-Image] VAE: {vae_model}")
+        print(f"[Musubi Z-Image] Text Encoder: {text_encoder}")
 
         # Get VRAM preset settings
-        preset = MUSUBI_QWEN_IMAGE_VRAM_PRESETS.get(vram_mode, MUSUBI_QWEN_IMAGE_VRAM_PRESETS["Medium (768px) fp8"])
-        blocks_to_swap_int = int(blocks_to_swap)
-        print(f"[Musubi Qwen Image] Using VRAM mode: {vram_mode}, blocks_to_swap: {blocks_to_swap_int}")
+        preset = MUSUBI_ZIMAGE_VRAM_PRESETS.get(vram_mode, MUSUBI_ZIMAGE_VRAM_PRESETS["Low (768px)"])
+        print(f"[Musubi Z-Image] Using VRAM mode: {vram_mode}")
 
         # Validate paths
         accelerate_path = _get_accelerate_path(musubi_path)
-        train_script = os.path.join(musubi_path, "src", "musubi_tuner", "qwen_image_train_network.py")
+        train_script = os.path.join(musubi_path, "src", "musubi_tuner", "zimage_train_network.py")
+        convert_script = os.path.join(musubi_path, "src", "musubi_tuner", "networks", "convert_z_image_lora_to_comfy.py")
 
         if not os.path.exists(accelerate_path):
             raise FileNotFoundError(f"Musubi Tuner accelerate not found at: {accelerate_path}")
         if not os.path.exists(train_script):
-            raise FileNotFoundError(f"qwen_image_train_network.py not found at: {train_script}")
+            raise FileNotFoundError(f"zimage_train_network.py not found at: {train_script}")
+        if not os.path.exists(convert_script):
+            raise FileNotFoundError(f"convert_z_image_lora_to_comfy.py not found at: {convert_script}")
         if not dit_path or not os.path.exists(dit_path):
             raise FileNotFoundError(f"DiT model not found at: {dit_path}")
         if not vae_path or not os.path.exists(vae_path):
@@ -415,10 +401,9 @@ class MusubiQwenImageLoraTrainer:
             raise FileNotFoundError(f"Text encoder not found at: {text_encoder_path}")
 
         # Save settings
-        global _musubi_qwen_config
-        _musubi_qwen_config['musubi_path'] = musubi_path
-        _musubi_qwen_config['trainer_settings'] = {
-            'model_mode': model_mode,
+        global _musubi_config
+        _musubi_config['musubi_path'] = musubi_path
+        _musubi_config['trainer_settings'] = {
             'dit_model': dit_model,
             'vae_model': vae_model,
             'text_encoder': text_encoder,
@@ -427,36 +412,37 @@ class MusubiQwenImageLoraTrainer:
             'learning_rate': learning_rate,
             'lora_rank': lora_rank,
             'vram_mode': vram_mode,
-            'blocks_to_swap': blocks_to_swap,
             'keep_lora': keep_lora,
             'output_name': output_name,
+            'custom_python_exe': custom_python_exe,
         }
-        _save_musubi_qwen_config()
+        _save_musubi_config()
 
         # Compute hash for caching
         if use_folder_path:
-            image_hash = _compute_image_hash(folder_images, folder_captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, model_mode, use_folder_path=True)
+            image_hash = _compute_image_hash(folder_images, folder_captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, use_folder_path=True)
         else:
-            image_hash = _compute_image_hash(all_images, all_captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, model_mode, use_folder_path=False)
+            image_hash = _compute_image_hash(all_images, all_captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, use_folder_path=False)
 
         # Check cache
-        if keep_lora and image_hash in _musubi_qwen_lora_cache:
-            cached_path = _musubi_qwen_lora_cache[image_hash]
+        if keep_lora and image_hash in _musubi_lora_cache:
+            cached_path = _musubi_lora_cache[image_hash]
             if os.path.exists(cached_path):
-                print(f"[Musubi Qwen Image] Cache hit! Reusing: {cached_path}")
+                print(f"[Musubi Z-Image] Cache hit! Reusing: {cached_path}")
                 return (cached_path,)
             else:
-                del _musubi_qwen_lora_cache[image_hash]
-                _save_musubi_qwen_cache()
+                del _musubi_lora_cache[image_hash]
+                _save_musubi_cache()
 
         # Generate run name with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        run_name = f"{output_name}_{timestamp}" if output_name else f"qwen_lora_{image_hash}"
+        run_name = f"{output_name}_{timestamp}" if output_name else f"zimage_lora_{image_hash}"
 
         # Output folder
         output_folder = os.path.join(musubi_path, "output")
         os.makedirs(output_folder, exist_ok=True)
         lora_output_path = os.path.join(output_folder, f"{run_name}.safetensors")
+        lora_comfy_path = os.path.join(output_folder, f"{run_name}_comfy.safetensors")
 
         # Auto-increment if file somehow still exists (same second)
         if os.path.exists(lora_output_path):
@@ -465,10 +451,11 @@ class MusubiQwenImageLoraTrainer:
                 counter += 1
             run_name = f"{run_name}_{counter}"
             lora_output_path = os.path.join(output_folder, f"{run_name}.safetensors")
-            print(f"[Musubi Qwen Image] Name exists, using: {run_name}")
+            lora_comfy_path = os.path.join(output_folder, f"{run_name}_comfy.safetensors")
+            print(f"[Musubi Z-Image] Name exists, using: {run_name}")
 
         # Create temp directory for images
-        temp_dir = tempfile.mkdtemp(prefix="comfy_musubi_qwen_")
+        temp_dir = tempfile.mkdtemp(prefix="comfy_musubi_zimage_")
         image_folder = temp_dir  # Musubi uses image_directory directly
         os.makedirs(image_folder, exist_ok=True)
 
@@ -498,7 +485,7 @@ class MusubiQwenImageLoraTrainer:
                     with open(caption_path, 'w', encoding='utf-8') as f:
                         f.write(all_captions[idx])
 
-            print(f"[Musubi Qwen Image] Saved {num_images} images to {image_folder}")
+            print(f"[Musubi Z-Image] Saved {num_images} images to {image_folder}")
 
             # Generate dataset config
             config_content = generate_dataset_config(
@@ -510,7 +497,7 @@ class MusubiQwenImageLoraTrainer:
 
             config_path = os.path.join(temp_dir, "dataset_config.toml")
             save_config(config_content, config_path)
-            print(f"[Musubi Qwen Image] Dataset config saved to {config_path}")
+            print(f"[Musubi Z-Image] Dataset config saved to {config_path}")
 
             # Set up subprocess environment
             startupinfo = None
@@ -521,27 +508,29 @@ class MusubiQwenImageLoraTrainer:
             env = os.environ.copy()
             env['PYTHONIOENCODING'] = 'utf-8'
 
-            python_path = _get_venv_python_path(musubi_path)
+            # Use custom python exe if provided, otherwise detect from musubi_path
+            if custom_python_exe and custom_python_exe.strip():
+                python_path = custom_python_exe.strip()
+                if not os.path.exists(python_path):
+                    raise FileNotFoundError(f"Custom python.exe not found at: {python_path}")
+            else:
+                python_path = _get_venv_python_path(musubi_path)
 
-            # Pre-cache latents and text encoder outputs (REQUIRED for Musubi training)
-            print(f"[Musubi Qwen Image] Pre-caching latents and text encoder outputs...")
+            # Pre-cache latents and text encoder outputs (REQUIRED for Musubi Z-Image training)
+            print(f"[Musubi Z-Image] Pre-caching latents and text encoder outputs...")
 
             # Cache latents
-            cache_latents_script = os.path.join(musubi_path, "src", "musubi_tuner", "qwen_image_cache_latents.py")
+            cache_latents_script = os.path.join(musubi_path, "src", "musubi_tuner", "zimage_cache_latents.py")
             if not os.path.exists(cache_latents_script):
-                raise FileNotFoundError(f"qwen_image_cache_latents.py not found at: {cache_latents_script}")
+                raise FileNotFoundError(f"zimage_cache_latents.py not found at: {cache_latents_script}")
 
-            print(f"[Musubi Qwen Image] Caching VAE latents...")
+            print(f"[Musubi Z-Image] Caching VAE latents...")
             cache_latents_cmd = [
                 python_path,
                 cache_latents_script,
                 f"--dataset_config={config_path}",
                 f"--vae={vae_path}",
             ]
-
-            # Add edit flag for Edit modes
-            if edit_flag:
-                cache_latents_cmd.append(edit_flag)
 
             cache_latents_process = subprocess.Popen(
                 cache_latents_cmd,
@@ -564,14 +553,14 @@ class MusubiQwenImageLoraTrainer:
             if cache_latents_process.returncode != 0:
                 raise RuntimeError(f"Latent caching failed with code {cache_latents_process.returncode}")
 
-            print(f"[Musubi Qwen Image] VAE latents cached.")
+            print(f"[Musubi Z-Image] VAE latents cached.")
 
             # Cache text encoder outputs
-            cache_te_script = os.path.join(musubi_path, "src", "musubi_tuner", "qwen_image_cache_text_encoder_outputs.py")
+            cache_te_script = os.path.join(musubi_path, "src", "musubi_tuner", "zimage_cache_text_encoder_outputs.py")
             if not os.path.exists(cache_te_script):
-                raise FileNotFoundError(f"qwen_image_cache_text_encoder_outputs.py not found at: {cache_te_script}")
+                raise FileNotFoundError(f"zimage_cache_text_encoder_outputs.py not found at: {cache_te_script}")
 
-            print(f"[Musubi Qwen Image] Caching text encoder outputs...")
+            print(f"[Musubi Z-Image] Caching text encoder outputs...")
             cache_te_cmd = [
                 python_path,
                 cache_te_script,
@@ -581,12 +570,8 @@ class MusubiQwenImageLoraTrainer:
             ]
 
             # Use fp8 for text encoder caching if enabled
-            if preset.get('fp8_vl', False):
-                cache_te_cmd.append("--fp8_vl")
-
-            # Add edit flag for Edit modes
-            if edit_flag:
-                cache_te_cmd.append(edit_flag)
+            if preset.get('fp8_llm', False):
+                cache_te_cmd.append("--fp8_llm")
 
             cache_te_process = subprocess.Popen(
                 cache_te_cmd,
@@ -609,7 +594,7 @@ class MusubiQwenImageLoraTrainer:
             if cache_te_process.returncode != 0:
                 raise RuntimeError(f"Text encoder caching failed with code {cache_te_process.returncode}")
 
-            print(f"[Musubi Qwen Image] Text encoder outputs cached.")
+            print(f"[Musubi Z-Image] Text encoder outputs cached.")
 
             # Build training command
             cmd = [
@@ -626,10 +611,10 @@ class MusubiQwenImageLoraTrainer:
                 f"--mixed_precision={preset['mixed_precision']}",
                 "--timestep_sampling=shift",
                 "--weighting_scheme=none",
-                "--discrete_flow_shift=2.2",
+                "--discrete_flow_shift=2.0",
                 f"--optimizer_type={preset['optimizer']}",
                 f"--learning_rate={learning_rate}",
-                f"--network_module=networks.lora_qwen_image",
+                f"--network_module=networks.lora_zimage",
                 f"--network_dim={lora_rank}",
                 f"--network_alpha={lora_rank}",
                 f"--max_train_steps={training_steps}",
@@ -640,10 +625,6 @@ class MusubiQwenImageLoraTrainer:
                 "--seed=42",
             ]
 
-            # Add edit flag for Edit modes
-            if edit_flag:
-                cmd.append(edit_flag)
-
             # Add memory optimization flags
             if preset['gradient_checkpointing']:
                 cmd.append("--gradient_checkpointing")
@@ -652,14 +633,14 @@ class MusubiQwenImageLoraTrainer:
                 cmd.append("--fp8_base")
                 cmd.append("--fp8_scaled")
 
-            if preset.get('fp8_vl', False):
-                cmd.append("--fp8_vl")
+            if preset['fp8_llm']:
+                cmd.append("--fp8_llm")
 
-            if blocks_to_swap_int > 0:
-                cmd.append(f"--blocks_to_swap={blocks_to_swap_int}")
+            if preset.get('blocks_to_swap', 0) > 0:
+                cmd.append(f"--blocks_to_swap={preset['blocks_to_swap']}")
 
-            print(f"[Musubi Qwen Image] Starting training: {run_name}")
-            print(f"[Musubi Qwen Image] Images: {num_images}, Steps: {training_steps}, LR: {learning_rate}, Rank: {lora_rank}")
+            print(f"[Musubi Z-Image] Starting training: {run_name}")
+            print(f"[Musubi Z-Image] Images: {num_images}, Steps: {training_steps}, LR: {learning_rate}, Rank: {lora_rank}")
 
             # Run training
             process = subprocess.Popen(
@@ -685,32 +666,69 @@ class MusubiQwenImageLoraTrainer:
             if process.returncode != 0:
                 raise RuntimeError(f"Musubi Tuner training failed with code {process.returncode}")
 
-            print(f"[Musubi Qwen Image] Training completed!")
+            print(f"[Musubi Z-Image] Training completed!")
 
             # Find the trained LoRA
             if not os.path.exists(lora_output_path):
                 # Check for alternative naming
-                possible_files = [f for f in os.listdir(output_folder) if f.startswith(run_name) and f.endswith('.safetensors')]
+                possible_files = [f for f in os.listdir(output_folder) if f.startswith(run_name) and f.endswith('.safetensors') and '_comfy' not in f]
                 if possible_files:
                     lora_output_path = os.path.join(output_folder, possible_files[-1])
                 else:
                     raise FileNotFoundError(f"No LoRA file found in {output_folder}")
 
-            print(f"[Musubi Qwen Image] Found trained LoRA: {lora_output_path}")
+            print(f"[Musubi Z-Image] Found trained LoRA: {lora_output_path}")
 
-            # Handle caching
+            # Convert LoRA to ComfyUI format
+            print(f"[Musubi Z-Image] Converting LoRA to ComfyUI format...")
+
+            convert_cmd = [
+                python_path,
+                convert_script,
+                lora_output_path,
+                lora_comfy_path,
+            ]
+
+            convert_process = subprocess.Popen(
+                convert_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                cwd=musubi_path,
+                startupinfo=startupinfo,
+                env=env,
+            )
+
+            for line in convert_process.stdout:
+                line = line.rstrip()
+                if line:
+                    print(f"[musubi-tuner] {line}")
+
+            convert_process.wait()
+
+            if convert_process.returncode != 0:
+                raise RuntimeError(f"LoRA conversion failed with code {convert_process.returncode}")
+
+            if not os.path.exists(lora_comfy_path):
+                raise FileNotFoundError(f"Converted LoRA not found at: {lora_comfy_path}")
+
+            print(f"[Musubi Z-Image] Converted LoRA: {lora_comfy_path}")
+
+            # Handle caching - cache the ComfyUI format LoRA
             if keep_lora:
-                _musubi_qwen_lora_cache[image_hash] = lora_output_path
-                _save_musubi_qwen_cache()
-                print(f"[Musubi Qwen Image] LoRA saved and cached at: {lora_output_path}")
+                _musubi_lora_cache[image_hash] = lora_comfy_path
+                _save_musubi_cache()
+                print(f"[Musubi Z-Image] LoRA saved and cached at: {lora_comfy_path}")
             else:
-                print(f"[Musubi Qwen Image] LoRA available at: {lora_output_path}")
+                print(f"[Musubi Z-Image] LoRA available at: {lora_comfy_path}")
 
-            return (lora_output_path,)
+            return (lora_comfy_path,)
 
         finally:
             # Cleanup temp directory
             try:
                 shutil.rmtree(temp_dir)
             except Exception as e:
-                print(f"[Musubi Qwen Image] Warning: Could not clean up temp dir: {e}")
+                print(f"[Musubi Z-Image] Warning: Could not clean up temp dir: {e}")

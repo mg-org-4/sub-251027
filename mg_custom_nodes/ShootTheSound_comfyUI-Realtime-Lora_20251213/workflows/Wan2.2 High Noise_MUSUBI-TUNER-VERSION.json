@@ -1184,6 +1184,68 @@
       ]
     },
     {
+      "id": 75,
+      "type": "ApplyTrainedLora",
+      "pos": [
+        -1105.1628666919266,
+        271.2805184683584
+      ],
+      "size": [
+        270,
+        98
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 156
+        },
+        {
+          "name": "lora_path",
+          "type": "STRING",
+          "link": 189
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            178
+          ]
+        },
+        {
+          "name": "lora_name",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "lora_path",
+          "type": "STRING",
+          "links": [
+            180
+          ]
+        }
+      ],
+      "title": "Apply Trained LoRA - High noise",
+      "properties": {
+        "aux_id": "shootthesound/comfyUI-Realtime-Lora",
+        "ver": "7c5d8e9358c7be1a4995a56fede6d8c3fd534616",
+        "Node name for S&R": "ApplyTrainedLora",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        1
+      ]
+    },
+    {
       "id": 94,
       "type": "Note",
       "pos": [
@@ -1269,68 +1331,6 @@
         }
       },
       "widgets_values": [
-        1
-      ]
-    },
-    {
-      "id": 75,
-      "type": "ApplyTrainedLora",
-      "pos": [
-        -1105.1628666919266,
-        271.2805184683584
-      ],
-      "size": [
-        270,
-        98
-      ],
-      "flags": {},
-      "order": 18,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 156
-        },
-        {
-          "name": "lora_path",
-          "type": "STRING",
-          "link": 189
-        }
-      ],
-      "outputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "links": [
-            178
-          ]
-        },
-        {
-          "name": "lora_name",
-          "type": "STRING",
-          "links": null
-        },
-        {
-          "name": "lora_path",
-          "type": "STRING",
-          "links": [
-            180
-          ]
-        }
-      ],
-      "title": "Apply Trained LoRA - High noise",
-      "properties": {
-        "aux_id": "shootthesound/comfyUI-Realtime-Lora",
-        "ver": "7c5d8e9358c7be1a4995a56fede6d8c3fd534616",
-        "Node name for S&R": "ApplyTrainedLora",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "input_ue_unconnectable": {},
-          "version": "7.5.1"
-        }
-      },
-      "widgets_values": [
         0
       ]
     },
@@ -1343,7 +1343,7 @@
       ],
       "size": [
         404.112890625,
-        564
+        588
       ],
       "flags": {},
       "order": 15,
@@ -1421,12 +1421,13 @@
       "widgets_values": [
         4,
         "",
+        "",
         "S:\\Auto\\musubi-tuner",
-        "Low Noise",
-        "wan2.2_t2v_low_noise_14B_fp16.safetensors",
+        "High Noise",
+        "wan2.2_t2v_high_noise_14B_fp16.safetensors",
         "wan_2.1_vae.safetensors",
         "models_t5_umt5-xxl-enc-bf16.pth",
-        "photo of subject",
+        "\n",
         500,
         0.0003,
         16,
@@ -1685,10 +1686,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7247295000000004,
+      "scale": 1.8797616762370453,
       "offset": [
-        2107.7594039483265,
-        -178.8775546618781
+        1625.3726997820602,
+        -553.8388137682454
       ]
     },
     "frontendVersion": "1.32.9",

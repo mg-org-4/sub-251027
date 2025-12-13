@@ -18,6 +18,7 @@ from PIL import Image
 import traceback
 import sys
 import os
+import warnings
 from typing import Optional, Tuple, Dict, Any
 
 # ComfyUI imports for LoRA folder access
@@ -30,6 +31,14 @@ except ImportError:
 
 # SDNQ import - registers SDNQ support into diffusers
 from sdnq import SDNQConfig
+# SDNQ optimization imports
+try:
+    from sdnq.loader import apply_sdnq_options_to_model
+    from sdnq.common import use_torch_compile as triton_is_available
+except ImportError:
+    print("[SDNQ Sampler] Warning: Could not import SDNQ optimization tools. Quantized MatMul will be disabled.")
+    def apply_sdnq_options_to_model(model, **kwargs): return model
+    triton_is_available = False
 
 # diffusers pipeline - auto-detects model type from model_index.json
 from diffusers import DiffusionPipeline
@@ -97,6 +106,7 @@ class SDNQSampler:
         # Performance optimization settings cache
         self.current_use_xformers = None
         self.current_enable_vae_tiling = None
+        self.current_matmul_precision = None
         self.interrupted = False
 
     @classmethod
@@ -275,6 +285,11 @@ class SDNQSampler:
                 # PERFORMANCE OPTIMIZATIONS (Optional speedups)
                 # ============================================================
 
+                "matmul_precision": (["int8", "fp8", "none"], {
+                    "default": "int8",
+                    "tooltip": "Precision for Triton quantized matmul. 'int8' is standard, 'fp8' for newer GPUs (Ada/Hopper), 'none' to disable optimization. Requires Linux/WSL."
+                }),
+
                 "use_xformers": ("BOOLEAN", {
                     "default": False,
                     "tooltip": "Enable xFormers memory-efficient attention for 10-45% speedup. Works with all memory modes (gpu/balanced/lowvram). Auto-fallback to SDPA if xformers not installed or incompatible. Requires: pip install xformers"
@@ -403,7 +418,8 @@ class SDNQSampler:
             )
 
     def load_pipeline(self, model_path: str, dtype_str: str, memory_mode: str = "gpu",
-                     use_xformers: bool = False, enable_vae_tiling: bool = False) -> DiffusionPipeline:
+                     use_xformers: bool = False, enable_vae_tiling: bool = False,
+                     matmul_precision: str = "int8") -> DiffusionPipeline:
         """
         Load SDNQ model using diffusers pipeline.
 
@@ -420,6 +436,7 @@ class SDNQSampler:
             memory_mode: Memory management strategy ("gpu", "balanced", "lowvram")
             use_xformers: Enable xFormers memory-efficient attention
             enable_vae_tiling: Enable VAE tiling for large images
+            matmul_precision: Precision for Triton quantized matmul ("int8", "fp8", "none")
 
         Returns:
             Loaded diffusers pipeline
@@ -447,14 +464,78 @@ class SDNQSampler:
             # Load pipeline - DiffusionPipeline auto-detects model type
             # SDNQ quantization is automatically detected from model config
             # Note: Pipeline loads to CPU by default - we move to GPU below
-            pipeline = DiffusionPipeline.from_pretrained(
-                model_path,
-                torch_dtype=torch_dtype,
-                local_files_only=True,  # Only load from local path
-            )
+
+            # Suppress torch_dtype deprecation warning from transformers components
+            # The warning comes from transformers library (used for CLIP/T5 text encoders)
+            # diffusers still uses torch_dtype as the official parameter in 0.36.x
+            # See: https://github.com/huggingface/peft/issues/2835
+            with warnings.catch_warnings():
+                # Filter both message pattern and FutureWarning category for comprehensive suppression
+                warnings.filterwarnings("ignore", message=".*torch_dtype.*", category=FutureWarning)
+                warnings.filterwarnings("ignore", message=".*torch_dtype.*")
+                pipeline = DiffusionPipeline.from_pretrained(
+                    model_path,
+                    torch_dtype=torch_dtype,
+                    local_files_only=True,  # Only load from local path
+                )
 
             print(f"[SDNQ Sampler] Model loaded successfully!")
             print(f"[SDNQ Sampler] Pipeline type: {type(pipeline).__name__}")
+
+            # Apply SDNQ optimizations (Quantized MatMul)
+            # This must be done BEFORE memory management moves things around
+            use_quantized_matmul = matmul_precision != "none"
+            if use_quantized_matmul:
+                if triton_is_available and torch.cuda.is_available():
+                    print(f"[SDNQ Sampler] Applying Triton Quantized MatMul optimizations (precision: {matmul_precision})...")
+                    try:
+                        # Apply to transformer (FLUX, SD3)
+                        if hasattr(pipeline, 'transformer') and pipeline.transformer is not None:
+                            pipeline.transformer = apply_sdnq_options_to_model(
+                                pipeline.transformer,
+                                use_quantized_matmul=True,
+                                matmul_precision=matmul_precision
+                            )
+                            print("[SDNQ Sampler] ✓ Optimization applied to transformer")
+
+                        # Apply to UNet (SDXL, SD1.5)
+                        if hasattr(pipeline, 'unet') and pipeline.unet is not None:
+                            pipeline.unet = apply_sdnq_options_to_model(
+                                pipeline.unet,
+                                use_quantized_matmul=True,
+                                matmul_precision=matmul_precision
+                            )
+                            print("[SDNQ Sampler] ✓ Optimization applied to UNet")
+
+                        # Apply to text encoders (if they are quantized, e.g. FLUX.2)
+                        if hasattr(pipeline, 'text_encoder') and pipeline.text_encoder is not None:
+                            # Only apply if it looks like a quantized model (has SDNQ layers)
+                            # Safe to try, sdnq loader checks internally
+                            pipeline.text_encoder = apply_sdnq_options_to_model(
+                                pipeline.text_encoder,
+                                use_quantized_matmul=True,
+                                matmul_precision=matmul_precision
+                            )
+                            print("[SDNQ Sampler] ✓ Optimization applied to text_encoder")
+
+                        if hasattr(pipeline, 'text_encoder_2') and pipeline.text_encoder_2 is not None:
+                            pipeline.text_encoder_2 = apply_sdnq_options_to_model(
+                                pipeline.text_encoder_2,
+                                use_quantized_matmul=True,
+                                matmul_precision=matmul_precision
+                            )
+                            print("[SDNQ Sampler] ✓ Optimization applied to text_encoder_2")
+
+                    except Exception as e:
+                        print(f"[SDNQ Sampler] ⚠️  Failed to apply optimizations: {e}")
+                        print("[SDNQ Sampler] Continuing without optimizations...")
+                else:
+                    if not torch.cuda.is_available():
+                        print("[SDNQ Sampler] ℹ️  Quantized MatMul requires CUDA. Optimization disabled.")
+                    elif not triton_is_available:
+                        print("[SDNQ Sampler] ℹ️  Triton not available/supported (requires Linux/WSL). Quantized MatMul disabled.")
+            else:
+                 print("[SDNQ Sampler] Quantized MatMul optimization disabled.")
 
             # CRITICAL: Apply xFormers BEFORE memory management
             # xFormers must be enabled before CPU offloading is set up
@@ -463,10 +544,42 @@ class SDNQSampler:
                     print(f"[SDNQ Sampler] Enabling xFormers memory-efficient attention...")
                     pipeline.enable_xformers_memory_efficient_attention()
                     print("[SDNQ Sampler] ✓ xFormers memory-efficient attention enabled")
+
+                except ModuleNotFoundError as e:
+                    # xFormers package not installed
+                    print(f"[SDNQ Sampler] ⚠️  xFormers not installed: {e}")
+                    print("[SDNQ Sampler] Install with: pip install xformers")
+                    print("[SDNQ Sampler] Falling back to SDPA (PyTorch 2.0+ default attention)")
+
+                except ValueError as e:
+                    # CUDA not available - xFormers requires GPU
+                    print(f"[SDNQ Sampler] ⚠️  xFormers requires CUDA: {e}")
+                    print("[SDNQ Sampler] Falling back to SDPA")
+
+                except NotImplementedError as e:
+                    # Model architecture doesn't support xFormers
+                    print(f"[SDNQ Sampler] ℹ️  xFormers not supported for this model architecture")
+                    print(f"[SDNQ Sampler] Details: {e}")
+                    print("[SDNQ Sampler] Using SDPA instead (this is normal for some models)")
+
+                except (RuntimeError, AttributeError) as e:
+                    # Version incompatibility, dimension mismatch, or API changes
+                    print(f"[SDNQ Sampler] ⚠️  xFormers compatibility issue: {type(e).__name__}")
+                    print(f"[SDNQ Sampler] Error: {e}")
+                    print("[SDNQ Sampler] This may indicate:")
+                    print("[SDNQ Sampler]   - xFormers version mismatch with PyTorch/CUDA")
+                    print("[SDNQ Sampler]   - GPU architecture incompatibility")
+                    print("[SDNQ Sampler]   - Tensor dimension issues with this model")
+                    print("[SDNQ Sampler] Try: pip install -U xformers --force-reinstall")
+                    print("[SDNQ Sampler] Falling back to SDPA")
+
                 except Exception as e:
-                    # xFormers not available or incompatible - fall back to SDPA
-                    print(f"[SDNQ Sampler] ℹ️  xFormers not available, using SDPA (default PyTorch 2.0+ optimization)")
-                    # Note: Common reasons: not installed, incompatible GPU, or dtype mismatch
+                    # Unexpected error - log full details for debugging
+                    print(f"[SDNQ Sampler] ⚠️  Unexpected xFormers error: {type(e).__name__}")
+                    print(f"[SDNQ Sampler] Error message: {e}")
+                    print("[SDNQ Sampler] Full traceback:")
+                    traceback.print_exc()
+                    print("[SDNQ Sampler] Falling back to SDPA")
             else:
                 print("[SDNQ Sampler] Using SDPA (scaled dot product attention, default in PyTorch 2.0+)")
 
@@ -819,7 +932,8 @@ class SDNQSampler:
                 negative_prompt: str, steps: int, cfg: float, width: int, height: int,
                 seed: int, scheduler: str, dtype: str, memory_mode: str, auto_download: bool,
                 lora_selection: str = "[None]", lora_custom_path: str = "", lora_strength: float = 1.0,
-                use_xformers: bool = False, enable_vae_tiling: bool = False) -> Tuple[torch.Tensor]:
+                use_xformers: bool = False, enable_vae_tiling: bool = False,
+                matmul_precision: str = "int8") -> Tuple[torch.Tensor]:
         """
         Main generation function called by ComfyUI.
 
@@ -844,6 +958,7 @@ class SDNQSampler:
             lora_strength: LoRA influence strength (-5.0 to +5.0)
             use_xformers: Enable xFormers memory-efficient attention (10-45% speedup)
             enable_vae_tiling: Enable VAE tiling for large images
+            matmul_precision: Precision for Triton quantized matmul ("int8", "fp8", "none")
 
         Returns:
             Tuple containing (IMAGE,) in ComfyUI format
@@ -871,25 +986,28 @@ class SDNQSampler:
             # Check if we need to reload the pipeline
             # Cache is invalidated if any of these change:
             # - Model path, dtype, memory mode
-            # - Performance optimization settings (xformers, vae_tiling)
+            # - Performance optimization settings (xformers, vae_tiling, matmul_precision)
             if (self.pipeline is None or
                 self.current_model_path != model_path or
                 self.current_dtype != dtype or
                 self.current_memory_mode != memory_mode or
                 self.current_use_xformers != use_xformers or
-                self.current_enable_vae_tiling != enable_vae_tiling):
+                self.current_enable_vae_tiling != enable_vae_tiling or
+                self.current_matmul_precision != matmul_precision):
 
                 print(f"[SDNQ Sampler] Pipeline cache miss - loading model...")
                 self.pipeline = self.load_pipeline(
                     model_path, dtype, memory_mode,
                     use_xformers=use_xformers,
-                    enable_vae_tiling=enable_vae_tiling
+                    enable_vae_tiling=enable_vae_tiling,
+                    matmul_precision=matmul_precision
                 )
                 self.current_model_path = model_path
                 self.current_dtype = dtype
                 self.current_memory_mode = memory_mode
                 self.current_use_xformers = use_xformers
                 self.current_enable_vae_tiling = enable_vae_tiling
+                self.current_matmul_precision = matmul_precision
                 # Clear LoRA and scheduler cache when pipeline changes
                 self.current_lora_path = None
                 self.current_lora_strength = None
@@ -1007,34 +1125,3 @@ class SDNQSampler:
             traceback.print_exc()
             print(f"{'='*60}\n")
             raise
-
-
-# ============================================================================
-# V1 API - Node Registration (ComfyUI Standard)
-# ============================================================================
-
-NODE_CLASS_MAPPINGS = {
-    "SDNQSampler": SDNQSampler,
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "SDNQSampler": "SDNQ Sampler",
-}
-
-# ============================================================================
-# V3 API - Metadata (ComfyUI V3 Extension System)
-# ============================================================================
-
-# V3 API: Node metadata
-__comfy_node_metadata__ = {
-    "SDNQSampler": {
-        "display_name": "SDNQ Sampler",
-        "description": "Load SDNQ quantized models and generate images with 50-75% VRAM savings",
-        "category": "sampling/SDNQ",
-        "version": "1.0.0",
-        "author": "ComfyUI-SDNQ Contributors",
-        "license": "Apache-2.0",
-        "tags": ["sampling", "sdnq", "quantization", "vram", "flux", "sd3"],
-        "deprecated": False,
-    }
-}

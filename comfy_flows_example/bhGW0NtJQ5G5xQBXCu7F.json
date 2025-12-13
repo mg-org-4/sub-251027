@@ -1,0 +1,1567 @@
+{
+  "last_link_id": 17,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        482.2008972167969,
+        355.0813293457031
+      ],
+      "pos": [
+        927.793701171875,
+        1448.22509765625
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 1,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 1,
+      "type": "PreviewImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewImage"
+      },
+      "order": 8
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "slot_index": 0,
+          "links": [
+            1
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "size": [
+        477.2455139160156,
+        58
+      ],
+      "pos": [
+        929.222900390625,
+        1341.6787109375
+      ],
+      "widgets_values": [
+        0
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 2,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "image_index"
+          },
+          "name": "image_index",
+          "label": "image_index",
+          "type": "INT",
+          "localized_name": "image_index"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 2,
+      "type": "RHExtractImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RHExtractImage"
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        474.375732421875,
+        331.4729309082031
+      ],
+      "pos": [
+        931.512939453125,
+        970.705810546875
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 3,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 3,
+      "type": "PreviewImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewImage"
+      },
+      "order": 9
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "slot_index": 0,
+          "links": [
+            3,
+            10
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "size": [
+        475.339111328125,
+        58.67274856567383
+      ],
+      "pos": [
+        932.9404296875,
+        877.849365234375
+      ],
+      "widgets_values": [
+        "0-100"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 4,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "image_indices"
+          },
+          "name": "image_indices",
+          "label": "image_indices",
+          "type": "STRING",
+          "localized_name": "image_indices"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 4,
+      "type": "RHBatchImages:",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RHBatchImages:"
+      },
+      "order": 7
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "label": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        1707.3543701171875,
+        1300.501220703125
+      ],
+      "widgets_values": [
+        "tensor([[[[0.3020, 0.2667, 0.2392],\n          [0.3098, 0.2784, 0.2667],\n          [0.3020, 0.2667, 0.2667],\n          ...,\n          [0.2549, 0.2784, 0.2863],\n          [0.2510, 0.2784, 0.2824],\n          [0.2157, 0.2275, 0.2392]],\n\n         [[0.4431, 0.4039, 0.3961],\n          [0.5765, 0.5373, 0.5490],\n          [0.5843, 0.5373, 0.5490],\n          ...,\n          [0.5529, 0.6235, 0.6549],\n          [0.5569, 0.6275, 0.6627],\n          [0.5686, 0.6392, 0.6588]],\n\n         [[0.4980, 0.4588, 0.4549],\n          [0.7294, 0.6902, 0.7098],\n          [0.7059, 0.6588, 0.6667],\n          ...,\n          [0.6078, 0.6980, 0.7451],\n          [0.5961, 0.6863, 0.7373],\n          [0.6118, 0.7020, 0.7412]],\n\n         ...,\n\n         [[0.4000, 0.4314, 0.4471],\n          [0.5961, 0.6235, 0.6471],\n          [0.5725, 0.6039, 0.6196],\n          ...,\n          [0.5961, 0.6667, 0.7137],\n          [0.6000, 0.6667, 0.7137],\n          [0.6000, 0.6667, 0.7098]],\n\n         [[0.4039, 0.4353, 0.4510],\n          [0.5961, 0.6235, 0.6471],\n          [0.5725, 0.6078, 0.6275],\n          ...,\n          [0.6039, 0.6667, 0.7176],\n          [0.6039, 0.6667, 0.7137],\n          [0.6039, 0.6706, 0.7098]],\n\n         [[0.3804, 0.4118, 0.4392],\n          [0.6078, 0.6392, 0.6667],\n          [0.5725, 0.6078, 0.6275],\n          ...,\n          [0.6078, 0.6706, 0.7176],\n          [0.6039, 0.6706, 0.7176],\n          [0.6118, 0.6745, 0.7176]]]])"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 5,
+          "label": "anything",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 5,
+      "type": "easy showAnything",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 18
+    },
+    {
+      "outputs": [
+        {
+          "shape": 5,
+          "name": "flow",
+          "slot_index": 0,
+          "links": [
+            12
+          ],
+          "label": "flow",
+          "type": "FLOW_CONTROL",
+          "localized_name": "flow"
+        },
+        {
+          "name": "index",
+          "slot_index": 1,
+          "links": [
+            9
+          ],
+          "label": "index",
+          "type": "INT",
+          "localized_name": "index"
+        },
+        {
+          "name": "value1",
+          "slot_index": 2,
+          "links": [],
+          "label": "value1",
+          "type": "*",
+          "localized_name": "value1"
+        },
+        {
+          "name": "value3",
+          "label": "value3",
+          "type": "*"
+        },
+        {
+          "name": "value4",
+          "label": "value4",
+          "type": "*"
+        },
+        {
+          "name": "value5",
+          "label": "value5",
+          "type": "*"
+        },
+        {
+          "name": "value6",
+          "label": "value6",
+          "type": "*"
+        },
+        {
+          "name": "value7",
+          "label": "value7",
+          "type": "*"
+        },
+        {
+          "name": "value8",
+          "label": "value8",
+          "type": "*"
+        },
+        {
+          "name": "value9",
+          "label": "value9",
+          "type": "*"
+        },
+        {
+          "name": "value10",
+          "label": "value10",
+          "type": "*"
+        },
+        {
+          "name": "value11",
+          "label": "value11",
+          "type": "*"
+        },
+        {
+          "name": "value12",
+          "label": "value12",
+          "type": "*"
+        },
+        {
+          "name": "value13",
+          "label": "value13",
+          "type": "*"
+        },
+        {
+          "name": "value14",
+          "label": "value14",
+          "type": "*"
+        },
+        {
+          "name": "value15",
+          "label": "value15",
+          "type": "*"
+        },
+        {
+          "name": "value16",
+          "label": "value16",
+          "type": "*"
+        },
+        {
+          "name": "value17",
+          "label": "value17",
+          "type": "*"
+        },
+        {
+          "name": "value18",
+          "label": "value18",
+          "type": "*"
+        },
+        {
+          "name": "value19",
+          "label": "value19",
+          "type": "*"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        2
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "initial_value1",
+          "label": "initial_value1",
+          "type": "*",
+          "localized_name": "initial_value1"
+        },
+        {
+          "widget": {
+            "name": "total"
+          },
+          "name": "total",
+          "link": 6,
+          "label": "total",
+          "type": "INT",
+          "localized_name": "total"
+        },
+        {
+          "name": "initial_value3",
+          "label": "initial_value3",
+          "type": "*"
+        },
+        {
+          "name": "initial_value4",
+          "label": "initial_value4",
+          "type": "*"
+        },
+        {
+          "name": "initial_value5",
+          "label": "initial_value5",
+          "type": "*"
+        },
+        {
+          "name": "initial_value6",
+          "label": "initial_value6",
+          "type": "*"
+        },
+        {
+          "name": "initial_value7",
+          "label": "initial_value7",
+          "type": "*"
+        },
+        {
+          "name": "initial_value8",
+          "label": "initial_value8",
+          "type": "*"
+        },
+        {
+          "name": "initial_value9",
+          "label": "initial_value9",
+          "type": "*"
+        },
+        {
+          "name": "initial_value10",
+          "label": "initial_value10",
+          "type": "*"
+        },
+        {
+          "name": "initial_value11",
+          "label": "initial_value11",
+          "type": "*"
+        },
+        {
+          "name": "initial_value12",
+          "label": "initial_value12",
+          "type": "*"
+        },
+        {
+          "name": "initial_value13",
+          "label": "initial_value13",
+          "type": "*"
+        },
+        {
+          "name": "initial_value14",
+          "label": "initial_value14",
+          "type": "*"
+        },
+        {
+          "name": "initial_value15",
+          "label": "initial_value15",
+          "type": "*"
+        },
+        {
+          "name": "initial_value16",
+          "label": "initial_value16",
+          "type": "*"
+        },
+        {
+          "name": "initial_value17",
+          "label": "initial_value17",
+          "type": "*"
+        },
+        {
+          "name": "initial_value18",
+          "label": "initial_value18",
+          "type": "*"
+        },
+        {
+          "name": "initial_value19",
+          "label": "initial_value19",
+          "type": "*"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "type": "easy forLoopStart",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        210.81402587890625,
+        515.6832885742188
+      ],
+      "pos": [
+        1710.04248046875,
+        678.781005859375
+      ],
+      "id": 6,
+      "properties": {
+        "widget_ue_connectable": {
+          "total": true
+        },
+        "Node name for S&R": "easy forLoopStart"
+      },
+      "order": 11
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        252.76612854003906,
+        109.16471862792969
+      ],
+      "pos": [
+        1439.7913818359375,
+        778.68408203125
+      ],
+      "widgets_values": [
+        "3"
+      ],
+      "inputs": [
+        {
+          "name": "INT",
+          "link": 7,
+          "label": "INT",
+          "type": "INT",
+          "localized_name": "INT"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 7,
+      "type": "Bjornulf_ShowInt",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Bjornulf_ShowInt"
+      },
+      "order": 12
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "slot_index": 0,
+          "links": [
+            11
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "size": [
+        255.51109313964844,
+        100.33489990234375
+      ],
+      "pos": [
+        1440.7313232421875,
+        929.377685546875
+      ],
+      "widgets_values": [
+        2
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 8,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "image_index"
+          },
+          "name": "image_index",
+          "link": 9,
+          "label": "image_index",
+          "type": "INT",
+          "localized_name": "image_index"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 8,
+      "type": "RHExtractImage",
+      "properties": {
+        "widget_ue_connectable": {
+          "image_index": true
+        },
+        "Node name for S&R": "RHExtractImage"
+      },
+      "order": 13
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "count",
+          "slot_index": 0,
+          "links": [
+            6,
+            7
+          ],
+          "label": "count",
+          "type": "INT",
+          "localized_name": "count"
+        }
+      ],
+      "size": [
+        249.58660888671875,
+        54.07758331298828
+      ],
+      "pos": [
+        1443.0533447265625,
+        683.942138671875
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 10,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 9,
+      "type": "easy imageCount",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy imageCount"
+      },
+      "order": 10
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            14
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "size": [
+        256.249755859375,
+        92.00228881835938
+      ],
+      "pos": [
+        1432.1925048828125,
+        1084.5458984375
+      ],
+      "widgets_values": [
+        1280,
+        true
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 11,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "size"
+          },
+          "name": "size",
+          "label": "size",
+          "type": "INT",
+          "localized_name": "size"
+        },
+        {
+          "widget": {
+            "name": "mode"
+          },
+          "name": "mode",
+          "label": "mode",
+          "type": "BOOLEAN",
+          "localized_name": "mode"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 11,
+      "type": "ImageScaleDownToSize",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImageScaleDownToSize"
+      },
+      "order": 14
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "value1",
+          "slot_index": 0,
+          "links": [
+            5
+          ],
+          "label": "value1",
+          "type": "*",
+          "localized_name": "value1"
+        },
+        {
+          "name": "value4",
+          "label": "value4",
+          "type": "*"
+        },
+        {
+          "name": "value5",
+          "label": "value5",
+          "type": "*"
+        },
+        {
+          "name": "value6",
+          "label": "value6",
+          "type": "*"
+        },
+        {
+          "name": "value7",
+          "label": "value7",
+          "type": "*"
+        },
+        {
+          "name": "value8",
+          "label": "value8",
+          "type": "*"
+        },
+        {
+          "name": "value9",
+          "label": "value9",
+          "type": "*"
+        },
+        {
+          "name": "value10",
+          "label": "value10",
+          "type": "*"
+        },
+        {
+          "name": "value11",
+          "label": "value11",
+          "type": "*"
+        },
+        {
+          "name": "value12",
+          "label": "value12",
+          "type": "*"
+        },
+        {
+          "name": "value13",
+          "label": "value13",
+          "type": "*"
+        },
+        {
+          "name": "value14",
+          "label": "value14",
+          "type": "*"
+        },
+        {
+          "name": "value15",
+          "label": "value15",
+          "type": "*"
+        },
+        {
+          "name": "value16",
+          "label": "value16",
+          "type": "*"
+        },
+        {
+          "name": "value17",
+          "label": "value17",
+          "type": "*"
+        },
+        {
+          "name": "value18",
+          "label": "value18",
+          "type": "*"
+        },
+        {
+          "name": "value19",
+          "label": "value19",
+          "type": "*"
+        }
+      ],
+      "bgcolor": "#335",
+      "size": [
+        246.73495483398438,
+        420.3207092285156
+      ],
+      "color": "#223",
+      "pos": [
+        1444.239013671875,
+        1299.124755859375
+      ],
+      "inputs": [
+        {
+          "shape": 5,
+          "name": "flow",
+          "link": 12,
+          "label": "flow",
+          "type": "FLOW_CONTROL",
+          "localized_name": "flow"
+        },
+        {
+          "shape": 7,
+          "name": "initial_value1",
+          "link": 13,
+          "label": "initial_value1",
+          "type": "*",
+          "localized_name": "initial_value1"
+        },
+        {
+          "name": "initial_value4",
+          "label": "initial_value4",
+          "type": "*"
+        },
+        {
+          "name": "initial_value5",
+          "label": "initial_value5",
+          "type": "*"
+        },
+        {
+          "name": "initial_value6",
+          "label": "initial_value6",
+          "type": "*"
+        },
+        {
+          "name": "initial_value7",
+          "label": "initial_value7",
+          "type": "*"
+        },
+        {
+          "name": "initial_value8",
+          "label": "initial_value8",
+          "type": "*"
+        },
+        {
+          "name": "initial_value9",
+          "label": "initial_value9",
+          "type": "*"
+        },
+        {
+          "name": "initial_value10",
+          "label": "initial_value10",
+          "type": "*"
+        },
+        {
+          "name": "initial_value11",
+          "label": "initial_value11",
+          "type": "*"
+        },
+        {
+          "name": "initial_value12",
+          "label": "initial_value12",
+          "type": "*"
+        },
+        {
+          "name": "initial_value13",
+          "label": "initial_value13",
+          "type": "*"
+        },
+        {
+          "name": "initial_value14",
+          "label": "initial_value14",
+          "type": "*"
+        },
+        {
+          "name": "initial_value15",
+          "label": "initial_value15",
+          "type": "*"
+        },
+        {
+          "name": "initial_value16",
+          "label": "initial_value16",
+          "type": "*"
+        },
+        {
+          "name": "initial_value17",
+          "label": "initial_value17",
+          "type": "*"
+        },
+        {
+          "name": "initial_value18",
+          "label": "initial_value18",
+          "type": "*"
+        },
+        {
+          "name": "initial_value19",
+          "label": "initial_value19",
+          "type": "*"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 12,
+      "type": "easy forLoopEnd",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy forLoopEnd"
+      },
+      "order": 16
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            13,
+            17
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "size": [
+        400,
+        240
+      ],
+      "pos": [
+        928.1451416015625,
+        2234.387939453125
+      ],
+      "widgets_values": [
+        "",
+        634919127,
+        "randomize",
+        "auto"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "images",
+          "link": 14,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "image1",
+          "link": 15,
+          "label": "image1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        },
+        {
+          "shape": 7,
+          "name": "image2",
+          "label": "image2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "shape": 7,
+          "name": "image3",
+          "label": "image3",
+          "type": "IMAGE",
+          "localized_name": "image3"
+        },
+        {
+          "shape": 7,
+          "name": "image4",
+          "label": "image4",
+          "type": "IMAGE",
+          "localized_name": "image4"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 16,
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "shape": 7,
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "aspectRatio"
+          },
+          "shape": 7,
+          "name": "aspectRatio",
+          "label": "aspectRatio",
+          "type": "COMBO",
+          "localized_name": "aspectRatio"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 13,
+      "type": "RH_Nano_Banana_Image2Image",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Nano_Banana_Image2Image"
+      },
+      "order": 15
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        831.5145874023438,
+        869.4560546875
+      ],
+      "pos": [
+        1955.5311279296875,
+        1586.21142578125
+      ],
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 17,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 14,
+      "type": "SaveImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 17
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            15
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        },
+        {
+          "name": "MASK",
+          "label": "MASK",
+          "type": "MASK",
+          "localized_name": "MASK"
+        }
+      ],
+      "size": [
+        837.627685546875,
+        790.6339721679688
+      ],
+      "pos": [
+        1955.8817138671875,
+        678.751953125
+      ],
+      "widgets_values": [
+        "1a1fd2516a6d20d56df428b6324bf02cbc0a06e3190324c4bd8214b3a1c57929.png",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "label": "image",
+          "type": "COMBO",
+          "localized_name": "image"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "choose file to upload"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 15,
+      "type": "LoadImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "translation",
+          "links": [
+            16
+          ],
+          "label": "translation",
+          "type": "STRING",
+          "localized_name": "translation"
+        }
+      ],
+      "size": [
+        980.1375122070312,
+        251.9042510986328
+      ],
+      "pos": [
+        940.6532592773438,
+        1906.739501953125
+      ],
+      "widgets_values": [
+        "图1压缩包里的图片参照图2的光影及色彩效果，图片比例大小不变，整体光影和色彩效果需要协调。",
+        1169,
+        "randomize",
+        "auto"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "advanced_options"
+          },
+          "shape": 7,
+          "name": "advanced_options",
+          "label": "advanced_options",
+          "type": "COMBO",
+          "localized_name": "advanced_options"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "id": 17,
+      "type": "RH_Translator",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Translator"
+      },
+      "order": 1
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "在choose zip file to upload中上传需要处理图片的压缩包，压缩包内的图片格式为JPG或者PNG，其余格式不识别。\n上传压缩包后等upload status跳转success方可点击运行。"
+      ],
+      "inputs": [],
+      "flags": {
+        "pinned": true
+      },
+      "type": "Note",
+      "title": "使用说明",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        488.5171813964844,
+        88
+      ],
+      "pos": [
+        923.882080078125,
+        501
+      ],
+      "id": 10,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 2
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "下载图片嫌麻烦可以在左侧工具栏中找到个人中心，在我的作品里进行批量下载。"
+      ],
+      "inputs": [],
+      "flags": {
+        "pinned": true
+      },
+      "type": "Note",
+      "title": "使用说明",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        488.5171813964844,
+        88
+      ],
+      "pos": [
+        2824.97509765625,
+        1538.1337890625
+      ],
+      "id": 19,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 3
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "说明：\n\n1、每天可以白嫖生成5次，如果需要生成更多次数需要充值。\n\n2、默认提示词是参照光影及色彩，想要生成其它图片，手动修改提示词。\n\n"
+      ],
+      "inputs": [],
+      "flags": {
+        "pinned": true
+      },
+      "type": "MarkdownNote",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        575.2081298828125,
+        247.66513061523438
+      ],
+      "pos": [
+        1354.0965576171875,
+        2228.517822265625
+      ],
+      "id": 18,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 4
+    },
+    {
+      "outputs": [
+        {
+          "name": "images(as list)",
+          "slot_index": 0,
+          "links": [
+            2,
+            4,
+            8
+          ],
+          "label": "images(as list)",
+          "type": "IMAGE",
+          "localized_name": "images(as list)"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "ad7a0578de71f00761579c2747ad8cbc99b173ddbedaded9d7a9a64f99a7c21b",
+        "success",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "STRING",
+          "localized_name": "upload"
+        },
+        {
+          "widget": {
+            "name": "upload_status"
+          },
+          "name": "upload_status",
+          "label": "upload_status",
+          "type": "STRING",
+          "localized_name": "upload_status"
+        }
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "type": "RHUploadZip",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        483.4978332519531,
+        106
+      ],
+      "pos": [
+        926.5576171875,
+        681.113037109375
+      ],
+      "id": 16,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RHUploadZip"
+      },
+      "order": 5
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        -14.519461705667663,
+        -386.07710757829483
+      ],
+      "scale": 0.42409761837248483
+    }
+  },
+  "groups": [
+    {
+      "color": "#a1309b",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      },
+      "id": 1,
+      "title": "上传图片ZIP压缩包",
+      "bounding": [
+        919,
+        605.885498046875,
+        498.8007507324219,
+        189.4475860595703
+      ]
+    },
+    {
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      },
+      "id": 2,
+      "title": "循环开始（自动不用管）",
+      "bounding": [
+        1424.7354736328125,
+        605.181396484375,
+        503.3368835449219,
+        595.1724853515625
+      ]
+    },
+    {
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      },
+      "id": 3,
+      "title": "循环结束（自动不用管）",
+      "bounding": [
+        1430.180908203125,
+        1214.874267578125,
+        497.9267883300781,
+        599.9454956054688
+      ]
+    },
+    {
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      },
+      "id": 4,
+      "title": "ZIP压缩包图片展示",
+      "bounding": [
+        921.7509765625,
+        809.8310546875,
+        491.3267517089844,
+        1008.3886108398438
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      },
+      "id": 5,
+      "title": "中文输入框",
+      "bounding": [
+        929.1593017578125,
+        1830.7685546875,
+        1005.915771484375,
+        340.5470886230469
+      ]
+    },
+    {
+      "color": "#b58b2a",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      },
+      "id": 6,
+      "title": "出图区",
+      "bounding": [
+        1939.3544921875,
+        1503.57177734375,
+        868.736328125,
+        971.3078002929688
+      ]
+    },
+    {
+      "color": "#b58b2a",
+      "font_size": 24,
+      "flags": {
+        "pinned": true
+      },
+      "id": 7,
+      "title": "光影参考图上传",
+      "bounding": [
+        1945.8817138671875,
+        605.1513671875,
+        857.4212036132812,
+        878.0978393554688
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      1,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      16,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      4,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      4,
+      16,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      5,
+      12,
+      0,
+      5,
+      0,
+      "*"
+    ],
+    [
+      6,
+      9,
+      0,
+      6,
+      1,
+      "INT"
+    ],
+    [
+      7,
+      9,
+      0,
+      7,
+      0,
+      "INT"
+    ],
+    [
+      8,
+      16,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      9,
+      6,
+      1,
+      8,
+      1,
+      "INT"
+    ],
+    [
+      10,
+      4,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      11,
+      8,
+      0,
+      11,
+      0,
+      "IMAGE"
+    ],
+    [
+      12,
+      6,
+      0,
+      12,
+      0,
+      "FLOW_CONTROL"
+    ],
+    [
+      13,
+      13,
+      0,
+      12,
+      1,
+      "*"
+    ],
+    [
+      14,
+      11,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      15,
+      15,
+      0,
+      13,
+      1,
+      "IMAGE"
+    ],
+    [
+      16,
+      17,
+      0,
+      13,
+      5,
+      "STRING"
+    ],
+    [
+      17,
+      13,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "id": "4d15d865-2bc1-4b52-a54e-135e342db4bd",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 19,
+  "revision": 0
+}

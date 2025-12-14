@@ -14,6 +14,7 @@ except ImportError:
 
 import comfy.model_management
 import node_helpers
+from server import PromptServer
 from comfy.utils import ProgressBar
 from comfy_extras.nodes_post_processing import gaussian_kernel
 from .raft import *
@@ -854,17 +855,14 @@ class AdainLatent:
 
     def batch_normalize(self, latents, reference, factor):
         latents_copy = copy.deepcopy(latents)
-        t = latents_copy["samples"] # [B x C x H x W]
+        t = latents_copy["samples"]
         
-        t = t.movedim(0,1) # [C x B x H x W]
-        for c in range(t.size(0)):
-            for i in range(t.size(1)):
-                r_sd, r_mean = torch.std_mean(reference["samples"][i, c], dim=None) # index by original dim order
-                i_sd, i_mean = torch.std_mean(t[c, i], dim=None)
-                
-                t[c, i] = ((t[c, i] - i_mean) / i_sd) * r_sd + r_mean
+        t_std, t_mean = torch.std_mean(t, dim=(-2, -1), keepdim=True)
+        ref_std, ref_mean = torch.std_mean(reference["samples"], dim=(-2, -1), keepdim=True)
+        t = (t - t_mean) / t_std
+        t = t * ref_std + ref_mean
         
-        latents_copy["samples"] = torch.lerp(latents["samples"], t.movedim(1,0), factor) # [B x C x H x W]
+        latents_copy["samples"] = torch.lerp(latents["samples"], t, factor)
         return (latents_copy,)
 
 
@@ -886,18 +884,30 @@ class AdainFilterLatent:
 
     def batch_normalize(self, latents, reference, filter_size, factor):
         latents_copy = copy.deepcopy(latents)
-        
-        t = latents_copy["samples"].movedim(1, -1) # [B x C x H x W] -> [B x H x W x C]
+        t = latents_copy["samples"].movedim(1, -1) # BCHW -> BHWC or BCFHW -> BFHWC
         ref = reference["samples"].movedim(1, -1)
-        
         d = filter_size * 2 + 1
         
-        t_std, t_mean = std_mean_filter(t, d)
-        ref_std, ref_mean = std_mean_filter(ref, d)
+        if t.dim() == 5:
+            t_std, t_mean, ref_std, ref_mean = [], [], [], []
+            for b in range(t.shape[0]):
+                tb_std, tb_mean = std_mean_filter(t[b], d)
+                rb_std, rb_mean = std_mean_filter(ref[b], d)
+                t_std.append(tb_std)
+                t_mean.append(tb_mean)
+                ref_std.append(rb_std)
+                ref_mean.append(rb_mean)
+            t_std = torch.stack(t_std, dim=0)
+            t_mean = torch.stack(t_mean, dim=0)
+            ref_std = torch.stack(ref_std, dim=0)
+            ref_mean = torch.stack(ref_mean, dim=0)
+        else:
+            t_std, t_mean = std_mean_filter(t, d)
+            ref_std, ref_mean = std_mean_filter(ref, d)
         
         t = (t - t_mean) / t_std
         t = t * ref_std + ref_mean
-        t = t.movedim(-1, 1) # [B x H x W x C] -> [B x C x H x W]
+        t = t.movedim(-1, 1) # BHWC -> BCHW or BFHWC -> BCFHW
         
         latents_copy["samples"] = torch.lerp(latents["samples"], t, factor)
         return (latents_copy,)
@@ -920,16 +930,22 @@ class SharpenFilterLatent:
 
     def filter_latent(self, latents, filter_size, factor):
         latents_copy = copy.deepcopy(latents)
-        t = latents_copy["samples"].movedim(1, -1) # [B x C x H x W] -> [B x H x W x C]
-        
+        t = latents_copy["samples"].movedim(1, -1) # BCHW -> BHWC or BCFHW -> BFHWC
         d = filter_size * 2 + 1
-        t_blurred = cv_blur_tensor(t, d, d)
+        
+        if t.dim() == 5:
+            t_blurred = []
+            for b in range(t.shape[0]):
+                t_blurred.append(cv_blur_tensor(t[b], d, d))
+            t_blurred = torch.stack(t_blurred, dim=0)
+        else:
+            t_blurred = cv_blur_tensor(t, d, d)
         
         t = t - t_blurred
         t = t * factor
         t = t + t_blurred
         
-        t = t.movedim(-1, 1) # [B x H x W x C] -> [B x C x H x W]
+        t = t.movedim(-1, 1) # BHWC -> BCHW or BFHWC -> BCFHW
         latents_copy["samples"] = t
         return (latents_copy,)
 
@@ -1900,6 +1916,25 @@ class PrintSigmas:
         return (sigmas,)
 
 
+class ShowSigmas:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {"sigmas": ("SIGMAS",)},
+            "hidden": {"unique_id": "UNIQUE_ID",},
+        }
+
+    RETURN_TYPES = ("SIGMAS",)
+    FUNCTION = "show_sigmas"
+    OUTPUT_NODE = True
+    CATEGORY = "Image-Filters/utils"
+    
+    def show_sigmas(self, sigmas, unique_id=None):
+        if unique_id:
+            PromptServer.instance.send_progress_text(f"{sigmas}", unique_id)
+        return (sigmas,)
+
+
 class VisualizeLatents:
     @classmethod
     def INPUT_TYPES(s):
@@ -2311,6 +2346,7 @@ COMBINED_MAPPINGS = {
     "RemapRange":                 (RemapRange,                 "Remap Range"),
     "RestoreDetail":              (RestoreDetail,              "Restore Detail"),
     "SharpenFilterLatent":        (SharpenFilterLatent,        "Sharpen Filter (Latent)"),
+    "ShowSigmas":                 (ShowSigmas,                 "Show Sigmas"),
     "ShuffleChannels":            (ShuffleChannels,            "Shuffle Channels"),
     "Tonemap":                    (Tonemap,                    "Tonemap"),
     "UnJitterImage":              (UnJitterImage,              "Un-Jitter Image"),

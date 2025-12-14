@@ -1,0 +1,629 @@
+{
+  "last_link_id": 66,
+  "nodes": [
+    {
+      "outputs": [
+        {
+          "name": "model",
+          "slot_index": 0,
+          "links": [
+            4
+          ],
+          "label": "model",
+          "type": "MODEL_SONIC",
+          "localized_name": "model"
+        },
+        {
+          "name": "dtype",
+          "label": "dtype",
+          "type": "DTYPE"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "unet.pth",
+        1,
+        true,
+        "fp16"
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 10,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        }
+      ],
+      "flags": {},
+      "type": "SONICTLoader",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        315,
+        150
+      ],
+      "pos": [
+        1412.678466796875,
+        513.6564331054688
+      ],
+      "id": 7,
+      "properties": {
+        "Node name for S&R": "SONICTLoader",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 5
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            10
+          ],
+          "label": "模型",
+          "type": "MODEL",
+          "localized_name": "模型"
+        },
+        {
+          "name": "CLIP_VISION",
+          "slot_index": 1,
+          "links": [
+            6
+          ],
+          "label": "CLIP视觉",
+          "type": "CLIP_VISION",
+          "localized_name": "CLIP视觉"
+        },
+        {
+          "name": "VAE",
+          "slot_index": 2,
+          "links": [
+            7
+          ],
+          "label": "VAE",
+          "type": "VAE",
+          "localized_name": "VAE"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "svd_xt_1_1.safetensors"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "ImageOnlyCheckpointLoader",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        418.7210998535156,
+        98
+      ],
+      "pos": [
+        971.106201171875,
+        512.6666870117188
+      ],
+      "id": 8,
+      "properties": {
+        "Node name for S&R": "ImageOnlyCheckpointLoader",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 0
+    },
+    {
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "slot_index": 0,
+          "links": [
+            2,
+            8
+          ],
+          "label": "音频",
+          "type": "AUDIO",
+          "localized_name": "音频"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "7adbbacd02e9ecc6efe644b408db9dc14fa487b65e7629aa6de84471293c9bdb.mp3",
+        "",
+        ""
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "LoadAudio",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        416.6692199707031,
+        136
+      ],
+      "pos": [
+        970.653076171875,
+        668.3053588867188
+      ],
+      "id": 3,
+      "properties": {
+        "Node name for S&R": "LoadAudio",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 1
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            9
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "5d610c47446dd12bf75f35a8b79752ec46ecbf31d2877d80ef9a602cc9da14f0.png",
+        "image",
+        ""
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "LoadImage",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        424.6656799316406,
+        371.11785888671875
+      ],
+      "pos": [
+        964.666748046875,
+        861.4237670898438
+      ],
+      "id": 1,
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 2
+    },
+    {
+      "outputs": [
+        {
+          "name": "image",
+          "slot_index": 0,
+          "links": [
+            1
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "fps",
+          "slot_index": 1,
+          "links": [
+            3
+          ],
+          "label": "fps",
+          "type": "FLOAT",
+          "localized_name": "fps"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        473352584,
+        "fixed",
+        25,
+        1,
+        25
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 4,
+          "label": "model",
+          "type": "MODEL_SONIC",
+          "localized_name": "model"
+        },
+        {
+          "name": "data_dict",
+          "link": 5,
+          "label": "data_dict",
+          "type": "SONIC_PREDATA",
+          "localized_name": "data_dict"
+        }
+      ],
+      "flags": {},
+      "type": "SONICSampler",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        315,
+        174
+      ],
+      "pos": [
+        1420.315185546875,
+        1057.2470703125
+      ],
+      "id": 4,
+      "properties": {
+        "Node name for S&R": "SONICSampler",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 7
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "Filenames",
+          "links": [],
+          "label": "文件名",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": {
+        "save_output": true,
+        "filename_prefix": "AnimateDiff",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 19,
+        "trim_to_audio": false,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {
+            "filename": "AnimateDiff_00057-audio_ocpqf_1744468657.mp4",
+            "workflow": "AnimateDiff_00057.png",
+            "fullpath": "/data/ComfyUI/personal/6647d0b6281c1f111001dde466eec66e/output/AnimateDiff_00057-audio.mp4",
+            "format": "video/h264-mp4",
+            "subfolder": "",
+            "type": "output",
+            "frame_rate": 25
+          },
+          "muted": false
+        },
+        "format": "video/h264-mp4",
+        "frame_rate": 16,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 1,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "link": 2,
+          "label": "音频",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "批次管理",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "link": 3,
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "帧率"
+        }
+      ],
+      "flags": {},
+      "type": "VHS_VideoCombine",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        275.4217834472656,
+        699.2049560546875
+      ],
+      "pos": [
+        1776.7020263671875,
+        520.601806640625
+      ],
+      "id": 2,
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 8
+    },
+    {
+      "outputs": [
+        {
+          "name": "data_dict",
+          "slot_index": 0,
+          "links": [
+            5
+          ],
+          "label": "data_dict",
+          "type": "SONIC_PREDATA",
+          "localized_name": "data_dict"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        512,
+        999,
+        0.5
+      ],
+      "inputs": [
+        {
+          "name": "clip_vision",
+          "link": 6,
+          "label": "clip_vision",
+          "type": "CLIP_VISION",
+          "localized_name": "clip_vision"
+        },
+        {
+          "name": "vae",
+          "link": 7,
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "name": "audio",
+          "link": 8,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "image",
+          "link": 9,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "flags": {},
+      "type": "SONIC_PreData",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        315,
+        166
+      ],
+      "pos": [
+        1416.965576171875,
+        720.1222534179688
+      ],
+      "id": 5,
+      "properties": {
+        "Node name for S&R": "SONIC_PreData",
+        "ttNbgOverride": {
+          "bgcolor": "#335",
+          "groupcolor": "#88A",
+          "color": "#223"
+        }
+      },
+      "order": 6
+    },
+    {
+      "outputs": [],
+      "color": "#323",
+      "widgets_values": [
+        "min resolution：分辨率\nduration：时长/秒\n最少设置两秒\n保持默认则根据视频时长决定\nFPS：帧率"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        307.8317565917969,
+        88
+      ],
+      "pos": [
+        1420.959716796875,
+        927.6840209960938
+      ],
+      "id": 6,
+      "properties": {
+        "text": ""
+      },
+      "order": 3
+    },
+    {
+      "outputs": [],
+      "color": "#323",
+      "shape": 1,
+      "widgets_values": [
+        "\n<div class=\"startPage\">\n  <div class=\"hoverContainer\">\n    <a href=\"https://staraigc.top\">   \n      <span class=\"size-smallButton style-input\">#️⃣️ StarAI官网</span>\n    </a>\n    <a href=\"https://pd.qq.com/s/7sqychu67\">   \n      <span class=\"size-smallButton style-input\">👫交流频道</span>\n    </a>\n    <a href=\"https://space.bilibili.com/495356821\">   \n      <span class=\"size-smallButton style-input\">⏯️blibli主页</span>\n    </a>\n  </div>\n</div>\n\n\n",
+        "markdown",
+        "* {\r\n    font-family: 'Arial', sans-serif; /* 使用Arial字体，并设置备用字体 */\r\n    color: #ff69b4; /* 全局字体颜色设置为粉色 */\r\n    font-weight: bold; /* 全局字体加粗 */\r\n}\r\n\r\nbody {\r\n    background-color: #800080; /* 设置紫色背景 */\r\n}\r\n\r\n.startPage {\r\n    position: absolute;\r\n    width: auto;\r\n    z-index: 0;\r\n    transition: transform 0.3s ease;\r\n}\r\n\r\n.startPage:hover {\r\n    transform: translateY(-5px); /* 鼠标悬停时轻微上移 */\r\n}\r\n\r\n.hoverContainer {\r\n    background: #800080; /* 紫色背景 */\r\n    border-radius: 27px;\r\n    padding: 50px;\r\n    display: flex;\r\n    flex-direction: row;\r\n    margin: 12px auto;\r\n    position: relative;\r\n    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* 添加阴影以增加层次感 */\r\n}\r\n\r\n.size-smallButton {\r\n    font-size: 24px; /* 调整字体大小 */\r\n    border-radius: 12px;\r\n    height: 48px;\r\n    min-width: 48px;\r\n    display: flex;\r\n    align-items: center;\r\n    justify-content: center;\r\n    width: auto;\r\n    cursor: pointer;\r\n    border: 2px solid #ff69b4; /* 粉色边框 */\r\n    background-color: #800080; /* 紫色背景 */\r\n    transition: all 0.3s ease; /* 过渡效果 */\r\n    margin: 0 10px; /* 增加间距 */\r\n}\r\n\r\n.size-smallButton:hover {\r\n    background-color: #ff69b4; /* 鼠标悬停时粉色背景 */\r\n    color: #800080; /* 紫色文字 */\r\n}\r\n\r\n.style-input {\r\n    background: #800080; /* 紫色背景 */\r\n    padding: 12px;\r\n    border: 2px solid #ff69b4; /* 粉色边框 */\r\n    transition: all 0.3s ease; /* 过渡效果 */\r\n}\r\n\r\n.style-input:hover {\r\n    border-color: #c080ff; /* 鼠标悬停时边框颜色 */\r\n}\r\n\r\na:not(:first-child) {\r\n    margin-left: 8px;\r\n}\r\n\r\na {\r\n    color: #ff69b4; /* 粉色链接颜色 */\r\n    text-decoration: none; /* 去除下划线 */\r\n    transition: color 0.3s; /* 过渡效果 */\r\n}\r\n\r\na:hover,\r\na:hover .header_discrip {\r\n    color: #c080ff !important; /* 鼠标悬停时更深的粉色 */\r\n}",
+        "one_dark"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note Plus (mtb)",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        726.1376342773438,
+        185.10914611816406
+      ],
+      "pos": [
+        1158.434814453125,
+        235.99085998535156
+      ],
+      "id": 64,
+      "properties": {},
+      "order": 4
+    }
+  ],
+  "extra": {
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        52.93278884887695,
+        -105.5849609375
+      ],
+      "scale": 0.8264462809917354
+    }
+  },
+  "groups": [
+    {
+      "color": "#a1309b",
+      "font_size": 24,
+      "flags": {},
+      "id": 6,
+      "title": "sonic",
+      "bounding": [
+        954.666748046875,
+        439.0666809082031,
+        1107.45703125,
+        803.4749145507812
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      4,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      3,
+      0,
+      2,
+      1,
+      "AUDIO"
+    ],
+    [
+      3,
+      4,
+      1,
+      2,
+      4,
+      "FLOAT"
+    ],
+    [
+      4,
+      7,
+      0,
+      4,
+      0,
+      "MODEL_SONIC"
+    ],
+    [
+      5,
+      5,
+      0,
+      4,
+      1,
+      "SONIC_PREDATA"
+    ],
+    [
+      6,
+      8,
+      1,
+      5,
+      0,
+      "CLIP_VISION"
+    ],
+    [
+      7,
+      8,
+      2,
+      5,
+      1,
+      "VAE"
+    ],
+    [
+      8,
+      3,
+      0,
+      5,
+      2,
+      "AUDIO"
+    ],
+    [
+      9,
+      1,
+      0,
+      5,
+      3,
+      "IMAGE"
+    ],
+    [
+      10,
+      8,
+      0,
+      7,
+      0,
+      "MODEL"
+    ]
+  ],
+  "id": "13d0cbac-e1ad-42d0-b3b4-a60ef0f599eb",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 64,
+  "revision": 0
+}

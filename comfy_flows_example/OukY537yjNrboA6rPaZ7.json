@@ -1,0 +1,654 @@
+{
+  "last_node_id": 55,
+  "last_link_id": 86,
+  "nodes": [
+    {
+      "id": 35,
+      "type": "KSampler SDXL (Eff.)",
+      "pos": [
+        540,
+        270
+      ],
+      "size": {
+        "0": 325,
+        "1": 546
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "sdxl_tuple",
+          "type": "SDXL_TUPLE",
+          "link": 58
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 59
+        },
+        {
+          "name": "optional_vae",
+          "type": "VAE",
+          "link": 60
+        },
+        {
+          "name": "script",
+          "type": "SCRIPT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SDXL_TUPLE",
+          "type": "SDXL_TUPLE",
+          "links": [],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            82
+          ],
+          "shape": 3,
+          "slot_index": 2
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            62
+          ],
+          "shape": 3,
+          "slot_index": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler SDXL (Eff.)"
+      },
+      "widgets_values": [
+        -1,
+        null,
+        6,
+        1.5,
+        "dpmpp_sde",
+        "karras",
+        0,
+        -1,
+        "auto",
+        "true (tiled)"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159",
+      "shape": 1
+    },
+    {
+      "id": 34,
+      "type": "Eff. Loader SDXL",
+      "pos": [
+        47,
+        271
+      ],
+      "size": [
+        473.02240880859404,
+        800.3053510095217
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora_stack",
+          "type": "LORA_STACK",
+          "link": null
+        },
+        {
+          "name": "cnet_stack",
+          "type": "CONTROL_NET_STACK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SDXL_TUPLE",
+          "type": "SDXL_TUPLE",
+          "links": [
+            58,
+            72
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            59
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            60,
+            63
+          ],
+          "shape": 3,
+          "slot_index": 2
+        },
+        {
+          "name": "DEPENDENCIES",
+          "type": "DEPENDENCIES",
+          "links": null,
+          "shape": 3,
+          "slot_index": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Eff. Loader SDXL"
+      },
+      "widgets_values": [
+        "wildcardxXLTURBO_wildcardxXLTURBOV10.safetensors",
+        -2,
+        "dreamshaperXL_v21TurboDPMSDE.safetensors",
+        -2,
+        6,
+        2,
+        "Baked VAE",
+        "cinematic Style : \"Generate a cinematic and realistic scene featuring Challenger SRT® Hellcat Redeye car with lots of smoke in the post apocalyptic forest with dead burning trees, creepy night scene, a skull lies on the path,",
+        "(worst quality), ugly,",
+        "none",
+        "comfy",
+        768,
+        448,
+        1
+      ],
+      "color": "#223322",
+      "bgcolor": "#335533",
+      "shape": 1
+    },
+    {
+      "id": 53,
+      "type": "KSampler (Efficient)",
+      "pos": [
+        1202,
+        263
+      ],
+      "size": {
+        "0": 442.5902404785156,
+        "1": 581.3955078125
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 83
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 79
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 80
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 81
+        },
+        {
+          "name": "optional_vae",
+          "type": "VAE",
+          "link": 82
+        },
+        {
+          "name": "script",
+          "type": "SCRIPT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            84
+          ],
+          "shape": 3,
+          "slot_index": 4
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            85
+          ],
+          "shape": 3,
+          "slot_index": 5
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler (Efficient)"
+      },
+      "widgets_values": [
+        -1,
+        null,
+        6,
+        1.5,
+        "dpmpp_sde",
+        "karras",
+        0.4,
+        "vae_decoded_only",
+        "true (tiled)"
+      ],
+      "color": "#223333",
+      "bgcolor": "#335555",
+      "shape": 1
+    },
+    {
+      "id": 48,
+      "type": "Unpack SDXL Tuple",
+      "pos": [
+        675,
+        47
+      ],
+      "size": {
+        "0": 405.5999755859375,
+        "1": 166
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "sdxl_tuple",
+          "type": "SDXL_TUPLE",
+          "link": 72
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BASE_MODEL",
+          "type": "MODEL",
+          "links": [],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "BASE_CLIP",
+          "type": "CLIP",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "BASE_CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": [
+            79
+          ],
+          "shape": 3,
+          "slot_index": 2
+        },
+        {
+          "name": "BASE_CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": [
+            80
+          ],
+          "shape": 3,
+          "slot_index": 3
+        },
+        {
+          "name": "REFINER_MODEL",
+          "type": "MODEL",
+          "links": [
+            83
+          ],
+          "shape": 3,
+          "slot_index": 4
+        },
+        {
+          "name": "REFINER_CLIP",
+          "type": "CLIP",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "REFINER_CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "REFINER_CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Unpack SDXL Tuple"
+      },
+      "color": "#322",
+      "bgcolor": "#533",
+      "shape": 1
+    },
+    {
+      "id": 54,
+      "type": "ttN hiresfixScale",
+      "pos": [
+        1660,
+        343
+      ],
+      "size": [
+        315,
+        342
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 85
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 84
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            86
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ttN hiresfixScale",
+        "ttNnodeVersion": "1.0.3"
+      },
+      "widgets_values": [
+        "4x-UltraSharp.pth",
+        true,
+        "nearest-exact",
+        "by percentage",
+        50,
+        1024,
+        1024,
+        1024,
+        "disabled",
+        "Hide",
+        "ComfyUI",
+        true
+      ],
+      "color": "#323",
+      "bgcolor": "#535",
+      "shape": 1
+    },
+    {
+      "id": 38,
+      "type": "ttN hiresfixScale",
+      "pos": [
+        876,
+        325
+      ],
+      "size": {
+        "0": 315,
+        "1": 342
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 62
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 63
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            81
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ttN hiresfixScale",
+        "ttNnodeVersion": "1.0.3"
+      },
+      "widgets_values": [
+        "4x-UltraSharp.pth",
+        true,
+        "nearest-exact",
+        "by percentage",
+        50,
+        1024,
+        1024,
+        1024,
+        "disabled",
+        "Hide",
+        "ComfyUI",
+        true
+      ],
+      "color": "#323",
+      "bgcolor": "#535",
+      "shape": 1
+    },
+    {
+      "id": 55,
+      "type": "PreviewImage",
+      "pos": [
+        1994,
+        360
+      ],
+      "size": [
+        523.2308914562882,
+        380.3669086803088
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 86
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "color": "#2a363b",
+      "bgcolor": "#3f5159",
+      "shape": 1
+    }
+  ],
+  "links": [
+    [
+      58,
+      34,
+      0,
+      35,
+      0,
+      "SDXL_TUPLE"
+    ],
+    [
+      59,
+      34,
+      1,
+      35,
+      1,
+      "LATENT"
+    ],
+    [
+      60,
+      34,
+      2,
+      35,
+      2,
+      "VAE"
+    ],
+    [
+      62,
+      35,
+      3,
+      38,
+      0,
+      "IMAGE"
+    ],
+    [
+      63,
+      34,
+      2,
+      38,
+      1,
+      "VAE"
+    ],
+    [
+      72,
+      34,
+      0,
+      48,
+      0,
+      "SDXL_TUPLE"
+    ],
+    [
+      79,
+      48,
+      2,
+      53,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      80,
+      48,
+      3,
+      53,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      81,
+      38,
+      0,
+      53,
+      3,
+      "LATENT"
+    ],
+    [
+      82,
+      35,
+      2,
+      53,
+      4,
+      "VAE"
+    ],
+    [
+      83,
+      48,
+      4,
+      53,
+      0,
+      "MODEL"
+    ],
+    [
+      84,
+      53,
+      4,
+      54,
+      1,
+      "VAE"
+    ],
+    [
+      85,
+      53,
+      5,
+      54,
+      0,
+      "IMAGE"
+    ],
+    [
+      86,
+      54,
+      1,
+      55,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

@@ -31,6 +31,7 @@ import {
   type NodeId,
   isSubgraphDefinition
 } from '@/platform/workflow/validation/schemas/workflowSchema'
+import { executeNumberControls } from '@/renderer/extensions/vueNodes/widgets/services/NumberControlRegistry'
 import type {
   ExecutionErrorWsMessage,
   NodeError,
@@ -1358,6 +1359,7 @@ export class ComfyApp {
           forEachNode(this.rootGraph, (node) => {
             for (const widget of node.widgets ?? []) widget.beforeQueued?.()
           })
+          executeNumberControls('before')
 
           const p = await this.graphToPrompt(this.rootGraph)
           const queuedNodes = collectAllNodes(this.rootGraph)
@@ -1402,6 +1404,7 @@ export class ComfyApp {
           // Allow widgets to run callbacks after a prompt has been queued
           // e.g. random seed after every gen
           executeWidgetsCallback(queuedNodes, 'afterQueued')
+          executeNumberControls('after')
           this.canvas.draw(true, true)
           await this.ui.queue.update()
         }
@@ -1468,7 +1471,21 @@ export class ComfyApp {
       }
     }
 
-    // Use parameters as fallback when no workflow exists
+    if (prompt) {
+      try {
+        const promptObj =
+          typeof prompt === 'string' ? JSON.parse(prompt) : prompt
+        if (this.isApiJson(promptObj)) {
+          this.loadApiJson(promptObj, fileName)
+          return
+        }
+      } catch (err) {
+        console.error('Failed to parse prompt:', err)
+      }
+      // Fall through to parameters as a last resort
+    }
+
+    // Use parameters strictly as the final fallback
     if (parameters) {
       // Note: Not putting this in `importA1111` as it is mostly not used
       // by external callers, and `importA1111` has no access to `app`.
@@ -1481,18 +1498,25 @@ export class ComfyApp {
       return
     }
 
-    if (prompt) {
-      const promptObj = typeof prompt === 'string' ? JSON.parse(prompt) : prompt
-      this.loadApiJson(promptObj, fileName)
-      return
-    }
-
     this.showErrorOnFileLoad(file)
   }
 
   // @deprecated
-  isApiJson(data: unknown) {
-    return _.isObject(data) && Object.values(data).every((v) => v.class_type)
+  isApiJson(data: unknown): data is ComfyApiWorkflow {
+    if (!_.isObject(data) || Array.isArray(data)) {
+      return false
+    }
+    if (Object.keys(data).length === 0) return false
+
+    return Object.values(data).every((node) => {
+      if (!node || typeof node !== 'object' || Array.isArray(node)) {
+        return false
+      }
+
+      const { class_type: classType, inputs } = node as Record<string, unknown>
+      const inputsIsRecord = _.isObject(inputs) && !Array.isArray(inputs)
+      return typeof classType === 'string' && inputsIsRecord
+    })
   }
 
   loadApiJson(apiData: ComfyApiWorkflow, fileName: string) {

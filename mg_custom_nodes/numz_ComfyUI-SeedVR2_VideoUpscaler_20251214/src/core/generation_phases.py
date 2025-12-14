@@ -533,10 +533,6 @@ def encode_all_batches(
             manage_model_device(model=runner.vae, target_device=ctx['vae_offload_device'], 
                                 model_name="VAE", debug=debug, reason="VAE offload", runner=runner)
     
-    # MPS: sync to get accurate timing and free memory before Phase 2
-    if ctx['vae_device'].type == 'mps':
-        torch.mps.synchronize()
-    
     debug.end_timer("phase1_encoding", "Phase 1: VAE encoding complete", show_breakdown=True)
     debug.log_memory_state("After phase 1 (VAE encoding)", show_tensors=False)
     
@@ -1054,10 +1050,6 @@ def decode_all_batches(
         if 'all_upscaled_latents' in ctx:
             release_tensor_collection(ctx['all_upscaled_latents'])
             del ctx['all_upscaled_latents']
-    
-    # MPS: sync to get accurate timing and free memory before Phase 4
-    if ctx['vae_device'].type == 'mps':
-        torch.mps.synchronize()
         
     debug.end_timer("phase3_decoding", "Phase 3: VAE decoding complete", show_breakdown=True)
     debug.log_memory_state("After phase 3 (VAE decoding)", show_tensors=False)

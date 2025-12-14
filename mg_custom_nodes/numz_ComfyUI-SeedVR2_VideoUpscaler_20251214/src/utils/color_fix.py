@@ -490,6 +490,7 @@ def _histogram_matching_channel(source: Tensor, reference: Tensor, device: torch
     # Sort both arrays
     source_sorted, source_indices = torch.sort(source_flat)
     reference_sorted, _ = torch.sort(reference_flat)
+    del reference_flat
     
     # Quantile mapping
     n_source = len(source_sorted)
@@ -503,12 +504,15 @@ def _histogram_matching_channel(source: Tensor, reference: Tensor, device: torch
         ref_indices = (source_quantiles * (n_reference - 1)).long()
         ref_indices.clamp_(0, n_reference - 1)
         matched_sorted = reference_sorted[ref_indices]
-        del source_quantiles, ref_indices
+        del source_quantiles, ref_indices, reference_sorted
     
-    # Reconstruct with matched values
-    matched_flat = torch.empty_like(source_flat)
-    matched_flat.scatter_(0, source_indices, matched_sorted)
-    del source_flat, reference_flat, source_sorted, source_indices, reference_sorted, matched_sorted
+    del source_sorted, source_flat
+    
+    # Reconstruct using argsort (portable across CUDA/ROCm/MPS)
+    inverse_indices = torch.argsort(source_indices)
+    del source_indices
+    matched_flat = matched_sorted[inverse_indices]
+    del matched_sorted, inverse_indices
     
     return matched_flat.reshape(original_shape)
 
@@ -748,11 +752,15 @@ def _histogram_match_1d(source: Tensor, reference: Tensor, device: torch.device)
         ref_indices = (source_quantiles * (n_reference - 1)).long()
         ref_indices.clamp_(0, n_reference - 1)
         matched_sorted = reference_sorted[ref_indices]
-        del source_quantiles, ref_indices
+        del source_quantiles, ref_indices, reference_sorted
     
-    matched = torch.empty_like(source)
-    matched.scatter_(0, source_indices, matched_sorted)
-    del source_sorted, source_indices, reference_sorted, matched_sorted
+    del source_sorted
+    
+    # Reconstruct using argsort (portable across CUDA/ROCm/MPS)
+    inverse_indices = torch.argsort(source_indices)
+    del source_indices
+    matched = matched_sorted[inverse_indices]
+    del matched_sorted, inverse_indices
     
     return matched
 

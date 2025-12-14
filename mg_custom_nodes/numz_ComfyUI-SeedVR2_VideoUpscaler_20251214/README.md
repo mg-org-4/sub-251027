@@ -36,6 +36,13 @@ We're actively working on improvements and new features. To stay informed:
 
 ## 🚀 Release Notes
 
+**2025.12.13 - Version 2.5.22**
+
+- **🎬 CLI: FFmpeg video backend with 10-bit support** - New `--video_backend ffmpeg` and `--10bit` flags enable x265 encoding with 10-bit color depth, reducing banding artifacts in gradients compared to 8-bit OpenCV output *(based on PR by [@thehhmdb](https://github.com/thehhmdb) - thank you!)*
+- **🍎 Fix: MPS bicubic upscaling compatibility** - Added CPU fallback for bicubic+antialias interpolation on PyTorch versions before 2.8.0, resolving RGBA alpha upscaling errors on Apple Silicon
+- **⚡ Fix: Cross-platform histogram matching** - Replaced scatter_ operation with argsort+index_select for improved reliability across CUDA, ROCm, and MPS backends
+- **🧹 MPS: Remove sync overhead** - Reverted unnecessary `torch.mps.synchronize()` calls introduced in v2.5.21 for consistent behavior with CUDA pipeline
+
 **2025.12.12 - Version 2.5.21**
 
 - **🛠️ Fix: GGUF dequantization error on MPS** - Resolved shape mismatch error introduced in 2.5.20 by skipping GGUF quantized buffers in precision conversion - these must remain in packed format for on-the-fly dequantization during inference
@@ -812,14 +819,16 @@ python inference_cli.py image.jpg
 # Basic video upscaling with temporal consistency
 python inference_cli.py video.mp4 --resolution 720 --batch_size 33
 
-# Streaming mode for long videos (memory-efficient)
+# Streaming mode for long videos (memory-efficient) with 10-bit video output (requires FFMPEG)
 # Processes video in chunks of 330 frames to avoid loading entire video into RAM
 # Use --temporal_overlap to ensure smooth transitions between chunks
 python inference_cli.py long_video.mp4 \
     --resolution 1080 \
     --batch_size 33 \
     --chunk_size 330 \
-    --temporal_overlap 3
+    --temporal_overlap 3 \
+    --video_backend ffmpeg \
+    --10bit
 
 # Multi-GPU processing with temporal overlap
 python inference_cli.py video.mp4 \
@@ -866,6 +875,8 @@ python inference_cli.py media_folder/ \
 - `<input>`: Input file (.mp4, .avi, .png, .jpg, etc.) or directory
 - `--output`: Output path (default: auto-generated in 'output/' directory)
 - `--output_format`: Output format: 'mp4' (video) or 'png' (image sequence). Default: auto-detect from input type
+- `--video_backend`: Video encoder backend: 'opencv' (default) or 'ffmpeg' (requires ffmpeg in PATH)
+- `--10bit`: Save 10-bit video with x265 codec and yuv420p10le pixel format (reduces banding in gradients). Without this flag, ffmpeg uses x264 (yuv420p) for maximum compatibility. Requires --video_backend ffmpeg
 - `--model_dir`: Model directory (default: ./models/SEEDVR2)
 
 **Model Selection:**

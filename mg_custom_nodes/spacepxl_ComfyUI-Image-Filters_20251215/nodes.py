@@ -98,6 +98,18 @@ def linearToSRGB(npArray):
     npArray[less] = npArray[less] * 12.92
     npArray[~less] = np.power(npArray[~less], 1/2.4) * 1.055 - 0.055
 
+def sRGBtoLinear_pt(t: torch.Tensor):
+    less = t <= 0.0404482362771082
+    t[less] = t[less] / 12.92
+    t[~less] = torch.pow((t[~less] + 0.055) / 1.055, 2.4)
+    return t
+
+def linearToSRGB_pt(t: torch.Tensor):
+    less = t <= 0.0031308
+    t[less] = t[less] * 12.92
+    t[~less] = torch.pow(t[~less], 1 / 2.4) * 1.055 - 0.055
+    return t
+
 def linearToTonemap(npArray, tonemap_scale):
     npArray /= tonemap_scale
     more = npArray > 0.06
@@ -2291,6 +2303,44 @@ class PackVideoMask:
         return (squashed_mask,)
 
 
+class PoissonNoise:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "gain": ("FLOAT", {"default": 1000, "min": 0.001, "max": 1_000_000, "step": 0.001}),
+                "gain_r": ("FLOAT", {"default": 1.0, "min": 0, "max": 1_000_000, "step": 0.001}),
+                "gain_g": ("FLOAT", {"default": 2.0, "min": 0, "max": 1_000_000, "step": 0.001}),
+                "gain_b": ("FLOAT", {"default": 0.5, "min": 0, "max": 1_000_000, "step": 0.001}),
+                "clamp": ("BOOLEAN", {"default": True}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "poissson_noise"
+    CATEGORY = "Image-Filters/image"
+
+    def poissson_noise(self, image, gain, gain_r, gain_g, gain_b, clamp, seed):
+        linear = sRGBtoLinear_pt(image.cpu().clone())
+        
+        linear[..., 0] *= gain_r
+        linear[..., 1] *= gain_g
+        linear[..., 2] *= gain_b
+        
+        generator = torch.Generator("cpu").manual_seed(seed)
+        noise = torch.poisson(linear * gain, generator) * (1 / gain)
+        
+        noise[..., 0] *= 1 / gain_r
+        noise[..., 1] *= 1 / gain_g
+        noise[..., 2] *= 1 / gain_b
+        
+        output = linearToSRGB_pt(noise)
+        if clamp: output = torch.clamp(output, min=0, max=1)
+        return(output,)
+
+
 COMBINED_MAPPINGS = {
     "AdainFilterLatent":          (AdainFilterLatent,          "AdaIN Filter (Latent)"),
     "AdainImage":                 (AdainImage,                 "AdaIN (Image)"),
@@ -2341,6 +2391,7 @@ COMBINED_MAPPINGS = {
     "NormalMapSimple":            (NormalMapSimple,            "Normal Map (Simple)"),
     "OffsetLatentImage":          (OffsetLatentImage,          "Offset Latent Image"),
     "PackVideoMask":              (PackVideoMask,              "Pack Video Mask"),
+    "PoissonNoise":               (PoissonNoise,               "Poisson Noise Image"),
     "PrintSigmas":                (PrintSigmas,                "Print Sigmas"),
     "RelightSimple":              (RelightSimple,              "Relight (Simple)"),
     "RemapRange":                 (RemapRange,                 "Remap Range"),

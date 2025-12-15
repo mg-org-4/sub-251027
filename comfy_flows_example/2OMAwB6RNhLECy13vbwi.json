@@ -1,0 +1,956 @@
+{
+  "last_link_id": 44,
+  "nodes": [
+    {
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            25
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "size": [
+        566.385498046875,
+        691.8550415039062
+      ],
+      "pos": [
+        2002.651611328125,
+        18.947418212890625
+      ],
+      "widgets_values": [
+        "1a48b05bfd97b9fa82d9fabbffbce164.jpeg",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "type": "COMBO",
+          "localized_name": "图像"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "id": 19,
+      "type": "LoadImage",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "hasSecondTab": false,
+        "ver": "0.3.42",
+        "widget_ue_connectable": {},
+        "secondTabText": "Send Back",
+        "enableTabs": false,
+        "secondTabOffset": 80,
+        "Node name for S&R": "LoadImage",
+        "tabWidth": 65,
+        "secondTabWidth": 65,
+        "tabXOffset": 10
+      },
+      "order": 0
+    },
+    {
+      "mode": 4,
+      "outputs": [],
+      "size": [
+        657.9469604492188,
+        702.0578002929688
+      ],
+      "pos": [
+        2854,
+        12
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 43,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "flags": {},
+      "id": 35,
+      "type": "PreviewImage",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "hasSecondTab": false,
+        "ver": "0.3.42",
+        "widget_ue_connectable": {},
+        "secondTabText": "Send Back",
+        "enableTabs": false,
+        "secondTabOffset": 80,
+        "Node name for S&R": "PreviewImage",
+        "tabWidth": 65,
+        "secondTabWidth": 65,
+        "tabXOffset": 10
+      },
+      "order": 7
+    },
+    {
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "image",
+          "slot_index": 0,
+          "links": [
+            43
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "motion_link",
+          "label": "动态数据",
+          "type": "EDITOR_LINK",
+          "localized_name": "motion_link"
+        },
+        {
+          "name": "save_exp",
+          "label": "表情数据",
+          "type": "EXP_DATA",
+          "localized_name": "save_exp"
+        }
+      ],
+      "size": [
+        229.15321350097656,
+        709.1455078125
+      ],
+      "pos": [
+        2596,
+        12
+      ],
+      "widgets_values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        "All",
+        1.7
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "src_image",
+          "link": 42,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "src_image"
+        },
+        {
+          "shape": 7,
+          "name": "motion_link",
+          "label": "动态数据",
+          "type": "EDITOR_LINK",
+          "localized_name": "motion_link"
+        },
+        {
+          "shape": 7,
+          "name": "sample_image",
+          "link": 25,
+          "label": "参考图像",
+          "type": "IMAGE",
+          "localized_name": "sample_image"
+        },
+        {
+          "shape": 7,
+          "name": "add_exp",
+          "label": "表情数据",
+          "type": "EXP_DATA",
+          "localized_name": "add_exp"
+        },
+        {
+          "widget": {
+            "name": "rotate_pitch"
+          },
+          "name": "rotate_pitch",
+          "type": "FLOAT",
+          "localized_name": "头部俯仰"
+        },
+        {
+          "widget": {
+            "name": "rotate_yaw"
+          },
+          "name": "rotate_yaw",
+          "type": "FLOAT",
+          "localized_name": "头部旋转"
+        },
+        {
+          "widget": {
+            "name": "rotate_roll"
+          },
+          "name": "rotate_roll",
+          "type": "FLOAT",
+          "localized_name": "头部倾斜"
+        },
+        {
+          "widget": {
+            "name": "blink"
+          },
+          "name": "blink",
+          "type": "FLOAT",
+          "localized_name": "闭眼睁眼"
+        },
+        {
+          "widget": {
+            "name": "eyebrow"
+          },
+          "name": "eyebrow",
+          "type": "FLOAT",
+          "localized_name": "皱眉挑眉"
+        },
+        {
+          "widget": {
+            "name": "wink"
+          },
+          "name": "wink",
+          "type": "FLOAT",
+          "localized_name": "眨眼"
+        },
+        {
+          "widget": {
+            "name": "pupil_x"
+          },
+          "name": "pupil_x",
+          "type": "FLOAT",
+          "localized_name": "瞳孔左右"
+        },
+        {
+          "widget": {
+            "name": "pupil_y"
+          },
+          "name": "pupil_y",
+          "type": "FLOAT",
+          "localized_name": "瞳孔上下"
+        },
+        {
+          "widget": {
+            "name": "aaa"
+          },
+          "name": "aaa",
+          "type": "FLOAT",
+          "localized_name": "发声aa"
+        },
+        {
+          "widget": {
+            "name": "eee"
+          },
+          "name": "eee",
+          "type": "FLOAT",
+          "localized_name": "发声yi"
+        },
+        {
+          "widget": {
+            "name": "woo"
+          },
+          "name": "woo",
+          "type": "FLOAT",
+          "localized_name": "发声ou"
+        },
+        {
+          "widget": {
+            "name": "smile"
+          },
+          "name": "smile",
+          "type": "FLOAT",
+          "localized_name": "微笑"
+        },
+        {
+          "widget": {
+            "name": "src_ratio"
+          },
+          "name": "src_ratio",
+          "type": "FLOAT",
+          "localized_name": "原表情强度"
+        },
+        {
+          "widget": {
+            "name": "sample_ratio"
+          },
+          "name": "sample_ratio",
+          "type": "FLOAT",
+          "localized_name": "参考表情强度"
+        },
+        {
+          "widget": {
+            "name": "sample_parts"
+          },
+          "name": "sample_parts",
+          "type": "COMBO",
+          "localized_name": "参考部位"
+        },
+        {
+          "widget": {
+            "name": "crop_factor"
+          },
+          "name": "crop_factor",
+          "type": "FLOAT",
+          "localized_name": "应用区域系数"
+        }
+      ],
+      "flags": {},
+      "id": 21,
+      "type": "ExpressionEditor",
+      "properties": {
+        "cnr_id": "comfyui-advancedliveportrait",
+        "hasSecondTab": false,
+        "ver": "3bba732915e22f18af0d221b9c5c282990181f1b",
+        "widget_ue_connectable": {},
+        "secondTabText": "Send Back",
+        "enableTabs": false,
+        "secondTabOffset": 80,
+        "Node name for S&R": "ExpressionEditor",
+        "tabWidth": 65,
+        "secondTabWidth": 65,
+        "tabXOffset": 10
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "label": "可选连接",
+          "type": "*"
+        }
+      ],
+      "size": [
+        225.51406860351562,
+        82
+      ],
+      "pos": [
+        956,
+        -231
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 39,
+      "type": "Fast Groups Bypasser (rgthree)",
+      "properties": {
+        "hasSecondTab": false,
+        "customSortAlphabet": "",
+        "matchColors": "",
+        "secondTabOffset": 80,
+        "sort": "position",
+        "tabWidth": 65,
+        "secondTabWidth": 65,
+        "toggleRestriction": "default",
+        "widget_ue_connectable": {},
+        "secondTabText": "Send Back",
+        "enableTabs": false,
+        "matchTitle": "手动调节模块",
+        "showNav": true,
+        "tabXOffset": 10
+      },
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "label": "可选连接",
+          "type": "*"
+        }
+      ],
+      "size": [
+        227.3893280029297,
+        85.28657531738281
+      ],
+      "pos": [
+        2004,
+        -234
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 37,
+      "type": "Fast Groups Bypasser (rgthree)",
+      "properties": {
+        "hasSecondTab": false,
+        "customSortAlphabet": "",
+        "matchColors": "",
+        "secondTabOffset": 80,
+        "sort": "position",
+        "tabWidth": 65,
+        "secondTabWidth": 65,
+        "toggleRestriction": "default",
+        "widget_ue_connectable": {},
+        "secondTabText": "Send Back",
+        "enableTabs": false,
+        "matchTitle": "表情参考模块",
+        "showNav": true,
+        "tabXOffset": 10
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            19,
+            42
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "size": [
+        614.3016357421875,
+        733.012451171875
+      ],
+      "pos": [
+        268,
+        -19.339174270629883
+      ],
+      "widgets_values": [
+        "10695dda0da8dded6bdabbeb7dda092fbc8c4a77bc8f81cfd74c3679be7f0469.jpg",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "type": "COMBO",
+          "localized_name": "图像"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "id": 15,
+      "type": "LoadImage",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "hasSecondTab": false,
+        "ver": "0.3.42",
+        "widget_ue_connectable": {},
+        "secondTabText": "Send Back",
+        "enableTabs": false,
+        "secondTabOffset": 80,
+        "Node name for S&R": "LoadImage",
+        "tabWidth": 65,
+        "secondTabWidth": 65,
+        "tabXOffset": 10
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "slot_index": 0,
+          "links": [
+            44
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "motion_link",
+          "label": "动态数据",
+          "type": "EDITOR_LINK",
+          "localized_name": "motion_link"
+        },
+        {
+          "name": "save_exp",
+          "label": "表情数据",
+          "type": "EXP_DATA",
+          "localized_name": "save_exp"
+        }
+      ],
+      "size": [
+        306.1159973144531,
+        690.9421997070312
+      ],
+      "pos": [
+        962,
+        15
+      ],
+      "widgets_values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -13.5,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        "All",
+        1.7
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "src_image",
+          "link": 19,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "src_image"
+        },
+        {
+          "shape": 7,
+          "name": "motion_link",
+          "label": "动态数据",
+          "type": "EDITOR_LINK",
+          "localized_name": "motion_link"
+        },
+        {
+          "shape": 7,
+          "name": "sample_image",
+          "label": "参考图像",
+          "type": "IMAGE",
+          "localized_name": "sample_image"
+        },
+        {
+          "shape": 7,
+          "name": "add_exp",
+          "label": "表情数据",
+          "type": "EXP_DATA",
+          "localized_name": "add_exp"
+        },
+        {
+          "widget": {
+            "name": "rotate_pitch"
+          },
+          "name": "rotate_pitch",
+          "type": "FLOAT",
+          "localized_name": "头部俯仰"
+        },
+        {
+          "widget": {
+            "name": "rotate_yaw"
+          },
+          "name": "rotate_yaw",
+          "type": "FLOAT",
+          "localized_name": "头部旋转"
+        },
+        {
+          "widget": {
+            "name": "rotate_roll"
+          },
+          "name": "rotate_roll",
+          "type": "FLOAT",
+          "localized_name": "头部倾斜"
+        },
+        {
+          "widget": {
+            "name": "blink"
+          },
+          "name": "blink",
+          "type": "FLOAT",
+          "localized_name": "闭眼睁眼"
+        },
+        {
+          "widget": {
+            "name": "eyebrow"
+          },
+          "name": "eyebrow",
+          "type": "FLOAT",
+          "localized_name": "皱眉挑眉"
+        },
+        {
+          "widget": {
+            "name": "wink"
+          },
+          "name": "wink",
+          "type": "FLOAT",
+          "localized_name": "眨眼"
+        },
+        {
+          "widget": {
+            "name": "pupil_x"
+          },
+          "name": "pupil_x",
+          "type": "FLOAT",
+          "localized_name": "瞳孔左右"
+        },
+        {
+          "widget": {
+            "name": "pupil_y"
+          },
+          "name": "pupil_y",
+          "type": "FLOAT",
+          "localized_name": "瞳孔上下"
+        },
+        {
+          "widget": {
+            "name": "aaa"
+          },
+          "name": "aaa",
+          "type": "FLOAT",
+          "localized_name": "发声aa"
+        },
+        {
+          "widget": {
+            "name": "eee"
+          },
+          "name": "eee",
+          "type": "FLOAT",
+          "localized_name": "发声yi"
+        },
+        {
+          "widget": {
+            "name": "woo"
+          },
+          "name": "woo",
+          "type": "FLOAT",
+          "localized_name": "发声ou"
+        },
+        {
+          "widget": {
+            "name": "smile"
+          },
+          "name": "smile",
+          "type": "FLOAT",
+          "localized_name": "微笑"
+        },
+        {
+          "widget": {
+            "name": "src_ratio"
+          },
+          "name": "src_ratio",
+          "type": "FLOAT",
+          "localized_name": "原表情强度"
+        },
+        {
+          "widget": {
+            "name": "sample_ratio"
+          },
+          "name": "sample_ratio",
+          "type": "FLOAT",
+          "localized_name": "参考表情强度"
+        },
+        {
+          "widget": {
+            "name": "sample_parts"
+          },
+          "name": "sample_parts",
+          "type": "COMBO",
+          "localized_name": "参考部位"
+        },
+        {
+          "widget": {
+            "name": "crop_factor"
+          },
+          "name": "crop_factor",
+          "type": "FLOAT",
+          "localized_name": "应用区域系数"
+        }
+      ],
+      "flags": {},
+      "id": 14,
+      "type": "ExpressionEditor",
+      "properties": {
+        "cnr_id": "comfyui-advancedliveportrait",
+        "hasSecondTab": false,
+        "ver": "3bba732915e22f18af0d221b9c5c282990181f1b",
+        "widget_ue_connectable": {},
+        "secondTabText": "Send Back",
+        "enableTabs": false,
+        "secondTabOffset": 80,
+        "Node name for S&R": "ExpressionEditor",
+        "tabWidth": 65,
+        "secondTabWidth": 65,
+        "tabXOffset": 10
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        643.2277221679688,
+        562.9299926757812
+      ],
+      "pos": [
+        1300.31201171875,
+        79.14128112792969
+      ],
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 44,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "id": 40,
+      "type": "SaveImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 6
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "workspace_info": {
+      "id": "pGC_w3iMPZXSb7Ow-dqCr"
+    },
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        188.17417791340972,
+        606.6601751934389
+      ],
+      "scale": 0.7247295000000022
+    }
+  },
+  "groups": [
+    {
+      "color": "#88A",
+      "font_size": 40,
+      "flags": {},
+      "id": 1,
+      "title": "手动调节模块-根据需要调节下面参数，0：代表不变",
+      "bounding": [
+        944,
+        -137,
+        1035,
+        869
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 30,
+      "flags": {},
+      "id": 2,
+      "title": "图片生成",
+      "bounding": [
+        2841,
+        -75,
+        683,
+        800
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 30,
+      "flags": {},
+      "id": 3,
+      "title": "图片生成",
+      "bounding": [
+        1289,
+        -77,
+        687,
+        798
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 30,
+      "flags": {},
+      "id": 4,
+      "title": "改变参数控制表情",
+      "bounding": [
+        946,
+        -77,
+        340,
+        798
+      ]
+    },
+    {
+      "color": "#8AA",
+      "font_size": 50,
+      "flags": {},
+      "id": 5,
+      "title": "上传-图片",
+      "bounding": [
+        248,
+        -136,
+        687,
+        869
+      ]
+    },
+    {
+      "color": "#88A",
+      "font_size": 40,
+      "flags": {},
+      "id": 8,
+      "title": "表情参考模块 — 如需开启直接点击— 开关-2  no-按钮",
+      "bounding": [
+        1990,
+        -136,
+        1541,
+        868
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 30,
+      "flags": {},
+      "id": 6,
+      "title": "上传-参考表情",
+      "bounding": [
+        1990,
+        -76,
+        590,
+        800
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 30,
+      "flags": {},
+      "id": 7,
+      "title": "参数不变",
+      "bounding": [
+        2586,
+        -76,
+        249,
+        800
+      ]
+    },
+    {
+      "color": "#88A",
+      "font_size": 30,
+      "flags": {},
+      "id": 9,
+      "title": "开关-2",
+      "bounding": [
+        1990,
+        -318,
+        256,
+        179
+      ]
+    },
+    {
+      "color": "#88A",
+      "font_size": 30,
+      "flags": {},
+      "id": 10,
+      "title": "开关-1",
+      "bounding": [
+        944,
+        -314,
+        254,
+        175
+      ]
+    }
+  ],
+  "links": [
+    [
+      19,
+      15,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ],
+    [
+      25,
+      19,
+      0,
+      21,
+      2,
+      "IMAGE"
+    ],
+    [
+      42,
+      15,
+      0,
+      21,
+      0,
+      "IMAGE"
+    ],
+    [
+      43,
+      21,
+      0,
+      35,
+      0,
+      "IMAGE"
+    ],
+    [
+      44,
+      14,
+      0,
+      40,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "id": "4f1826bb-ac14-42be-81c7-549e3591de7d",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 40,
+  "revision": 0
+}

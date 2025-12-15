@@ -1,4 +1,6 @@
 
+![header](../../wiki/images/SeedVarianceEnhancer_GitHub_header.webp)
+
 # SeedVarianceEnhancer v2.1
 
 SeedVarianceEnhancer is a ComfyUI custom node designed to add diversity to the outputs of Z-Image Turbo. It compensates for low seed variance, which is when generated images look similar despite being generated with different seeds. It works by adding random noise to the embedding for the early generation steps.
@@ -43,7 +45,7 @@ When used with Z-Image Turbo, the default settings will add a moderate amount of
 
 ## Limitations:
 
-The node's effects can be very inconsistent. While the default settings work well in many cases, some prompts will be very adversely affected. Some prompts will require very different settings to produce positive results.
+The node's effects can be very inconsistent. While the default settings work well in many cases, some prompts will be adversely affected. Some prompts will require different settings to produce positive results.
 
 SeedVarianceEnhancer does not properly handle all conditioning inputs, such as those containing multiple embeddings, so using it alongside other conditioning nodes may result in unexpected behavior.
 

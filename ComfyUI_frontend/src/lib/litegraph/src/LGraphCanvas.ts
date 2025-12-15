@@ -710,8 +710,8 @@ export class LGraphCanvas implements CustomEventDispatcher<LGraphCanvasEventMap>
   getMenuOptions?(): IContextMenuValue<string>[]
   getExtraMenuOptions?(
     canvas: LGraphCanvas,
-    options: IContextMenuValue<string>[]
-  ): IContextMenuValue<string>[]
+    options: (IContextMenuValue<string> | null)[]
+  ): (IContextMenuValue<string> | null)[]
   static active_node: LGraphNode
   /** called before modifying the graph */
   onBeforeChange?(graph: LGraph): void
@@ -8019,8 +8019,8 @@ export class LGraphCanvas implements CustomEventDispatcher<LGraphCanvasEventMap>
     }
   }
 
-  getCanvasMenuOptions(): IContextMenuValue[] {
-    let options: IContextMenuValue<string>[]
+  getCanvasMenuOptions(): (IContextMenuValue | null)[] {
+    let options: (IContextMenuValue<string> | null)[]
     if (this.getMenuOptions) {
       options = this.getMenuOptions()
     } else {
@@ -8564,9 +8564,11 @@ export class LGraphCanvas implements CustomEventDispatcher<LGraphCanvasEventMap>
           node,
           newPos: this.calculateNewPosition(node, deltaX, deltaY)
         })
-      } else {
-        // Non-node children (nested groups, reroutes)
-        child.move(deltaX, deltaY)
+      } else if (!(child instanceof LGraphGroup)) {
+        // Non-node, non-group children (reroutes, etc.)
+        // Skip groups here - they're already in allItems and will be
+        // processed in the main loop of moveChildNodesInGroupVueMode
+        child.move(deltaX, deltaY, true)
       }
     }
   }

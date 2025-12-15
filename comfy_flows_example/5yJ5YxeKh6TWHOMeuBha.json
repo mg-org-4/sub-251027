@@ -1,0 +1,534 @@
+{
+  "last_link_id": 11,
+  "nodes": [
+    {
+      "outputs": [],
+      "color": "#323",
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 9,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "type": "SaveImage",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        696.6679077148438,
+        675.2488403320312
+      ],
+      "pos": [
+        1250.3070068359375,
+        -232.13717651367188
+      ],
+      "id": 8,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 6
+    },
+    {
+      "outputs": [
+        {
+          "name": "LongCat Pipeline",
+          "links": [
+            1
+          ],
+          "label": "LongCat Pipeline",
+          "type": "LONGCAT_PIPE",
+          "localized_name": "LongCat Pipeline"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "LongCat-Image-Edit",
+        "bfloat16"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "model_path"
+          },
+          "name": "model_path",
+          "label": "model_path",
+          "type": "COMBO",
+          "localized_name": "model_path"
+        },
+        {
+          "widget": {
+            "name": "dtype"
+          },
+          "name": "dtype",
+          "label": "dtype",
+          "type": "COMBO",
+          "localized_name": "dtype"
+        }
+      ],
+      "flags": {},
+      "type": "LongCatImageModelLoader",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        300,
+        150
+      ],
+      "pos": [
+        98.32257843017578,
+        -221.2012481689453
+      ],
+      "id": 1,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LongCatImageModelLoader"
+      },
+      "order": 0
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            6,
+            11
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "lanczos",
+        1
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 5,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "widget": {
+            "name": "upscale_method"
+          },
+          "name": "upscale_method",
+          "type": "COMBO",
+          "localized_name": "缩放方法"
+        },
+        {
+          "widget": {
+            "name": "megapixels"
+          },
+          "name": "megapixels",
+          "type": "FLOAT",
+          "localized_name": "像素数量"
+        }
+      ],
+      "flags": {},
+      "type": "ImageScaleToTotalPixels",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        116.65702056884766,
+        8.424357414245605
+      ],
+      "id": 6,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImageScaleToTotalPixels"
+      },
+      "order": 2
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            9
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "right",
+        true
+      ],
+      "inputs": [
+        {
+          "name": "image1",
+          "link": 11,
+          "label": "图像_1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        },
+        {
+          "name": "image2",
+          "link": 10,
+          "label": "图像_2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "widget": {
+            "name": "direction"
+          },
+          "name": "direction",
+          "type": "COMBO",
+          "localized_name": "方向"
+        },
+        {
+          "widget": {
+            "name": "match_image_size"
+          },
+          "name": "match_image_size",
+          "type": "BOOLEAN",
+          "localized_name": "匹配图像尺寸"
+        }
+      ],
+      "flags": {},
+      "type": "easy imageConcat",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        270,
+        102
+      ],
+      "pos": [
+        114.97209930419922,
+        181.90328979492188
+      ],
+      "id": 7,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy imageConcat"
+      },
+      "order": 5
+    },
+    {
+      "outputs": [],
+      "color": "#323",
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 3,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "type": "SaveImage",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        334.046875,
+        541.50732421875
+      ],
+      "pos": [
+        868.067138671875,
+        -234.6204376220703
+      ],
+      "id": 4,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 4
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            5
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        "0bf74905877558f9589896a9956d8ac66b4bfee2e1a617a3ab6f1328e2568641.jpeg",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "label": "image",
+          "type": "COMBO",
+          "localized_name": "图像"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "type": "LoadImage",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        451.78076171875,
+        656.2059936523438
+      ],
+      "pos": [
+        -391.07891845703125,
+        -266.8433837890625
+      ],
+      "id": 2,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 1
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            3,
+            10
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "转换成素描画风",
+        "",
+        50,
+        4.5,
+        874249317100750,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "name": "longcat_pipeline",
+          "link": 1,
+          "label": "longcat_pipeline",
+          "type": "LONGCAT_PIPE",
+          "localized_name": "longcat_pipeline"
+        },
+        {
+          "name": "image",
+          "link": 6,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "negative_prompt"
+          },
+          "name": "negative_prompt",
+          "label": "negative_prompt",
+          "type": "STRING",
+          "localized_name": "negative_prompt"
+        },
+        {
+          "widget": {
+            "name": "steps"
+          },
+          "name": "steps",
+          "label": "steps",
+          "type": "INT",
+          "localized_name": "steps"
+        },
+        {
+          "widget": {
+            "name": "guidance_scale"
+          },
+          "name": "guidance_scale",
+          "label": "guidance_scale",
+          "type": "FLOAT",
+          "localized_name": "guidance_scale"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "type": "LongCatImageEdit",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        350,
+        350
+      ],
+      "pos": [
+        461.4398498535156,
+        -217.07701110839844
+      ],
+      "id": 3,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LongCatImageEdit"
+      },
+      "order": 3
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        345.35918787097955,
+        613.8982916641789
+      ],
+      "scale": 0.658845000000001
+    }
+  },
+  "groups": [
+    {
+      "color": "#88A",
+      "font_size": 88,
+      "flags": {},
+      "id": 1,
+      "title": "最新龙猫图片编辑工作流--需要48G显存方可运行哈！",
+      "bounding": [
+        -422.66156005859375,
+        -543.0186157226562,
+        2391.313232421875,
+        1238.787841796875
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "LONGCAT_PIPE"
+    ],
+    [
+      3,
+      3,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      5,
+      2,
+      0,
+      6,
+      0,
+      "IMAGE"
+    ],
+    [
+      6,
+      6,
+      0,
+      3,
+      1,
+      "IMAGE"
+    ],
+    [
+      9,
+      7,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      10,
+      3,
+      0,
+      7,
+      1,
+      "IMAGE"
+    ],
+    [
+      11,
+      6,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "id": "ee1c6bdb-cb87-4e03-9341-c1cb99716e4a",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 8,
+  "revision": 0
+}

@@ -1,0 +1,478 @@
+{
+  "last_link_id": 25,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            24,
+            25
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "label": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        187.2808074951172,
+        537.8431396484375
+      ],
+      "widgets_values": [
+        "镜头： 环绕慢动作(120fps)，从破碎到重组的连续镜头\n主体： 琉璃时钟，碎片悬浮重组，齿轮化作流光轨迹\n场景： 失重空间，背景是扭曲的时空裂缝\n时间： 时间静止的午夜\n动作： 时钟爆裂瞬间碎片倒流，齿轮重新咬合形成新形态\n灯光： 碎片自发光，齿轮转动产生流光轨迹\n色调： 超现实震撼，时间倒流的魔幻感\n色彩： 暗金齿轮与幽蓝流光交织"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "提示词"
+        }
+      ],
+      "flags": {},
+      "id": 2,
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "localized_name": "字符串"
+        }
+      ],
+      "size": [
+        270,
+        130
+      ],
+      "pos": [
+        1489.880615234375,
+        527.7957153320312
+      ],
+      "widgets_values": [
+        "input",
+        "视频下载地址.txt",
+        "append",
+        true
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 22,
+          "type": "STRING",
+          "localized_name": "文本"
+        },
+        {
+          "widget": {
+            "name": "root_dir"
+          },
+          "name": "root_dir",
+          "type": "COMBO",
+          "localized_name": "根目录"
+        },
+        {
+          "widget": {
+            "name": "file"
+          },
+          "name": "file",
+          "type": "STRING",
+          "localized_name": "文件"
+        },
+        {
+          "widget": {
+            "name": "append"
+          },
+          "name": "append",
+          "type": "COMBO",
+          "localized_name": "附加"
+        },
+        {
+          "widget": {
+            "name": "insert"
+          },
+          "name": "insert",
+          "type": "BOOLEAN",
+          "localized_name": "插入"
+        }
+      ],
+      "flags": {},
+      "id": 14,
+      "type": "SaveText|pysssss",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveText|pysssss"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        264.31915283203125,
+        88
+      ],
+      "pos": [
+        1485.516357421875,
+        918.173828125
+      ],
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 20,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 18,
+      "type": "ShowText",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText"
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        426.4527587890625,
+        873.36865234375
+      ],
+      "pos": [
+        2150.82373046875,
+        472.5632629394531
+      ],
+      "widgets_values": [
+        "video/ComfyUI",
+        "auto",
+        "auto"
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 2,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "视频"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "格式"
+        },
+        {
+          "widget": {
+            "name": "codec"
+          },
+          "name": "codec",
+          "label": "codec",
+          "type": "COMBO",
+          "localized_name": "编码器"
+        }
+      ],
+      "flags": {},
+      "id": 3,
+      "type": "SaveVideo",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveVideo"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        282.1398620605469,
+        88
+      ],
+      "pos": [
+        1487.268798828125,
+        724.8055419921875
+      ],
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 21,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 19,
+      "type": "ShowText",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        418.2914123535156,
+        205.0091552734375
+      ],
+      "pos": [
+        643.8292846679688,
+        869.8522338867188
+      ],
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 25,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 15,
+      "type": "ShowText",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "video",
+          "links": [
+            2
+          ],
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        },
+        {
+          "name": "video_url",
+          "links": [
+            21,
+            22
+          ],
+          "label": "video_url",
+          "type": "STRING",
+          "localized_name": "video_url"
+        },
+        {
+          "name": "response",
+          "links": [
+            20
+          ],
+          "label": "response",
+          "type": "STRING",
+          "localized_name": "response"
+        }
+      ],
+      "size": [
+        425.3888244628906,
+        200
+      ],
+      "pos": [
+        998.2257690429688,
+        530.3928833007812
+      ],
+      "widgets_values": [
+        "",
+        "portrait-hd",
+        239836560,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 24,
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "model"
+          },
+          "name": "model",
+          "label": "model",
+          "type": "COMBO",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "shape": 7,
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 1,
+      "type": "RH_Sora2_T2V",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Sora2_T2V"
+      },
+      "order": 1
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        -421.7877609255802,
+        -324.66842788699404
+      ],
+      "scale": 1.0610764609500007
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 240,
+      "flags": {},
+      "id": 1,
+      "title": "q3群271964366",
+      "bounding": [
+        181.1507568359375,
+        94.68921661376953,
+        2049.58544921875,
+        327.511962890625
+      ]
+    }
+  ],
+  "links": [
+    [
+      2,
+      1,
+      0,
+      3,
+      0,
+      "VIDEO"
+    ],
+    [
+      20,
+      1,
+      2,
+      18,
+      0,
+      "STRING"
+    ],
+    [
+      21,
+      1,
+      1,
+      19,
+      0,
+      "STRING"
+    ],
+    [
+      22,
+      1,
+      1,
+      14,
+      0,
+      "STRING"
+    ],
+    [
+      24,
+      2,
+      0,
+      1,
+      0,
+      "STRING"
+    ],
+    [
+      25,
+      2,
+      0,
+      15,
+      0,
+      "STRING"
+    ]
+  ],
+  "id": "983c357b-2891-4746-b1b1-d0b61a4c9c55",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 19,
+  "revision": 0
+}

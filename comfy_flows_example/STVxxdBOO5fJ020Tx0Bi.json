@@ -1,0 +1,1178 @@
+{
+  "last_link_id": 33,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "qwen_model",
+          "links": [
+            2
+          ],
+          "label": "qwen_model",
+          "type": "QWEN_MODEL",
+          "localized_name": "qwen_model"
+        }
+      ],
+      "size": [
+        428.4000244140625,
+        106
+      ],
+      "pos": [
+        704,
+        99
+      ],
+      "widgets_values": [
+        "Qwen/Qwen2.5-VL-7B-Instruct",
+        "auto",
+        "BF16"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 3,
+      "type": "DownloadAndLoadQwenModel",
+      "properties": {
+        "Node name for S&R": "DownloadAndLoadQwenModel"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        210,
+        76
+      ],
+      "pos": [
+        763,
+        563
+      ],
+      "widgets_values": [
+        "[{\"bbox_2d\": [0, 1534, 1797, 2878], \"label\": \"bottom girl\"}]"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 6,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 7,
+      "type": "easy showAnything",
+      "properties": {
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 8
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "sam2_model",
+          "links": [
+            8
+          ],
+          "label": "SAM2",
+          "type": "SAM2MODEL",
+          "localized_name": "sam2_model"
+        }
+      ],
+      "size": [
+        315,
+        130
+      ],
+      "pos": [
+        1218,
+        52
+      ],
+      "widgets_values": [
+        "sam2_hiera_base_plus.safetensors",
+        "single_image",
+        "cuda",
+        "fp16"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 9,
+      "type": "DownloadAndLoadSAM2Model",
+      "properties": {
+        "Node name for S&R": "DownloadAndLoadSAM2Model"
+      },
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "sam2_model",
+          "links": [
+            11
+          ],
+          "label": "sam2_model",
+          "type": "LS_SAM2_MODEL",
+          "localized_name": "sam2_model"
+        }
+      ],
+      "size": [
+        441,
+        106
+      ],
+      "color": "rgba(27, 80, 119, 0.7)",
+      "pos": [
+        1172,
+        533
+      ],
+      "widgets_values": [
+        "sam2_hiera_base_plus.safetensors",
+        "fp16",
+        "cuda"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 11,
+      "type": "LayerMask: LoadSAM2Model",
+      "properties": {
+        "Node name for S&R": "LayerMask: LoadSAM2Model"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            6
+          ],
+          "label": "text",
+          "type": "JSON",
+          "localized_name": "text"
+        },
+        {
+          "name": "bboxes",
+          "links": [
+            9,
+            14
+          ],
+          "label": "bboxes",
+          "type": "BBOX",
+          "localized_name": "bboxes"
+        }
+      ],
+      "size": [
+        340.20001220703125,
+        150
+      ],
+      "pos": [
+        749,
+        331
+      ],
+      "widgets_values": [
+        "object",
+        "all",
+        0,
+        false
+      ],
+      "inputs": [
+        {
+          "name": "qwen_model",
+          "link": 2,
+          "label": "qwen_model",
+          "type": "QWEN_MODEL",
+          "localized_name": "qwen_model"
+        },
+        {
+          "name": "image",
+          "link": 3,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "widget": {
+            "name": "target"
+          },
+          "name": "target",
+          "link": 5,
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 1,
+      "type": "QwenVLDetection",
+      "properties": {
+        "Node name for S&R": "QwenVLDetection"
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "sam2_bboxes",
+          "links": [
+            15
+          ],
+          "label": "sam2_bboxes",
+          "type": "BBOXES",
+          "localized_name": "sam2_bboxes"
+        }
+      ],
+      "size": [
+        193.1999969482422,
+        26
+      ],
+      "pos": [
+        885,
+        843
+      ],
+      "inputs": [
+        {
+          "name": "bboxes",
+          "link": 14,
+          "label": "bboxes",
+          "type": "BBOX",
+          "localized_name": "bboxes"
+        }
+      ],
+      "flags": {},
+      "id": 14,
+      "type": "BBoxesToSAM2",
+      "properties": {
+        "Node name for S&R": "BBoxesToSAM2"
+      },
+      "order": 10
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        210,
+        246
+      ],
+      "pos": [
+        1721,
+        79
+      ],
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "mask",
+          "link": 17,
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        }
+      ],
+      "flags": {},
+      "id": 16,
+      "type": "preview_mask",
+      "properties": {
+        "Node name for S&R": "preview_mask"
+      },
+      "order": 11
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        210,
+        246
+      ],
+      "pos": [
+        2420,
+        72
+      ],
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "mask",
+          "link": 18,
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        }
+      ],
+      "flags": {},
+      "id": 17,
+      "type": "preview_mask",
+      "properties": {
+        "Node name for S&R": "preview_mask"
+      },
+      "order": 15
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "width",
+          "links": [
+            22
+          ],
+          "label": "宽度",
+          "type": "INT",
+          "localized_name": "width"
+        },
+        {
+          "name": "height",
+          "label": "高度",
+          "type": "INT",
+          "localized_name": "height"
+        }
+      ],
+      "size": [
+        210,
+        46
+      ],
+      "pos": [
+        1688,
+        740
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 21,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "flags": {},
+      "id": 21,
+      "type": "GetImageSize",
+      "properties": {
+        "Node name for S&R": "GetImageSize"
+      },
+      "order": 13
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            27
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "size": [
+        210,
+        26
+      ],
+      "pos": [
+        1691,
+        894
+      ],
+      "inputs": [
+        {
+          "name": "mask",
+          "link": 23,
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "flags": {},
+      "id": 23,
+      "type": "MaskToImage",
+      "properties": {
+        "Node name for S&R": "MaskToImage"
+      },
+      "order": 16
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            25,
+            26
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "size": [
+        315,
+        130
+      ],
+      "pos": [
+        1987,
+        722
+      ],
+      "widgets_values": [
+        512,
+        8,
+        1,
+        0
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "width",
+          "link": 22,
+          "label": "宽度",
+          "type": "INT",
+          "localized_name": "宽度"
+        }
+      ],
+      "flags": {},
+      "id": 20,
+      "type": "EmptyImage",
+      "properties": {
+        "Node name for S&R": "EmptyImage"
+      },
+      "order": 17
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            30
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "size": [
+        315,
+        170
+      ],
+      "pos": [
+        2402,
+        701
+      ],
+      "widgets_values": [
+        3,
+        "down",
+        true,
+        null
+      ],
+      "inputs": [
+        {
+          "name": "image_1",
+          "link": 24,
+          "label": "图像_1",
+          "type": "IMAGE",
+          "localized_name": "image_1"
+        },
+        {
+          "name": "image_2",
+          "link": 26,
+          "label": "图像_2",
+          "type": "IMAGE",
+          "localized_name": "image_2"
+        },
+        {
+          "name": "image_3",
+          "link": 27,
+          "type": "IMAGE"
+        }
+      ],
+      "flags": {},
+      "id": 22,
+      "type": "ImageConcatMulti",
+      "properties": {},
+      "order": 18
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            21,
+            24,
+            32
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "mask",
+          "links": [
+            18,
+            23
+          ],
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        }
+      ],
+      "size": [
+        415.8000183105469,
+        290
+      ],
+      "color": "rgba(27, 80, 119, 0.7)",
+      "pos": [
+        1185,
+        704
+      ],
+      "widgets_values": [
+        "all",
+        "0,",
+        "VITMatte",
+        6,
+        4,
+        0.15,
+        0.99,
+        true,
+        2
+      ],
+      "inputs": [
+        {
+          "name": "sam2_model",
+          "link": 11,
+          "label": "sam2_model",
+          "type": "LS_SAM2_MODEL",
+          "localized_name": "sam2_model"
+        },
+        {
+          "name": "image",
+          "link": 10,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "bboxes",
+          "link": 15,
+          "label": "bboxes",
+          "type": "BBOXES",
+          "localized_name": "bboxes"
+        }
+      ],
+      "flags": {},
+      "id": 10,
+      "type": "LayerMask: SAM2UltraV2",
+      "properties": {
+        "Node name for S&R": "LayerMask: SAM2UltraV2"
+      },
+      "order": 12
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        315,
+        270
+      ],
+      "pos": [
+        1985,
+        59
+      ],
+      "widgets_values": [
+        "ComfyUI",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 32,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        }
+      ],
+      "flags": {},
+      "id": 26,
+      "type": "SaveImage",
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 14
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            29
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "size": [
+        315,
+        130
+      ],
+      "pos": [
+        1990,
+        485
+      ],
+      "widgets_values": [
+        8,
+        8,
+        1,
+        0
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "link": 28,
+          "label": "高度",
+          "type": "INT",
+          "localized_name": "高度"
+        }
+      ],
+      "flags": {},
+      "id": 24,
+      "type": "EmptyImage",
+      "properties": {
+        "Node name for S&R": "EmptyImage"
+      },
+      "order": 7
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "width",
+          "label": "宽度",
+          "type": "INT",
+          "localized_name": "width"
+        },
+        {
+          "name": "height",
+          "links": [
+            28
+          ],
+          "label": "高度",
+          "type": "INT",
+          "localized_name": "height"
+        }
+      ],
+      "size": [
+        210,
+        46
+      ],
+      "pos": [
+        1683,
+        530
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 20,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "flags": {},
+      "id": 19,
+      "type": "GetImageSize",
+      "properties": {
+        "Node name for S&R": "GetImageSize"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            3,
+            7,
+            10,
+            19,
+            20
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "size": [
+        315,
+        314
+      ],
+      "pos": [
+        264,
+        99
+      ],
+      "widgets_values": [
+        "138e3f81d0e102151a013f6cf4e59a50fd615cbebb01fddee6b8f5d9a82f4623.jpg",
+        "image",
+        ""
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 4,
+      "type": "LoadImage",
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            33
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "size": [
+        315,
+        170
+      ],
+      "pos": [
+        2429,
+        463
+      ],
+      "widgets_values": [
+        3,
+        "right",
+        true,
+        null
+      ],
+      "inputs": [
+        {
+          "name": "image_1",
+          "link": 19,
+          "label": "图像_1",
+          "type": "IMAGE",
+          "localized_name": "image_1"
+        },
+        {
+          "name": "image_2",
+          "link": 29,
+          "label": "图像_2",
+          "type": "IMAGE",
+          "localized_name": "image_2"
+        },
+        {
+          "name": "image_3",
+          "link": 30,
+          "type": "IMAGE"
+        }
+      ],
+      "flags": {},
+      "id": 18,
+      "type": "ImageConcatMulti",
+      "properties": {},
+      "order": 19
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            5
+          ],
+          "label": "字符串",
+          "type": "STRING",
+          "localized_name": "字符串"
+        }
+      ],
+      "size": [
+        354,
+        168
+      ],
+      "pos": [
+        239,
+        478
+      ],
+      "widgets_values": [
+        "the bottom girl"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 6,
+      "type": "TextInput_",
+      "properties": {
+        "Node name for S&R": "TextInput_"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "mask",
+          "links": [
+            17
+          ],
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "mask"
+        }
+      ],
+      "size": [
+        315,
+        190
+      ],
+      "pos": [
+        1221,
+        265
+      ],
+      "widgets_values": [
+        true,
+        "",
+        "",
+        true
+      ],
+      "inputs": [
+        {
+          "name": "sam2_model",
+          "link": 8,
+          "label": "SAM2",
+          "type": "SAM2MODEL",
+          "localized_name": "sam2_model"
+        },
+        {
+          "name": "image",
+          "link": 7,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "bboxes",
+          "link": 9,
+          "label": "BBox",
+          "type": "BBOX",
+          "localized_name": "bboxes"
+        },
+        {
+          "shape": 7,
+          "name": "mask",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "mask"
+        },
+        {
+          "widget": {
+            "name": "coordinates_positive"
+          },
+          "shape": 7,
+          "name": "coordinates_positive",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "coordinates_negative"
+          },
+          "shape": 7,
+          "name": "coordinates_negative",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 8,
+      "type": "Sam2Segmentation",
+      "properties": {
+        "Node name for S&R": "Sam2Segmentation"
+      },
+      "order": 9
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        955.4545288085938,
+        916
+      ],
+      "pos": [
+        2832,
+        66
+      ],
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 33,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "flags": {},
+      "id": 27,
+      "type": "PreviewImage",
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "order": 20
+    }
+  ],
+  "extra": {
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        -2646.9912109375,
+        -122.78707885742188
+      ],
+      "scale": 1
+    }
+  },
+  "groups": [],
+  "links": [
+    [
+      2,
+      3,
+      0,
+      1,
+      0,
+      "QWEN_MODEL"
+    ],
+    [
+      3,
+      4,
+      0,
+      1,
+      1,
+      "IMAGE"
+    ],
+    [
+      5,
+      6,
+      0,
+      1,
+      2,
+      "STRING"
+    ],
+    [
+      6,
+      1,
+      0,
+      7,
+      0,
+      "*"
+    ],
+    [
+      7,
+      4,
+      0,
+      8,
+      1,
+      "IMAGE"
+    ],
+    [
+      8,
+      9,
+      0,
+      8,
+      0,
+      "SAM2MODEL"
+    ],
+    [
+      9,
+      1,
+      1,
+      8,
+      2,
+      "BBOX"
+    ],
+    [
+      10,
+      4,
+      0,
+      10,
+      1,
+      "IMAGE"
+    ],
+    [
+      11,
+      11,
+      0,
+      10,
+      0,
+      "LS_SAM2_MODEL"
+    ],
+    [
+      14,
+      1,
+      1,
+      14,
+      0,
+      "BBOX"
+    ],
+    [
+      15,
+      14,
+      0,
+      10,
+      2,
+      "BBOXES"
+    ],
+    [
+      17,
+      8,
+      0,
+      16,
+      0,
+      "MASK"
+    ],
+    [
+      18,
+      10,
+      1,
+      17,
+      0,
+      "MASK"
+    ],
+    [
+      19,
+      4,
+      0,
+      18,
+      0,
+      "IMAGE"
+    ],
+    [
+      20,
+      4,
+      0,
+      19,
+      0,
+      "IMAGE"
+    ],
+    [
+      21,
+      10,
+      0,
+      21,
+      0,
+      "IMAGE"
+    ],
+    [
+      22,
+      21,
+      0,
+      20,
+      0,
+      "INT"
+    ],
+    [
+      23,
+      10,
+      1,
+      23,
+      0,
+      "MASK"
+    ],
+    [
+      24,
+      10,
+      0,
+      22,
+      0,
+      "IMAGE"
+    ],
+    [
+      26,
+      20,
+      0,
+      22,
+      1,
+      "IMAGE"
+    ],
+    [
+      27,
+      23,
+      0,
+      22,
+      2,
+      "IMAGE"
+    ],
+    [
+      28,
+      19,
+      1,
+      24,
+      0,
+      "INT"
+    ],
+    [
+      29,
+      24,
+      0,
+      18,
+      1,
+      "IMAGE"
+    ],
+    [
+      30,
+      22,
+      0,
+      18,
+      2,
+      "IMAGE"
+    ],
+    [
+      32,
+      10,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ],
+    [
+      33,
+      18,
+      0,
+      27,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "id": "31f3bfe0-cc3b-4bf7-9d0d-68166d10161a",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 27,
+  "revision": 0
+}

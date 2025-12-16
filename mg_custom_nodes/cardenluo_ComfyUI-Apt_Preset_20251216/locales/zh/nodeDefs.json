@@ -121,7 +121,7 @@
         "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "cfg"
       },
       "sampler": {
         "name": "采样器"
@@ -234,7 +234,7 @@
     }
   },
   "sum_create_chx": {
-    "display_name": "sum_创建通道",
+    "display_name": "sum_创建管道",
     "inputs": {
       "vae": {
         "name": "VAE模型"
@@ -252,7 +252,7 @@
         "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "cfg"
       },
       "sampler": {
         "name": "采样器"
@@ -367,7 +367,7 @@
         "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "cfg"
       },
       "sampler": {
         "name": "采样器"
@@ -1145,7 +1145,7 @@
         "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "cfg"
       },
       "sampler": {
         "name": "采样器"
@@ -2649,7 +2649,7 @@
         "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "cfg"
       },
       "sampler": {
         "name": "采样器"
@@ -3273,7 +3273,7 @@
         "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "cfg"
       },
       "sampler": {
         "name": "采样器"
@@ -3729,7 +3729,7 @@
         "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "cfg"
       },
       "sampler": {
         "name": "采样器"
@@ -3760,7 +3760,7 @@
         "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "cfg"
       },
       "sampler": {
         "name": "采样器"
@@ -3782,7 +3782,7 @@
         "name": "步数"
       },
       "cfg": {
-        "name": "引导系数"
+        "name": "cfg"
       },
       "scheduler": {
         "name": "调度器"
@@ -6600,8 +6600,9 @@
       }
     }
   },
+
   "Image_solo_crop": {
-    "display_name": "Image_单独裁剪",
+    "display_name": "Image_单图裁剪",
     "inputs": {
       "image": {
         "name": "图像"
@@ -6655,8 +6656,62 @@
       }
     }
   },
+
+
+  "Image_solo_crop2": {
+    "display_name": "Image_单图裁剪2",
+    "inputs": {
+      "image": {
+        "name": "图像"
+      },
+      "crop_mode": {
+        "name": "裁剪模式"
+      },
+      "long_side": {
+        "name": "长边"
+      },
+      "upscale_method": {
+        "name": "放大方法"
+      },
+      "expand_width": {
+        "name": "扩展宽度"
+      },
+      "expand_height": {
+        "name": "扩展高度"
+      },
+      "divisible_by": {
+        "name": "可被整除"
+      },
+      "mask": {
+        "name": "遮罩"
+      },
+      "mask_stack": {
+        "name": "遮罩堆栈"
+      },
+      "crop_img_bj": {
+        "name": "裁剪图像背景"
+      },
+      "auto_expand_square": {
+        "name": "自动扩展为正方形"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "裁剪图像"
+      },
+      "1": {
+        "name": "裁剪遮罩"
+      },
+      "2": {
+        "name": "拼接"
+      }
+    }
+  },
+
+
+
   "Image_solo_stitch": {
-    "display_name": "Image_单独拼接",
+    "display_name": "Image_单图拼接",
     "inputs": {
       "inpainted_image": {
         "name": "内绘图像"
@@ -6735,8 +6790,9 @@
       }
     }
   },
+  
   "Image_Solo_data": {
-    "display_name": "Image_单独数据",
+    "display_name": "Image_单图数据",
     "inputs": {
       "stitch": {
         "name": "拼接"
@@ -10097,7 +10153,7 @@
     "display_name": "AI_Qwen_文本",
     "inputs": {
       "llm_model": {
-        "name": "LLM模型"
+        "name": "模型名称"
       },
       "preset": {
         "name": "预设"
@@ -10218,6 +10274,9 @@
       },
       "enable_ocr": {
         "name": "启用OCR"
+      },
+      "custom_model": {
+        "name": "自定义模型"
       }
     },
     "outputs": {
@@ -10252,6 +10311,9 @@
       },
       "seed": {
         "name": "随机种子"
+      },
+      "custom_model": {
+        "name": "自定义模型"
       }
     },
     "outputs": {
@@ -10268,6 +10330,9 @@
     "inputs": {
       "timeout": {
         "name": "超时时间"
+      },
+       "enable_service": {
+        "name": "服务器"
       }
     },
     "outputs": {
@@ -11106,7 +11171,7 @@
         "name": "步数"
       },
       "2": {
-        "name": "引导系数"
+        "name": "cfg"
       },
       "3": {
         "name": "采样器"
@@ -11479,10 +11544,10 @@
         "name": "随机种子"
       },
       "image_cfg": {
-        "name": "图像引导系数"
+        "name": "图像cfg"
       },
       "mask_cfg": {
-        "name": "遮罩引导系数"
+        "name": "遮罩cfg"
       },
       "image_denoise": {
         "name": "图像降噪"

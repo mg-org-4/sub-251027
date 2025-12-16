@@ -1,4 +1,4 @@
-## Lora Training Code
+## Training Code
 
 We can choose whether to use deepspeed or fsdp in z_image, which can save a lot of video memory. 
 
@@ -8,10 +8,6 @@ Some parameters in the sh file can be confusing, and they are explained in this 
 - `random_hw_adapt` is used to enable automatic height and width scaling for images. When `random_hw_adapt` is enabled, the training images will have their height and width set to `image_sample_size` as the maximum and `512` as the minimum. 
   - For example, when `random_hw_adapt` is enabled, `image_sample_size=1024`, the resolution of image inputs for training is `512x512` to `1024x1024`
 - `resume_from_checkpoint` is used to set the training should be resumed from a previous checkpoint. Use a path or `"latest"` to automatically select the last available checkpoint.
-- `target_name` represents the components/modules to which LoRA will be applied, separated by commas.
-- `use_peft_lora` indicates whether to use the PEFT module for adding LoRA. Using this module will be more memory-efficient.
-- `rank` means the dimension of the LoRA update matrices.
-- `network_alpha` means the scale of the LoRA update matrices.
 
 When train model with multi machines, please set the params as follows:
 ```sh
@@ -36,17 +32,19 @@ export DATASET_META_NAME="datasets/internal_datasets/metadata.json"
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --mixed_precision="bf16" scripts/z_image/train_lora.py \
+accelerate launch --mixed_precision="bf16" scripts/z_image/train.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
   --train_batch_size=1 \
-  --image_sample_size=1328 \
+  --image_sample_size=1024 \
   --gradient_accumulation_steps=1 \
   --dataloader_num_workers=8 \
   --num_train_epochs=100 \
   --checkpointing_steps=50 \
-  --learning_rate=1e-04 \
+  --learning_rate=2e-05 \
+  --lr_scheduler="constant_with_warmup" \
+  --lr_warmup_steps=100 \
   --seed=42 \
   --output_dir="output_dir" \
   --gradient_checkpointing \
@@ -56,11 +54,8 @@ accelerate launch --mixed_precision="bf16" scripts/z_image/train_lora.py \
   --vae_mini_batch=1 \
   --max_grad_norm=0.05 \
   --enable_bucket \
-  --rank=64 \
-  --network_alpha=32 \
-  --target_name="to_q,to_k,to_v,ff.0,ff.2,ff_context.0,ff_context.2" \
-  --use_peft_lora \
-  --uniform_sampling
+  --uniform_sampling \
+  --trainable_modules "."
 ```
 
 With Deepspeed Zero-2:
@@ -74,17 +69,19 @@ export DATASET_META_NAME="datasets/internal_datasets/metadata.json"
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/z_image/train_lora.py \
+accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_config.json --deepspeed_multinode_launcher standard scripts/z_image/train.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
   --train_batch_size=1 \
-  --image_sample_size=1328 \
+  --image_sample_size=1024 \
   --gradient_accumulation_steps=1 \
   --dataloader_num_workers=8 \
   --num_train_epochs=100 \
   --checkpointing_steps=50 \
-  --learning_rate=1e-04 \
+  --learning_rate=2e-05 \
+  --lr_scheduler="constant_with_warmup" \
+  --lr_warmup_steps=100 \
   --seed=42 \
   --output_dir="output_dir" \
   --gradient_checkpointing \
@@ -94,11 +91,8 @@ accelerate launch --use_deepspeed --deepspeed_config_file config/zero_stage2_con
   --vae_mini_batch=1 \
   --max_grad_norm=0.05 \
   --enable_bucket \
-  --rank=64 \
-  --network_alpha=32 \
-  --target_name="to_q,to_k,to_v,ff.0,ff.2,ff_context.0,ff_context.2" \
-  --use_peft_lora \
-  --uniform_sampling
+  --uniform_sampling \
+  --trainable_modules "."
 ```
 
 With FSDP:
@@ -112,17 +106,19 @@ export DATASET_META_NAME="datasets/internal_datasets/metadata.json"
 # export NCCL_P2P_DISABLE=1
 NCCL_DEBUG=INFO
 
-accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TRANSFORMER_BASED_WRAP --fsdp_transformer_layer_cls_to_wrap ZImageTransformer2DModel --fsdp_sharding_strategy "FULL_SHARD" --fsdp_state_dict_type=SHARDED_STATE_DICT --fsdp_backward_prefetch "BACKWARD_PRE" --fsdp_cpu_ram_efficient_loading False scripts/z_image/train_lora.py \
+accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TRANSFORMER_BASED_WRAP --fsdp_transformer_layer_cls_to_wrap ZImageTransformerBlock --fsdp_sharding_strategy "FULL_SHARD" --fsdp_state_dict_type=SHARDED_STATE_DICT --fsdp_backward_prefetch "BACKWARD_PRE" --fsdp_cpu_ram_efficient_loading False scripts/z_image/train.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
   --train_data_dir=$DATASET_NAME \
   --train_data_meta=$DATASET_META_NAME \
   --train_batch_size=1 \
-  --image_sample_size=1328 \
+  --image_sample_size=1024 \
   --gradient_accumulation_steps=1 \
   --dataloader_num_workers=8 \
   --num_train_epochs=100 \
   --checkpointing_steps=50 \
-  --learning_rate=1e-04 \
+  --learning_rate=2e-05 \
+  --lr_scheduler="constant_with_warmup" \
+  --lr_warmup_steps=100 \
   --seed=42 \
   --output_dir="output_dir" \
   --gradient_checkpointing \
@@ -132,9 +128,6 @@ accelerate launch --mixed_precision="bf16" --use_fsdp --fsdp_auto_wrap_policy TR
   --vae_mini_batch=1 \
   --max_grad_norm=0.05 \
   --enable_bucket \
-  --rank=64 \
-  --network_alpha=32 \
-  --target_name="to_q,to_k,to_v,ff.0,ff.2,ff_context.0,ff_context.2" \
-  --use_peft_lora \
-  --uniform_sampling
+  --uniform_sampling \
+  --trainable_modules "."
 ```

@@ -807,6 +807,7 @@
     "dark": "Dark",
     "light": "Light",
     "manageExtensions": "Manage Extensions",
+    "customNodesManager": "Custom Nodes Manager",
     "settings": "Settings",
     "help": "Help",
     "queue": "Queue Panel"
@@ -1432,7 +1433,6 @@
     "Sora": "Sora",
     "cond pair": "cond pair",
     "photomaker": "photomaker",
-    "Pika": "Pika",
     "PixVerse": "PixVerse",
     "primitive": "primitive",
     "qwen": "qwen",
@@ -2073,6 +2073,8 @@
       "incrementDesc": "Adds 1 to the value number",
       "decrement": "Decrement Value",
       "decrementDesc": "Subtracts 1 from the value number",
+      "fixed": "Fixed Value",
+      "fixedDesc": "Leaves value unchanged",
       "editSettings": "Edit control settings"
     }
   },

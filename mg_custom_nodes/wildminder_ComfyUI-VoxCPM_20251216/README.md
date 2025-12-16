@@ -33,7 +33,9 @@
 VoxCPM is a novel tokenizer-free Text-to-Speech system that redefines realism in speech synthesis by modeling speech in a continuous space. Built on the MiniCPM-4 backbone, it excels at generating highly expressive speech and performing accurate zero-shot voice cloning.
 
 <div align="center">
-      <img src="./example_workflows/VoxCPM_example.png" alt="ComfyUI-VoxCPM example workflow">
+
+  <img  alt="ComfyUI-VoxCPM example workflow" src="https://github.com/user-attachments/assets/9e5bc5a3-f5bb-4184-b5a9-d57db3acb6aa" />
+
   </div>
   
 This custom node handles everything from model downloading and memory management to audio processing, allowing you to generate high-quality speech directly from a text script and optional reference audio files.
@@ -41,6 +43,7 @@ This custom node handles everything from model downloading and memory management
 **✨ Key Features:**
 *   **High-Fidelity Audio (v1.5):** Supports 44.1kHz sampling rate, preserving high-frequency details for clearer, richer audio.
 *   **LoRA Support:** Load fine-tuned LoRA checkpoints to apply specific voice styles or improvements.
+*   **Native LoRA Training:** Train your own voice styles directly within ComfyUI using the new training nodes.
 *   **Context-Aware Expressive Speech:** The model understands text context to generate appropriate prosody and vocal expression.
 *   **True-to-Life Voice Cloning:** Clone a voice's timbre, accent, and emotional tone from a short audio sample.
 *   **Zero-Shot TTS:** Generate high-quality speech without any reference audio.
@@ -115,18 +118,25 @@ This node automatically downloads the required model files. You can select the s
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## 🎨 Using LoRA (Fine-Tuning)
+## 🎨 LoRA Support (Inference & Training)
 
-VoxCPM 1.5 supports LoRA to alter the voice style or improve specific characteristics.
+VoxCPM 1.5 fully supports LoRA technology for fine-tuning voice styles.
 
-1.  **Installation:** Place your `.safetensors` LoRA files in `ComfyUI/models/loras/`.
-2.  **Selection:** Refresh the node, then select your file in the `lora_name` dropdown.
+### Inference
+To use a pre-trained LoRA:
+1.  Place your `.safetensors` LoRA files in `ComfyUI/models/loras/`.
+2.  Refresh the node, then select your file in the `lora_name` dropdown.
+
+### Training 
+You can now train custom LoRA models directly within ComfyUI using the new suite of training nodes (`VoxCPM Train Config`, `Dataset Maker`, `LoRA Trainer`).
+
+👉 **[Click here for the full LoRA Training Guide](readme-lora-training.md)**
 
 ### 💡 LoRA + Voice Cloning Observations
 While LoRA is often used for specific trained styles, combining it with **Voice Cloning** (`prompt_audio`) can yield superior results:
 
 *   **Enhanced Clarity:** Using a LoRA alongside a reference audio clip (`prompt_audio`) often produces clearer speech with significantly fewer artifacts compared to using the audio prompt alone.
-*   **"Warm-up" Effect:** Observations suggest that even after setting the LoRA input back to "None", subsequent generations using `prompt_audio` often maintain higher quality compared to a fresh cold start. This implies the model may benefit from a "warm-up" with LoRA weights loaded. If you are getting average results, try loading a LoRA once, generating a sound, and then disabling it.
+*   **"Warm-up" Effect:** Observations suggest that even after setting the LoRA input back to "None", subsequent generations using `prompt_audio` often maintain higher quality compared to a fresh cold start.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

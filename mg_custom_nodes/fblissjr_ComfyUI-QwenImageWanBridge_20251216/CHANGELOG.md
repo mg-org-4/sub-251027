@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.9.13 - GitHub Issues Fixes
+
+### Fixed
+
+**Import Error in Advanced Encoder** (Issue #1)
+- Fixed `ModuleNotFoundError: No module named 'nodes.qwen_model_wrapper'`
+- Inlined `ensure_even_dimensions()` and `wrap_reference_latents()` into `qwen_vl_encoder_advanced.py`
+
+**Template Connection UX** (Issue #2)
+- `text` and `mode` inputs now optional in `QwenVLTextEncoder`
+- Only `clip` is required - template_output provides everything else
+- Auto-converts QWEN_TEMPLATE if accidentally connected to `text` input (backward compatibility)
+
+**Z-Image Conditioning Format** (Issue #3, untested)
+- Changed conditioning output from tuples to lists in `filter_embeddings_by_mask()`
+- Should fix `'tuple' object does not support item assignment` error with ComfyUI-NAG
+
+---
+
 ## v2.9.12 - Token Counting
 
 ### Added

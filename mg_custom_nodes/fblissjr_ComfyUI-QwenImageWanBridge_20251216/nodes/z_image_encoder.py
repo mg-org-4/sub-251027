@@ -125,7 +125,7 @@ def filter_embeddings_by_mask(conditioning: List, debug_lines: Optional[List[str
             # No mask available, keep as-is
             if debug_lines is not None:
                 debug_lines.append(f"  Cond[{i}]: No attention_mask, keeping original shape {embeddings.shape}")
-            filtered_conditioning.append((embeddings, extra_dict))
+            filtered_conditioning.append([embeddings, extra_dict])
             continue
 
         # Get mask as boolean (handle both int and bool masks)
@@ -166,7 +166,7 @@ def filter_embeddings_by_mask(conditioning: List, debug_lines: Optional[List[str
             tokens_removed = original_shape[1] - new_shape[1]
             debug_lines.append(f"  Cond[{i}]: {original_shape} -> {new_shape} (removed {tokens_removed} padding tokens)")
 
-        filtered_conditioning.append((filtered_embeds, new_extra))
+        filtered_conditioning.append([filtered_embeds, new_extra])
 
     return filtered_conditioning
 

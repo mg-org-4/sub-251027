@@ -137,17 +137,17 @@ class QwenVLTextEncoder:
         return {
             "required": {
                 "clip": ("CLIP",),
-                "text": ("STRING", {
+            },
+            "optional": {
+                "text": ("*", {
                     "multiline": True,
                     "default": "",
-                    "tooltip": "Your prompt"
+                    "tooltip": "Your prompt. Also accepts QWEN_TEMPLATE for backward compatibility."
                 }),
                 "mode": (["text_to_image", "image_edit", "multi_image_edit", "inpainting"], {
                     "default": "image_edit",
                     "tooltip": "text_to_image: Generate from scratch | image_edit: Single image modify | multi_image_edit: Multiple reference images (DiffSynth pattern) | inpainting: Mask-based editing. Overridden by template_output if connected."
                 }),
-            },
-            "optional": {
                 "template_output": ("QWEN_TEMPLATE", {
                     "tooltip": "Template from Template Builder - overrides text/system_prompt/mode when connected"
                 }),
@@ -252,7 +252,7 @@ class QwenVLTextEncoder:
 
 
 
-    def encode(self, clip, text: str, mode: str = "text_to_image",
+    def encode(self, clip, text=None, mode: str = "text_to_image",
               template_output: Optional[Dict[str, Any]] = None,
               edit_image: Optional[torch.Tensor] = None,
               vae=None, inpaint_mask: Optional[torch.Tensor] = None,
@@ -268,6 +268,18 @@ class QwenVLTextEncoder:
 
         import math
         import comfy.utils
+
+        # Auto-convert if QWEN_TEMPLATE was connected to text input (backward compatibility)
+        if isinstance(text, dict) and "prompt" in text:
+            # User connected QWEN_TEMPLATE to text input - treat as template_output
+            if template_output is None:
+                template_output = text
+                text = template_output.get("prompt", "")
+                logger.info("[Encoder] Auto-converted QWEN_TEMPLATE from text input")
+
+        # Ensure text is a string
+        if not isinstance(text, str):
+            text = str(text) if text is not None else ""
 
         # Template output overrides individual params
         if template_output:

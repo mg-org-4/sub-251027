@@ -4,6 +4,7 @@ Maintains backward compatibility by being a separate node
 """
 
 import torch
+import torch.nn.functional as F
 import logging
 import math
 from typing import Optional, List, Tuple, Any, Dict
@@ -25,7 +26,74 @@ except ImportError:
     logger.warning("ComfyUI modules not available")
 
 from .qwen_vl_encoder import QwenVLTextEncoder
-from .qwen_model_wrapper import wrap_reference_latents, ensure_even_dimensions
+
+
+def ensure_even_dimensions(latent: torch.Tensor) -> torch.Tensor:
+    """Ensure latent dimensions are even (divisible by 2) for patch processing."""
+    shape = latent.shape
+
+    # Handle both 4D and 5D tensors
+    if len(shape) == 5:  # Wan21 format [B, C, T, H, W]
+        b, c, t, h, w = shape
+        new_h = h if h % 2 == 0 else h + 1
+        new_w = w if w % 2 == 0 else w + 1
+
+        if new_h != h or new_w != w:
+            # Pad to nearest even dimension
+            pad_h = new_h - h
+            pad_w = new_w - w
+            latent = F.pad(latent, (0, pad_w, 0, pad_h, 0, 0, 0, 0, 0, 0), mode='constant', value=0)
+            logger.info(f"Padded latent from [{b}, {c}, {t}, {h}, {w}] to [{b}, {c}, {t}, {new_h}, {new_w}]")
+
+    elif len(shape) == 4:  # Standard format [B, C, H, W]
+        b, c, h, w = shape
+        new_h = h if h % 2 == 0 else h + 1
+        new_w = w if w % 2 == 0 else w + 1
+
+        if new_h != h or new_w != w:
+            # Pad to nearest even dimension
+            pad_h = new_h - h
+            pad_w = new_w - w
+            latent = F.pad(latent, (0, pad_w, 0, pad_h, 0, 0, 0, 0), mode='constant', value=0)
+            logger.info(f"Padded latent from [{b}, {c}, {h}, {w}] to [{b}, {c}, {new_h}, {new_w}]")
+
+    return latent
+
+
+def wrap_reference_latents(conditioning, debug_mode: bool = False):
+    """
+    Wrap reference latents in conditioning to handle dimension mismatches.
+
+    This function modifies the conditioning in-place to ensure all reference
+    latents can be processed by the model regardless of dimension mismatches.
+    """
+    if not conditioning or not isinstance(conditioning, list):
+        return conditioning
+
+    # Look for reference_latents in the conditioning
+    for cond_item in conditioning:
+        if isinstance(cond_item, list) and len(cond_item) >= 2:
+            cond_dict = cond_item[1]
+
+            if isinstance(cond_dict, dict) and "reference_latents" in cond_dict:
+                ref_latents = cond_dict["reference_latents"]
+
+                if ref_latents and isinstance(ref_latents, list):
+                    # Ensure all latents have even dimensions
+                    processed_latents = []
+                    for i, latent in enumerate(ref_latents):
+                        processed = ensure_even_dimensions(latent)
+                        if debug_mode and not torch.equal(processed, latent):
+                            logger.info(f"Adjusted reference latent {i+1} to have even dimensions")
+                        processed_latents.append(processed)
+
+                    cond_dict["reference_latents"] = processed_latents
+
+                    if debug_mode:
+                        shapes = [str(lat.shape) for lat in processed_latents]
+                        logger.info(f"Processed {len(processed_latents)} reference latents: {shapes}")
+
+    return conditioning
 
 
 class QwenVLTextEncoderAdvanced(QwenVLTextEncoder):

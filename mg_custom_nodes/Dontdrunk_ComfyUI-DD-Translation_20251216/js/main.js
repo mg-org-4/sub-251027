@@ -369,9 +369,15 @@ export class TUtils {
       if (t) {
         var nodeInputT = t["inputs"] || {};
         var nodeWidgetT = t["widgets"] || {};
+        var nodeTooltipT = t["tooltips"] || {};
         for (let itype in nodeData.input) {
           for (let socketname in nodeData.input[itype]) {
             let inp = nodeData.input[itype][socketname];
+            if (nodeTooltipT[socketname]) {
+              if (inp[1] === undefined) inp[1] = {};
+              inp[1].tooltip = nodeTooltipT[socketname];
+              continue;
+            }
             if (inp[1] === undefined || !inp[1].tooltip) continue;
             var tooltip = inp[1].tooltip;
             var tooltipT = nodeInputT[tooltip] || nodeWidgetT[tooltip] || tooltip;
@@ -382,6 +388,11 @@ export class TUtils {
         var nodeOutputT = t["outputs"] || {};
         for (var i = 0; i < (nodeData.output_tooltips || []).length; i++) {
           var tooltip = nodeData.output_tooltips[i];
+          var outputName = nodeData.output_name ? nodeData.output_name[i] : null;
+          if (outputName && nodeTooltipT[outputName]) {
+            nodeData.output_tooltips[i] = nodeTooltipT[outputName];
+            continue;
+          }
           var tooltipT = nodeOutputT[tooltip] || tooltip;
           nodeData.output_tooltips[i] = tooltipT;
         }

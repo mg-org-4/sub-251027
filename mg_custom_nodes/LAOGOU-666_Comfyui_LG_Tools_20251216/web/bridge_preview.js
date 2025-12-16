@@ -30,7 +30,6 @@ function updateStatusWidget(node, statusText) {
         statusWidget.value = statusText;
         app.graph.setDirtyCanvas(true);
         app.graph.change();
-        console.log(`[BridgePreview] 节点 ${node.id} 状态已更新: ${statusText}`);
     }
 }
 api.addEventListener("bridge_preview_update", (event) => {
@@ -81,8 +80,35 @@ function setupClipspace(nodeId, urls) {
         clipspace.selectedIndex = 0;
     });
     setTimeout(() => {
-        const openMaskEditor = ComfyApp.open_maskeditor || app.open_maskeditor;
-        openMaskEditor?.();
+        const node = app.graph.getNodeById(parseInt(nodeId));
+        if (!node) return;
+        
+        app.canvas.selectNode(node);
+        
+        let success = false;
+        
+        try {
+            if (app.extensionManager?.command?.execute) {
+                app.extensionManager.command.execute('Comfy.MaskEditor.OpenMaskEditor');
+                success = true;
+            }
+        } catch (error) {
+            // Silently fail and try next method
+        }
+        
+        if (!success) {
+            try {
+                const ComfyApp = app.constructor;
+                const openMaskEditor = ComfyApp.open_maskeditor || app.open_maskeditor;
+                if (openMaskEditor && typeof openMaskEditor === 'function') {
+                    openMaskEditor();
+                    success = true;
+                }
+            } catch (error) {
+                // Silently fail
+            }
+        }
+        
         bindCancelButton();
     }, 100);
 }
@@ -90,17 +116,19 @@ function bindCancelButton() {
     const checkInterval = setInterval(() => {
         const maskEditor = findMaskEditor();
         if (!maskEditor) return;
+        
         const cancelButtons = Array.from(maskEditor.querySelectorAll('button')).filter(btn => {
             const text = btn.textContent.trim().toLowerCase();
-            return text === 'cancel' || text === '取消';
+            return text === 'cancel' || text === '取消' || text.includes('cancel') || text.includes('取消');
         });
+        
         if (cancelButtons.length > 0) {
             cancelButtons.forEach(button => {
                 if (!button.hasAttribute('data-bridge-bound')) {
                     button.setAttribute('data-bridge-bound', 'true');
                     button.addEventListener('click', () => {
                         setTimeout(handleMaskEditorCancel, 50);
-                    });
+                    }, { capture: true });
                 }
             });
             clearInterval(checkInterval);
@@ -109,12 +137,18 @@ function bindCancelButton() {
     setTimeout(() => clearInterval(checkInterval), 10000);
 }
 function findMaskEditor() {
+    const newMaskEditor = document.querySelector('.mask-editor-dialog');
+    if (newMaskEditor) {
+        return newMaskEditor;
+    }
+    
     const modals = document.querySelectorAll('div.comfy-modal, .comfy-modal, [class*="modal"]');
     for (const modal of modals) {
         if (modal.querySelector('canvas') && modal.style.display !== 'none') {
             return modal;
         }
     }
+    
     const elements = document.querySelectorAll('*');
     for (const element of elements) {
         const buttons = element.querySelectorAll('button');
@@ -126,29 +160,26 @@ function findMaskEditor() {
             }
         }
     }
+    
     return null;
 }
 function handleMaskEditorCancel() {
     waitingNodes.forEach((nodeInfo, nodeId) => {
-        if (!processedNodes.has(String(nodeId))) {
-            sendCancelSignal(nodeId);
-        }
+        sendCancelSignal(nodeId);
     });
+    
     waitingNodes.clear();
     processedNodes.clear();
 }
 async function sendCancelSignal(nodeId) {
     try {
-        const response = await api.fetchApi("/bridge_preview/cancel", {
+        await api.fetchApi("/bridge_preview/cancel", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ node_id: String(nodeId) })
         });
-        if (!response.ok) {
-            console.error(`[BridgePreview] 取消节点 ${nodeId} 失败:`, response.status);
-        }
     } catch (error) {
-        console.error(`[BridgePreview] 发送取消信号失败:`, error);
+        console.error(`[BridgePreview] Failed to send cancel signal:`, error);
     }
 }
 const originalFetch = api.fetchApi;
@@ -194,10 +225,10 @@ async function handleMaskUpload(result) {
                 }, 1000);
             }
         } catch (error) {
-            console.error(`[BridgePreview] 处理节点 ${latestNodeId} 失败:`, error);
+            console.error(`[BridgePreview] Failed to process node ${latestNodeId}:`, error);
         }
     } catch (error) {
-        console.error(`[BridgePreview] 处理mask结果失败:`, error);
+        console.error(`[BridgePreview] Failed to handle mask result:`, error);
     }
 }
 setInterval(() => {
@@ -209,4 +240,4 @@ setInterval(() => {
         }
     }
 }, 5000);
-console.log("[BridgePreview] 桥接预览模块已加载");
+console.log("[BridgePreview] Bridge preview module loaded");

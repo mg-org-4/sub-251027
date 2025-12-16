@@ -213,12 +213,20 @@ async def confirm_bridge_preview(request):
         return web.json_response({"success": False, "error": str(e)})
 @PromptServer.instance.routes.post("/bridge_preview/cancel")
 async def cancel_bridge_preview(request):
-    """取消桥接预览操作"""
+    """取消桥接预览操作 - 恢复到上次保存的结果"""
     try:
         data = await request.json()
         node_id = str(data.get("node_id"))
         if node_id in get_bridge_storage():
-            get_bridge_storage()[node_id]["event"].set()
+            node_info = get_bridge_storage()[node_id]
+            cache = get_bridge_cache()
+            
+            # 如果有缓存的最终结果，使用它（保留上次编辑的遮罩）
+            if node_id in cache and cache[node_id].get("final_result"):
+                cached_images, cached_mask = cache[node_id]["final_result"]
+                node_info["result"] = (cached_images, cached_mask)
+            
+            node_info["event"].set()
             return web.json_response({"success": True, "message": f"节点 {node_id} 已取消"})
         else:
             return web.json_response({"success": False, "error": f"节点 {node_id} 未找到或已超时"})
@@ -227,16 +235,51 @@ async def cancel_bridge_preview(request):
 def load_processed_image(file_info):
     """从文件信息加载处理后的图片，返回图像和遮罩"""
     try:
+        filename = None
+        subfolder = ""
+        file_type = "output"
+        
         if isinstance(file_info, dict):
             filename = file_info.get("filename")
             subfolder = file_info.get("subfolder", "")
             file_type = file_info.get("type", "output")
         elif isinstance(file_info, str):
-            filename = file_info
-            subfolder = ""
-            file_type = "output"
+            # 尝试解析新版本字符串格式: "path/filename.ext [type]"
+            file_info_str = str(file_info).strip()
+            
+            # 查找最后的 [type] 部分
+            if '[' in file_info_str and file_info_str.endswith(']'):
+                # 分离路径和类型
+                last_bracket = file_info_str.rfind('[')
+                path_part = file_info_str[:last_bracket].strip()
+                type_part = file_info_str[last_bracket+1:-1].strip()
+                
+                # 解析路径部分
+                if '/' in path_part:
+                    # 包含子文件夹
+                    path_parts = path_part.split('/')
+                    filename = path_parts[-1]  # 最后一部分是文件名
+                    subfolder = '/'.join(path_parts[:-1])  # 前面的部分是子文件夹
+                else:
+                    # 只有文件名
+                    filename = path_part
+                    subfolder = ""
+                
+                # 解析类型
+                file_type = type_part.lower() if type_part else "output"
+            else:
+                # 没有类型信息，直接作为路径处理
+                if '/' in file_info_str:
+                    path_parts = file_info_str.split('/')
+                    filename = path_parts[-1]
+                    subfolder = '/'.join(path_parts[:-1])
+                else:
+                    filename = file_info_str
+                    subfolder = ""
+                file_type = "output"  # 默认类型
         else:
             return None, None
+            
         if not filename:
             return None, None
         if file_type == "input":

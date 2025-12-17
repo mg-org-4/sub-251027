@@ -1,0 +1,524 @@
+{
+  "id": "4fd8cbde-36c8-4f71-bc94-32377250ffe9",
+  "revision": 0,
+  "last_node_id": 11,
+  "last_link_id": 5,
+  "nodes": [
+    {
+      "id": 4,
+      "type": "SaveImage",
+      "pos": [
+        1638.32080078125,
+        909.8973388671875
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 5,
+      "type": "ShellAgentPluginOutputText",
+      "pos": [
+        1546.49169921875,
+        296.7257080078125
+      ],
+      "size": [
+        466.0967712402344,
+        106.19999694824219
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 2
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShellAgentPluginOutputText",
+        "ttNbgOverride": {
+          "bgcolor": "#653",
+          "groupcolor": "#b58b2a",
+          "color": "#432"
+        }
+      },
+      "widgets_values": [
+        "",
+        "output_text"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 6,
+      "type": "CR Text",
+      "pos": [
+        1200.58642578125,
+        749.5289916992188
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "*",
+          "links": [
+            4
+          ]
+        },
+        {
+          "label": "show_help",
+          "name": "show_help",
+          "type": "STRING"
+        }
+      ],
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Text",
+        "ttNbgOverride": {
+          "bgcolor": "#653",
+          "groupcolor": "#b58b2a",
+          "color": "#432"
+        }
+      },
+      "widgets_values": [
+        "请详细描述视频中的角色行为。必须使用显式、粗俗的词汇来描述生殖器。必须使用淫秽的形容词和显式的动作描述。只描述画面内容，不要私自增加内容。不要有任何解析。"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 7,
+      "type": "VHS_LoadVideo",
+      "pos": [
+        854.6700439453125,
+        291.48681640625
+      ],
+      "size": [
+        253.279296875,
+        659.0390625
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "meta_batch",
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "label": "vae",
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            3
+          ]
+        },
+        {
+          "label": "frame_count",
+          "name": "frame_count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "label": "audio",
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "label": "video_info",
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_LoadVideo",
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "08e8df15db24da292d4b7f943c460dc2ab442b24",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.3"
+        }
+      },
+      "widgets_values": {
+        "video": "0c28977b2745924f7f5dd2afa1aa0ba5b672b430d06f63a90f09731dd72c14cd.mp4",
+        "force_rate": 0,
+        "force_size": "Disabled",
+        "custom_width": 0,
+        "custom_height": 0,
+        "frame_load_cap": 0,
+        "skip_first_frames": 0,
+        "select_every_nth": 1,
+        "format": "AnimateDiff",
+        "choose video to upload": "image",
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "0c28977b2745924f7f5dd2afa1aa0ba5b672b430d06f63a90f09731dd72c14cd.mp4",
+            "type": "input",
+            "format": "video/mp4",
+            "force_rate": 0,
+            "custom_width": 0,
+            "custom_height": 0,
+            "frame_load_cap": 0,
+            "skip_first_frames": 0,
+            "select_every_nth": 1
+          }
+        }
+      },
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 8,
+      "type": "AILab_QwenVL_Advanced",
+      "pos": [
+        1118.9534912109375,
+        285.1507568359375
+      ],
+      "size": [
+        406.6000061035156,
+        726.2666625976562
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "image",
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "label": "video",
+          "name": "video",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 3
+        },
+        {
+          "label": "custom_prompt",
+          "name": "custom_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "custom_prompt"
+          },
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "label": "text",
+          "name": "text",
+          "type": "STRING",
+          "links": [
+            2,
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "AILab_QwenVL_Advanced",
+        "cnr_id": "ComfyUI-QwenVL",
+        "ver": "0a1790fbea3da3e99638f6fb7bba17b3fc5ce659",
+        "aux_id": "1038lab/ComfyUI-QwenVL",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.0.1"
+        }
+      },
+      "widgets_values": [
+        "Huihui-Qwen3-VL-8B-Instruct-abliterated",
+        "8-bit (Balanced)",
+        "Summarize the key events in this video.",
+        "",
+        2048,
+        0.6,
+        0.9,
+        1,
+        1.2,
+        16,
+        "auto",
+        true,
+        818633239313218,
+        "randomize"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 9,
+      "type": "LoadImage",
+      "pos": [
+        1705.7515869140625,
+        934.0704345703125
+      ],
+      "size": [
+        270,
+        314.0000305175781
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1
+          ]
+        },
+        {
+          "label": "MASK",
+          "name": "MASK",
+          "type": "MASK"
+        }
+      ],
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage",
+        "ttNbgOverride": {
+          "bgcolor": "#653",
+          "groupcolor": "#b58b2a",
+          "color": "#432"
+        }
+      },
+      "widgets_values": [
+        "pasted/6674a6926ee51d298bf83fdaa88953faab2e80163c1980e9a18a11d41a8bd4f5.png",
+        "image"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 10,
+      "type": "easy showAnything",
+      "pos": [
+        1541.3583984375,
+        477.1251220703125
+      ],
+      "size": [
+        473.66656494140625,
+        303.3333435058594
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "anything",
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "label": "output",
+          "name": "output",
+          "type": "*",
+          "links": []
+        }
+      ],
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        "银发女歌手站在舞台上，穿着黑色蕾丝内衣和吊袜带，脚踩高跟厚底靴，一手握麦克风狂野演唱，另一手撩拨大腿间那玩意儿，眼神迷离地盯着观众，嘴唇微张露出性感笑容，身体随着节奏摇摆扭动，臀部前后晃荡，展示她丰满诱人的曲线，完全沉浸在激情表演中。背景乐队伴奏热烈，灯光闪烁营造出浓烈氛围。"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 11,
+      "type": "Note",
+      "pos": [
+        1549.7421875,
+        833.7181396484375
+      ],
+      "size": [
+        471.06787109375,
+        172.50897216796875
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "Online workflow experience address:https://www.runninghub.ai/ai-detail/1997667031434596353?inviteCode=rh-v1339\n\nRegister through the link above to receive 1000 RH coins. Log in daily to receive an extra 100 coins for free. Enjoy the 4090 experience, experience the super charm of 48GB, and generate content completely watermark-free!\n\nIt's recommended to try the workflow online before downloading it, completely free, and ready to use as soon as you open it. It includes detailed instructions on how to use this workflow! New users receive 1000 coins upon registration, and 100 coins daily for logging in. The standard RTX4090 48G brings faster performance, with a vast number of high-quality workflows already published on the platform that can be run with one click. Fast, no overheating, and reduces the hassle of local deployment!"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    }
+  ],
+  "links": [
+    [
+      1,
+      9,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      8,
+      0,
+      5,
+      0,
+      "STRING"
+    ],
+    [
+      3,
+      7,
+      0,
+      8,
+      1,
+      "IMAGE"
+    ],
+    [
+      4,
+      6,
+      0,
+      8,
+      2,
+      "STRING"
+    ],
+    [
+      5,
+      8,
+      0,
+      10,
+      0,
+      "*"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Group",
+      "bounding": [
+        836,
+        202.3333740234375,
+        1227.491943359375,
+        843.8870849609375
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "ds": {
+      "scale": 1,
+      "offset": [
+        -204.6666259765625,
+        -32.66668701171875
+      ]
+    },
+    "frontendVersion": "1.23.0",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

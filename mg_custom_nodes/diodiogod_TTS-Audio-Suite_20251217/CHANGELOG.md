@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.15.5] - 2025-12-16
+
+### Added
+
+- Prevent AttributeError when Step Audio EditX model selection is None or invalid. Now gracefully defaults to auto-download instead of crashing.
+
+### Fixed
+
+- Fix Step Audio EditX model loading crash on Windows
+## [4.15.4] - 2025-12-16
+
+### Added
+
+- Add comprehensive validation for CosyVoice model files
+- Clear instructions for fixing corrupted model downloads
+
+### Fixed
+
+- Improve Step Audio EditX model validation and error handling
+- Better error messages when model files are missing or incomplete
+- Improved compatibility with different hyperpyyaml versions
 ## [4.15.3] - 2025-12-12
 
 ### Added

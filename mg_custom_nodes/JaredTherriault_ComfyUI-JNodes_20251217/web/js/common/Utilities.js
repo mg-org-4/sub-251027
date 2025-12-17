@@ -1,5 +1,6 @@
 import { $el } from "/scripts/ui.js";
 import { api } from "/scripts/api.js";
+import { app } from "/scripts/app.js";
 
 class JNodesUtilities {
 
@@ -59,6 +60,40 @@ class JNodesUtilities {
 		});
 	}
 
+	isLightgraphNodeOnscreen(node) {
+		if (!node || !node.pos) return false;
+
+		const canvas = app.canvas;
+		const ds = canvas.ds;
+		const bcr = canvas.canvas.getBoundingClientRect();
+
+		const size = node.computeSize ? node.computeSize() : node.size;
+		const titleHeight = LiteGraph.NODE_TITLE_HEIGHT || 20;
+
+		// IMPORTANT: node.pos is center-X (in many LiteGraph forks)
+		const realLeft   = node.pos[0] - size[0] / 2;
+		const realTop    = node.pos[1] - titleHeight;
+		const realRight  = realLeft + size[0];
+		const realBottom = realTop + size[1];
+
+		// Graph → viewport conversion
+		const toScreenX = x => (x + ds.offset[0]) * ds.scale + bcr.left;
+		const toScreenY = y => (y + ds.offset[1]) * ds.scale + bcr.top;
+
+		const sx1 = toScreenX(realLeft);
+		const sy1 = toScreenY(realTop);
+		const sx2 = toScreenX(realRight);
+		const sy2 = toScreenY(realBottom);
+
+		// AABB intersection: returns true if ANY PART of the node is visible
+		return !(
+			sx2 < bcr.left ||    // completely left of view
+			sx1 > bcr.right ||   // completely right of view
+			sy2 < bcr.top ||     // completely above view
+			sy1 > bcr.bottom     // completely below view
+		);
+	}
+
 	createLongPressableButton(buttonParams, clickFunction, longPressFunction, classNames = [], longPressDurationMs = 500) {
 
 		let timer;
@@ -92,9 +127,9 @@ class JNodesUtilities {
 			}
 		}
 
-		button.addEventListener('mousedown', startTimer);
-		button.addEventListener('mouseup', inputRelease);
-		button.addEventListener('mouseleave', clearTimer);
+		button.addEventListener("pointerdown", startTimer);
+		button.addEventListener("pointerup", inputRelease);
+		button.addEventListener("pointerleave", clearTimer);
 		button.addEventListener('touchstart', startTimer);
 		button.addEventListener('touchend', inputRelease);
 		button.addEventListener('touchcancel', clearTimer);
@@ -367,7 +402,7 @@ class JNodesUtilities {
 
 	simulateDrag(element, startX, startY, endX, endY) {
 		// Dispatch mousedown event at the starting position
-		let mousedownEvent = new MouseEvent('mousedown', {
+		let mousedownEvent = new MouseEvent("pointerdown", {
 			bubbles: true,
 			cancelable: true,
 			clientX: startX,
@@ -376,7 +411,7 @@ class JNodesUtilities {
 		element.dispatchEvent(mousedownEvent);
 	
 		// Dispatch mousemove event to simulate dragging
-		let mousemoveEvent = new MouseEvent('mousemove', {
+		let mousemoveEvent = new MouseEvent("pointermove", {
 			bubbles: true,
 			cancelable: true,
 			clientX: endX,
@@ -385,7 +420,7 @@ class JNodesUtilities {
 		document.dispatchEvent(mousemoveEvent);
 	
 		// Dispatch mouseup event to release the drag
-		let mouseupEvent = new MouseEvent('mouseup', {
+		let mouseupEvent = new MouseEvent("pointerup", {
 			bubbles: true,
 			cancelable: true
 		});

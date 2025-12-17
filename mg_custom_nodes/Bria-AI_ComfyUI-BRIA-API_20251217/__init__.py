@@ -15,7 +15,11 @@ from .nodes import (
     TailoredPortraitNode,
     ReimagineNode,
     GenerateImageNodeV2,
+    GenerateImageLiteNodeV2,
     RefineImageNodeV2,
+    RefineImageLiteNodeV2,
+    GenerateStructuredPromptNodeV2,
+    GenerateStructuredPromptLiteNodeV2,
     ShotByTextAutomaticNode,
     ShotByImageManualPaddingNode,
     ShotByImageAutomaticAspectRatioNode,
@@ -26,7 +30,15 @@ from .nodes import (
     ShotByTextManualPlacementNode,
     ShotByTextManualPaddingNode,
     ShotByTextCustomCoordinatesNode,
-    AttributionByImageNode
+    AttributionByImageNode,
+    RemoveVideoBackgroundNode,
+    VideoSolidColorBackgroundNode,
+    VideoMaskByPromptNode,
+    VideoMaskByKeyPointsNode,
+    VideoIncreaseResolutionNode,
+    VideoEraseElementsNode,
+    LoadVideoFramesNode,
+    PreviewVideoURLNode
 )
 
 # Map the node class to a name used internally by ComfyUI
@@ -58,7 +70,19 @@ NODE_CLASS_MAPPINGS = {
     "ReimagineNode": ReimagineNode,
     "AttributionByImageNode": AttributionByImageNode,
     "GenerateImageNodeV2": GenerateImageNodeV2,
+    "GenerateImageLiteNodeV2": GenerateImageLiteNodeV2,
     "RefineImageNodeV2": RefineImageNodeV2,
+    "RefineImageLiteNodeV2": RefineImageLiteNodeV2,
+    "GenerateStructuredPromptNodeV2": GenerateStructuredPromptNodeV2,
+    "GenerateStructuredPromptLiteNodeV2": GenerateStructuredPromptLiteNodeV2,
+    "RemoveVideoBackgroundNode":RemoveVideoBackgroundNode,
+    "VideoSolidColorBackgroundNode":VideoSolidColorBackgroundNode,
+    "VideoMaskByPromptNode":VideoMaskByPromptNode,
+    "VideoMaskByKeyPointsNode":VideoMaskByKeyPointsNode,
+    "VideoIncreaseResolutionNode":VideoIncreaseResolutionNode,
+    "VideoEraseElementsNode":VideoEraseElementsNode,
+    "LoadVideoFramesNode":LoadVideoFramesNode,
+    "PreviewVideoURLNode":PreviewVideoURLNode
 }
 # Map the node display name to the one shown in the ComfyUI node interface
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -89,5 +113,19 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ReimagineNode": "Bria Reimagine",
     "AttributionByImageNode": "Attribution By Image Node",
     "GenerateImageNodeV2": "Generate Image",
+    "GenerateImageLiteNodeV2": "Generate Image - Lite",
     "RefineImageNodeV2": "Refine and Regenerate Image",
+    "RefineImageLiteNodeV2": "Refine Image - Lite",
+    "GenerateStructuredPromptNodeV2": "Generate Structured Prompt",
+    "GenerateStructuredPromptLiteNodeV2": "Generate Structured Prompt - Lite",
+    "RemoveVideoBackgroundNode": "Bria Remove Video Background",
+    "VideoSolidColorBackgroundNode":"Bria SolidColor Background Video",
+    "VideoMaskByPromptNode":"Bria Video Mask By Prompt",
+    "VideoMaskByKeyPointsNode":"Bria Video Mask By Key Points",
+    "VideoIncreaseResolutionNode":"Bria Video Increase Resolution",
+    "VideoEraseElementsNode":"Bria Video Erase Elements",
+    "LoadVideoFramesNode":"Bria Load Video",
+    "PreviewVideoURLNode":"Bria Preview Video"
 }
+
+

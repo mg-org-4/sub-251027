@@ -10,10 +10,10 @@ from .common import (
 )
 
 
-class _BaseGenerateImageNodeV2:
-    """Base class for image generation nodes (standard & pro)."""
+class GenerateImageNodeV2:
+    """Standard Image Generation Node"""
 
-    api_url = None  # Each subclass must define its API endpoint
+    api_url = "https://engine.prod.bria-api.com/v2/image/generate"
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -24,14 +24,29 @@ class _BaseGenerateImageNodeV2:
             },
             "optional": {
                 "model_version": (["FIBO"], {"default": "FIBO"}),
-                "negative_prompt": ("STRING", {"default": ""}),
+                "structured_prompt": ("STRING", {"default": ""}),
+                "negative_prompt": ("STRING",),
                 "images": ("IMAGE",),
                 "aspect_ratio": (
                     ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"],
                     {"default": "1:1"},
                 ),
-                "steps_num": ("INT", {"default": 50, "min": 20, "max": 50}),
-                "guidance_scale": ("INT", {"default": 5, "min": 3, "max": 5}),
+                "steps_num": (
+                    "INT",
+                    {
+                        "default": 50,
+                        "min": 35,
+                        "max": 50,
+                    },
+                ),
+                "guidance_scale": (
+                    "INT",
+                    {
+                        "default": 5,
+                        "min": 3,
+                        "max": 5,
+                    },
+                ),
                 "seed": ("INT", {"default": 123456}),
             },
         }
@@ -41,6 +56,7 @@ class _BaseGenerateImageNodeV2:
     CATEGORY = "API Nodes"
     FUNCTION = "execute"
 
+
     def _validate_token(self, api_token: str):
         if api_token.strip() == "" or api_token.strip() == "BRIA_API_TOKEN":
             raise Exception("Please insert a valid API token.")
@@ -49,28 +65,30 @@ class _BaseGenerateImageNodeV2:
         self,
         prompt,
         model_version,
-        negative_prompt,
+        structured_prompt,
         aspect_ratio,
         steps_num,
         guidance_scale,
         seed,
+        negative_prompt=None,
         images=None,
     ):
         payload = {
             "prompt": prompt,
             "model_version": model_version,
-            "negative_prompt": negative_prompt,
             "aspect_ratio": aspect_ratio,
             "steps_num": steps_num,
             "guidance_scale": guidance_scale,
             "seed": seed,
+            "negative_prompt":negative_prompt
         }
+        if structured_prompt:
+            payload["structured_prompt"] = structured_prompt 
 
         if images is not None:
             if isinstance(images, torch.Tensor):
                 preprocess_images = preprocess_image(images)
             payload["images"] = [image_to_base64(preprocess_images)]
-
 
         return payload
 
@@ -79,22 +97,24 @@ class _BaseGenerateImageNodeV2:
         api_token,
         prompt,
         model_version,
-        negative_prompt,
+        structured_prompt,
         aspect_ratio,
         steps_num,
         guidance_scale,
         seed,
+        negative_prompt=None,
         images=None,
     ):
         self._validate_token(api_token)
         payload = self._build_payload(
             prompt,
             model_version,
-            negative_prompt,
+            structured_prompt,
             aspect_ratio,
             steps_num,
             guidance_scale,
             seed,
+            negative_prompt,
             images,
         )
         api_token = deserialize_and_get_comfy_key(api_token)
@@ -135,9 +155,3 @@ class _BaseGenerateImageNodeV2:
 
         except Exception as e:
             raise Exception(f"{e}")
-
-
-class GenerateImageNodeV2(_BaseGenerateImageNodeV2):
-    """Standard Image Generation Node"""
-    def __init__(self):
-        self.api_url = "https://engine.prod.bria-api.com/v2/image/generate"

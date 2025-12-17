@@ -39,7 +39,6 @@ def get_output_data(obj, input_data_all):
     results = []
     uis = []
     return_values = map_node_over_list(obj, input_data_all, obj.FUNCTION, allow_interrupt=True)
-
     for r in return_values:
         if isinstance(r, dict):
             if 'ui' in r:
@@ -48,21 +47,35 @@ def get_output_data(obj, input_data_all):
                 results.append(r['result'])
         else:
             results.append(r)
-
     output = []
     if len(results) > 0:
         # check which outputs need concatenating
-        output_is_list = [False] * len(results[0])
+        # Handle both old tuples and new NodeOutput objects
+        first_result = results[0]
+        try:
+            # Try to get length directly (works for tuples/lists)
+            result_len = len(first_result)
+        except TypeError:
+            # If len() fails, it's likely a NodeOutput - convert it
+            try:
+                first_result = tuple(first_result)
+                results[0] = first_result
+                result_len = len(first_result)
+            except:
+                # Single value output
+                result_len = 1
+                results[0] = (first_result,)
+        
+        output_is_list = [False] * result_len
+        
         if hasattr(obj, "OUTPUT_IS_LIST"):
             output_is_list = obj.OUTPUT_IS_LIST
-
         # merge node execution results
         for i, is_list in zip(range(len(results[0])), output_is_list):
             if is_list:
                 output.append([x for o in results for x in o[i]])
             else:
                 output.append([o[i] for o in results])
-
     ui = dict()    
     if len(uis) > 0:
         ui = {k: [y for x in uis for y in x[k]] for k in uis[0].keys()}

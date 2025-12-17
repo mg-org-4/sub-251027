@@ -58,9 +58,15 @@ This node trains LoRAs on-the-fly from your images without leaving ComfyUI. SDXL
 
 ## Requirements
 
+> **JUST WANT TO ANALYZE OR SELECTIVELY LOAD LORAS?**
+>
+> **The LoRA Analyzer and Selective Loaders work out of the box - no additional installation required!**
+>
+> The training backend requirements below **ONLY apply if you want to train LoRAs**. Skip this section if you're just using the analysis and selective loading features.
+
 **Python version:** Both AI-Toolkit and sd-scripts work best with Python 3.10-3.12. Python 3.10 is the safest bet. Avoid 3.13 for now.
 
-You need to install the training backend(s) separately:
+**For training nodes only** - install the backend(s) you need:
 
 **For SDXL / SD 1.5 training:**
 1. Install sd-scripts: https://github.com/kohya-ss/sd-scripts

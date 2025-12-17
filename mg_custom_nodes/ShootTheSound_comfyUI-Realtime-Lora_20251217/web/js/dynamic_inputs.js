@@ -290,10 +290,9 @@ app.registerExtension({
                     }
                 }
 
-                // Ensure Python preset widget stays "Custom" after restoration
-                if (node._pythonPresetWidget) {
-                    node._pythonPresetWidget.value = "Custom";
-                }
+                // Note: We no longer need to force preset to "Custom" since we're using
+                // the existing Python preset widget directly. ComfyUI will restore its
+                // saved value correctly.
 
                 node.setDirtyCanvas(true);
             }, 150); // Longer delay to ensure ComfyUI finishes deserializing first
@@ -542,37 +541,39 @@ app.registerExtension({
             const presetNames = Object.keys(config.presets);
             const node = this;
 
-            // Find and hide the Python preset widget, force it to "Custom"
-            // so Python always reads individual toggles
-            const pythonPresetWidget = this.widgets.find(w => w.name === "preset");
-            if (pythonPresetWidget) {
-                pythonPresetWidget.value = "Custom";
-                pythonPresetWidget.draw = function() {};
-                pythonPresetWidget.computeSize = function() { return [0, -4]; };
-                // Store reference to ensure it stays "Custom"
-                node._pythonPresetWidget = pythonPresetWidget;
+            // Find the Python preset widget and convert it to our JS preset widget
+            // This avoids adding a new widget which would cause index mismatch
+            const presetWidget = this.widgets.find(w => w.name === "preset");
+            if (!presetWidget) return;
 
-                // Override the widget's getValue to always return "Custom"
-                const origGetValue = pythonPresetWidget.getValue;
-                pythonPresetWidget.getValue = function() {
-                    return "Custom";
-                };
+            // Convert the existing combo widget to work with our JS preset system
+            presetWidget.options = presetWidget.options || {};
+            presetWidget.options.values = presetNames;
+
+            // Set initial value to "Default" (or current value if it's valid)
+            if (!presetNames.includes(presetWidget.value)) {
+                presetWidget.value = "Default";
             }
 
-            // Create our JS combo widget for presets
-            const presetWidget = this.addWidget("combo", "js_preset", "Default", (value) => {
+            // Override callback to apply preset when changed
+            const origCallback = presetWidget.callback;
+            presetWidget.callback = function(value) {
+                // When user changes preset via UI, apply it
                 node.applyPreset(nodeName, value);
-            }, {
-                values: presetNames
-            });
 
-            // Move preset widget to after 'strength' widget (before block toggles)
-            const strengthIndex = this.widgets.findIndex(w => w.name === "strength");
-            if (strengthIndex !== -1) {
-                // Remove from end and insert after strength
-                this.widgets.pop();
-                this.widgets.splice(strengthIndex + 1, 0, presetWidget);
-            }
+                // Call original callback if it exists
+                if (origCallback) {
+                    origCallback.call(this, value);
+                }
+            };
+
+            // CRITICAL FIX: Override serializeValue to always return "Custom" for Python
+            // This way Python always uses individual toggle values, while JavaScript
+            // manages its own independent preset system in the UI
+            const origSerializeValue = presetWidget.serializeValue;
+            presetWidget.serializeValue = function() {
+                return "Custom";
+            };
 
             // Store reference for later
             this.presetWidget = presetWidget;

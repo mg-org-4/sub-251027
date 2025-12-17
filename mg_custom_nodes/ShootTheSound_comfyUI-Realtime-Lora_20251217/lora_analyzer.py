@@ -27,15 +27,23 @@ def _detect_architecture(keys):
     if any('transformer_blocks' in k and any(x in k for x in ['img_mlp', 'txt_mlp', 'img_mod', 'txt_mod']) for k in keys_lower):
         return 'QWEN_IMAGE'
 
+    # Check for Flux AI-Toolkit format (transformer.single_transformer_blocks / transformer.double_blocks)
+    # Must check BEFORE Z-Image since both have single_transformer_blocks
+    if any('transformer.single_transformer_blocks' in k or 'transformer.double_blocks' in k for k in keys_lower):
+        return 'FLUX'
+
     # Check for Z-Image patterns:
-    # - diffusion_model.layers.N.attention/adaLN_modulation (ComfyUI format)
-    # - single_transformer_blocks (older format)
+    # - diffusion_model.layers.N.attention/adaLN_modulation (ComfyUI/AI-Toolkit format)
+    # - lora_unet_layers_N_attention (Musubi Tuner format)
+    # - single_transformer_blocks WITHOUT transformer. prefix (older Z-Image format)
     if any('diffusion_model.layers.' in k and ('attention' in k or 'adaln' in k.lower()) for k in keys_lower):
         return 'ZIMAGE'
-    if any('single_transformer_blocks' in k for k in keys_lower):
+    if any('lora_unet_layers_' in k and 'attention' in k for k in keys_lower):
+        return 'ZIMAGE'
+    if any('single_transformer_blocks' in k and 'transformer.single_transformer_blocks' not in k for k in keys_lower):
         return 'ZIMAGE'
 
-    # Check for Flux (double_blocks/single_blocks)
+    # Check for Flux (double_blocks/single_blocks - ComfyUI/other formats)
     if any('double_blocks' in k or 'single_blocks' in k for k in keys_lower):
         return 'FLUX'
 
@@ -81,8 +89,12 @@ def _extract_block_id(key: str, architecture: str) -> str:
         return f"block_{match.group(1)}" if match else 'other'
 
     elif architecture == 'ZIMAGE':
-        # New format: diffusion_model.layers.N.attention/adaLN_modulation
+        # AI-Toolkit format: diffusion_model.layers.N.attention/adaLN_modulation
         match = re.search(r'diffusion_model\.layers\.(\d+)', key)
+        if match:
+            return f"layer_{match.group(1)}"
+        # Musubi Tuner format: lora_unet_layers_N_attention_...
+        match = re.search(r'lora_unet_layers_(\d+)_', key)
         if match:
             return f"layer_{match.group(1)}"
         # Old format: single_transformer_blocks.N
@@ -97,9 +109,14 @@ def _extract_block_id(key: str, architecture: str) -> str:
         return f"block_{match.group(1)}" if match else 'other'
 
     elif architecture == 'FLUX':
-        double = re.search(r'double_blocks[._]?(\d+)', key_lower)
+        # AI-Toolkit format: transformer.double_blocks.N or transformer.single_transformer_blocks.N
+        double = re.search(r'(?:transformer\.)?double_blocks?[._]?(\d+)', key_lower)
         if double:
             return f"double_{double.group(1)}"
+        # Check for single_transformer_blocks (AI-Toolkit) or single_blocks (other formats)
+        single = re.search(r'single_transformer_blocks[._]?(\d+)', key_lower)
+        if single:
+            return f"single_{single.group(1)}"
         single = re.search(r'single_blocks[._]?(\d+)', key_lower)
         if single:
             return f"single_{single.group(1)}"
@@ -439,9 +456,8 @@ class LoRALoaderWithAnalysis:
         architecture = _detect_architecture(lora_keys)
         print(f"[LoRA Analyzer] Architecture: {architecture}, {len(lora_state_dict)} tensors")
 
-        # Debug: show sample keys if unknown
-        if architecture == 'UNKNOWN':
-            print(f"[LoRA Analyzer] Sample keys: {lora_keys[:5]}")
+        # Debug: show sample keys to help identify architecture issues
+        print(f"[LoRA Analyzer] Sample keys: {lora_keys[:10]}")
 
         # Reset tracker
         _tracker.reset()

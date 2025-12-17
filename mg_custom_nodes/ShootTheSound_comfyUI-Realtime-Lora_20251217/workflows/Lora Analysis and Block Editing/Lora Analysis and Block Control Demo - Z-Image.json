@@ -1,8 +1,8 @@
 {
   "id": "92112d97-bb64-4b44-86f2-ea5691ef8f6e",
   "revision": 0,
-  "last_node_id": 97,
-  "last_link_id": 217,
+  "last_node_id": 100,
+  "last_link_id": 234,
   "nodes": [
     {
       "id": 87,
@@ -23,7 +23,7 @@
           "name": "anything",
           "shape": 7,
           "type": "*",
-          "link": 197
+          "link": 228
         }
       ],
       "outputs": [
@@ -109,8 +109,8 @@
           "type": "CLIP",
           "links": [
             144,
-            179,
-            213
+            225,
+            230
           ]
         }
       ],
@@ -190,7 +190,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 216
+          "link": 233
         }
       ],
       "outputs": [
@@ -387,8 +387,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            177,
-            201
+            201,
+            224
           ]
         }
       ],
@@ -427,7 +427,7 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 217
+          "link": 234
         }
       ],
       "outputs": [
@@ -469,7 +469,7 @@
         82
       ],
       "flags": {},
-      "order": 8,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
@@ -483,7 +483,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            212
+            229
           ]
         }
       ],
@@ -499,83 +499,6 @@
       },
       "widgets_values": [
         "zimage\\GlaraH.safetensors",
-        1
-      ],
-      "ndSuperSelectorEnabled": false,
-      "ndPowerEnabled": false
-    },
-    {
-      "id": 86,
-      "type": "LoRALoaderWithAnalysis",
-      "pos": [
-        -3034.7272474702418,
-        -2297.4611463626543
-      ],
-      "size": [
-        432.7592415398401,
-        245.09093482656613
-      ],
-      "flags": {},
-      "order": 7,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 177
-        },
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 179
-        }
-      ],
-      "outputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "links": null
-        },
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "links": null
-        },
-        {
-          "name": "analysis",
-          "type": "STRING",
-          "links": [
-            197
-          ]
-        },
-        {
-          "name": "analysis_json",
-          "type": "STRING",
-          "links": [
-            215
-          ]
-        },
-        {
-          "name": "lora_path",
-          "type": "STRING",
-          "links": [
-            214
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "ShootTheSound/comfyUI-Realtime-Lora",
-        "ver": "3baddd9117f8c4bafb625d7160ee72a921adaacf",
-        "Node name for S&R": "LoRALoaderWithAnalysis",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "input_ue_unconnectable": {},
-          "version": "7.5.1"
-        }
-      },
-      "widgets_values": [
-        "zimage\\20s_horror_z_100.safetensors",
-        1,
         1
       ],
       "ndSuperSelectorEnabled": false,
@@ -689,11 +612,88 @@
       "bgcolor": "#533"
     },
     {
-      "id": 97,
+      "id": 99,
+      "type": "LoRALoaderWithAnalysis",
+      "pos": [
+        -3033.3644391597754,
+        -2256.6102483250747
+      ],
+      "size": [
+        397.512017257327,
+        205.69697827552227
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 224
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 225
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "analysis",
+          "type": "STRING",
+          "links": [
+            228
+          ]
+        },
+        {
+          "name": "analysis_json",
+          "type": "STRING",
+          "links": [
+            232
+          ]
+        },
+        {
+          "name": "lora_path",
+          "type": "STRING",
+          "links": [
+            231
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ShootTheSound/comfyUI-Realtime-Lora",
+        "ver": "a4e5b6615b5ded71abdca1558663ddd6ee665a3c",
+        "Node name for S&R": "LoRALoaderWithAnalysis",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "zimage\\20s_horror_z_100.safetensors",
+        1,
+        1
+      ],
+      "ndSuperSelectorEnabled": false,
+      "ndPowerEnabled": false
+    },
+    {
+      "id": 100,
       "type": "ZImageSelectiveLoRALoader",
       "pos": [
-        -2587.0175501933404,
-        -2013.730591397878
+        -2552.4562724957777,
+        -2018.0461972467117
       ],
       "size": [
         500,
@@ -706,24 +706,24 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 212
+          "link": 229
         },
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 213
+          "link": 230
         },
         {
           "name": "lora_path_opt",
           "shape": 7,
           "type": "STRING",
-          "link": 214
+          "link": 231
         },
         {
           "name": "analysis_json",
           "shape": 7,
           "type": "STRING",
-          "link": 215
+          "link": 232
         }
       ],
       "outputs": [
@@ -731,14 +731,14 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            216
+            233
           ]
         },
         {
           "name": "clip",
           "type": "CLIP",
           "links": [
-            217
+            234
           ]
         },
         {
@@ -748,19 +748,18 @@
         }
       ],
       "properties": {
+        "aux_id": "ShootTheSound/comfyUI-Realtime-Lora",
+        "ver": "a4e5b6615b5ded71abdca1558663ddd6ee665a3c",
         "ue_properties": {
           "widget_ue_connectable": {},
           "input_ue_unconnectable": {}
         },
-        "aux_id": "ShootTheSound/comfyUI-Realtime-Lora",
-        "ver": "a4e5b6615b5ded71abdca1558663ddd6ee665a3c",
         "Node name for S&R": "ZImageSelectiveLoRALoader"
       },
       "widgets_values": [
         "FLUX\\1950s Hollywood glamour..safetensors",
         1,
         "Default",
-        "Custom",
         true,
         1,
         true,
@@ -793,12 +792,12 @@
         1,
         true,
         1,
-        true,
+        false,
         1,
-        true,
+        false,
         1,
-        true,
-        0.9500000000000001,
+        false,
+        1,
         false,
         1,
         false,
@@ -894,30 +893,6 @@
       "IMAGE"
     ],
     [
-      177,
-      77,
-      0,
-      86,
-      0,
-      "MODEL"
-    ],
-    [
-      179,
-      76,
-      0,
-      86,
-      1,
-      "CLIP"
-    ],
-    [
-      197,
-      86,
-      2,
-      87,
-      0,
-      "STRING"
-    ],
-    [
       201,
       77,
       0,
@@ -926,48 +901,72 @@
       "MODEL"
     ],
     [
-      212,
-      90,
+      224,
+      77,
       0,
-      97,
+      99,
       0,
       "MODEL"
     ],
     [
-      213,
+      225,
       76,
       0,
-      97,
+      99,
       1,
       "CLIP"
     ],
     [
-      214,
-      86,
+      228,
+      99,
+      2,
+      87,
+      0,
+      "STRING"
+    ],
+    [
+      229,
+      90,
+      0,
+      100,
+      0,
+      "MODEL"
+    ],
+    [
+      230,
+      76,
+      0,
+      100,
+      1,
+      "CLIP"
+    ],
+    [
+      231,
+      99,
       4,
-      97,
+      100,
       2,
       "STRING"
     ],
     [
-      215,
-      86,
+      232,
+      99,
       3,
-      97,
+      100,
       3,
       "STRING"
     ],
     [
-      216,
-      97,
+      233,
+      100,
       0,
       70,
       0,
       "MODEL"
     ],
     [
-      217,
-      97,
+      234,
+      100,
       1,
       74,
       0,
@@ -978,10 +977,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.8769226950000015,
+      "scale": 0.7972024500000007,
       "offset": [
-        4310.435508652168,
-        2282.058710735065
+        3549.693548924114,
+        2389.3446045709725
       ]
     },
     "frontendVersion": "1.34.8",

@@ -631,7 +631,9 @@
   "serverConfig": {
     "modifiedConfigs": "You have modified the following server configurations. Restart to apply changes.",
     "revertChanges": "Revert Changes",
-    "restart": "Restart"
+    "restart": "Restart",
+    "restartRequiredToastSummary": "Restart required",
+    "restartRequiredToastDetail": "Restart the app to apply server configuration changes."
   },
   "shape": {
     "default": "Default",
@@ -1455,7 +1457,8 @@
     "Vidu": "Vidu",
     "": "",
     "camera": "camera",
-    "Wan": "Wan"
+    "Wan": "Wan",
+    "zimage": "zimage"
   },
   "dataTypes": {
     "*": "*",
@@ -1557,6 +1560,11 @@
     "frontendNewer": "Frontend version {frontendVersion} may not be compatible with backend version {backendVersion}.",
     "updateFrontend": "Update Frontend",
     "dismiss": "Dismiss"
+  },
+  "loadWorkflowWarning": {
+    "outdatedVersion": "This workflow was created with a newer version of ComfyUI ({version}). Some nodes may not work correctly.",
+    "outdatedVersionGeneric": "This workflow was created with a newer version of ComfyUI. Some nodes may not work correctly.",
+    "coreNodesFromVersion": "Core nodes from version {version}:"
   },
   "errorDialog": {
     "defaultTitle": "An error occurred",
@@ -1899,7 +1907,7 @@
     "comfyCloudLogo": "Comfy Cloud Logo",
     "beta": "BETA",
     "perMonth": "/ month",
-    "usdPerMonth": "USD / month",
+    "usdPerMonth": "USD / mo",
     "renewsDate": "Renews {date}",
     "expiresDate": "Expires {date}",
     "manageSubscription": "Manage subscription",
@@ -1921,16 +1929,21 @@
     "yourPlanIncludes": "Your plan includes:",
     "viewMoreDetails": "View more details",
     "learnMore": "Learn more",
+    "billedMonthly": "Billed monthly",
+    "billedAnnually": "{total} Billed annually",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
     "messageSupport": "Message support",
     "invoiceHistory": "Invoice history",
     "benefits": {
       "benefit1": "$10 in monthly credits for Partner Nodes — top up when needed",
       "benefit2": "Up to 30 min runtime per job"
     },
+    "yearlyDiscount": "20% DISCOUNT",
     "tiers": {
       "founder": {
         "name": "Founder's Edition",
-        "price": "20.00",
+        "price": "20",
         "benefits": {
           "monthlyCredits": "5,460",
           "monthlyCreditsLabel": "monthly credits",
@@ -1943,7 +1956,11 @@
       },
       "standard": {
         "name": "Standard",
-        "price": "20.00",
+        "price": {
+          "monthly": "20",
+          "yearly": "16",
+          "annualTotal": "$192"
+        },
         "benefits": {
           "monthlyCredits": "4,200",
           "monthlyCreditsLabel": "monthly credits",
@@ -1957,7 +1974,12 @@
       },
       "creator": {
         "name": "Creator",
-        "price": "35.00",
+        "price": {
+          "monthly": "35",
+          "yearly": "28",
+          "annualTotal": "$336"
+        },
+
         "benefits": {
           "monthlyCredits": "7,400",
           "monthlyCreditsLabel": "monthly credits",
@@ -1971,7 +1993,11 @@
       },
       "pro": {
         "name": "Pro",
-        "price": "100.00",
+        "price": {
+          "monthly": "100",
+          "yearly": "80",
+          "annualTotal": "$960"
+        },
         "benefits": {
           "monthlyCredits": "21,100",
           "monthlyCreditsLabel": "monthly credits",
@@ -1989,12 +2015,6 @@
       "waitingForSubscription": "Complete your subscription in the new tab. We'll automatically detect when you're done!",
       "subscribe": "Subscribe"
     },
-    "pricingTable": {
-      "description": "Access cloud-powered ComfyUI workflows with straightforward, usage-based pricing.",
-      "loading": "Loading pricing options...",
-      "loadError": "We couldn't load the pricing table. Please refresh and try again.",
-      "missingConfig": "Stripe pricing table configuration missing. Provide the publishable key and pricing table ID via remote config or .env."
-    },
     "subscribeToRun": "Subscribe",
     "subscribeToRunFull": "Subscribe to Run",
     "subscribeNow": "Subscribe Now",
@@ -2002,7 +2022,7 @@
     "description": "Choose the best plan for you",
     "haveQuestions": "Have questions or wondering about enterprise?",
     "contactUs": "Contact us",
-    "viewEnterprise": "view enterprise",
+    "viewEnterprise": "View enterprise",
     "partnerNodesCredits": "Partner nodes pricing",
     "mostPopular": "Most popular",
     "currentPlan": "Current Plan",
@@ -2057,7 +2077,7 @@
       "placeholderModel": "Select model...",
       "placeholderUnknown": "Select media..."
     },
-    "numberControl": {
+    "valueControl": {
       "header": {
         "prefix": "Automatically update the value",
         "after": "AFTER",
@@ -2070,9 +2090,9 @@
       "randomize": "Randomize Value",
       "randomizeDesc": "Shuffles the value randomly after each generation",
       "increment": "Increment Value",
-      "incrementDesc": "Adds 1 to the value number",
+      "incrementDesc": "Adds 1 to value or selects the next option",
       "decrement": "Decrement Value",
-      "decrementDesc": "Subtracts 1 from the value number",
+      "decrementDesc": "Subtracts 1 from value or selects the previous option",
       "fixed": "Fixed Value",
       "fixedDesc": "Leaves value unchanged",
       "editSettings": "Edit control settings"

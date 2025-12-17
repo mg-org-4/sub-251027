@@ -6,7 +6,6 @@ on:
       - "pyproject.toml"
     branches:
       - master
-      - release/**
 
 jobs:
   update-version:

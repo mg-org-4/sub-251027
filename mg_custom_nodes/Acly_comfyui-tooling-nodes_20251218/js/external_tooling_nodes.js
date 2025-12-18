@@ -77,7 +77,8 @@ function defaultParameterType(widgetType, connectedNode, connectedWidget) {
     if (connectedNode.comfyClass === "CLIPTextEncode") {
         paramType = "prompt (positive)"
     }
-    if (connectedWidget.options?.round === 1) {
+    const round = connectedWidget.options?.round
+    if ((paramType == "number" && round === undefined) || round === 1) {
         paramType = "number (integer)"
     }
     return paramType
@@ -96,7 +97,7 @@ function valueMatchesType(value, type, options) {
 
 function optionalWidgetValue(widgets, index, fallback) {
     const result = widgets.length > index ? widgets[index].value : null
-    return result === null || result === 0 ? fallback : result
+    return result === null || result === -1e10 || result === 1e10 ? fallback : result
 }
 
 function changeWidgets(node, type, connectedNode, connectedWidget) {

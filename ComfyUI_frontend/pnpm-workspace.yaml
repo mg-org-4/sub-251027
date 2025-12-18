@@ -1,7 +1,3 @@
-packages:
-  - apps/**
-  - packages/**
-
 catalog:
   '@alloc/quick-lru': ^5.2.0
   '@comfyorg/comfyui-electron-types': 0.5.5
@@ -34,7 +30,7 @@ catalog:
   '@trivago/prettier-plugin-sort-imports': ^5.2.0
   '@types/fs-extra': ^11.0.4
   '@types/jsdom': ^21.1.7
-  '@types/node': ^20.19.0
+  '@types/node': ^24.1.0
   '@types/semver': ^7.7.0
   '@types/three': ^0.169.0
   '@vitejs/plugin-vue': ^6.0.0
@@ -47,6 +43,7 @@ catalog:
   algoliasearch: ^5.21.0
   axios: ^1.8.2
   cross-env: ^10.1.0
+  cva: 1.0.0-beta.4
   dotenv: ^16.4.5
   eslint: ^9.39.1
   eslint-config-prettier: ^10.1.8
@@ -60,16 +57,16 @@ catalog:
   firebase: ^11.6.0
   globals: ^15.9.0
   happy-dom: ^15.11.0
-  husky: ^9.0.11
-  jiti: 2.4.2
+  husky: ^9.1.7
+  jiti: 2.6.1
   jsdom: ^26.1.0
-  knip: ^5.62.0
-  lint-staged: ^15.5.2
+  knip: ^5.75.1
+  lint-staged: ^16.2.7
   markdown-table: ^3.0.4
   mixpanel-browser: ^2.71.0
   nx: 22.2.6
-  oxlint: ^1.32.0
-  oxlint-tsgolint: ^0.8.4
+  oxlint: ^1.33.0
+  oxlint-tsgolint: ^0.9.1
   picocolors: ^1.1.1
   pinia: ^2.1.7
   postcss-html: ^1.8.0
@@ -88,10 +85,10 @@ catalog:
   typegpu: ^0.8.2
   typescript: ^5.9.3
   typescript-eslint: ^8.49.0
-  unplugin-icons: ^0.22.0
+  unplugin-icons: ^22.5.0
   unplugin-typegpu: 0.8.0
-  unplugin-vue-components: ^0.28.0
-  vite: ^7.0.0
+  unplugin-vue-components: ^30.0.0
+  vite: ^7.3.0
   vite-plugin-dts: ^4.5.4
   vite-plugin-html: ^3.2.2
   vite-plugin-vue-devtools: ^8.0.0
@@ -107,15 +104,12 @@ catalog:
   zod: ^3.23.8
   zod-to-json-schema: ^3.24.1
   zod-validation-error: ^3.3.0
-
 cleanupUnusedCatalogs: true
-
 ignoredBuiltDependencies:
   - '@firebase/util'
   - protobufjs
   - unrs-resolver
   - vue-demi
-
 onlyBuiltDependencies:
   - '@playwright/browser-chromium'
   - '@playwright/browser-firefox'
@@ -125,6 +119,8 @@ onlyBuiltDependencies:
   - esbuild
   - nx
   - oxc-resolver
-
 overrides:
   '@types/eslint': '-'
+packages:
+  - apps/**
+  - packages/**

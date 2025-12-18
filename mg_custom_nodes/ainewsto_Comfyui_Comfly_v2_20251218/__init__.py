@@ -28,8 +28,8 @@ NODE_CLASS_MAPPINGS = {
     "Comfly_sora2": Comfly_sora2,
     "Comfly_sora2_character": Comfly_sora2_character,
     "ComflyJimengApi": ComflyJimengApi,
-    "Comfly_gpt_image_1_edit": Comfly_gpt_image_1_edit,
-    "Comfly_gpt_image_1": Comfly_gpt_image_1,
+    "Comfly_gpt_image_edit": Comfly_gpt_image_edit,
+    "Comfly_gpt_image": Comfly_gpt_image,
     "ComflyJimengVideoApi": ComflyJimengVideoApi,
     "Comfly_Flux_Kontext_Edit": Comfly_Flux_Kontext_Edit,
     "Comfly_Flux_Kontext_bfl": Comfly_Flux_Kontext_bfl,
@@ -39,11 +39,11 @@ NODE_CLASS_MAPPINGS = {
     "ComflyNanoBanana": Comfly_nano_banana,
     "ComflyNanoBananaEdit": Comfly_nano_banana_edit,
     "ComflyNanoBanana2Edit": Comfly_nano_banana2_edit,
-    "ComflyGeminiTextOnly": ComflyGeminiTextOnly,
     "Comfly_mj_video": Comfly_mj_video,
     "Comfly_mj_video_extend": Comfly_mj_video_extend,
     "Comfly_qwen_image": Comfly_qwen_image,
     "Comfly_qwen_image_edit": Comfly_qwen_image_edit,
+    "Comfly_Z_image_turbo": Comfly_Z_image_turbo,
     "Comfly_Doubao_Seedream": Comfly_Doubao_Seedream,
     "Comfly_Doubao_Seedream_4": Comfly_Doubao_Seedream_4,
     "Comfly_Doubao_Seededit": Comfly_Doubao_Seededit,
@@ -77,8 +77,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Comfly_sora2": "Comfly_sora2",
     "Comfly_sora2_character": "Comfly Sora2 Character",
     "ComflyJimengApi": "Comfly Jimeng API",
-    "Comfly_gpt_image_1_edit": "Comfly_gpt_image_1_edit",
-    "Comfly_gpt_image_1": "Comfly_gpt_image_1",
+    "Comfly_gpt_image_edit": "Comfly_gpt_image_edit",
+    "Comfly_gpt_image": "Comfly_gpt_image",
     "ComflyJimengVideoApi": "Comfly Jimeng Video API",
     "Comfly_Flux_Kontext_Edit": "Comfly_Flux_Kontext_Edit",
     "Comfly_Flux_Kontext_bfl": "Comfly_Flux_Kontext_bfl",
@@ -88,7 +88,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ComflyNanoBanana": "Comfly_nano_banana",
     "ComflyNanoBananaEdit": "Comfly_nano_banana_edit",
     "ComflyNanoBanana2Edit": "Comfly_nano_banana2_edit",
-    "ComflyGeminiTextOnly": "Comfly Gemini Text Only",
+    "Comfly_Z_image_turbo": "Comfly_Z_image_turbo",
     "Comfly_mj_video": "Comfly MJ Video",
     "Comfly_mj_video_extend": "Comfly MJ Video Extend",
     "Comfly_qwen_image": "Comfly_qwen_image",
@@ -111,4 +111,3 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
-

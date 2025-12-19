@@ -151,7 +151,7 @@ The 4-step adapter works well for any number of sampling steps greater than or e
 
 #### Guidance 
 
-The adapters **only work with `guidance` set to 4.0**. Do NOT modify this value.
+The adapter **only works with `guidance` set to 4.0**. Do NOT modify this value.
 
 ## GGUF Support
 
@@ -169,17 +169,14 @@ This code repository is licensed under the Apache-2.0 License. Models used in th
 
 ## Changelog
 
-- **v1.1.1** (2025-12-18)
-  - Fix dtype mismatch issues in GMFlow output layers
-  - Fix pi-Flux.2 latent preview
+- **v1.1.4** (2025-12-18)
+  - Fix a bug in the example pi-Flux.2 editing workflow where a load image node is disconnected from the main graph. 
 
-- **v1.1.0** (2025-12-18)
+- **v1.1.3** (2025-12-18)
   - Add pi-Flux.2 models and workflow for text-to-image generation and multi-image editing.
   - Add GGUF support for pi-Flow models.
-  - Minor bug fixes and improvements.
-
-- **v1.0.6** (2025-12-16)
   - Fix compatibility for ComfyUI v0.4.0 (new quantization)
+  - Fix dtype mismatch issues in GMFlow output layers
   - Improve GMFlow numerical stability
 
 - **v1.0.5** (2025-11-11)
@@ -190,4 +187,4 @@ This code repository is licensed under the Apache-2.0 License. Models used in th
   - Fix a bug in GM-Qwen when running in BF16 precision.
 
 - **v1.0.3** (2025-11-09)
-  - Added support for scaled FP8 base models.
+  - Add support for scaled FP8 base models.

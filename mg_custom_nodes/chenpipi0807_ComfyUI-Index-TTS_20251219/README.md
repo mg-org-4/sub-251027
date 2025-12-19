@@ -201,6 +201,17 @@ python -m pip install -U "huggingface_hub[hf_xet]"
 
 ## 更新日志
 
+### 2025-12-18
+
+- **修复多个社区反馈问题**：
+  - 老节点 `Index TTS` 现已支持 IndexTTS-2 模型 (#121)
+  - 新增 `Index TTS 2 Pro (小说多角色)` 节点，支持 TTS 2.0 多角色小说朗读 (#111)
+  - 修复 tensor 尺寸不匹配随机报错问题 (#122)
+  - 支持 w2v-bert-2.0 本地离线加载，无需联网 (#72/#113)
+  - 适配 transformers 4.50+ 版本 API 变化 (#117)
+  - 更新 safetensors 版本要求 (#123)
+  - 新增 README 常见问题解答 (FAQ) 部分
+
 ### 2025-06-24
 
 - pro节点新增了对于字幕的json输出，感谢@qy8502提供的玩法思路
@@ -454,8 +465,68 @@ python -m pip install -U "huggingface_hub[hf_xet]"
 
 ## 故障排除
 
+### 常见问题解答 (FAQ)
 
-- 如果出现“模型加载失败”，检查模型文件是否完整且放置在正确目录
+#### Q: w2v-bert-2.0 加载失败 / 401 Unauthorized 错误 (#72/#113)
+
+**问题**: 运行时提示 `401 Client Error: Unauthorized for url: https://huggingface.co/facebook/w2v-bert-2.0`
+
+**解决方案**: 
+1. 下载 w2v-bert-2.0 模型到本地：从 [HuggingFace](https://huggingface.co/facebook/w2v-bert-2.0/tree/main) 下载所有文件
+2. 放置到 `ComfyUI/models/IndexTTS-2/w2v-bert-2.0/` 目录
+3. 确保目录包含 `config.json`、`model.safetensors`、`preprocessor_config.json` 等文件
+4. 重启 ComfyUI，插件会自动使用本地模型，无需联网
+
+#### Q: transformers 版本不兼容 (#117)
+
+**问题**: 使用 transformers>=4.57.1 版本后 TTS2 无法使用
+
+**解决方案**: 
+- 推荐使用 `transformers==4.52.1` 或 `transformers==4.54.1`
+- 安装命令: `pip install transformers==4.52.1`
+- 本插件已适配 transformers 4.50+ 版本的 API 变化
+
+#### Q: SafeTensorFile 没有 get_slice 属性 (#123)
+
+**问题**: `AttributeError: 'SafeTensorFile' object has no attribute 'get_slice'`
+
+**解决方案**: 
+- 升级 safetensors 到最新版本: `pip install safetensors --upgrade`
+- 确保版本 >= 0.4.3
+
+#### Q: tensor 尺寸不匹配随机报错 (#122)
+
+**问题**: 随机出现 `RuntimeError: Sizes of tensors must match except in dimension 1`
+
+**解决方案**: 
+- 此问题已在最新版本中修复
+- 请更新插件到最新版本: `git pull`
+
+#### Q: Python 3.13 / pynini 安装失败 (#125)
+
+**问题**: Ubuntu 24 + Python 3.13 环境下 pynini 编译失败
+
+**解决方案**: 
+- pynini 目前不支持 Python 3.13
+- 建议使用 Python 3.10 或 3.11
+- Windows 用户不需要 pynini，可以忽略此错误
+
+#### Q: 老节点不支持 IndexTTS-2 模型 (#121)
+
+**解决方案**: 
+- 最新版本已支持！在 `Index TTS` 节点的 `model_version` 下拉菜单中选择 `IndexTTS-2` 即可
+- 也可以使用新的 `Index TTS 2 Pro (小说多角色)` 节点进行多角色小说朗读
+
+#### Q: TTS 2.0 读小说功能 (#111)
+
+**解决方案**: 
+- 新增了 `Index TTS 2 Pro (小说多角色)` 节点
+- 支持多角色语音合成，可配合 `小说文本结构化` 节点使用
+- 支持最多 5 个角色 + 旁白
+
+### 其他常见问题
+
+- 如果出现"模型加载失败"，检查模型文件是否完整且放置在正确目录
 - 对于Windows用户，无需额外安装特殊依赖，节点已优化
 - 如果显示CUDA错误，尝试重启ComfyUI或减少`num_beams`值
 - 如果你是pytorch2.7运行报错，短期无法适配，请尝试降级方案(.\python_embeded\python.exe -m pip install transformers==4.48.3)

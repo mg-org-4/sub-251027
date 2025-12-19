@@ -115,15 +115,18 @@ class IndexTTS2:
                 print(">> Failed to load custom CUDA kernel for BigVGAN. Falling back to torch.")
                 self.use_cuda_kernel = False
 
-        # Prefer local w2v-bert-2.0 if present
+        # Prefer local w2v-bert-2.0 if present (fixes #72/#113 - offline loading support)
         local_w2v = os.path.join(self.model_dir, "w2v-bert-2.0")
         if os.path.isdir(local_w2v):
             print(f"[IndexTTS2] Using local w2v-bert-2.0 at {local_w2v}")
-            self.extract_features = SeamlessM4TFeatureExtractor.from_pretrained(local_w2v)
+            self.extract_features = SeamlessM4TFeatureExtractor.from_pretrained(local_w2v, local_files_only=True)
         else:
+            print("[IndexTTS2] w2v-bert-2.0 not found locally, downloading from HuggingFace...")
             self.extract_features = SeamlessM4TFeatureExtractor.from_pretrained("facebook/w2v-bert-2.0")
+        # Pass the local w2v-bert-2.0 path to build_semantic_model for offline support (#72/#113)
         self.semantic_model, self.semantic_mean, self.semantic_std = build_semantic_model(
-            os.path.join(self.model_dir, self.cfg.w2v_stat))
+            os.path.join(self.model_dir, self.cfg.w2v_stat),
+            w2v_model_path=local_w2v if os.path.isdir(local_w2v) else None)
         self.semantic_model = self.semantic_model.to(self.device)
         self.semantic_model.eval()
         self.semantic_mean = self.semantic_mean.to(self.device)
@@ -599,6 +602,13 @@ class IndexTTS2:
                                                                  ylens=target_lengths,
                                                                  n_quantizers=3,
                                                                  f0=None)[0]
+                    # Fix: Ensure prompt_condition and cond have matching batch sizes
+                    # This fixes the random "Sizes of tensors must match" error (#122)
+                    if prompt_condition.size(0) != cond.size(0):
+                        if prompt_condition.size(0) == 1:
+                            prompt_condition = prompt_condition.expand(cond.size(0), -1, -1)
+                        elif cond.size(0) == 1:
+                            cond = cond.expand(prompt_condition.size(0), -1, -1)
                     cat_condition = torch.cat([prompt_condition, cond], dim=1)
                     vc_target = self.s2mel.models['cfm'].inference(cat_condition,
                                                                    torch.LongTensor([cat_condition.size(1)]).to(

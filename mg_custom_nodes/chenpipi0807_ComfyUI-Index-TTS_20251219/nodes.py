@@ -15,6 +15,12 @@ if current_dir not in sys.path:
 
 # 导入TTS模型
 from .tts_models import IndexTTSModel
+# 导入TTS2引擎（用于IndexTTS-2支持）
+try:
+    from .indextts2 import IndexTTS2Loader, IndexTTS2Engine
+    HAS_TTS2 = True
+except ImportError:
+    HAS_TTS2 = False
 
 
 # IndexTTS节点
@@ -29,7 +35,7 @@ class IndexTTSNode:
             "required": {
                 "text": ("STRING", {"multiline": True, "default": "你好，这是一段测试文本。"}),
                 "reference_audio": ("AUDIO", ),
-                "model_version": (["Index-TTS", "IndexTTS-1.5"], {"default": "Index-TTS"}),
+                "model_version": (["Index-TTS", "IndexTTS-1.5", "IndexTTS-2"], {"default": "Index-TTS"}),
                 "language": (["auto", "zh", "en"], {"default": "auto"}),
                 "speed": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 2.0, "step": 0.1}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 2**32 - 1}),
@@ -57,8 +63,12 @@ class IndexTTSNode:
         # 可用模型版本
         self.model_versions = {
             "Index-TTS": os.path.join(self.models_root, "Index-TTS"),
-            "IndexTTS-1.5": os.path.join(self.models_root, "IndexTTS-1.5")
+            "IndexTTS-1.5": os.path.join(self.models_root, "IndexTTS-1.5"),
+            "IndexTTS-2": os.path.join(self.models_root, "IndexTTS-2")
         }
+        # TTS2 引擎（延迟初始化）
+        self.tts2_loader = None
+        self.tts2_engine = None
         # 默认使用 Index-TTS 版本
         self.current_version = "Index-TTS"
         self.model_dir = self.model_versions[self.current_version]
@@ -190,6 +200,32 @@ class IndexTTSNode:
                 traceback.print_exc()
                 raise RuntimeError(f"初始化IndexTTS模型 {self.current_version} 失败: {e}")
     
+    def _process_audio_for_tts2(self, audio):
+        """处理音频格式用于TTS2引擎"""
+        if isinstance(audio, dict) and "waveform" in audio and "sample_rate" in audio:
+            wave = audio["waveform"]
+            sr = int(audio["sample_rate"])
+            if isinstance(wave, torch.Tensor):
+                if wave.dim() == 3:
+                    wave = wave[0, 0].detach().cpu().numpy()
+                elif wave.dim() == 1:
+                    wave = wave.detach().cpu().numpy()
+                else:
+                    wave = wave.flatten().detach().cpu().numpy()
+            elif isinstance(wave, np.ndarray):
+                if wave.ndim == 3:
+                    wave = wave[0, 0]
+                elif wave.ndim == 2:
+                    wave = wave[0]
+            return wave.astype(np.float32), sr
+        elif isinstance(audio, tuple) and len(audio) == 2:
+            wave, sr = audio
+            if isinstance(wave, torch.Tensor):
+                wave = wave.detach().cpu().numpy()
+            return wave.astype(np.float32), int(sr)
+        else:
+            raise ValueError("AUDIO input must be ComfyUI dict or (wave, sr)")
+    
     def generate_speech(self, text, reference_audio, model_version="Index-TTS", language="auto", speed=1.0, seed=0, temperature=1.0, top_p=0.8, top_k=30, repetition_penalty=10.0, length_penalty=0.0, num_beams=3, max_mel_tokens=600, sentence_split="auto"):
         """
         生成语音的主函数
@@ -203,6 +239,10 @@ class IndexTTSNode:
         返回:
             audio: 生成的音频元组 (audio_data, sample_rate)
         """
+        # 如果选择了 IndexTTS-2，使用 TTS2 引擎
+        if model_version == "IndexTTS-2":
+            return self._generate_speech_tts2(text, reference_audio, seed, temperature, top_p, top_k, repetition_penalty, length_penalty, num_beams, max_mel_tokens)
+        
         try:
             # 延迟加载模型或切换模型版本
             if self.tts_model is None or model_version != self.current_version:
@@ -418,4 +458,86 @@ class IndexTTSNode:
                 "sample_rate": sample_rate
             }
             
+            return (audio_dict, seed, "")
+    
+    def _generate_speech_tts2(self, text, reference_audio, seed, temperature, top_p, top_k, repetition_penalty, length_penalty, num_beams, max_mel_tokens):
+        """使用 IndexTTS-2 引擎生成语音"""
+        if not HAS_TTS2:
+            raise RuntimeError("IndexTTS-2 模块未安装，无法使用 IndexTTS-2 模型")
+        
+        try:
+            # 延迟初始化 TTS2 引擎
+            if self.tts2_loader is None:
+                print("[IndexTTS] 初始化 IndexTTS-2 引擎...")
+                self.tts2_loader = IndexTTS2Loader()
+                self.tts2_engine = IndexTTS2Engine(self.tts2_loader)
+            
+            # 处理参考音频
+            ref = self._process_audio_for_tts2(reference_audio)
+            
+            print(f"[IndexTTS] 使用 IndexTTS-2 生成语音，文本长度: {len(text)}")
+            
+            # 调用 TTS2 引擎
+            sr, wave, subtitle = self.tts2_engine.generate(
+                text=text,
+                reference_audio=ref,
+                mode="Auto",
+                do_sample=True,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                num_beams=num_beams,
+                repetition_penalty=repetition_penalty,
+                length_penalty=length_penalty,
+                max_mel_tokens=max_mel_tokens if max_mel_tokens <= 1815 else 1815,
+                seed=seed,
+                return_subtitles=True,
+            )
+            
+            # 转换为 ComfyUI 格式
+            wave_tensor = torch.tensor(wave, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+            audio_dict = {
+                "waveform": wave_tensor,
+                "sample_rate": int(sr)
+            }
+            
+            # 生成简化字幕
+            total_duration = len(wave) / sr
+            import re
+            sentences = re.split(r'([,，.。!！?？;；])', text)
+            sentences = [s + next_s for s, next_s in zip(sentences[::2], sentences[1::2] + [""])] if len(sentences) > 1 else [text]
+            sentences = [s for s in sentences if s.strip()]
+            if not sentences:
+                sentences = [text]
+            
+            sentence_duration = total_duration / len(sentences)
+            simplified_subtitles = []
+            current_time = 0.0
+            
+            for sentence in sentences:
+                if not sentence.strip():
+                    continue
+                start_formatted = self._seconds_to_time_format(current_time)
+                end_formatted = self._seconds_to_time_format(current_time + sentence_duration)
+                simplified_subtitles.append(f">> {start_formatted}-{end_formatted}")
+                simplified_subtitles.append(f">> {sentence.strip()}")
+                current_time += sentence_duration
+            
+            simplified_subtitle_str = "\n".join(simplified_subtitles)
+            
+            print(f"[IndexTTS] IndexTTS-2 语音生成完成，长度: {total_duration:.2f}秒")
+            return (audio_dict, seed, simplified_subtitle_str)
+            
+        except Exception as e:
+            import traceback
+            print(f"[IndexTTS] IndexTTS-2 生成失败: {e}")
+            traceback.print_exc()
+            
+            # 生成错误提示音
+            sample_rate = 24000
+            duration = 1.0
+            t = np.linspace(0, duration, int(sample_rate * duration))
+            signal = np.sin(2 * np.pi * 440 * t).astype(np.float32)
+            signal_tensor = torch.tensor(signal, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+            audio_dict = {"waveform": signal_tensor, "sample_rate": sample_rate}
             return (audio_dict, seed, "")

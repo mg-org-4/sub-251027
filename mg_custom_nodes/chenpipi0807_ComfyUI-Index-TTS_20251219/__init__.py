@@ -26,6 +26,7 @@ from .index_tts2_mode_nodes import (
     IndexTTS2EmotionTextNode,
 )
 from .index_tts2_cache_nodes import IndexTTS2CacheControlNode
+from .index_tts2_pro import IndexTTS2ProNode  # 导入TTS2多角色小说朗读节点
 
 # 注册ComfyUI节点
 NODE_CLASS_MAPPINGS = {
@@ -40,6 +41,7 @@ NODE_CLASS_MAPPINGS = {
     "IndexTTS2EmotionVectorNode": IndexTTS2EmotionVectorNode,
     "IndexTTS2EmotionTextNode": IndexTTS2EmotionTextNode,
     "IndexTTS2CacheControlNode": IndexTTS2CacheControlNode,
+    "IndexTTS2ProNode": IndexTTS2ProNode,  # TTS2多角色小说朗读节点
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -54,6 +56,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "IndexTTS2EmotionVectorNode": "Index TTS 2 - Emotion Vector",
     "IndexTTS2EmotionTextNode": "Index TTS 2 - Emotion Text",
     "IndexTTS2CacheControlNode": "Index TTS 2 - Cache Control",
+    "IndexTTS2ProNode": "Index TTS 2 Pro (小说多角色)",  # TTS2多角色小说朗读节点
 }
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']

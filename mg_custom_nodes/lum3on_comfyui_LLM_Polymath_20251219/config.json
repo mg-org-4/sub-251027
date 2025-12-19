@@ -1,0 +1,46 @@
+[
+  {
+    "baseurl": "https://api.openai.com/v1/images",
+    "models": {
+      "GPT Image 1": "gpt-image-1",
+      "GPT Image 1.5": "gpt-image-1.5"
+    }
+  },
+  {
+    "baseurl": "https://api.anthropic.com/v1",
+    "models": {
+      "Claude 3.7 Sonnet": "claude-3-7-sonnet-20250219",
+      "Claude 3.5 Sonnet": "claude-3-5-sonnet-20241022"
+    }
+  },
+  {
+    "baseurl": "https://api.x.ai/v1",
+    "models": {
+      "Grok 2 Vision": "grok-2-vision-1212",
+      "Grok 2 Image": "grok-2-image-1212",
+      "Grok 2": "grok-2-1212",
+      "Grok 3 Mini": "grok-3-mini-beta",
+      "Grok 3": "grok-3-beta"
+    }
+  },
+  {
+    "baseurl": "https://api.deepseek.com",
+    "models": {
+      "Deepseek Chat": "deepseek-chat",
+      "Deepseek Reasoner": "deepseek-reasoner"
+    }
+  },
+  {
+    "baseurl": "https://generativelanguage.googleapis.com/v1beta",
+    "models": {
+      "Gemini 2.5 Pro Preview": "gemini-2.5-pro-preview-05-06",
+      "Gemini 2.5 Flash Image Preview": "gemini-2.5-flash-image-preview",
+      "Gemini 2.0 Flash Image Generation": "gemini-2.0-flash-preview-image-generation",
+      "Gemini 2.0 Flash": "gemini-2.0-flash",
+      "Gemini 1.5 Flash": "gemini-1.5-flash",
+      "Imagen 3": "imagen-3.0-generate-002",
+      "Gemini 3 Image": "gemini-3.0-image",
+      "Nano Banana Pro": "gemini-3-pro-image-preview"
+    }
+  }
+]

@@ -58,6 +58,91 @@ app.registerExtension({
     }
 });
 
+// ============================================================================
+// STRENGTH SCHEDULE PRESETS (must match Python SCHEDULE_PRESETS)
+// ============================================================================
+const SCHEDULE_PRESETS = {
+    // === No Schedule ===
+    "Custom": "",
+    "Constant 1.0 (No Change)": "0:1, 1:1",
+
+    // === Basic Fades ===
+    "Linear In (0→1)": "0:0, 1:1",
+    "Linear Out (1→0)": "0:1, 1:0",
+
+    // === Ease Curves ===
+    "Ease In (slow start)": "0:0, 0.3:0.1, 0.7:0.5, 1:1",
+    "Ease Out (slow end)": "0:1, 0.3:0.5, 0.7:0.9, 1:0",
+    "Ease In-Out": "0:0, 0.3:0.1, 0.7:0.9, 1:1",
+
+    // === Bell Curves ===
+    "Bell Curve (peak middle)": "0:0, 0.5:1, 1:0",
+    "Wide Bell": "0:0, 0.3:0.8, 0.7:0.8, 1:0",
+    "Sharp Bell": "0:0, 0.4:0.2, 0.5:1, 0.6:0.2, 1:0",
+
+    // === Structure LoRA Favorites ===
+    "High Start → Cut Low": "0:1, 0.3:1, 0.35:0.2, 1:0.2",
+    "High Start → Cut Off": "0:1, 0.3:1, 0.35:0, 1:0",
+    "High Early → Fade": "0:1, 0.2:0.8, 0.5:0.3, 1:0",
+
+    // === Detail LoRA Favorites ===
+    "Low Start → Ramp Late": "0:0, 0.6:0.1, 0.8:0.7, 1:1",
+    "Off → Kick In Late": "0:0, 0.7:0, 0.75:0.8, 1:1",
+    "Low → Boost End": "0:0.2, 0.5:0.2, 0.7:0.6, 1:1",
+
+    // === Step Functions ===
+    "Step Up Mid": "0:0.2, 0.45:0.2, 0.55:0.8, 1:0.8",
+    "Step Down Mid": "0:0.8, 0.45:0.8, 0.55:0.2, 1:0.2",
+    "Two Steps Up": "0:0, 0.3:0, 0.35:0.5, 0.65:0.5, 0.7:1, 1:1",
+
+    // === Pulses ===
+    "Pulse Early": "0:1, 0.25:1, 0.35:0.2, 1:0.2",
+    "Pulse Mid": "0:0.2, 0.4:0.2, 0.45:1, 0.55:1, 0.6:0.2, 1:0.2",
+    "Pulse Late": "0:0.2, 0.65:0.2, 0.75:1, 1:1",
+
+    // === Constant (for testing) ===
+    "Constant Half": "0:0.5, 1:0.5",
+    "Constant Low": "0:0.3, 1:0.3",
+
+    // =========================================================================
+    // INVERTED VERSIONS (same order as above)
+    // =========================================================================
+
+    // === Basic Fades (Inverted) ===
+    "INV: Linear In (1→0)": "0:1, 1:0",
+    "INV: Linear Out (0→1)": "0:0, 1:1",
+
+    // === Ease Curves (Inverted) ===
+    "INV: Ease In": "0:1, 0.3:0.9, 0.7:0.5, 1:0",
+    "INV: Ease Out": "0:0, 0.3:0.5, 0.7:0.1, 1:1",
+    "INV: Ease In-Out": "0:1, 0.3:0.9, 0.7:0.1, 1:0",
+
+    // === Bell Curves (Inverted) ===
+    "INV: Bell (dip middle)": "0:1, 0.5:0, 1:1",
+    "INV: Wide Bell": "0:1, 0.3:0.2, 0.7:0.2, 1:1",
+    "INV: Sharp Bell": "0:1, 0.4:0.8, 0.5:0, 0.6:0.8, 1:1",
+
+    // === Structure Inverted ===
+    "INV: Low Start → Boost High": "0:0, 0.3:0, 0.35:0.8, 1:0.8",
+    "INV: Low Start → Full On": "0:0, 0.3:0, 0.35:1, 1:1",
+    "INV: Low Early → Build": "0:0, 0.2:0.2, 0.5:0.7, 1:1",
+
+    // === Detail Inverted ===
+    "INV: High Start → Drop Late": "0:1, 0.6:0.9, 0.8:0.3, 1:0",
+    "INV: Full → Cut Off Late": "0:1, 0.7:1, 0.75:0.2, 1:0",
+    "INV: High → Drop End": "0:0.8, 0.5:0.8, 0.7:0.4, 1:0",
+
+    // === Step Functions (Inverted) ===
+    "INV: Step Down Mid": "0:0.8, 0.45:0.8, 0.55:0.2, 1:0.2",
+    "INV: Step Up Mid": "0:0.2, 0.45:0.2, 0.55:0.8, 1:0.8",
+    "INV: Two Steps Down": "0:1, 0.3:1, 0.35:0.5, 0.65:0.5, 0.7:0, 1:0",
+
+    // === Pulses (Inverted) ===
+    "INV: Dip Early": "0:0, 0.25:0, 0.35:0.8, 1:0.8",
+    "INV: Dip Mid": "0:0.8, 0.4:0.8, 0.45:0, 0.55:0, 0.6:0.8, 1:0.8",
+    "INV: Dip Late": "0:0.8, 0.65:0.8, 0.75:0, 1:0",
+};
+
 // Impact score color gradient (10% ranges, blue=low to red=high)
 function getImpactColor(score) {
     // score is 0-100
@@ -105,7 +190,8 @@ function getAnalysisFromInput(node) {
 app.registerExtension({
     name: "LoRAAnalyzer.StoreAnalysis",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name !== "LoRALoaderWithAnalysis") return;
+        // Apply to both V1 and V2 analyzers
+        if (nodeData.name !== "LoRALoaderWithAnalysis" && nodeData.name !== "LoRALoaderWithAnalysisV2") return;
 
         const origOnExecuted = nodeType.prototype.onExecuted;
         nodeType.prototype.onExecuted = function(output) {
@@ -156,7 +242,12 @@ const SELECTIVE_LOADER_PRESETS = {
             "Mid-Late (15-29)": { enabled: [...Array.from({length: 15}, (_, i) => `layer_${i + 15}`), "other_weights"], strength: 1.0 },
             "Skip Early (10-29)": { enabled: [...Array.from({length: 20}, (_, i) => `layer_${i + 10}`), "other_weights"], strength: 1.0 },
             "Mid Only (10-19)": { enabled: Array.from({length: 10}, (_, i) => `layer_${i + 10}`), strength: 1.0 },
+            "Early Only (0-9)": { enabled: Array.from({length: 10}, (_, i) => `layer_${i}`), strength: 1.0 },
             "Peak Impact (18-25)": { enabled: Array.from({length: 8}, (_, i) => `layer_${i + 18}`), strength: 1.0 },
+            "Face Priority (16-24)": { enabled: Array.from({length: 9}, (_, i) => `layer_${i + 16}`), strength: 1.0 },
+            "Face Priority Aggressive (14-25)": { enabled: Array.from({length: 12}, (_, i) => `layer_${i + 14}`), strength: 1.0 },
+            "Evens Only": { enabled: Array.from({length: 15}, (_, i) => `layer_${i * 2}`), strength: 1.0 },
+            "Odds Only": { enabled: Array.from({length: 15}, (_, i) => `layer_${i * 2 + 1}`), strength: 1.0 },
         }
     },
     "FLUXSelectiveLoRALoader": {
@@ -182,6 +273,8 @@ const SELECTIVE_LOADER_PRESETS = {
                 ].filter(b => !["double_7", "double_12", "double_16", "single_7", "single_12", "single_16", "single_20"].includes(b)),
                 strength: 1.0
             },
+            "Evens Only": { enabled: [...Array.from({length: 10}, (_, i) => `double_${i * 2}`), ...Array.from({length: 19}, (_, i) => `single_${i * 2}`)], strength: 1.0 },
+            "Odds Only": { enabled: [...Array.from({length: 9}, (_, i) => `double_${i * 2 + 1}`), ...Array.from({length: 19}, (_, i) => `single_${i * 2 + 1}`)], strength: 1.0 },
         }
     },
     "WanSelectiveLoRALoader": {
@@ -195,6 +288,8 @@ const SELECTIVE_LOADER_PRESETS = {
             "Skip Early (10-39)": { enabled: [...Array.from({length: 30}, (_, i) => `block_${i + 10}`), "other_weights"], strength: 1.0 },
             "Mid Only (15-25)": { enabled: Array.from({length: 11}, (_, i) => `block_${i + 15}`), strength: 1.0 },
             "Early Only (0-19)": { enabled: Array.from({length: 20}, (_, i) => `block_${i}`), strength: 1.0 },
+            "Evens Only": { enabled: Array.from({length: 20}, (_, i) => `block_${i * 2}`), strength: 1.0 },
+            "Odds Only": { enabled: Array.from({length: 20}, (_, i) => `block_${i * 2 + 1}`), strength: 1.0 },
         }
     },
     "QwenSelectiveLoRALoader": {
@@ -208,6 +303,100 @@ const SELECTIVE_LOADER_PRESETS = {
             "Skip Early (15-59)": { enabled: [...Array.from({length: 45}, (_, i) => `block_${i + 15}`), "other_weights"], strength: 1.0 },
             "Mid Only (20-40)": { enabled: Array.from({length: 21}, (_, i) => `block_${i + 20}`), strength: 1.0 },
             "Early Only (0-29)": { enabled: Array.from({length: 30}, (_, i) => `block_${i}`), strength: 1.0 },
+            "Evens Only": { enabled: Array.from({length: 30}, (_, i) => `block_${i * 2}`), strength: 1.0 },
+            "Odds Only": { enabled: Array.from({length: 30}, (_, i) => `block_${i * 2 + 1}`), strength: 1.0 },
+        }
+    },
+    // V2 Combined Analyzer + Selective Loaders
+    "ZImageAnalyzerSelectiveLoaderV2": {
+        blocks: [...Array.from({length: 30}, (_, i) => `layer_${i}`), "context_refiner", "noise_refiner", "final_layer", "x_embedder", "other_weights"],
+        presets: {
+            "Default": { enabled: "ALL", strength: 1.0 },
+            "All Off": { enabled: [], strength: 0.0 },
+            "Half Strength": { enabled: "ALL", strength: 0.5 },
+            "Late Only (20-29)": { enabled: [...Array.from({length: 10}, (_, i) => `layer_${i + 20}`), "other_weights"], strength: 1.0 },
+            "Mid-Late (15-29)": { enabled: [...Array.from({length: 15}, (_, i) => `layer_${i + 15}`), "other_weights"], strength: 1.0 },
+            "Skip Early (10-29)": { enabled: [...Array.from({length: 20}, (_, i) => `layer_${i + 10}`), "other_weights"], strength: 1.0 },
+            "Mid Only (10-19)": { enabled: Array.from({length: 10}, (_, i) => `layer_${i + 10}`), strength: 1.0 },
+            "Early Only (0-9)": { enabled: Array.from({length: 10}, (_, i) => `layer_${i}`), strength: 1.0 },
+            "Peak Impact (18-25)": { enabled: Array.from({length: 8}, (_, i) => `layer_${i + 18}`), strength: 1.0 },
+            "Face Priority (16-24)": { enabled: Array.from({length: 9}, (_, i) => `layer_${i + 16}`), strength: 1.0 },
+            "Face Priority Aggressive (14-25)": { enabled: Array.from({length: 12}, (_, i) => `layer_${i + 14}`), strength: 1.0 },
+            "Evens Only": { enabled: Array.from({length: 15}, (_, i) => `layer_${i * 2}`), strength: 1.0 },
+            "Odds Only": { enabled: Array.from({length: 15}, (_, i) => `layer_${i * 2 + 1}`), strength: 1.0 },
+        }
+    },
+    "SDXLAnalyzerSelectiveLoaderV2": {
+        blocks: ["text_encoder_1", "text_encoder_2", "input_4", "input_5", "input_7", "input_8", "unet_mid", "output_0", "output_1", "output_2", "output_3", "output_4", "output_5", "other_weights"],
+        presets: {
+            "Default": { enabled: "ALL", strength: 1.0 },
+            "All Off": { enabled: [], strength: 0.0 },
+            "Half Strength": { enabled: "ALL", strength: 0.5 },
+            "UNet Only": { enabled: ["input_4", "input_5", "input_7", "input_8", "unet_mid", "output_0", "output_1", "output_2", "output_3", "output_4", "output_5", "other_weights"], strength: 1.0 },
+            "High Impact": { enabled: ["input_7", "input_8", "unet_mid", "output_0", "output_1", "output_2"], strength: 1.0 },
+            "Text Encoders Only": { enabled: ["text_encoder_1", "text_encoder_2"], strength: 1.0 },
+            "Decoders Only": { enabled: ["output_0", "output_1", "output_2", "output_3", "output_4", "output_5"], strength: 1.0 },
+            "Encoders Only": { enabled: ["input_4", "input_5", "input_7", "input_8"], strength: 1.0 },
+            "Style Focus": { enabled: ["output_1", "output_2"], strength: 1.0 },
+            "Composition Focus": { enabled: ["input_8", "unet_mid", "output_0"], strength: 1.0 },
+            "Face Focus": { enabled: ["input_7", "input_8", "unet_mid", "output_0", "output_1", "output_2", "output_3"], strength: 1.0 },
+        }
+    },
+    "FLUXAnalyzerSelectiveLoaderV2": {
+        blocks: [
+            ...Array.from({length: 19}, (_, i) => `double_${i}`),
+            ...Array.from({length: 38}, (_, i) => `single_${i}`),
+            "other_weights"
+        ],
+        presets: {
+            "Default": { enabled: "ALL", strength: 1.0 },
+            "All Off": { enabled: [], strength: 0.0 },
+            "Half Strength": { enabled: "ALL", strength: 0.5 },
+            "Double Blocks Only": { enabled: [...Array.from({length: 19}, (_, i) => `double_${i}`), "other_weights"], strength: 1.0 },
+            "Single Blocks Only": { enabled: [...Array.from({length: 38}, (_, i) => `single_${i}`), "other_weights"], strength: 1.0 },
+            "High Impact Double": { enabled: Array.from({length: 13}, (_, i) => `double_${i + 6}`), strength: 1.0 },
+            "Core Double": { enabled: Array.from({length: 10}, (_, i) => `double_${i + 8}`), strength: 1.0 },
+            "Face Focus": { enabled: ["double_7", "double_12", "double_16", "single_7", "single_12", "single_16", "single_20"], strength: 1.0 },
+            "Face Aggressive": { enabled: ["double_4", "double_7", "double_8", "double_12", "double_15", "double_16", "single_4", "single_7", "single_8", "single_12", "single_15", "single_16", "single_19", "single_20"], strength: 1.0 },
+            "Style Only (No Face)": {
+                enabled: [
+                    ...Array.from({length: 19}, (_, i) => `double_${i}`),
+                    ...Array.from({length: 38}, (_, i) => `single_${i}`)
+                ].filter(b => !["double_7", "double_12", "double_16", "single_7", "single_12", "single_16", "single_20"].includes(b)),
+                strength: 1.0
+            },
+            "Evens Only": { enabled: [...Array.from({length: 10}, (_, i) => `double_${i * 2}`), ...Array.from({length: 19}, (_, i) => `single_${i * 2}`)], strength: 1.0 },
+            "Odds Only": { enabled: [...Array.from({length: 9}, (_, i) => `double_${i * 2 + 1}`), ...Array.from({length: 19}, (_, i) => `single_${i * 2 + 1}`)], strength: 1.0 },
+        }
+    },
+    "WanAnalyzerSelectiveLoaderV2": {
+        blocks: [...Array.from({length: 40}, (_, i) => `block_${i}`), "other_weights"],
+        presets: {
+            "Default": { enabled: "ALL", strength: 1.0 },
+            "All Off": { enabled: [], strength: 0.0 },
+            "Half Strength": { enabled: "ALL", strength: 0.5 },
+            "Late Only (30-39)": { enabled: [...Array.from({length: 10}, (_, i) => `block_${i + 30}`), "other_weights"], strength: 1.0 },
+            "Mid-Late (20-39)": { enabled: [...Array.from({length: 20}, (_, i) => `block_${i + 20}`), "other_weights"], strength: 1.0 },
+            "Skip Early (10-39)": { enabled: [...Array.from({length: 30}, (_, i) => `block_${i + 10}`), "other_weights"], strength: 1.0 },
+            "Mid Only (15-25)": { enabled: Array.from({length: 11}, (_, i) => `block_${i + 15}`), strength: 1.0 },
+            "Early Only (0-19)": { enabled: Array.from({length: 20}, (_, i) => `block_${i}`), strength: 1.0 },
+            "Evens Only": { enabled: Array.from({length: 20}, (_, i) => `block_${i * 2}`), strength: 1.0 },
+            "Odds Only": { enabled: Array.from({length: 20}, (_, i) => `block_${i * 2 + 1}`), strength: 1.0 },
+        }
+    },
+    "QwenAnalyzerSelectiveLoaderV2": {
+        blocks: [...Array.from({length: 60}, (_, i) => `block_${i}`), "other_weights"],
+        presets: {
+            "Default": { enabled: "ALL", strength: 1.0 },
+            "All Off": { enabled: [], strength: 0.0 },
+            "Half Strength": { enabled: "ALL", strength: 0.5 },
+            "Late Only (45-59)": { enabled: [...Array.from({length: 15}, (_, i) => `block_${i + 45}`), "other_weights"], strength: 1.0 },
+            "Mid-Late (30-59)": { enabled: [...Array.from({length: 30}, (_, i) => `block_${i + 30}`), "other_weights"], strength: 1.0 },
+            "Skip Early (15-59)": { enabled: [...Array.from({length: 45}, (_, i) => `block_${i + 15}`), "other_weights"], strength: 1.0 },
+            "Mid Only (20-40)": { enabled: Array.from({length: 21}, (_, i) => `block_${i + 20}`), strength: 1.0 },
+            "Early Only (0-29)": { enabled: Array.from({length: 30}, (_, i) => `block_${i}`), strength: 1.0 },
+            "Evens Only": { enabled: Array.from({length: 30}, (_, i) => `block_${i * 2}`), strength: 1.0 },
+            "Odds Only": { enabled: Array.from({length: 30}, (_, i) => `block_${i * 2 + 1}`), strength: 1.0 },
         }
     }
 };
@@ -217,13 +406,19 @@ app.registerExtension({
     name: "SelectiveLoRA.CombinedWidgets",
 
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        // Apply to selective loader nodes
+        // Apply to selective loader nodes (including V2 combined nodes)
         const selectiveLoaders = [
             "SDXLSelectiveLoRALoader",
             "ZImageSelectiveLoRALoader",
             "FLUXSelectiveLoRALoader",
             "WanSelectiveLoRALoader",
-            "QwenSelectiveLoRALoader"
+            "QwenSelectiveLoRALoader",
+            // V2 Combined Analyzer + Selective Loaders
+            "ZImageAnalyzerSelectiveLoaderV2",
+            "SDXLAnalyzerSelectiveLoaderV2",
+            "FLUXAnalyzerSelectiveLoaderV2",
+            "WanAnalyzerSelectiveLoaderV2",
+            "QwenAnalyzerSelectiveLoaderV2"
         ];
 
         if (!selectiveLoaders.includes(nodeData.name)) {
@@ -248,6 +443,7 @@ app.registerExtension({
 
                 node.combineBlockWidgets();
                 node.addPresetWidget(nodeData.name);
+                node.setupSchedulePresetWidget();
 
                 // Double the default width for better slider usability
                 const minWidth = 500;
@@ -412,10 +608,11 @@ app.registerExtension({
                 ctx.lineWidth = 1.5;
                 ctx.strokeRect(checkboxX, y + (widgetHeight - checkboxSize) / 2, checkboxSize, checkboxSize);
 
-                if (enabled) {
-                    ctx.fillStyle = checkboxColor;
-                    ctx.fillRect(checkboxX + 2, y + (widgetHeight - checkboxSize) / 2 + 2, checkboxSize - 4, checkboxSize - 4);
-                }
+                // Always show impact color, but dimmed when disabled
+                ctx.globalAlpha = enabled ? 1.0 : 0.35;
+                ctx.fillStyle = checkboxColor;
+                ctx.fillRect(checkboxX + 2, y + (widgetHeight - checkboxSize) / 2 + 2, checkboxSize - 4, checkboxSize - 4);
+                ctx.globalAlpha = 1.0;
 
                 // Label
                 ctx.fillStyle = enabled ? "#ddd" : "#666";
@@ -581,6 +778,39 @@ app.registerExtension({
             // Resize node
             this.setSize(this.computeSize());
             this.setDirtyCanvas(true);
+        };
+
+        // Setup schedule preset widget to populate strength_schedule text field
+        nodeType.prototype.setupSchedulePresetWidget = function() {
+            const node = this;
+
+            // Find the schedule_preset dropdown widget
+            const schedulePresetWidget = this.widgets.find(w => w.name === "schedule_preset");
+            if (!schedulePresetWidget) return;
+
+            // Find the strength_schedule text widget
+            const strengthScheduleWidget = this.widgets.find(w => w.name === "strength_schedule");
+            if (!strengthScheduleWidget) return;
+
+            // Override callback to fill strength_schedule when preset is selected
+            const origCallback = schedulePresetWidget.callback;
+            schedulePresetWidget.callback = function(value) {
+                // Look up the preset value and fill the text field
+                const scheduleValue = SCHEDULE_PRESETS[value];
+                if (scheduleValue !== undefined) {
+                    strengthScheduleWidget.value = scheduleValue;
+                    node.setDirtyCanvas(true);
+                }
+
+                // Call original callback if it exists
+                if (origCallback) {
+                    origCallback.call(this, value);
+                }
+            };
+
+            // Store reference for later
+            this.schedulePresetWidget = schedulePresetWidget;
+            this.strengthScheduleWidget = strengthScheduleWidget;
         };
 
         // Apply a preset to all block toggles and strengths

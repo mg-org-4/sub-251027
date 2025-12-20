@@ -35,8 +35,8 @@
           <div class="weilin-comfyui-setting-select">
             <label> {{ t('promptBox.settings.selectTranslater') }}</label>
             <select style="margin-left: 10px;" v-model="settingTranslater" class="weilin-comfyui-common-select">
-              <!-- <option value="network"> {{ t('promptBox.settings.selectOptionNetworkTranslator') }}</option>
-              <option value="translater">{{ t('promptBox.settings.selectOptionPythonTranslater') }}</option> -->
+              <!-- <option value="network"> {{ t('promptBox.settings.selectOptionNetworkTranslator') }}</option> -->
+              <option value="translater">{{ t('promptBox.settings.selectOptionPythonTranslater') }}</option>
               <option value="other_ai_plate">使用三方AI平台翻译</option>
               <option value="openai">OpenAI API 翻译</option>
             </select>
@@ -74,12 +74,13 @@
                 {{ t('promptBox.settings.save') }}
               </button>
             </div>
+            <!-- 网络API翻译接口 -->
             <div class="weilin-comfyui-group-box" v-if="settingTranslater == 'translater'">
               <div class="weilin-comfyui-group-title">{{ t('promptBox.settings.selectOptionPythonTranslaterTitle') }}
               </div>
-              <div class="weilin-comfyui-note-top">{{ t('promptBox.settings.selectOptionPythonTranslaterInfo')
-              }}：https://github.com/UlionTse/translators</div>
-              <div class="weilin-comfyui-translater-innstall-status">
+              <!-- <div class="weilin-comfyui-note-top">{{ t('promptBox.settings.selectOptionPythonTranslaterInfo')
+              }}：https://github.com/UlionTse/translators</div> -->
+              <!-- <div class="weilin-comfyui-translater-innstall-status">
                 <div class="weilin-comfyui-translater-install-label">
                   {{ t('promptBox.settings.nowTranlaterPackageState') }} {{ hasTranslaterPackage ?
                     t('promptBox.settings.tranlaterPackageStateTrue') : t('promptBox.settings.tranlaterPackageStateFlase')
@@ -94,8 +95,8 @@
                     {{ installTranslater ? t('promptBox.settings.installed') : t('promptBox.settings.install') }}
                   </button>
                 </div>
-              </div>
-              <div class="weilin-comfyui-translater-setting-box" v-if="hasTranslaterPackage">
+              </div> -->
+              <div class="weilin-comfyui-translater-setting-box">
                 <div class="weilin-comfyui-setting-small-titile">{{ t('promptBox.settings.translaterSetting') }}</div>
                 <div class="weilin-comfyui-setting-item">
                   <label>{{ t('promptBox.settings.chooseTranslaterSetting') }}</label>
@@ -124,15 +125,15 @@
                   {{ t('promptBox.settings.saveTranslaterSetting') }}
                 </button>
               </div>
-              <div class="weilin-comfyui-tranlater-text-box" v-if="hasTranslaterPackage">
+              <div class="weilin-comfyui-tranlater-text-box">
                 <div class="weilin-comfyui-setting-small-titile">{{ t('promptBox.settings.testTranslaterTitle') }}</div>
                 <div class="weilin-comfyui-setting-item">
-                  <label>{{ t('promptBox.settings.inputTestTranslater') }}</label>
+                  <label>{{ t('promptBox.settings.inputTestTranslater') }} - {{ t('translaterLanguage.' +retLanguageName(targetLanguage)) }}</label>
                   <input type="text" v-model="testTranslaterInputText"
                     :placeholder="t('promptBox.settings.inputTestTranslaterPlaceholder')" />
                 </div>
                 <div class="weilin-comfyui-setting-item">
-                  <label>{{ t('promptBox.settings.outPutTestTranslater') }}</label>
+                  <label>{{ t('promptBox.settings.outPutTestTranslater') }} - {{ t('translaterLanguage.' +retLanguageName(sourceLanguage)) }} </label>
                   <input type="text" v-model="testTranslaterOutputText" readonly
                     :placeholder="t('promptBox.settings.outPutTestTranslaterPlaceholder')" />
                 </div>
@@ -570,7 +571,7 @@ const saveFunctionToggles = () => {
   localStorage.setItem('weilin_function_toggles_randomTagSettings', isRandomTagSettingsEnabled.value);
   localStorage.setItem('weilin_function_toggles_translateTag', isTranslateTagEnabled.value);
   localStorage.setItem('weilin_function_toggles_clearDisabled', isClearDisabledEnabled.value);
-  
+
   // 通知父组件更新功能开关状态
   emit('functionTogglesUpdated', {
     clearAll: isClearAllEnabled.value,
@@ -580,7 +581,7 @@ const saveFunctionToggles = () => {
     translateTag: isTranslateTagEnabled.value,
     clearDisabled: isClearDisabledEnabled.value
   });
-  
+
   message({ type: "success", str: 'message.saveSuccess' });
 };
 
@@ -814,33 +815,43 @@ const saveTranslaterSetting = () => {
 
 // 翻译文本
 const translaterTextTest = () => {
-  translatorApi.translaterInputText(testTranslaterInputText.value).then(res => {
-    // console.log(res)
-    testTranslaterOutputText.value = res.text;
-  }).catch(err => {
-    message({ type: "warn", str: 'message.translaterTestFail' });
-  })
+  if (settingTranslater.value == 'translater') {
+    translatorApi.translaterInputText("", testTranslaterInputText.value).then(res => {
+      // console.log(res)
+      testTranslaterOutputText.value = res.data;
+    }).catch(err => {
+      message({ type: "warn", str: 'message.translaterTestFail' });
+    })
+  } else {
+    translatorApi.translaterInputText(testTranslaterInputText.value).then(res => {
+      // console.log(res)
+      testTranslaterOutputText.value = res.text;
+    }).catch(err => {
+      message({ type: "warn", str: 'message.translaterTestFail' });
+    })
+  }
+
 };
 
 const installCheckInterval = ref(null);
 
-const installTranslaterPackage = () => {
-  installTranslater.value = true;
-  translatorApi.installTranslatePackage().then(res => {
-    installTranslater.value = false;
-    hasTranslaterPackage.value = true;
-    // console.log(res)
-    message({ type: "success", str: 'message.tranlaterPackageInstallSuccess' });
-  }).catch(err => {
-    installTranslater.value = false;
-    message({ type: "warn", str: 'message.tranlaterPackageInstallFail' });
-  })
-  // 开始定时检查
-  // installTranslater.value = true;
-  //   installCheckInterval.value = setInterval(() => {
-  //     checkTranskatePackagesState();
-  // }, 1000);
-};
+// const installTranslaterPackage = () => {
+//   installTranslater.value = true;
+//   translatorApi.installTranslatePackage().then(res => {
+//     installTranslater.value = false;
+//     hasTranslaterPackage.value = true;
+//     // console.log(res)
+//     message({ type: "success", str: 'message.tranlaterPackageInstallSuccess' });
+//   }).catch(err => {
+//     installTranslater.value = false;
+//     message({ type: "warn", str: 'message.tranlaterPackageInstallFail' });
+//   })
+//   // 开始定时检查
+//   // installTranslater.value = true;
+//   //   installCheckInterval.value = setInterval(() => {
+//   //     checkTranskatePackagesState();
+//   // }, 1000);
+// };
 
 // const checkTranskatePackagesState = () => {
 //   translatorApi.getTranslatePackagesState().then(res => {
@@ -886,6 +897,11 @@ const saveAutoCompleteSetting = async () => {
     console.error(err)
     message({ type: "warn", str: 'message.networkError' });
   })
+}
+
+const retLanguageName = (code) => {
+  const lang = language.find(lang => lang.translator === code);
+  return lang ? lang.language : code;
 }
 
 // 初始化时加载设置

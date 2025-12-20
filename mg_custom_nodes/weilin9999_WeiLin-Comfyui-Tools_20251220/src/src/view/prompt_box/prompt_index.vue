@@ -267,7 +267,8 @@
         </div>
 
         <!-- 添加一键翻译按钮 -->
-        <button v-if="isTranslateTagEnabled" class="translate-btn random-tag-settings-btn" @click="oneClickTranslatePrompt" :title="t('promptBox.oneClickTranslate')">
+        <button v-if="isTranslateTagEnabled" class="translate-btn random-tag-settings-btn"
+          @click="oneClickTranslatePrompt" :title="t('promptBox.oneClickTranslate')">
           <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" class="token-item-icon" width="24"
             height="24">
             <path
@@ -281,8 +282,8 @@
         </button>
 
         <!-- 添加设置随机Tag规则按钮 -->
-        <button v-if="isRandomTagSettingsEnabled" class="translate-btn random-tag-settings-btn" @click="openRandomTagSettings"
-          :title="t('promptBox.randomTagSettings')">
+        <button v-if="isRandomTagSettingsEnabled" class="translate-btn random-tag-settings-btn"
+          @click="openRandomTagSettings" :title="t('promptBox.randomTagSettings')">
           <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" class="utils-item-icon" width="24"
             height="24">
             <path
@@ -308,19 +309,22 @@
         </button>
 
         <!-- 删除按钮显示开关 -->
-        <button v-if="isDeleteButtonEnabled" class="translate-btn toggle-delete-btn" @click="toggleDeleteButton" 
+        <button v-if="isDeleteButtonEnabled" class="translate-btn toggle-delete-btn" @click="toggleDeleteButton"
           :title="showDeleteButton ? t('promptBox.hideDeleteButton') : t('promptBox.showDeleteButton')"
           :class="{ 'active': showDeleteButton }">
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="utils-item-icon" width="24" height="24">
             <path
               d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
-              fill="currentColor"/>
+              fill="currentColor" />
           </svg>
-          <span class="action-text">{{ showDeleteButton ? t('promptBox.hideDeleteButton') : t('promptBox.showDeleteButton') }}</span>
+          <span class="action-text">{{ showDeleteButton ? t('promptBox.hideDeleteButton') :
+            t('promptBox.showDeleteButton')
+          }}</span>
         </button>
 
         <!-- 一键清空按钮 -->
-        <button v-if="isClearAllEnabled" class="translate-btn clear-all-btn" @click="clearAllPrompt" :title="t('promptBox.oneClickCleanAll')">
+        <button v-if="isClearAllEnabled" class="translate-btn clear-all-btn" @click="clearAllPrompt"
+          :title="t('promptBox.oneClickCleanAll')">
           <svg class="utils-item-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
             p-id="1605" width="24" height="24">
             <path
@@ -340,7 +344,8 @@
         </button>
 
         <!-- 一键清空禁用按钮 -->
-        <button v-if="isClearDisabledEnabled" class="translate-btn clear-disabled-btn" @click="clearDisabledTags" :title="t('promptBox.oneClickClearDisabled')">
+        <button v-if="isClearDisabledEnabled" class="translate-btn clear-disabled-btn" @click="clearDisabledTags"
+          :title="t('promptBox.oneClickClearDisabled')">
           <svg class="utils-item-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
             p-id="1605" width="24" height="24">
             <path
@@ -402,8 +407,8 @@
                 @blur="finishEditing(index)" @keyup.enter="finishEditing(index)"
                 :ref="el => { if (el) tokenInputRefs[index] = el }">
               <!-- 右侧快捷删除按钮 -->
-              <button v-if="showDeleteButton" class="quick-delete-btn" @click.stop="deleteToken(index)" :title="t('promptBox.delete')"
-                style="margin-left: 4px;">
+              <button v-if="showDeleteButton" class="quick-delete-btn" @click.stop="deleteToken(index)"
+                :title="t('promptBox.delete')" style="margin-left: 4px;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path
                     d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
@@ -781,7 +786,7 @@ const isTranslateTagEnabled = ref(localStorage.getItem('weilin_function_toggles_
 const isClearDisabledEnabled = ref(localStorage.getItem('weilin_function_toggles_clearDisabled') !== 'false');
 
 // 监听功能开关变化并保存到 localStorage
-watch([isClearAllEnabled, isDeleteButtonEnabled, isRandomTagEnabled, isRandomTagSettingsEnabled, isTranslateTagEnabled, isClearDisabledEnabled], 
+watch([isClearAllEnabled, isDeleteButtonEnabled, isRandomTagEnabled, isRandomTagSettingsEnabled, isTranslateTagEnabled, isClearDisabledEnabled],
   ([clearAll, deleteButton, randomTag, randomTagSettings, translateTag, clearDisabled]) => {
     localStorage.setItem('weilin_function_toggles_clearAll', String(clearAll));
     localStorage.setItem('weilin_function_toggles_deleteButton', String(deleteButton));
@@ -1903,97 +1908,101 @@ const processInput = async () => {
 };
 
 const oneClickTranslatePrompt = async () => {
-  // const batchSize = 20; // 每批处理的数量
-  // let currentIndex = 0;
 
-  // while (currentIndex < tokens.value.length) {
-  //   const endIndex = Math.min(currentIndex + batchSize, tokens.value.length);
-  //   const promises = [];
+  if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'translater') {
+    const batchSize = 20; // 每批处理的数量
+    let currentIndex = 0;
 
-  //   for (let i = currentIndex; i < endIndex; i++) {
-  //     const token = tokens.value[i];
-  //     // 检查translate是否包含英文字符 /[a-zA-Z]/.test(token.translate)
-  //     if (token.translate && token.translate === token.text) {
-  //       // 提取需要翻译的文本
-  //       const textToTranslate = token.text;
-  //       const promise = new Promise((resolve) => {
+    while (currentIndex < tokens.value.length) {
+      const endIndex = Math.min(currentIndex + batchSize, tokens.value.length);
+      const promises = [];
 
-  //         if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'network') {
-  //           translate.request.translateText(textToTranslate, function (data) {
-  //             if (data.result > 0) {
-  //               const translatedText = data.text.map(item => item.replace(/[\[\]“”]/g, '')).join(', ');
-  //               tokens.value[i].translate = translatedText;
-  //             }
-  //             resolve();
-  //           });
-  //         } else {
-  //           translatorApi.translaterText(textToTranslate).then(res => {
-  //             // console.log(res)
-  //             if (res.text.length > 0) {
-  //               tokens.value[i].translate = res.text;
-  //             }
-  //             resolve();
-  //           })
-  //         }
+      for (let i = currentIndex; i < endIndex; i++) {
+        const token = tokens.value[i];
+        // 检查translate是否包含英文字符 /[a-zA-Z]/.test(token.translate)
+        if (token.translate && (token.translate === token.text || /[a-zA-Z]/.test(token.translate)) && !(typeof token.text === 'string' && token.text.startsWith('<wlr'))) {
+          // 提取需要翻译的文本
+          const textToTranslate = token.text;
+          const promise = new Promise((resolve) => {
 
-  //       });
-  //       promises.push(promise);
-  //     }
-  //   }
-
-  //   // 等待当前批次完成
-  //   await Promise.all(promises);
-  //   currentIndex = endIndex;
-  // }
-
-  const batchSize = 2; // 每批最多2个
-  let currentIndex = 0;
-  const MAX_TOKEN_LENGTH = 20; // 超过20单独翻译
-
-  while (currentIndex < tokens.value.length) {
-    let batchTranslateData = [];
-    let batchTokenIds = [];
-    let batchTokenLength = 0;
-    let batchCount = 0;
-
-    // 收集本批次
-    for (let i = currentIndex; i < tokens.value.length; i++) {
-      const token = tokens.value[i];
-      if (
-        token.translate &&
-        /[a-zA-Z]/.test(token.translate) &&
-        !(typeof token.text === 'string' && token.text.startsWith('<wlr'))
-      ) {
-        const textToTranslate = token.text;
-        const textLen = textToTranslate.length;
-
-        if (textLen > MAX_TOKEN_LENGTH) {
-          // 单独翻译
-          const jsonString = JSON.stringify([{ index: token.id, text: textToTranslate, translate: '' }]);
-          await tryTranslate(jsonString, [token.id]);
-          currentIndex = i + 1;
-          break;
-        } else {
-          batchTranslateData.push({ index: token.id, text: textToTranslate, translate: '' });
-          batchTokenIds.push(token.id);
-          batchTokenLength += textLen;
-          batchCount++;
+            // if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'network') {
+            //   translate.request.translateText(textToTranslate, function (data) {
+            //     if (data.result > 0) {
+            //       const translatedText = data.text.map(item => item.replace(/[\[\]“”]/g, '')).join(', ');
+            //       tokens.value[i].translate = translatedText;
+            //     }
+            //     resolve();
+            //   });
+            // } else {
+            translatorApi.translaterText('', textToTranslate).then(res => {
+              // console.log(res)
+              if (res.data.length > 0) {
+                tokens.value[i].translate = res.data;
+              }
+              resolve();
+            })
+            // }
+          });
+          promises.push(promise);
         }
       }
 
-      // 满2个就发起翻译
-      if (batchCount === batchSize) {
-        break;
+      // 等待当前批次完成
+      await Promise.all(promises);
+      currentIndex = endIndex;
+    }
+  } else {
+
+    const batchSize = 2; // 每批最多2个
+    let currentIndex = 0;
+    const MAX_TOKEN_LENGTH = 20; // 超过20单独翻译
+
+    while (currentIndex < tokens.value.length) {
+      let batchTranslateData = [];
+      let batchTokenIds = [];
+      let batchTokenLength = 0;
+      let batchCount = 0;
+
+      // 收集本批次
+      for (let i = currentIndex; i < tokens.value.length; i++) {
+        const token = tokens.value[i];
+        if (
+          token.translate &&
+          /[a-zA-Z]/.test(token.translate) &&
+          !(typeof token.text === 'string' && token.text.startsWith('<wlr'))
+        ) {
+          const textToTranslate = token.text;
+          const textLen = textToTranslate.length;
+
+          if (textLen > MAX_TOKEN_LENGTH) {
+            // 单独翻译
+            const jsonString = JSON.stringify([{ index: token.id, text: textToTranslate, translate: '' }]);
+            await tryTranslate(jsonString, [token.id]);
+            currentIndex = i + 1;
+            break;
+          } else {
+            batchTranslateData.push({ index: token.id, text: textToTranslate, translate: '' });
+            batchTokenIds.push(token.id);
+            batchTokenLength += textLen;
+            batchCount++;
+          }
+        }
+
+        // 满2个就发起翻译
+        if (batchCount === batchSize) {
+          break;
+        }
       }
+
+      if (batchTranslateData.length > 0) {
+        const jsonString = JSON.stringify(batchTranslateData);
+        await tryTranslate(jsonString, batchTokenIds);
+      }
+
+      // 跳过已处理的token
+      currentIndex += batchCount > 0 ? batchCount : 1;
     }
 
-    if (batchTranslateData.length > 0) {
-      const jsonString = JSON.stringify(batchTranslateData);
-      await tryTranslate(jsonString, batchTokenIds);
-    }
-
-    // 跳过已处理的token
-    currentIndex += batchCount > 0 ? batchCount : 1;
   }
 
 };
@@ -3212,6 +3221,13 @@ const translateFunction = (texts, token) => {
       //打印翻译结果
       // console.log(data);
     });
+  } else if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'translater') {
+    translatorApi.translaterText('', texts).then(res => {
+      // console.log(res)
+      if (res.data.length > 0) {
+        token.translate = res.data;
+      }
+    })
   } else {
 
     let needTranslateData = { index: token.id, text: token.text, translate: '' }
@@ -3262,6 +3278,24 @@ const finishTranslateEnter = () => {
     //   //打印翻译结果
     //   // console.log(data);
     // });
+  } else if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'translater') {
+    // API翻译
+    translatorApi.translaterInputText('', translateText.value).then(res => {
+      // console.log(res)
+      if (res.text.length > 0) {
+        tokens.value.push({
+          text: res.data,
+          translate: translateText.value,
+          isPunctuation: false,
+          isEditing: false,
+          isHidden: false,
+          color: ''
+        });
+        translateText.value = ''
+        updateInputText()
+      }
+    })
+
   } else {
 
     let needTranslateData = { text: translateText.value, translate: '' }
@@ -3994,13 +4028,13 @@ const clearAllPrompt = () => {
 const clearDisabledTags = () => {
   // 过滤掉隐藏的标签，保留其他标签
   const filteredTokens = tokens.value.filter(token => !token.isHidden);
-  
+
   // 更新 tokens 数组
   tokens.value = filteredTokens;
-  
+
   // 重新构建输入文本
   updateInputText();
-  
+
   // 显示成功提示
   message({ type: "success", str: t('promptBox.clearDisabledSuccess') || '已清空所有禁用标签' });
 };

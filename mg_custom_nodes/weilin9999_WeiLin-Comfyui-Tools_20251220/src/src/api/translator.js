@@ -26,22 +26,22 @@ export const translatorApi = {
         })
     },
     // 应用翻译设置
-    // applyTranslateSetting: async (ss) => {
-    //     return await request({
-    //         url: '/translate/apply_setting',
-    //         method: 'post',
-    //         data: { setting: ss  }
-    //     })
-    // },
-    // 安装翻译包
-    installTranslatePackage: async () => {
+    applyTranslateSetting: async (ss) => {
         return await request({
-            url: '/translate/install/translaterpackage',
+            url: '/translate/apply_setting',
             method: 'post',
-            timeout: 0,
-            data: {  }
+            data: { setting: ss  }
         })
     },
+    // 安装翻译包
+    // installTranslatePackage: async () => {
+    //     return await request({
+    //         url: '/translate/install/translaterpackage',
+    //         method: 'post',
+    //         timeout: 0,
+    //         data: {  }
+    //     })
+    // },
     // 获取翻译库设置
     getTranslateBuktSetting: async () => {
         return await request({

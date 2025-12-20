@@ -30,18 +30,23 @@
 
 # 版本更新介绍
 
-> 最新更新：2025-12-06
+> 最新更新：2025-12-19
 
-> 0.0.69 公测版本介绍 如果你要使用本插件请务必进我们的官方 QQ 群（1018231382）！
+> 0.0.70 公测版本介绍 如果你要使用本插件请务必进我们的官方 QQ 群（1018231382）！
 >
-> 1. 合并PR [#50](https://github.com/weilin9999/WeiLin-Comfyui-Tools/pull/50) 感谢各位小伙伴的帮助
->
-> 2. 合并PR [#52](https://github.com/weilin9999/WeiLin-Comfyui-Tools/pull/52) 感谢各位小伙伴的帮助
+> 1. API翻译模式回归，现在翻译接口重写目前只支持 阿里巴巴翻译接口、Bing翻译接口、有道翻译接口（该接口有请求限制不建议使用），目前这三个接口都是免费，后续会写付费的翻译接口对接
 >
 
 <details>
 <summary>点击查看往期更多更新内容</summary>
 
+
+> 0.0.69 公测版本介绍 2025-12-06
+>
+> 1. 合并PR [#50](https://github.com/weilin9999/WeiLin-Comfyui-Tools/pull/50) 感谢各位小伙伴的帮助
+>
+> 2. 合并PR [#52](https://github.com/weilin9999/WeiLin-Comfyui-Tools/pull/52) 感谢各位小伙伴的帮助
+>
 
 > 0.0.68 公测版本介绍 2025-11-08
 >

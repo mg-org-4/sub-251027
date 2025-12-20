@@ -11,6 +11,7 @@ from nodes import MAX_RESOLUTION
 from comfy.utils import common_upscale, ProgressBar, load_torch_file
 from comfy.comfy_types.node_typing import IO
 from comfy_api.latest import io
+from io import BytesIO
 
 script_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 folder_paths.add_model_folder_path("kjnodes_fonts", os.path.join(script_directory, "fonts"))
@@ -212,7 +213,7 @@ Combines multiple conditioning nodes into one
         for c in range(1, inputcount):
             new_cond = kwargs[f"conditioning_{c + 1}"]
             if operation == "combine":
-                cond = cond_combine_node.combine(new_cond, cond)[0]
+                cond = cond_combine_node.combine(cond, new_cond)[0]
             elif operation == "concat":
                 cond = cond_concat_node.concat(cond, new_cond)[0]
         return (cond, inputcount,)
@@ -1632,7 +1633,7 @@ or a .txt file with RealEstate camera intrinsics and coordinates, in a 3D plot.
         
         plt.title('')
         plt.draw()
-        buf = io.BytesIO()
+        buf = BytesIO()
         plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
         buf.seek(0)
         img = Image.open(buf)

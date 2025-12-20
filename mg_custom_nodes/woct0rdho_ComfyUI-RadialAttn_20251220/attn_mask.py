@@ -7,12 +7,13 @@ import torch
 from einops import rearrange, repeat
 from tqdm import tqdm
 
-# try to import block_sparse_sage2_attn_cuda from spas_sage_attn, if it fails, use the one from sparse_sageattn
 try:
     from spas_sage_attn import block_sparse_sage2_attn_cuda
 except ImportError:
-    print("Using sparse_sageattn as block_sparse_sage2_attn_cuda")
-    from sparse_sageattn import sparse_sageattn as block_sparse_sage2_attn_cuda
+    try:
+        from sparse_sageattn import sparse_sageattn as block_sparse_sage2_attn_cuda
+    except ImportError:
+        raise RuntimeError("Failed to import spas_sage_attn. Please install it following the instructions at https://github.com/woct0rdho/SpargeAttn")
 
 
 def get_cuda_arch_versions():
@@ -60,8 +61,8 @@ def shrinkMaskStrict(mask, block_size=128):
     high_density_cols = col_densities > 1 / 3
     frac_high_density_cols = high_density_cols.sum(dim=-1) / (non_zero_densities.sum(dim=-1) + 1e-9)
     block_mask = frac_high_density_cols > 0.6
-    block_mask[0:0] = True
-    block_mask[-1:-1] = True
+    block_mask[0, 0] = True
+    block_mask[-1, -1] = True
     return block_mask
 
 
@@ -155,7 +156,10 @@ def gen_log_mask_shrinked(shape, device, video_token_num, num_frame, block_size=
             final_log_mask[block_row_start:block_row_end, block_col_start:block_col_end] = torch.logical_or(
                 final_log_mask[block_row_start:block_row_end, block_col_start:block_col_end], block_mask
             )
-    tqdm.write(f"mask sparsity: {1 - final_log_mask.sum() / final_log_mask.numel()}")
+
+    if not torch.compiler.is_compiling():
+        tqdm.write(f"mask sparsity: {1 - final_log_mask.sum() / final_log_mask.numel()}")
+
     return final_log_mask
 
 

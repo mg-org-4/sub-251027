@@ -43,8 +43,8 @@ class Load3d {
   STATUS_MOUSE_ON_VIEWER: boolean
   INITIAL_RENDER_DONE: boolean = false
 
-  targetWidth: number = 512
-  targetHeight: number = 512
+  targetWidth: number = 0
+  targetHeight: number = 0
   targetAspectRatio: number = 1
   isViewerMode: boolean = false
 
@@ -72,7 +72,13 @@ class Load3d {
     this.renderer.setClearColor(0x282828)
     this.renderer.autoClear = false
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
-    this.renderer.domElement.classList.add('flex', '!h-full', '!w-full')
+    this.renderer.domElement.classList.add(
+      'absolute',
+      'inset-0',
+      'h-full',
+      'w-full',
+      'outline-none'
+    )
     container.appendChild(this.renderer.domElement)
 
     this.eventManager = new EventManager()
@@ -609,7 +615,7 @@ class Load3d {
   }
 
   handleResize(): void {
-    const parentElement = this.renderer?.domElement
+    const parentElement = this.renderer?.domElement?.parentElement
 
     if (!parentElement) {
       console.warn('Parent element not found')

@@ -1148,7 +1148,7 @@ class IO_load_anyimage:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "file_path": ("STRING", {}),
+                "file_path": ("STRING", {"default": "./input/Apt_in",}),
             },
             "optional": {
                 "max_images": ("INT", {"default": 0, "min": 0, "max": 1000, "step": 1}),

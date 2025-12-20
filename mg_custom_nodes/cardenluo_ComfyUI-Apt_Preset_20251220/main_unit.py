@@ -1875,6 +1875,15 @@ def encode(vae, pixels):
 #region------------------latent----------------------------------------------------#
 
 
+
+def set_mask(latent, mask):
+    s = latent.copy()
+    s["noise_mask"] = mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1]))
+    return (s,)
+
+
+
+
 def set_latent_mask2(latent, mask):
     newlatent = latent.clone()  # 克隆 latent
     if mask is not None:

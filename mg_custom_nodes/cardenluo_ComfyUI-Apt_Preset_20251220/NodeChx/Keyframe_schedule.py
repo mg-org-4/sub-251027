@@ -18,6 +18,18 @@ from ..main_unit import *
 
 
 
+
+
+try:
+    from toolz.itertoolz import sliding_window
+    REMOVER_AVAILABLE = True  
+except ImportError:
+    sliding_window = None
+    REMOVER_AVAILABLE = False  
+
+
+
+
 try:
     from sortedcontainers import SortedDict
 except ImportError:
@@ -1321,7 +1333,8 @@ class AD_Evaluate_Condi:
 
 #region-------------------drawing schedule--------------------
 
-from toolz.itertoolz import sliding_window
+
+
 
 def schedule_to_weight_curves(schedule):
     schedule, _ = schedule

@@ -1282,7 +1282,8 @@ class ZImageFun(QwenImageDiffsynthControlnet):
 
 
 
-class pre_ZImageInpaint_patch:
+
+class XXpre_ZImageInpaint_patch:
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -1295,12 +1296,13 @@ class pre_ZImageInpaint_patch:
                 "inpaint_image": ("IMAGE", ),
                 "mask": ("MASK", ),
 
+
             },
 
         }
 
-    RETURN_TYPES = ("RUN_CONTEXT","MODEL","CONDITIONING","CONDITIONING","LATENT" )
-    RETURN_NAMES = ("context","model","positive","negative","latent" )
+    RETURN_TYPES = ("RUN_CONTEXT","MODEL", )
+    RETURN_NAMES = ("context","model", )
     CATEGORY = "Apt_Preset/chx_tool/controlnet"
     FUNCTION = "load_controlnet"
 
@@ -1314,18 +1316,242 @@ class pre_ZImageInpaint_patch:
 
         vae = context.get("vae", None)
         model = context.get("model", None)
-        positive = context.get("positive", None)
-        negative = context.get("negative", None)
-        latent = context.get("latent", None)
+
 
 
         cn1=ModelPatchLoader().load_model_patch(controlnet)[0]
         model=ZImageFun().diffsynth_controlnet(model, cn1, vae, image, strength, inpaint_image, mask)[0]
 
+
+        context = new_context(context, model=model)
+        return (context, model)
+
+
+
+
+
+class xxxpre_ZImageInpaint_patch:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {"context": ("RUN_CONTEXT",),
+            },
+            "optional": {
+                "image": ("IMAGE",),
+                "controlnet": (folder_paths.get_filename_list("model_patches"), {"default":"Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors"}),
+                "strength": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 2.0, "step": 0.01}),         
+                "latent_image": ("IMAGE", ),
+                "latent_mask": ("MASK", ),
+                "diffDiffusion": ("BOOLEAN", {"default": True}),
+                "smoothness": ("INT", {"default": 0, "min": 0, "max": 1000, "step": 1, }),
+
+            },
+
+        }
+
+    RETURN_TYPES = ("RUN_CONTEXT","MODEL","LATENT" )
+    RETURN_NAMES = ("context","model","latent" )
+    CATEGORY = "Apt_Preset/chx_tool/controlnet"
+    FUNCTION = "load_controlnet"
+
+
+
+
+    def addConditioning(self,positive, negative, pixels, vae, mask=None):
+        x = (pixels.shape[1] // 8) * 8
+        y = (pixels.shape[2] // 8) * 8
+        
+        orig_pixels = pixels
+        pixels = orig_pixels.clone()
+        
+        # 如果提供了 mask，则进行相关处理
+        if mask is not None:
+            mask = torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])), size=(pixels.shape[1], pixels.shape[2]), mode="bilinear")
+            
+            if pixels.shape[1] != x or pixels.shape[2] != y:
+                x_offset = (pixels.shape[1] % 8) // 2
+                y_offset = (pixels.shape[2] % 8) // 2
+                pixels = pixels[:,x_offset:x + x_offset, y_offset:y + y_offset,:]
+                mask = mask[:,:,x_offset:x + x_offset, y_offset:y + y_offset]
+
+            m = (1.0 - mask.round()).squeeze(1)
+            for i in range(3):
+                pixels[:,:,:,i] -= 0.5
+                pixels[:,:,:,i] *= m
+                pixels[:,:,:,i] += 0.5
+                
+            concat_latent = vae.encode(pixels)
+            
+            out_latent = {}
+            out_latent["samples"] = vae.encode(orig_pixels)
+            out_latent["noise_mask"] = mask
+        else:
+            # 如果没有提供 mask，直接编码原始像素
+            concat_latent = vae.encode(pixels)
+            out_latent = {"samples": concat_latent}
+
+        out = []
+        for conditioning in [positive, negative]:
+            c = node_helpers.conditioning_set_values(conditioning, {"concat_latent_image": concat_latent})
+            # 只有当 mask 存在时才添加 concat_mask
+            if mask is not None:
+                c = node_helpers.conditioning_set_values(c, {"concat_mask": mask})
+            out.append(c)
+        
+        return (out[0], out[1], out_latent)
+
+
+
+
+
+    def load_controlnet(self, 
+                        strength,  
+                        context=None, 
+                        controlnet=None,  smoothness=0,diffDiffusion=True,
+                        image=None, vae=None,latent_image=None, latent_mask=None,):
+
+
+        vae = context.get("vae", None)
+        model = context.get("model", None)
+        latent = context.get("latent", None)
+
+        if latent_mask is not None:
+            if smoothness > 0:
+               latent_mask = smoothness_mask(latent_mask, smoothness)
+            latent = set_mask(latent, latent_mask)[0]
+
+
+        cn1=ModelPatchLoader().load_model_patch(controlnet)[0]
+        model=ZImageFun().diffsynth_controlnet(model, cn1, vae, image, strength, latent_image, latent_mask)[0]
+
+        if diffDiffusion:
+            model = DifferentialDiffusion().apply(model)[0]
+
+
+        if latent_image is not None:
+            positive, negative, latent = self.addConditioning(
+                positive, negative, latent_image, vae, 
+                mask=latent_mask if latent_mask is not None else None)
+
+
+
+          
+        context = new_context(context, model=model, latent=latent)
+        return (context, model, latent)
+
+
+
+
+
+class pre_ZImageInpaint_patch:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {"context": ("RUN_CONTEXT",),
+            },
+            "optional": {
+                "image": ("IMAGE",),
+                "controlnet": (['None'] + folder_paths.get_filename_list("model_patches"),{"default":"Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors"}),
+                "strength": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 2.0, "step": 0.01}),         
+                "latent_image": ("IMAGE", ),
+                "latent_mask": ("MASK", ),
+                "diffDiffusion": ("BOOLEAN", {"default": True}),
+                "smoothness": ("INT", {"default": 0, "min": 0, "max": 1000, "step": 1, }),
+
+            },
+
+        }
+
+    RETURN_TYPES = ("RUN_CONTEXT","MODEL","CONDITIONING","CONDITIONING","LATENT" )
+    RETURN_NAMES = ("context","model","positive","negative","latent" )
+    CATEGORY = "Apt_Preset/chx_tool/controlnet"
+    FUNCTION = "load_controlnet"
+
+
+
+
+    def addConditioning(self,positive, negative, pixels, vae, mask=None):
+        x = (pixels.shape[1] // 8) * 8
+        y = (pixels.shape[2] // 8) * 8
+        
+        orig_pixels = pixels
+        pixels = orig_pixels.clone()
+        
+        # 如果提供了 mask，则进行相关处理
+        if mask is not None:
+            mask = torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])), size=(pixels.shape[1], pixels.shape[2]), mode="bilinear")
+            
+            if pixels.shape[1] != x or pixels.shape[2] != y:
+                x_offset = (pixels.shape[1] % 8) // 2
+                y_offset = (pixels.shape[2] % 8) // 2
+                pixels = pixels[:,x_offset:x + x_offset, y_offset:y + y_offset,:]
+                mask = mask[:,:,x_offset:x + x_offset, y_offset:y + y_offset]
+
+            m = (1.0 - mask.round()).squeeze(1)
+            for i in range(3):
+                pixels[:,:,:,i] -= 0.5
+                pixels[:,:,:,i] *= m
+                pixels[:,:,:,i] += 0.5
+                
+            concat_latent = vae.encode(pixels)
+            
+            out_latent = {}
+            out_latent["samples"] = vae.encode(orig_pixels)
+            out_latent["noise_mask"] = mask
+        else:
+            # 如果没有提供 mask，直接编码原始像素
+            concat_latent = vae.encode(pixels)
+            out_latent = {"samples": concat_latent}
+
+        out = []
+        for conditioning in [positive, negative]:
+            c = node_helpers.conditioning_set_values(conditioning, {"concat_latent_image": concat_latent})
+            # 只有当 mask 存在时才添加 concat_mask
+            if mask is not None:
+                c = node_helpers.conditioning_set_values(c, {"concat_mask": mask})
+            out.append(c)
+        
+        return (out[0], out[1], out_latent)
+
+
+
+
+
+    def load_controlnet(self, 
+                        strength,  
+                        context=None, 
+                        controlnet=None,  smoothness=0, diffDiffusion=True,
+                        image=None, vae=None,latent_image=None, latent_mask=None,):
+
+
+        vae = context.get("vae", None)
+        model = context.get("model", None)
+        positive = context.get("positive", None)
+        negative = context.get("negative", None)
+        latent = context.get("latent", None)
+
+        if latent_mask is not None:
+            if smoothness > 0:
+               latent_mask = smoothness_mask(latent_mask, smoothness)
+            latent = set_mask(latent, latent_mask)[0]
+
+        if controlnet != "None":
+            cn1=ModelPatchLoader().load_model_patch(controlnet)[0]
+            model=ZImageFun().diffsynth_controlnet(model, cn1, vae, image, strength, latent_image, latent_mask)[0]
+
+ 
+        if latent_image is not None:
+            positive, negative, latent = self.addConditioning(
+                positive, negative, latent_image, vae, 
+                mask=latent_mask if latent_mask is not None else None)
+            
+            
+        if diffDiffusion:
+            model = DifferentialDiffusion().apply(model)[0]
+
+
         context = new_context(context, model=model, positive=positive, negative=negative, latent=latent)
         return (context, model, positive, negative, latent)
-
-
 
 
 

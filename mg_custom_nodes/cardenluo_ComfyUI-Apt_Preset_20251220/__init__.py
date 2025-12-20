@@ -121,8 +121,10 @@ NODE_CLASS_MAPPINGS= {
 
 #---------control tool------------------------------------------#
 
+
 "pre_ZImageInpaint_patch": pre_ZImageInpaint_patch,
 "pre_qwen_controlnet": pre_qwen_controlnet,    
+
 
 "pre_Kontext": pre_Kontext,                           
 "pre_Kontext_mul_mask": pre_Kontext_mul,
@@ -144,6 +146,8 @@ NODE_CLASS_MAPPINGS= {
 "pre_latent_light": pre_latent_light,
 "pre_guide": pre_guide,
 "pre_sample_data": pre_sample_data,
+
+
 
 
 #-IPA-------------------------------------------#
@@ -371,9 +375,9 @@ NODE_CLASS_MAPPINGS= {
 
 
 #-------------------------------------------------------------
-"Image_solo_crop": Image_solo_crop,  
-"Image_solo_stitch": Image_solo_stitch,    
 
+"Image_solo_stitch": Image_solo_stitch,    
+"Image_solo_crop2": Image_solo_crop2,
 
 "Image_Channel_Apply": Image_Channel_Apply,   
 "Image_Solo_data":Image_Solo_data,
@@ -385,10 +389,9 @@ NODE_CLASS_MAPPINGS= {
 "Image_UpscaleModel": Image_UpscaleModel,    
 
 "Image_CnMap_Resize": Image_CnMap_Resize,
-
 "Image_Pair_Merge": Image_Pair_Merge,  
 "Image_Pair_crop": Image_Pair_crop, 
-"Image_transform_layer_adv":Image_transform_layer_adv,  #--------------------------test
+"Image_transform_layer_adv":Image_transform_layer_adv,  
 
 
 
@@ -410,6 +413,21 @@ NODE_CLASS_MAPPINGS= {
 
 
 
+#---****------------------
+
+"Image_solo_crop": Image_solo_crop,  
+"Image_safe_size":Image_safe_size,
+"Image_target_adjust":Image_target_adjust,
+"Image_Resize_longsize": Image_Resize_longsize,
+"Image_batch_composite": Image_batch_composite,
+"Image_precision_Converter":Image_precision_Converter,  
+"Image_transform_layer":Image_transform_layer,   
+
+
+
+
+#----------------Coordinate--------
+
 "Coordinate_SplitIndex":Coordinate_SplitIndex,
 "Coordinate_Generator":Coordinate_Generator,
 "Coordinate_fromImage":Coordinate_fromImage,
@@ -421,17 +439,7 @@ NODE_CLASS_MAPPINGS= {
 
 
 
-#"color_selector":color_selector,   # bug
 
-#---****------------------
-
-
-"Image_safe_size":Image_safe_size,
-"Image_target_adjust":Image_target_adjust,
-"Image_Resize_longsize": Image_Resize_longsize,
-"Image_batch_composite": Image_batch_composite,
-"Image_precision_Converter":Image_precision_Converter,  
-"Image_transform_layer":Image_transform_layer,   
 
 
 #----------------imgEffect--------
@@ -538,6 +546,7 @@ NODE_CLASS_MAPPINGS= {
 
 "flow_clear_cache": flow_clear_cache,
 "flow_judge":flow_judge,
+"flow_bridge_image":flow_bridge_image,
 "flow_auto_pixel":flow_auto_pixel, 
 "flow_switch":flow_switch,
 "flow_low_gpu":flow_low_gpu,
@@ -568,6 +577,7 @@ NODE_CLASS_MAPPINGS= {
 
 
 
+
 "type_BasiPIPE": type_BasiPIPE, #(Deprecated) #TITLE = "load_FLUX (Deprecated)"    CATEGORY = "Apt_Preset/🚫Deprecated/🚫"
 "lay_imgCanvas":lay_imgCanvasNode, #(Deprecated)
 "Image_Resize2": Image_Resize2,#(Deprecated)
@@ -580,7 +590,7 @@ NODE_CLASS_MAPPINGS= {
 "Data_sampleData": Data_sampleData,#(Deprecated)
 "Data_presetData":Data_presetData,#(Deprecated)
 
-"text_batch_combine ": text_batch_combine ,  #(Deprecated)
+"text_list_combine ": text_list_combine ,  #(Deprecated)
 
 "img_effect_CircleWarp": img_effect_CircleWarp,#(Deprecated)
 "img_effect_Stretch": img_effect_Stretch,#(Deprecated)
@@ -627,9 +637,9 @@ NODE_CLASS_MAPPINGS= {
 
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+"pre_qwen_controlnet": "pre_qwenModelPatch_CN"
   
 }
-
 
 
 

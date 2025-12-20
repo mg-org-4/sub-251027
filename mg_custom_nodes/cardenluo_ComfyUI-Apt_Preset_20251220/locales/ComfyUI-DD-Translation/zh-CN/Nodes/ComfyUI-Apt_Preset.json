@@ -904,6 +904,35 @@
             "latent": "潜空间"
         }
     },
+
+    "pre_ZImageModelPatch_CN": {
+        "title": "pre_模型补丁CN",
+        "inputs": {
+            "context": "上下文",
+            "image1": "图像1",
+            "image2": "图像2",
+            "image3": "图像3",
+            "latent_image": "潜空间图像",
+            "latent_mask": "潜空间遮罩"
+        },
+        "widgets": {
+            "controlnet1": "ControlNet1",
+            "strength1": "强度1",
+            "controlnet2": "ControlNet2",
+            "strength2": "强度2",
+            "controlnet3": "ControlNet3",
+            "strength3": "强度3"
+        },
+        "outputs": {
+            "context": "上下文",
+            "model": "模型",
+            "positive": "正向提示词",
+            "negative": "负向提示词",
+            "latent": "潜空间"
+        }
+    },
+
+
     "pre_Kontext": {
         "title": "pre_Kontext",
         "inputs": {
@@ -5630,8 +5659,8 @@
             "batch": "批次"
         }
     },
-    "text_batch_combine ": {
-        "title": "text_批次组合",
+    "text_list_combine ": {
+        "title": "text_list组合",
         "inputs": {},
         "widgets": {
             "text_list": "文本列表",

@@ -2007,8 +2007,9 @@
       }
     }
   },
+
   "pre_qwen_controlnet": {
-    "display_name": "pre_qwen_ControlNet",
+    "display_name": "pre_qwen模型补丁",
     "inputs": {
       "context": {
         "name": "上下文"
@@ -2065,6 +2066,39 @@
       }
     }
   },
+
+  "pre_ZImageInpaint_patch": {
+    "display_name": "pre_Zimage重绘补丁",
+    "inputs": {
+      "context": {
+        "name": "上下文"
+      },
+      "image": {
+        "name": "图像"
+      },
+      "controlnet": {
+        "name": "ControlNet"
+      },
+      "strength": {
+        "name": "强度"
+      },
+      "diffDiffusion": {
+        "name": "差异扩散"
+      },
+      "smoothness": {
+        "name": "遮罩平滑"
+      },
+      "latent_image": {
+        "name": "潜空间图像"
+      },
+      "latent_mask": {
+        "name": "潜空间遮罩"
+      }
+    },
+    "outputs": {
+    }
+  },
+
   "pre_Kontext": {
     "display_name": "pre_Kontext",
     "inputs": {
@@ -11227,8 +11261,8 @@
       }
     }
   },
-  "text_batch_combine ": {
-    "display_name": "text_批次合并",
+  "text_list_combine ": {
+    "display_name": "text_list合并",
     "inputs": {
       "text_list": {
         "name": "文本列表"

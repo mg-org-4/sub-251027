@@ -40,8 +40,6 @@ class WanVacePhantomSimple:
 
     CATEGORY = "WanVaceAdvanced"
 
-    DEPRECATED = True
-
     def encode(self, positive, negative, vae, width, height, length, batch_size,
                vace_strength=1.0, vace_ref_strength=1.0,
                control_video=None, control_masks=None, vace_reference=None, phantom_images=None):
@@ -96,8 +94,6 @@ class WanVacePhantomDual:
 
     CATEGORY = "WanVaceAdvanced"
 
-    DEPRECATED = True
-
     def encode(self, positive, negative, vae, width, height, length, batch_size,
                vace_strength=1.0, vace_strength2=1.0, vace_ref_strength=1.0, vace_ref_strength2=1.0,
                control_video=None, control_masks=None, vace_reference=None,
@@ -151,9 +147,7 @@ class WanVacePhantomExperimental:
     FUNCTION = "encode"
 
     CATEGORY = "WanVaceAdvanced"
-
     EXPERIMENTAL = True
-    DEPRECATED = True
 
     def encode(self, positive, negative, vae, width, height, length, batch_size,
                vace_strength=1.0, vace_strength2=1.0, vace_ref_strength=None, vace_ref_strength2=None,
@@ -179,7 +173,7 @@ class WanVacePhantomSimpleV2:
 
     @classmethod
     def INPUT_TYPES(s):
-        return {"required": {
+        return {"optional": {
             "model": ("MODEL", ),
             "positive": ("CONDITIONING", ),
             "negative": ("CONDITIONING", ),
@@ -188,8 +182,6 @@ class WanVacePhantomSimpleV2:
             "height": ("INT", {"default": 480, "min": 16, "max": nodes.MAX_RESOLUTION, "step": 16}),
             "length": ("INT", {"default": 81, "min": 1, "max": nodes.MAX_RESOLUTION, "step": 4}),
             "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
-        },
-        "optional": {
             "latent_in": ("LATENT", {"tooltip": "Optional latent input to continue from"}),
             "control_video": ("IMAGE", ),
             "control_masks": ("MASK", ),
@@ -205,10 +197,19 @@ class WanVacePhantomSimpleV2:
 
     CATEGORY = "WanVaceAdvanced"
 
-    def encode(self, positive, negative, vae, width, height, length, batch_size,
-               model = None, latent_in = None,
+    def encode(self, positive=None, negative=None, vae=None, width=832, height=480, length=81, batch_size=1,
+               model=None, latent_in=None,
                vace_strength=1.0, vace_ref_strength=1.0,
                control_video=None, control_masks=None, vace_reference=None, phantom_images=None):
+
+        if positive is None:
+            raise ValueError("Positive conditioning is required. Please connect a conditioning input.")
+
+        if negative is None:
+            negative = positive
+
+        if vae is None:
+            raise ValueError("VAE is required. Please connect a VAE.")
 
         vace_strength_2 = 1.0
         vace_ref_strength_2 = 1.0
@@ -263,7 +264,7 @@ class WanVacePhantomDualV2:
 
     @classmethod
     def INPUT_TYPES(s):
-        return {"required": {
+        return {"optional": {
             "model": ("MODEL", ),
             "positive": ("CONDITIONING", ),
             "negative": ("CONDITIONING", ),
@@ -272,8 +273,6 @@ class WanVacePhantomDualV2:
             "height": ("INT", {"default": 480, "min": 16, "max": nodes.MAX_RESOLUTION, "step": 16}),
             "length": ("INT", {"default": 81, "min": 1, "max": nodes.MAX_RESOLUTION, "step": 4}),
             "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
-        },
-        "optional": {
             # Latent
             "latent_in": ("LATENT", {"tooltip": "Optional latent input to continue from"}),
             # First Vace Control
@@ -298,13 +297,22 @@ class WanVacePhantomDualV2:
 
     CATEGORY = "WanVaceAdvanced"
 
-    def encode(self, positive, negative, vae, width, height, length, batch_size,
-                model = None, latent_in = None,
+    def encode(self, positive=None, negative=None, vae=None, width=832, height=480, length=81, batch_size=1,
+                model=None, latent_in=None,
                 vace_strength_1=1.0, vace_strength_2=1.0, vace_ref_strength_1=1.0, vace_ref_strength_2=1.0,
                 control_video_1=None, control_masks_1=None, vace_reference_1=None,
                 control_video_2=None, control_masks_2=None, vace_reference_2=None,
                 phantom_images=None):
-        
+
+        if positive is None:
+            raise ValueError("Positive conditioning is required. Please connect a conditioning input.")
+
+        if negative is None:
+            negative = positive
+
+        if vae is None:
+            raise ValueError("VAE is required. Please connect a VAE.")
+
         # If a latent input is provided, ensure the node width/height match the latent's decoded pixel size.
         # Latent tensors are expected shape [..., C, T, H_latent, W_latent] -> pixel size = H_latent * vae_stride, W_latent * vae_stride
         vae_stride = 8
@@ -354,7 +362,7 @@ class WanVacePhantomExperimentalV2:
     
     @classmethod
     def INPUT_TYPES(s):
-        return {"required": {
+        return {"optional": {
                             "model": ("MODEL", ),
                             "positive": ("CONDITIONING", ),
                             "negative": ("CONDITIONING", ),
@@ -363,8 +371,6 @@ class WanVacePhantomExperimentalV2:
                             "height": ("INT", {"default": 480, "min": 16, "max": nodes.MAX_RESOLUTION, "step": 16}),
                             "length": ("INT", {"default": 81, "min": 1, "max": nodes.MAX_RESOLUTION, "step": 4}),
                             "batch_size": ("INT", {"default": 1, "min": 1, "max": 4096}),
-                },
-                "optional": {
                             # Latent input
                             "latent_in": ("LATENT", {"tooltip": "Optional latent input to continue from"}),
                             # First VACE control
@@ -395,7 +401,7 @@ class WanVacePhantomExperimentalV2:
     CATEGORY = "WanVaceAdvanced"
     EXPERIMENTAL = True
 
-    def encode(self, positive, negative, vae, width, height, length, batch_size,
+    def encode(self, positive=None, negative=None, vae=None, width=832, height=480, length=81, batch_size=1,
                model=None, latent_in=None,
                vace_strength_1=1.0, vace_strength_2=1.0, vace_ref_strength_1=None, vace_ref_strength_2=None,
                control_video_1=None, control_masks_1=None, vace_reference_1=None,
@@ -403,7 +409,16 @@ class WanVacePhantomExperimentalV2:
                phantom_images=None, phantom_mask_value=1.0, phantom_control_value=0.0, phantom_vace_strength=1.0,
                wva_options=None,
                ):
-        
+
+        if positive is None:
+            raise ValueError("Positive conditioning is required. Please connect a conditioning input.")
+
+        if negative is None:
+            negative = positive
+
+        if vae is None:
+            raise ValueError("VAE is required. Please connect a VAE.")
+
         # If a latent input is provided, ensure the node width/height match the latent's decoded pixel size.
         # Latent tensors are expected shape [..., C, T, H_latent, W_latent] -> pixel size = H_latent * vae_stride, W_latent * vae_stride
         vae_stride = 8
@@ -1133,6 +1148,107 @@ class WanNoiseMaskToLatentSpace:
         return (mask_out,)
 
 
+class WanVaceWindowReferences:
+    """
+    Provides a batch of reference images to be distributed across context windows.
+    Each context window receives the next reference image in round-robin order:
+    window 0 → ref 0, window 1 → ref 1, etc., wrapping if more windows than references.
+
+    This enables different reference images for different portions of a long video
+    when using context windows for extended video generation.
+    """
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "reference_images": ("IMAGE",),  # Batch [N, H, W, C]
+            },
+            "optional": {
+                "width": ("INT", {"default": 832, "min": 16, "max": nodes.MAX_RESOLUTION, "step": 16,
+                    "tooltip": "Target width for reference images. Images will be resized to match."}),
+                "height": ("INT", {"default": 480, "min": 16, "max": nodes.MAX_RESOLUTION, "step": 16,
+                    "tooltip": "Target height for reference images. Images will be resized to match."}),
+                "explicit_ref_mapping": ("STRING", {
+                    "default": "",
+                    "tooltip": "Explicit mapping of references to windows. Format: '0,1,2,1,0' maps ref[0] to window 0, "
+                              "ref[1] to window 1, etc. If empty, uses round-robin. Extra windows repeat last entry."
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING")
+    RETURN_NAMES = ("positive", "negative")
+    FUNCTION = "encode"
+    CATEGORY = "WanVaceAdvanced"
+
+    def encode(self, positive, negative, vae, reference_images, width=832, height=480, explicit_ref_mapping=""):
+        """
+        Encode each reference image through VAE and store as a batch for per-window injection.
+
+        The encoded references are stored in conditioning under 'window_reference_batch'.
+        During context window processing, the callback will select the appropriate reference
+        for each window using explicit_ref_mapping if provided, otherwise round-robin.
+
+        Args:
+            explicit_ref_mapping: Optional string like "0,1,2,1,0" for explicit window-to-ref mapping.
+                                  If empty, uses round-robin (window_idx % num_refs).
+        """
+        import comfy.utils
+
+        # Ensure we have at least one reference image
+        if reference_images is None or len(reference_images) == 0:
+            logging.warning("WanVaceWindowReferences: No reference images provided")
+            return (positive, negative)
+
+        num_refs = reference_images.shape[0]
+        logging.info(f"WanVaceWindowReferences: Encoding {num_refs} reference image(s)")
+
+        encoded_refs = []
+
+        for i in range(num_refs):
+            # Get single reference image [H, W, C]
+            ref_image = reference_images[i:i+1]  # Keep batch dim [1, H, W, C]
+
+            # Resize to target dimensions
+            ref_scaled = comfy.utils.common_upscale(
+                ref_image.movedim(-1, 1),  # [1, C, H, W]
+                width, height,
+                "bilinear", "center"
+            ).movedim(1, -1)  # [1, H, W, C]
+
+            # Encode through VAE (only RGB channels)
+            ref_encoded = vae.encode(ref_scaled[:, :, :, :3])
+            # ref_encoded shape: [1, 16, T_latent, H_latent, W_latent] where T_latent=1 for single image
+
+            # For VACE injection, we need 32 channels: 16 for the reference + 16 zeros
+            # This matches how vace_references_encoded is created in vace_encoding.py
+            ref_with_zeros = torch.cat([
+                ref_encoded,
+                comfy.latent_formats.Wan21().process_out(torch.zeros_like(ref_encoded))
+            ], dim=1)
+            # ref_with_zeros shape: [1, 32, T_latent, H_latent, W_latent]
+
+            encoded_refs.append(ref_with_zeros)
+
+        logging.info(f"WanVaceWindowReferences: Encoded {len(encoded_refs)} references, shape: {encoded_refs[0].shape}")
+
+        # Store the list of encoded references and optional mapping in conditioning
+        # The callback will select the appropriate reference for each window
+        cond_values = {"window_reference_batch": encoded_refs}
+        if explicit_ref_mapping.strip():
+            cond_values["window_reference_mapping"] = explicit_ref_mapping
+            logging.info(f"WanVaceWindowReferences: Using explicit mapping: {explicit_ref_mapping}")
+
+        positive = node_helpers.conditioning_set_values(positive, cond_values)
+        negative = node_helpers.conditioning_set_values(negative, cond_values)
+
+        return (positive, negative)
+
+
 NODE_CLASS_MAPPINGS = {
     "WanVacePhantomSimple": WanVacePhantomSimple,
     "WanVacePhantomDual": WanVacePhantomDual,
@@ -1146,7 +1262,8 @@ NODE_CLASS_MAPPINGS = {
     "WVAPipeSimple": WVAPipeSimple,
     "WVAOptionsNode": WVAOptionsNode,
     "StringToFloatListRanged": StringToFloatListRanged,
-    "WanMaskToLatentSpace": WanNoiseMaskToLatentSpace
+    "WanMaskToLatentSpace": WanNoiseMaskToLatentSpace,
+    "WanVaceWindowReferences": WanVaceWindowReferences,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1162,5 +1279,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "WVAPipeSimple": "WVAPipeSimple",
     "WVAOptionsNode": "WVAOptions",
     "StringToFloatListRanged": "StringToFloatListRanged",
-    "WanNoiseMaskToLatentSpace": "WanNoiseMaskToLatentSpace"
+    "WanNoiseMaskToLatentSpace": "WanNoiseMaskToLatentSpace",
+    "WanVaceWindowReferences": "WanVaceRefsToContextWindows",
 }

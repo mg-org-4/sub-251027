@@ -4,7 +4,7 @@ A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nun
 
 **This project is based on the fork version of ComfyUI-nunchaku-qwen-lora-suport-standalone.**
 
-> Latest release: [v2.0.4 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.0.4)
+> Latest release: [v2.0.6 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.0.6)
 
 ## 🎉 MAJOR UPDATE: v2.0 - Diffsynth ControlNet Support Added!
 
@@ -278,7 +278,20 @@ def __init__(self, model, load_device, offload_device, size=0, weight_inplace_up
 
 ## Changelog
 
-### v2.0.4 (latest)
+### v2.0.6 (latest)
+- **Fixed**: Excluded `ref_latents`, `transformer_options`, and `attention_mask` from kwargs to prevent duplicate argument errors (`TypeError: got multiple values for argument 'ref_latents'`, etc.)
+- **Solution**: Modified `_execute_model` method to exclude all positional arguments (`guidance`, `ref_latents`, `transformer_options`, `attention_mask`) from kwargs and pass them explicitly as positional arguments
+- **Impact**: Prevents duplicate argument errors for all positional arguments, improving compatibility with various ComfyUI workflows and custom nodes
+- **Technical Details**: See [v2.0.6 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.0.6) for complete explanation
+
+### v2.0.5
+- **Fixed**: Resolved [Issue #32](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/32) – Fixed `TypeError: got multiple values for argument 'guidance'` error by passing guidance as positional argument to match QwenImageTransformer2DModel.forward signature
+- **Problem**: v2.0.4 removed guidance from transformer_options and kwargs, but guidance was still being passed as a keyword argument, which conflicted with WrapperExecutor.execute() that passes guidance as a positional argument
+- **Solution**: Modified `_execute_model` method to pass guidance as a positional argument (after attention_mask) to match the original forward signature
+- **Impact**: Prevents guidance argument duplication regardless of environment; maintains compatibility with ComfyUI's patching system and WrapperExecutor; does not affect Diffsynth ControlNet
+- **Technical Details**: See [v2.0.5 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.0.5) for complete explanation
+
+### v2.0.4
 - **Fixed**: Resolved [Issue #32](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/32) – Fixed `TypeError: got multiple values for argument 'guidance'` error by removing guidance from transformer_options
 - **Note**: This error was not reproducible in author's environment (ComfyUI 0.4.0), but was reported by users. This is a preventative fix based on the issue report.
 - **Problem**: v2.0.2 fixed guidance duplication from kwargs, but transformer_options could still contain guidance, causing duplicate argument error in some environments

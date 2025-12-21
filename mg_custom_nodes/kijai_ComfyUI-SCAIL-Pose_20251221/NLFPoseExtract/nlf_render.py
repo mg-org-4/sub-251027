@@ -475,7 +475,7 @@ def render_multi_nlf_as_images(smpl_poses, dw_poses, height, width, video_length
     frames_np_rgba = render_whole(cylinder_specs_list, H=height, W=width, fx=focal_x, fy=focal_y, cx=princpt[0], cy=princpt[1])
     if dw_poses is not None and draw_2d:
         aligned_poses = copy.deepcopy(dw_poses)
-        canvas_2d = draw_pose_to_canvas_np(aligned_poses, pool=None, H=height, W=width, reshape_scale=0, show_feet_flag=False, show_body_flag=False, show_cheek_flag=True, dw_hand=True)
+        canvas_2d = draw_pose_to_canvas_np(aligned_poses, pool=None, H=height, W=width, reshape_scale=0, show_feet_flag=False, show_body_flag=False, show_cheek_flag=True, dw_hand=True, show_face_flag=draw_face, show_hand_flag=draw_hands)
         for i in range(len(frames_np_rgba)):
             frame_img = frames_np_rgba[i]
             canvas_img = canvas_2d[i]

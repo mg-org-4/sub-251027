@@ -810,11 +810,13 @@ async def _tanslater_text(request):
         strObjectData = data['str_object']
         if current_setting == "openai":
             # OpenAI 只需要目标语种来写 prompt
-            result = await openai_translate(strObjectData, data_setting['translate_target_lang'])
+            # result = await openai_translate(strObjectData, data_setting['translate_target_lang'])
+            result = await openai_translate(text, data_setting['translate_target_lang'])
         elif current_setting == "other_ai_plate":
             aiInfoData = get_ai_info_setting()
             if aiInfoData.get("base_url") == "https://api.siliconflow.cn/v1":
-                result = await translateObject(strObjectData, data_setting['translate_target_lang'])
+                # result = await translateObject(strObjectData, data_setting['translate_target_lang'])
+                result = await translateObject(text, data_setting['translate_target_lang'])
         else:
             # 仍然走 translators（含 'translater' 与历史的 'network'）
             result = api_service_translate(
@@ -839,11 +841,13 @@ async def _tanslater_input_text(request):
         strObjectData = data['str_object']
         if current_setting == "openai":
             # 反向时把“源语种代码”当成目标，复用同一 prompt 模板
-            result = await openai_translate(strObjectData, data_setting['translate_source_lang'])
+            # result = await openai_translate(strObjectData, data_setting['translate_source_lang'])
+            result = await openai_translate(text, data_setting['translate_source_lang'])
         elif current_setting == "other_ai_plate":
             aiInfoData = get_ai_info_setting()
             if aiInfoData.get("base_url") == "https://api.siliconflow.cn/v1":
-                result = await translateObject(strObjectData, data_setting['translate_source_lang'])
+                # result = await translateObject(strObjectData, data_setting['translate_source_lang'])
+                result = await translateObject(text, data_setting['translate_source_lang'])
         else:
             result = api_service_translate(
                 text,

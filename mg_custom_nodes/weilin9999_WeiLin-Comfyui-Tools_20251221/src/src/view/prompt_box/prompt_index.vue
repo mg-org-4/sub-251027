@@ -1909,101 +1909,103 @@ const processInput = async () => {
 
 const oneClickTranslatePrompt = async () => {
 
-  if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'translater') {
-    const batchSize = 20; // 每批处理的数量
-    let currentIndex = 0;
+  // if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'translater') {
+  const batchSize = 20; // 每批处理的数量
+  let currentIndex = 0;
 
-    while (currentIndex < tokens.value.length) {
-      const endIndex = Math.min(currentIndex + batchSize, tokens.value.length);
-      const promises = [];
+  while (currentIndex < tokens.value.length) {
+    const endIndex = Math.min(currentIndex + batchSize, tokens.value.length);
+    const promises = [];
 
-      for (let i = currentIndex; i < endIndex; i++) {
-        const token = tokens.value[i];
-        // 检查translate是否包含英文字符 /[a-zA-Z]/.test(token.translate)
-        if (token.translate && (token.translate === token.text || /[a-zA-Z]/.test(token.translate)) && !(typeof token.text === 'string' && token.text.startsWith('<wlr'))) {
-          // 提取需要翻译的文本
-          const textToTranslate = token.text;
-          const promise = new Promise((resolve) => {
+    for (let i = currentIndex; i < endIndex; i++) {
+      const token = tokens.value[i];
+      // 检查translate是否包含英文字符 /[a-zA-Z]/.test(token.translate)
+      if (token.translate && (token.translate === token.text || /[a-zA-Z]/.test(token.translate)) && !(typeof token.text === 'string' && token.text.startsWith('<wlr'))) {
+        // 提取需要翻译的文本
+        const textToTranslate = token.text;
+        const promise = new Promise((resolve) => {
 
-            // if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'network') {
-            //   translate.request.translateText(textToTranslate, function (data) {
-            //     if (data.result > 0) {
-            //       const translatedText = data.text.map(item => item.replace(/[\[\]“”]/g, '')).join(', ');
-            //       tokens.value[i].translate = translatedText;
-            //     }
-            //     resolve();
-            //   });
-            // } else {
-            translatorApi.translaterText('', textToTranslate).then(res => {
-              // console.log(res)
-              if (res.data.length > 0) {
-                tokens.value[i].translate = res.data;
-              }
-              resolve();
-            })
-            // }
-          });
-          promises.push(promise);
-        }
+          // if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'network') {
+          //   translate.request.translateText(textToTranslate, function (data) {
+          //     if (data.result > 0) {
+          //       const translatedText = data.text.map(item => item.replace(/[\[\]“”]/g, '')).join(', ');
+          //       tokens.value[i].translate = translatedText;
+          //     }
+          //     resolve();
+          //   });
+          // } else {
+          translatorApi.translaterText('', textToTranslate).then(res => {
+            // console.log(res)
+            if (res.data.length > 0) {
+              tokens.value[i].translate = res.data;
+            }
+            resolve();
+          })
+          // }
+        });
+        promises.push(promise);
       }
-
-      // 等待当前批次完成
-      await Promise.all(promises);
-      currentIndex = endIndex;
-    }
-  } else {
-
-    const batchSize = 2; // 每批最多2个
-    let currentIndex = 0;
-    const MAX_TOKEN_LENGTH = 20; // 超过20单独翻译
-
-    while (currentIndex < tokens.value.length) {
-      let batchTranslateData = [];
-      let batchTokenIds = [];
-      let batchTokenLength = 0;
-      let batchCount = 0;
-
-      // 收集本批次
-      for (let i = currentIndex; i < tokens.value.length; i++) {
-        const token = tokens.value[i];
-        if (
-          token.translate &&
-          /[a-zA-Z]/.test(token.translate) &&
-          !(typeof token.text === 'string' && token.text.startsWith('<wlr'))
-        ) {
-          const textToTranslate = token.text;
-          const textLen = textToTranslate.length;
-
-          if (textLen > MAX_TOKEN_LENGTH) {
-            // 单独翻译
-            const jsonString = JSON.stringify([{ index: token.id, text: textToTranslate, translate: '' }]);
-            await tryTranslate(jsonString, [token.id]);
-            currentIndex = i + 1;
-            break;
-          } else {
-            batchTranslateData.push({ index: token.id, text: textToTranslate, translate: '' });
-            batchTokenIds.push(token.id);
-            batchTokenLength += textLen;
-            batchCount++;
-          }
-        }
-
-        // 满2个就发起翻译
-        if (batchCount === batchSize) {
-          break;
-        }
-      }
-
-      if (batchTranslateData.length > 0) {
-        const jsonString = JSON.stringify(batchTranslateData);
-        await tryTranslate(jsonString, batchTokenIds);
-      }
-
-      // 跳过已处理的token
-      currentIndex += batchCount > 0 ? batchCount : 1;
     }
 
+    // 等待当前批次完成
+    await Promise.all(promises);
+    currentIndex = endIndex;
   }
+  // }
+
+  // else {
+
+  //   const batchSize = 2; // 每批最多2个
+  //   let currentIndex = 0;
+  //   const MAX_TOKEN_LENGTH = 20; // 超过20单独翻译
+
+  //   while (currentIndex < tokens.value.length) {
+  //     let batchTranslateData = [];
+  //     let batchTokenIds = [];
+  //     let batchTokenLength = 0;
+  //     let batchCount = 0;
+
+  //     // 收集本批次
+  //     for (let i = currentIndex; i < tokens.value.length; i++) {
+  //       const token = tokens.value[i];
+  //       if (
+  //         token.translate &&
+  //         /[a-zA-Z]/.test(token.translate) &&
+  //         !(typeof token.text === 'string' && token.text.startsWith('<wlr'))
+  //       ) {
+  //         const textToTranslate = token.text;
+  //         const textLen = textToTranslate.length;
+
+  //         if (textLen > MAX_TOKEN_LENGTH) {
+  //           // 单独翻译
+  //           const jsonString = JSON.stringify([{ index: token.id, text: textToTranslate, translate: '' }]);
+  //           await tryTranslate(jsonString, [token.id]);
+  //           currentIndex = i + 1;
+  //           break;
+  //         } else {
+  //           batchTranslateData.push({ index: token.id, text: textToTranslate, translate: '' });
+  //           batchTokenIds.push(token.id);
+  //           batchTokenLength += textLen;
+  //           batchCount++;
+  //         }
+  //       }
+
+  //       // 满2个就发起翻译
+  //       if (batchCount === batchSize) {
+  //         break;
+  //       }
+  //     }
+
+  //     if (batchTranslateData.length > 0) {
+  //       const jsonString = JSON.stringify(batchTranslateData);
+  //       await tryTranslate(jsonString, batchTokenIds);
+  //     }
+
+  //     // 跳过已处理的token
+  //     currentIndex += batchCount > 0 ? batchCount : 1;
+  //   }
+
+  // }
 
 };
 
@@ -3212,43 +3214,43 @@ const initTranslate = async () => {
 }
 
 const translateFunction = (texts, token) => {
-  if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'network') {
-    translate.request.translateText(texts, function (data) {
-      if (data.result > 0) {
-        const translatedText = data.text.map(item => item.replace(/[\[\]“”]/g, '')).join(', ');
-        token.translate = translatedText
-      }
-      //打印翻译结果
-      // console.log(data);
-    });
-  } else if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'translater') {
-    translatorApi.translaterText('', texts).then(res => {
-      // console.log(res)
-      if (res.data.length > 0) {
-        token.translate = res.data;
-      }
-    })
-  } else {
+  // if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'network') {
+  //   translate.request.translateText(texts, function (data) {
+  //     if (data.result > 0) {
+  //       const translatedText = data.text.map(item => item.replace(/[\[\]“”]/g, '')).join(', ');
+  //       token.translate = translatedText
+  //     }
+  //     //打印翻译结果
+  //     // console.log(data);
+  //   });
+  // } else if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'translater') {
+  translatorApi.translaterText('', texts).then(res => {
+    // console.log(res)
+    if (res.data.length > 0) {
+      token.translate = res.data;
+    }
+  })
+  // } else {
 
-    let needTranslateData = { index: token.id, text: token.text, translate: '' }
-    const jsonString = JSON.stringify(needTranslateData)
+  //   let needTranslateData = { index: token.id, text: token.text, translate: '' }
+  //   const jsonString = JSON.stringify(needTranslateData)
 
-    translatorApi.translaterText(jsonString, "").then(res => {
-      if (res) {
-        if (res.data) {
-          const jsonData = JSON.parse(res.data)
-          // console.log(jsonData)
-          token.translate = jsonData.translate
-        }
-      }
-    })
-    // translatorApi.translaterText(texts).then(res => {
-    //   // console.log(res)
-    //   if (res.text.length > 0) {
-    //     token.translate = res.text;
-    //   }
-    // })
-  }
+  //   translatorApi.translaterText(jsonString, "").then(res => {
+  //     if (res) {
+  //       if (res.data) {
+  //         const jsonData = JSON.parse(res.data)
+  //         // console.log(jsonData)
+  //         token.translate = jsonData.translate
+  //       }
+  //     }
+  //   })
+  //   // translatorApi.translaterText(texts).then(res => {
+  //   //   // console.log(res)
+  //   //   if (res.text.length > 0) {
+  //   //     token.translate = res.text;
+  //   //   }
+  //   // })
+  // }
 }
 
 const finishTranslateEnter = () => {

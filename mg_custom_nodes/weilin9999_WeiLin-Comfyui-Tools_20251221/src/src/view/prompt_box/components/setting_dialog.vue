@@ -815,21 +815,21 @@ const saveTranslaterSetting = () => {
 
 // 翻译文本
 const translaterTextTest = () => {
-  if (settingTranslater.value == 'translater') {
+  // if (settingTranslater.value == 'translater') {
     translatorApi.translaterInputText("", testTranslaterInputText.value).then(res => {
       // console.log(res)
       testTranslaterOutputText.value = res.data;
     }).catch(err => {
       message({ type: "warn", str: 'message.translaterTestFail' });
     })
-  } else {
-    translatorApi.translaterInputText(testTranslaterInputText.value).then(res => {
-      // console.log(res)
-      testTranslaterOutputText.value = res.text;
-    }).catch(err => {
-      message({ type: "warn", str: 'message.translaterTestFail' });
-    })
-  }
+  // } else {
+  //   translatorApi.translaterInputText(testTranslaterInputText.value).then(res => {
+  //     // console.log(res)
+  //     testTranslaterOutputText.value = res.text;
+  //   }).catch(err => {
+  //     message({ type: "warn", str: 'message.translaterTestFail' });
+  //   })
+  // }
 
 };
 

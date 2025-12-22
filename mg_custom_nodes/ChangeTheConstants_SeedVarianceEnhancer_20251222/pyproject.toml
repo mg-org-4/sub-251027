@@ -1,8 +1,9 @@
 [project]
 name = "seedvarianceenhancer"
 description = "A ComfyUI custom node that adds diversity to Z-Image Turbo outputs by adding random noise to text embeddings."
-version = "2.1.0"
-license = {file = "LICENSE"} 
+readme = "README.md"
+version = "2.2.0"
+license = "MIT-0" 
 classifiers = [
 #     # For OS-independent nodes (works on all operating systems)
      "Operating System :: OS Independent",

@@ -1,4 +1,11 @@
 ![DetailDaemon-example](https://github.com/user-attachments/assets/8f336c94-a4c6-426e-abe1-6a4c80a37cbb)
+
+# Video Demo
+
+Here is a video demo showing Detail Daemon in action, provided by [MuseMachine](https://www.youtube.com/@MuseMachineAI):
+
+[![Watch the video](https://img.youtube.com/vi/h8XhR-fjRR8/hqdefault.jpg)](https://www.youtube.com/watch?v=h8XhR-fjRR8)
+
 # ComfyUI-Detail-Daemon
 
 A port of muerrilla's [sd-webui-Detail-Daemon](https://github.com/muerrilla/sd-webui-detail-daemon/) as a node for ComfyUI, to adjust sigmas that generally enhance details, and possibly remove unwanted bokeh or background blurring, particularly with Flux models (but also works with SDXL, SD1.5, Qwen, Z-Image, and likely other models). If the values are taken too far it results in an oversharpened and/or HDR effect. There are four nodes here. Multiply Sigmas and Lying Sigma Sampler are also included as alternative methods of generally enhancing details.

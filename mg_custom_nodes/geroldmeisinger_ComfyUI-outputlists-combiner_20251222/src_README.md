@@ -1,4 +1,4 @@
-<!--- Auto-generated from src_README.md! Don't edit this file! Edit src_README.md instead! -->
+{HEADER}
 
 <div align="center">
 	<img src="/media/promo.png" alt="OutputLists Combiner Promo" width="600" />
@@ -44,15 +44,6 @@ If this custom node helps you in your work..
 - [Changelog](#changelog)
 - [Background](#background)
 - [Nodes](#nodes)
-	- [String OutputList](#string-outputlist)
-	- [Number OutputList](#number-outputlist)
-	- [JSON OutputList](#json-outputlist)
-	- [Spreadsheet OutputList](#spreadsheet-outputlist)
-	- [OutputLists Combinations](#outputlists-combinations)
-	- [XYZ-GridPlot](#xyz-gridplot)
-	- [Formatted String](#formatted-string)
-	- [Convert To Int Float Str](#convert-to-int-float-str)
-	- [Load Any File](#load-any-file)
 - [Examples](#examples)
 	- [Simple OutputList](#simple-outputlist)
 	- [Combine prompts](#combine-prompts)
@@ -69,6 +60,7 @@ If this custom node helps you in your work..
 	- [Load all images from grid](#load-all-images-from-grid)
 	- [Iterate prompts from PromptManager](#iterate-prompts-from-promptmanager)
 	- [XYZ-GridPlots with Videos](#xyz-gridplots-with-videos)
+	- [Iterate checkpoints](#iterate-checkpoints)
 - [Credits](#credits)
 
 # Features
@@ -135,291 +127,7 @@ Yeah, I didn't know about it either. Apparently everytime you see the symbol `�
 
 # Nodes
 
-## String OutputList
-
-![String OutputList](/media/StringOutputList.png)
-
-(ComfyUI workflow included)
-
-Create a OutputList by separating the string in the textfield.
-`value` and `index` use(s) `is_output_list=True` (indicated by the symbol `𝌠`) and will be processed sequentially by corresponding nodes.
-
-### Inputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `separator`	| `STRING`	| The string to split the textfield values by.	|
-| `values`	| `STRING`	| The string which will be separated. Note that the string is trimmed of trailing newlines before splitting, and each item is again trimmed.	|
-
-### Outputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `value`	| `* 𝌠`	| The values from the list.	|
-| `index`	| `INT 𝌠`	| Range of 0..count which can be used as an index.	|
-| `count`	| `INT`	| The number of items in the list.	|
-| `inspect_combo`	| `COMBO`	| A dummy output only used to pre-fill the list with values from an other `COMBO` input and will automatically disconnect again	|
-
-## Number OutputList
-
-![Number OutputList](/media/NumberOutputList.png)
-
-(ComfyUI workflow included)
-
-Create a OutputList by generating a numbers of values in a range.
-Uses [numpy.linspace](https://numpy.org/doc/stable/reference/generated/numpy.linspace.html) internally because it works more reliably with floatingpoint values.
-If you want to define number lists with arbitrary steps instead check out the JSON OutputList and define an array like `[1, 42, 123]`.
-`int`, `float`, `string` and `index` use(s) `is_output_list=True` (indicated by the symbol `𝌠`) and will be processed sequentially by corresponding nodes.
-
-### Inputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `start`	| `FLOAT`	| Start value to generate the range from.	|
-| `stop`	| `FLOAT`	| End value. If `endpoint=include` this number will be included in the list.	|
-| `num`	| `INT`	| The number of items in the list (not to be confused with a `step`).	|
-| `endpoint`	| `BOOLEAN`	| Decides if the `stop` value should be included or excluded in the items.	|
-
-### Outputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `int`	| `INT 𝌠`	| The value converted to int (rounded down/floored).	|
-| `float`	| `FLOAT 𝌠`	| The value as a float.	|
-| `string`	| `STRING 𝌠`	| The value as a float converted to string.	|
-| `index`	| `INT 𝌠`	| Range of 0..count which can be used as an index.	|
-| `count`	| `INT`	| Same as `num`.	|
-
-## JSON OutputList
-
-![JSON OutputList](/media/JSONOutputList.png)
-
-(ComfyUI workflow included)
-
-Create a OutputList by extracting arrays or dictionaries from JSON objects.
-Uses JSONPath syntax to extract the values, see [JSONPath on Wikipedia](https://en.wikipedia.org/wiki/JSONPath) .
-All matched values will be flattend into one list.
-You can also use this node to create objects from literal strings like `[1, 2, 3]`.
-`key`, `value`, `int` and `float` use(s) `is_output_list=True` (indicated by the symbol `𝌠`) and will be processed sequentially by corresponding nodes.
-
-### Inputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `jsonpath`	| `STRING`	| JSONPath used to extract the values.	|
-| `json`	| `STRING`	| A JSON string which will be parsed to an object.	|
-| `obj`	| `*`	| (optional) object of any type which will replace the JSON string	|
-
-### Outputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `key`	| `STRING 𝌠`	| The key for dictionaries or index for arrays (as string).  Technically it's a global index of the flattened list for all non-keys.	|
-| `value`	| `STRING 𝌠`	| The value as a string.	|
-| `int`	| `INT 𝌠`	| The value as a int (if not parseable number default to 0).	|
-| `float`	| `FLOAT 𝌠`	| The value as a float (if not parseable number default to 0).	|
-| `count`	| `INT`	| Total number of items in the flattened list	|
-| `debug`	| `STRING`	| Debug output of all matched objects as a formatted JSON string	|
-
-## Spreadsheet OutputList
-
-![Spreadsheet OutputList](/media/SpreadsheetOutputList.png)
-
-(ComfyUI workflow included)
-
-Create a OutputLists from a spreadsheet (`.csv .tsv .ods .xlsx .xls`).
-Use `Load any File` node to load a file as base64.
-Internally uses pandas [read_excel](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_excel.html) and [read_csv](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html) to load spreadsheet files.
-All lists use(s) `is_output_list=True` (indicated by the symbol `𝌠`) and will be processed sequentially by corresponding nodes.
-
-### Inputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `rows_and_cols`	| `STRING`	| Indices and names of rows and columns in the spreadsheet. Note that in spreadsheets rows start at 1, columns start at A, whereas OutputLists are 0-based (in `select-nth`).	|
-| `header_rows`	| `INT`	| Ignore the first x rows in the list. Only used if you specify a col in `rows_and_cols`.	|
-| `header_cols`	| `INT`	| Ignore the first x cols in the list. Only used if you specify a row in `rows_and_cols`.	|
-| `select_nth`	| `INT`	| Only select the nth entry (0-based). Useful in combination with the `PrimitiveInt+control_after_generate=increment` pattern.	|
-| `string_or_base64`	| `STRING`	| CSV/TSV string or spreadsheet file in base64 (for `.ods .xlsx .xls`). Use `Load Any File` node to load a file as base64.	|
-
-### Outputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `list_a`	| `STRING 𝌠`	| 	|
-| `list_b`	| `STRING 𝌠`	| 	|
-| `list_c`	| `STRING 𝌠`	| 	|
-| `list_d`	| `STRING 𝌠`	| 	|
-| `count`	| `INT`	| Number of items in the longest list.	|
-
-## OutputLists Combinations
-
-![OutputLists Combinations](/media/CombineOutputLists.png)
-
-(ComfyUI workflow included)
-
-Takes up to 4 OutputLists and generates all combinations between them and emits each combination as separate items.
-
-Example:
-```
-[1, 2, 3] x ["A", "B"] = [(1, "A"), (1, "B"), (2, "A"), (2, "B"), (3, "A"), (3, "B")]
-```
-
-`unzip_a` .. `unzip_d` use(s) `is_output_list=True` (indicated by the symbol `𝌠`) and will be processed sequentially by corresponding nodes.
-
-All lists are optional and empty lists will be ignored.
-
-Technically it computes the Cartesian product and outputs each combination splitted up into their elements (unzip), whereas empty lists will be replaced with units of None and they will emit None on the respective output.
-
-Example:
-```
-[1, 2] x [] x ["A", "B"] x [] = [(1, None, "A", None), (1, None, "B", None), (2, None, "A", None), (2, None, "B", None)]
-```
-
-### Inputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `list_a`	| `*`	| (optional)	|
-| `list_b`	| `*`	| (optional)	|
-| `list_c`	| `*`	| (optional)	|
-| `list_d`	| `*`	| (optional)	|
-
-### Outputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `unzip_a`	| `* 𝌠`	| Value of the combinations corresponding to `list_a`.	|
-| `unzip_b`	| `* 𝌠`	| Value of the combinations corresponding to `list_b`.	|
-| `unzip_c`	| `* 𝌠`	| Value of the combinations corresponding to `list_c`.	|
-| `unzip_d`	| `* 𝌠`	| Value of the combinations corresponding to `list_d`.	|
-| `index`	| `INT 𝌠`	| Range of 0..count which can be used as an index.	|
-| `count`	| `INT`	| Total number of combinations.	|
-
-## XYZ-GridPlot
-
-![XYZ-GridPlot](/media/XyzGridPlot.png)
-
-(ComfyUI workflow included)
-
-Generate a XYZ-Gridplot from a list of images.
-It takes a list of images (including batches) and will flatten the list first (thus `batch_size=1`).
-The shape of the grid is determined:
-1. by the number of row labels
-2. by the number of column labels
-3. by the remaining sub-images.
-You can use `order=inside_out` to reverse how the images are selected.
-Sub-images (usually from batches) will be shaped into the most square area (the "sub-image packing"), unless `output_is_list=True` in which case a list of image grids will be created instead. You can use this list to connect another XyzGridPlot node to create super-grids.
-
-Font-size:
-For the column label areas the width is determined by the width of the sub-image packing, the height is determined by `font_size` or `half image_height` (whichever is greater).
-For the row label areas the width is also determined by the width(!) of the sub-images packing (with a minimum of 256px), the height is determined by height of the sub-images.
-The text will be shrunk down until it fits (up to `font_size_min=6`) and the same font size will be used for the whole axis (column labels/row labels). If the font size is already at the minimum, any remaining text will be clipped (reasoning: the lower part of a prompt is usually not that important).
-
-Alignment:
-If a label got wrapped the whole axis is considered "multiline" and will be align at top and justified.
-If all the labels are numbers or all end in parseable numbers (e.g. `strength: 1.`) the whole axis is considered "numeric" and will be right aligend.
-All other texts are considered "singleline" and will be horizontally centered.
-Singleline and numeric labels for columns are vertically aligned at bottom and for rows are vertically centered.
-
-### Inputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `images`	| `IMAGE`	| A list of images (including batches)	|
-| `row_labels`	| `*`	| The text used for the row labels at the left side	|
-| `col_labels`	| `*`	| The text used for the column labels at the top	|
-| `gap`	| `INT`	| The gap between the sub-image packing. Note that within the sub-images themselves no gap will be used. If you want a gap between the sub-images connect another XyzGridPlot node.	|
-| `font_size`	| `FLOAT`	| The target font size. The text will be shrunk down until it fits (up to `font_size_min=6`).	|
-| `order`	| `BOOLEAN`	| Defines in which order the images should be processed. This is only relevant if you have sub-images.	|
-| `output_is_list`	| `BOOLEAN`	| This is only relevant if you have sub-images or you want to create super-grids.	|
-
-### Outputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `image`	| `IMAGE 𝌠`	| The XYZ-GridPlot image. If `output_is_list=True` it will be a list of images which you can connect to another XYZ-GridPlot node to create super-grids.	|
-
-## Formatted String
-
-![Formatted String](/media/FormattedString.png)
-
-(ComfyUI workflow included)
-
-String with variable placeholders which will replaced with their respective values.
-Uses python `str.format()` internally, see [Python - Format String Syntax](https://docs.python.org/3/library/string.html#format-string-syntax) .
-* Use `{a:.2f}` to round off a float to 2 decimals.
-* Use `{a:05d}` to pad up to 5 leading zeros to fit with comfys filename suffix `ComfyUI_00001_.png`.
-* If you want to write `{ }` within your strings (e.g. for JSONs) you have to double them like so: `{{ }}`.
-
-Also applies "search & replace" (S&R) syntax such as `%date:yyyy-MM-dd hh:mm:ss%` and `%KSampler.seed%`.
-Thus you can also use it as a getter node.
-Note that "search & replace" takes place in Javascript context which runs before node execution.
-
-### Inputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `fstring`	| `STRING`	| String with variable placeholders which will replaced with their respective values. Uses python `str.format()` internally, see [Python - Format String Syntax](https://docs.python.org/3/library/string.html#format-string-syntax) . * Use `{a:.2f}` to round off a float to 2 decimals. * Use `{a:05d}` to pad up to 5 leading zeros to fit with comfys filename suffix `ComfyUI_00001_.png`. * If you want to write `{ }` within your strings (e.g. for JSONs) you have to double them like so: `{{ }}`.  Also applies "search & replace" (S&R) syntax such as `%date:yyyy-MM-dd hh:mm:ss%` and `%KSampler.seed%`. Thus you can also use it as a getter node. Note that "search & replace" takes place in Javascript context which runs before node execution.	|
-| `a`	| `*`	| (optional) value that will be as a string at the `{a}` placeholder.	|
-| `b`	| `*`	| (optional) value that will be as a string at the `{b}` placeholder.	|
-| `c`	| `*`	| (optional) value that will be as a string at the `{c}` placeholder.	|
-| `d`	| `*`	| (optional) value that will be as a string at the `{d}` placeholder.	|
-
-### Outputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `string`	| `STRING`	| The formatted string with all placeholders replaced with their respective values.	|
-
-## Convert To Int Float Str
-
-![Convert To Int Float Str](/media/ConvertNumberToIntFloatStr.png)
-
-(ComfyUI workflow included)
-
-Convert anything number-like to `INT` `FLOAT` `STRING`.
-Uses `nums_from_string.get_nums` internally which is very permissive in the numbers it accepts. Anything from actual ints, actual floats, ints or floats as strings, strings that contains multiple numbers with thousand-separators.
-Use a string `123;234;345` to quickly generate a list of numbers. Don't use commas as separators as they may be interpreted as thousand-separators.
-`int`, `float` and `string` use(s) `is_output_list=True` (indicated by the symbol `𝌠`) and will be processed sequentially by corresponding nodes.
-
-### Inputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `any`	| `*`	| Anything that can be meaningfully converted to a string with parseable numbers inside	|
-
-### Outputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `int`	| `INT 𝌠`	| All the numbers found in the string with the decimals truncated.	|
-| `float`	| `FLOAT 𝌠`	| All the numbers found in the string as floats.	|
-| `string`	| `STRING 𝌠`	| All the numbers found in the string as floats converted to string.	|
-| `count`	| `INT`	| Amount of numbers found in the value.	|
-
-## Load Any File
-
-![Load Any File](/media/LoadAnyFile.png)
-
-(ComfyUI workflow included)
-
-Load any text or binary file and provide the file content as string or base64 string and additionally try to load it as a `IMAGE`.
-
-### Inputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `annotated_filepath`	| `STRING`	| Base directory defaults to input directory. Use suffix `[input]` `[output]` or `[temp]` to specify a different ComfyUI user directory.	|
-
-### Outputs
-
-| Name	| Type	| Description	|
-| ---	| ---	| ---	|
-| `string`	| `STRING`	| File content for text files, base64 for binary files.	|
-| `image`	| `IMAGE`	| Image batch tensor.	|
-| `mask`	| `MASK`	| Mask batch tensor.	|
-
+{NODES}
 
 # Examples
 
@@ -427,7 +135,7 @@ Load any text or binary file and provide the file content as string or base64 st
 
 ![Simple OutputList example](/workflows/Example_00_Simple_OutputList.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
 Just uses a `String OutputList` to separate a string and produce 4 images in one run.
 
@@ -435,7 +143,7 @@ Just uses a `String OutputList` to separate a string and produce 4 images in one
 
 ![Combine prompts example](/workflows/Example_01_Combine_Prompts.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
 Combines two `String OutputList` with a `OutputList Combinations` and merges them into the prompt with `Formatted String`. It iterates over all combinations of `[cat, dog, rat] x [red, green, blue] = 3 x 3 = 9`)
 
@@ -445,7 +153,7 @@ To debug strings it's recommended to use comfyui-custom-scripts `Show Text` as i
 
 ![Combine numbers example](/workflows/Example_02_Combine_Numbers.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
 Makes use of `Number OutputList` to generate the number ranges `[256, 512, 768] x [768, 512, 256]` and connects them to the image width and height to produce image variants in portrait, square and landscape.
 
@@ -455,7 +163,7 @@ Notice that images within a batch always have to be same width and height, whera
 
 ![Combine samplers and schedulers example](/workflows/Example_03_Combine_Samplers_Schedulers.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
 https://github.com/user-attachments/assets/d8da27b9-99d2-4ac5-a6ed-d368d2ae1a38
 
@@ -465,7 +173,7 @@ Makes use of `inspect_combo` to populate the `String OutputList` (unneeded entri
 
 ![Combine row/column for filename example](/workflows/Example_04_Combine_RowCol_Filename.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
 Makes use of the `index` combined the same way as the prompts, which gives as the rows and columns. `Formatted String` produces the filename prefix `img_{c:02d}_row_{ad}_col_{b}`.
 
@@ -473,7 +181,7 @@ Makes use of the `index` combined the same way as the prompts, which gives as th
 
 ![Combine LoRA-model and LoRA-strength example](/workflows/Example_05_Compare_LoRAModel_LoRAStrength.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
 https://github.com/user-attachments/assets/64e118c1-15f3-463b-b439-37e1a1f5b62b
 
@@ -511,7 +219,7 @@ I recommend to start ComfyUI with `--cache-ram` for this example if you want to 
 
 ![XYZ-GridPlots with Supergrids example](/workflows/ExampleAdv_00a_XYZGridPlot_Supergrids.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
 Uses two `XYZ-GridPlot` in sequence to put one image grid inside the other. For more complex image grids the question always is: How should the axis be ordered and in which way the images be shuffled, e.g. do we want to show `cat|dog|rat` x `red|blue|green` and then the batch next to each other in a subgrid (`RxCxB`), or four separate images each with a grid of `cat|dog|rat` x `red|blue|green` (`BxCxR`). To achieve this you can play around with the options `order=outside-in|inside-out` and `output_is_list=False|True`, but make sure the `row_labels` and `col_labels` match what you want to achieve, as this info is also used how the grid is shaped.
 
@@ -526,10 +234,11 @@ Custom nodes:
 
 ![ImageGrids example](/workflows/ExampleAdv_00b_XYZGridPlot_ImmediateSave.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
-Technically this node is implemented as a [node expansion](https://docs.comfy.org/custom-nodes/backend/expansion) and uses the default `KSampler`, `VAE Decode` and `Save Image`.
+Technically this node is implemented as a [node expansion](https://docs.comfy.org/custom-nodes/backend/expansion) and uses the default `CheckpointLoaderSimple`, `KSampler`, `VAE Decode` and `Save Image`.
 
+- **TODO** Update workflow with changes in `KSampler Immediate SaveImage`
 - **TODO** Update workflow with new `XYZ-GridPlot` node
 - **TODO** I'm not happy that this node exists at all as I wanted to avoid custom KSampler nodes. Unfortunately I haven't found a way to [use subgraphs to force immediate processing](https://github.com/Comfy-Org/docs/discussions/532#discussioncomment-15115385) yet.
 
@@ -543,13 +252,13 @@ You may have noticed when you load the workflow from one of the grid images it c
 
 ![Save Index in Metadata example](/workflows/ExampleAdv_01a_IndexInMetadata.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
 Uses the `index` of the combined list to store it as a JSON. It also uses the `index` of the individual lists combined the same way as the prompts, which gives as the rows and columns, for additional information, including the prompt: `{{ "prompt": "{a}", "index": {b}, "row": {c}, "col": {d} }}`
 
 ![Load Index from Metadata example](/workflows/ExampleAdv_01b_IndexFromMetadata.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
 This example reads the index from the metadata with `Load Image with Metadata` and selects the index using `Select Nth Item`.
 
@@ -569,7 +278,7 @@ Let's say you generated a lot of images for your grid and (hopefully) stored the
 
 ![Load Image with Formatted String](/workflows/ExampleAdv_02_LoadWithFormattedString.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
 **TODO** Make the combo work with native `Load Image` (but my `string to any` approach always resulted in `NoneType object has no attribute 'endsWith'`). I filled a bugreport https://github.com/comfyanonymous/ComfyUI/issues/11017
 
@@ -583,19 +292,31 @@ PromptManager keeps track of all the prompt you generated in a database which yo
 
 ![Load prompts with GET HTTP and extract JSON with JSON OutputList](/workflows/ExampleAdv_03_PromptManager.png)
 
-(workflow included)
+(ComfyUI workflow included)
 
 Makes use of ComfyUI-HTTP's `HTTP GET Request` to call PromptManager's search API route and `JSON OutputList` to extract the `text` field using a JSONPath. The prompts are emitted as an OutputList and will be processed sequentially.
 
 ## XYZ-GridPlots with Videos
 
-![XYZ-GridPlots with Videos](/workflows/ExampleAdv_04_XYZGridPlot_Videos.png)
+![XYZ-GridPlots with Videos example](/workflows/ExampleAdv_04_XYZGridPlot_Videos.png)
+
+(ComfyUI workflow included)
 
 You can basically ignore the left part of the workflow (blue group) as it's just abusing a `OutputList Combinations` to create 9 ad-hoc videos of animals with colorful hats rotating. Makes use of `Get Video Components` to split a video into individual frames. The `XYZ-GridPlot` is set to `output_is_list` so we get individual frames of whole grid images. These need to be collected with `Image List to Image Batch` first before creating the video in the `Create Video` node (otherwise it would grid n videos with 1 frame).
 
 **TODO** Fix the `non divisible by 2` error
 
 https://github.com/user-attachments/assets/efc43311-1052-4832-8486-66b938a5d5f3
+
+## Iterate checkpoints
+
+![Iterate checkpoints example](/workflows/ExampleAdv_05_Checkpoints_ImmediateSave.png)
+
+(ComfyUI workflow included)
+
+The `Load Checkpoint` node suffers from [the save problem](https://github.com/Comfy-Org/docs/discussions/532#discussioncomment-15115385) as the `KSampler` in that it loads ALL checkpoints at once before emitting them which will likely cause OOM. You can workaround this limitation by using the `KSampler Immediate Save` but note that this only works for default `Load Checkpoint -> KSampler -> VAE Decode -> Save Image` pattern, i.e. no `CFGGuider`, no `ModelShift` etc. If you need them you have to implement your own node expansion or extend [ksampler_immediate_saveimage.py](src/outputlists_combiner/ksampler_immediate_saveimage.py). I know this is unfortunate and probably to difficult for some people (it's not that hard actually, you just have to be careful when connecting node in code).
+
+Another workaround is to use the [PrimitiveInt control\_after\_generate=increment pattern](#the-primitiveint-control_after_generateincrement-pattern) but you will loose the OutputLists abilities.
 
 # Credits
 

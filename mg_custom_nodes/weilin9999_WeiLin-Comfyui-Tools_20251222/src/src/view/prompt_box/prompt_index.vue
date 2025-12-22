@@ -1865,7 +1865,7 @@ const processInput = async () => {
   postMessageToWindowsPrompt();
 
   // 处理翻译
-  const batchSize = 20; // 每批处理的数量
+  const batchSize = 50; // 每批处理的数量
   let currentIndex = 0;
 
   while (currentIndex < tokens.value.length) {
@@ -1910,47 +1910,102 @@ const processInput = async () => {
 const oneClickTranslatePrompt = async () => {
 
   // if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'translater') {
-  const batchSize = 20; // 每批处理的数量
+  const batchSize = 50; // 每批处理的数量
   let currentIndex = 0;
+  let processedCount = 0;
+  let totalCount = 0;
+
+  // 计算需要翻译的总数
+  for (let i = 0; i < tokens.value.length; i++) {
+    const token = tokens.value[i];
+    if (token.translate && (token.translate === token.text || /[a-zA-Z]/.test(token.translate)) && !(typeof token.text === 'string' && token.text.startsWith('<wlr'))) {
+      totalCount++;
+    }
+  }
+
+  console.log(`开始批量翻译，总共需要翻译 ${totalCount} 个项目，批量大小: ${batchSize}`);
 
   while (currentIndex < tokens.value.length) {
     const endIndex = Math.min(currentIndex + batchSize, tokens.value.length);
-    const promises = [];
+    const batchData = [];
+    const tokenIndices = [];
 
+    // 收集本批次需要翻译的token
     for (let i = currentIndex; i < endIndex; i++) {
       const token = tokens.value[i];
       // 检查translate是否包含英文字符 /[a-zA-Z]/.test(token.translate)
       if (token.translate && (token.translate === token.text || /[a-zA-Z]/.test(token.translate)) && !(typeof token.text === 'string' && token.text.startsWith('<wlr'))) {
-        // 提取需要翻译的文本
-        const textToTranslate = token.text;
-        const promise = new Promise((resolve) => {
-
-          // if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'network') {
-          //   translate.request.translateText(textToTranslate, function (data) {
-          //     if (data.result > 0) {
-          //       const translatedText = data.text.map(item => item.replace(/[\[\]“”]/g, '')).join(', ');
-          //       tokens.value[i].translate = translatedText;
-          //     }
-          //     resolve();
-          //   });
-          // } else {
-          translatorApi.translaterText('', textToTranslate).then(res => {
-            // console.log(res)
-            if (res.data.length > 0) {
-              tokens.value[i].translate = res.data;
-            }
-            resolve();
-          })
-          // }
-        });
-        promises.push(promise);
+        batchData.push(token.text);
+        tokenIndices.push(i);
       }
     }
 
-    // 等待当前批次完成
-    await Promise.all(promises);
+    if (batchData.length > 0) {
+      console.log(`处理第 ${Math.floor(currentIndex / batchSize) + 1} 批，翻译 ${batchData.length} 个项目`);
+
+      // 批量翻译：将多个文本用换行符连接
+      const combinedText = batchData.join('\n');
+      try {
+        // 设置超时处理
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('翻译请求超时')), 30000)
+        );
+
+        const res = await Promise.race([
+          translatorApi.translaterText('', combinedText),
+          timeoutPromise
+        ]);
+
+        if (res.data && res.data.length > 0) {
+          // 拆分翻译结果
+          const translatedResults = res.data.split('\n');
+
+          // 验证结果数量匹配
+          if (translatedResults.length === batchData.length) {
+            // 将翻译结果回填到对应的token
+            for (let j = 0; j < tokenIndices.length; j++) {
+              const tokenIndex = tokenIndices[j];
+              if (j < translatedResults.length && translatedResults[j].trim()) {
+                tokens.value[tokenIndex].translate = translatedResults[j].trim();
+                processedCount++;
+              }
+            }
+            console.log(`第 ${Math.floor(currentIndex / batchSize) + 1} 批翻译完成，已处理 ${processedCount}/${totalCount} 个`);
+          } else {
+            throw new Error(`翻译结果数量不匹配: 期望${batchData.length}个，实际${translatedResults.length}个`);
+          }
+        } else {
+          throw new Error('翻译返回结果为空');
+        }
+      } catch (e) {
+        console.error(`第 ${Math.floor(currentIndex / batchSize) + 1} 批批量翻译失败:`, e);
+        console.log('回退到逐个翻译模式...');
+
+        // 回退到逐个翻译
+        let fallbackCount = 0;
+        for (let j = 0; j < tokenIndices.length; j++) {
+          const tokenIndex = tokenIndices[j];
+          const textToTranslate = batchData[j];
+
+          try {
+            const res = await translatorApi.translaterText('', textToTranslate);
+            if (res.data && res.data.length > 0) {
+              tokens.value[tokenIndex].translate = res.data;
+              processedCount++;
+              fallbackCount++;
+            }
+          } catch (fallbackError) {
+            console.error(`单个翻译失败 (${textToTranslate}):`, fallbackError);
+          }
+        }
+        console.log(`回退翻译完成，成功 ${fallbackCount} 个`);
+      }
+    }
+
     currentIndex = endIndex;
   }
+
+  console.log(`批量翻译完成！总共处理 ${processedCount}/${totalCount} 个项目`);
   // }
 
   // else {
@@ -3255,91 +3310,108 @@ const translateFunction = (texts, token) => {
 
 const finishTranslateEnter = () => {
 
-  if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'network') {
-    // const restran = translate.language.recognition(translateText.value)
-    // var obj = {
-    //   from: restran.languageName,
-    //   to: 'english',
-    //   texts: [translateText.value]
-    // }
+  // API翻译
+  translatorApi.translaterInputText('', translateText.value).then(res => {
+    // console.log(res)
+    if (res.data.length > 0) {
+      tokens.value.push({
+        text: res.data,
+        translate: translateText.value,
+        isPunctuation: false,
+        isEditing: false,
+        isHidden: false,
+        color: ''
+      });
+      translateText.value = ''
+      updateInputText()
+    }
+  })
 
-    // translate.request.translateText(obj, function (data) {
-    //   if (data.result > 0) {
-    //     const translatedText = data.text.map(item => item.replace(/[\[\]“”]/g, '')).join(', ');
-    //     tokens.value.push({
-    //       text: translatedText,
-    //       translate: translateText.value,
-    //       isPunctuation: false,
-    //       isEditing: false,
-    //       isHidden: false,
-    //       color: ''
-    //     });
-    //     translateText.value = ''
-    //     updateInputText()
-    //   }
-    //   //打印翻译结果
-    //   // console.log(data);
-    // });
-  } else if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'translater') {
-    // API翻译
-    translatorApi.translaterInputText('', translateText.value).then(res => {
-      // console.log(res)
-      if (res.text.length > 0) {
-        tokens.value.push({
-          text: res.data,
-          translate: translateText.value,
-          isPunctuation: false,
-          isEditing: false,
-          isHidden: false,
-          color: ''
-        });
-        translateText.value = ''
-        updateInputText()
-      }
-    })
+  // if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'network') {
+  //   // const restran = translate.language.recognition(translateText.value)
+  //   // var obj = {
+  //   //   from: restran.languageName,
+  //   //   to: 'english',
+  //   //   texts: [translateText.value]
+  //   // }
 
-  } else {
+  //   // translate.request.translateText(obj, function (data) {
+  //   //   if (data.result > 0) {
+  //   //     const translatedText = data.text.map(item => item.replace(/[\[\]“”]/g, '')).join(', ');
+  //   //     tokens.value.push({
+  //   //       text: translatedText,
+  //   //       translate: translateText.value,
+  //   //       isPunctuation: false,
+  //   //       isEditing: false,
+  //   //       isHidden: false,
+  //   //       color: ''
+  //   //     });
+  //   //     translateText.value = ''
+  //   //     updateInputText()
+  //   //   }
+  //   //   //打印翻译结果
+  //   //   // console.log(data);
+  //   // });
+  // } else if (localStorage.getItem('weilin_prompt_ui_translater_setting') == 'translater') {
+  //   // API翻译
+  //   translatorApi.translaterInputText('', translateText.value).then(res => {
+  //     // console.log(res)
+  //     if (res.text.length > 0) {
+  //       tokens.value.push({
+  //         text: res.data,
+  //         translate: translateText.value,
+  //         isPunctuation: false,
+  //         isEditing: false,
+  //         isHidden: false,
+  //         color: ''
+  //       });
+  //       translateText.value = ''
+  //       updateInputText()
+  //     }
+  //   })
 
-    let needTranslateData = { text: translateText.value, translate: '' }
-    const jsonString = JSON.stringify(needTranslateData)
+  // } else {
 
-    translatorApi.translaterInputText(jsonString, "").then(res => {
-      if (res) {
-        if (res.data) {
-          const jsonData = JSON.parse(res.data)
-          // console.log(jsonData)
-          // token.translate = jsonData.translate
+  //   let needTranslateData = { text: translateText.value, translate: '' }
+  //   const jsonString = JSON.stringify(needTranslateData)
 
-          tokens.value.push({
-            text: jsonData.translate,
-            translate: translateText.value,
-            isPunctuation: false,
-            isEditing: false,
-            isHidden: false,
-            color: ''
-          });
-          translateText.value = ''
-          updateInputText()
-        }
-      }
-    })
+  //   translatorApi.translaterInputText(jsonString, "").then(res => {
+  //     if (res) {
+  //       if (res.data) {
+  //         const jsonData = JSON.parse(res.data)
+  //         // console.log(jsonData)
+  //         // token.translate = jsonData.translate
 
-    // translatorApi.translaterInputText(translateText.value).then(res => {
-    //   // console.log(res)
-    //   if (res.text.length > 0) {
-    //     tokens.value.push({
-    //       text: res.text,
-    //       translate: translateText.value,
-    //       isPunctuation: false,
-    //       isEditing: false,
-    //       isHidden: false,
-    //       color: ''
-    //     });
-    //     translateText.value = ''
-    //     updateInputText()
-    //   }
-    // })
-  }
+  //         tokens.value.push({
+  //           text: jsonData.translate,
+  //           translate: translateText.value,
+  //           isPunctuation: false,
+  //           isEditing: false,
+  //           isHidden: false,
+  //           color: ''
+  //         });
+  //         translateText.value = ''
+  //         updateInputText()
+  //       }
+  //     }
+  //   })
+
+  //   // translatorApi.translaterInputText(translateText.value).then(res => {
+  //   //   // console.log(res)
+  //   //   if (res.text.length > 0) {
+  //   //     tokens.value.push({
+  //   //       text: res.text,
+  //   //       translate: translateText.value,
+  //   //       isPunctuation: false,
+  //   //       isEditing: false,
+  //   //       isHidden: false,
+  //   //       color: ''
+  //   //     });
+  //   //     translateText.value = ''
+  //   //     updateInputText()
+  //   //   }
+  //   // })
+  // }
 
 }
 

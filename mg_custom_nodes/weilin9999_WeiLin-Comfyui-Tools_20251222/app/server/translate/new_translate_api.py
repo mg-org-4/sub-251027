@@ -6,11 +6,11 @@ from .network_translate.wangyi import youdao_translate
 def api_service_translate(text, from_lang='auto', to_lang='en', apiService='alibaba'):
     """
     统一翻译接口
-    :param text: 待翻译文本
+    :param text: 待翻译文本（支持换行符分隔的批量翻译）
     :param from_lang: 源语言
     :param to_lang: 目标语言
     :param apiService: 选择翻译服务，支持 'alibaba', 'bing', 'youdao'
-    :return: 翻译文本
+    :return: 翻译文本（批量翻译时返回换行符分隔的结果）
     """
     apiService = apiService.lower()
     if apiService == 'alibaba':

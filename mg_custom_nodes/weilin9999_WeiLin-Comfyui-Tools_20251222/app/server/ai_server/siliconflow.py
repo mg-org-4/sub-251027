@@ -30,7 +30,11 @@ async def translateObject(text: str, target_lang_code: str = "zh") -> str:
 
 
     target_lang_name = _lang_to_name(target_lang_code)
-    prompt = f"将以下AI绘画提示词翻译成{target_lang_name}，只输出翻译结果：{text}"
+    # 处理批量翻译：如果文本包含换行符，说明是多个翻译项
+    if '\n' in text:
+        prompt = f"将以下每一行AI绘画提示词翻译成{target_lang_name}，每行对应一个翻译结果，保持相同的行数和顺序：\n{text}"
+    else:
+        prompt = f"将以下AI绘画提示词翻译成{target_lang_name}，只输出翻译结果：{text}"
    
     payload = {
         "model": model,
@@ -82,7 +86,7 @@ async def translateObject(text: str, target_lang_code: str = "zh") -> str:
         "Content-Type": "application/json"
     }
 
-    response = requests.post(url, json=payload, headers=headers,timeout=(5,10))
+    response = requests.post(url, json=payload, headers=headers,timeout=(10,60))
     dataResponse = response.json()
     if response.status_code != 200:
         raise RuntimeError(

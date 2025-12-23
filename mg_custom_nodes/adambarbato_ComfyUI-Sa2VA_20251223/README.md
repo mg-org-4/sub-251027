@@ -21,14 +21,7 @@ It can also segment more than one mask at a time, but the prompt needs to be pre
 
 ## Installation
 
-### Manual Installation
-```bash
-cd ComfyUI/custom_nodesgit clone https://github.com/adambarbato/ComfyUI-Sa2VA.git
-cd ComfyUI-Sa2VA
-python install.py
-```
-
-### Quick Install (Advanced Users)
+### Installation
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/adambarbato/ComfyUI-Sa2VA.git
@@ -166,13 +159,7 @@ Contributions welcome! Areas for improvement:
 
 MIT
 
-## Testing Installation
 
-Run the test script to verify everything works:
-```bash
-cd ComfyUI-Sa2VA
-python test_sa2va.py
-```
 
 ## Links
 

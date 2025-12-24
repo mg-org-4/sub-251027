@@ -1093,7 +1093,7 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
     ):
         extra_cond_dim = kwargs.pop("extra_cond_dim") if "extra_cond_dim" in kwargs else None
         self.slicing_sample_min_size = slicing_sample_min_size
-        self.slicing_latent_min_size = slicing_sample_min_size // (2**temporal_scale_num)
+        self.slicing_latent_min_size = max(1, slicing_sample_min_size // (2**temporal_scale_num))
 
         super().__init__(
             in_channels=in_channels,
@@ -1710,7 +1710,7 @@ class VideoAutoencoderKLWrapper(VideoAutoencoderKL):
         if split_size is not None:
             self.enable_slicing()
             self.slicing_sample_min_size = split_size
-            self.slicing_latent_min_size = split_size // self.temporal_downsample_factor
+            self.slicing_latent_min_size = max(1, split_size // self.temporal_downsample_factor)
         else:
             self.disable_slicing()
         for module in self.modules():

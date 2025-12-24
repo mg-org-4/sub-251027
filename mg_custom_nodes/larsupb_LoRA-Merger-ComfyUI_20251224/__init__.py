@@ -1,6 +1,9 @@
 from .src.lora_apply import LoraApply
 from .src.lora_block_sampler import LoRABlockSampler
-from .src.lora_mergekit_merge import LoraMergerMergekit, LoraDecompose, LoraStackFromDir, LoRASelect
+from .src.lora_mergekit_merge import LoraMergerMergekit
+from .src.lora_selector import LoRASelect
+from .src.lora_dir_stacker import LoraStackFromDir
+from .src.lora_decompose import LoraDecompose
 from .src.lora_parameter_sweep_sampler import LoRAParameterSweepSampler
 from .src.lora_power_stacker import LoraPowerStacker
 from .src.lora_resize import LoraResizer
@@ -11,7 +14,7 @@ from .src.nodes_merge_methods import TaskArithmeticMergeMethod, NearSwapMergeMet
     TIESMergeMethod, DAREMergeMethod, DELLAMergeMethod, SLERPMergeMethod, LinearMergeMethod, NuSlerpMergeMethod, \
     ArceeFusionMergeMethod, KArcherMergeMethod
 
-version_code = [2, 0, 0]
+version_code = [2, 1, 0]
 version_str = f"V{version_code[0]}.{version_code[1]}" + (f'.{version_code[2]}' if len(version_code) > 2 else '')
 print(f"### Loading: ComfyUI LoRA-PowerMerge ({version_str})")
 

@@ -86,15 +86,21 @@ PROGRESS_BAR_FORMAT = "{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt}"
 # Layer Filter Constants
 # ============================================================================
 
-# Predefined layer filter sets for Stable Diffusion
+# Architecture-agnostic layer filter sets (works for SD, DiT, Flux, and Wan)
+# Note: 'attn' is added as a general pattern to catch Flux keys like 'img_attn_proj'
+ATTENTION_LAYERS = {"attn", "attn1", "attn2", "attention", "self_attn", "cross_attn"}
+MLP_LAYERS = {"ff", "mlp", "feed_forward", "ffn"}
+ATTENTION_MLP_LAYERS = {"attn", "attn1", "attn2", "attention", "self_attn", "cross_attn", "ff", "mlp", "feed_forward", "ffn"}
+
+# Legacy architecture-specific constants (deprecated, kept for backward compatibility)
 SD_ATTENTION_LAYERS = {"attn1", "attn2"}
 SD_MLP_LAYERS = {"ff"}
 SD_ATTENTION_MLP_LAYERS = {"attn1", "attn2", "ff"}
 SD_PROJECTION_LAYERS = {"proj_in", "proj_out"}
-
-# Predefined layer filter sets for DiT
 DIT_ATTENTION_LAYERS = {"attention"}
 DIT_MLP_LAYERS = {"mlp", "feed_forward"}
+WAN_ATTENTION_LAYERS = {"self_attn", "cross_attn"}
+WAN_MLP_LAYERS = {"ffn"}
 
 
 # ============================================================================
@@ -165,12 +171,18 @@ __all__ = [
     'PROGRESS_BAR_FORMAT',
 
     # Layer Filters
+    'ATTENTION_LAYERS',
+    'MLP_LAYERS',
+    'ATTENTION_MLP_LAYERS',
+    # Legacy (deprecated)
     'SD_ATTENTION_LAYERS',
     'SD_MLP_LAYERS',
     'SD_ATTENTION_MLP_LAYERS',
     'SD_PROJECTION_LAYERS',
     'DIT_ATTENTION_LAYERS',
     'DIT_MLP_LAYERS',
+    'WAN_ATTENTION_LAYERS',
+    'WAN_MLP_LAYERS',
 
     # File I/O
     'LORA_FILE_EXTENSIONS',

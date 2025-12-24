@@ -31,6 +31,7 @@ class videoModelSearch:
             "bytedance:1@1 (Seedance 1.0 Lite)",
             "bytedance:5@1 (OmniHuman 1)",
             "bytedance:5@2 (OmniHuman 1.5)",
+            "bytedance:seedance@1.5-pro (Seedance 1.5 Pro)",
         ],
         "MiniMax": [
             "minimax:1@1 (MiniMax 01 Base)",
@@ -85,6 +86,9 @@ class videoModelSearch:
             "sync:lipsync-2-pro@1 (Sync LipSync 2 Pro)",
             "sync:react-1@1 (Sync React-1)",
         ],
+        "Bria": [
+            "bria:60@1 (Bria Video Eraser)",
+        ],
     }
     
     # Model dimensions mapping
@@ -117,6 +121,7 @@ class videoModelSearch:
         "bytedance:1@1": {"width": 864, "height": 480},
         "bytedance:5@1": {"width": 1024, "height": 1024},
         "bytedance:5@2": {"width": 1024, "height": 1024},
+        "bytedance:seedance@1.5-pro": {"width": 864, "height": 496},
         
         # MiniMax Models
         "minimax:1@1": {"width": 1366, "height": 768},
@@ -170,6 +175,9 @@ class videoModelSearch:
         "sync:lipsync-2@1": {"width": 0, "height": 0},
         "sync:lipsync-2-pro@1": {"width": 0, "height": 0},
         "sync:react-1@1": {"width": 0, "height": 0},
+        
+        # Bria Models
+        "bria:60@1": {"width": 0, "height": 0},
     }
     
     # Model resolutions mapping
@@ -202,6 +210,7 @@ class videoModelSearch:
         "bytedance:1@1": "480p",
         "bytedance:5@1": None,  # No resolution support (fixed 1024x1024)
         "bytedance:5@2": None,  # No resolution support (fixed 1024x1024)
+        "bytedance:seedance@1.5-pro": "480p",
         
         # MiniMax Models (support both 768p and 720p, using 768p as primary)
         "minimax:1@1": "768p",
@@ -255,6 +264,9 @@ class videoModelSearch:
         "sync:lipsync-2@1": "720p",
         "sync:lipsync-2-pro@1": "720p",
         "sync:react-1@1": "720p",
+        
+        # Bria Models
+        "bria:60@1": "720p",
     }
     
     MODEL_ARCHITECTURES = [
@@ -271,7 +283,8 @@ class videoModelSearch:
         "Ovi",
         "Runway",
         "Luma",
-        "Sync"
+        "Sync",
+        "Bria"
     ]
     
     DEFAULT_DIMENSIONS = {"width": 1024, "height": 576}

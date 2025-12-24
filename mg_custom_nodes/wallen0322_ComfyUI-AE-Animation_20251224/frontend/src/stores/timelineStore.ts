@@ -6,6 +6,12 @@ export interface Keyframe {
   value: number
 }
 
+export interface AssetRef {
+  filename: string
+  subfolder?: string
+  type?: string
+}
+
 export interface BezierPoint {
   x: number
   y: number
@@ -21,6 +27,7 @@ export interface Layer {
   name: string
   type: 'foreground' | 'background'
   image_data?: string
+  image_ref?: AssetRef
   img?: HTMLImageElement
   // 2D 变换
   x: number
@@ -46,6 +53,7 @@ export interface Layer {
   // Mask
   mask_size: number
   customMask?: string
+  customMask_ref?: AssetRef
   maskCanvas?: HTMLCanvasElement
   maskVersion?: number
   // 路径动画
@@ -88,6 +96,13 @@ export interface ProjectKeyframes {
 function getSafeDuration(p: Project) {
   const fps = Math.max(1, p.fps || 1)
   return p.duration || (p.total_frames / fps)
+}
+
+function buildComfyViewUrl(ref: AssetRef): string {
+  const filename = encodeURIComponent(ref.filename || '')
+  const subfolder = encodeURIComponent(ref.subfolder || '')
+  const type = encodeURIComponent(ref.type || 'input')
+  return `/view?filename=${filename}&subfolder=${subfolder}&type=${type}`
 }
 
 export const useTimelineStore = defineStore('timeline', () => {
@@ -306,10 +321,38 @@ export const useTimelineStore = defineStore('timeline', () => {
 
   // Save history state
   function saveHistory() {
+    const cloneKeyframes = (src: Record<string, Keyframe[]>) => {
+      const out: Record<string, Keyframe[]> = {}
+      for (const [key, frames] of Object.entries(src || {})) {
+        out[key] = Array.isArray(frames)
+          ? frames.map((kf) => ({ time: kf.time, value: kf.value }))
+          : []
+      }
+      return out
+    }
+
+    const cloneLayer = (layer: Layer): Layer => {
+      const cloned: Layer = {
+        ...layer,
+        // Non-serializable / ephemeral fields
+        img: undefined,
+        maskCanvas: undefined,
+        // Deep clone nested structures that can be mutated
+        keyframes: cloneKeyframes(layer.keyframes || {}),
+        bezierPath: Array.isArray(layer.bezierPath)
+          ? layer.bezierPath.map((p) => ({ ...p }))
+          : layer.bezierPath
+      }
+
+      return cloned
+    }
+
     const state = {
-      layers: layers.value.map(l => JSON.parse(JSON.stringify(l))),
-      project: JSON.parse(JSON.stringify(project.value)),
-      projectKeyframes: JSON.parse(JSON.stringify(projectKeyframes.value))
+      // Avoid JSON stringify/parse here: it can duplicate huge base64 strings (image_data)
+      // and turns DOM objects (img/maskCanvas) into `{}` which breaks rendering.
+      layers: layers.value.map(cloneLayer),
+      project: { ...project.value },
+      projectKeyframes: cloneKeyframes(projectKeyframes.value as any)
     }
     
     // Remove any history after current index (when undoing and then making new changes)
@@ -349,9 +392,37 @@ export const useTimelineStore = defineStore('timeline', () => {
 
   // Restore state from history
   function restoreState(state: { layers: Layer[], project: Project, projectKeyframes: ProjectKeyframes }) {
-    layers.value = state.layers.map(l => JSON.parse(JSON.stringify(l)))
-    Object.assign(project.value, state.project)
-    projectKeyframes.value = JSON.parse(JSON.stringify(state.projectKeyframes))
+    const cloneKeyframes = (src: Record<string, Keyframe[]>) => {
+      const out: Record<string, Keyframe[]> = {}
+      for (const [key, frames] of Object.entries(src || {})) {
+        out[key] = Array.isArray(frames)
+          ? frames.map((kf) => ({ time: kf.time, value: kf.value }))
+          : []
+      }
+      return out
+    }
+
+    const cloneLayer = (layer: Layer): Layer => ({
+      ...layer,
+      img: undefined,
+      maskCanvas: undefined,
+      keyframes: cloneKeyframes(layer.keyframes || {}),
+      bezierPath: Array.isArray(layer.bezierPath)
+        ? layer.bezierPath.map((p) => ({ ...p }))
+        : layer.bezierPath
+    })
+
+    layers.value = state.layers.map(cloneLayer)
+    Object.assign(project.value, { ...state.project })
+    projectKeyframes.value = cloneKeyframes(state.projectKeyframes as any)
+
+    // Keep selection in range
+    if (currentLayerIndex.value >= layers.value.length) {
+      currentLayerIndex.value = layers.value.length - 1
+    }
+
+    // Ensure original properties exist for restored layers (supports undo of deletes)
+    layers.value.forEach((l) => saveOriginalLayerProperties(l.id, l))
   }
 
   // Save original layer properties
@@ -509,11 +580,20 @@ export const useTimelineStore = defineStore('timeline', () => {
     })
     projectKeyframes.value = proj.project_keyframes || {}
 
-    layers.value = (animation.layers || []).map((l: any) => ({
+    layers.value = (animation.layers || []).map((l: any) => {
+      const imageRef: AssetRef | undefined = l.image_ref
+      const maskRef: AssetRef | undefined = l.customMask_ref
+      const resolvedImageData =
+        l.image_data || (imageRef?.filename ? buildComfyViewUrl(imageRef) : undefined)
+      const resolvedMask =
+        l.customMask || (maskRef?.filename ? buildComfyViewUrl(maskRef) : undefined)
+
+      return ({
       id: l.id,
       name: l.name,
       type: l.type,
-      image_data: l.image_data,
+      image_data: resolvedImageData,
+      image_ref: imageRef,
       // 2D 变换
       x: l.x || 0,
       y: l.y || 0,
@@ -537,14 +617,16 @@ export const useTimelineStore = defineStore('timeline', () => {
       perspective: l.perspective || 1000,
       // Mask
       mask_size: l.mask_size || 0,
-      customMask: l.customMask,
+      customMask: resolvedMask,
+      customMask_ref: maskRef,
       // 路径动画
       bezierPath: l.bezierPath,
       usePathAnimation: l.usePathAnimation || false,
       // 其他
       keyframes: l.keyframes || {},
       bg_mode: l.bg_mode || 'fit'
-    }))
+      })
+    })
     
     // 保存每个图层的原始属性
     originalLayerProperties.value.clear()
@@ -622,7 +704,8 @@ export const useTimelineStore = defineStore('timeline', () => {
         id: l.id,
         name: l.name,
         type: l.type,
-        image_data: l.image_data,
+        image_data: l.image_ref ? undefined : l.image_data,
+        image_ref: l.image_ref,
         // 2D 变换
         x: l.x,
         y: l.y,
@@ -646,7 +729,8 @@ export const useTimelineStore = defineStore('timeline', () => {
         perspective: l.perspective,
         // Mask
         mask_size: l.mask_size,
-        customMask: l.customMask,
+        customMask: l.customMask_ref ? undefined : l.customMask,
+        customMask_ref: l.customMask_ref,
         // 路径动画
         bezierPath: l.bezierPath,
         usePathAnimation: l.usePathAnimation,

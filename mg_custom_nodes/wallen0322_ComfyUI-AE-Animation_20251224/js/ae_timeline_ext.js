@@ -92,8 +92,25 @@ async function openAETimelineForNode(node) {
   }
 
   const vueApp = window.createTimelineApp(container, { node });
+  const saveTimeline = async () => {
+    try {
+      if (vueApp && typeof vueApp.save === "function") {
+        await vueApp.save();
+      }
+    } catch (e) {
+      console.warn("[AE Timeline] save failed", e);
+    }
+  };
 
-  dialog.addEventListener("close", () => {
+  dialog.addEventListener("cancel", async (e) => {
+    // Intercept ESC/outside click to allow async save before closing
+    e.preventDefault();
+    await saveTimeline();
+    dialog.close();
+  });
+
+  dialog.addEventListener("close", async () => {
+    await saveTimeline();
     try {
       vueApp.unmount && vueApp.unmount();
     } catch {
@@ -116,6 +133,24 @@ async function openAETimelineForNode(node) {
   dialog.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       dialog.close();
+      return;
+    }
+
+    // Prevent ComfyUI canvas from receiving delete/backspace while the dialog is open
+    if (e.key === "Delete" || e.key === "Backspace") {
+      e.stopPropagation();
+
+      const tag = (e.target && e.target.tagName) || "";
+      const isTypingTarget =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        (e.target && e.target.isContentEditable);
+
+      // Avoid browser/back navigation or other default delete behaviors when not editing text
+      if (!isTypingTarget) {
+        e.preventDefault();
+      }
     }
   });
 

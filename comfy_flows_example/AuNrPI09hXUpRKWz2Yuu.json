@@ -1,0 +1,672 @@
+{
+  "last_link_id": 101,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "text",
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -2410.073486328125,
+        -934.9114379882812
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 94,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 47,
+      "type": "ShowText|pysssss",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "text",
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -1993.1973876953125,
+        -1196.6536865234375
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 98,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 4,
+      "type": "ShowText|pysssss",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "order": 7
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "text",
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -1992.814697265625,
+        -934.9600830078125
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 99,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 46,
+      "type": "ShowText|pysssss",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "order": 8
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "text",
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -2407.645263671875,
+        -1190.6474609375
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 92,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 43,
+      "type": "ShowText|pysssss",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        432.327880859375,
+        433.8466796875
+      ],
+      "pos": [
+        -1995.796875,
+        -1697.1556396484375
+      ],
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 97,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "id": 3,
+      "type": "SaveImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            100
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "size": [
+        430.02142333984375,
+        470.8316345214844
+      ],
+      "pos": [
+        -2786.556640625,
+        -1737.642822265625
+      ],
+      "widgets_values": [
+        "IMG_20240722_211835.jpg",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "type": "COMBO",
+          "localized_name": "图像"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "id": 9,
+      "type": "LoadImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 0
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "🚀 Tutu Nano Banana v2.0 - Google Gemini 2.5 Flash 图像生成套装\n\n📋 核心功能：\n1、【双节点架构】主生成节点 + 高级提示词优化节点，完美协作\n2、【多图处理】支持5张图像同时输入，自动内部标注为图一到图五\n   - 使用示例：\"将图一的兔子放在图二的桌子上，使用图三的风格\"\n3、【智能模板】12个专业预设（人像/风景/产品/艺术等），一键应用\n4、【场景检测】提示词大师自动识别场景类型，推荐最佳模板\n5、【多语言优化】支持中英文提示词优化，4级质量控制\n\n⚙️ API配置：\n• ai.comfly.chat - 性价比高，选择[Comfly]标签的模型\n• OpenRouter - 稳定可靠，选择[OpenRouter]标签的模型\n• 注意：API提供商必须与模型标签匹配！\n\n💡 使用建议：\n1、连接Prompt Master输出到主节点，获得优化后的提示词\n2、务必连接response到ShowText，实时查看处理状态\n3、图像编辑时充分利用5图输入，创造更复杂的效果\n4、善用预设模板，快速达到专业级效果"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        427.9343566894531,
+        132.59002685546875
+      ],
+      "pos": [
+        -2007.0653076171875,
+        -1902.9466552734375
+      ],
+      "id": 5,
+      "properties": {
+        "widget_ue_connectable": {},
+        "text": ""
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "generated_images",
+          "links": [
+            97
+          ],
+          "label": "generated_images",
+          "type": "IMAGE",
+          "localized_name": "generated_images"
+        },
+        {
+          "name": "response",
+          "links": [
+            98
+          ],
+          "label": "response",
+          "type": "STRING",
+          "localized_name": "response"
+        },
+        {
+          "name": "image_url",
+          "links": [
+            99
+          ],
+          "label": "image_url",
+          "type": "STRING",
+          "localized_name": "image_url"
+        }
+      ],
+      "size": [
+        283.130859375,
+        326
+      ],
+      "pos": [
+        -2323.757080078125,
+        -1594.7685546875
+      ],
+      "widgets_values": [
+        "OpenRouter",
+        "[OpenRouter] google/gemini-2.5-flash-image-preview",
+        1,
+        1,
+        0.95,
+        120,
+        "",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "prompt",
+          "link": 96,
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "shape": 7,
+          "name": "input_image_1",
+          "link": 100,
+          "label": "input_image_1",
+          "type": "IMAGE",
+          "localized_name": "input_image_1"
+        },
+        {
+          "shape": 7,
+          "name": "input_image_2",
+          "label": "input_image_2",
+          "type": "IMAGE",
+          "localized_name": "input_image_2"
+        },
+        {
+          "shape": 7,
+          "name": "input_image_3",
+          "label": "input_image_3",
+          "type": "IMAGE",
+          "localized_name": "input_image_3"
+        },
+        {
+          "shape": 7,
+          "name": "input_image_4",
+          "label": "input_image_4",
+          "type": "IMAGE",
+          "localized_name": "input_image_4"
+        },
+        {
+          "shape": 7,
+          "name": "input_image_5",
+          "label": "input_image_5",
+          "type": "IMAGE",
+          "localized_name": "input_image_5"
+        },
+        {
+          "widget": {
+            "name": "api_provider"
+          },
+          "name": "api_provider",
+          "label": "api_provider",
+          "type": "COMBO",
+          "localized_name": "api_provider"
+        },
+        {
+          "widget": {
+            "name": "model"
+          },
+          "name": "model",
+          "label": "model",
+          "type": "COMBO",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "num_images"
+          },
+          "name": "num_images",
+          "label": "num_images",
+          "type": "INT",
+          "localized_name": "num_images"
+        },
+        {
+          "widget": {
+            "name": "temperature"
+          },
+          "name": "temperature",
+          "label": "temperature",
+          "type": "FLOAT",
+          "localized_name": "temperature"
+        },
+        {
+          "widget": {
+            "name": "top_p"
+          },
+          "name": "top_p",
+          "label": "top_p",
+          "type": "FLOAT",
+          "localized_name": "top_p"
+        },
+        {
+          "widget": {
+            "name": "timeout"
+          },
+          "name": "timeout",
+          "label": "timeout",
+          "type": "INT",
+          "localized_name": "timeout"
+        },
+        {
+          "widget": {
+            "name": "comfly_api_key"
+          },
+          "shape": 7,
+          "name": "comfly_api_key",
+          "label": "comfly_api_key",
+          "type": "STRING",
+          "localized_name": "comfly_api_key"
+        },
+        {
+          "widget": {
+            "name": "openrouter_api_key"
+          },
+          "shape": 7,
+          "name": "openrouter_api_key",
+          "label": "openrouter_api_key",
+          "type": "STRING",
+          "localized_name": "openrouter_api_key"
+        }
+      ],
+      "flags": {},
+      "id": 53,
+      "type": "TutuGeminiAPI",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TutuGeminiAPI"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "optimized_prompt",
+          "links": [
+            92,
+            96
+          ],
+          "label": "optimized_prompt",
+          "type": "STRING",
+          "localized_name": "optimized_prompt"
+        },
+        {
+          "name": "template_used",
+          "links": [
+            94
+          ],
+          "label": "template_used",
+          "type": "STRING",
+          "localized_name": "template_used"
+        },
+        {
+          "name": "optimization_report",
+          "label": "optimization_report",
+          "type": "STRING",
+          "localized_name": "optimization_report"
+        }
+      ],
+      "size": [
+        400,
+        296
+      ],
+      "pos": [
+        -2832.678955078125,
+        -1180.97705078125
+      ],
+      "widgets_values": [
+        "Custom Input",
+        "change to noon time",
+        "English Optimization",
+        "Professional Detail",
+        "Auto Select",
+        "Auto Select",
+        true,
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "template_selection"
+          },
+          "name": "template_selection",
+          "label": "template_selection",
+          "type": "COMBO",
+          "localized_name": "template_selection"
+        },
+        {
+          "widget": {
+            "name": "user_idea"
+          },
+          "name": "user_idea",
+          "label": "user_idea",
+          "type": "STRING",
+          "localized_name": "user_idea"
+        },
+        {
+          "widget": {
+            "name": "language"
+          },
+          "name": "language",
+          "label": "language",
+          "type": "COMBO",
+          "localized_name": "language"
+        },
+        {
+          "widget": {
+            "name": "detail_level"
+          },
+          "name": "detail_level",
+          "label": "detail_level",
+          "type": "COMBO",
+          "localized_name": "detail_level"
+        },
+        {
+          "widget": {
+            "name": "camera_control"
+          },
+          "shape": 7,
+          "name": "camera_control",
+          "label": "camera_control",
+          "type": "COMBO",
+          "localized_name": "camera_control"
+        },
+        {
+          "widget": {
+            "name": "lighting_control"
+          },
+          "shape": 7,
+          "name": "lighting_control",
+          "label": "lighting_control",
+          "type": "COMBO",
+          "localized_name": "lighting_control"
+        },
+        {
+          "widget": {
+            "name": "quality_enhancement"
+          },
+          "shape": 7,
+          "name": "quality_enhancement",
+          "label": "quality_enhancement",
+          "type": "BOOLEAN",
+          "localized_name": "quality_enhancement"
+        },
+        {
+          "widget": {
+            "name": "custom_additions"
+          },
+          "shape": 7,
+          "name": "custom_additions",
+          "label": "custom_additions",
+          "type": "STRING",
+          "localized_name": "custom_additions"
+        }
+      ],
+      "flags": {},
+      "id": 51,
+      "type": "TutuNanaBananaPromptMaster",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TutuNanaBananaPromptMaster"
+      },
+      "order": 1
+    }
+  ],
+  "extra": {
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "frontendVersion": "1.26.6",
+    "ds": {
+      "offset": [
+        2991.778824547499,
+        1486.7004436098641
+      ],
+      "scale": 0.7972024500000005
+    }
+  },
+  "groups": [],
+  "links": [
+    [
+      92,
+      51,
+      0,
+      43,
+      0,
+      "STRING"
+    ],
+    [
+      94,
+      51,
+      1,
+      47,
+      0,
+      "STRING"
+    ],
+    [
+      96,
+      51,
+      0,
+      53,
+      0,
+      "STRING"
+    ],
+    [
+      97,
+      53,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      98,
+      53,
+      1,
+      4,
+      0,
+      "STRING"
+    ],
+    [
+      99,
+      53,
+      2,
+      46,
+      0,
+      "STRING"
+    ],
+    [
+      100,
+      9,
+      0,
+      53,
+      1,
+      "IMAGE"
+    ]
+  ],
+  "id": "b6a5fd52-33a0-4e0f-8d27-06300e2a956e",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 55,
+  "revision": 0
+}

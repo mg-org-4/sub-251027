@@ -10,6 +10,9 @@ Based on verified APIs from:
 - diffusers documentation (https://huggingface.co/docs/diffusers)
 - SDNQ repository (https://github.com/Disty0/sdnq)
 - ComfyUI nodes.py (IMAGE format specification)
+
+Performance Note: Heavy imports (sdnq, diffusers, huggingface_hub) are lazy-loaded
+to minimize ComfyUI startup time. They are only imported when actually needed.
 """
 
 import torch
@@ -19,7 +22,7 @@ import traceback
 import sys
 import os
 import warnings
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, TYPE_CHECKING
 
 # ComfyUI imports for LoRA folder access
 try:
@@ -29,53 +32,103 @@ except ImportError:
     COMFYUI_AVAILABLE = False
     print("[SDNQ Sampler] Warning: folder_paths not available - LoRA dropdown will be disabled")
 
-# SDNQ import - registers SDNQ support into diffusers
-from sdnq import SDNQConfig
-# SDNQ optimization imports
-try:
-    from sdnq.loader import apply_sdnq_options_to_model
-    from sdnq.common import use_torch_compile as triton_is_available
-except ImportError:
-    print("[SDNQ Sampler] Warning: Could not import SDNQ optimization tools. Quantized MatMul will be disabled.")
-    def apply_sdnq_options_to_model(model, **kwargs): return model
-    triton_is_available = False
+# ============================================================================
+# LAZY IMPORT HELPERS
+# ============================================================================
+# Heavy imports (sdnq, diffusers, huggingface_hub) are loaded on first use
+# to reduce ComfyUI startup time from ~15s to ~2-3s
+# ============================================================================
 
-# diffusers pipeline - auto-detects model type from model_index.json
-from diffusers import DiffusionPipeline
+# Module-level cache for lazy imports
+_sdnq_initialized = False
+_diffusers_pipeline_class = None
+_scheduler_classes = None
+_sdnq_apply_options = None
+_triton_available = None
 
-# Scheduler imports
-# Flow-match schedulers (for FLUX, SD3, Qwen, Z-Image)
-from diffusers.schedulers import FlowMatchEulerDiscreteScheduler
+def _ensure_sdnq_initialized():
+    """Initialize SDNQ (registers into diffusers). Called before loading models."""
+    global _sdnq_initialized
+    if not _sdnq_initialized:
+        from sdnq import SDNQConfig  # noqa: F401 - import side effect registers SDNQ
+        _sdnq_initialized = True
 
-# Traditional diffusion schedulers (for SDXL, SD1.5, etc.)
-from diffusers.schedulers import (
-    DDIMScheduler,
-    DDPMScheduler,
-    PNDMScheduler,
-    LMSDiscreteScheduler,
-    EulerDiscreteScheduler,
-    HeunDiscreteScheduler,
-    EulerAncestralDiscreteScheduler,
-    DPMSolverMultistepScheduler,
-    DPMSolverSinglestepScheduler,
-    KDPM2DiscreteScheduler,
-    KDPM2AncestralDiscreteScheduler,
-    DEISMultistepScheduler,
-    UniPCMultistepScheduler,
-)
+def _get_diffusers_pipeline_class():
+    """Lazy load DiffusionPipeline class."""
+    global _diffusers_pipeline_class
+    if _diffusers_pipeline_class is None:
+        from diffusers import DiffusionPipeline
+        _diffusers_pipeline_class = DiffusionPipeline
+    return _diffusers_pipeline_class
 
-# Local imports for model catalog and downloading
+def _get_scheduler_classes():
+    """Lazy load all scheduler classes."""
+    global _scheduler_classes
+    if _scheduler_classes is None:
+        from diffusers.schedulers import (
+            FlowMatchEulerDiscreteScheduler,
+            DDIMScheduler,
+            DDPMScheduler,
+            PNDMScheduler,
+            LMSDiscreteScheduler,
+            EulerDiscreteScheduler,
+            HeunDiscreteScheduler,
+            EulerAncestralDiscreteScheduler,
+            DPMSolverMultistepScheduler,
+            DPMSolverSinglestepScheduler,
+            KDPM2DiscreteScheduler,
+            KDPM2AncestralDiscreteScheduler,
+            DEISMultistepScheduler,
+            UniPCMultistepScheduler,
+        )
+        _scheduler_classes = {
+            "FlowMatchEulerDiscreteScheduler": FlowMatchEulerDiscreteScheduler,
+            "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
+            "UniPCMultistepScheduler": UniPCMultistepScheduler,
+            "EulerDiscreteScheduler": EulerDiscreteScheduler,
+            "EulerAncestralDiscreteScheduler": EulerAncestralDiscreteScheduler,
+            "DDIMScheduler": DDIMScheduler,
+            "HeunDiscreteScheduler": HeunDiscreteScheduler,
+            "KDPM2DiscreteScheduler": KDPM2DiscreteScheduler,
+            "KDPM2AncestralDiscreteScheduler": KDPM2AncestralDiscreteScheduler,
+            "DPMSolverSinglestepScheduler": DPMSolverSinglestepScheduler,
+            "DEISMultistepScheduler": DEISMultistepScheduler,
+            "LMSDiscreteScheduler": LMSDiscreteScheduler,
+            "DDPMScheduler": DDPMScheduler,
+            "PNDMScheduler": PNDMScheduler,
+        }
+    return _scheduler_classes
+
+def _get_sdnq_optimization_tools():
+    """Lazy load SDNQ optimization tools."""
+    global _sdnq_apply_options, _triton_available
+    if _sdnq_apply_options is None:
+        try:
+            from sdnq.loader import apply_sdnq_options_to_model
+            from sdnq.common import use_torch_compile as triton_is_available
+            _sdnq_apply_options = apply_sdnq_options_to_model
+            _triton_available = triton_is_available
+        except ImportError:
+            print("[SDNQ Sampler] Warning: Could not import SDNQ optimization tools. Quantized MatMul will be disabled.")
+            _sdnq_apply_options = lambda model, **kwargs: model
+            _triton_available = False
+    return _sdnq_apply_options, _triton_available
+
+# Local imports for model catalog (these are lightweight, no heavy dependencies)
 from ..core.registry import (
     get_model_names_for_dropdown,
     get_repo_id_from_name,
     get_model_info,
 )
-from ..core.downloader import (
-    download_model,
-    get_cached_model_path,
-    check_model_cached,
-)
-from ..core.config import get_sdnq_models_dir
+
+def _lazy_import_downloader():
+    """Lazy import downloader functions to avoid huggingface_hub import at startup."""
+    from ..core.downloader import (
+        download_model,
+        get_cached_model_path,
+        check_model_cached,
+    )
+    return download_model, get_cached_model_path, check_model_cached
 
 
 class SDNQSampler:
@@ -299,6 +352,31 @@ class SDNQSampler:
                     "default": False,
                     "tooltip": "Enable VAE tiling for very large images (>1536px). Prevents out-of-memory errors on high resolutions. Minimal performance impact. Recommended for images >1536x1536."
                 }),
+
+                # ============================================================
+                # IMAGE INPUTS (For image editing models like Qwen-Image-Edit)
+                # ============================================================
+
+                "image1": ("IMAGE", {
+                    "tooltip": "Optional source image for image editing models (Qwen-Image-Edit, ChronoEdit, etc.). Leave unconnected for text-to-image generation."
+                }),
+
+                "image2": ("IMAGE", {
+                    "tooltip": "Optional second image for multi-image editing models (Qwen-Image-Edit-2509/2511). Not all models support multiple images."
+                }),
+
+                "image3": ("IMAGE", {
+                    "tooltip": "Optional third image for multi-image editing models."
+                }),
+
+                "image4": ("IMAGE", {
+                    "tooltip": "Optional fourth image for multi-image editing models."
+                }),
+
+                "image_resize": (["No Resize", "Small (512px)", "Medium (768px)", "Large (1024px)", "XL (1536px)"], {
+                    "default": "No Resize",
+                    "tooltip": "Resize input images before processing. Smaller = faster inference, less VRAM. 'No Resize' keeps original dimensions."
+                }),
             }
         }
 
@@ -323,6 +401,54 @@ class SDNQSampler:
         # ComfyUI provides comfy.model_management.interrupt_processing()
         # For now, we'll use a simple flag that can be extended
         return self.interrupted
+
+    def _convert_comfyui_image_to_pil(self, image_tensor, resize_option: str = "No Resize") -> Optional[Image.Image]:
+        """
+        Convert ComfyUI IMAGE tensor to PIL Image with optional resizing.
+
+        ComfyUI images are [B, H, W, C] float tensors in 0-1 range.
+
+        Args:
+            image_tensor: ComfyUI IMAGE tensor
+            resize_option: Resize option string
+
+        Returns:
+            PIL Image or None if conversion fails
+        """
+        if image_tensor is None:
+            return None
+
+        try:
+            # ComfyUI images are [B, H, W, C] - take first image from batch
+            img_array = image_tensor[0].cpu().numpy()
+            # Convert from 0-1 float to 0-255 uint8
+            img_array = (img_array * 255).astype(np.uint8)
+            pil_image = Image.fromarray(img_array)
+
+            # Resize if requested
+            resize_dimensions = {
+                "Small (512px)": 512,
+                "Medium (768px)": 768,
+                "Large (1024px)": 1024,
+                "XL (1536px)": 1536,
+            }
+
+            max_dim = resize_dimensions.get(resize_option)
+            if max_dim is not None:
+                width, height = pil_image.size
+                max_current = max(width, height)
+                if max_current > max_dim:
+                    scale = max_dim / max_current
+                    new_width = int(width * scale)
+                    new_height = int(height * scale)
+                    pil_image = pil_image.resize((new_width, new_height), Image.LANCZOS)
+                    print(f"[SDNQ Sampler] Resized input image: {width}x{height} → {new_width}x{new_height}")
+
+            return pil_image.convert("RGB")
+
+        except Exception as e:
+            print(f"[SDNQ Sampler] Warning: Failed to convert input image: {e}")
+            return None
 
     def load_or_download_model(self, model_selection: str, custom_path: str, auto_download: bool) -> Tuple[str, bool]:
         """
@@ -382,6 +508,9 @@ class SDNQSampler:
         print(f"[SDNQ Sampler] Selected model: {model_selection}")
         print(f"[SDNQ Sampler] Repository: {repo_id}")
 
+        # Lazy import downloader to avoid huggingface_hub at startup
+        download_model, get_cached_model_path, check_model_cached = _lazy_import_downloader()
+
         # Check if model already cached
         cached_path = get_cached_model_path(repo_id)
         if cached_path:
@@ -419,7 +548,7 @@ class SDNQSampler:
 
     def load_pipeline(self, model_path: str, dtype_str: str, memory_mode: str = "gpu",
                      use_xformers: bool = False, enable_vae_tiling: bool = False,
-                     use_quantized_matmul: bool = True) -> DiffusionPipeline:
+                     use_quantized_matmul: bool = True):
         """
         Load SDNQ model using diffusers pipeline.
 
@@ -448,6 +577,11 @@ class SDNQSampler:
         https://huggingface.co/docs/diffusers/en/using-diffusers/loading
         https://huggingface.co/docs/diffusers/main/optimization/memory
         """
+        # Lazy import SDNQ and diffusers (heavy dependencies)
+        _ensure_sdnq_initialized()
+        DiffusionPipeline = _get_diffusers_pipeline_class()
+        apply_sdnq_options_to_model, triton_is_available = _get_sdnq_optimization_tools()
+
         # Convert dtype string to torch dtype
         dtype_map = {
             "bfloat16": torch.bfloat16,
@@ -504,22 +638,11 @@ class SDNQSampler:
                             )
                             print("[SDNQ Sampler] ✓ Optimization applied to UNet")
 
-                        # Apply to text encoders (if they are quantized, e.g. FLUX.2)
-                        if hasattr(pipeline, 'text_encoder') and pipeline.text_encoder is not None:
-                            # Only apply if it looks like a quantized model (has SDNQ layers)
-                            # Safe to try, sdnq loader checks internally
-                            pipeline.text_encoder = apply_sdnq_options_to_model(
-                                pipeline.text_encoder,
-                                use_quantized_matmul=True
-                            )
-                            print("[SDNQ Sampler] ✓ Optimization applied to text_encoder")
-
-                        if hasattr(pipeline, 'text_encoder_2') and pipeline.text_encoder_2 is not None:
-                            pipeline.text_encoder_2 = apply_sdnq_options_to_model(
-                                pipeline.text_encoder_2,
-                                use_quantized_matmul=True
-                            )
-                            print("[SDNQ Sampler] ✓ Optimization applied to text_encoder_2")
+                        # NOTE: We intentionally DO NOT apply quantized_matmul to text_encoders
+                        # VL models (Qwen, etc.) have text encoder dimensions that aren't multiples
+                        # of 8 (e.g., 3420), which causes SDNQ int8 matmul to fail with:
+                        # "mat2.size(1) must be a multiple of 8 for INT8 GEMM"
+                        # Only transformer/unet components are safe for this optimization.
 
                     except Exception as e:
                         print(f"[SDNQ Sampler] ⚠️  Failed to apply optimizations: {e}")
@@ -623,7 +746,7 @@ class SDNQSampler:
                 f"5. Look at the error message above for specific details"
             )
 
-    def load_lora(self, pipeline: DiffusionPipeline, lora_path: str, lora_strength: float = 1.0):
+    def load_lora(self, pipeline, lora_path: str, lora_strength: float = 1.0):
         """
         Load LoRA weights into pipeline.
 
@@ -691,7 +814,7 @@ class SDNQSampler:
                 f"5. Try with lora_strength=1.0 first"
             )
 
-    def unload_lora(self, pipeline: DiffusionPipeline):
+    def unload_lora(self, pipeline):
         """
         Unload LoRA weights from pipeline.
 
@@ -706,7 +829,7 @@ class SDNQSampler:
             # Non-critical error, just log it
             print(f"[SDNQ Sampler] Warning: Failed to unload LoRA: {e}")
 
-    def swap_scheduler(self, pipeline: DiffusionPipeline, scheduler_name: str):
+    def swap_scheduler(self, pipeline, scheduler_name: str):
         """
         Swap the pipeline's scheduler.
 
@@ -726,25 +849,8 @@ class SDNQSampler:
         print(f"[SDNQ Sampler] Swapping scheduler to: {scheduler_name}")
 
         try:
-            # Map scheduler name to class
-            scheduler_map = {
-                # Flow-based schedulers (FLUX, SD3, Qwen, Z-Image)
-                "FlowMatchEulerDiscreteScheduler": FlowMatchEulerDiscreteScheduler,
-                # Traditional diffusion schedulers (SDXL, SD1.5)
-                "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
-                "UniPCMultistepScheduler": UniPCMultistepScheduler,
-                "EulerDiscreteScheduler": EulerDiscreteScheduler,
-                "EulerAncestralDiscreteScheduler": EulerAncestralDiscreteScheduler,
-                "DDIMScheduler": DDIMScheduler,
-                "HeunDiscreteScheduler": HeunDiscreteScheduler,
-                "KDPM2DiscreteScheduler": KDPM2DiscreteScheduler,
-                "KDPM2AncestralDiscreteScheduler": KDPM2AncestralDiscreteScheduler,
-                "DPMSolverSinglestepScheduler": DPMSolverSinglestepScheduler,
-                "DEISMultistepScheduler": DEISMultistepScheduler,
-                "LMSDiscreteScheduler": LMSDiscreteScheduler,
-                "DDPMScheduler": DDPMScheduler,
-                "PNDMScheduler": PNDMScheduler,
-            }
+            # Lazy load scheduler classes
+            scheduler_map = _get_scheduler_classes()
 
             if scheduler_name not in scheduler_map:
                 raise ValueError(
@@ -773,8 +879,9 @@ class SDNQSampler:
                 f"5. Check diffusers version (requires >=0.36.0)"
             )
 
-    def generate_image(self, pipeline: DiffusionPipeline, prompt: str, negative_prompt: str,
-                      steps: int, cfg: float, width: int, height: int, seed: int) -> Image.Image:
+    def generate_image(self, pipeline, prompt: str, negative_prompt: str,
+                      steps: int, cfg: float, width: int, height: int, seed: int,
+                      source_images: Optional[list] = None) -> Image.Image:
         """
         Generate image using the loaded pipeline.
 
@@ -787,6 +894,7 @@ class SDNQSampler:
             width: Image width (must be multiple of 8)
             height: Image height (must be multiple of 8)
             seed: Random seed for reproducibility
+            source_images: Optional list of PIL Images for image editing (Qwen-Image-Edit, etc.)
 
         Returns:
             PIL Image object
@@ -797,11 +905,25 @@ class SDNQSampler:
         Based on verified API from FLUX examples:
         https://huggingface.co/docs/diffusers/main/api/pipelines/flux
         """
-        print(f"[SDNQ Sampler] Generating image...")
+        is_img2img = source_images and len(source_images) > 0
+        pipeline_name = type(pipeline).__name__
+        is_qwen_pipeline = "Qwen" in pipeline_name or "Edit" in pipeline_name
+
+        if is_img2img:
+            mode = "image-to-image"
+        elif is_qwen_pipeline:
+            mode = "text-to-image (blank canvas)"
+        else:
+            mode = "text-to-image"
+
+        print(f"[SDNQ Sampler] Generating image ({mode})...")
+        print(f"[SDNQ Sampler]   Pipeline: {pipeline_name}")
         print(f"[SDNQ Sampler]   Prompt: {prompt[:100]}{'...' if len(prompt) > 100 else ''}")
         print(f"[SDNQ Sampler]   Steps: {steps}, CFG: {cfg}")
         print(f"[SDNQ Sampler]   Size: {width}x{height}")
         print(f"[SDNQ Sampler]   Seed: {seed}")
+        if is_img2img:
+            print(f"[SDNQ Sampler]   Source images: {len(source_images)}")
 
         # Check for interruption before starting
         if self.check_interrupted():
@@ -819,10 +941,33 @@ class SDNQSampler:
                 "prompt": prompt,
                 "num_inference_steps": steps,
                 "guidance_scale": cfg,
-                "width": width,
-                "height": height,
                 "generator": generator,
             }
+
+            # Add image input for image editing pipelines (Qwen-Image-Edit, ChronoEdit, etc.)
+            # If source_images provided, this is img2img - don't set width/height (use source size)
+            # If no source_images, this is txt2img - set width/height
+            # Note: pipeline_name and is_qwen_pipeline are computed earlier in this method
+
+            if is_img2img:
+                # For single image, pass directly; for multiple, pass as list
+                if len(source_images) == 1:
+                    pipeline_kwargs["image"] = source_images[0]
+                else:
+                    pipeline_kwargs["image"] = source_images
+            elif is_qwen_pipeline:
+                # Qwen/Edit pipelines require an image even for "T2I" mode
+                # Create a blank white image of the requested size as a starting point
+                # This allows the model to generate from scratch while satisfying the image requirement
+                print(f"[SDNQ Sampler] ℹ️  {pipeline_name} requires an image input.")
+                print(f"[SDNQ Sampler] Creating blank {width}x{height} image for T2I mode...")
+                blank_image = Image.new("RGB", (width, height), color=(255, 255, 255))
+                pipeline_kwargs["image"] = blank_image
+                # Don't set width/height - let the pipeline use the image dimensions
+            else:
+                # Text-to-image: specify output dimensions
+                pipeline_kwargs["width"] = width
+                pipeline_kwargs["height"] = height
 
             # Only add negative_prompt if it's not empty
             # Will be automatically removed if pipeline doesn't support it
@@ -830,33 +975,61 @@ class SDNQSampler:
                 pipeline_kwargs["negative_prompt"] = negative_prompt
 
             # Try calling pipeline with all parameters
-            # If negative_prompt is unsupported, retry without it
+            # If certain parameters are unsupported, retry without them
             try:
                 result = pipeline(**pipeline_kwargs)
             except TypeError as e:
-                # Check if error is about negative_prompt parameter
-                if "negative_prompt" in str(e) and "unexpected keyword argument" in str(e):
-                    # Pipeline doesn't support negative_prompt (e.g., FLUX.2, FLUX-schnell)
-                    print(f"[SDNQ Sampler] ⚠️  Pipeline {type(pipeline).__name__} doesn't support negative_prompt - skipping it")
+                error_str = str(e)
+                import re
+                match = re.search(r"unexpected keyword argument '(\w+)'", error_str)
+                param_name = match.group(1) if match else None
 
-                    # Remove negative_prompt and retry
+                # Handle 'negative_prompt' not supported (e.g., FLUX.2, FLUX-schnell)
+                if param_name == "negative_prompt":
+                    print(f"[SDNQ Sampler] ⚠️  Pipeline {type(pipeline).__name__} doesn't support negative_prompt - skipping it")
                     if "negative_prompt" in pipeline_kwargs:
                         del pipeline_kwargs["negative_prompt"]
-
-                    # Retry generation without negative_prompt
                     result = pipeline(**pipeline_kwargs)
+
+                # Handle 'image' not supported - fallback to text-to-image
+                elif param_name == "image":
+                    print(f"[SDNQ Sampler] ⚠️  Pipeline {type(pipeline).__name__} doesn't support image input - falling back to text-to-image mode")
+                    if "image" in pipeline_kwargs:
+                        del pipeline_kwargs["image"]
+                    # Add width/height back since we're doing text-to-image now
+                    pipeline_kwargs["width"] = width
+                    pipeline_kwargs["height"] = height
+                    result = pipeline(**pipeline_kwargs)
+
                 else:
                     # Different TypeError - re-raise with helpful message
-                    import re
-                    match = re.search(r"unexpected keyword argument '(\w+)'", str(e))
-                    param_name = match.group(1) if match else "unknown"
                     raise Exception(
-                        f"Pipeline doesn't support parameter: '{param_name}'\n\n"
-                        f"Error: {str(e)}\n\n"
+                        f"Pipeline doesn't support parameter: '{param_name or 'unknown'}'\n\n"
+                        f"Error: {error_str}\n\n"
                         f"Pipeline type: {type(pipeline).__name__}\n"
                         f"This pipeline has a different signature than expected.\n\n"
                         f"Please report this issue on GitHub with the pipeline type above."
                     )
+            except AttributeError as e:
+                # Handle pipelines that REQUIRE image input but didn't get one
+                # This shouldn't happen for Qwen pipelines now (we create blank images)
+                # but kept as a fallback for unexpected cases
+                error_str = str(e)
+
+                # Check if this looks like a missing image error
+                if "'NoneType' object" in error_str and ("size" in error_str or "shape" in error_str):
+                    raise ValueError(
+                        f"This model requires an image input!\n\n"
+                        f"Pipeline: {pipeline_name}\n"
+                        f"Error: {error_str}\n\n"
+                        f"This appears to be an image-editing model.\n"
+                        f"Please connect a LoadImage node to the 'image1' input.\n\n"
+                        f"If you want text-to-image generation, try a different model\n"
+                        f"or report this as a bug if the model should support T2I."
+                    )
+                else:
+                    # Other AttributeError - re-raise
+                    raise
 
             # Check for interruption after generation
             if self.check_interrupted():
@@ -928,7 +1101,9 @@ class SDNQSampler:
                 seed: int, scheduler: str, dtype: str, memory_mode: str, auto_download: bool,
                 lora_selection: str = "[None]", lora_custom_path: str = "", lora_strength: float = 1.0,
                 use_xformers: bool = False, enable_vae_tiling: bool = False,
-                use_quantized_matmul: bool = True) -> Tuple[torch.Tensor]:
+                use_quantized_matmul: bool = True,
+                image1=None, image2=None, image3=None, image4=None,
+                image_resize: str = "No Resize") -> Tuple[torch.Tensor]:
         """
         Main generation function called by ComfyUI.
 
@@ -954,6 +1129,11 @@ class SDNQSampler:
             use_xformers: Enable xFormers memory-efficient attention (10-45% speedup)
             enable_vae_tiling: Enable VAE tiling for large images
             use_quantized_matmul: Enable Triton quantized matmul optimization
+            image1: Optional source image for image editing (ComfyUI IMAGE tensor)
+            image2: Optional second image for multi-image editing
+            image3: Optional third image for multi-image editing
+            image4: Optional fourth image for multi-image editing
+            image_resize: Resize option for input images
 
         Returns:
             Tuple containing (IMAGE,) in ComfyUI format
@@ -1074,7 +1254,16 @@ class SDNQSampler:
                 if self.current_scheduler:
                     print(f"[SDNQ Sampler] Using cached scheduler: {scheduler}")
 
-            # Step 3: Generate image
+            # Step 3: Process optional source images for image editing
+            source_images = []
+            for idx, img_tensor in enumerate([image1, image2, image3, image4], start=1):
+                if img_tensor is not None:
+                    pil_img = self._convert_comfyui_image_to_pil(img_tensor, image_resize)
+                    if pil_img:
+                        source_images.append(pil_img)
+                        print(f"[SDNQ Sampler] Added source image {idx}: {pil_img.size}")
+
+            # Step 4: Generate image
             pil_image = self.generate_image(
                 self.pipeline,
                 prompt,
@@ -1083,10 +1272,11 @@ class SDNQSampler:
                 cfg,
                 width,
                 height,
-                seed
+                seed,
+                source_images=source_images if source_images else None
             )
 
-            # Step 4: Convert to ComfyUI format
+            # Step 5: Convert to ComfyUI format
             comfy_tensor = self.pil_to_comfy_tensor(pil_image)
 
             print(f"\n{'='*60}")

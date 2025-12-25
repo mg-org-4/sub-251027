@@ -1224,6 +1224,10 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
         
         output = causal_conv_gather_outputs(output)
         
+        # MPS memory leak workaround (pytorch/pytorch#155060)
+        if self.device.type == 'mps':
+            torch.mps.empty_cache()
+        
         # Only transfer back if needed
         return output if output.device == x.device else output.to(x.device)
 
@@ -1239,6 +1243,10 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
         
         output = self.decoder(_z, memory_state=memory_state)
         output = causal_conv_gather_outputs(output)
+        
+        # MPS memory leak workaround (pytorch/pytorch#155060)
+        if self.device.type == 'mps':
+            torch.mps.empty_cache()
         
         # Only transfer back if needed
         return output if output.device == z.device else output.to(z.device)

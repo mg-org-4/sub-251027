@@ -36,6 +36,10 @@ We're actively working on improvements and new features. To stay informed:
 
 ## 🚀 Release Notes
 
+**2025.12.24 - Version 2.5.24**
+
+- **🍎 Fix: MPS memory leak regression** - Restored MPS cache clearing after VAE encode/decode operations that was accidentally removed during code cleanup in v2.5.23
+
 **2025.12.24 - Version 2.5.23**
 
 - **🔒 Security: Prevent code execution in model loading** - Added protection against malicious .pth files by restricting deserialization to tensors only

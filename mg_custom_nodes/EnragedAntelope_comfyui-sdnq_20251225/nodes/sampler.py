@@ -24,13 +24,15 @@ import os
 import warnings
 from typing import Optional, Tuple, Dict, Any, TYPE_CHECKING
 
-# ComfyUI imports for LoRA folder access
+# ComfyUI imports for LoRA folder access and interrupt handling
 try:
     import folder_paths
+    import comfy.model_management
     COMFYUI_AVAILABLE = True
 except ImportError:
     COMFYUI_AVAILABLE = False
-    print("[SDNQ Sampler] Warning: folder_paths not available - LoRA dropdown will be disabled")
+    comfy = None
+    print("[SDNQ Sampler] Warning: ComfyUI modules not available - LoRA dropdown and interrupt handling will be disabled")
 
 # ============================================================================
 # LAZY IMPORT HELPERS
@@ -340,7 +342,7 @@ class SDNQSampler:
 
                 "use_quantized_matmul": ("BOOLEAN", {
                     "default": True,
-                    "tooltip": "Enable Triton quantized matmul for ~20% speedup. Precision (int8/fp8) is automatically determined by the model and hardware. Requires Linux/WSL with Triton support."
+                    "tooltip": "Enable Triton quantized matmul for 30-80% speedup. Uses torch.compile internally for dequantization. Linux: 'pip install triton'. Windows: 'pip install triton-windows'. Auto-disabled if unavailable."
                 }),
 
                 "use_xformers": ("BOOLEAN", {
@@ -398,9 +400,25 @@ class SDNQSampler:
 
     def check_interrupted(self):
         """Check if generation should be interrupted (ComfyUI interrupt support)."""
-        # ComfyUI provides comfy.model_management.interrupt_processing()
-        # For now, we'll use a simple flag that can be extended
-        return self.interrupted
+        if self.interrupted:
+            return True
+        # Check ComfyUI's global interrupt flag
+        if COMFYUI_AVAILABLE:
+            try:
+                return comfy.model_management.processing_interrupted()
+            except Exception:
+                pass
+        return False
+
+    def _create_interrupt_callback(self):
+        """Create a callback for diffusers pipeline that checks for interrupts each step."""
+        def interrupt_callback(pipeline, step, timestep, callback_kwargs):
+            if self.check_interrupted():
+                # Set the pipeline's internal interrupt flag
+                pipeline._interrupt = True
+                print(f"[SDNQ Sampler] Interrupt detected at step {step}, stopping generation...")
+            return callback_kwargs
+        return interrupt_callback
 
     def _convert_comfyui_image_to_pil(self, image_tensor, resize_option: str = "No Resize") -> Optional[Image.Image]:
         """
@@ -565,7 +583,7 @@ class SDNQSampler:
             memory_mode: Memory management strategy ("gpu", "balanced", "lowvram")
             use_xformers: Enable xFormers memory-efficient attention
             enable_vae_tiling: Enable VAE tiling for large images
-            use_quantized_matmul: Enable Triton quantized matmul optimization
+            use_quantized_matmul: Enable Triton quantized matmul (uses torch.compile internally)
 
         Returns:
             Loaded diffusers pipeline
@@ -651,7 +669,7 @@ class SDNQSampler:
                     if not torch.cuda.is_available():
                         print("[SDNQ Sampler] ℹ️  Quantized MatMul requires CUDA. Optimization disabled.")
                     elif not triton_is_available:
-                        print("[SDNQ Sampler] ℹ️  Triton not available/supported (requires Linux/WSL). Quantized MatMul disabled.")
+                        print("[SDNQ Sampler] ℹ️  Triton not available. Install: 'pip install triton' (Linux) or 'pip install triton-windows' (Windows).")
             else:
                 print("[SDNQ Sampler] Quantized MatMul optimization disabled.")
 
@@ -734,7 +752,67 @@ class SDNQSampler:
 
             return pipeline
 
+        except AttributeError as e:
+            error_str = str(e)
+            # Check for Qwen/VL config attribute errors (version compatibility issues)
+            # Common patterns: 'Qwen2_5_VLConfig' has no attribute 'vision_start_token_id'
+            # These typically indicate transformers version is too old for the model
+            if "Config" in error_str and ("has no attribute" in error_str or "object has no attribute" in error_str):
+                # Extract the config class name and missing attribute for clearer messaging
+                config_match = error_str.split("'")[1] if "'" in error_str else "Config"
+                attr_match = error_str.split("'")[-2] if error_str.count("'") >= 4 else "unknown"
+                raise Exception(
+                    f"Failed to load SDNQ model from: {model_path}\n\n"
+                    f"Error: {error_str}\n\n"
+                    f"⚠️  This is a transformers/diffusers version compatibility issue!\n\n"
+                    f"The model requires a config attribute ('{attr_match}') that your installed\n"
+                    f"transformers version doesn't support for '{config_match}'.\n\n"
+                    f"FIX: Update to the latest transformers and diffusers:\n"
+                    f"  pip install --upgrade transformers diffusers\n\n"
+                    f"If that doesn't work, install from source:\n"
+                    f"  pip install git+https://github.com/huggingface/transformers.git\n"
+                    f"  pip install git+https://github.com/huggingface/diffusers.git\n\n"
+                    f"Note: Qwen-Image and vision-language models often require the latest\n"
+                    f"transformers versions for full support."
+                )
+            else:
+                # Other AttributeError - provide general guidance
+                raise Exception(
+                    f"Failed to load SDNQ model from: {model_path}\n\n"
+                    f"Error: {error_str}\n\n"
+                    f"This appears to be a library compatibility issue.\n\n"
+                    f"Troubleshooting:\n"
+                    f"1. Update transformers: pip install --upgrade transformers\n"
+                    f"2. Update diffusers: pip install --upgrade diffusers\n"
+                    f"3. For Qwen/VL models, you may need the latest from source:\n"
+                    f"   pip install git+https://github.com/huggingface/transformers.git\n"
+                    f"4. Check the model's HuggingFace page for version requirements"
+                )
+
         except Exception as e:
+            error_str = str(e)
+            # Check if this looks like a version/compatibility error
+            version_indicators = [
+                "does not recognize this architecture",
+                "Unrecognized model type",
+                "quantization method is gonna be supported",
+                "not supported",
+            ]
+            is_version_error = any(indicator in error_str for indicator in version_indicators)
+
+            if is_version_error:
+                raise Exception(
+                    f"Failed to load SDNQ model from: {model_path}\n\n"
+                    f"Error: {error_str}\n\n"
+                    f"⚠️  This appears to be a version compatibility issue!\n\n"
+                    f"The model requires a newer version of transformers or diffusers.\n\n"
+                    f"FIX: Update to the latest versions:\n"
+                    f"  pip install --upgrade transformers diffusers\n\n"
+                    f"For cutting-edge models, install from source:\n"
+                    f"  pip install git+https://github.com/huggingface/transformers.git\n"
+                    f"  pip install git+https://github.com/huggingface/diffusers.git"
+                )
+
             raise Exception(
                 f"Failed to load SDNQ model from: {model_path}\n\n"
                 f"Error: {str(e)}\n\n"
@@ -743,7 +821,8 @@ class SDNQSampler:
                 f"2. Check if model download completed successfully\n"
                 f"3. Try a different dtype (bfloat16 requires modern GPUs)\n"
                 f"4. Check VRAM availability (use smaller model if needed)\n"
-                f"5. Look at the error message above for specific details"
+                f"5. For Qwen/VL models, try: pip install --upgrade transformers diffusers\n"
+                f"6. Look at the error message above for specific details"
             )
 
     def load_lora(self, pipeline, lora_path: str, lora_strength: float = 1.0):
@@ -942,6 +1021,7 @@ class SDNQSampler:
                 "num_inference_steps": steps,
                 "guidance_scale": cfg,
                 "generator": generator,
+                "callback_on_step_end": self._create_interrupt_callback(),
             }
 
             # Add image input for image editing pipelines (Qwen-Image-Edit, ChronoEdit, etc.)
@@ -984,8 +1064,15 @@ class SDNQSampler:
                 match = re.search(r"unexpected keyword argument '(\w+)'", error_str)
                 param_name = match.group(1) if match else None
 
+                # Handle 'callback_on_step_end' not supported (older pipelines)
+                if param_name == "callback_on_step_end":
+                    print(f"[SDNQ Sampler] ⚠️  Pipeline {type(pipeline).__name__} doesn't support step callbacks - interrupt may be delayed")
+                    if "callback_on_step_end" in pipeline_kwargs:
+                        del pipeline_kwargs["callback_on_step_end"]
+                    result = pipeline(**pipeline_kwargs)
+
                 # Handle 'negative_prompt' not supported (e.g., FLUX.2, FLUX-schnell)
-                if param_name == "negative_prompt":
+                elif param_name == "negative_prompt":
                     print(f"[SDNQ Sampler] ⚠️  Pipeline {type(pipeline).__name__} doesn't support negative_prompt - skipping it")
                     if "negative_prompt" in pipeline_kwargs:
                         del pipeline_kwargs["negative_prompt"]
@@ -1011,10 +1098,28 @@ class SDNQSampler:
                         f"Please report this issue on GitHub with the pipeline type above."
                     )
             except AttributeError as e:
-                # Handle pipelines that REQUIRE image input but didn't get one
-                # This shouldn't happen for Qwen pipelines now (we create blank images)
-                # but kept as a fallback for unexpected cases
+                # Handle various AttributeError scenarios during generation
                 error_str = str(e)
+
+                # Check for Qwen/VL config attribute errors (version compatibility)
+                # e.g., 'Qwen2_5_VLConfig' has no attribute 'vision_start_token_id'
+                if "Config" in error_str and ("has no attribute" in error_str or "object has no attribute" in error_str):
+                    config_match = error_str.split("'")[1] if "'" in error_str else "Config"
+                    attr_match = error_str.split("'")[-2] if error_str.count("'") >= 4 else "unknown"
+                    raise Exception(
+                        f"Failed to generate image\n\n"
+                        f"Error: {error_str}\n\n"
+                        f"⚠️  This is a transformers/diffusers version compatibility issue!\n\n"
+                        f"The model requires config attribute '{attr_match}' that your installed\n"
+                        f"transformers version doesn't support for '{config_match}'.\n\n"
+                        f"FIX: Update to the latest transformers and diffusers:\n"
+                        f"  pip install --upgrade transformers diffusers\n\n"
+                        f"If that doesn't work, install from source:\n"
+                        f"  pip install git+https://github.com/huggingface/transformers.git\n"
+                        f"  pip install git+https://github.com/huggingface/diffusers.git\n\n"
+                        f"Note: Qwen-Image and vision-language models often require the latest\n"
+                        f"transformers versions for full support."
+                    )
 
                 # Check if this looks like a missing image error
                 if "'NoneType' object" in error_str and ("size" in error_str or "shape" in error_str):
@@ -1027,13 +1132,27 @@ class SDNQSampler:
                         f"If you want text-to-image generation, try a different model\n"
                         f"or report this as a bug if the model should support T2I."
                     )
-                else:
-                    # Other AttributeError - re-raise
-                    raise
 
-            # Check for interruption after generation
+                # Other AttributeError - re-raise with helpful context
+                raise Exception(
+                    f"Failed to generate image\n\n"
+                    f"Error: {error_str}\n\n"
+                    f"This may be a library compatibility issue.\n\n"
+                    f"Troubleshooting:\n"
+                    f"1. Update transformers: pip install --upgrade transformers\n"
+                    f"2. Update diffusers: pip install --upgrade diffusers\n"
+                    f"3. Check the model's HuggingFace page for version requirements"
+                )
+
+            # Check for interruption after generation (catches both callback and manual interrupts)
             if self.check_interrupted():
                 raise InterruptedError("Generation interrupted by user")
+
+            # Check if result has images (may be empty if interrupted)
+            if not hasattr(result, 'images') or not result.images:
+                if self.check_interrupted():
+                    raise InterruptedError("Generation interrupted by user")
+                raise RuntimeError("Pipeline returned no images - generation may have failed silently")
 
             # Extract first image from results
             # result.images[0] is a PIL.Image.Image object
@@ -1046,20 +1165,48 @@ class SDNQSampler:
         except InterruptedError:
             raise
         except Exception as e:
+            error_str = str(e)
             # Don't double-wrap exceptions we already formatted
-            if "Pipeline doesn't support parameter" in str(e):
+            if "Pipeline doesn't support parameter" in error_str:
                 raise
+            if "transformers/diffusers version compatibility" in error_str:
+                raise
+            if "library compatibility issue" in error_str:
+                raise
+
+            # Check for version-related errors
+            version_indicators = [
+                "does not recognize this architecture",
+                "Unrecognized model type",
+                "quantization method is gonna be supported",
+                "not supported",
+                "Config" if "has no attribute" in error_str else "",
+            ]
+            is_version_error = any(indicator and indicator in error_str for indicator in version_indicators)
+
+            if is_version_error:
+                raise Exception(
+                    f"Failed to generate image\n\n"
+                    f"Error: {error_str}\n\n"
+                    f"⚠️  This appears to be a version compatibility issue!\n\n"
+                    f"FIX: Update to the latest versions:\n"
+                    f"  pip install --upgrade transformers diffusers\n\n"
+                    f"For cutting-edge models (Qwen, VL), install from source:\n"
+                    f"  pip install git+https://github.com/huggingface/transformers.git\n"
+                    f"  pip install git+https://github.com/huggingface/diffusers.git"
+                )
 
             # Other errors - provide troubleshooting
             raise Exception(
                 f"Failed to generate image\n\n"
-                f"Error: {str(e)}\n\n"
+                f"Error: {error_str}\n\n"
                 f"Troubleshooting:\n"
                 f"1. Check VRAM usage (reduce size or use smaller model)\n"
                 f"2. Verify parameters are valid (size multiple of 8, CFG reasonable)\n"
                 f"3. Try reducing steps if running out of memory\n"
                 f"4. Some models have specific parameter requirements (check HuggingFace page)\n"
-                f"5. Look at the error message above for specific details"
+                f"5. For Qwen/VL models, try: pip install --upgrade transformers diffusers\n"
+                f"6. Look at the error message above for specific details"
             )
 
     def pil_to_comfy_tensor(self, pil_image: Image.Image) -> torch.Tensor:
@@ -1128,7 +1275,7 @@ class SDNQSampler:
             lora_strength: LoRA influence strength (-5.0 to +5.0)
             use_xformers: Enable xFormers memory-efficient attention (10-45% speedup)
             enable_vae_tiling: Enable VAE tiling for large images
-            use_quantized_matmul: Enable Triton quantized matmul optimization
+            use_quantized_matmul: Enable Triton quantized matmul (uses torch.compile internally)
             image1: Optional source image for image editing (ComfyUI IMAGE tensor)
             image2: Optional second image for multi-image editing
             image3: Optional third image for multi-image editing

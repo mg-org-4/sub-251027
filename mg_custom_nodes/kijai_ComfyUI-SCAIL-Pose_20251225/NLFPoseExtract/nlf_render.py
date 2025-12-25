@@ -3,7 +3,11 @@ import torch
 import copy
 import logging
 
-from ..render_3d.taichi_cylinder import render_whole as render_whole_taichi
+try:
+    from ..render_3d.taichi_cylinder import render_whole as render_whole_taichi
+except:
+    render_whole_taichi = None
+
 from ..render_3d.render_torch import render_whole as render_whole_torch
 from ..pose_draw.draw_pose_utils import draw_pose_to_canvas_np
 
@@ -283,7 +287,7 @@ def render_nlf_as_images(smpl_poses, dw_poses, height, width, video_length, intr
         cylinder_specs = get_single_pose_cylinder_specs((i, smpl_poses[i], None, None, None, None, colors, limb_seq, draw_seq))
         cylinder_specs_list.append(cylinder_specs)
 
-    if render_backend == "taichi":
+    if render_backend == "taichi" and render_whole_taichi is not None:
         try:
             frames_np_rgba = render_whole_taichi(cylinder_specs_list, H=height, W=width, fx=focal_x, fy=focal_y, cx=princpt[0], cy=princpt[1])
         except:
@@ -493,7 +497,7 @@ def render_multi_nlf_as_images(smpl_poses, dw_poses, height, width, video_length
     focal_y = intrinsic_matrix[1,1]
     princpt = (intrinsic_matrix[0,2], intrinsic_matrix[1,2])  # (cx, cy)
 
-    if render_backend == "taichi":
+    if render_backend == "taichi" and render_whole_taichi is not None:
         try:
             frames_np_rgba = render_whole_taichi(cylinder_specs_list, H=height, W=width, fx=focal_x, fy=focal_y, cx=princpt[0], cy=princpt[1])
         except:

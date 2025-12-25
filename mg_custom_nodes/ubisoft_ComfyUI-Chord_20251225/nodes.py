@@ -12,7 +12,7 @@ from comfy.utils import load_torch_file
 from comfy.model_patcher import ModelPatcher
 
 # Modules from ComfyUI-Chord
-from chord import ChordModel
+from .src import ChordModel
 
 def apply_padding(model, mode):
     for layer in [layer for _, layer in model.named_modules() if isinstance(layer, torch.nn.Conv2d)]:
@@ -51,7 +51,7 @@ class ChordLoadModel(io.ComfyNode):
         if type(ckpt_name) is list:
             ckpt_name = ckpt_name[0]
         ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
-        config = OmegaConf.load(os.path.join(os.path.dirname(__file__), "chord/config/chord.yaml"))
+        config = OmegaConf.load(os.path.join(os.path.dirname(__file__), "config/chord.yaml"))
         model = ChordModel(config)
         sd = load_torch_file(ckpt_path, safe_load=True)
         try:

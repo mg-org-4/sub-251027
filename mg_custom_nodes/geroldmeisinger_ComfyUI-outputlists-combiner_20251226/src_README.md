@@ -20,11 +20,11 @@
 
 # Overview
 
-- **XYZ-GridPlots** perfectly integrated into ComfyUI's paradigm. No weird samplers! No node black magic!
-- **Inspect combo** to iterate lists of LoRAs, samplers, checkpoints, schedulers...
-- **List combinations** with native support for LoRA strength, image size-variants, prompt combinations...
-- **Quick OutputLists** from CSV and Excel Spreadsheets, JSON data, multiline texts, number ranges...
-- **Formatted strings** for flexible and beautiful filenames, labels, additional metadata...
+- **[XYZ-GridPlots](#xyz-gridplot-simple)** perfectly integrated into ComfyUI's paradigm. No weird samplers! No node black magic!
+- **[Inspect combo](#combine-samplers-and-schedulers)** to iterate lists of [LoRAs](#compare-lora-model-and-lora-strength), [samplers/schedulers](#combine-samplers-and-schedulers), [checkpoints](#iterate-checkpoints)...
+- **[List combinations](#outputlists-combinations)** with native support for [LoRA strength](#compare-lora-model-and-lora-strength), [image size-variants](#combine-numbers), [prompt combinations](#combine-prompts)...
+- **Quick OutputLists** from CSV and Excel [Spreadsheets](#spreadsheet-outputlist), [JSON data](#json-outputlist), [multiline texts](#string-outputlist), [number ranges](#number-outputlist)...
+- **[Formatted strings](#formatted-string)** for flexible and beautiful [filenames](#combine-rowcolumn-for-filename), [labels](#animating-lora-strength), [additional metadata](#workflow-discriminator)...
 
 If this custom node helps you in your work..
 - ⭐ **Star the repo** to make others discover the project and motivate the developer!
@@ -34,9 +34,6 @@ If this custom node helps you in your work..
 
 - [Overview](#overview)
 - [Table of Content](#table-of-content)
-- [Features](#features)
-	- [XYZ-GridPlot](#xyz-gridplot)
-	- [Inspect Combo](#inspect-combo)
 - [Installation](#installation)
 	- [ComfyUI-Manager (recommended)](#comfyui-manager-recommended)
 	- [Comfy-CLI](#comfy-cli)
@@ -52,8 +49,10 @@ If this custom node helps you in your work..
 	- [Combine row/column for filename](#combine-rowcolumn-for-filename)
 	- [Compare LoRA-model and LoRA-strength](#compare-lora-model-and-lora-strength)
 	- [The PrimitiveInt control\_after\_generate=increment pattern](#the-primitiveint-control_after_generateincrement-pattern)
-	- [XYZ-GridPlot](#xyz-gridplot-1)
+	- [XYZ-GridPlot Simple](#xyz-gridplot-simple)
 	- [Load multiple files with different formats](#load-multiple-files-with-different-formats)
+	- [Repeat OutputLists](#repeat-outputlists)
+	- [Cycle OutputLists](#cycle-outputlists)
 - [Advanced Examples](#advanced-examples)
 	- [XYZ-GridPlots with Supergrids](#xyz-gridplots-with-supergrids)
 	- [Immediately save intermediate images of image grid](#immediately-save-intermediate-images-of-image-grid)
@@ -63,17 +62,8 @@ If this custom node helps you in your work..
 	- [XYZ-GridPlots with Videos](#xyz-gridplots-with-videos)
 	- [Iterate checkpoints](#iterate-checkpoints)
 	- [Discriminate multiple files](#discriminate-multiple-files)
+	- [Animating LoRA strength](#animating-lora-strength)
 - [Credits](#credits)
-
-# Features
-
-## XYZ-GridPlot
-
-https://github.com/user-attachments/assets/a649b701-58a5-47a8-b697-e2a34a39c999
-
-## Inspect Combo
-
-https://github.com/user-attachments/assets/d8da27b9-99d2-4ac5-a6ed-d368d2ae1a38
 
 # Installation
 
@@ -188,6 +178,11 @@ Makes use of the `index` combined the same way as the prompts, which gives as th
 
 https://github.com/user-attachments/assets/64e118c1-15f3-463b-b439-37e1a1f5b62b
 
+Custom LoRAs:
+* ![MoXinV1.safetensors](https://civitai.com/models/12597)
+* ![animeoutlineV4_16.safetensors](https://civitai.com/models/16014)
+* ![blindbox_v1_mix.safetensors](https://civitai.com/models/25995)
+
 Makes use of `inspect_combo` to populate the `String OutputList` with the model names (unneeded entries were deleted), and a corresponding `String OutputList` with the trigger words. Both OutputLists are combined with a `Number OutputList` each to iterate over all combinations of `[modelA, modelB, modelC] x [0.4, 0.7, 1.0] = 3 x 3 = 9` and `[triggerA, triggerB, triggerC] x [0.4, 0.7, 1.0] = 3 x 3 = 9`, so they are in-sync. The `LoRA filename` and `LoRA strength` are connected with the `LoRA Model Loader`, and the `trigger word` is used to construct a prompt in `Formatted String`.
 
 **If you don't need separate trigger words, just delete the second combination altogether, it's much simpler this way!**
@@ -204,9 +199,9 @@ And because it is very tedious to add a selector for every single list, the `Spr
 
 ![The PrimitiveInt control_after_generate=increment pattern and Spreadsheet OutputList](/media/PrimitiveIntControlAfterGenerateIncrementSpreadsheet.png)
 
-## XYZ-GridPlot
+## XYZ-GridPlot Simple
 
-![XYZ-GridPlot example](/workflows/Example_06_XYZ-GridPlot.png)
+![XYZ-GridPlot Simple example](/workflows/Example_06_XYZ-GridPlot.png)
 
 (ComfyUI workflow included)
 
@@ -223,6 +218,14 @@ https://github.com/user-attachments/assets/a649b701-58a5-47a8-b697-e2a34a39c999
 (ComfyUI workflow included)
 
 Uses `String OutputList` to emit multiple glob patterns that expand, 1. on the directory `tests`, 2. on any sub-directory `**` (in this case: `imgs`), 3. on all files with a certain file ending (`*.png`), 4. starting at ComfyUI's `[output]` directory as the base. This calls `Load Any File` 3 times, each time with a different format, which again emits multiple files each time, resulting in a list of many files.
+
+## Repeat OutputLists
+
+![Repeat OutputLists example](/workflows/Example_08a_RepeatOutputLists.png)
+
+## Cycle OutputLists
+
+![Cycle OuputLists example](/workflows/Example_08b_CycleOutputLists.png)
 
 # Advanced Examples
 
@@ -332,6 +335,25 @@ Another workaround is to use the [PrimitiveInt control\_after\_generate=incremen
 (ComfyUI workflow included)
 
 Similar to the basic `Workflow Discriminator` example, but uses a `Load Any File` with a glob pattern expansion to load multiple files, where all files are discriminated against.
+
+## Animating LoRA strength
+
+Custom nodes: [KJNodes](https://github.com/kijai/ComfyUI-KJNodes)
+
+Custom LoRAs: ![MoXinV1.safetensors](https://civitai.com/models/12597)
+
+![Animating LoRA strength example](/workflows/ExampleAdv_07_AnimatingLoRAStrength.png)
+
+(ComfyUI workflow included)
+
+Makes use of a `Number OutputList` to iterate over the range `0.0..1.0`. Note that num is `+1` because we to split it into well-formed floatingpoint values and `endpoint=True` to include `1.00` in the values. Also uses `Formatted String` with `{0:0.2f]` and KJNodes's `Add Label` to add the strength information as well-formatted label into the image itself. Note that the images are rebatched into `batch_size=count` because `Create Video` expects batches.
+
+
+https://github.com/user-attachments/assets/59220dec-bafc-4abc-9294-ae76e3372da8
+
+Also see
+* [XYZ-GridPlots with Videos](#xyz-gridplots-with-videos) if you want to compare multiple subjects next to each other in a video
+* [Compare LoRA-model and LoRA-strength](#compare-lora-model-and-lora-strength) if you want to compare multiple models with different trigger words
 
 # Credits
 

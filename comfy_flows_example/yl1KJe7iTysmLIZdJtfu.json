@@ -1,0 +1,452 @@
+{
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "audio",
+          "links": [
+            3,
+            4
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        }
+      ],
+      "size": [
+        270,
+        210
+      ],
+      "pos": [
+        435.9176025390625,
+        275.18719482421875
+      ],
+      "widgets_values": [
+        "32",
+        1.6,
+        2.5,
+        true
+      ],
+      "inputs": [
+        {
+          "name": "audio",
+          "link": 1,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "text",
+          "link": 2,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "shape": 7,
+          "name": "dialogue_audio_s2",
+          "label": "dialogue_audio_s2",
+          "type": "AUDIO",
+          "localized_name": "dialogue_audio_s2"
+        },
+        {
+          "shape": 7,
+          "name": "audio_npy_file",
+          "label": "audio_npy_file",
+          "type": "STRING",
+          "localized_name": "audio_npy_file"
+        },
+        {
+          "shape": 7,
+          "name": "audio_s2_npy_file",
+          "label": "audio_s2_npy_file",
+          "type": "STRING",
+          "localized_name": "audio_s2_npy_file"
+        },
+        {
+          "widget": {
+            "name": "time_step"
+          },
+          "name": "time_step",
+          "label": "time_step",
+          "type": "STRING",
+          "localized_name": "time_step"
+        },
+        {
+          "widget": {
+            "name": "p_w"
+          },
+          "name": "p_w",
+          "label": "p_w",
+          "type": "FLOAT",
+          "localized_name": "p_w"
+        },
+        {
+          "widget": {
+            "name": "t_w"
+          },
+          "name": "t_w",
+          "label": "t_w",
+          "type": "FLOAT",
+          "localized_name": "t_w"
+        },
+        {
+          "widget": {
+            "name": "unload_model"
+          },
+          "name": "unload_model",
+          "label": "unload_model",
+          "type": "BOOLEAN",
+          "localized_name": "unload_model"
+        }
+      ],
+      "flags": {},
+      "id": 1,
+      "type": "MegaTTS3Run",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "MegaTTS3Run"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            2
+          ],
+          "label": "字符串",
+          "type": "STRING",
+          "localized_name": "字符串"
+        }
+      ],
+      "size": [
+        320.74072265625,
+        194.07403564453125
+      ],
+      "pos": [
+        73.94007873535156,
+        389.43304443359375
+      ],
+      "widgets_values": [
+        "现有文献通常将风格驱动和主题驱动的生成视为两个不相交的任务：前者优先考虑风格相似性，而后者则坚持主题一致性，导致明显的对立。我们认为，这两个目标都可以统一在一个框架下，因为它们最终涉及“内容”和“风格”的解开和重新组合，这是风格驱动研究的一个长期主题。为此，我们提出了 USO，这是一个用于风格驱动和主题驱动的 GeneratiOn 的统一框架。首先，我们构建了一个由内容图像、风格图像及其相应的风格化内容图像组成的大规模三元组数据集。其次，我们引入了一种解缠学习方案，通过风格对齐训练和内容风格解缠训练这两个互补目标，同时对齐风格特征并将内容与风格解开。第三，我们采用风格奖励学习范式，进一步增强模型的性能。"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "文本"
+        }
+      ],
+      "flags": {},
+      "id": 3,
+      "type": "Text Multiline",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Text Multiline"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        270,
+        112
+      ],
+      "pos": [
+        756.9415283203125,
+        211.64990234375
+      ],
+      "widgets_values": [
+        "audio/ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "audio",
+          "link": 3,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "音频"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        },
+        {
+          "widget": {
+            "name": "audioUI"
+          },
+          "name": "audioUI",
+          "label": "audioUI",
+          "type": "AUDIO_UI",
+          "localized_name": "音频UI"
+        }
+      ],
+      "flags": {},
+      "id": 4,
+      "type": "SaveAudio",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveAudio"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        270,
+        88
+      ],
+      "pos": [
+        753.592529296875,
+        403.5472412109375
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "audio",
+          "link": 4,
+          "label": "音频",
+          "type": "AUDIO",
+          "localized_name": "音频"
+        },
+        {
+          "widget": {
+            "name": "audioUI"
+          },
+          "name": "audioUI",
+          "label": "audioUI",
+          "type": "AUDIO_UI",
+          "localized_name": "音频UI"
+        }
+      ],
+      "flags": {},
+      "id": 5,
+      "type": "PreviewAudio",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewAudio"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "size": [
+        1368.0322265625,
+        476.5984191894531
+      ],
+      "pos": [
+        -1360.5557861328125,
+        -877.3662109375
+      ],
+      "widgets_values": [
+        "eac8fdfe2058db3cdb5423c57e64798c02be3877d1772d5904f481554c33d420.png",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "label": "image",
+          "type": "COMBO",
+          "localized_name": "图像"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "id": 6,
+      "type": "LoadImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "links": [
+            1
+          ],
+          "label": "音频",
+          "type": "AUDIO",
+          "localized_name": "音频"
+        }
+      ],
+      "size": [
+        315.87957763671875,
+        136.75131225585938
+      ],
+      "pos": [
+        76.50133514404297,
+        187.34368896484375
+      ],
+      "widgets_values": [
+        "cf9ad5dbbaa49116c6fd1d24ec1d7220155d2a8422bdef45a7fb33d1cd8d5cf4.mp3",
+        null,
+        null
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "audio"
+          },
+          "name": "audio",
+          "label": "audio",
+          "type": "COMBO",
+          "localized_name": "音频"
+        },
+        {
+          "widget": {
+            "name": "audioUI"
+          },
+          "name": "audioUI",
+          "label": "audioUI",
+          "type": "AUDIO_UI",
+          "localized_name": "音频UI"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "AUDIOUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "id": 2,
+      "type": "LoadAudio",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadAudio"
+      },
+      "order": 2
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        79.78909134639946,
+        -122.97037327560462
+      ],
+      "scale": 1.3310000000000004
+    }
+  },
+  "groups": [
+    {
+      "color": "#8A8",
+      "font_size": 150,
+      "flags": {},
+      "id": 1,
+      "title": "🌍🌍微信：comfyuigo    ♻️♻️微信公众号：comfyuigogogo🐲🐲",
+      "bounding": [
+        -1358.6092529296875,
+        -356.071044921875,
+        4452.82080078125,
+        209.698974609375
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 80,
+      "flags": {},
+      "id": 2,
+      "title": "🦧免费的图像编辑处理工具箱🤨无论学习还是工作🧰开箱即用🧰对你有帮助请点赞👍关注🐧收藏🐻谢谢！🐲",
+      "bounding": [
+        -1360.9056396484375,
+        -124.49302673339844,
+        4454.69873046875,
+        113.4796371459961
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      1,
+      0,
+      "AUDIO"
+    ],
+    [
+      2,
+      3,
+      0,
+      1,
+      1,
+      "STRING"
+    ],
+    [
+      3,
+      1,
+      0,
+      4,
+      0,
+      "AUDIO"
+    ],
+    [
+      4,
+      1,
+      0,
+      5,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "id": "8d865a37-5a3a-451d-b0b9-e146b35275dd",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 6,
+  "revision": 0
+}

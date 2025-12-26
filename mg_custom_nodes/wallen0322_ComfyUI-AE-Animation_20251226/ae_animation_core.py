@@ -1,0 +1,1190 @@
+from __future__ import annotations
+
+import base64
+import io as python_io
+import json
+import logging
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import cv2
+import numpy as np
+import torch
+from PIL import Image
+from comfy_api.latest import ComfyExtension, io
+from typing_extensions import override
+
+try:
+    import folder_paths  # type: ignore
+except Exception:
+    folder_paths = None
+
+DEFAULT_ASSET_SUBFOLDER = "ae_animation"
+ALLOWED_ASSET_TYPES = {"input", "output"}
+
+# Camera constants
+DEFAULT_CAMERA_Z = 1000.0
+MIN_CAMERA_Z = 100.0
+MIN_Z_SCALE = 0.1
+MAX_Z_SCALE = 10.0
+DEFAULT_PERSPECTIVE = 1000.0
+
+# Rendering constants
+PERSPECTIVE_DIVISION_EPSILON = 1e-6
+ROTATION_THRESHOLD = 0.1
+
+
+def _safe_rel_subfolder(value: str) -> str:
+    value = (value or "").strip().replace("\\", "/")
+    value = value.strip("/")
+    parts = [p for p in value.split("/") if p]
+    if any(p in {".", ".."} for p in parts):
+        return DEFAULT_ASSET_SUBFOLDER
+    safe_parts: list[str] = []
+    for p in parts[:6]:
+        safe = "".join(ch for ch in p if ch.isalnum() or ch in {"_", "-", "."})
+        if safe:
+            safe_parts.append(safe[:64])
+    return "/".join(safe_parts) or DEFAULT_ASSET_SUBFOLDER
+
+
+def _get_base_dir(asset_type: str) -> Path:
+    asset_type = (asset_type or "input").strip().lower()
+    if asset_type not in ALLOWED_ASSET_TYPES:
+        asset_type = "input"
+
+    if folder_paths:
+        try:
+            if asset_type == "output" and hasattr(folder_paths, "get_output_directory"):
+                return Path(folder_paths.get_output_directory())
+            if hasattr(folder_paths, "get_input_directory"):
+                return Path(folder_paths.get_input_directory())
+        except Exception:
+            pass
+
+    return Path(__file__).resolve().parent / "ae_assets"
+
+
+def _resolve_ref_path(ref: Dict[str, Any]) -> Optional[Path]:
+    if not isinstance(ref, dict):
+        return None
+    filename = os.path.basename(str(ref.get("filename") or ""))
+    if not filename:
+        return None
+    asset_type = str(ref.get("type") or "input").strip().lower()
+    if asset_type not in ALLOWED_ASSET_TYPES:
+        asset_type = "input"
+    subfolder = _safe_rel_subfolder(str(ref.get("subfolder") or DEFAULT_ASSET_SUBFOLDER))
+    base_dir = _get_base_dir(asset_type)
+    return (base_dir / subfolder / filename).resolve()
+
+
+class Transform3D:
+    """3D transformation matrix builder for AE-style layer transforms."""
+
+    @staticmethod
+    def build_model_matrix(
+        x: float, y: float, z: float,
+        rot_x: float, rot_y: float, rot_z: float,
+        scale_x: float, scale_y: float, scale_z: float,
+        anchor_x: float, anchor_y: float
+    ) -> np.ndarray:
+        """
+        Build 4x4 model matrix: Anchor offset → Scale → Rotate → Translate
+        Rotation order: Z → Y → X (same as AE)
+        """
+        # Convert degrees to radians
+        rx, ry, rz = np.deg2rad(rot_x), np.deg2rad(rot_y), np.deg2rad(rot_z)
+        cx, sx = np.cos(rx), np.sin(rx)
+        cy, sy = np.cos(ry), np.sin(ry)
+        cz, sz = np.cos(rz), np.sin(rz)
+
+        # Rotation matrices
+        Rx = np.array([[1, 0, 0, 0], [0, cx, -sx, 0], [0, sx, cx, 0], [0, 0, 0, 1]])
+        Ry = np.array([[cy, 0, sy, 0], [0, 1, 0, 0], [-sy, 0, cy, 0], [0, 0, 0, 1]])
+        Rz = np.array([[cz, -sz, 0, 0], [sz, cz, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+
+        # Scale matrix
+        S = np.diag([scale_x, scale_y, scale_z, 1.0])
+
+        # Translation matrix
+        T = np.eye(4)
+        T[0, 3], T[1, 3], T[2, 3] = x, y, z
+
+        # Anchor offset matrices
+        A = np.eye(4)
+        A[0, 3], A[1, 3] = -anchor_x, -anchor_y
+        A_inv = np.eye(4)
+        A_inv[0, 3], A_inv[1, 3] = anchor_x, anchor_y
+
+        # Combined: T * A_inv * Rx * Ry * Rz * S * A
+        return T @ A_inv @ Rx @ Ry @ Rz @ S @ A
+
+    @staticmethod
+    def build_view_matrix(
+        cam_x: float, cam_y: float, cam_z: float,
+        yaw: float, pitch: float, roll: float
+    ) -> np.ndarray:
+        """
+        Build 4x4 view matrix from camera position and rotation.
+        View matrix is inverse of camera's world transform.
+        """
+        ry, rp, rr = np.deg2rad(yaw), np.deg2rad(pitch), np.deg2rad(roll)
+        cy, sy = np.cos(ry), np.sin(ry)
+        cp, sp = np.cos(rp), np.sin(rp)
+        cr, sr = np.cos(rr), np.sin(rr)
+
+        # Inverse rotation (transpose)
+        Ry_inv = np.array([[cy, 0, -sy, 0], [0, 1, 0, 0], [sy, 0, cy, 0], [0, 0, 0, 1]])
+        Rx_inv = np.array([[1, 0, 0, 0], [0, cp, sp, 0], [0, -sp, cp, 0], [0, 0, 0, 1]])
+        Rz_inv = np.array([[cr, sr, 0, 0], [-sr, cr, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+
+        # Inverse translation
+        T_inv = np.eye(4)
+        T_inv[0, 3], T_inv[1, 3], T_inv[2, 3] = -cam_x, -cam_y, -cam_z
+
+        # View = R_inv * T_inv (rotate first, then translate)
+        return Rz_inv @ Rx_inv @ Ry_inv @ T_inv
+
+    @staticmethod
+    def build_projection_matrix(fov_deg: float, aspect: float, near: float = 0.1, far: float = 10000.0) -> np.ndarray:
+        """
+        Build 4x4 perspective projection matrix.
+        FOV is vertical field of view in degrees.
+        """
+        fov = np.deg2rad(max(1.0, min(179.0, fov_deg)))
+        f = 1.0 / np.tan(fov / 2)
+        nf = 1.0 / (near - far)
+
+        return np.array([
+            [f / aspect, 0, 0, 0],
+            [0, f, 0, 0],
+            [0, 0, (far + near) * nf, 2 * far * near * nf],
+            [0, 0, -1, 0]
+        ])
+
+    @staticmethod
+    def project_corners(img_w: int, img_h: int, mvp: np.ndarray, screen_w: int, screen_h: int) -> np.ndarray:
+        """
+        Project image corners through MVP matrix to get 2D screen coordinates.
+        Returns 4x2 array of corner positions: [top-left, top-right, bottom-right, bottom-left]
+        """
+        hw, hh = img_w / 2, img_h / 2
+        # Standard 3D coordinate system (Y up): top = -hh, bottom = +hh
+        corners = np.array([
+            [-hw, -hh, 0, 1],  # top-left
+            [hw, -hh, 0, 1],   # top-right
+            [hw, hh, 0, 1],    # bottom-right
+            [-hw, hh, 0, 1],   # bottom-left
+        ])
+
+        projected = (mvp @ corners.T).T
+        # Perspective divide with protection against division by zero and negative w
+        w = projected[:, 3:4]
+        w = np.where(np.abs(w) < PERSPECTIVE_DIVISION_EPSILON, np.sign(w) * PERSPECTIVE_DIVISION_EPSILON, w)
+        ndc = projected[:, :2] / w
+
+        # NDC to screen coordinates: NDC has Y up [-1,1], screen has Y down [0,height]
+        screen = np.zeros((4, 2))
+        screen[:, 0] = (ndc[:, 0] + 1) * 0.5 * screen_w
+        screen[:, 1] = (1 - ndc[:, 1]) * 0.5 * screen_h  # Flip Y for screen coords
+        return screen.astype(np.float32)
+
+    @staticmethod
+    def get_layer_z_depth(
+        x: float, y: float, z: float,
+        view_matrix: np.ndarray
+    ) -> float:
+        """Get the Z depth of a layer center after view transform (for sorting)."""
+        point = np.array([x, y, z, 1])
+        transformed = view_matrix @ point
+        return transformed[2]
+
+
+def _calculate_camera_offset(
+    x: float, y: float,
+    cam_yaw: float, cam_pitch: float, cam_fov: float,
+    width: int,
+    is_pano_mode: bool = False
+) -> Tuple[float, float]:
+    """
+    Calculate layer position offset based on camera rotation.
+    
+    Args:
+        x: Original x position
+        y: Original y position
+        cam_yaw: Camera yaw in degrees
+        cam_pitch: Camera pitch in degrees
+        cam_fov: Camera FOV in degrees
+        width: Canvas width
+        is_pano_mode: If True, use pano mode offset calculation
+    
+    Returns:
+        Tuple of (offset_x, offset_y)
+    """
+    if cam_yaw == 0 and cam_pitch == 0:
+        return x, y
+    
+    yaw_rad = np.deg2rad(cam_yaw)
+    pitch_rad = np.deg2rad(cam_pitch)
+    fov_rad = np.deg2rad(max(1.0, min(179.0, cam_fov)))
+    fov_factor = np.tan(fov_rad / 2)
+    move_scale = width / (2 * fov_factor)
+    
+    # Pano mode and camera-only mode use opposite signs
+    # Pano: subtract offset, camera-only: add offset
+    sign = -1 if is_pano_mode else 1
+    offset_x = x + sign * np.tan(yaw_rad) * move_scale
+    offset_y = y + sign * np.tan(pitch_rad) * move_scale
+    
+    return offset_x, offset_y
+
+
+def _apply_custom_mask(img_np: np.ndarray, mask_np: Optional[np.ndarray], mask_b64: Optional[str]) -> np.ndarray:
+    """
+    Apply custom mask to image.
+    
+    Args:
+        img_np: Image array with alpha channel
+        mask_np: Pre-loaded mask array
+        mask_b64: Base64 encoded mask
+    
+    Returns:
+        Image array with mask applied
+    """
+    if mask_np is not None:
+        try:
+            if mask_np.shape[:2] != img_np.shape[:2]:
+                mask_np = cv2.resize(mask_np, (img_np.shape[1], img_np.shape[0]), interpolation=cv2.INTER_LINEAR)
+            img_np[:, :, 3] = (img_np[:, :, 3].astype(np.float32) * mask_np[:, :, 3] / 255.0).astype(np.uint8)
+        except Exception as e:
+            logging.warning(f"[AE] Custom mask error: {e}")
+    elif isinstance(mask_b64, str) and mask_b64:
+        try:
+            if "," in mask_b64:
+                mask_b64 = mask_b64.split(",", 1)[1]
+            mask_img = Image.open(python_io.BytesIO(base64.b64decode(mask_b64))).convert("RGBA")
+            mask_np = np.array(mask_img)
+            if mask_np.shape[:2] != img_np.shape[:2]:
+                mask_np = cv2.resize(mask_np, (img_np.shape[1], img_np.shape[0]), interpolation=cv2.INTER_LINEAR)
+            img_np[:, :, 3] = (img_np[:, :, 3].astype(np.float32) * mask_np[:, :, 3] / 255.0).astype(np.uint8)
+        except Exception as e:
+            logging.warning(f"[AE] Custom mask error: {e}")
+    return img_np
+
+
+def _has_3d_rotation(rot_x: float, rot_y: float, rot_z: float) -> bool:
+    """Check if any 3D rotation is significant."""
+    return abs(rot_x) > ROTATION_THRESHOLD or abs(rot_y) > ROTATION_THRESHOLD or abs(rot_z) > ROTATION_THRESHOLD
+
+
+def _parse_layers(layers_json: str) -> Dict[str, Any]:
+    if not layers_json:
+        return {"layers": [], "project_keyframes": {}, "project": {}}
+    try:
+        data = json.loads(layers_json)
+        if isinstance(data, list):
+            return {"layers": data, "project_keyframes": {}, "project": {}}
+        if isinstance(data, dict):
+            project = data.get("project") or {}
+            # project_keyframes may be inside project or at top level
+            project_kf = project.get("project_keyframes") or data.get("project_keyframes") or {}
+            return {
+                "layers": data.get("layers") or [],
+                "project_keyframes": project_kf,
+                "project": project
+            }
+    except Exception:
+        logging.warning("[AE] Failed to parse layers_keyframes JSON")
+    return {"layers": [], "project_keyframes": {}, "project": {}}
+
+
+class AEAnimation(io.ComfyNode):
+    """
+    Single node that reads timeline data from the AE Timeline UI (layers_keyframes)
+    and directly renders frames + masks.
+    """
+
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        schema = io.Schema(
+            node_id="AEAnimation",
+            display_name="AE Animation",
+            category="AE Animation",
+            inputs=[
+                io.Int.Input("width", default=1280, min=64, max=8192),
+                io.Int.Input("height", default=720, min=64, max=8192),
+                io.Int.Input("fps", default=16, min=1, max=120),
+                io.Int.Input("total_frames", default=81, min=1, max=9999),
+                # Mask expansion parameters (now per-layer, widget ranges match frontend UI)
+                io.Int.Input("mask_expansion", default=0, min=-50, max=50),
+                io.Int.Input("mask_feather", default=0, min=0, max=50),
+                io.Int.Input("cam_enable", default=0, min=0, max=1, optional=True),
+                io.Int.Input("pano_enable", default=0, min=0, max=1, optional=True),
+                io.Float.Input("cam_pos_x", default=0.0, optional=True),
+                io.Float.Input("cam_pos_y", default=0.0, optional=True),
+                io.Float.Input("cam_pos_z", default=1000.0, optional=True),
+                io.Float.Input("cam_yaw", default=0.0, optional=True),
+                io.Float.Input("cam_pitch", default=0.0, optional=True),
+                io.Float.Input("cam_roll", default=0.0, optional=True),
+                io.Float.Input("cam_fov", default=90.0, optional=True),
+                io.String.Input("layers_keyframes", default="[]", multiline=True),
+                io.Int.Input("start_frame", default=0, min=0),
+                io.Int.Input("end_frame", default=-1, min=-1),
+            ],
+            outputs=[
+                io.Image.Output("frames"),
+                io.Mask.Output("mask_frames"),
+            ],
+        )
+        schema.output_node = True
+        return schema
+
+    @staticmethod
+    def _get_value(keyframes: Dict[str, Any], prop: str, time: float, default: float) -> float:
+        if prop not in keyframes:
+            return default
+        frames_data = keyframes[prop]
+        if not isinstance(frames_data, list):
+            return default
+        frames = [f for f in frames_data if isinstance(f, dict) and "time" in f and "value" in f]
+        if not frames:
+            return default
+        frames.sort(key=lambda k: k["time"])
+        if time <= frames[0]["time"]:
+            return frames[0]["value"]
+        if time >= frames[-1]["time"]:
+            return frames[-1]["value"]
+        for idx in range(len(frames) - 1):
+            k1, k2 = frames[idx], frames[idx + 1]
+            if k1["time"] <= time <= k2["time"]:
+                duration = k2["time"] - k1["time"]
+                t = (time - k1["time"]) / duration if duration > 0 else 0
+                return k1["value"] + (k2["value"] - k1["value"]) * t
+        return default
+
+    @staticmethod
+    def _calculate_bezier_pos(path_points: List[Dict[str, float]], time: float, duration: float) -> Optional[Tuple[float, float]]:
+        if not path_points or len(path_points) < 2:
+            return None
+        t_norm = max(0.0, min(1.0, time / duration)) if duration > 0 else 0
+        total_segments = len(path_points) - 1
+        current_segment = min(int(t_norm * total_segments), total_segments - 1)
+        segment_t = (t_norm * total_segments) - current_segment
+
+        p0, p1 = path_points[current_segment], path_points[current_segment + 1]
+        p0_x, p0_y = p0.get("x", 0), p0.get("y", 0)
+        p1_x, p1_y = p1.get("x", 0), p1.get("y", 0)
+        cp1_x = p0.get("cp2x", p0_x + (p1_x - p0_x) / 3.0)
+        cp1_y = p0.get("cp2y", p0_y + (p1_y - p0_y) / 3.0)
+        cp2_x = p1.get("cp1x", p0_x + (p1_x - p0_x) * 2.0 / 3.0)
+        cp2_y = p1.get("cp1y", p0_y + (p1_y - p0_y) * 2.0 / 3.0)
+
+        mt = 1 - segment_t
+        x = mt**3 * p0_x + 3 * mt**2 * segment_t * cp1_x + 3 * mt * segment_t**2 * cp2_x + segment_t**3 * p1_x
+        y = mt**3 * p0_y + 3 * mt**2 * segment_t * cp1_y + 3 * mt * segment_t**2 * cp2_y + segment_t**3 * p1_y
+        return x, y
+
+    @classmethod
+    def _decode_layers(cls, layers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        decoded = []
+        for layer in layers:
+            try:
+                img_b64 = layer.get("image_data", "")
+                image_ref = layer.get("image_ref")
+                pil: Optional[Image.Image] = None
+
+                if isinstance(img_b64, str) and img_b64:
+                    if "," in img_b64:
+                        img_b64 = img_b64.split(",", 1)[1]
+                    try:
+                        img_data = base64.b64decode(img_b64)
+                        pil = Image.open(python_io.BytesIO(img_data)).convert("RGBA")
+                    except Exception:
+                        pil = None
+
+                if pil is None and isinstance(image_ref, dict):
+                    ref_path = _resolve_ref_path(image_ref)
+                    if ref_path and ref_path.exists():
+                        pil = Image.open(ref_path).convert("RGBA")
+
+                if pil is None:
+                    continue
+
+                mask_np: Optional[np.ndarray] = None
+                mask_b64 = layer.get("customMask")
+                mask_ref = layer.get("customMask_ref")
+
+                if isinstance(mask_b64, str) and mask_b64:
+                    try:
+                        if "," in mask_b64:
+                            mask_b64 = mask_b64.split(",", 1)[1]
+                        mask_img = Image.open(python_io.BytesIO(base64.b64decode(mask_b64))).convert("RGBA")
+                        mask_np = np.array(mask_img)
+                    except Exception:
+                        mask_np = None
+                elif isinstance(mask_ref, dict):
+                    ref_path = _resolve_ref_path(mask_ref)
+                    if ref_path and ref_path.exists():
+                        mask_img = Image.open(ref_path).convert("RGBA")
+                        mask_np = np.array(mask_img)
+
+                decoded.append({
+                                    "data": np.array(pil),
+                                    "keyframes": layer.get("keyframes", {}),
+                                    "type": layer.get("type", "foreground"),
+                                    "bg_mode": layer.get("bg_mode", "fit"),
+                                    "customMask": layer.get("customMask"),
+                                    "customMask_ref": layer.get("customMask_ref"),
+                                    "mask_np": mask_np,
+                                    "bezierPath": layer.get("bezierPath"),
+                                    "usePathAnimation": layer.get("usePathAnimation", False),
+                                    # Position
+                                    "x": layer.get("x", 0),
+                                    "y": layer.get("y", 0),
+                                    "z": layer.get("z", 0),
+                                    # 3D Rotation
+                                    "rotationX": layer.get("rotationX", 0),
+                                    "rotationY": layer.get("rotationY", 0),
+                                    "rotationZ": layer.get("rotationZ", layer.get("rotation", 0)),
+                                    # 3D Scale
+                                    "scaleX": layer.get("scaleX", layer.get("scale", 1.0)),
+                                    "scaleY": layer.get("scaleY", layer.get("scale", 1.0)),
+                                    "scaleZ": layer.get("scaleZ", 1.0),
+                                    # Anchor point
+                                    "anchorX": layer.get("anchorX", 0),
+                                    "anchorY": layer.get("anchorY", 0),
+                                    # Mask expansion (per-layer property)
+                                    "mask_expansion": layer.get("mask_expansion", 0),
+                                    "mask_feather": layer.get("mask_feather", 0),
+                                    # Other
+                                    "opacity": layer.get("opacity", 1.0),
+                                    "is3D": layer.get("is3D", False),
+                                    # Legacy (for backward compatibility)
+                                    "scale": layer.get("scale", 1.0),
+                                    "rotation": layer.get("rotation", 0),
+                                })
+            except Exception:
+                continue
+        return decoded
+
+    @staticmethod
+    def _build_pano_map(dst_w: int, dst_h: int, fov_deg: float, yaw_deg: float, pitch_deg: float, roll_deg: float, src_w: int, src_h: int) -> Tuple[np.ndarray, np.ndarray]:
+        i, j = np.meshgrid(np.arange(dst_w), np.arange(dst_h))
+        fov = np.deg2rad(max(1.0, min(179.0, fov_deg)))
+        aspect = dst_w / max(1e-6, dst_h)
+        x = (i + 0.5) / dst_w * 2 - 1
+        y = (j + 0.5) / dst_h * 2 - 1
+        x = x * np.tan(fov / 2) * aspect
+        y = -y * np.tan(fov / 2)
+        z = np.ones_like(x)
+        dirs = np.stack([x, y, z], axis=-1)
+        dirs = dirs / (np.linalg.norm(dirs, axis=-1, keepdims=True) + 1e-8)
+
+        cy, sy = np.cos(np.deg2rad(yaw_deg)), np.sin(np.deg2rad(yaw_deg))
+        cp, sp = np.cos(np.deg2rad(pitch_deg)), np.sin(np.deg2rad(pitch_deg))
+        cr, sr = np.cos(np.deg2rad(roll_deg)), np.sin(np.deg2rad(roll_deg))
+        Ry = np.array([[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]])
+        Rx = np.array([[1, 0, 0], [0, cp, -sp], [0, sp, cp]])
+        Rz = np.array([[cr, -sr, 0], [sr, cr, 0], [0, 0, 1]])
+        dirs_rot = dirs @ (Rz @ Rx @ Ry).T
+
+        lon = np.arctan2(dirs_rot[..., 0], dirs_rot[..., 2])
+        lat = np.arcsin(np.clip(dirs_rot[..., 1], -1.0, 1.0))
+        map_x = ((lon / (2 * np.pi)) + 0.5) * src_w
+        map_y = ((-lat / np.pi) + 0.5) * src_h
+        return map_x.astype(np.float32), map_y.astype(np.float32)
+
+    @staticmethod
+    def _render_layer_3d(
+        img_np: np.ndarray,
+        mvp: np.ndarray,
+        canvas: np.ndarray,
+        mask_canvas: np.ndarray,
+        opacity: float,
+        is_foreground: bool,
+        width: int,
+        height: int,
+        layer_mask_expansion: int = 0,
+        layer_mask_feather: int = 0
+    ) -> None:
+        """Render a layer with 3D perspective transform."""
+        img_h, img_w = img_np.shape[:2]
+        dst_corners = Transform3D.project_corners(img_w, img_h, mvp, width, height)
+
+        # Check if layer is visible (all corners within reasonable bounds)
+        if np.any(dst_corners < -width * 2) or np.any(dst_corners > width * 3):
+            return
+
+        # Source corners (original image)
+        src_corners = np.array([
+            [0, 0], [img_w, 0], [img_w, img_h], [0, img_h]
+        ], dtype=np.float32)
+
+        # Get perspective transform matrix
+        try:
+            M = cv2.getPerspectiveTransform(src_corners, dst_corners)
+            warped = cv2.warpPerspective(img_np, M, (width, height), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+        except cv2.error:
+            return
+
+        # Update mask for foreground with per-layer mask expansion and white border
+        if is_foreground and warped.shape[2] == 4:
+            mask_layer = (warped[:, :, 3].astype(np.float32) * opacity).astype(np.uint8)
+            
+            # Apply per-layer mask expansion and white border effect
+            if layer_mask_expansion > 0:
+                # Save original mask before expansion
+                original_mask = mask_layer.copy()
+                
+                # Expand mask (dilation)
+                kernel = np.ones((3, 3), np.uint8)
+                expanded_mask = cv2.dilate(mask_layer, kernel, iterations=layer_mask_expansion)
+                
+                # Apply feathering to expanded mask
+                if layer_mask_feather > 0:
+                    ksize = max(3, layer_mask_feather * 2 + 1)
+                    expanded_mask = cv2.GaussianBlur(expanded_mask, (ksize, ksize), 0)
+                
+                # Create edge mask: only the expanded area (white border)
+                # Edge mask = expanded_mask - original_mask (clipped to [0, 255])
+                edge_mask = np.clip(expanded_mask.astype(np.int16) - original_mask.astype(np.int16), 0, 255).astype(np.uint8)
+                
+                # Apply white only at the edges
+                edge_alpha = edge_mask.astype(np.float32) / 255.0
+                for c in range(3):
+                    canvas[:, :, c] = (canvas[:, :, c] * (1 - edge_alpha) +
+                                      255 * edge_alpha).astype(np.uint8)
+                
+                # Update mask_canvas to expanded version
+                mask_canvas[:] = np.maximum(mask_canvas, expanded_mask)
+            elif layer_mask_expansion < 0:
+                # Contract mask (erosion)
+                kernel = np.ones((3, 3), np.uint8)
+                mask_layer = cv2.erode(mask_layer, kernel, iterations=abs(layer_mask_expansion))
+                mask_canvas[:] = np.maximum(mask_canvas, mask_layer)
+            else:
+                # Only apply feathering if no expansion
+                if layer_mask_feather > 0:
+                    ksize = max(3, layer_mask_feather * 2 + 1)
+                    mask_layer = cv2.GaussianBlur(mask_layer, (ksize, ksize), 0)
+                mask_canvas[:] = np.maximum(mask_canvas, mask_layer)
+
+        # Composite
+        if warped.shape[2] == 4:
+            alpha = (warped[:, :, 3:4].astype(np.float32) / 255.0) * opacity
+            for c in range(3):
+                canvas[:, :, c] = (canvas[:, :, c] * (1 - alpha[:, :, 0]) + warped[:, :, c] * alpha[:, :, 0]).astype(np.uint8)
+            canvas[:, :, 3] = np.maximum(canvas[:, :, 3], (alpha[:, :, 0] * 255).astype(np.uint8))
+
+    @staticmethod
+    def _render_layer_2d_with_3d_rotation(
+        img_np: np.ndarray,
+        x: float, y: float,
+        scale: float,
+        rot_x: float, rot_y: float, rot_z: float,
+        canvas: np.ndarray,
+        mask_canvas: np.ndarray,
+        opacity: float,
+        is_foreground: bool,
+        width: int,
+        height: int,
+        perspective: float = 1000.0,
+        bg_mode: str = "fit",
+        layer_mask_expansion: int = 0,
+        layer_mask_feather: int = 0
+    ) -> None:
+        """Render a layer with 3D rotation using perspective transform."""
+        orig_w, orig_h = img_np.shape[1], img_np.shape[0]
+
+        # Background scaling
+        base_scale = 1.0
+        if not is_foreground:
+            if bg_mode == "fit":
+                base_scale = min(width / orig_w, height / orig_h)
+            elif bg_mode == "fill":
+                base_scale = max(width / orig_w, height / orig_h)
+            elif bg_mode == "stretch":
+                # Stretch mode: resize image to match canvas dimensions, then apply scale
+                new_w, new_h = max(1, int(width * scale)), max(1, int(height * scale))
+                img_np = cv2.resize(img_np, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                current_w, current_h = new_w, new_h
+                base_scale = None
+        
+        if base_scale is not None:
+            final_scale = base_scale * scale
+            if final_scale != 1.0 and final_scale > 0:
+                new_w, new_h = max(1, int(orig_w * final_scale)), max(1, int(orig_h * final_scale))
+                img_np = cv2.resize(img_np, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                current_w, current_h = new_w, new_h
+            else:
+                current_w, current_h = orig_w, orig_h
+        
+        has_3d_rotation = abs(rot_x) > 0.1 or abs(rot_y) > 0.1 or abs(rot_z) > 0.1
+        
+        if has_3d_rotation:
+            # Convert to radians
+            rx = np.deg2rad(rot_x)
+            ry = np.deg2rad(rot_y)
+            rz = np.deg2rad(rot_z)
+            
+            cos_x, sin_x = np.cos(rx), np.sin(rx)
+            cos_y, sin_y = np.cos(ry), np.sin(ry)
+            cos_z, sin_z = np.cos(rz), np.sin(rz)
+            
+            # Four original corners (relative to center, matches frontend GPU renderer)
+            # Frontend WebGPU uses Y-up coordinate system: y=hh is bottom, y=-hh is top
+            # Backend image coordinate system has Y down, so no Y flip needed here
+            hw, hh = current_w / 2, current_h / 2
+            # Order matches frontend: bottom-left, bottom-right, top-right, top-left
+            # Corresponds to src_pts order: [0,h], [w,h], [w,0], [0,0]
+            corners_3d = np.array([
+                [-hw, hh, 0],   # bottom-left
+                [hw, hh, 0],    # bottom-right
+                [hw, -hh, 0],   # top-right
+                [-hw, -hh, 0]   # top-left
+            ], dtype=np.float64)
+            
+            # Apply 3D rotation (order: Z -> Y -> X, matches frontend)
+            transformed = []
+            for p in corners_3d:
+                px, py, pz = p
+                
+                # Z-axis rotation
+                x1 = px * cos_z - py * sin_z
+                y1 = px * sin_z + py * cos_z
+                z1 = pz
+                
+                # Y-axis rotation
+                x2 = x1 * cos_y + z1 * sin_y
+                z2 = -x1 * sin_y + z1 * cos_y
+                y2 = y1
+                
+                # X-axis rotation
+                y3 = y2 * cos_x - z2 * sin_x
+                z3 = y2 * sin_x + z2 * cos_x
+                x3 = x2
+                
+                # Perspective projection
+                proj_scale = perspective / (perspective + z3)
+                proj_x = x3 * proj_scale
+                proj_y = y3 * proj_scale
+                
+                transformed.append([proj_x, proj_y])
+            
+            # Source corners (image coordinate system, Y down)
+            # Order matches corners_3d: bottom-left, bottom-right, top-right, top-left
+            src_pts = np.array([
+                [0, current_h],      # bottom-left
+                [current_w, current_h],  # bottom-right
+                [current_w, 0],      # top-right
+                [0, 0]               # top-left
+            ], dtype=np.float32)
+            
+            # Destination corners (with canvas center offset)
+            center_x = width / 2 + x
+            center_y = height / 2 + y
+            dst_pts = np.array([
+                [center_x + transformed[0][0], center_y + transformed[0][1]],
+                [center_x + transformed[1][0], center_y + transformed[1][1]],
+                [center_x + transformed[2][0], center_y + transformed[2][1]],
+                [center_x + transformed[3][0], center_y + transformed[3][1]]
+            ], dtype=np.float32)
+            
+            # Check if destination points are within reasonable bounds
+            if np.any(dst_pts < -width * 2) or np.any(dst_pts > width * 3):
+                return
+            
+            # Perspective transform
+            try:
+                M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+                warped = cv2.warpPerspective(img_np, M, (width, height), 
+                                            borderMode=cv2.BORDER_CONSTANT, 
+                                            borderValue=(0, 0, 0, 0))
+            except cv2.error:
+                return
+            
+            # Composite to canvas
+            if is_foreground and warped.shape[2] == 4:
+                mask_layer = (warped[:, :, 3].astype(np.float32) * opacity).astype(np.uint8)
+                
+                # Apply per-layer mask expansion and white border effect
+                if layer_mask_expansion > 0:
+                    # Save original mask before expansion
+                    original_mask = mask_layer.copy()
+                    
+                    # Expand mask (dilation)
+                    kernel = np.ones((3, 3), np.uint8)
+                    expanded_mask = cv2.dilate(mask_layer, kernel, iterations=layer_mask_expansion)
+                    
+                    # Apply feathering to expanded mask
+                    if layer_mask_feather > 0:
+                        ksize = max(3, layer_mask_feather * 2 + 1)
+                        expanded_mask = cv2.GaussianBlur(expanded_mask, (ksize, ksize), 0)
+                    
+                    # Create edge mask: only the expanded area (white border)
+                    # Edge mask = expanded_mask - original_mask (clipped to [0, 255])
+                    edge_mask = np.clip(expanded_mask.astype(np.int16) - original_mask.astype(np.int16), 0, 255).astype(np.uint8)
+                    
+                    # Apply white only at the edges
+                    edge_alpha = edge_mask.astype(np.float32) / 255.0
+                    for c in range(3):
+                        canvas[:, :, c] = (canvas[:, :, c] * (1 - edge_alpha) +
+                                          255 * edge_alpha).astype(np.uint8)
+                    
+                    # Update mask_canvas to expanded version
+                    mask_canvas[:] = np.maximum(mask_canvas, expanded_mask)
+                elif layer_mask_expansion < 0:
+                    # Contract mask (erosion)
+                    kernel = np.ones((3, 3), np.uint8)
+                    mask_layer = cv2.erode(mask_layer, kernel, iterations=abs(layer_mask_expansion))
+                    mask_canvas[:] = np.maximum(mask_canvas, mask_layer)
+                else:
+                    # Only apply feathering if no expansion
+                    if layer_mask_feather > 0:
+                        ksize = max(3, layer_mask_feather * 2 + 1)
+                        mask_layer = cv2.GaussianBlur(mask_layer, (ksize, ksize), 0)
+                    mask_canvas[:] = np.maximum(mask_canvas, mask_layer)
+            
+            if warped.shape[2] == 4:
+                alpha = (warped[:, :, 3:4].astype(np.float32) / 255.0) * opacity
+                for c in range(3):
+                    canvas[:, :, c] = (canvas[:, :, c] * (1 - alpha[:, :, 0]) +
+                                      warped[:, :, c] * alpha[:, :, 0]).astype(np.uint8)
+                canvas[:, :, 3] = np.maximum(canvas[:, :, 3], (alpha[:, :, 0] * 255).astype(np.uint8))
+            return
+        
+        # Simple paste when no 3D rotation
+        paste_x = int(width // 2 + x - current_w // 2)
+        paste_y = int(height // 2 + y - current_h // 2)
+
+        # Update mask for foreground
+        if is_foreground and img_np.shape[2] == 4:
+            mask_layer = (img_np[:, :, 3].astype(np.float32) * opacity).astype(np.uint8)
+            y1, x1 = max(0, paste_y), max(0, paste_x)
+            y2, x2 = min(paste_y + current_h, height), min(paste_x + current_w, width)
+            if y2 > y1 and x2 > x1:
+                sy, sx = max(0, -paste_y), max(0, -paste_x)
+                src = mask_layer[sy:sy + (y2 - y1), sx:sx + (x2 - x1)]
+                mask_canvas[y1:y2, x1:x2] = np.maximum(mask_canvas[y1:y2, x1:x2], src)
+
+        # Composite
+        y1, x1 = max(0, paste_y), max(0, paste_x)
+        y2, x2 = min(paste_y + current_h, height), min(paste_x + current_w, width)
+        if y2 > y1 and x2 > x1:
+            sy, sx = max(0, -paste_y), max(0, -paste_x)
+            src = img_np[sy:sy + (y2 - y1), sx:sx + (x2 - x1)]
+            dst = canvas[y1:y2, x1:x2]
+            if src.shape[2] == 4:
+                alpha = (src[:, :, 3:4].astype(np.float32) / 255.0) * opacity
+                for c in range(3):
+                    dst[:, :, c] = (dst[:, :, c] * (1 - alpha[:, :, 0]) + src[:, :, c] * alpha[:, :, 0]).astype(np.uint8)
+                dst[:, :, 3] = np.maximum(dst[:, :, 3], (alpha[:, :, 0] * 255).astype(np.uint8))
+
+    @staticmethod
+    def _render_layer_2d(
+        img_np: np.ndarray,
+        x: float, y: float,
+        scale: float, rotation: float,
+        canvas: np.ndarray,
+        mask_canvas: np.ndarray,
+        opacity: float,
+        is_foreground: bool,
+        width: int,
+        height: int,
+        bg_mode: str = "fit",
+        layer_mask_expansion: int = 0,
+        layer_mask_feather: int = 0
+    ) -> None:
+        """Render a layer with 2D transform (legacy mode)."""
+        orig_w, orig_h = img_np.shape[1], img_np.shape[0]
+
+        # Background scaling
+        if not is_foreground:
+            if bg_mode == "fit":
+                base_scale = min(width / orig_w, height / orig_h)
+            elif bg_mode == "fill":
+                base_scale = max(width / orig_w, height / orig_h)
+            elif bg_mode == "stretch":
+                # Stretch mode: resize image to match canvas dimensions
+                new_w, new_h = max(1, int(width * scale)), max(1, int(height * scale))
+                img_np = cv2.resize(img_np, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                current_w, current_h = new_w, new_h
+                base_scale = None
+            else:
+                base_scale = 1.0
+            if base_scale is not None:
+                final_scale = base_scale * scale
+                new_w, new_h = max(1, int(orig_w * final_scale)), max(1, int(orig_h * final_scale))
+                img_np = cv2.resize(img_np, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                current_w, current_h = new_w, new_h
+        elif scale != 1.0 and scale > 0:
+            new_w, new_h = max(1, int(orig_w * scale)), max(1, int(orig_h * scale))
+            img_np = cv2.resize(img_np, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+            current_w, current_h = new_w, new_h
+        else:
+            current_w, current_h = orig_w, orig_h
+
+        if abs(rotation) > 0.1:
+            center = (current_w // 2, current_h // 2)
+            matrix = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            img_np = cv2.warpAffine(img_np, matrix, (current_w, current_h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+
+        paste_x = int(width // 2 + x - current_w // 2)
+        paste_y = int(height // 2 + y - current_h // 2)
+
+        # Update mask for foreground with per-layer mask expansion and white border
+        if is_foreground:
+            mask_layer = (img_np[:, :, 3].astype(np.float32) * opacity).astype(np.uint8)
+            
+            # Apply per-layer mask expansion and white border effect
+            if layer_mask_expansion > 0:
+                # Save original mask before expansion
+                original_mask = mask_layer.copy()
+                
+                # Expand mask (dilation)
+                kernel = np.ones((3, 3), np.uint8)
+                expanded_mask = cv2.dilate(mask_layer, kernel, iterations=layer_mask_expansion)
+                
+                # Apply feathering to expanded mask
+                if layer_mask_feather > 0:
+                    ksize = max(3, layer_mask_feather * 2 + 1)
+                    expanded_mask = cv2.GaussianBlur(expanded_mask, (ksize, ksize), 0)
+                
+                # Create edge mask: only the expanded area (white border)
+                # Edge mask = expanded_mask - original_mask (clipped to [0, 255])
+                edge_mask = np.clip(expanded_mask.astype(np.int16) - original_mask.astype(np.int16), 0, 255).astype(np.uint8)
+                
+                # Apply white only at the edges (on the canvas, not mask_canvas)
+                y1, x1 = max(0, paste_y), max(0, paste_x)
+                y2, x2 = min(paste_y + current_h, height), min(paste_x + current_w, width)
+                if y2 > y1 and x2 > x1:
+                    sy, sx = max(0, -paste_y), max(0, -paste_x)
+                    # Get the edge region
+                    edge_region = edge_mask[sy:sy + (y2 - y1), sx:sx + (x2 - x1)]
+                    edge_alpha = edge_region.astype(np.float32) / 255.0
+                    # Apply white to canvas at edge regions
+                    for c in range(3):
+                        canvas[y1:y2, x1:x2, c] = (
+                            canvas[y1:y2, x1:x2, c].astype(np.float32) * (1 - edge_alpha) +
+                            255 * edge_alpha
+                        ).astype(np.uint8)
+                
+                # Update mask_canvas to expanded version
+                y1, x1 = max(0, paste_y), max(0, paste_x)
+                y2, x2 = min(paste_y + current_h, height), min(paste_x + current_w, width)
+                if y2 > y1 and x2 > x1:
+                    sy, sx = max(0, -paste_y), max(0, -paste_x)
+                    src = expanded_mask[sy:sy + (y2 - y1), sx:sx + (x2 - x1)]
+                    mask_canvas[y1:y2, x1:x2] = np.maximum(mask_canvas[y1:y2, x1:x2], src)
+            elif layer_mask_expansion < 0:
+                # Contract mask (erosion)
+                kernel = np.ones((3, 3), np.uint8)
+                mask_layer = cv2.erode(mask_layer, kernel, iterations=abs(layer_mask_expansion))
+                y1, x1 = max(0, paste_y), max(0, paste_x)
+                y2, x2 = min(paste_y + current_h, height), min(paste_x + current_w, width)
+                if y2 > y1 and x2 > x1:
+                    sy, sx = max(0, -paste_y), max(0, -paste_x)
+                    src = mask_layer[sy:sy + (y2 - y1), sx:sx + (x2 - x1)]
+                    mask_canvas[y1:y2, x1:x2] = np.maximum(mask_canvas[y1:y2, x1:x2], src)
+            else:
+                # Only apply feathering if no expansion
+                if layer_mask_feather > 0:
+                    ksize = max(3, layer_mask_feather * 2 + 1)
+                    mask_layer = cv2.GaussianBlur(mask_layer, (ksize, ksize), 0)
+                y1, x1 = max(0, paste_y), max(0, paste_x)
+                y2, x2 = min(paste_y + current_h, height), min(paste_x + current_w, width)
+                if y2 > y1 and x2 > x1:
+                    sy, sx = max(0, -paste_y), max(0, -paste_x)
+                    src = mask_layer[sy:sy + (y2 - y1), sx:sx + (x2 - x1)]
+                    mask_canvas[y1:y2, x1:x2] = np.maximum(mask_canvas[y1:y2, x1:x2], src)
+
+        # Composite
+        y1, x1 = max(0, paste_y), max(0, paste_x)
+        y2, x2 = min(paste_y + current_h, height), min(paste_x + current_w, width)
+        if y2 > y1 and x2 > x1:
+            sy, sx = max(0, -paste_y), max(0, -paste_x)
+            src = img_np[sy:sy + (y2 - y1), sx:sx + (x2 - x1)]
+            dst = canvas[y1:y2, x1:x2]
+            alpha = (src[:, :, 3:4].astype(np.float32) / 255.0) * opacity
+            for c in range(3):
+                dst[:, :, c] = (dst[:, :, c] * (1 - alpha[:, :, 0]) + src[:, :, c] * alpha[:, :, 0]).astype(np.uint8)
+            dst[:, :, 3] = np.maximum(dst[:, :, 3], (alpha[:, :, 0] * 255).astype(np.uint8))
+
+    @classmethod
+    def execute(
+        cls,
+        width: int,
+        height: int,
+        fps: int,
+        total_frames: int,
+        mask_expansion: int,
+        mask_feather: int,
+        cam_enable: int = 0,
+        pano_enable: int = 0,
+        cam_pos_x: float = 0.0,
+        cam_pos_y: float = 0.0,
+        cam_pos_z: float = 1000.0,
+        cam_yaw: float = 0.0,
+        cam_pitch: float = 0.0,
+        cam_roll: float = 0.0,
+        cam_fov: float = 90.0,
+        layers_keyframes: str = "",
+        start_frame: int = 0,
+        end_frame: int = -1,
+    ) -> io.NodeOutput:
+        parsed = _parse_layers(layers_keyframes)
+        layers_data = parsed["layers"]
+        project_kf = parsed["project_keyframes"]
+        project_data = parsed.get("project", {})
+
+        duration = total_frames / max(fps, 1)
+        
+        # Prioritize settings from project_data (from layers_keyframes JSON), fallback to widget values
+        pano_enable_final = bool(project_data.get("pano_enable")) if project_data.get("pano_enable") is not None else bool(pano_enable)
+        cam_enable_final = bool(project_data.get("cam_enable")) if project_data.get("cam_enable") is not None else bool(cam_enable)
+        cam_yaw_final = float(project_data.get("cam_yaw", cam_yaw) or 0)
+        cam_pitch_final = float(project_data.get("cam_pitch", cam_pitch) or 0)
+        cam_roll_final = float(project_data.get("cam_roll", cam_roll) or 0)
+        cam_fov_final = float(project_data.get("cam_fov", cam_fov) or 90)
+        cam_pos_x_final = float(project_data.get("cam_pos_x", cam_pos_x) or 0)
+        cam_pos_y_final = float(project_data.get("cam_pos_y", cam_pos_y) or 0)
+        cam_pos_z_final = float(project_data.get("cam_pos_z", cam_pos_z) or 1000)
+        
+        pano_enabled = bool(pano_enable_final)
+        camera_active = bool(cam_enable_final) or pano_enabled
+        aspect = width / max(1, height)
+
+        if end_frame == -1 or end_frame > total_frames:
+            end_frame = total_frames
+
+        layers = cls._decode_layers(layers_data)
+        logging.info(f"[AE] Render: {width}x{height}, frames {start_frame}-{end_frame}/{total_frames}, {len(layers)} layers")
+        logging.info(f"[AE] Camera: pano_enabled={pano_enabled}, camera_active={camera_active}, yaw={cam_yaw_final}, pitch={cam_pitch_final}, fov={cam_fov_final}")
+
+        def interp_kf(prop: str, default: float, t: float) -> float:
+            arr = project_kf.get(prop) if isinstance(project_kf, dict) else None
+            if not arr:
+                return default
+            try:
+                arr_sorted = sorted(arr, key=lambda k: k.get("time", 0))
+                if t <= arr_sorted[0]["time"]:
+                    return arr_sorted[0]["value"]
+                if t >= arr_sorted[-1]["time"]:
+                    return arr_sorted[-1]["value"]
+                for i in range(len(arr_sorted) - 1):
+                    t1, t2 = arr_sorted[i]["time"], arr_sorted[i + 1]["time"]
+                    if t1 <= t <= t2:
+                        alpha = (t - t1) / (t2 - t1) if t2 > t1 else 0
+                        return arr_sorted[i]["value"] + (arr_sorted[i + 1]["value"] - arr_sorted[i]["value"]) * alpha
+            except Exception:
+                pass
+            return default
+
+        frames: List[torch.Tensor] = []
+        masks: List[torch.Tensor] = []
+        pano_cache: Optional[Tuple[np.ndarray, np.ndarray, float, float, float, float]] = None
+
+        for frame_idx in range(start_frame, end_frame):
+            time = frame_idx / max(fps, 1)
+
+            # Camera parameters (using _final variables as defaults)
+            cam_yaw_t = interp_kf("cam_yaw", cam_yaw_final, time)
+            cam_pitch_t = interp_kf("cam_pitch", cam_pitch_final, time)
+            cam_roll_t = interp_kf("cam_roll", cam_roll_final, time)
+            cam_fov_t = interp_kf("cam_fov", cam_fov_final, time)
+            cam_pos_x_t = interp_kf("cam_pos_x", cam_pos_x_final, time)
+            cam_pos_y_t = interp_kf("cam_pos_y", cam_pos_y_final, time)
+            cam_pos_z_t = interp_kf("cam_pos_z", cam_pos_z_final, time)
+
+            # Build camera matrices
+            view_matrix = Transform3D.build_view_matrix(cam_pos_x_t, cam_pos_y_t, cam_pos_z_t, cam_yaw_t, cam_pitch_t, cam_roll_t)
+            proj_matrix = Transform3D.build_projection_matrix(cam_fov_t, aspect)
+            vp_matrix = proj_matrix @ view_matrix
+
+            canvas = np.zeros((height, width, 4), dtype=np.uint8)
+            mask_canvas = np.zeros((height, width), dtype=np.uint8)
+
+            # Collect layer data with Z-depth for sorting
+            layer_render_data = []
+            for layer in layers:
+                kf = layer.get("keyframes", {})
+                is_foreground = layer["type"] == "foreground"
+                is_pano_bg = pano_enabled and not is_foreground
+                is_3d = layer.get("is3D", False)
+
+                # Get animated properties
+                x = cls._get_value(kf, "x", time, layer["x"])
+                y = cls._get_value(kf, "y", time, layer["y"])
+                z = cls._get_value(kf, "z", time, layer["z"])
+
+                # Bezier path override (only if usePathAnimation is enabled)
+                use_path_animation = layer.get("usePathAnimation", False)
+                bezier_path = layer.get("bezierPath")
+                if use_path_animation and bezier_path and len(bezier_path) >= 2:
+                    pos = cls._calculate_bezier_pos(bezier_path, time, duration)
+                    if pos:
+                        x, y = pos
+
+                # 3D properties
+                rot_x = cls._get_value(kf, "rotationX", time, layer["rotationX"])
+                rot_y = cls._get_value(kf, "rotationY", time, layer["rotationY"])
+                rot_z = cls._get_value(kf, "rotationZ", time, layer["rotationZ"])
+                scale_x = cls._get_value(kf, "scaleX", time, layer["scaleX"])
+                scale_y = cls._get_value(kf, "scaleY", time, layer["scaleY"])
+                scale_z = cls._get_value(kf, "scaleZ", time, layer["scaleZ"])
+                anchor_x = cls._get_value(kf, "anchorX", time, layer["anchorX"])
+                anchor_y = cls._get_value(kf, "anchorY", time, layer["anchorY"])
+                opacity = cls._get_value(kf, "opacity", time, layer["opacity"])
+
+                # Legacy 2D properties
+                scale_2d = cls._get_value(kf, "scale", time, layer["scale"])
+                rotation_2d = cls._get_value(kf, "rotation", time, layer["rotation"])
+
+                # Calculate Z-depth for sorting
+                z_depth = Transform3D.get_layer_z_depth(x, y, z, view_matrix) if (is_3d or camera_active) else -z
+
+                layer_render_data.append({
+                                    "layer": layer,
+                                    "x": x, "y": y, "z": z,
+                                    "rot_x": rot_x, "rot_y": rot_y, "rot_z": rot_z,
+                                    "scale_x": scale_x, "scale_y": scale_y, "scale_z": scale_z,
+                                    "anchor_x": anchor_x, "anchor_y": anchor_y,
+                                    "opacity": opacity,
+                                    "scale_2d": scale_2d, "rotation_2d": rotation_2d,
+                                    "is_3d": is_3d, "is_foreground": is_foreground, "is_pano_bg": is_pano_bg,
+                                    "z_depth": z_depth,
+                                    "mask_expansion": layer.get("mask_expansion", 0),
+                                    "mask_feather": layer.get("mask_feather", 0),
+                                })
+
+            # Sort by layer type then Z-depth (backgrounds first, far to near)
+            layer_render_data.sort(key=lambda d: (d["is_foreground"], -d["z_depth"]))
+
+            # Render layers
+            for data in layer_render_data:
+                layer = data["layer"]
+                img_np = layer["data"].copy()
+                is_foreground = data["is_foreground"]
+                is_pano_bg = data["is_pano_bg"]
+                is_3d = data["is_3d"]
+                opacity = data["opacity"]
+                
+                # Get per-layer mask expansion values
+                layer_mask_expansion = data.get("mask_expansion", 0)
+                layer_mask_feather = data.get("mask_feather", 0)
+
+                # Apply custom mask
+                if is_foreground:
+                    img_np = _apply_custom_mask(img_np, layer.get("mask_np"), layer.get("customMask"))
+
+                # Panorama background
+                if is_pano_bg:
+                    cache_key = (cam_fov_t, cam_yaw_t, cam_pitch_t, cam_roll_t)
+                    if pano_cache is None or pano_cache[2:] != cache_key:
+                        map_x, map_y = cls._build_pano_map(width, height, cam_fov_t, cam_yaw_t, cam_pitch_t, cam_roll_t, img_np.shape[1], img_np.shape[0])
+                        pano_cache = (map_x, map_y, *cache_key)
+                    img_np = cv2.remap(img_np, pano_cache[0], pano_cache[1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
+                    cls._render_layer_2d(img_np, 0, 0, 1.0, 0, canvas, mask_canvas, opacity, is_foreground, width, height, "fit", layer_mask_expansion, layer_mask_feather)
+                elif pano_enabled and is_foreground:
+                    # Pano mode: foreground layers use 2D rendering with camera rotation offset
+                    fg_x, fg_y = _calculate_camera_offset(
+                        data["x"], data["y"],
+                        cam_yaw_t, cam_pitch_t, cam_fov_t,
+                        width, is_pano_mode=True
+                    )
+                    
+                    if _has_3d_rotation(data["rot_x"], data["rot_y"], data["rot_z"]):
+                        cls._render_layer_2d_with_3d_rotation(
+                            img_np, fg_x, fg_y, data["scale_2d"],
+                            data["rot_x"], data["rot_y"], data["rot_z"],
+                            canvas, mask_canvas, opacity, is_foreground, width, height,
+                            perspective=DEFAULT_PERSPECTIVE, bg_mode="fit",
+                            layer_mask_expansion=layer_mask_expansion, layer_mask_feather=layer_mask_feather
+                        )
+                    else:
+                        cls._render_layer_2d(
+                            img_np, fg_x, fg_y, data["scale_2d"], data["rotation_2d"],
+                            canvas, mask_canvas, opacity, is_foreground, width, height, "fit", layer_mask_expansion, layer_mask_feather
+                        )
+                elif is_3d:
+                    # True 3D layers use full MVP matrix transform
+                    model_matrix = Transform3D.build_model_matrix(
+                        data["x"], data["y"], data["z"],
+                        data["rot_x"], data["rot_y"], data["rot_z"],
+                        data["scale_x"], data["scale_y"], data["scale_z"],
+                        data["anchor_x"], data["anchor_y"]
+                    )
+                    mvp = vp_matrix @ model_matrix
+                    cls._render_layer_3d(img_np, mvp, canvas, mask_canvas, opacity, is_foreground, width, height, layer_mask_expansion, layer_mask_feather)
+                elif camera_active:
+                    # Camera-only mode: simple transform matching frontend
+                    # Camera position affects layer offset (inverse)
+                    layer_x = data["x"] - cam_pos_x_t
+                    layer_y = data["y"] - cam_pos_y_t
+                    
+                    # Camera rotation affects layer position
+                    layer_x, layer_y = _calculate_camera_offset(
+                        layer_x, layer_y,
+                        cam_yaw_t, cam_pitch_t, cam_fov_t,
+                        width, is_pano_mode=False
+                    )
+                    
+                    # Camera Z-axis produces scale effect
+                    camera_z_scale = max(MIN_Z_SCALE, min(MAX_Z_SCALE, DEFAULT_CAMERA_Z / max(MIN_CAMERA_Z, cam_pos_z_t)))
+                    final_scale = data["scale_2d"] * camera_z_scale
+                    
+                    if _has_3d_rotation(data["rot_x"], data["rot_y"], data["rot_z"]):
+                        cls._render_layer_2d_with_3d_rotation(
+                            img_np, layer_x, layer_y, final_scale,
+                            data["rot_x"], data["rot_y"], data["rot_z"],
+                            canvas, mask_canvas, opacity, is_foreground, width, height,
+                            perspective=DEFAULT_PERSPECTIVE, bg_mode=layer["bg_mode"],
+                            layer_mask_expansion=layer_mask_expansion, layer_mask_feather=layer_mask_feather
+                        )
+                    else:
+                        cls._render_layer_2d(
+                            img_np, layer_x, layer_y, final_scale, data["rotation_2d"],
+                            canvas, mask_canvas, opacity, is_foreground, width, height, layer["bg_mode"], layer_mask_expansion, layer_mask_feather
+                        )
+                else:
+                    # 2D rendering
+                    if _has_3d_rotation(data["rot_x"], data["rot_y"], data["rot_z"]):
+                        cls._render_layer_2d_with_3d_rotation(
+                            img_np, data["x"], data["y"], data["scale_2d"],
+                            data["rot_x"], data["rot_y"], data["rot_z"],
+                            canvas, mask_canvas, opacity, is_foreground, width, height,
+                            perspective=DEFAULT_PERSPECTIVE, bg_mode=layer["bg_mode"],
+                            layer_mask_expansion=layer_mask_expansion, layer_mask_feather=layer_mask_feather
+                        )
+                    else:
+                        cls._render_layer_2d(
+                            img_np, data["x"], data["y"], data["scale_2d"], data["rotation_2d"],
+                            canvas, mask_canvas, opacity, is_foreground, width, height, layer["bg_mode"], layer_mask_expansion, layer_mask_feather
+                        )
+
+            # Post-processing is now handled per-layer in render functions
+            # Each foreground layer's mask expansion is applied during layer rendering
+            # This ensures true per-layer independent mask expansion
+            
+            frames.append(torch.from_numpy(canvas[:, :, :3].astype(np.float32) / 255.0))
+            masks.append(torch.from_numpy(mask_canvas.astype(np.float32) / 255.0))
+
+        if not frames:
+            return io.NodeOutput(
+                torch.zeros((1, height, width, 3), dtype=torch.float32),
+                torch.zeros((1, height, width), dtype=torch.float32)
+            )
+
+        return io.NodeOutput(torch.stack(frames), torch.stack(masks))
+
+
+class AEAnimationExtension(ComfyExtension):
+    @override
+    async def get_node_list(self) -> List[type[io.ComfyNode]]:
+        return [AEAnimation]
+
+
+async def comfy_entrypoint() -> AEAnimationExtension:
+    return AEAnimationExtension()

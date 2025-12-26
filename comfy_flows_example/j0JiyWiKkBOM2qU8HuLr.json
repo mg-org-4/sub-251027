@@ -1,0 +1,724 @@
+{
+  "last_link_id": 38,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            11,
+            36
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        },
+        {
+          "name": "MASK",
+          "label": "遮罩",
+          "type": "MASK",
+          "localized_name": "遮罩"
+        }
+      ],
+      "size": [
+        270,
+        314
+      ],
+      "pos": [
+        576.8115234375,
+        673.1279907226562
+      ],
+      "widgets_values": [
+        "4c1020dc2e02f62386c68bd04bf513da7a5c1b2109422636e208e06f5b805b30.jfif",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "type": "COMBO",
+          "localized_name": "图像"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "id": 11,
+      "type": "LoadImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            21
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        271.4512939453125,
+        161.64273071289062
+      ],
+      "pos": [
+        573.2279663085938,
+        1039.5816650390625
+      ],
+      "widgets_values": [
+        "1 beautiful Western girl"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "type": "STRING",
+          "localized_name": "提示词"
+        }
+      ],
+      "flags": {},
+      "id": 18,
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "INT",
+          "links": [
+            34
+          ],
+          "label": "INT",
+          "type": "INT",
+          "localized_name": "整数"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        887.4744873046875,
+        1145.318115234375
+      ],
+      "widgets_values": [
+        1024
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "label": "value",
+          "type": "INT",
+          "localized_name": "value"
+        }
+      ],
+      "flags": {},
+      "id": 21,
+      "type": "JWInteger",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "JWInteger"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "INT",
+          "links": [
+            38
+          ],
+          "label": "INT",
+          "type": "INT",
+          "localized_name": "整数"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        889.3463134765625,
+        1037.60595703125
+      ],
+      "widgets_values": [
+        1024
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "label": "value",
+          "type": "INT",
+          "localized_name": "value"
+        }
+      ],
+      "flags": {},
+      "id": 22,
+      "type": "JWInteger",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "JWInteger"
+      },
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            10,
+            25,
+            37
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "size": [
+        400,
+        292
+      ],
+      "pos": [
+        1239.8953857421875,
+        679.6302490234375
+      ],
+      "widgets_values": [
+        "a cute anime girl ",
+        1024,
+        1024,
+        25,
+        4,
+        878790130722069,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "name": "uso",
+          "link": 6,
+          "label": "uso",
+          "type": "RHUSOMudules",
+          "localized_name": "uso"
+        },
+        {
+          "shape": 7,
+          "name": "content_image",
+          "label": "content_image",
+          "type": "IMAGE",
+          "localized_name": "content_image"
+        },
+        {
+          "shape": 7,
+          "name": "style_image",
+          "link": 11,
+          "label": "style_image",
+          "type": "IMAGE",
+          "localized_name": "style_image"
+        },
+        {
+          "shape": 7,
+          "name": "style2_image",
+          "label": "style2_image",
+          "type": "IMAGE",
+          "localized_name": "style2_image"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 21,
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "width",
+          "link": 34,
+          "label": "width",
+          "type": "INT",
+          "localized_name": "width"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "link": 38,
+          "label": "height",
+          "type": "INT",
+          "localized_name": "height"
+        },
+        {
+          "widget": {
+            "name": "num_inference_steps"
+          },
+          "name": "num_inference_steps",
+          "label": "num_inference_steps",
+          "type": "INT",
+          "localized_name": "num_inference_steps"
+        },
+        {
+          "widget": {
+            "name": "guidance"
+          },
+          "name": "guidance",
+          "label": "guidance",
+          "type": "FLOAT",
+          "localized_name": "guidance"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 10,
+      "type": "RunningHub USO Sampler",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RunningHub USO Sampler"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            35
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "size": [
+        270,
+        102
+      ],
+      "pos": [
+        1231.7724609375,
+        1014.2203979492188
+      ],
+      "widgets_values": [
+        "right",
+        true
+      ],
+      "inputs": [
+        {
+          "name": "image1",
+          "link": 36,
+          "label": "图像_1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        },
+        {
+          "name": "image2",
+          "link": 37,
+          "label": "图像_2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "widget": {
+            "name": "direction"
+          },
+          "name": "direction",
+          "type": "COMBO",
+          "localized_name": "方向"
+        },
+        {
+          "widget": {
+            "name": "match_image_size"
+          },
+          "name": "match_image_size",
+          "type": "BOOLEAN",
+          "localized_name": "match_image_size"
+        }
+      ],
+      "flags": {},
+      "id": 13,
+      "type": "ImageConcanate",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImageConcanate"
+      },
+      "order": 8
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            20
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        1546.7879638671875,
+        1032.2503662109375
+      ],
+      "widgets_values": [
+        1280,
+        "bicubic"
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 35,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "widget": {
+            "name": "size"
+          },
+          "name": "size",
+          "label": "size",
+          "type": "INT",
+          "localized_name": "size"
+        },
+        {
+          "widget": {
+            "name": "interpolation"
+          },
+          "name": "interpolation",
+          "label": "interpolation",
+          "type": "COMBO",
+          "localized_name": "interpolation"
+        }
+      ],
+      "flags": {},
+      "id": 16,
+      "type": "PDIMAGE_LongerSize",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PDIMAGE_LongerSize"
+      },
+      "order": 9
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        270,
+        270
+      ],
+      "pos": [
+        1856.9974365234375,
+        691.40380859375
+      ],
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 20,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "id": 17,
+      "type": "SaveImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 10
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        140,
+        246
+      ],
+      "pos": [
+        1672.537353515625,
+        702.0812377929688
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 25,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "flags": {},
+      "id": 19,
+      "type": "PreviewImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewImage"
+      },
+      "order": 7
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "USO Modules",
+          "links": [
+            6
+          ],
+          "label": "USO Modules",
+          "type": "RHUSOMudules",
+          "localized_name": "USO Modules"
+        }
+      ],
+      "size": [
+        199.44393920898438,
+        26
+      ],
+      "pos": [
+        1845.0810546875,
+        1064.6346435546875
+      ],
+      "widgets_values": [],
+      "inputs": [],
+      "flags": {},
+      "id": 7,
+      "type": "RunningHub USO Loader",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RunningHub USO Loader"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        282.440185546875,
+        317.6874084472656
+      ],
+      "pos": [
+        874.7679443359375,
+        670.8978271484375
+      ],
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 10,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图片"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        }
+      ],
+      "flags": {},
+      "id": 12,
+      "type": "SaveImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 6
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        124.47454447669413,
+        -322.65569849459445
+      ],
+      "scale": 0.7247295000000011
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 240,
+      "flags": {},
+      "id": 1,
+      "title": "B站、Youtube：T8star-Aix",
+      "bounding": [
+        555.5276489257812,
+        -214.7248077392578,
+        2973.056884765625,
+        456.0023498535156
+      ]
+    }
+  ],
+  "links": [
+    [
+      6,
+      7,
+      0,
+      10,
+      0,
+      "RHUSOMudules"
+    ],
+    [
+      10,
+      10,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ],
+    [
+      11,
+      11,
+      0,
+      10,
+      2,
+      "IMAGE"
+    ],
+    [
+      20,
+      16,
+      0,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      21,
+      18,
+      0,
+      10,
+      4,
+      "STRING"
+    ],
+    [
+      25,
+      10,
+      0,
+      19,
+      0,
+      "IMAGE"
+    ],
+    [
+      34,
+      21,
+      0,
+      10,
+      5,
+      "INT"
+    ],
+    [
+      35,
+      13,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      36,
+      11,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      37,
+      10,
+      0,
+      13,
+      1,
+      "IMAGE"
+    ],
+    [
+      38,
+      22,
+      0,
+      10,
+      6,
+      "INT"
+    ]
+  ],
+  "id": "fcfc2597-d44b-48f8-b51f-30f6ad0fb15e",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 22,
+  "revision": 0
+}

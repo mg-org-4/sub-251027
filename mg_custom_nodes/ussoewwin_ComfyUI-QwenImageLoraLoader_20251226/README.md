@@ -2,6 +2,10 @@
 
 A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nunchaku Qwen Image models. ComfyUI Nodes 2.0 compatible.
 
+## ⚠️ **DEVELOPMENT STATUS**
+
+**Currently under development and testing. Debug logs are being output extensively. This does not affect functionality.**
+
 > Latest release: [v2.0.8 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.0.8)
 > 
 > ⚠️ **Note for v2.0+ users**: If you encounter `TypeError: got multiple values for argument 'guidance'` errors, see [troubleshooting section](#issue-30-typeerror-got-multiple-values-for-argument-guidance-v20) below.
@@ -88,7 +92,7 @@ Then restart ComfyUI.
 
 ## Upgrade Guide for v1.57 and Earlier Users
 
-If you have v1.57 or earlier installed with integration code in ComfyUI-nunchaku's `__init__.py`, see [UPGRADE_GUIDE_V1.57.md](UPGRADE_GUIDE_V1.57.md) for detailed upgrade instructions.
+If you have v1.57 or earlier installed with integration code in ComfyUI-nunchaku's `__init__.py`, see [UPGRADE_GUIDE_V1.57.md](md/UPGRADE_GUIDE_V1.57.md) for detailed upgrade instructions.
 
 ## Usage
 
@@ -229,9 +233,10 @@ def __init__(self, model, load_device, offload_device, size=0, weight_inplace_up
 - **Recommendations**:
   1. Update Nunchaku library and ComfyUI-Nunchaku nodes to the latest version (addresses `model_config` issues)
   2. Consider applying None check fixes to ComfyUI's core `model_management.py` (may address the root cause)
-- **Note**: This is the first support measure. I have published the technical details of the fixes I applied to ComfyUI's core `model_management.py` in my environment. See [COMFYUI_0.4.0_UPDATE_ERROR_FIXES.md](COMFYUI_0.4.0_UPDATE_ERROR_FIXES.md) for details. Note that these fixes were applied in my specific environment and may not work universally in all environments. This may also resolve `copy.deepcopy` and `pinned` attribute errors.
+- **Note**: This is the first support measure. I have published the technical details of the fixes I applied to ComfyUI's core `model_management.py` in my environment. See [COMFYUI_0.4.0_UPDATE_ERROR_FIXES.md](md/COMFYUI_0.4.0_UPDATE_ERROR_FIXES.md) for details. Note that these fixes were applied in my specific environment and may not work universally in all environments. This may also resolve `copy.deepcopy` and `pinned` attribute errors.
 - **Related Issues**: 
   - [Issue #25](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/25) - `AttributeError: 'NunchakuModelPatcher' object has no attribute 'pinned'` and deepcopy errors with `model_config`
+  - [Issue #33](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/33) - `AttributeError: 'NoneType' object has no attribute 'to'` in `to_safely` method (Fixed in v2.1.0)
   - [ComfyUI Issue #6590](https://github.com/comfyanonymous/ComfyUI/issues/6590): `'NoneType' object has no attribute 'shape'`
   - [ComfyUI Issue #6600](https://github.com/comfyanonymous/ComfyUI/issues/6600): `'NoneType' object is not callable` (Loader-related)
   - [ComfyUI Issue #6532](https://github.com/comfyanonymous/ComfyUI/issues/6532): Crash after referencing models after model unload
@@ -282,7 +287,15 @@ def __init__(self, model, load_device, offload_device, size=0, weight_inplace_up
 
 ## Changelog
 
-### v2.0.8 (latest)
+### v2.1.1 (latest)
+- **Fixed**: ComfyUI v0.6.0+ compatibility – Migrated from `guidance` to `additional_t_cond` parameter in `_execute_model` method to support ComfyUI v0.6.0+ API changes ([PR #34](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/pull/34))
+- **Technical Details**: See [v2.1.1 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.1.1) for complete explanation
+
+### v2.1.0
+- **Fixed**: Resolved [Issue #33](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/33) – Fixed `AttributeError: 'NoneType' object has no attribute 'to'` by adding None checks to `to_safely` and `forward` methods in `ComfyQwenImageWrapper`
+- **Technical Details**: See [v2.1.0 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.1.0) for complete explanation
+
+### v2.0.8
 - **Fixed**: Resolved [Issue #30](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/30) – Fixed `TypeError: got multiple values for argument 'guidance'` error by adding final cleanup of kwargs before calling model forward
 - **Technical Details**: See [v2.0.8 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.0.8) for complete explanation
 
@@ -318,6 +331,7 @@ def __init__(self, model, load_device, offload_device, size=0, weight_inplace_up
 - **Attempted Fix**: Addressed [Issue #25](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/25) – `AttributeError: 'NunchakuModelPatcher' object has no attribute 'pinned'` and deepcopy errors with `model_config`
 - **Reported by**: [@LacklusterOpsec](https://github.com/LacklusterOpsec) ([Issue #25](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/25))
 - **Current Status**: ⚠️ **This error does not occur in our stable ComfyUI environment** - The fix was implemented based on the reported issue, but we cannot guarantee it will completely resolve the issue as we cannot reproduce it in our environment. If you encounter this error, please report with your ComfyUI version and environment details.
+- **Technical Details**: See [v1.71 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v1.71) for complete explanation
 
 ### v1.70
 - **Added**: V2 loader with ComfyUI Nodes 2.0 (Beta) support

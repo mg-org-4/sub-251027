@@ -16,6 +16,8 @@ The **ListHelper** collection is a comprehensive set of custom nodes for ComfyUI
 2. [NumberListGenerator](#numberlistgenerator-node)
 3. [PromptSplitByDelimiter](#promptsplitbydelimiter-node)
 4. [Qwen_TE_LLM](#qwen-node) - AI Photo Prompt Optimizer
+5. [GGUFInference](#ggufinference-node) - GGUF Model Inference with llama-cpp-python
+6. [BatchToPSD](#batchtopsd-node) - Convert Batch Images to Multi-Layer PSD
 
 ---
 
@@ -393,6 +395,319 @@ This tests model loading, memory management, and inference capabilities.
 
 ---
 
+## GGUFInference Node
+
+### Overview
+
+The **GGUFInference** node is a powerful GGUF model inference node that integrates llama-cpp-python for running quantized language models. It supports both text-only and vision-language models with automatic model detection and intelligent memory management.
+
+### Features
+
+- **Automatic Model Detection**: Scans `text_encoders` and `clip` folders for GGUF model files
+- **Vision Model Support**: Handles VL (Vision-Language) models with mmproj files
+- **Auto-Installation**: Automatically installs llama-cpp-python on Windows (CUDA 12.8 compatible)
+  - **Platform**: Currently Windows only
+  - **CUDA Version**: Optimized for CUDA 12.8
+  - **Python Support**: 3.10, 3.11, 3.12, 3.13
+- **Model Download**: Built-in suggested models with one-click download from HuggingFace
+- **Template System**: Load prompt templates from `Prompt` folder or use custom prompts
+- **Memory Management**: Option to keep model loaded or unload after inference
+- **Seed Control**: Reproducible generation with optional seed parameter
+
+### Requirements
+
+- **Operating System**: Windows (for auto-installation feature)
+- **CUDA Version**: 12.8 (for auto-installation)
+- **Python Version**: 3.10, 3.11, 3.12, or 3.13
+- **Model Files**: GGUF format models in `text_encoders` or `clip` folders
+- **Python Library**: llama-cpp-python (auto-installed on Windows)
+
+### Auto-Installation Feature
+
+The node includes an **automatic installation system for llama-cpp-python**:
+
+- **Trigger**: Enable the `auto_install_llama_cpp` parameter
+- **Platform Support**: Windows only (manual installation required for other platforms)
+- **CUDA Support**: Pre-built wheels for CUDA 12.8
+- **Process**: Downloads and installs the appropriate wheel from HuggingFace
+- **Restart Required**: After installation, restart ComfyUI to activate
+
+### Parameters
+
+**Required Inputs:**
+
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| `model` | COMBO | - | - | GGUF model file (auto-detected or download option) |
+| `prompt` | STRING | "Hello, how are you?" | - | Input text prompt |
+| `prompt_template` | COMBO | "Custom" | - | Template from Prompt folder or Custom |
+| `system_prompt` | STRING | "" | - | System prompt (used when template is Custom) |
+| `max_tokens` | INT | 4096 | 1-8192 | Maximum generation length |
+| `temperature` | FLOAT | 0.7 | 0.0-2.0 | Sampling temperature |
+| `top_p` | FLOAT | 0.9 | 0.0-1.0 | Nucleus sampling threshold |
+| `top_k` | INT | 40 | 0-100 | Top-k sampling parameter |
+
+**Optional Inputs:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `seed` | INT | 0 | Random seed for reproducible results |
+| `keep_model_loaded` | BOOLEAN | False | Keep model in memory after inference |
+| `mmproj_file` | COMBO | "No mmproj files" | Vision model mmproj file |
+| `image` | IMAGE | - | Input image for vision models |
+| `auto_install_llama_cpp` | BOOLEAN | False | Auto-install llama-cpp-python (Windows only) |
+
+**Outputs:**
+
+- **text**: Generated text output
+- **used_seed**: The seed value used for generation
+
+### Supported Models
+
+The node includes suggested models with direct download:
+
+**Text Models:**
+- Qwen3-4B (Z-Image)
+- Qwen3-4B Abliterated
+
+**Vision-Language Models:**
+- Qwen2.5-VL-7B-Instruct
+- Qwen2.5-VL-7B-Instruct Abliterated
+- Huihui-Qwen3-VL-4B-Instruct Abliterated
+
+**MMProj Files:**
+- Qwen2.5-VL mmproj
+- QwenVL mmproj
+
+### Usage Examples
+
+#### Example 1: Text Generation with Auto-Installation
+```
+1. Enable "auto_install_llama_cpp" checkbox
+2. Run the node once (will install llama-cpp-python)
+3. Restart ComfyUI
+4. Select a model from dropdown or use "Download: Z-Image"
+5. Enter your prompt
+6. Generate!
+```
+
+#### Example 2: Vision Model Inference
+```
+Model: Download: Qwen (VL model)
+MMProj File: Download: mmproj
+Image: [Connect your IMAGE input]
+Prompt: "Describe this image in detail"
+Output: Detailed description of the input image
+```
+
+#### Example 3: Using Templates
+```
+Model: Qwen3-4B
+Prompt Template: [Select from Prompt folder]
+User Prompt: "A sunset over mountains"
+Output: Processed text based on template instructions
+```
+
+### Auto-Installation Details
+
+**Windows + CUDA 12.8:**
+- Automatically downloads pre-compiled wheels from HuggingFace
+- Supports Python 3.10, 3.11, 3.12, 3.13
+- No manual compilation required
+- CUDA-accelerated inference ready
+
+**Other Platforms:**
+- Manual installation required: `pip install llama-cpp-python`
+- The node will display installation instructions if llama-cpp-python is not found
+
+### Vision Model Support
+
+The node **automatically detects VL (Vision-Language) models** by filename:
+- Models with "vl" in the filename are treated as vision models
+- Vision mode is enabled when both image input and mmproj file are provided
+- Automatically falls back to text-only mode if vision requirements aren't met
+
+### Performance Notes
+
+- **GPU Acceleration**: Automatically uses GPU if CUDA is available (`n_gpu_layers=-1`)
+- **Context Size**: 8192 tokens context window
+- **Memory Management**: Option to keep model loaded for faster subsequent inferences
+- **Thinking Tag Removal**: Automatically strips `<think>...</think>` tags from output
+
+### Troubleshooting
+
+**llama-cpp-python not installed:**
+- Enable `auto_install_llama_cpp` on Windows
+- Or manually install: `pip install llama-cpp-python`
+
+**Model not found:**
+- Place GGUF files in `models/text_encoders/` or `models/clip/`
+- Or use the built-in download options
+
+**Vision mode not working:**
+- Ensure model filename contains "vl"
+- Select appropriate mmproj file
+- Connect IMAGE input
+
+**Auto-installation failed:**
+- Check Python version (must be 3.10-3.13)
+- Check internet connection for wheel download
+- Verify Windows operating system
+
+---
+
+## BatchToPSD Node
+
+### Overview
+
+The **BatchToPSD** node converts a batch of images into a multi-layer PSD (Photoshop Document) file. It automatically handles transparency, supports RGBA mode, and includes auto-installation of the required `psd-tools` package.
+
+### Features
+
+- **Auto-Install Dependencies**: Automatically installs `psd-tools` package on first use
+- **Multi-Layer Support**: Converts batch images to individual PSD layers
+- **Transparency Preservation**: Automatically detects and preserves alpha channels
+- **Smart Mode Detection**: Uses RGBA mode when transparency is detected, RGB otherwise
+- **Layer Control**: Optional layer order reversal
+- **First Image Skip**: Skips the first image in batch (typically the merged preview)
+
+### Requirements
+
+- **Python Package**: psd-tools (auto-installed on first use)
+- **Image Format**: Supports RGB and RGBA images
+- **Input**: Batch of at least 2 images (first image is skipped)
+
+### Auto-Installation
+
+The node includes an **automatic installation system for psd-tools**:
+
+- **Trigger**: Automatically triggers when psd-tools is not found
+- **Process**: Installs psd-tools using pip
+- **Restart Required**: After installation, restart ComfyUI to activate the package
+- **First Use**: The first run will install the package and display a success message
+
+### Parameters
+
+**Required Inputs:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `images` | IMAGE | - | Batch of images to convert (minimum 2 images) |
+| `filename_prefix` | STRING | "ComfyUI_PSD" | Prefix for output PSD filename |
+
+**Optional Inputs:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `reverse_layer_order` | BOOLEAN | False | Reverse layer order (bottom to top) |
+
+**Outputs:**
+
+- **message**: Status message with file path or installation instructions
+
+### Usage Examples
+
+#### Example 1: First Time Use (Auto-Installation)
+```
+1. Connect batch images to BatchToPSD node
+2. Run the node (will auto-install psd-tools)
+3. See success message: "psd-tools package has been installed successfully. Please RESTART ComfyUI"
+4. Restart ComfyUI
+5. Run the node again to create PSD file
+```
+
+#### Example 2: Normal PSD Creation
+```
+Input: Batch of 5 images [merged, layer1, layer2, layer3, layer4]
+Output: PSD file with 4 layers (first image skipped)
+Layers: Layer_1, Layer_2, Layer_3, Layer_4
+```
+
+#### Example 3: With Transparency
+```
+Input: Batch of RGBA images with transparency
+Auto-Detection: Node detects alpha channels
+PSD Mode: RGBA (preserves transparency)
+Output: PSD file with transparent layers
+```
+
+#### Example 4: Reverse Layer Order
+```
+Input: Batch of 4 images
+Reverse Layer Order: True
+Output: Layers arranged from bottom to top (Layer_3, Layer_2, Layer_1)
+```
+
+### How It Works
+
+1. **Package Check**: Checks if psd-tools is installed
+2. **Auto-Install**: If not found, automatically installs psd-tools
+3. **Restart Prompt**: Prompts user to restart ComfyUI after installation
+4. **Image Processing**:
+   - Skips first image in batch
+   - Converts remaining images to PIL format
+   - Detects alpha channels in any layer
+5. **Mode Selection**:
+   - Uses RGBA mode if any layer has transparency
+   - Uses RGB mode otherwise
+6. **PSD Creation**:
+   - Creates PSD document with appropriate mode
+   - Adds each image as a separate layer
+   - Names layers sequentially (Layer_1, Layer_2, etc.)
+7. **File Output**: Saves PSD to ComfyUI output directory with timestamp
+
+### Output Location
+
+- **Directory**: ComfyUI output folder
+- **Filename Format**: `{prefix}_{timestamp}.psd`
+- **Example**: `ComfyUI_PSD_20250326_143022.psd`
+
+### Technical Details
+
+**Transparency Handling:**
+- Automatically detects RGBA images
+- Creates PSD in RGBA mode to preserve transparency
+- Prevents transparency loss during layer creation
+- Matches Photoshop's behavior for transparent layers
+
+**Image Conversion:**
+- Converts torch tensors [H, W, C] with values [0, 1]
+- Converts to uint8 [0, 255] for PIL compatibility
+- Preserves color accuracy and transparency
+
+**Layer Naming:**
+- Sequential naming: Layer_1, Layer_2, Layer_3, etc.
+- Can be renamed in Photoshop after creation
+
+### Troubleshooting
+
+**psd-tools installation failed:**
+- Check internet connection
+- Manually install: `pip install psd-tools`
+- Verify pip is up to date: `pip install --upgrade pip`
+
+**First image is missing in PSD:**
+- This is intentional - first image in batch is skipped (usually the merged preview)
+- Ensure your batch has at least 2 images
+
+**Transparency not preserved:**
+- Check if input images have alpha channel (RGBA mode)
+- Node automatically uses RGBA mode when alpha is detected
+
+**Cannot open PSD in Photoshop:**
+- Ensure psd-tools installed successfully
+- Check output file exists in ComfyUI output directory
+- Try updating Photoshop to latest version
+
+### Compatibility
+
+- **Photoshop**: Compatible with Adobe Photoshop CS6 and later
+- **Other Software**: Works with any software that supports PSD format (GIMP, Affinity Photo, etc.)
+- **Color Modes**: RGB and RGBA
+- **Bit Depth**: 8-bit per channel
+
+---
+
 ## 中文版本
 
 ### 概述
@@ -405,9 +720,11 @@ This tests model loading, memory management, and inference capabilities.
 2. [NumberListGenerator 數字列表生成器](#numberlistgenerator-數字列表生成節點)
 3. [PromptSplitByDelimiter 提示分割器](#promptsplitbydelimiter-提示分割節點)
 4. [Qwen_TE_LLM AI照片提示詞優化器](#Qwen_TE_LLM-ai照片提示詞優化器)
-5. [AudioToFrameCount](#AudioToFrameCount)
-6. [AudioSplitToList](#AudioSplitToList)
-7. [CeilDivide](#CeilDivide)
+5. [GGUFInference GGUF模型推理](#ggufinference-gguf模型推理節點)
+6. [BatchToPSD 批次圖片轉PSD](#batchtopsd-批次圖片轉psd節點)
+7. [AudioToFrameCount](#AudioToFrameCount)
+8. [AudioSplitToList](#AudioSplitToList)
+9. [CeilDivide](#CeilDivide)
 
 ---
 
@@ -770,6 +1087,319 @@ python test_qwen_node.py
 ```
 
 此腳本測試模型載入、記憶體管理和推理能力。
+
+---
+
+## GGUFInference GGUF模型推理節點
+
+### 概述
+
+**GGUFInference** 節點是一個強大的 GGUF 模型推理節點,整合 llama-cpp-python 以運行量化語言模型。支援純文本和視覺語言模型,具備自動模型檢測和智能記憶體管理功能。
+
+### 功能特色
+
+- **自動模型檢測**: 掃描 `text_encoders` 和 `clip` 資料夾尋找 GGUF 模型檔案
+- **視覺模型支援**: 處理 VL (Vision-Language) 模型與 mmproj 檔案
+- **自動安裝**: 在 Windows 上自動安裝 llama-cpp-python (支援 CUDA 12.8)
+  - **平台**: 目前僅支援 Windows
+  - **CUDA 版本**: 針對 CUDA 12.8 最佳化
+  - **Python 支援**: 3.10, 3.11, 3.12, 3.13
+- **模型下載**: 內建建議模型,可從 HuggingFace 一鍵下載
+- **模板系統**: 從 `Prompt` 資料夾載入提示詞模板或使用自訂提示詞
+- **記憶體管理**: 可選擇保持模型載入或推理後卸載
+- **種子控制**: 可選種子參數確保生成可重現
+
+### 需求
+
+- **作業系統**: Windows (自動安裝功能)
+- **CUDA 版本**: 12.8 (自動安裝)
+- **Python 版本**: 3.10, 3.11, 3.12 或 3.13
+- **模型檔案**: GGUF 格式模型放在 `text_encoders` 或 `clip` 資料夾
+- **Python 函式庫**: llama-cpp-python (Windows 上自動安裝)
+
+### 自動安裝功能
+
+節點包含 **llama-cpp-python 自動安裝系統**:
+
+- **觸發**: 啟用 `auto_install_llama_cpp` 參數
+- **平台支援**: 僅 Windows (其他平台需手動安裝)
+- **CUDA 支援**: CUDA 12.8 預編譯 wheels
+- **流程**: 從 HuggingFace 下載並安裝適當的 wheel
+- **需要重啟**: 安裝後需重啟 ComfyUI 以啟用
+
+### 參數說明
+
+**必需輸入:**
+
+| 參數 | 類型 | 預設值 | 範圍 | 說明 |
+|------|------|--------|------|------|
+| `model` | COMBO | - | - | GGUF 模型檔案 (自動檢測或下載選項) |
+| `prompt` | STRING | "Hello, how are you?" | - | 輸入文字提示詞 |
+| `prompt_template` | COMBO | "Custom" | - | Prompt 資料夾的模板或 Custom |
+| `system_prompt` | STRING | "" | - | 系統提示詞 (模板為 Custom 時使用) |
+| `max_tokens` | INT | 4096 | 1-8192 | 最大生成長度 |
+| `temperature` | FLOAT | 0.7 | 0.0-2.0 | 取樣溫度 |
+| `top_p` | FLOAT | 0.9 | 0.0-1.0 | Nucleus 取樣閾值 |
+| `top_k` | INT | 40 | 0-100 | Top-k 取樣參數 |
+
+**可選輸入:**
+
+| 參數 | 類型 | 預設值 | 說明 |
+|------|------|--------|------|
+| `seed` | INT | 0 | 可重現結果的隨機種子 |
+| `keep_model_loaded` | BOOLEAN | False | 推理後保持模型在記憶體中 |
+| `mmproj_file` | COMBO | "No mmproj files" | 視覺模型 mmproj 檔案 |
+| `image` | IMAGE | - | 視覺模型的輸入圖片 |
+| `auto_install_llama_cpp` | BOOLEAN | False | 自動安裝 llama-cpp-python (僅 Windows) |
+
+**輸出:**
+
+- **text**: 生成的文字輸出
+- **used_seed**: 使用的種子值
+
+### 支援的模型
+
+節點包含建議模型可直接下載:
+
+**文本模型:**
+- Qwen3-4B (Z-Image)
+- Qwen3-4B Abliterated
+
+**視覺語言模型:**
+- Qwen2.5-VL-7B-Instruct
+- Qwen2.5-VL-7B-Instruct Abliterated
+- Huihui-Qwen3-VL-4B-Instruct Abliterated
+
+**MMProj 檔案:**
+- Qwen2.5-VL mmproj
+- QwenVL mmproj
+
+### 使用範例
+
+#### 範例 1: 使用自動安裝進行文字生成
+```
+1. 啟用 "auto_install_llama_cpp" 選項
+2. 執行節點一次 (將安裝 llama-cpp-python)
+3. 重啟 ComfyUI
+4. 從下拉選單選擇模型或使用 "Download: Z-Image"
+5. 輸入您的提示詞
+6. 開始生成!
+```
+
+#### 範例 2: 視覺模型推理
+```
+模型: Download: Qwen (VL 模型)
+MMProj 檔案: Download: mmproj
+圖片: [連接您的 IMAGE 輸入]
+提示詞: "詳細描述這張圖片"
+輸出: 輸入圖片的詳細描述
+```
+
+#### 範例 3: 使用模板
+```
+模型: Qwen3-4B
+提示詞模板: [從 Prompt 資料夾選擇]
+使用者提示詞: "山上的日落"
+輸出: 根據模板指示處理的文字
+```
+
+### 自動安裝詳情
+
+**Windows + CUDA 12.8:**
+- 自動從 HuggingFace 下載預編譯 wheels
+- 支援 Python 3.10, 3.11, 3.12, 3.13
+- 無需手動編譯
+- CUDA 加速推理已就緒
+
+**其他平台:**
+- 需要手動安裝: `pip install llama-cpp-python`
+- 若未找到 llama-cpp-python,節點會顯示安裝說明
+
+### 視覺模型支援
+
+節點 **自動檢測 VL (Vision-Language) 模型** 透過檔名:
+- 檔名中包含 "vl" 的模型被視為視覺模型
+- 當提供圖片輸入和 mmproj 檔案時啟用視覺模式
+- 若未滿足視覺需求會自動回退到純文本模式
+
+### 效能說明
+
+- **GPU 加速**: 若 CUDA 可用會自動使用 GPU (`n_gpu_layers=-1`)
+- **上下文大小**: 8192 tokens 上下文視窗
+- **記憶體管理**: 可選擇保持模型載入以加快後續推理
+- **思考標籤移除**: 自動移除輸出中的 `<think>...</think>` 標籤
+
+### 疑難排解
+
+**llama-cpp-python 未安裝:**
+- 在 Windows 上啟用 `auto_install_llama_cpp`
+- 或手動安裝: `pip install llama-cpp-python`
+
+**找不到模型:**
+- 將 GGUF 檔案放在 `models/text_encoders/` 或 `models/clip/`
+- 或使用內建下載選項
+
+**視覺模式無法運作:**
+- 確保模型檔名包含 "vl"
+- 選擇適當的 mmproj 檔案
+- 連接 IMAGE 輸入
+
+**自動安裝失敗:**
+- 檢查 Python 版本 (必須是 3.10-3.13)
+- 檢查網路連線以下載 wheel
+- 確認 Windows 作業系統
+
+---
+
+## BatchToPSD 批次圖片轉PSD節點
+
+### 概述
+
+**BatchToPSD** 節點將批次圖片轉換為多圖層 PSD (Photoshop Document) 檔案。自動處理透明度,支援 RGBA 模式,並包含自動安裝所需 `psd-tools` 套件的功能。
+
+### 功能特色
+
+- **自動安裝依賴套件**: 首次使用時自動安裝 `psd-tools` 套件
+- **多圖層支援**: 將批次圖片轉換為獨立的 PSD 圖層
+- **透明度保留**: 自動偵測並保留 alpha 通道
+- **智能模式偵測**: 偵測到透明度時使用 RGBA 模式,否則使用 RGB
+- **圖層控制**: 可選的圖層順序反轉
+- **跳過第一張圖片**: 跳過批次中的第一張圖片 (通常是合併預覽)
+
+### 需求
+
+- **Python 套件**: psd-tools (首次使用時自動安裝)
+- **圖片格式**: 支援 RGB 和 RGBA 圖片
+- **輸入**: 至少 2 張圖片的批次 (第一張圖片會被跳過)
+
+### 自動安裝
+
+節點包含 **psd-tools 自動安裝系統**:
+
+- **觸發**: 未找到 psd-tools 時自動觸發
+- **流程**: 使用 pip 安裝 psd-tools
+- **需要重啟**: 安裝後需重啟 ComfyUI 以啟用套件
+- **首次使用**: 首次執行會安裝套件並顯示成功訊息
+
+### 參數說明
+
+**必需輸入:**
+
+| 參數 | 類型 | 預設值 | 說明 |
+|------|------|--------|------|
+| `images` | IMAGE | - | 要轉換的批次圖片 (最少 2 張) |
+| `filename_prefix` | STRING | "ComfyUI_PSD" | 輸出 PSD 檔案名稱前綴 |
+
+**可選輸入:**
+
+| 參數 | 類型 | 預設值 | 說明 |
+|------|------|--------|------|
+| `reverse_layer_order` | BOOLEAN | False | 反轉圖層順序 (由下往上) |
+
+**輸出:**
+
+- **message**: 狀態訊息,包含檔案路徑或安裝說明
+
+### 使用範例
+
+#### 範例 1: 首次使用 (自動安裝)
+```
+1. 將批次圖片連接到 BatchToPSD 節點
+2. 執行節點 (會自動安裝 psd-tools)
+3. 看到成功訊息: "psd-tools 套件已成功安裝。請重啟 ComfyUI"
+4. 重啟 ComfyUI
+5. 再次執行節點以建立 PSD 檔案
+```
+
+#### 範例 2: 正常 PSD 建立
+```
+輸入: 5 張圖片的批次 [合併圖, 圖層1, 圖層2, 圖層3, 圖層4]
+輸出: 包含 4 個圖層的 PSD 檔案 (第一張圖片被跳過)
+圖層: Layer_1, Layer_2, Layer_3, Layer_4
+```
+
+#### 範例 3: 帶透明度的圖片
+```
+輸入: 帶透明度的 RGBA 圖片批次
+自動偵測: 節點偵測到 alpha 通道
+PSD 模式: RGBA (保留透明度)
+輸出: 包含透明圖層的 PSD 檔案
+```
+
+#### 範例 4: 反轉圖層順序
+```
+輸入: 4 張圖片的批次
+反轉圖層順序: True
+輸出: 圖層由下往上排列 (Layer_3, Layer_2, Layer_1)
+```
+
+### 運作方式
+
+1. **套件檢查**: 檢查是否安裝 psd-tools
+2. **自動安裝**: 若未找到,自動安裝 psd-tools
+3. **重啟提示**: 安裝後提示使用者重啟 ComfyUI
+4. **圖片處理**:
+   - 跳過批次中的第一張圖片
+   - 將剩餘圖片轉換為 PIL 格式
+   - 偵測任何圖層中的 alpha 通道
+5. **模式選擇**:
+   - 若任何圖層有透明度則使用 RGBA 模式
+   - 否則使用 RGB 模式
+6. **PSD 建立**:
+   - 使用適當模式建立 PSD 文件
+   - 將每張圖片加入為獨立圖層
+   - 依序命名圖層 (Layer_1, Layer_2 等)
+7. **檔案輸出**: 儲存 PSD 至 ComfyUI 輸出目錄,包含時間戳記
+
+### 輸出位置
+
+- **目錄**: ComfyUI 輸出資料夾
+- **檔案名稱格式**: `{前綴}_{時間戳記}.psd`
+- **範例**: `ComfyUI_PSD_20250326_143022.psd`
+
+### 技術細節
+
+**透明度處理:**
+- 自動偵測 RGBA 圖片
+- 建立 RGBA 模式的 PSD 以保留透明度
+- 防止圖層建立時透明度遺失
+- 符合 Photoshop 對透明圖層的處理方式
+
+**圖片轉換:**
+- 轉換 torch 張量 [H, W, C],數值範圍 [0, 1]
+- 轉換為 uint8 [0, 255] 以相容 PIL
+- 保留顏色準確度和透明度
+
+**圖層命名:**
+- 依序命名: Layer_1, Layer_2, Layer_3 等
+- 可在 Photoshop 中建立後重新命名
+
+### 疑難排解
+
+**psd-tools 安裝失敗:**
+- 檢查網路連線
+- 手動安裝: `pip install psd-tools`
+- 確認 pip 已更新: `pip install --upgrade pip`
+
+**PSD 中缺少第一張圖片:**
+- 這是預期行為 - 批次中的第一張圖片會被跳過 (通常是合併預覽)
+- 確保批次至少有 2 張圖片
+
+**透明度未保留:**
+- 檢查輸入圖片是否有 alpha 通道 (RGBA 模式)
+- 節點會在偵測到 alpha 時自動使用 RGBA 模式
+
+**無法在 Photoshop 中開啟 PSD:**
+- 確保 psd-tools 已成功安裝
+- 檢查輸出檔案是否存在於 ComfyUI 輸出目錄
+- 嘗試更新 Photoshop 到最新版本
+
+### 相容性
+
+- **Photoshop**: 相容 Adobe Photoshop CS6 及更新版本
+- **其他軟體**: 適用於任何支援 PSD 格式的軟體 (GIMP、Affinity Photo 等)
+- **色彩模式**: RGB 和 RGBA
+- **位元深度**: 每通道 8-bit
 
 ---
 

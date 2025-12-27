@@ -1,0 +1,871 @@
+{
+  "last_node_id": 32,
+  "last_link_id": 41,
+  "nodes": [
+    {
+      "id": 5,
+      "type": "EmptyLatentImage",
+      "pos": [
+        0,
+        314
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 34,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 35,
+          "widget": {
+            "name": "height"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            36
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        640,
+        1200,
+        2
+      ]
+    },
+    {
+      "id": 17,
+      "type": "KSamplerSelect",
+      "pos": [
+        6,
+        586
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            18
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler"
+      ]
+    },
+    {
+      "id": 25,
+      "type": "easy positive",
+      "pos": [
+        -469,
+        33
+      ],
+      "size": [
+        443.60950388832305,
+        233.68187593150674
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "STRING",
+          "links": [
+            41
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy positive"
+      },
+      "widgets_values": [
+        "(full body shot), 22 year old woman, realistic blue eyes, light makeup, white teeth, lips, eyelashes,(getting rained on),(standing in the rain),long golden brown hair,green eyes,((wearing an oversized shirt, socks with high--tops)),"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 29,
+      "type": "ShowText|pysssss",
+      "pos": [
+        -470,
+        310
+      ],
+      "size": [
+        444.0762153141043,
+        211.54858735728794
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 29,
+          "widget": {
+            "name": "text"
+          },
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            30
+          ],
+          "shape": 6,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "",
+        "(full body shot), 22 year old woman, realistic blue eyes, light makeup, white teeth, lips, eyelashes,(getting rained on),(standing in the rain),long golden brown hair,green eyes,((wearing an oversized shirt, socks with high--tops)),, photography, capturing moments, storytelling, creative composition professional 3D character design,  dynamic pose, expert character design, engaging storytelling, captivating visuals, imaginative concept, high-quality rendering, volumetric, 4k"
+      ]
+    },
+    {
+      "id": 24,
+      "type": "Prompt Multiple Styles Selector",
+      "pos": [
+        -805,
+        33
+      ],
+      "size": [
+        321.54279246254237,
+        150
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "positive_string",
+          "type": "STRING",
+          "links": [
+            40
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "negative_string",
+          "type": "STRING",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Prompt Multiple Styles Selector"
+      },
+      "widgets_values": [
+        "||| PHOTOGRAPHY",
+        "3D | Character",
+        "No Style",
+        "No Style"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 26,
+      "type": "Text Concatenate",
+      "pos": [
+        -799,
+        232
+      ],
+      "size": {
+        "0": 315,
+        "1": 178
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text_a",
+          "type": "STRING",
+          "link": 41,
+          "widget": {
+            "name": "text_a"
+          }
+        },
+        {
+          "name": "text_b",
+          "type": "STRING",
+          "link": 40,
+          "widget": {
+            "name": "text_b"
+          }
+        },
+        {
+          "name": "text_c",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "text_c"
+          }
+        },
+        {
+          "name": "text_d",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "text_d"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            29
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Text Concatenate"
+      },
+      "widgets_values": [
+        ", ",
+        "true",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 14,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -430,
+        -91
+      ],
+      "size": {
+        "0": 333.65301513671875,
+        "1": 66.02323150634766
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 27
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 30,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            12
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "a  [fortnite:mantis:0.4] character, red eyes, warrior like,  (full body:1.05) , wrapped in wires, cyborg parts, yellow camouflage "
+      ]
+    },
+    {
+      "id": 20,
+      "type": "VAEDecode",
+      "pos": [
+        -429,
+        -53
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 20
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 28
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            14
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 13,
+      "type": "BasicGuider",
+      "pos": [
+        -206,
+        -89
+      ],
+      "size": {
+        "0": 241.79998779296875,
+        "1": 46
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 25
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 12,
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            15
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicGuider"
+      }
+    },
+    {
+      "id": 27,
+      "type": "CheckpointLoaderNF4",
+      "pos": [
+        -469,
+        -114
+      ],
+      "size": {
+        "0": 397.76641845703125,
+        "1": 98
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            25,
+            26
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            27
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            28
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderNF4"
+      },
+      "widgets_values": [
+        "Flux/nf4Flux1_nf4Bnb.safetensors"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 21,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        305,
+        -68
+      ],
+      "size": [
+        341.3578881290439,
+        349.3687430701786
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 17
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 15
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 18
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 19
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 36
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            20
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced"
+      }
+    },
+    {
+      "id": 18,
+      "type": "BasicScheduler",
+      "pos": [
+        325,
+        315
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 26
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            19
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicScheduler"
+      },
+      "widgets_values": [
+        "normal",
+        20,
+        1
+      ]
+    },
+    {
+      "id": 30,
+      "type": "mxSlider2D",
+      "pos": [
+        -9,
+        28
+      ],
+      "size": [
+        294.5304581301918,
+        244.5304581301918
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "",
+          "type": "INT",
+          "links": [
+            34
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "",
+          "type": "INT",
+          "links": [
+            35
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "title": "Resolution",
+      "properties": {
+        "valueX": 640,
+        "valueY": 1280,
+        "minX": 0,
+        "minY": 0,
+        "maxX": 1280,
+        "maxY": 1280,
+        "stepX": 128,
+        "stepY": 128,
+        "decimalsX": 0,
+        "decimalsY": 0,
+        "snap": true,
+        "dots": true,
+        "frame": true,
+        "frameAlert": 0,
+        "Node name for S&R": "mxSlider2D"
+      },
+      "widgets_values": [
+        640,
+        640,
+        1280,
+        1280,
+        0,
+        0
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [
+        661,
+        -38
+      ],
+      "size": {
+        "0": 513.2388305664062,
+        "1": 462.89520263671875
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 14
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 22,
+      "type": "RandomNoise",
+      "pos": [
+        5,
+        462
+      ],
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            17
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise"
+      },
+      "widgets_values": [
+        73293699787014,
+        "fixed"
+      ]
+    }
+  ],
+  "links": [
+    [
+      12,
+      14,
+      0,
+      13,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      20,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      15,
+      13,
+      0,
+      21,
+      1,
+      "GUIDER"
+    ],
+    [
+      17,
+      22,
+      0,
+      21,
+      0,
+      "NOISE"
+    ],
+    [
+      18,
+      17,
+      0,
+      21,
+      2,
+      "SAMPLER"
+    ],
+    [
+      19,
+      18,
+      0,
+      21,
+      3,
+      "SIGMAS"
+    ],
+    [
+      20,
+      21,
+      0,
+      20,
+      0,
+      "LATENT"
+    ],
+    [
+      25,
+      27,
+      0,
+      13,
+      0,
+      "MODEL"
+    ],
+    [
+      26,
+      27,
+      0,
+      18,
+      0,
+      "MODEL"
+    ],
+    [
+      27,
+      27,
+      1,
+      14,
+      0,
+      "CLIP"
+    ],
+    [
+      28,
+      27,
+      2,
+      20,
+      1,
+      "VAE"
+    ],
+    [
+      29,
+      26,
+      0,
+      29,
+      0,
+      "STRING"
+    ],
+    [
+      30,
+      29,
+      0,
+      14,
+      1,
+      "STRING"
+    ],
+    [
+      34,
+      30,
+      0,
+      5,
+      0,
+      "INT"
+    ],
+    [
+      35,
+      30,
+      1,
+      5,
+      1,
+      "INT"
+    ],
+    [
+      36,
+      5,
+      0,
+      21,
+      4,
+      "LATENT"
+    ],
+    [
+      40,
+      24,
+      0,
+      26,
+      1,
+      "STRING"
+    ],
+    [
+      41,
+      25,
+      0,
+      26,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.6830134553650705,
+      "offset": [
+        1297.9669342113473,
+        -10.510287750964954
+      ]
+    },
+    "groupNodes": {}
+  },
+  "version": 0.4,
+  "widget_idx_map": {
+    "17": {
+      "sampler_name": 0
+    },
+    "18": {
+      "scheduler": 0
+    },
+    "22": {
+      "noise_seed": 0
+    }
+  },
+  "seed_widgets": {
+    "22": 0
+  }
+}

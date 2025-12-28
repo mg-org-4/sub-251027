@@ -1,0 +1,393 @@
+{
+  "id": "1da21cbb-4e9c-48df-98c7-c720932638dc",
+  "revision": 0,
+  "last_node_id": 18,
+  "last_link_id": 19,
+  "nodes": [
+    {
+      "id": 10,
+      "type": "SaveImage",
+      "pos": [
+        1908.2351192730787,
+        -561.4613392353987
+      ],
+      "size": [
+        600.578125,
+        670.734375
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "Desktop_Background"
+      ]
+    },
+    {
+      "id": 12,
+      "type": "KSamplerAdvanced",
+      "pos": [
+        1279.8275860157555,
+        -565.6049137827068
+      ],
+      "size": [
+        304.734375,
+        832
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 12
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 13
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 18
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "KSamplerAdvanced"
+      },
+      "widgets_values": [
+        "disable",
+        230399661032622,
+        "randomize",
+        30,
+        8,
+        "euler",
+        "simple",
+        0,
+        10000,
+        "disable"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "VAEDecode",
+      "pos": [
+        1646.341586097717,
+        -566.2977275683013
+      ],
+      "size": [
+        225,
+        102
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 10
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 14,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        356.3427765354753,
+        -575.9725060258168
+      ],
+      "size": [
+        270,
+        160
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            12
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            16,
+            19
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "sd_xl_turbo_1.0_fp16.safetensors"
+      ]
+    },
+    {
+      "id": 15,
+      "type": "CLIPTextEncode",
+      "pos": [
+        731.1820091726395,
+        -442.72185657684986
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "“Create a high-resolution desktop background featuring a smooth, modern design based on [Orange]. Use soft gradients, subtle lighting, and gentle transitions between shades. Add minimal geometric shapes or abstract flowing forms to give depth without cluttering the composition. The overall style should be clean, calming, and visually balanced, perfect for a desktop wallpaper.”"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "EmptyLatentImage",
+      "pos": [
+        895.9881874988016,
+        23.34647278035561
+      ],
+      "size": [
+        270,
+        180
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1920,
+        1080,
+        1
+      ]
+    },
+    {
+      "id": 18,
+      "type": "CLIPTextEncode",
+      "pos": [
+        731.7149901040444,
+        -201.62507777491294
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      10,
+      12,
+      0,
+      13,
+      0,
+      "LATENT"
+    ],
+    [
+      11,
+      13,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ],
+    [
+      12,
+      14,
+      0,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
+      13,
+      15,
+      0,
+      12,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      15,
+      14,
+      2,
+      13,
+      1,
+      "VAE"
+    ],
+    [
+      16,
+      14,
+      1,
+      15,
+      0,
+      "CLIP"
+    ],
+    [
+      17,
+      17,
+      0,
+      12,
+      3,
+      "LATENT"
+    ],
+    [
+      18,
+      18,
+      0,
+      12,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      19,
+      14,
+      1,
+      18,
+      0,
+      "CLIP"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5644739300537774,
+      "offset": [
+        -97.13126535589195,
+        1038.1412539169382
+      ]
+    },
+    "workflowRendererVersion": "Vue",
+    "frontendVersion": "1.34.3"
+  },
+  "version": 0.4
+}

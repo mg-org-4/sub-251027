@@ -1,0 +1,34 @@
+Attic
+Auditorium
+Basement
+Bathroom
+Bedroom
+Boardroom
+Bookstore
+Brewery
+Cafe
+Classroom
+Closet
+Conference room
+Corridor
+Dining room
+Entertainment room
+Fireplace
+Gym
+Hallway
+Home office
+Hospital room
+Hotel room
+Kitchen
+Library
+Living room
+Lounge
+Nursery
+Office
+Pantry
+Parlor
+Sauna
+Study
+Sunroom
+Theater
+Workshop

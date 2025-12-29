@@ -1,0 +1,74 @@
+{
+  "sources": [
+    {
+      "title": "ComfyUI_examples",
+      "author": "comfyanonymous",
+      "url": "https://github.com/comfyanonymous/ComfyUI_examples",
+      "type": "git",
+      "description": "Examples of ComfyUI workflows"
+    },
+    {
+      "title": "ComfyUI-Workflows-ZHO",
+      "author": "ZHO-ZHO-ZHO",
+      "url": "https://github.com/ZHO-ZHO-ZHO/ComfyUI-Workflows-ZHO",
+      "type": "git",
+      "description": "我的 ComfyUI 工作流合集 | My ComfyUI workflows collection"
+    },
+    {
+      "title": "comfyui-workflow",
+      "author": "hylarucoder",
+      "url": "https://github.com/hylarucoder/comfyui-workflow",
+      "type": "git",
+      "description": "Some workflows that I have authored myself as well as some workflows that I have modified from online sources."
+    },
+    {
+        "title": "sharing-is-caring",
+        "author": "fictions-ai",
+        "url": "https://github.com/fictions-ai/sharing-is-caring",
+        "type": "git",
+        "description": "This repository is maintained by the fictions.ai team. We believe in the power of collaboration and the magic that happens when we share knowledge. Here, we'll be sharing our workflow, useful scripts, and tools related to A.I. generation."
+    },
+    {
+        "title": "Consume-ComfyUI-Workflows",
+        "author": "C0nsumption",
+        "url": "https://github.com/C0nsumption/Consume-ComfyUI-Workflows",
+        "type": "git",
+        "description": "A collection of some of my basic ComfyUI workflows. These are meant to act as building block to construct larger workflows of your own."
+    },
+    {
+        "title": "ChaosFlow",
+        "author": "BoosterCore",
+        "url": "https://github.com/BoosterCore/ChaosFlow",
+        "type": "git",
+        "description": "ChaosFlow is a code repository used to showcase some of my own ComfyUI workflow creations. The purpose is to share my exploration and practice with ComfyUI, and at the same time, I hope to receive feedback and suggestions from interested friends. ChaosFlow welcomes visual design enthusiasts of any level to browse and comment. You can also message me on GitHub, and I am very happy to communicate and learn with you."
+    },
+    {
+      "title": "awesome-comfyui-workflow",
+      "author": "shadowcz007",
+      "url": "https://github.com/shadowcz007/awesome-comfyui-workflow",
+      "type": "git",
+      "description": "Some workflows includes CUTE YOU, Real-time design, Extended image, AI Dialogue Game..."
+    },
+    {
+      "title": "IF-Animation-Workflows",
+      "author": "if-ai",
+      "url": "https://github.com/if-ai/IF-Animation-Workflows",
+      "type": "git",
+      "description": "This are a series of ComfyUI workflows that work together to create and repurpose animation"
+    },
+    {
+      "title": "wyrde-comfyui-workflows",
+      "author": "wyrde",
+      "url": "https://github.com/wyrde/wyrde-comfyui-workflows",
+      "type": "git",
+      "description": "some wyrde workflows for comfyUI"
+    },
+    {
+      "title": "Templates-ComfyUI-",
+      "author": "atlasunified",
+      "url": "https://github.com/atlasunified/Templates-ComfyUI-",
+      "type": "git",
+      "description": "Templates to view the variety of a prompt based on the samplers available in ComfyUI. Variety of sizes and singlular seed and random seed templates."
+    }
+  ]
+}

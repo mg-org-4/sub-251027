@@ -1,0 +1,401 @@
+{
+  "WildPromptorAllInOne": {
+    "display_name": "ワイルドプロンプターオールインワンリスト 📋+🔀",
+    "inputs": {
+      "batch_size": {
+        "name": "バッチサイズ"
+      },
+      "seed": {
+        "name": "シード"
+      },
+      "allow_duplicates": { 
+        "name": "重複を許可"
+      }
+    }
+  },
+  "WildPromptor_dataToPromptList": {
+    "display_name": "ワイルドプロンプター データからプロンプトリストへ 🔀+📋",
+    "inputs": {
+      "path": {
+        "name": "パス"
+      },
+      "separator": {
+        "name": "区切り文字"
+      },
+      "batch_size": {
+        "name": "バッチサイズ"
+      },
+      "count_start_from": {
+        "name": "カウント開始"
+      },
+      "allow_duplicates": {
+        "name": "重複を許可"
+      },
+      "mode": {
+        "name": "モード"
+      },
+      "seed": { 
+        "name": "シード"
+      },
+      "text": {
+        "name": "テキスト"
+      } 
+    }
+  },
+  "WildPromptorGenerator": {
+    "display_name": "ワイルドプロンプター ジェネレーター 🔀",
+    "inputs": {
+      "selected_options": {
+        "name": "選択されたオプション"  
+      },
+      "batch_size": {
+        "name": "バッチサイズ"
+      },
+      "seed": {
+        "name": "シード"  
+      },
+      "allow_duplicates": {
+        "name": "重複を許可"
+      }
+    }
+  },
+  "AllInOneList": {
+    "display_name": "オールインワンリスト 📋",
+    "inputs": {
+      "selected_options": {
+        "name": "選択されたオプション"
+      } 
+    }
+  },
+  "PromptConcat": {
+    "display_name": "プロンプト連結 🔀",
+    "inputs": {
+      "prefix": {
+        "name": "接頭辞"
+      },
+      "suffix": {
+        "name": "接尾辞"
+      },
+      "separator": {
+        "name": "区切り文字"
+      },
+      "remove_duplicates": {
+        "name": "重複を削除"
+      },
+      "sort": {
+        "name": "ソート"
+      } 
+    } 
+  },
+  "PromptBuilder": {
+    "display_name": "プロンプトビルダー 🔀",
+    "inputs": {
+      "prefix": {
+        "name": "接頭辞" 
+      },
+      "content": {
+        "name": "コンテンツ"
+      },
+      "suffix": {
+        "name": "接尾辞"
+      }
+    }
+  },
+  "KeywordPicker": {
+    "display_name": "キーワードピッカー 🔀",
+    "inputs": {
+      "input_keywords": {
+        "name": "入力キーワード"
+      },
+      "keywords": {
+        "name": "キーワード"
+      },
+      "pick_count": {
+        "name": "選択数"
+      },
+      "pick_mode": {
+        "name": "選択モード"
+      },
+      "seed": { 
+        "name": "シード"
+      }
+    }
+  },
+  "WildPromptor_Enhancer": {
+    "display_name": "ワイルドプロンプター エンハンサー 🤖",
+    "inputs": {
+      "prompt": {
+        "name": "プロンプト"
+      },
+      "batch_size": {
+        "name": "バッチサイズ"
+      },
+      "combine_output": {
+        "name": "出力を結合"  
+      },
+      "seed": {
+        "name": "シード"
+      }
+    }
+  },
+  "WildPromptor_Florence2": {
+    "display_name": "🤖 フローレンス2 👁️",
+    "inputs": {
+      "Image_Folder_Path": {
+        "name": "画像フォルダパス"
+      },
+      "Model": {
+        "name": "モデル"
+      },
+      "Vision_To_Prompt": {
+        "name": "ビジョンからプロンプト"
+      },
+      "max_token": {
+        "name": "最大トークン"
+      },
+      "Vision_Detail_Level": {
+        "name": "ビジョン詳細レベル"
+      },
+      "Prefix": {
+        "name": "接頭辞"
+      },
+      "Suffix": {
+        "name": "接尾辞"
+      },
+      "images": {
+        "name": "画像"
+      },
+      "seed": {
+        "name": "シード"
+      }
+    } 
+  },  
+  "AIOutputCleaner": {
+    "display_name": "AI出力クリーナー 🤖",
+    "inputs": {
+      "text": {
+        "name": "テキスト"
+      },
+      "remove_think_content": {
+        "name": "思考コンテンツを削除"
+      },
+      "preserve_think_content": {
+        "name": "思考コンテンツを保持"
+      },
+      "remove_ai_artifacts": {
+        "name": "AIアーティファクトを削除"
+      },
+      "remove_markdown": {
+        "name": "マークダウンを削除"
+      },
+      "remove_line_numbers": {
+        "name": "行番号を削除"
+      },
+      "remove_code_blocks": {
+        "name": "コードブロックを削除"
+      },
+      "remove_timestamps": {
+        "name": "タイムスタンプを削除"
+      },
+      "remove_urls": {
+        "name": "URLを削除"
+      },
+      "remove_html_tags": {
+        "name": "HTMLタグを削除"
+      },
+      "fix_spacing": {
+        "name": "スペースを修正"
+      },
+      "remove_special_chars": {
+        "name": "特殊文字を削除"
+      },
+      "remove_image_prefixes": {
+        "name": "画像のプレフィックスを削除"
+      },
+      "remove_style_references": {
+        "name": "スタイル参照を削除"
+      },
+      "remove_colons": {
+        "name": "コロンを削除"
+      },
+      "remove_asterisks": {
+        "name": "アスタリスクを削除"
+      },
+      "custom_patterns": {
+        "name": "カスタムパターン"
+      },
+      "preserve_newlines": {
+        "name": "改行を保持"
+      }
+    }
+  },
+  "WildPromptor_GeminiVision": {
+    "display_name": "🤖 ジェミニ + ビジョン 👁️",
+    "inputs": {
+      "keywords": {
+        "name": "キーワード"
+      },
+      "model": {
+        "name": "モデル"
+      },
+      "max_length": {
+        "name": "最大長"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "api_key": {
+        "name": "APIキー"
+      },
+      "image": {
+        "name": "画像"
+      },
+      "seed": {
+        "name": "シード"
+      }
+    }
+  },
+  "WildPromptor_GeminiImageGen": {
+    "display_name": "🤖 ジェミニ画像生成器 🖼️",
+    "inputs": {
+      "prompt": {
+        "name": "プロンプト"  
+      },
+      "aspect_ratio": {
+        "name": "アスペクト比"
+      },
+      "temperature": {
+        "name": "温度" 
+      },
+      "image": {
+        "name": "画像"
+      },
+      "seed": {
+        "name": "シード"  
+      }
+    }
+  },
+  "WildPromptor_hfgpt": {
+    "display_name": "🤖 HFGPT 🤖",
+    "inputs": {
+      "keywords": {
+        "name": "キーワード"
+      },
+      "model_repo": {
+        "name": "モデルリポジトリ"
+      },
+      "max_length": {
+        "name": "最大長"
+      },
+      "temperature": {
+        "name": "温度"
+      }
+    }
+  },
+  "WildPromptor_minicpm": {
+    "display_name": "🤖 MiniCPM 🤖",
+    "inputs": {
+      "text": {
+        "name": "テキスト"  
+      },
+      "model": {
+        "name": "モデル"
+      },
+      "language": {
+        "name": "言語"  
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "seed": {
+        "name": "シード"  
+      },
+      "image": {
+        "name": "画像"
+      }
+    }
+  },
+  "WildPromptor_OllamaVision": {
+    "display_name": "🤖 オラマ 🤖",
+    "inputs": {
+      "keywords": {
+        "name": "キーワード"
+      },
+      "server_url": {
+        "name": "サーバーURL"
+      },
+      "model": {
+        "name": "モデル"
+      },
+      "temperature": {
+        "name": "温度"
+      },
+      "keep_alive": {
+        "name": "保持"
+      },
+      "seed": {
+        "name": "シード"
+      },
+      "image": {
+        "name": "画像"
+      }
+    }
+  },
+  "WildPromptor_PromptCleaner": {
+    "display_name": "🤖 プロンプトクリーナー 🤖",
+    "inputs": {
+      "text": {
+        "name": "テキスト"
+      },
+      "custom_filters": {
+        "name": "カスタムフィルター"
+      },
+      "keep_words": {
+        "name": "単語を保持"
+      },
+      "replace_words": {
+        "name": "単語を置き換え"
+      }
+    }
+  },
+  "WildPromptor_Qwen": {
+    "display_name": "🤖 Qwen 🤖",
+    "inputs": {
+      "image": {
+        "name": "画像" 
+      },
+      "prompt": {
+        "name": "プロンプト"
+      },
+      "temperature": {
+        "name": "温度" 
+      },
+      "seed": {
+        "name": "シード"
+      }
+    }
+  },
+  "WildPromptor_Vision": {
+    "display_name": "🤖 ビジョン 🤖",
+    "inputs": {
+      "description_mode": {
+        "name": "説明モード"  
+      },
+      "detail_level": {
+        "name": "詳細レベル"
+      },
+      "seed": {
+        "name": "シード"  
+      },
+      "images": {
+        "name": "画像"
+      },
+      "max_token": {
+        "name": "最大トークン"
+      },
+      "image_folder": {
+        "name": "画像フォルダ"
+      }
+    }
+  } 
+}

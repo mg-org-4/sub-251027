@@ -1,0 +1,291 @@
+{
+  "last_node_id": 44,
+  "last_link_id": 58,
+  "nodes": [
+    {
+      "id": 38,
+      "type": "ShowString",
+      "pos": [
+        -57.413875579833984,
+        717.2760620117188
+      ],
+      "size": [
+        230.94192504882812,
+        176
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 49,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            56
+          ],
+          "slot_index": 0,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowString",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "an expressive man, Snowboard",
+        "a businessman, Unicycle",
+        "a bearded man, Oil tanker"
+      ]
+    },
+    {
+      "id": 42,
+      "type": "WildPromptor_Enhancer",
+      "pos": [
+        192.75588989257812,
+        717.2760620117188
+      ],
+      "size": [
+        276.45147705078125,
+        149.27993774414062
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 56,
+          "widget": {
+            "name": "prompt"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            57
+          ],
+          "shape": 6,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WildPromptor_Enhancer",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        2,
+        false,
+        907686887375696,
+        "randomize"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 37,
+      "type": "WildPromptorAllInOne",
+      "pos": [
+        -475.61492919921875,
+        717.2760620117188
+      ],
+      "size": [
+        397.6065368652344,
+        1101.4281005859375
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            49
+          ],
+          "slot_index": 0,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WildPromptorAllInOne",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        3,
+        342752332985153,
+        "randomize",
+        false,
+        "🎲Random",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "🎲Random",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 43,
+      "type": "ShowString",
+      "pos": [
+        487.65185546875,
+        717.2760620117188
+      ],
+      "size": [
+        449.4258728027344,
+        842.6226806640625
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 57,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ShowString",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "",
+        "A high-angle view of a man's face and upper body, the man is wearing a red t-shirt and black shorts, the man has his arms outstretched in front of him. The man's expression is directed at the camera, his mouth is open and he is wearing black glasses. The snowboard is attached to a wooden structure that is being held by a silver pole. There are green trees behind the snowboard, some trees have their leaves sticking out of the air, there is a white building visible on the left side of the image.",
+        "A man with a beard and mustache, wearing a white t-shirt, standing against a wall of colorful posters. The posters have images of people and other characters on them, some are wearing sunglasses while others are wearing hats, they are also wearing denim overalls. In the background is an image of a snowboard with two large blue banners, one reads \"snow\" and the other reads \"snow\" in all capital letters, there is an image of a man with a face with a nose and mouth, his left hand is touching his mouth, he has a smile, he is wearing a watch on his left wrist, behind him is an illustration of a person's face with the words \"he's a kid's face\" written in black",
+        "a man wearing a gray hat and white shirt is sitting on the edge of a bicycle, he has an unbuttoned business suit with a black jacket and brown shoes, there is another person in the background riding the Unicycle to the left of him, their back is facing the camera, green trees are visible behind the tree line, the sky is bright blue with scattered clouds, the image has a wide field of view showing both the man and the bike.",
+        "a man in a business suit and a red and white striped hoodie standing on a bicycle, the man is wearing a blue suit and has his arms around his shoulders, there are two motorcycles parked to the left of him, one closer to the front and one further back, a group of people standing near the trees and buildings in the background, some sitting and some walking, an open grassy field surrounds the scene, overcast sky with clouds above, photograph taken from a slightly low angle looking up at the subject, overall bright and clear atmosphere",
+        "A close-up of a bearded man, his face to the camera, and his eyes are focused on something. He is wearing a blue shirt with white text that reads \"EXPERIENCE\" in black, underneath the shirt, a red button-up shirt is visible. The background is blurry and shows a brown oil tanker truck, the truck has a metal frame and an engine. There is a shadow cast by the tanker and the truck.",
+        "A bearded man with a beard and mustache, wearing a white shirt and blue jeans, standing in front of an oil tanker. The tanker is a large tanker with multiple compartments below the tanker, two compartments have black caps, one on each compartment, and one on the left side. He has his right arm raised above his head, and his left arm is extended forward as if he was pushing the tanker. The tanker's barrels are metal and appear weathered, and they are dark green and gray. Behind the tanker, there is a treeline that is filled with green leaves. To the left of the treeline, there is a large sign with \"AUSTIN\" written on it."
+      ]
+    }
+  ],
+  "links": [
+    [
+      49,
+      37,
+      0,
+      38,
+      0,
+      "STRING"
+    ],
+    [
+      56,
+      38,
+      0,
+      42,
+      0,
+      "STRING"
+    ],
+    [
+      57,
+      42,
+      0,
+      43,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.7000274649821917,
+      "offset": [
+        791.6295820016672,
+        -604.5511235451019
+      ]
+    },
+    "ue_links": [],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0
+  },
+  "version": 0.4
+}

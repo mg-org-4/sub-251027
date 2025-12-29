@@ -1,0 +1,15 @@
+[project]
+name = "indextts-mw"
+description = "IndexTTS Voice Cloning Nodes for ComfyUI. High-quality voice cloning, very fast, supports Chinese and English, and allows custom voice styles."
+version = "2.0.1"
+license = {file = "LICENSE"}
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/billwuhao/ComfyUI_IndexTTS"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "mw"
+DisplayName = "ComfyUI_IndexTTS"
+Icon = ""

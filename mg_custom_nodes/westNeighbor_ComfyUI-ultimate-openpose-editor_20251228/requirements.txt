@@ -1,5 +1,0 @@
-polygraphy
-matplotlib
-numpy
-opencv-python
-torch

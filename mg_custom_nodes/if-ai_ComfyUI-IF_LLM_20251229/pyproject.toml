@@ -1,0 +1,84 @@
+[project]
+name = "comfyui-if_llm"
+description = "Run Local and API LLMs, Features Gemini2 image generation, DEEPSEEK R1, QwenVL2.5, QWQ32B, Ollama, LlamaCPP LMstudio, Koboldcpp, TextGen, Transformers or via APIs Anthropic, Groq, OpenAI, Google Gemini, Mistral, xAI and create your own charcters assistants (SystemPrompts) with custom presets and muchmore"
+version = "0.2.4"
+license = { file = "MIT License" }
+dependencies = [
+    # Core dependencies
+    "torch>=2.0.0",
+    "pillow>=10.0.0",
+    "numpy>=1.24.0",
+    "huggingface_hub>=0.26.0",
+    
+    # AI API clients
+    "anthropic",
+    "groq",
+    "mistralai",
+    "google-genai",
+    
+    # AutoAWQ - MUST be installed before transformers
+    #"autoawq",
+    # triton
+    # triton for linux
+    'triton; sys_platform == "linux"',
+    # triton for windows
+    'https://github.com/woct0rdho/triton-windows/releases/download/v3.1.0-windows.post8/triton-3.1.0-cp312-cp312-win_amd64.whl; sys_platform == "win64" and (python_version >= "3.12" and python_version < "3.13")',
+    'https://github.com/woct0rdho/triton-windows/releases/download/v3.1.0-windows.post8/triton-3.1.0-cp311-cp311-win_amd64.whl; sys_platform == "win64" and (python_version >= "3.11" and python_version < "3.12")',
+    'https://github.com/woct0rdho/triton-windows/releases/download/v3.1.0-windows.post8/triton-3.1.0-cp310-cp310-win_amd64.whl; sys_platform == "win64" and (python_version >= "3.10" and python_version < "3.11")',
+    'https://github.com/woct0rdho/triton-windows/releases/download/v3.1.0-windows.post8/triton-3.1.0-cp38-cp38-win_amd64.whl; sys_platform == "win64" and (python_version >= "3.8" and python_version < "3.9")',
+
+    # Optional for performance, excluded on MacOS
+    #"flash-attn>=2.0.0;platform_system!='Darwin'",
+    
+    # Transformers - MUST be installed after AutoAWQ
+    "transformers",
+    "accelerate",
+    "sentence-transformers",
+    
+    # Qwen model dependencies
+    "tokenizers>=0.15.0",
+    "safetensors>=0.3.1",
+    "qwen-vl-utils[decord]>=0.0.8",
+    
+    # Video processing
+    "opencv-python>=4.8.0",
+    "decord>=0.6.0",
+    "ffmpeg-python>=0.2.0",
+    "imageio_ffmpeg>=0.6.0",
+    "moviepy>=2.1.2",
+    "scenedetect>=0.6.2",
+    
+    # Downloading
+    "yt-dlp>=2023.3.4",
+    
+    # Utilities and data processing
+    "tqdm>=4.66.1",
+    "requests>=2.31.0",
+    "python-slugify>=8.0.1",
+    "psutil>=5.9.0",
+    "packaging>=23.1",
+    "aiohttp>=3.8.5",
+    "python-dotenv",
+    "tiktoken",
+    "pydantic",
+    "rich",
+    
+    # Additional dependencies
+    "IPython",
+    "nltk",
+    "matplotlib",
+    "plotly",
+    "kaleido",
+    "networkx",
+    "fastparquet",
+    "timm",
+]
+
+[project.urls]
+Repository = "https://github.com/if-ai/ComfyUI-IF_LLM"
+
+# Used by Comfy Registry https://comfyregistry.org
+[tool.comfy]
+PublisherId = "impactframes"
+DisplayName = "IF_LLM"
+Icon = "https://impactframes.ai/System/Icons/48x48/if.png"

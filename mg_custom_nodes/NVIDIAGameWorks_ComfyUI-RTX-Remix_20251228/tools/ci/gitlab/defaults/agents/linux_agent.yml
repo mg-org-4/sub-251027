@@ -1,3 +1,0 @@
-.linux_agent:
-  tags: &linux_agent_tags
-    - linux

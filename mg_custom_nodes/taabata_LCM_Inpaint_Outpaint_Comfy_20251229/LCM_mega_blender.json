@@ -1,0 +1,5768 @@
+{
+  "last_node_id": 181,
+  "last_link_id": 326,
+  "nodes": [
+    {
+      "id": 4,
+      "type": "LoadImage",
+      "pos": [
+        -850,
+        -717
+      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            22
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "ComfyUI_00304_.png",
+        "image"
+      ]
+    },
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [
+        -847,
+        -317
+      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            23
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "IPAdapter_00005_ (3).png",
+        "image"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        -850,
+        63
+      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            24
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "ComfyUI_00001_ (3).png",
+        "image"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [
+        -853,
+        461
+      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            25
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "IPAdapter_00052_ (1).png",
+        "image"
+      ]
+    },
+    {
+      "id": 43,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3180,
+        -480
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 45,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 84
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            79,
+            285
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 44,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3200,
+        -50
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 64,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 85
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            80,
+            286
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 86,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3180,
+        1070
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 53,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 137
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            133,
+            288
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 87,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3200,
+        1500
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 68,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 138
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            135,
+            289
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 17,
+      "type": "PreviewImage",
+      "pos": [
+        5990,
+        740
+      ],
+      "size": {
+        "0": 210,
+        "1": 246
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 43
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 18,
+      "type": "PreviewImage",
+      "pos": [
+        5980,
+        1090
+      ],
+      "size": {
+        "0": 210,
+        "1": 246
+      },
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 45
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 112,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3200,
+        3250
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 77,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 177
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            174,
+            292
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 129,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3180,
+        4370
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 61,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 199
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            195,
+            294
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 130,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3200,
+        4800
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 73,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 200
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            197,
+            295
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 137,
+      "type": "Reroute",
+      "pos": [
+        -1311,
+        3704
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 210
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            211,
+            212
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 138,
+      "type": "Reroute",
+      "pos": [
+        -1319,
+        3778
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 213
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            214,
+            215
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 15,
+      "type": "PreviewImage",
+      "pos": [
+        5680,
+        740
+      ],
+      "size": {
+        "0": 210,
+        "1": 246
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 42
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 16,
+      "type": "PreviewImage",
+      "pos": [
+        5680,
+        1083
+      ],
+      "size": {
+        "0": 210,
+        "1": 246
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 44
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 152,
+      "type": "SaveImage",
+      "pos": [
+        1958,
+        -736
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 260
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 153,
+      "type": "SaveImage",
+      "pos": [
+        1961,
+        -313
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 261
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 154,
+      "type": "SaveImage",
+      "pos": [
+        1955,
+        145
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 262
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 111,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3180,
+        2820
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 65,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 176
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            172,
+            291
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 116,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3250,
+        3470
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 87,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 181
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            267,
+            293
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 134,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3250,
+        5020
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 84,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 204
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            268,
+            296
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 156,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        5327,
+        3256
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 99,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 269
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            297
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 69,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3250,
+        170
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 76,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 117
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            266,
+            272,
+            287
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 157,
+      "type": "SaveImage",
+      "pos": [
+        5863,
+        2765
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 97,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 273
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 158,
+      "type": "SaveImage",
+      "pos": [
+        5858,
+        2378
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 94,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 274
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 159,
+      "type": "SaveImage",
+      "pos": [
+        5860,
+        2033
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 91,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 275
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 160,
+      "type": "SaveImage",
+      "pos": [
+        2001,
+        825
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 276
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 161,
+      "type": "SaveImage",
+      "pos": [
+        1990,
+        1174
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 44,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 277
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 162,
+      "type": "SaveImage",
+      "pos": [
+        1985,
+        1574
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 278
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 163,
+      "type": "SaveImage",
+      "pos": [
+        2016,
+        2531
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 56,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 279
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 164,
+      "type": "SaveImage",
+      "pos": [
+        2016,
+        2947
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 59,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 280
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 165,
+      "type": "SaveImage",
+      "pos": [
+        2022,
+        3371
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 60,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 281
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 166,
+      "type": "SaveImage",
+      "pos": [
+        2016,
+        4109
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 50,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 282
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 167,
+      "type": "SaveImage",
+      "pos": [
+        2010,
+        4485
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 52,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 283
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 168,
+      "type": "SaveImage",
+      "pos": [
+        2017,
+        4913
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 57,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 284
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 169,
+      "type": "SaveImage",
+      "pos": [
+        3748,
+        -703
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 55,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 285
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 170,
+      "type": "SaveImage",
+      "pos": [
+        3742,
+        -292
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 70,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 286
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 171,
+      "type": "SaveImage",
+      "pos": [
+        3732,
+        90
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 81,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 287
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 172,
+      "type": "SaveImage",
+      "pos": [
+        3738,
+        927
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 63,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 288
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 175,
+      "type": "SaveImage",
+      "pos": [
+        3781,
+        2576
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 72,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 291
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 176,
+      "type": "SaveImage",
+      "pos": [
+        3788,
+        2940
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 83,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 292
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 177,
+      "type": "SaveImage",
+      "pos": [
+        3784,
+        3321
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 90,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 293
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 178,
+      "type": "SaveImage",
+      "pos": [
+        3737,
+        4168
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 67,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 294
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 179,
+      "type": "SaveImage",
+      "pos": [
+        3737,
+        4528
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 79,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 295
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 180,
+      "type": "SaveImage",
+      "pos": [
+        3720,
+        4895
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 88,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 296
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 181,
+      "type": "SaveImage",
+      "pos": [
+        6278,
+        741
+      ],
+      "size": {
+        "0": 748.105712890625,
+        "1": 609.8184814453125
+      },
+      "flags": {},
+      "order": 100,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 297
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 140,
+      "type": "Reroute",
+      "pos": [
+        -674,
+        2092
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 223
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "class",
+          "links": [
+            224,
+            225,
+            226,
+            227,
+            228,
+            229,
+            230,
+            231,
+            232,
+            233,
+            234,
+            235,
+            250,
+            251,
+            252,
+            298
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 174,
+      "type": "SaveImage",
+      "pos": [
+        3745,
+        1632
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 85,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 290
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 173,
+      "type": "SaveImage",
+      "pos": [
+        3738,
+        1272
+      ],
+      "size": {
+        "0": 315,
+        "1": 270
+      },
+      "flags": {},
+      "order": 75,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 289
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        168,
+        -848
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 60
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 59
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 1
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 299
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            16
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        96960749460808,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 5,
+      "type": "LCMLoader_ReferenceOnly",
+      "pos": [
+        -828,
+        -903
+      ],
+      "size": {
+        "0": 315,
+        "1": 130
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "class",
+          "type": "class",
+          "links": [
+            1,
+            13,
+            14,
+            153,
+            154,
+            155,
+            156,
+            157,
+            158,
+            159,
+            160,
+            161,
+            223
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMLoader_ReferenceOnly"
+      },
+      "widgets_values": [
+        "GPU",
+        "",
+        0.6,
+        "cn_canny"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        166,
+        -405
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 103
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 64
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 13
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 300
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            18
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        807053319759501,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 14,
+      "type": "ImageShuffle",
+      "pos": [
+        -342,
+        -129
+      ],
+      "size": {
+        "0": 210,
+        "1": 142
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_1",
+          "type": "IMAGE",
+          "link": 22
+        },
+        {
+          "name": "image_2",
+          "type": "IMAGE",
+          "link": 23
+        },
+        {
+          "name": "image_3",
+          "type": "IMAGE",
+          "link": 24
+        },
+        {
+          "name": "image_4",
+          "type": "IMAGE",
+          "link": 25
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            42,
+            59,
+            103,
+            104,
+            148,
+            151,
+            210,
+            213,
+            299
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            43,
+            60,
+            144,
+            300
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            44,
+            64,
+            258,
+            301
+          ],
+          "shape": 3,
+          "slot_index": 2
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            45,
+            65,
+            152,
+            218
+          ],
+          "shape": 3,
+          "slot_index": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageShuffle"
+      },
+      "widgets_values": [
+        490512725177924,
+        "randomize"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        166,
+        51
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 104
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 65
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 14
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 301
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            115
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        1032078801571329,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 71,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        170,
+        710
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 145
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 148
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 156
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 302
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            125
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        807565643851555,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 72,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        167,
+        1157
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 146
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 151
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 157
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 304
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            126
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        64849889219658,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 73,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        171,
+        1610
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 147
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 152
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 158
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 303
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            141
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        886327898093672,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 94,
+      "type": "Reroute",
+      "pos": [
+        -129,
+        1061
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 144
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            145,
+            146,
+            147,
+            302,
+            303,
+            304
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 151,
+      "type": "Reroute",
+      "pos": [
+        -566,
+        2787
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 258
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            259,
+            305
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 96,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        170,
+        2450
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 207
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 211
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 224
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 305
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            164
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        178330254814433,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 97,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        170,
+        2870
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 208
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 214
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 225
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 306
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            165
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        473871599119813,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 136,
+      "type": "Reroute",
+      "pos": [
+        -229,
+        2938
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 259
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            207,
+            208,
+            209,
+            216,
+            306,
+            307
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 98,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        160,
+        3320
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 209
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 222
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 226
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 307
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            180
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        902811998200642,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 139,
+      "type": "Reroute",
+      "pos": [
+        -456,
+        4547
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 218
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "IMAGE",
+          "links": [
+            219,
+            220,
+            221,
+            222,
+            308,
+            309,
+            310
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 119,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        157,
+        4452
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 220
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 215
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 231
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 309
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            189
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        512183060752155,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 118,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        170,
+        4010
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 219
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 212
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 230
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 308
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            188
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        658034516505753,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 120,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        170,
+        4880
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 221
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 216
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 232
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 310
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            203
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        1096483017665751,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 11,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        799,
+        -628
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            106,
+            109,
+            260,
+            311
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 12,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        772,
+        -101
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            107,
+            261,
+            312
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 68,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        780,
+        146
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 115
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            116,
+            262,
+            313
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 38,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2580,
+        -750
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 106
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 107
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 153
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 311
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            84
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        233701480907245,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 39,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2590,
+        -330
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 54,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 79
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 116
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 154
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 312
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            85
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        988881346733305,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 40,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2580,
+        120
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 69,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 80
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 109
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 155
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 313
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            117
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        518015150037685,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 74,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        800,
+        930
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 125
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            131,
+            136,
+            276,
+            314
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 75,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        770,
+        1450
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 126
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            132,
+            277,
+            315
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 90,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        780,
+        1700
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 141
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            134,
+            278,
+            316
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 83,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2580,
+        800
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 131
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 132
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 159
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 314
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            137
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        190364056209191,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 84,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2587,
+        1239
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 62,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 133
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 134
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 160
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 315
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            138
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        366996507039707,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 85,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2586,
+        1684
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 74,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 135
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 136
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 161
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 316
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            142
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        1095098482175011,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 99,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        774,
+        2754
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 46,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 164
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            170,
+            175,
+            279,
+            317
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 108,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2580,
+        2550
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 58,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 170
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 171
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 227
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 317
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            176
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        1078336146444578,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 100,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        770,
+        3200
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 165
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            171,
+            280,
+            318
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 109,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2584,
+        2986
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 71,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 172
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 173
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 228
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 318
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            177
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        410691391817918,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 115,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        780,
+        3440
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 180
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            173,
+            281,
+            319
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 110,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2580,
+        3420
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 82,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 174
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 175
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 229
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 319
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            181
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        939572346183846,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 121,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        800,
+        4230
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 188
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            193,
+            198,
+            282,
+            320
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 122,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        770,
+        4750
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 189
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            194,
+            283,
+            321
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 126,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2580,
+        4100
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 51,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 193
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 194
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 233
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 320
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            199
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        154831513696330,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 127,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2583,
+        4543
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 66,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 195
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 196
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 234
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 321
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            200
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        744017100663122,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 133,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        780,
+        5000
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 47,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 203
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            196,
+            284,
+            322
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 128,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        2580,
+        4970
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 78,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 197
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 198
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 235
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 322
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            204
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        201195951817724,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 91,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        3250,
+        1720
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 80,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 142
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            265,
+            290,
+            323
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 144,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        5290,
+        2110
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 89,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 238
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            236,
+            275,
+            324
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 141,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        4690,
+        1840
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 86,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 266
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 265
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 250
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 323
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            238
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        891558210641129,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 142,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        4690,
+        2272
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 92,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 236
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 267
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 251
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 324
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            239
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        509505069026906,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 143,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        4690,
+        2710
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 95,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 237
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 268
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 252
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 325
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            242
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        396897107477910,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 155,
+      "type": "LCMGenerate_ReferenceOnly",
+      "pos": [
+        4702,
+        3195
+      ],
+      "size": {
+        "0": 400,
+        "1": 400
+      },
+      "flags": {},
+      "order": 98,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 270
+        },
+        {
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 272
+        },
+        {
+          "name": "pipe",
+          "type": "class",
+          "link": 298
+        },
+        {
+          "name": "control_image",
+          "type": "IMAGE",
+          "link": 326
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            269
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LCMGenerate_ReferenceOnly"
+      },
+      "widgets_values": [
+        688307930086827,
+        "randomize",
+        "",
+        2,
+        512,
+        512,
+        7,
+        1,
+        1,
+        0.7000000000000001,
+        "disable",
+        0
+      ]
+    },
+    {
+      "id": 145,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        5310,
+        2540
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 93,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 239
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            237,
+            274,
+            325
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    },
+    {
+      "id": 148,
+      "type": "ImageOutputToComfyNodes",
+      "pos": [
+        5360,
+        2760
+      ],
+      "size": {
+        "0": 210,
+        "1": 26
+      },
+      "flags": {},
+      "order": 96,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 242
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            270,
+            273,
+            326
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageOutputToComfyNodes"
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      5,
+      0,
+      6,
+      2,
+      "class"
+    ],
+    [
+      13,
+      5,
+      0,
+      7,
+      2,
+      "class"
+    ],
+    [
+      14,
+      5,
+      0,
+      8,
+      2,
+      "class"
+    ],
+    [
+      16,
+      6,
+      0,
+      11,
+      0,
+      "IMAGE"
+    ],
+    [
+      18,
+      7,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ],
+    [
+      22,
+      4,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ],
+    [
+      23,
+      1,
+      0,
+      14,
+      1,
+      "IMAGE"
+    ],
+    [
+      24,
+      2,
+      0,
+      14,
+      2,
+      "IMAGE"
+    ],
+    [
+      25,
+      3,
+      0,
+      14,
+      3,
+      "IMAGE"
+    ],
+    [
+      42,
+      14,
+      0,
+      15,
+      0,
+      "IMAGE"
+    ],
+    [
+      43,
+      14,
+      1,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      44,
+      14,
+      2,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      45,
+      14,
+      3,
+      18,
+      0,
+      "IMAGE"
+    ],
+    [
+      59,
+      14,
+      0,
+      6,
+      1,
+      "IMAGE"
+    ],
+    [
+      60,
+      14,
+      1,
+      6,
+      0,
+      "IMAGE"
+    ],
+    [
+      64,
+      14,
+      2,
+      7,
+      1,
+      "IMAGE"
+    ],
+    [
+      65,
+      14,
+      3,
+      8,
+      1,
+      "IMAGE"
+    ],
+    [
+      79,
+      43,
+      0,
+      39,
+      0,
+      "IMAGE"
+    ],
+    [
+      80,
+      44,
+      0,
+      40,
+      0,
+      "IMAGE"
+    ],
+    [
+      84,
+      38,
+      0,
+      43,
+      0,
+      "IMAGE"
+    ],
+    [
+      85,
+      39,
+      0,
+      44,
+      0,
+      "IMAGE"
+    ],
+    [
+      103,
+      14,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ],
+    [
+      104,
+      14,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      106,
+      11,
+      0,
+      38,
+      0,
+      "IMAGE"
+    ],
+    [
+      107,
+      12,
+      0,
+      38,
+      1,
+      "IMAGE"
+    ],
+    [
+      109,
+      11,
+      0,
+      40,
+      1,
+      "IMAGE"
+    ],
+    [
+      115,
+      8,
+      0,
+      68,
+      0,
+      "IMAGE"
+    ],
+    [
+      116,
+      68,
+      0,
+      39,
+      1,
+      "IMAGE"
+    ],
+    [
+      117,
+      40,
+      0,
+      69,
+      0,
+      "IMAGE"
+    ],
+    [
+      125,
+      71,
+      0,
+      74,
+      0,
+      "IMAGE"
+    ],
+    [
+      126,
+      72,
+      0,
+      75,
+      0,
+      "IMAGE"
+    ],
+    [
+      131,
+      74,
+      0,
+      83,
+      0,
+      "IMAGE"
+    ],
+    [
+      132,
+      75,
+      0,
+      83,
+      1,
+      "IMAGE"
+    ],
+    [
+      133,
+      86,
+      0,
+      84,
+      0,
+      "IMAGE"
+    ],
+    [
+      134,
+      90,
+      0,
+      84,
+      1,
+      "IMAGE"
+    ],
+    [
+      135,
+      87,
+      0,
+      85,
+      0,
+      "IMAGE"
+    ],
+    [
+      136,
+      74,
+      0,
+      85,
+      1,
+      "IMAGE"
+    ],
+    [
+      137,
+      83,
+      0,
+      86,
+      0,
+      "IMAGE"
+    ],
+    [
+      138,
+      84,
+      0,
+      87,
+      0,
+      "IMAGE"
+    ],
+    [
+      141,
+      73,
+      0,
+      90,
+      0,
+      "IMAGE"
+    ],
+    [
+      142,
+      85,
+      0,
+      91,
+      0,
+      "IMAGE"
+    ],
+    [
+      144,
+      14,
+      1,
+      94,
+      0,
+      "*"
+    ],
+    [
+      145,
+      94,
+      0,
+      71,
+      0,
+      "IMAGE"
+    ],
+    [
+      146,
+      94,
+      0,
+      72,
+      0,
+      "IMAGE"
+    ],
+    [
+      147,
+      94,
+      0,
+      73,
+      0,
+      "IMAGE"
+    ],
+    [
+      148,
+      14,
+      0,
+      71,
+      1,
+      "IMAGE"
+    ],
+    [
+      151,
+      14,
+      0,
+      72,
+      1,
+      "IMAGE"
+    ],
+    [
+      152,
+      14,
+      3,
+      73,
+      1,
+      "IMAGE"
+    ],
+    [
+      153,
+      5,
+      0,
+      38,
+      2,
+      "class"
+    ],
+    [
+      154,
+      5,
+      0,
+      39,
+      2,
+      "class"
+    ],
+    [
+      155,
+      5,
+      0,
+      40,
+      2,
+      "class"
+    ],
+    [
+      156,
+      5,
+      0,
+      71,
+      2,
+      "class"
+    ],
+    [
+      157,
+      5,
+      0,
+      72,
+      2,
+      "class"
+    ],
+    [
+      158,
+      5,
+      0,
+      73,
+      2,
+      "class"
+    ],
+    [
+      159,
+      5,
+      0,
+      83,
+      2,
+      "class"
+    ],
+    [
+      160,
+      5,
+      0,
+      84,
+      2,
+      "class"
+    ],
+    [
+      161,
+      5,
+      0,
+      85,
+      2,
+      "class"
+    ],
+    [
+      164,
+      96,
+      0,
+      99,
+      0,
+      "IMAGE"
+    ],
+    [
+      165,
+      97,
+      0,
+      100,
+      0,
+      "IMAGE"
+    ],
+    [
+      170,
+      99,
+      0,
+      108,
+      0,
+      "IMAGE"
+    ],
+    [
+      171,
+      100,
+      0,
+      108,
+      1,
+      "IMAGE"
+    ],
+    [
+      172,
+      111,
+      0,
+      109,
+      0,
+      "IMAGE"
+    ],
+    [
+      173,
+      115,
+      0,
+      109,
+      1,
+      "IMAGE"
+    ],
+    [
+      174,
+      112,
+      0,
+      110,
+      0,
+      "IMAGE"
+    ],
+    [
+      175,
+      99,
+      0,
+      110,
+      1,
+      "IMAGE"
+    ],
+    [
+      176,
+      108,
+      0,
+      111,
+      0,
+      "IMAGE"
+    ],
+    [
+      177,
+      109,
+      0,
+      112,
+      0,
+      "IMAGE"
+    ],
+    [
+      180,
+      98,
+      0,
+      115,
+      0,
+      "IMAGE"
+    ],
+    [
+      181,
+      110,
+      0,
+      116,
+      0,
+      "IMAGE"
+    ],
+    [
+      188,
+      118,
+      0,
+      121,
+      0,
+      "IMAGE"
+    ],
+    [
+      189,
+      119,
+      0,
+      122,
+      0,
+      "IMAGE"
+    ],
+    [
+      193,
+      121,
+      0,
+      126,
+      0,
+      "IMAGE"
+    ],
+    [
+      194,
+      122,
+      0,
+      126,
+      1,
+      "IMAGE"
+    ],
+    [
+      195,
+      129,
+      0,
+      127,
+      0,
+      "IMAGE"
+    ],
+    [
+      196,
+      133,
+      0,
+      127,
+      1,
+      "IMAGE"
+    ],
+    [
+      197,
+      130,
+      0,
+      128,
+      0,
+      "IMAGE"
+    ],
+    [
+      198,
+      121,
+      0,
+      128,
+      1,
+      "IMAGE"
+    ],
+    [
+      199,
+      126,
+      0,
+      129,
+      0,
+      "IMAGE"
+    ],
+    [
+      200,
+      127,
+      0,
+      130,
+      0,
+      "IMAGE"
+    ],
+    [
+      203,
+      120,
+      0,
+      133,
+      0,
+      "IMAGE"
+    ],
+    [
+      204,
+      128,
+      0,
+      134,
+      0,
+      "IMAGE"
+    ],
+    [
+      207,
+      136,
+      0,
+      96,
+      0,
+      "IMAGE"
+    ],
+    [
+      208,
+      136,
+      0,
+      97,
+      0,
+      "IMAGE"
+    ],
+    [
+      209,
+      136,
+      0,
+      98,
+      0,
+      "IMAGE"
+    ],
+    [
+      210,
+      14,
+      0,
+      137,
+      0,
+      "*"
+    ],
+    [
+      211,
+      137,
+      0,
+      96,
+      1,
+      "IMAGE"
+    ],
+    [
+      212,
+      137,
+      0,
+      118,
+      1,
+      "IMAGE"
+    ],
+    [
+      213,
+      14,
+      0,
+      138,
+      0,
+      "*"
+    ],
+    [
+      214,
+      138,
+      0,
+      97,
+      1,
+      "IMAGE"
+    ],
+    [
+      215,
+      138,
+      0,
+      119,
+      1,
+      "IMAGE"
+    ],
+    [
+      216,
+      136,
+      0,
+      120,
+      1,
+      "IMAGE"
+    ],
+    [
+      218,
+      14,
+      3,
+      139,
+      0,
+      "*"
+    ],
+    [
+      219,
+      139,
+      0,
+      118,
+      0,
+      "IMAGE"
+    ],
+    [
+      220,
+      139,
+      0,
+      119,
+      0,
+      "IMAGE"
+    ],
+    [
+      221,
+      139,
+      0,
+      120,
+      0,
+      "IMAGE"
+    ],
+    [
+      222,
+      139,
+      0,
+      98,
+      1,
+      "IMAGE"
+    ],
+    [
+      223,
+      5,
+      0,
+      140,
+      0,
+      "*"
+    ],
+    [
+      224,
+      140,
+      0,
+      96,
+      2,
+      "class"
+    ],
+    [
+      225,
+      140,
+      0,
+      97,
+      2,
+      "class"
+    ],
+    [
+      226,
+      140,
+      0,
+      98,
+      2,
+      "class"
+    ],
+    [
+      227,
+      140,
+      0,
+      108,
+      2,
+      "class"
+    ],
+    [
+      228,
+      140,
+      0,
+      109,
+      2,
+      "class"
+    ],
+    [
+      229,
+      140,
+      0,
+      110,
+      2,
+      "class"
+    ],
+    [
+      230,
+      140,
+      0,
+      118,
+      2,
+      "class"
+    ],
+    [
+      231,
+      140,
+      0,
+      119,
+      2,
+      "class"
+    ],
+    [
+      232,
+      140,
+      0,
+      120,
+      2,
+      "class"
+    ],
+    [
+      233,
+      140,
+      0,
+      126,
+      2,
+      "class"
+    ],
+    [
+      234,
+      140,
+      0,
+      127,
+      2,
+      "class"
+    ],
+    [
+      235,
+      140,
+      0,
+      128,
+      2,
+      "class"
+    ],
+    [
+      236,
+      144,
+      0,
+      142,
+      0,
+      "IMAGE"
+    ],
+    [
+      237,
+      145,
+      0,
+      143,
+      0,
+      "IMAGE"
+    ],
+    [
+      238,
+      141,
+      0,
+      144,
+      0,
+      "IMAGE"
+    ],
+    [
+      239,
+      142,
+      0,
+      145,
+      0,
+      "IMAGE"
+    ],
+    [
+      242,
+      143,
+      0,
+      148,
+      0,
+      "IMAGE"
+    ],
+    [
+      250,
+      140,
+      0,
+      141,
+      2,
+      "class"
+    ],
+    [
+      251,
+      140,
+      0,
+      142,
+      2,
+      "class"
+    ],
+    [
+      252,
+      140,
+      0,
+      143,
+      2,
+      "class"
+    ],
+    [
+      258,
+      14,
+      2,
+      151,
+      0,
+      "*"
+    ],
+    [
+      259,
+      151,
+      0,
+      136,
+      0,
+      "*"
+    ],
+    [
+      260,
+      11,
+      0,
+      152,
+      0,
+      "IMAGE"
+    ],
+    [
+      261,
+      12,
+      0,
+      153,
+      0,
+      "IMAGE"
+    ],
+    [
+      262,
+      68,
+      0,
+      154,
+      0,
+      "IMAGE"
+    ],
+    [
+      265,
+      91,
+      0,
+      141,
+      1,
+      "IMAGE"
+    ],
+    [
+      266,
+      69,
+      0,
+      141,
+      0,
+      "IMAGE"
+    ],
+    [
+      267,
+      116,
+      0,
+      142,
+      1,
+      "IMAGE"
+    ],
+    [
+      268,
+      134,
+      0,
+      143,
+      1,
+      "IMAGE"
+    ],
+    [
+      269,
+      155,
+      0,
+      156,
+      0,
+      "IMAGE"
+    ],
+    [
+      270,
+      148,
+      0,
+      155,
+      0,
+      "IMAGE"
+    ],
+    [
+      272,
+      69,
+      0,
+      155,
+      1,
+      "IMAGE"
+    ],
+    [
+      273,
+      148,
+      0,
+      157,
+      0,
+      "IMAGE"
+    ],
+    [
+      274,
+      145,
+      0,
+      158,
+      0,
+      "IMAGE"
+    ],
+    [
+      275,
+      144,
+      0,
+      159,
+      0,
+      "IMAGE"
+    ],
+    [
+      276,
+      74,
+      0,
+      160,
+      0,
+      "IMAGE"
+    ],
+    [
+      277,
+      75,
+      0,
+      161,
+      0,
+      "IMAGE"
+    ],
+    [
+      278,
+      90,
+      0,
+      162,
+      0,
+      "IMAGE"
+    ],
+    [
+      279,
+      99,
+      0,
+      163,
+      0,
+      "IMAGE"
+    ],
+    [
+      280,
+      100,
+      0,
+      164,
+      0,
+      "IMAGE"
+    ],
+    [
+      281,
+      115,
+      0,
+      165,
+      0,
+      "IMAGE"
+    ],
+    [
+      282,
+      121,
+      0,
+      166,
+      0,
+      "IMAGE"
+    ],
+    [
+      283,
+      122,
+      0,
+      167,
+      0,
+      "IMAGE"
+    ],
+    [
+      284,
+      133,
+      0,
+      168,
+      0,
+      "IMAGE"
+    ],
+    [
+      285,
+      43,
+      0,
+      169,
+      0,
+      "IMAGE"
+    ],
+    [
+      286,
+      44,
+      0,
+      170,
+      0,
+      "IMAGE"
+    ],
+    [
+      287,
+      69,
+      0,
+      171,
+      0,
+      "IMAGE"
+    ],
+    [
+      288,
+      86,
+      0,
+      172,
+      0,
+      "IMAGE"
+    ],
+    [
+      289,
+      87,
+      0,
+      173,
+      0,
+      "IMAGE"
+    ],
+    [
+      290,
+      91,
+      0,
+      174,
+      0,
+      "IMAGE"
+    ],
+    [
+      291,
+      111,
+      0,
+      175,
+      0,
+      "IMAGE"
+    ],
+    [
+      292,
+      112,
+      0,
+      176,
+      0,
+      "IMAGE"
+    ],
+    [
+      293,
+      116,
+      0,
+      177,
+      0,
+      "IMAGE"
+    ],
+    [
+      294,
+      129,
+      0,
+      178,
+      0,
+      "IMAGE"
+    ],
+    [
+      295,
+      130,
+      0,
+      179,
+      0,
+      "IMAGE"
+    ],
+    [
+      296,
+      134,
+      0,
+      180,
+      0,
+      "IMAGE"
+    ],
+    [
+      297,
+      156,
+      0,
+      181,
+      0,
+      "IMAGE"
+    ],
+    [
+      298,
+      140,
+      0,
+      155,
+      2,
+      "class"
+    ],
+    [
+      299,
+      14,
+      0,
+      6,
+      3,
+      "IMAGE"
+    ],
+    [
+      300,
+      14,
+      1,
+      7,
+      3,
+      "IMAGE"
+    ],
+    [
+      301,
+      14,
+      2,
+      8,
+      3,
+      "IMAGE"
+    ],
+    [
+      302,
+      94,
+      0,
+      71,
+      3,
+      "IMAGE"
+    ],
+    [
+      303,
+      94,
+      0,
+      73,
+      3,
+      "IMAGE"
+    ],
+    [
+      304,
+      94,
+      0,
+      72,
+      3,
+      "IMAGE"
+    ],
+    [
+      305,
+      151,
+      0,
+      96,
+      3,
+      "IMAGE"
+    ],
+    [
+      306,
+      136,
+      0,
+      97,
+      3,
+      "IMAGE"
+    ],
+    [
+      307,
+      136,
+      0,
+      98,
+      3,
+      "IMAGE"
+    ],
+    [
+      308,
+      139,
+      0,
+      118,
+      3,
+      "IMAGE"
+    ],
+    [
+      309,
+      139,
+      0,
+      119,
+      3,
+      "IMAGE"
+    ],
+    [
+      310,
+      139,
+      0,
+      120,
+      3,
+      "IMAGE"
+    ],
+    [
+      311,
+      11,
+      0,
+      38,
+      3,
+      "IMAGE"
+    ],
+    [
+      312,
+      12,
+      0,
+      39,
+      3,
+      "IMAGE"
+    ],
+    [
+      313,
+      68,
+      0,
+      40,
+      3,
+      "IMAGE"
+    ],
+    [
+      314,
+      74,
+      0,
+      83,
+      3,
+      "IMAGE"
+    ],
+    [
+      315,
+      75,
+      0,
+      84,
+      3,
+      "IMAGE"
+    ],
+    [
+      316,
+      90,
+      0,
+      85,
+      3,
+      "IMAGE"
+    ],
+    [
+      317,
+      99,
+      0,
+      108,
+      3,
+      "IMAGE"
+    ],
+    [
+      318,
+      100,
+      0,
+      109,
+      3,
+      "IMAGE"
+    ],
+    [
+      319,
+      115,
+      0,
+      110,
+      3,
+      "IMAGE"
+    ],
+    [
+      320,
+      121,
+      0,
+      126,
+      3,
+      "IMAGE"
+    ],
+    [
+      321,
+      122,
+      0,
+      127,
+      3,
+      "IMAGE"
+    ],
+    [
+      322,
+      133,
+      0,
+      128,
+      3,
+      "IMAGE"
+    ],
+    [
+      323,
+      91,
+      0,
+      141,
+      3,
+      "IMAGE"
+    ],
+    [
+      324,
+      144,
+      0,
+      142,
+      3,
+      "IMAGE"
+    ],
+    [
+      325,
+      145,
+      0,
+      143,
+      3,
+      "IMAGE"
+    ],
+    [
+      326,
+      148,
+      0,
+      155,
+      3,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

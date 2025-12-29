@@ -1,3 +1,0 @@
-aiohttp
-pyzipper
-websockets

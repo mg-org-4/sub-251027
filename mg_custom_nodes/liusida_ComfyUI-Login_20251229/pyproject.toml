@@ -1,0 +1,15 @@
+[project]
+name = "login"
+description = "A simple password to protect ComfyUI."
+version = "1.0.0"
+license = "LICENSE"
+dependencies = ["aiohttp", "aiohttp_session[secure]", "Jinja2", "bcrypt", "pycryptodome"]
+
+[project.urls]
+Repository = "https://github.com/liusida/ComfyUI-Login"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "liusida"
+DisplayName = "Login"
+Icon = "https://raw.githubusercontent.com/liusida/ComfyUI-Login/main/images/icon.png"

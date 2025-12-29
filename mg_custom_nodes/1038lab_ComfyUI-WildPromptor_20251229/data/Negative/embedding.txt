@@ -1,0 +1,15 @@
+embedding:easynegative
+embedding:AS-YoungV2-neg
+embedding:badhandv4
+embedding:bad-hands-5
+embedding:ng_deepnegative_v1_75t
+embedding:bad-picture-chill-75v 
+embedding:ac_neg2
+embedding:BadDream
+embedding:By bad artist -neg
+embedding:CyberRealistic_Negative-neg
+embedding:bad_prompt_version2-neg
+embedding:UnrealisticDream
+embedding:bad_pictures
+embedding:epiCPhoto-neg
+embedding:verybadimagenegative_v1.3

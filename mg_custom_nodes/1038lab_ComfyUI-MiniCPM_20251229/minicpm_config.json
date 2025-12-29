@@ -1,0 +1,116 @@
+{
+	"model_settings": {
+		"context_window": 4096,
+		"gpu_layers": -1,
+		"cpu_threads": 4,
+		"default_max_tokens": 1024,
+		"default_temperature": 0.7,
+		"default_top_p": 0.9,
+		"default_top_k": 100,
+		"default_repetition_penalty": 1.10,
+		"default_system_prompt": "You are MiniCPM-V, a helpful, concise and knowledgeable vision-language assistant. Answer directly and stay on task."
+	},
+	"prompt_types": {
+		"Describe": "Describe this image in detail.",
+		"Caption": "Write a concise caption for this image.",
+		"Analyze": "Analyze the main elements and scene in this image.",
+		"Identify": "What objects and subjects do you see in this image?",
+		"Explain": "Explain what's happening in this image.",
+		"List": "List the main objects visible in this image.",
+		"Scene": "Describe the scene and setting of this image.",
+		"Details": "What are the key details in this image?",
+		"Summarize": "Summarize the key content of this image in 1-2 sentences.",
+		"Emotion": "Describe the emotions or mood conveyed by this image.",
+		"Style": "Describe the artistic or visual style of this image.",
+		"Location": "Where might this image be taken? Analyze the setting or location.",
+		"Question": "What question could be asked based on this image?",
+		"Creative": "Describe this image as if writing the beginning of a short story.",
+		"Video Describe": "Describe this video in detail.",
+		"Video Analyze": "Analyze the main elements and scene in this video.",
+		"Video Identify": "What objects and subjects do you see in this video?",
+		"Video Explain": "Explain what's happening in this video.",
+		"Video List": "List the main objects visible in this video.",
+		"Video Scene": "Describe the scene and setting of this video.",
+		"Video Details": "What are the key details in this video?"
+	},
+	"transformers_models": {
+		"MiniCPM-V-4.5-int4": {
+			"name": "openbmb/MiniCPM-V-4_5-int4",
+			"description": "V4.5 4-bit quantized version, smaller memory footprint"
+		},
+		"MiniCPM-V-4-int4": {
+			"name": "openbmb/MiniCPM-V-4-int4",
+			"description": "V4.0 4-bit quantized version, smaller memory footprint"
+		},
+		"MiniCPM-V-4.5": {
+			"name": "openbmb/MiniCPM-V-4_5",
+			"description": "Latest V4.5 version with enhanced capabilities"
+		},
+		"MiniCPM-V-4": {
+			"name": "openbmb/MiniCPM-V-4",
+			"description": "V4.0 full precision version, higher quality"
+		}
+	},
+	"gguf_models": {
+		"MiniCPM-V-4 (Q4_0)": {
+			"name": "openbmb/MiniCPM-V-4-gguf/ggml-model-Q4_0.gguf",
+			"mmproj": "openbmb/MiniCPM-V-4-gguf/mmproj-model-f16.gguf",
+			"description": "V4.0 - 2.08GB - 4-bit quantization",
+			"download_path": "MiniCPM-v-4"
+		},
+		"MiniCPM-V-4 (Q4_1)": {
+			"name": "openbmb/MiniCPM-V-4-gguf/ggml-model-Q4_1.gguf",
+			"mmproj": "openbmb/MiniCPM-V-4-gguf/mmproj-model-f16.gguf",
+			"description": "V4.0 - 2.29GB - 4-bit quantization improved",
+			"download_path": "MiniCPM-v-4"
+		},
+		"MiniCPM-V-4 (Q4_K_M)": {
+			"name": "openbmb/MiniCPM-V-4-gguf/ggml-model-Q4_K_M.gguf",
+			"mmproj": "openbmb/MiniCPM-V-4-gguf/mmproj-model-f16.gguf",
+			"description": "V4.0 - 2.19GB - 4-bit K-quants medium",
+			"download_path": "MiniCPM-v-4"
+		},
+		"MiniCPM-V-4 (Q4_K_S)": {
+			"name": "openbmb/MiniCPM-V-4-gguf/ggml-model-Q4_K_S.gguf",
+			"mmproj": "openbmb/MiniCPM-V-4-gguf/mmproj-model-f16.gguf",
+			"description": "V4.0 - 2.09GB - 4-bit K-quants small",
+			"download_path": "MiniCPM-v-4"
+		},
+		"MiniCPM-V-4 (Q5_0)": {
+			"name": "openbmb/MiniCPM-V-4-gguf/ggml-model-Q5_0.gguf",
+			"mmproj": "openbmb/MiniCPM-V-4-gguf/mmproj-model-f16.gguf",
+			"description": "V4.0 - 2.51GB - 5-bit quantization",
+			"download_path": "MiniCPM-v-4"
+		},
+		"MiniCPM-V-4 (Q5_1)": {
+			"name": "openbmb/MiniCPM-V-4-gguf/ggml-model-Q5_1.gguf",
+			"mmproj": "openbmb/MiniCPM-V-4-gguf/mmproj-model-f16.gguf",
+			"description": "V4.0 - 2.72GB - 5-bit quantization improved",
+			"download_path": "MiniCPM-v-4"
+		},
+		"MiniCPM-V-4 (Q5_K_M)": {
+			"name": "openbmb/MiniCPM-V-4-gguf/ggml-model-Q5_K_M.gguf",
+			"mmproj": "openbmb/MiniCPM-V-4-gguf/mmproj-model-f16.gguf",
+			"description": "V4.0 - 2.56GB - 5-bit K-quants medium",
+			"download_path": "MiniCPM-v-4"
+		},
+		"MiniCPM-V-4 (Q5_K_S)": {
+			"name": "openbmb/MiniCPM-V-4-gguf/ggml-model-Q5_K_S.gguf",
+			"mmproj": "openbmb/MiniCPM-V-4-gguf/mmproj-model-f16.gguf",
+			"description": "V4.0 - 2.51GB - 5-bit K-quants small",
+			"download_path": "MiniCPM-v-4"
+		},
+		"MiniCPM-V-4 (Q6_K)": {
+			"name": "openbmb/MiniCPM-V-4-gguf/ggml-model-Q6_K.gguf",
+			"mmproj": "openbmb/MiniCPM-V-4-gguf/mmproj-model-f16.gguf",
+			"description": "V4.0 - 2.96GB - 6-bit quantization",
+			"download_path": "MiniCPM-v-4"
+		},
+		"MiniCPM-V-4 (Q8_0)": {
+			"name": "openbmb/MiniCPM-V-4-gguf/ggml-model-Q8_0.gguf",
+			"mmproj": "openbmb/MiniCPM-V-4-gguf/mmproj-model-f16.gguf",
+			"description": "V4.0 - 3.83GB - 8-bit quantization, highest quality",
+			"download_path": "MiniCPM-v-4"
+		}
+	}
+}

@@ -1,0 +1,396 @@
+{
+  "last_node_id": 52,
+  "last_link_id": 60,
+  "nodes": [
+    {
+      "id": 50,
+      "type": "Virtual 📋",
+      "pos": [
+        709.5001220703125,
+        1300.3753662109375
+      ],
+      "size": [
+        315,
+        346
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Virtual 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        1,
+        0,
+        "randomize"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 46,
+      "type": "Environment 📋",
+      "pos": [
+        709.5001220703125,
+        1700.633544921875
+      ],
+      "size": [
+        315,
+        442
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Environment 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        1,
+        0,
+        "randomize"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 49,
+      "type": "Subject 📋",
+      "pos": [
+        1045.6463623046875,
+        1300.3753662109375
+      ],
+      "size": [
+        315,
+        418
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Subject 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        1,
+        0,
+        "randomize"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 48,
+      "type": "Styles 📋",
+      "pos": [
+        1045.6463623046875,
+        1777.4429931640625
+      ],
+      "size": [
+        315,
+        178
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Styles 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        1,
+        0,
+        "randomize"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 47,
+      "type": "Negative 📋",
+      "pos": [
+        1380.912353515625,
+        1631.61962890625
+      ],
+      "size": [
+        315,
+        202
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Negative 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        1,
+        0,
+        "randomize"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 52,
+      "type": "Collections 📋",
+      "pos": [
+        1380.912353515625,
+        1300.3753662109375
+      ],
+      "size": [
+        315,
+        274
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Collections 📋",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        1,
+        0,
+        "randomize"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 45,
+      "type": "AllInOneList",
+      "pos": [
+        294.28216552734375,
+        1300.3753662109375
+      ],
+      "size": [
+        393.81982421875,
+        998.1484375
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "selected_options",
+          "type": "DPROMPT_DATA",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AllInOneList",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled",
+        "❌disabled"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    }
+  ],
+  "links": [],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5785350950266047,
+      "offset": [
+        678.2135139923629,
+        -957.0605333088116
+      ]
+    },
+    "ue_links": [],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0
+  },
+  "version": 0.4
+}

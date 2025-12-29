@@ -1,8 +1,0 @@
-/.idea
-**/__pycache__
-__pycache__
-**/*.exe
-/loras_userdatas/info
-init.json
-/panel
-user_cloud_package.json

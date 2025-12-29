@@ -1,1 +1,0 @@
-# Put your luts file sin this directory or change default path in ../luts_directory.txt

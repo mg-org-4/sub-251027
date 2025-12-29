@@ -1,4 +1,0 @@
-bentoml>=1.3.21
-fastapi
-comfy-cli
-duckduckgo-search

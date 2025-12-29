@@ -1,0 +1,11 @@
+diffusers==0.32.2
+easydict
+einops
+peft
+pillow
+protobuf
+requests
+safetensors
+sentencepiece
+transformers
+timm

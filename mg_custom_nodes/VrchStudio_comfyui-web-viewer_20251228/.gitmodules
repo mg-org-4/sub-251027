@@ -1,3 +1,0 @@
-[submodule "third_party/music2emotion"]
-	path = third_party/music2emotion
-	url = https://github.com/VrchStudio/Music2Emotion.git

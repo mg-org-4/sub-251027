@@ -1,0 +1,17 @@
+albumentations
+beautifulsoup4
+einops
+modelscope[framework]
+ms-swift
+numpy
+open_clip_torch
+opencv-python
+opencv_transforms>=0.0.6
+oss2>=2.15.0
+pycocotools
+pyyaml>=5.3.1
+scikit-image
+scikit-learn
+sentencepiece
+torchsde
+transformers

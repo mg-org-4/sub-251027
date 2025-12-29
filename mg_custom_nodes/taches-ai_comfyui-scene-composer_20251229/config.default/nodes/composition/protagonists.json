@@ -1,0 +1,46 @@
+{
+  "name": "👥 Protagonists",
+  "settings": {
+    "show_variables": true
+  },
+  "variables": {
+    "solo_focus": {
+      "probability": 0.8,
+      "tags": { "solo_focus": "solo focus" }
+    },
+    "disembodied_penis": {
+      "probability": 0.2,
+      "tags": { "disembodied penis": "disembodied penis" }
+    },
+    "penis_size": {
+      "probability": 0.7,
+      "distribution": [0.1, 0.6, 0.2, 0.1],
+      "tags": ["small", "large", "huge", "gigantic"]
+    }
+  },
+  "tags": {
+    "male_type": {
+      "group_labels": true,
+      "distribution": [0.5, 0.4],
+      "prefix": "1boy,{solo_focus},",
+      "tags": {
+        "standard": "",
+        "muscular": {
+          "prefix": "muscular male,",
+          "number": [0, 2],
+          "tags": ["thick arms", "large hands"]
+        },
+        "giant": {
+          "prefix": "giant male, size difference,",
+          "number": [0, 2],
+          "tags": ["thick arms", "large hands", "muscular male"]
+        },
+        "fat": "fat male"
+      }
+    },
+    "penis": {
+      "show": false,
+      "tags": "{disembodied_penis}, {penis_size} penis"
+    }
+  }
+}

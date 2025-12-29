@@ -1,5 +1,0 @@
-segment_anything
-simple_lama_inpainting
-insightface
-simplejson
-pycocotools

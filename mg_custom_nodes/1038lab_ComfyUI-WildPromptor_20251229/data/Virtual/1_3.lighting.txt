@@ -1,0 +1,50 @@
+Ambient lighting
+Area light
+Back-light
+Beautifully Lit
+Black lighting
+Bloom light
+Broad lighting
+Candle light
+Cinematic lighting
+Cold Lighting
+Direct light
+Diffuse lighting
+Dramatic lighting
+Dramatic spotlight
+Ethereal Lighting
+Flat lighting
+Gel lighting
+Global lighting
+Grid lighting
+Gobo lighting
+Hair light
+Hard light
+Key light
+Light and shadow plays
+Light caustics
+Lens Flare
+Moody lighting
+Moonlight
+Moonlit
+Natural lighting
+Neon Light
+Nostalgic lighting
+Point light
+Rembrandt lighting
+Rim light
+Side light
+Side lighting
+Side lit
+Soft light
+Soft lighting
+Specular lighting
+Spotlight
+Spotlit
+Starlight
+Sun Rays
+Sunlight
+Volumetric lighting
+Waning light
+Warm lighting
+

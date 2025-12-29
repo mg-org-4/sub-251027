@@ -1,4 +1,0 @@
-ninja
-torch
-opencv-python
-numpy

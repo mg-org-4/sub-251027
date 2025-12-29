@@ -1,3 +1,0 @@
-tensorrt
-opencv-python
-polygraphy

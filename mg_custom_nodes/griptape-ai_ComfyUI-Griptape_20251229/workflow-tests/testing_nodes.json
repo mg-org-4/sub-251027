@@ -1,0 +1,5646 @@
+{
+  "last_node_id": 147,
+  "last_link_id": 140,
+  "nodes": [
+    {
+      "id": 10,
+      "type": "Griptape Create: Text",
+      "pos": {
+        "0": 31.126420974731445,
+        "1": 131.0032501220703
+      },
+      "size": {
+        "0": 370.6010437011719,
+        "1": 107.26145935058594
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            10,
+            12
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIInputNode"
+      },
+      "widgets_values": [
+        "This is a string of text"
+      ]
+    },
+    {
+      "id": 12,
+      "type": "Griptape Create: CLIP Text Encode",
+      "pos": {
+        "0": 800.1264038085938,
+        "1": 286.00323486328125
+      },
+      "size": {
+        "0": 365.4683532714844,
+        "1": 96
+      },
+      "flags": {},
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 11
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": 12,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "CONDITIONING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUICLIPTextEncode"
+      },
+      "widgets_values": [
+        "This is some string data.",
+        ""
+      ]
+    },
+    {
+      "id": 4,
+      "type": "CheckpointLoaderSimple",
+      "pos": {
+        "0": 523.1264038085938,
+        "1": 388.00323486328125
+      },
+      "size": {
+        "0": 315,
+        "1": 98
+      },
+      "flags": {
+        "collapsed": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [],
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            11,
+            19
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "dreamshaper_331BakedVae.safetensors"
+      ]
+    },
+    {
+      "id": 25,
+      "type": "Griptape Create: Text",
+      "pos": {
+        "0": 41.12641906738281,
+        "1": 649.0032348632812
+      },
+      "size": {
+        "0": 265.0383605957031,
+        "1": 76.00000762939453
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            27,
+            28,
+            29
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIInputNode"
+      },
+      "widgets_values": [
+        "Odd"
+      ]
+    },
+    {
+      "id": 26,
+      "type": "Griptape Create: Text",
+      "pos": {
+        "0": 43.12641906738281,
+        "1": 770.0032348632812
+      },
+      "size": {
+        "0": 265.0383605957031,
+        "1": 76.00000762939453
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            31
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIInputNode"
+      },
+      "widgets_values": [
+        "Even"
+      ]
+    },
+    {
+      "id": 14,
+      "type": "Griptape Combine: Merge Texts",
+      "pos": {
+        "0": 447.1264343261719,
+        "1": 657.0032348632812
+      },
+      "size": {
+        "0": 250,
+        "1": 200
+      },
+      "flags": {},
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_1",
+          "type": "STRING",
+          "link": 27,
+          "widget": {
+            "name": "input_1"
+          }
+        },
+        {
+          "name": "input_2",
+          "type": "STRING",
+          "link": 31,
+          "widget": {
+            "name": "input_6"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            32
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MergeTexts"
+      },
+      "widgets_values": [
+        "",
+        1
+      ]
+    },
+    {
+      "id": 28,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 814.1264038085938,
+        "1": 662.0032348632812
+      },
+      "size": {
+        "0": 340.321044921875,
+        "1": 147.82489013671875
+      },
+      "flags": {},
+      "order": 66,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 32,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Odd\n\nEven\n\nOdd\n\nEven\n\nOdd\n\nEven"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 13,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 797,
+        "1": 128
+      },
+      "size": {
+        "0": 367.1373596191406,
+        "1": 106.97498321533203
+      },
+      "flags": {},
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 10,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "This is a string of text"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 22,
+      "type": "Griptape Create: Text",
+      "pos": {
+        "0": 39,
+        "1": 471
+      },
+      "size": {
+        "0": 370.6010437011719,
+        "1": 107.26145935058594
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            20
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIInputNode"
+      },
+      "widgets_values": [
+        "This is a string of text"
+      ]
+    },
+    {
+      "id": 35,
+      "type": "Griptape Run: Agent",
+      "pos": {
+        "0": 2075,
+        "1": 425
+      },
+      "size": {
+        "0": 399.9352722167969,
+        "1": 103.1601791381836
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [
+            34
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RunAgent"
+      },
+      "widgets_values": [
+        "",
+        "Hi, my name is Jason"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 37,
+      "type": "Griptape Create: Text",
+      "pos": {
+        "0": 1675,
+        "1": 650
+      },
+      "size": {
+        "0": 370.6010437011719,
+        "1": 107.26145935058594
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            36
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIInputNode"
+      },
+      "widgets_values": [
+        "I am a fan of comic books."
+      ]
+    },
+    {
+      "id": 34,
+      "type": "Griptape Run: Agent",
+      "pos": {
+        "0": 2500,
+        "1": 425
+      },
+      "size": {
+        "0": 399.9352722167969,
+        "1": 103.1601791381836
+      },
+      "flags": {},
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": 34
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            35
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RunAgent"
+      },
+      "widgets_values": [
+        "",
+        "What's my name?"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 40,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 3275,
+        "1": 650
+      },
+      "size": {
+        "0": 367.1373596191406,
+        "1": 106.97498321533203
+      },
+      "flags": {},
+      "order": 90,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 38,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You mentioned that you're a fan of comic books. Do you have any particular favorites or genres you enjoy the most?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 29,
+      "type": "Griptape Run: Agent",
+      "pos": {
+        "0": 2075,
+        "1": 100
+      },
+      "size": {
+        "0": 399.9352722167969,
+        "1": 103.1601791381836
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            33
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RunAgent"
+      },
+      "widgets_values": [
+        "",
+        "Hi, my name is Jason"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 36,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 3250,
+        "1": 425
+      },
+      "size": {
+        "0": 367.1373596191406,
+        "1": 106.97498321533203
+      },
+      "flags": {},
+      "order": 67,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 35,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Your name is Jason. How can I help you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 39,
+      "type": "Griptape Run: Agent",
+      "pos": {
+        "0": 2525,
+        "1": 650
+      },
+      "size": {
+        "0": 399.9352722167969,
+        "1": 103.1601791381836
+      },
+      "flags": {},
+      "order": 68,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": 37
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            38
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RunAgent"
+      },
+      "widgets_values": [
+        "",
+        "What am I a fan of?"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 38,
+      "type": "Griptape Run: Agent",
+      "pos": {
+        "0": 2075,
+        "1": 650
+      },
+      "size": {
+        "0": 399.9352722167969,
+        "1": 103.1601791381836
+      },
+      "flags": {},
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": 36,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [
+            37
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RunAgent"
+      },
+      "widgets_values": [
+        "",
+        "Hi, my name is Jason"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 42,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 3275,
+        "1": 900
+      },
+      "size": {
+        "0": 367.1373596191406,
+        "1": 106.97498321533203
+      },
+      "flags": {},
+      "order": 45,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 39,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Hi Jason! How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 45,
+      "type": "Griptape Run: Agent",
+      "pos": {
+        "0": 1700,
+        "1": 1200
+      },
+      "size": {
+        "0": 399.9352722167969,
+        "1": 103.1601791381836
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            41
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [
+            43
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RunAgent"
+      },
+      "widgets_values": [
+        "",
+        "Hi, I'm Bob"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 41,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 2100,
+        "1": 900
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            39
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "Hi I'm Jason"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 50,
+      "type": "Griptape Expand: Agent Nodes",
+      "pos": {
+        "0": 2150,
+        "1": 1250
+      },
+      "size": {
+        "0": 264.7823486328125,
+        "1": 116.11270904541016
+      },
+      "flags": {},
+      "order": 44,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": 43
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [
+            44
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "RULESETS",
+          "type": "RULESET",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "TOOLS",
+          "type": "TOOL_LIST",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "MEMORY",
+          "type": "MEMORY",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ExpandAgent"
+      }
+    },
+    {
+      "id": 32,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 3275,
+        "1": 100
+      },
+      "size": {
+        "0": 367.1373596191406,
+        "1": 106.97498321533203
+      },
+      "flags": {},
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 33,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Hello, Jason! How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 47,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 3275,
+        "1": 1200
+      },
+      "size": {
+        "0": 367.1373596191406,
+        "1": 106.97498321533203
+      },
+      "flags": {},
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 41,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Hi Bob! How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 49,
+      "type": "Griptape Run: Agent",
+      "pos": {
+        "0": 2525,
+        "1": 1350
+      },
+      "size": {
+        "0": 399.9352722167969,
+        "1": 103.1601791381836
+      },
+      "flags": {},
+      "order": 69,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": 44
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            45
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RunAgent"
+      },
+      "widgets_values": [
+        "",
+        "What's my name?"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 66,
+      "type": "Note",
+      "pos": {
+        "0": 11311.6416015625,
+        "1": 884.8972778320312
+      },
+      "size": {
+        "0": 270.5126953125,
+        "1": 109.29426574707031
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Should have the name Bob and have the Sarcastic ruleset."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 64,
+      "type": "Note",
+      "pos": {
+        "0": 11301.6416015625,
+        "1": 314.8972473144531
+      },
+      "size": {
+        "0": 270.5126953125,
+        "1": 109.29426574707031
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Should have the name Jason and have the Kind Rules Ruleset."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 24,
+      "type": "Griptape Convert: Text to CLIP Encode",
+      "pos": {
+        "0": 804,
+        "1": 449
+      },
+      "size": {
+        "0": 356.4292297363281,
+        "1": 64.05216217041016
+      },
+      "flags": {},
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 19
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "link": 20,
+          "widget": {
+            "name": "STRING"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "CONDITIONING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUITextToClipEncode"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 59,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 10891.6416015625,
+        "1": 694.8972778320312
+      },
+      "size": {
+        "0": 366.1965637207031,
+        "1": 116.27025604248047
+      },
+      "flags": {},
+      "order": 70,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 51,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Hi Bob! 🌟 You have the \"Kind Rules\" ruleset, which means I'll be super sweet and the kindest in the world when chatting with you. How can I make your day brighter today? 😊"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 61,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 10471.6416015625,
+        "1": 764.8972778320312
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 93,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": 53
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": 79
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            57
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What's my name, and what Ruleset do I have?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 62,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 10891.6416015625,
+        "1": 304.8972473144531
+      },
+      "size": {
+        "0": 393.619384765625,
+        "1": 120.1904067993164
+      },
+      "flags": {},
+      "order": 96,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 56,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Oh, Jason, you must be the king of persistence. Your name is Jason, and you have the \"Let's See How Many Times I Can Ask the Same Thing\" ruleset, don't you?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 56,
+      "type": "Griptape Create: Rules",
+      "pos": {
+        "0": 9181.6416015625,
+        "1": 744.8972778320312
+      },
+      "size": {
+        "0": 376.1965637207031,
+        "1": 157.27024841308594
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "RULES",
+          "type": "RULESET",
+          "links": [
+            49
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "NAME",
+          "type": "STRING",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Rule"
+      },
+      "widgets_values": [
+        "Kind Rules",
+        "Be super sweet\nBe the kindest in the world"
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 67,
+      "type": "Note",
+      "pos": {
+        "0": 11321.6416015625,
+        "1": 694.8972778320312
+      },
+      "size": {
+        "0": 270.5126953125,
+        "1": 109.29426574707031
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Should have the name Bob and have the Kind Rules ruleset."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 71,
+      "type": "Griptape Expand: Agent Nodes",
+      "pos": {
+        "0": 10091.6416015625,
+        "1": 334.8972473144531
+      },
+      "size": {
+        "0": 259.91046142578125,
+        "1": 116.48963928222656
+      },
+      "flags": {},
+      "order": 73,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": 76
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "RULESETS",
+          "type": "RULESET",
+          "links": [
+            79
+          ],
+          "slot_index": 2,
+          "shape": 3
+        },
+        {
+          "name": "TOOLS",
+          "type": "TOOL_LIST",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "MEMORY",
+          "type": "MEMORY",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ExpandAgent"
+      }
+    },
+    {
+      "id": 60,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 10451.6416015625,
+        "1": 234.89724731445312
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 92,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": 52
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": 85
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            56
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What's my name, and what Ruleset do I have?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 74,
+      "type": "Griptape Expand: Agent Nodes",
+      "pos": {
+        "0": 10091.6416015625,
+        "1": 844.8972778320312
+      },
+      "size": {
+        "0": 277.69488525390625,
+        "1": 107.53266143798828
+      },
+      "flags": {},
+      "order": 71,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": 83
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "RULESETS",
+          "type": "RULESET",
+          "links": [
+            85
+          ],
+          "slot_index": 2,
+          "shape": 3
+        },
+        {
+          "name": "TOOLS",
+          "type": "TOOL_LIST",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "MEMORY",
+          "type": "MEMORY",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ExpandAgent"
+      }
+    },
+    {
+      "id": 52,
+      "type": "Griptape Create: Rules",
+      "pos": {
+        "0": 9181.6416015625,
+        "1": 204.89724731445312
+      },
+      "size": {
+        "0": 376.1965637207031,
+        "1": 157.27024841308594
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "RULES",
+          "type": "RULESET",
+          "links": [
+            46
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "NAME",
+          "type": "STRING",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Rule"
+      },
+      "widgets_values": [
+        "Sarcastic Rules",
+        "Be Sarcastic\nAlways end in a question"
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 75,
+      "type": "Note",
+      "pos": {
+        "0": 10461.6416015625,
+        "1": 524.8972778320312
+      },
+      "size": {
+        "0": 320.1329040527344,
+        "1": 100.14620971679688
+      },
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "There is a bug here with the Expand node - ComfyUI is getting confused on what Rulesets are being pulled."
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 57,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 9661.6416015625,
+        "1": 704.8972778320312
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 46,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": 49
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            51
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [
+            53,
+            83
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "Hi I'm Bob, what Ruleset do I have?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 54,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 10891.6416015625,
+        "1": 124.89724731445312
+      },
+      "size": {
+        "0": 388.0193786621094,
+        "1": 124.3904037475586
+      },
+      "flags": {},
+      "order": 72,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 47,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Oh, let me guess, Jason. You probably have the \"I'm Totally Clueless\" ruleset, don't you?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 51,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 3275,
+        "1": 1350
+      },
+      "size": {
+        "0": 367.1373596191406,
+        "1": 106.97498321533203
+      },
+      "flags": {},
+      "order": 91,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 45,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You mentioned that your name is Bob. How can I help you today, Bob?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 65,
+      "type": "Note",
+      "pos": {
+        "0": 11301.6416015625,
+        "1": 124.89724731445312
+      },
+      "size": {
+        "0": 270.5126953125,
+        "1": 109.29426574707031
+      },
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Should have the name Jason, and be sarcastic."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 53,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 9641.6416015625,
+        "1": 164.89724731445312
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 47,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": 46
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            47
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [
+            52,
+            76
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "Hi I'm Jason, what ruleset do I have??"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 77,
+      "type": "Griptape Tool: Calculator",
+      "pos": {
+        "0": 4400,
+        "1": 150
+      },
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "TOOL",
+          "type": "TOOL_LIST",
+          "links": [
+            98
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Calculator"
+      },
+      "widgets_values": [
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 78,
+      "type": "Griptape Tool: DateTime",
+      "pos": {
+        "0": 4400,
+        "1": 375
+      },
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "TOOL",
+          "type": "TOOL_LIST",
+          "links": [
+            99
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DateTime"
+      },
+      "widgets_values": [
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 98,
+      "type": "Griptape Tool: FileManager",
+      "pos": {
+        "0": 4400,
+        "1": 925
+      },
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "TOOL",
+          "type": "TOOL_LIST",
+          "links": [
+            101
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIFileManager"
+      },
+      "widgets_values": [
+        true
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 63,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 10891.6416015625,
+        "1": 854.8972778320312
+      },
+      "size": {
+        "0": 381.0558166503906,
+        "1": 125.87455749511719
+      },
+      "flags": {},
+      "order": 97,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 57,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Oh, Bob, you must be having a blast asking the same question over and over. Your name is Bob, and you have the \"Sarcastic Rules\" ruleset. Isn't that just the most thrilling revelation ever?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 76,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 4950,
+        "1": 100
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": 98
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            104
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What's 2*3 + 46 / 27 * pi"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 101,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 4950,
+        "1": 375
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": 99
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            105
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What day is it today?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 102,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 4925,
+        "1": 650
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 51,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": 100
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            106
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "Explain the benefits of griptape.ai"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 97,
+      "type": "Griptape Tool: WebScraper",
+      "pos": {
+        "0": 4400,
+        "1": 675
+      },
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "TOOL",
+          "type": "TOOL_LIST",
+          "links": [
+            100
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WebScraper"
+      },
+      "widgets_values": [
+        true
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 103,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 4950,
+        "1": 900
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 50,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": 101
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            107
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What files are there?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 99,
+      "type": "Griptape Tool: Audio Transcription",
+      "pos": {
+        "0": 4400,
+        "1": 1200
+      },
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "driver",
+          "type": "DRIVER",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "TOOL",
+          "type": "TOOL_LIST",
+          "links": [
+            102
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtAudioTranscriptionClient"
+      },
+      "widgets_values": [
+        true
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 106,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 6225,
+        "1": 100
+      },
+      "size": {
+        "0": 411.0812683105469,
+        "1": 144.72479248046875
+      },
+      "flags": {},
+      "order": 74,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 104,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "The result of the expression \\(2 \\times 3 + \\frac{46}{27} \\times \\pi\\) is approximately 11.352343039449277."
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 107,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 6225,
+        "1": 350
+      },
+      "size": {
+        "0": 381.0558166503906,
+        "1": 125.87455749511719
+      },
+      "flags": {},
+      "order": 75,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 105,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Today is June 20, 2024."
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 108,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 6225,
+        "1": 650
+      },
+      "size": {
+        "0": 433.832275390625,
+        "1": 130.5673065185547
+      },
+      "flags": {},
+      "order": 77,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 106,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Griptape.ai offers several key benefits:\n\n1. **Comprehensive AI Solution**: Griptape provides a complete solution for building, deploying, and scaling AI applications in the cloud.\n\n2. **Development Framework**: It offers a development framework that allows developers to create AI-powered applications using predictable, programmable Python, which enhances security, performance, and cost-efficiency.\n\n3. **Off-Prompt™ Feature**: This feature further enhances security, performance, and cost-efficiency.\n\n4. **Griptape Cloud**: This service enables the deployment and execution of developed structures with simple API abstractions, eliminating the need for infrastructure management.\n\n5. **Seamless Scaling**: Griptape Cloud allows for seamless scaling to meet workload demands, ensuring that applications can grow as needed without additional infrastructure concerns."
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 110,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 6250,
+        "1": 1100
+      },
+      "size": {
+        "0": 415.5682678222656,
+        "1": 130.39930725097656
+      },
+      "flags": {},
+      "order": 78,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 108,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Exceeded tool limit of 20 subtasks per task"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 113,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 5750,
+        "1": 1225
+      },
+      "size": {
+        "0": 381.0558166503906,
+        "1": 125.87455749511719
+      },
+      "flags": {},
+      "order": 52,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 111,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "C:\\Users\\jason\\Documents\\GitHub\\ComfyUI\\input\\TranscriptionTest.mp3"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 109,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 6250,
+        "1": 900
+      },
+      "size": {
+        "0": 413.7422790527344,
+        "1": 116.30731201171875
+      },
+      "flags": {},
+      "order": 76,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 107,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "The available text files are:\n- CODEOWNERS\n- comfyui.log\n- comfyui.prev.log\n- comfyui.prev2.log\n- cuda_malloc.py\n- execution.py\n- extra_model_paths.yaml.example\n- folder_paths.py\n- latent_preview.py\n- LICENSE\n- main.py\n- new_updater.py\n- nodes.py\n- node_helpers.py\n- poetry.lock\n- pyproject.toml\n- pytest.ini\n- README.md\n- requirements.txt\n- server.py"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 112,
+      "type": "Griptape Load: Audio",
+      "pos": {
+        "0": 4425,
+        "1": 1300
+      },
+      "size": {
+        "0": 293.3836364746094,
+        "1": 102
+      },
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO PATH",
+          "type": "STRING",
+          "links": [
+            111,
+            112
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUILoadAudio"
+      },
+      "widgets_values": [
+        "TranscriptionTest.mp3",
+        "image"
+      ]
+    },
+    {
+      "id": 104,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 4925,
+        "1": 1175
+      },
+      "size": {
+        "0": 395.6390075683594,
+        "1": 204.16990661621094
+      },
+      "flags": {},
+      "order": 53,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": 102
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": 112,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            108
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What does this audio say?\n\n"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 105,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 4950,
+        "1": 1425
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 54,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": 103
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            109
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What happened to Jim Davis from Garfield?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 114,
+      "type": "Griptape Combine: Tool List",
+      "pos": {
+        "0": 4775,
+        "1": 1800
+      },
+      "size": {
+        "0": 226.8000030517578,
+        "1": 126
+      },
+      "flags": {},
+      "order": 55,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "tool_1",
+          "type": "TOOL_LIST",
+          "link": 118
+        },
+        {
+          "name": "tool_2",
+          "type": "TOOL_LIST",
+          "link": 117
+        },
+        {
+          "name": "tool_3",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "tool_4",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "tool_5",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "tool_6",
+          "type": "TOOL_LIST",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "TOOL_LIST",
+          "type": "TOOL_LIST",
+          "links": [
+            119
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ToolList"
+      }
+    },
+    {
+      "id": 111,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 6250,
+        "1": 1400
+      },
+      "size": {
+        "0": 416.5026550292969,
+        "1": 170.6459503173828
+      },
+      "flags": {},
+      "order": 79,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 109,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Jim Davis, the creator of Garfield, is still active and involved with his iconic comic strip. Recently, he made a rare red carpet appearance at a premiere event, indicating that he continues to engage with public and media events related to Garfield. The comic strip remains popular and continues to be published, showcasing its enduring success and global appeal."
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 100,
+      "type": "Griptape Tool: WebSearch",
+      "pos": {
+        "0": 4400,
+        "1": 1475
+      },
+      "size": {
+        "0": 323.5010681152344,
+        "1": 58
+      },
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "driver",
+          "type": "WEB_SEARCH_DRIVER",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "TOOL",
+          "type": "TOOL_LIST",
+          "links": [
+            103,
+            118
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIWebSearch"
+      },
+      "widgets_values": [
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 117,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 5450,
+        "1": 1650
+      },
+      "size": {
+        "0": 382.9300842285156,
+        "1": 175.2031707763672
+      },
+      "flags": {},
+      "order": 94,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 120,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "Here are 5 websites with information about LLMs:\n\n1. [Large language model - Wikipedia](https://en.wikipedia.org/wiki/Large_language_model)\n2. [What Are Large Language Models (LLMs)? | IBM](https://www.ibm.com/topics/large-language-models)\n3. [What are LLMs, and how are they used in generative AI? | Computerworld](https://www.computerworld.com/article/1627101/what-are-large-language-models-and-how-are-they-used-in-generative-ai.html)\n4. [Introduction to Large Language Models - Google Developers](https://developers.google.com/machine-learning/resources/intro-llms)\n5. [What is an LLM? A Guide on Large Language Models and How ... - DataCamp](https://www.datacamp.com/blog/what-is-an-llm-a-guide-on-large-language-models)"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 116,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 5000,
+        "1": 1750
+      },
+      "size": {
+        "0": 330.53009033203125,
+        "1": 201.30316162109375
+      },
+      "flags": {},
+      "order": 80,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": 119
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            120
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [
+            121
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "Find 5 websites with information about LLMs, and return the URLs"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 119,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 6200,
+        "1": 1900
+      },
+      "size": {
+        "0": 416.5026550292969,
+        "1": 170.6459503173828
+      },
+      "flags": {},
+      "order": 98,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 122,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "\nLarge language models, powerful they are. General-purpose language generation, they achieve. By learning from vast text data, their abilities they gain. Transformers, their architecture is. Text generation, classification, and more, they perform. Biases and inaccuracies, inherit they do. Notable models, GPT, BERT, and others are. Efficient processing, they enable. In context learning, emergent abilities they show. Complex tasks, they handle. Powerful tools, they are, but careful use, they require."
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 118,
+      "type": "Griptape Run: Agent",
+      "pos": {
+        "0": 5450,
+        "1": 1900
+      },
+      "size": {
+        "0": 407.3964538574219,
+        "1": 145.22044372558594
+      },
+      "flags": {},
+      "order": 95,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": 121
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            122
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RunAgent"
+      },
+      "widgets_values": [
+        "",
+        "Get the content from the first website, and briefly summarize it for me as Yoda."
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 115,
+      "type": "Griptape Tool: WebScraper",
+      "pos": {
+        "0": 4400,
+        "1": 1900
+      },
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "TOOL",
+          "type": "TOOL_LIST",
+          "links": [
+            117
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WebScraper"
+      },
+      "widgets_values": [
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 120,
+      "type": "Griptape Agent Config: Amazon Bedrock Drivers",
+      "pos": {
+        "0": 6925,
+        "1": 100
+      },
+      "size": {
+        "0": 567,
+        "1": 433
+      },
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Griptape Agent Config: Amazon Bedrock Drivers"
+      },
+      "widgets_values": [
+        "Prompt Driver",
+        "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        10,
+        0.1,
+        10342349342,
+        "fixed",
+        true,
+        -1,
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_DEFAULT_REGION",
+        "Embedding Driver",
+        "amazon.titan-text-premier-v1:0",
+        "Image Generation Driver",
+        "amazon.titan-image-generator-v1",
+        "512x512"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 122,
+      "type": "Griptape Agent Config: Azure OpenAI Drivers",
+      "pos": {
+        "0": 6975,
+        "1": 1075
+      },
+      "size": {
+        "0": 541.800048828125,
+        "1": 529
+      },
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": [
+            124
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Griptape Agent Config: Azure OpenAI Drivers"
+      },
+      "widgets_values": [
+        "Prompt Driver",
+        "gpt-4o",
+        10,
+        0.1,
+        10342349342,
+        "fixed",
+        true,
+        -1,
+        "gpt-4o",
+        "default",
+        "AZURE_OPENAI_ENDPOINT",
+        "AZURE_OPENAI_API_KEY",
+        "Image Generation Driver",
+        "dall-e-3",
+        "dall-e-3",
+        "1024x1024",
+        "AZURE_OPENAI_DALL_E_3_ENDPOINT",
+        "AZURE_OPENAI_DALL_E_3_API_KEY",
+        "Embedding Driver",
+        "text-embedding-3-small"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 124,
+      "type": "Griptape Agent Config: Google Drivers",
+      "pos": {
+        "0": 7000,
+        "1": 2100
+      },
+      "size": {
+        "0": 466.1999816894531,
+        "1": 332
+      },
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": [
+            126
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Griptape Agent Config: Google Drivers"
+      },
+      "widgets_values": [
+        "Prompt Driver",
+        "gemini-1.5-pro",
+        10,
+        0.1,
+        10342349342,
+        "fixed",
+        true,
+        -1,
+        "GOOGLE_API_KEY",
+        "Embedding Driver",
+        "models/embedding-001",
+        "RETRIEVAL_QUERY"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 126,
+      "type": "Griptape Agent Config: LM Studio Drivers",
+      "pos": {
+        "0": 7050,
+        "1": 3050
+      },
+      "size": {
+        "0": 504,
+        "1": 380
+      },
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": [
+            128
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Griptape Agent Config: LM Studio Drivers"
+      },
+      "widgets_values": [
+        "Prompt Driver",
+        null,
+        10,
+        0.1,
+        10342349342,
+        "fixed",
+        false,
+        -1,
+        "default",
+        "http://127.0.0.1",
+        "1234",
+        "lm_studio",
+        "Embedding Driver",
+        null
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 128,
+      "type": "Griptape Agent Config: OpenAI Drivers",
+      "pos": {
+        "0": 7050,
+        "1": 3900
+      },
+      "size": {
+        "0": 466.1999816894531,
+        "1": 539
+      },
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": [
+            130
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Griptape Agent Config: OpenAI Drivers"
+      },
+      "widgets_values": [
+        "Prompt Driver",
+        "gpt-4o",
+        10,
+        0.1,
+        10342349342,
+        "fixed",
+        true,
+        -1,
+        "default",
+        "OPENAI_API_KEY",
+        "Image Generation Driver",
+        "dall-e-3",
+        "1024x1024",
+        "Embedding Driver",
+        "text-embedding-3-small",
+        "Text To Speech Driver",
+        "tts-1",
+        "alloy",
+        "Audio Transcription Driver",
+        "whisper-1"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 81,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 8425,
+        "1": 150
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 60,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 87,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You're currently interacting with a language model developed by OpenAI, specifically based on the GPT-4 architecture. How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 79,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 7825,
+        "1": 150
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": null
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            87
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What LLM model am I using?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 138,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 8475,
+        "1": 675
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 85,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 140,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You're currently interacting with a language model developed by OpenAI, specifically based on the GPT-4 architecture. How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 140,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 8475,
+        "1": 1700
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 86,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 138,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You're currently interacting with a language model developed by OpenAI, specifically based on the GPT-4 architecture. How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 142,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 8500,
+        "1": 2725
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 87,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 136,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You're currently interacting with a language model developed by OpenAI, specifically based on the GPT-4 architecture. How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 121,
+      "type": "Griptape Agent Config: Anthropic Drivers",
+      "pos": {
+        "0": 6950,
+        "1": 625
+      },
+      "size": {
+        "0": 504,
+        "1": 356
+      },
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": [
+            123
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Griptape Agent Config: Anthropic Drivers"
+      },
+      "widgets_values": [
+        "Prompt Driver",
+        "claude-3-5-sonnet-20240620",
+        10,
+        0.1,
+        10342349342,
+        "fixed",
+        true,
+        -1,
+        "ANTHROPIC_API_KEY",
+        "Embedding Driver",
+        "VOYAGE_API_KEY",
+        "voyage-large-2",
+        "document"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 131,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 7825,
+        "1": 1100
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 56,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": 124
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            139
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What LLM model am I using?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 123,
+      "type": "Griptape Agent Config: Cohere Drivers",
+      "pos": {
+        "0": 6950,
+        "1": 1700
+      },
+      "size": {
+        "0": 466.1999816894531,
+        "1": 308
+      },
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": [
+            125
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Griptape Agent Config: Cohere Drivers"
+      },
+      "widgets_values": [
+        "Prompt Driver",
+        "command-r-plus",
+        10,
+        10342349342,
+        "fixed",
+        true,
+        -1,
+        "COHERE_API_KEY",
+        "Embedding Driver",
+        "embed-english-v3.0",
+        "search_query"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 133,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 7825,
+        "1": 2175
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 57,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": 126
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            137
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What LLM model am I using?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 125,
+      "type": "Griptape Agent Config: HuggingFace Drivers",
+      "pos": {
+        "0": 7025,
+        "1": 2600
+      },
+      "size": {
+        "0": 529.199951171875,
+        "1": 356
+      },
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": [
+            127
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Griptape Agent Config: HuggingFace Drivers"
+      },
+      "widgets_values": [
+        "Prompt Driver",
+        "HuggingFaceH4/zephyr-7b-beta",
+        10,
+        0.1,
+        10342349342,
+        "fixed",
+        true,
+        -1,
+        "HUGGINGFACE_HUB_ACCESS_TOKEN",
+        "Embedding Driver",
+        "sentence-transformers/all-MiniLM-L6-v2",
+        "sentence-transformers/all-MiniLM-L6-v2",
+        512
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 135,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 7825,
+        "1": 3125
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 58,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": 128
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            135
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What LLM model am I using?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 127,
+      "type": "Griptape Agent Config: Ollama Drivers",
+      "pos": {
+        "0": 7075,
+        "1": 3525
+      },
+      "size": {
+        "0": 466.1999816894531,
+        "1": 332
+      },
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": [
+            129
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Griptape Agent Config: Ollama Drivers"
+      },
+      "widgets_values": [
+        "http://127.0.0.1",
+        "11434",
+        "Prompt Driver",
+        null,
+        10,
+        0.1,
+        10342349342,
+        "fixed",
+        true,
+        -1,
+        "Embedding Driver",
+        null
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 137,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 7850,
+        "1": 4050
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 59,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": 130
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            133
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What LLM model am I using?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 129,
+      "type": "Griptape Agent Config: OpenAI Compatible Drivers",
+      "pos": {
+        "0": 7075,
+        "1": 4525
+      },
+      "size": {
+        "0": 604.800048828125,
+        "1": 563
+      },
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CONFIG",
+          "type": "CONFIG",
+          "links": [
+            131
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Griptape Agent Config: OpenAI Compatible Drivers"
+      },
+      "widgets_values": [
+        "Prompt Driver",
+        "gpt-4o",
+        10,
+        0.1,
+        10342349342,
+        "fixed",
+        true,
+        -1,
+        "default",
+        "OPENAI_API_KEY",
+        "https://api.openai.com/v1",
+        "Image Generation Driver",
+        "dall-e-3",
+        "1024x1024",
+        "Embedding Driver",
+        "text-embedding-3-small",
+        "Text To Speech Driver",
+        "tts-1",
+        "alloy",
+        "Audio Transcription Driver",
+        "whisper-1"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 146,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 8475,
+        "1": 4500
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 89,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 132,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You're currently interacting with a language model developed by OpenAI, specifically based on the GPT-4 architecture. How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 147,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 7875,
+        "1": 4500
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 65,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": 131
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            132
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What LLM model am I using?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 145,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 8550,
+        "1": 4050
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 84,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 133,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You're currently interacting with a language model developed by OpenAI, specifically based on the GPT-4 architecture. How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 144,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 8500,
+        "1": 3575
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 88,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 134,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You're currently interacting with a language model developed by OpenAI, specifically based on the GPT-4 architecture. How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 136,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 7875,
+        "1": 3575
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 64,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": 129
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            134
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What LLM model am I using?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 143,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 8525,
+        "1": 3100
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 83,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 135,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You're currently interacting with a language model developed by OpenAI, specifically based on the GPT-4 architecture. How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 134,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 7825,
+        "1": 2675
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 63,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": 127
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            136
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What LLM model am I using?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 141,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 8475,
+        "1": 2225
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 82,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 137,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You're currently interacting with a language model developed by OpenAI, specifically based on the GPT-4 architecture. How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 132,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 7825,
+        "1": 1700
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 62,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": 125
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            138
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What LLM model am I using?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 139,
+      "type": "Griptape Display: Text",
+      "pos": {
+        "0": 8450,
+        "1": 1175
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 81,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "INPUT",
+          "type": "STRING",
+          "link": 139,
+          "widget": {
+            "name": "INPUT"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "gtUIOutputStringNode"
+      },
+      "widgets_values": [
+        "",
+        "You're currently interacting with a language model developed by OpenAI, specifically based on the GPT-4 architecture. How can I assist you today?"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 130,
+      "type": "Griptape Create: Agent",
+      "pos": {
+        "0": 7825,
+        "1": 675
+      },
+      "size": [
+        400,
+        200
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 61,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "agent",
+          "type": "AGENT",
+          "link": null
+        },
+        {
+          "name": "config",
+          "type": "CONFIG",
+          "link": 123
+        },
+        {
+          "name": "tools",
+          "type": "TOOL_LIST",
+          "link": null
+        },
+        {
+          "name": "rulesets",
+          "type": "RULESET",
+          "link": null
+        },
+        {
+          "name": "input_string",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "input_string"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "OUTPUT",
+          "type": "STRING",
+          "links": [
+            140
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "AGENT",
+          "type": "AGENT",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateAgent"
+      },
+      "widgets_values": [
+        "",
+        "What LLM model am I using?"
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    }
+  ],
+  "links": [
+    [
+      10,
+      10,
+      0,
+      13,
+      0,
+      "STRING"
+    ],
+    [
+      11,
+      4,
+      1,
+      12,
+      0,
+      "CLIP"
+    ],
+    [
+      12,
+      10,
+      0,
+      12,
+      1,
+      "STRING"
+    ],
+    [
+      19,
+      4,
+      1,
+      24,
+      0,
+      "CLIP"
+    ],
+    [
+      20,
+      22,
+      0,
+      24,
+      1,
+      "STRING"
+    ],
+    [
+      27,
+      25,
+      0,
+      14,
+      -1,
+      "STRING"
+    ],
+    [
+      28,
+      25,
+      0,
+      14,
+      1,
+      "STRING"
+    ],
+    [
+      29,
+      25,
+      0,
+      14,
+      1,
+      "STRING"
+    ],
+    [
+      31,
+      26,
+      0,
+      14,
+      0,
+      "STRING"
+    ],
+    [
+      32,
+      14,
+      0,
+      28,
+      0,
+      "STRING"
+    ],
+    [
+      33,
+      29,
+      0,
+      32,
+      0,
+      "STRING"
+    ],
+    [
+      34,
+      35,
+      1,
+      34,
+      0,
+      "AGENT"
+    ],
+    [
+      35,
+      34,
+      0,
+      36,
+      0,
+      "STRING"
+    ],
+    [
+      36,
+      37,
+      0,
+      38,
+      1,
+      "STRING"
+    ],
+    [
+      37,
+      38,
+      1,
+      39,
+      0,
+      "AGENT"
+    ],
+    [
+      38,
+      39,
+      0,
+      40,
+      0,
+      "STRING"
+    ],
+    [
+      39,
+      41,
+      0,
+      42,
+      0,
+      "STRING"
+    ],
+    [
+      41,
+      45,
+      0,
+      47,
+      0,
+      "STRING"
+    ],
+    [
+      43,
+      45,
+      1,
+      50,
+      0,
+      "AGENT"
+    ],
+    [
+      44,
+      50,
+      0,
+      49,
+      0,
+      "AGENT"
+    ],
+    [
+      45,
+      49,
+      0,
+      51,
+      0,
+      "STRING"
+    ],
+    [
+      46,
+      52,
+      0,
+      53,
+      3,
+      "RULESET"
+    ],
+    [
+      47,
+      53,
+      0,
+      54,
+      0,
+      "STRING"
+    ],
+    [
+      49,
+      56,
+      0,
+      57,
+      3,
+      "RULESET"
+    ],
+    [
+      51,
+      57,
+      0,
+      59,
+      0,
+      "STRING"
+    ],
+    [
+      52,
+      53,
+      1,
+      60,
+      0,
+      "AGENT"
+    ],
+    [
+      53,
+      57,
+      1,
+      61,
+      0,
+      "AGENT"
+    ],
+    [
+      56,
+      60,
+      0,
+      62,
+      0,
+      "STRING"
+    ],
+    [
+      57,
+      61,
+      0,
+      63,
+      0,
+      "STRING"
+    ],
+    [
+      76,
+      53,
+      1,
+      71,
+      0,
+      "AGENT"
+    ],
+    [
+      79,
+      71,
+      2,
+      61,
+      3,
+      "RULESET"
+    ],
+    [
+      83,
+      57,
+      1,
+      74,
+      0,
+      "AGENT"
+    ],
+    [
+      85,
+      74,
+      2,
+      60,
+      3,
+      "RULESET"
+    ],
+    [
+      87,
+      79,
+      0,
+      81,
+      0,
+      "STRING"
+    ],
+    [
+      98,
+      77,
+      0,
+      76,
+      2,
+      "TOOL_LIST"
+    ],
+    [
+      99,
+      78,
+      0,
+      101,
+      2,
+      "TOOL_LIST"
+    ],
+    [
+      100,
+      97,
+      0,
+      102,
+      2,
+      "TOOL_LIST"
+    ],
+    [
+      101,
+      98,
+      0,
+      103,
+      2,
+      "TOOL_LIST"
+    ],
+    [
+      102,
+      99,
+      0,
+      104,
+      2,
+      "TOOL_LIST"
+    ],
+    [
+      103,
+      100,
+      0,
+      105,
+      2,
+      "TOOL_LIST"
+    ],
+    [
+      104,
+      76,
+      0,
+      106,
+      0,
+      "STRING"
+    ],
+    [
+      105,
+      101,
+      0,
+      107,
+      0,
+      "STRING"
+    ],
+    [
+      106,
+      102,
+      0,
+      108,
+      0,
+      "STRING"
+    ],
+    [
+      107,
+      103,
+      0,
+      109,
+      0,
+      "STRING"
+    ],
+    [
+      108,
+      104,
+      0,
+      110,
+      0,
+      "STRING"
+    ],
+    [
+      109,
+      105,
+      0,
+      111,
+      0,
+      "STRING"
+    ],
+    [
+      111,
+      112,
+      0,
+      113,
+      0,
+      "STRING"
+    ],
+    [
+      112,
+      112,
+      0,
+      104,
+      4,
+      "STRING"
+    ],
+    [
+      117,
+      115,
+      0,
+      114,
+      1,
+      "TOOL_LIST"
+    ],
+    [
+      118,
+      100,
+      0,
+      114,
+      0,
+      "TOOL_LIST"
+    ],
+    [
+      119,
+      114,
+      0,
+      116,
+      2,
+      "TOOL_LIST"
+    ],
+    [
+      120,
+      116,
+      0,
+      117,
+      0,
+      "STRING"
+    ],
+    [
+      121,
+      116,
+      1,
+      118,
+      0,
+      "AGENT"
+    ],
+    [
+      122,
+      118,
+      0,
+      119,
+      0,
+      "STRING"
+    ],
+    [
+      123,
+      121,
+      0,
+      130,
+      1,
+      "CONFIG"
+    ],
+    [
+      124,
+      122,
+      0,
+      131,
+      1,
+      "CONFIG"
+    ],
+    [
+      125,
+      123,
+      0,
+      132,
+      1,
+      "CONFIG"
+    ],
+    [
+      126,
+      124,
+      0,
+      133,
+      1,
+      "CONFIG"
+    ],
+    [
+      127,
+      125,
+      0,
+      134,
+      1,
+      "CONFIG"
+    ],
+    [
+      128,
+      126,
+      0,
+      135,
+      1,
+      "CONFIG"
+    ],
+    [
+      129,
+      127,
+      0,
+      136,
+      1,
+      "CONFIG"
+    ],
+    [
+      130,
+      128,
+      0,
+      137,
+      1,
+      "CONFIG"
+    ],
+    [
+      131,
+      129,
+      0,
+      147,
+      1,
+      "CONFIG"
+    ],
+    [
+      132,
+      147,
+      0,
+      146,
+      0,
+      "STRING"
+    ],
+    [
+      133,
+      137,
+      0,
+      145,
+      0,
+      "STRING"
+    ],
+    [
+      134,
+      136,
+      0,
+      144,
+      0,
+      "STRING"
+    ],
+    [
+      135,
+      135,
+      0,
+      143,
+      0,
+      "STRING"
+    ],
+    [
+      136,
+      134,
+      0,
+      142,
+      0,
+      "STRING"
+    ],
+    [
+      137,
+      133,
+      0,
+      141,
+      0,
+      "STRING"
+    ],
+    [
+      138,
+      132,
+      0,
+      140,
+      0,
+      "STRING"
+    ],
+    [
+      139,
+      131,
+      0,
+      139,
+      0,
+      "STRING"
+    ],
+    [
+      140,
+      130,
+      0,
+      138,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "Text Nodes",
+      "bounding": [
+        5,
+        -4,
+        1212,
+        901
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Agents",
+      "bounding": [
+        1500,
+        0,
+        2618,
+        1686
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Expand Agent Nodes",
+      "bounding": [
+        9071,
+        -11,
+        2643,
+        1149
+      ],
+      "color": "#A88",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Agent Tools",
+      "bounding": [
+        4375,
+        0,
+        2328,
+        2114
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "title": "Agent Configs",
+      "bounding": [
+        6825,
+        0,
+        2237,
+        5393
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.23939204936916375,
+      "offset": [
+        -3685.6615473296415,
+        -438.3250105721304
+      ]
+    }
+  },
+  "version": 0.4
+}

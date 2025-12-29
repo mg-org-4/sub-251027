@@ -1,2 +1,0 @@
-- Use the gh cli tool for all github related tasks
-- After making any substantial set of changes, please make a commit to git

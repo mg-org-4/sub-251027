@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 限定样式只作用于 opencut-root 容器内 */
+#opencut-root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  color: #374151;
+
+  /* 基础重置 */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  /* PrimeVue Aura 主题 CSS 变量 - 限定在容器内 */
+  --p-primary-50: #ecfeff;
+  --p-primary-100: #cffafe;
+  --p-primary-200: #a5f3fc;
+  --p-primary-300: #67e8f9;
+  --p-primary-400: #22d3ee;
+  --p-primary-500: #06b6d4;
+  --p-primary-600: #0891b2;
+  --p-primary-700: #0e7490;
+  --p-primary-800: #155e75;
+  --p-primary-900: #164e63;
+  --p-primary-950: #083344;
+
+  --p-surface-0: #ffffff;
+  --p-surface-50: #f8fafc;
+  --p-surface-100: #f1f5f9;
+  --p-surface-200: #e2e8f0;
+  --p-surface-300: #cbd5e1;
+  --p-surface-400: #94a3b8;
+  --p-surface-500: #64748b;
+  --p-surface-600: #475569;
+  --p-surface-700: #334155;
+  --p-surface-800: #1e293b;
+  --p-surface-900: #0f172a;
+  --p-surface-950: #020617;
+
+  --p-content-border-radius: 6px;
+  --p-mask-background: rgba(0, 0, 0, 0.4);
+  --p-focus-ring-width: 2px;
+  --p-focus-ring-style: solid;
+  --p-focus-ring-color: var(--p-primary-500);
+  --p-focus-ring-offset: 2px;
+
+  /* 文本颜色 */
+  --p-text-color: var(--p-surface-700);
+  --p-text-muted-color: var(--p-surface-500);
+
+  /* 边框 */
+  --p-content-border-color: var(--p-surface-200);
+
+  /* 背景 */
+  --p-content-background: var(--p-surface-0);
+  --p-content-hover-background: var(--p-surface-100);
+
+  /* Dialog 特定样式 */
+  .p-dialog {
+    background: var(--p-surface-0);
+    border: 1px solid var(--p-surface-200);
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  }
+
+  .p-dialog-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--p-surface-200);
+    background: var(--p-surface-50);
+    border-radius: 12px 12px 0 0;
+  }
+
+  .p-dialog-title {
+    font-weight: 600;
+    font-size: 1.125rem;
+    color: var(--p-surface-900);
+  }
+
+  .p-dialog-content {
+    padding: 1.5rem;
+    background: var(--p-surface-0);
+  }
+
+  .p-dialog-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--p-surface-200);
+    background: var(--p-surface-50);
+    border-radius: 0 0 12px 12px;
+  }
+}

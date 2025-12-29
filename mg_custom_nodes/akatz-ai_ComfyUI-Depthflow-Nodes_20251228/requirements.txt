@@ -1,4 +1,0 @@
-numpy
-depthflow==0.9.1
-pydantic
-opencv-python

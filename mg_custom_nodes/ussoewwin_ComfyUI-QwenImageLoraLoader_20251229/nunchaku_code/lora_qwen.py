@@ -1,5 +1,6 @@
 import functools
 import logging
+import os
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -18,6 +19,13 @@ from nunchaku.lora.flux.nunchaku_converter import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Safety switch:
+# QwenImage's modulation linears (`img_mod.1` / `txt_mod.1`) are extremely sensitive because their
+# output is reshaped into shift/scale/gate parameters. With AWQ quantization (AWQW4A16Linear),
+# applying LoRA here often results in severe noise. Default to skipping these two layers.
+# Users can override by setting env var `QWENIMAGE_LORA_APPLY_AWQ_MOD=1`.
+_APPLY_AWQ_MOD = str(os.getenv("QWENIMAGE_LORA_APPLY_AWQ_MOD", "0")).strip().lower() in ("1", "true", "yes", "y", "on")
 
 # --- Active mapping (selected per-model at runtime in compose_loras_v2) ---
 _ACTIVE_KEY_MAPPING: Optional[List[Tuple[re.Pattern, str, str, Optional[Any]]]] = None
@@ -207,12 +215,49 @@ def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], s
     The implementation is new and optimized, but the name and signature are preserved.
     """
     k = key
-    if k.startswith("transformer."):
-        k = k[len("transformer."):]
-    if k.startswith("diffusion_model."):
-        k = k[len("diffusion_model."):]
+
+    # Normalize common wrapper prefixes seen across various training toolchains / loaders.
+    # This is intentionally permissive: it only strips *known* prefixes at the start
+    # and then keeps the rest of the mapping logic unchanged.
+    #
+    # Examples we want to support (all should map to the same internal base):
+    # - diffusion_model.transformer_blocks.0.attn.to_q.lora_A.weight
+    # - model.diffusion_model.transformer_blocks.0.attn.to_q.lora_A.weight
+    # - base_model.model.diffusion_model.transformer_blocks.0.attn.to_q.lora_A.weight
+    # - unet.transformer_blocks.0.attn.to_q.lora_A.weight
+    # - lora_unet_transformer_blocks_0_attn_to_q.lora_down.weight
+    #
+    # IMPORTANT: Do not change legacy log messages; only normalize keys.
+    prefix_strips = (
+        # wrappers / nesting
+        "base_model.model.",
+        "model.model.",
+        "model.",
+        "module.",
+        "wrapped_model.",
+        "wrapped.",
+        # model roots
+        "unet.",
+        "diffusion_model.",
+        "transformer.",
+    )
+    changed = True
+    while changed:
+        changed = False
+        for p in prefix_strips:
+            if k.startswith(p):
+                k = k[len(p):]
+                changed = True
+                break
+
+    # Kohya-style (and some other) exports use underscore-separated module names under a "lora_unet_" prefix.
+    # Normalize those into dot-separated module names before applying regex mapping rules.
     if k.startswith("lora_unet_"):
         k = k[len("lora_unet_"):]
+        k = _rename_layer_underscore_layer_name(k)
+    elif k.startswith("lora_diffusion_model_"):
+        # Less common: some exports use "lora_diffusion_model_" instead of "lora_unet_"
+        k = k[len("lora_diffusion_model_"):]
         k = _rename_layer_underscore_layer_name(k)
 
 
@@ -963,6 +1008,39 @@ def _apply_lora_to_module(module: nn.Module, A: torch.Tensor, B: torch.Tensor, m
         
         # Apply to weight
         module.weight.data.add_(delta.to(dtype=module.weight.dtype, device=module.weight.device))
+
+    # Handle quantized AWQW4A16Linear (no proj_down/proj_up, no direct weight access)
+    # Strategy: keep quantized weights intact and add LoRA delta at runtime:
+    #   y = awq_linear(x) + (x @ A^T) @ B^T
+    #
+    # This avoids dequantizing / re-quantizing weights and matches LoRA math exactly,
+    # at the cost of extra compute for the LoRA branch only.
+    elif module.__class__.__name__ == "AWQW4A16Linear" and hasattr(module, "qweight") and hasattr(module, "wscales") and hasattr(module, "wzeros"):
+        if not hasattr(model, "_lora_slots"):
+            model._lora_slots = {}
+
+        # Save original forward once
+        if not hasattr(module, "_lora_original_forward"):
+            module._lora_original_forward = module.forward
+
+        # Store LoRA weights on the module (already scaled/concatenated by caller)
+        module._lora_A = A
+        module._lora_B = B
+
+        def _forward_with_lora(x: torch.Tensor) -> torch.Tensor:
+            # Base quantized forward
+            y = module._lora_original_forward(x)
+            # LoRA branch (dtype/device should already match caller cast)
+            # A: [rank, in], B: [out, rank]
+            lora_out = (x @ module._lora_A.T) @ module._lora_B.T
+            return y + lora_out.to(dtype=y.dtype, device=y.device)
+
+        module.forward = _forward_with_lora
+
+        # Track for reset
+        model._lora_slots[module_name] = {
+            "type": "awq_w4a16",
+        }
     
     else:
         # Should be caught by caller, but safety check
@@ -970,6 +1048,53 @@ def _apply_lora_to_module(module: nn.Module, A: torch.Tensor, B: torch.Tensor, m
 
 
 # --- Main Public API ---
+
+def _detect_lora_format(lora_state_dict: Dict[str, torch.Tensor]) -> Dict[str, Any]:
+    """
+    Detect LoRA format from state dict keys.
+    Returns a dictionary with format detection results.
+    """
+    has_lokr = False
+    has_loha = False
+    has_ia3 = False
+    has_standard = False
+    
+    lokr_keys = []
+    loha_keys = []
+    ia3_keys = []
+    standard_keys = []
+    
+    for key in lora_state_dict.keys():
+        key_lower = key.lower()
+        # LoKR format detection
+        if "lokr_w1" in key or "lokr_w2" in key:
+            has_lokr = True
+            lokr_keys.append(key)
+        # LoHa format detection
+        elif "hada_w1" in key or "hada_w2" in key or "hada_t1" in key or "hada_t2" in key:
+            has_loha = True
+            loha_keys.append(key)
+        # IA3 format detection
+        elif "ia3_w" in key or key.endswith(".ia3.weight"):
+            has_ia3 = True
+            ia3_keys.append(key)
+        # Standard LoRA format detection
+        elif any(suffix in key for suffix in ["lora_up.weight", "lora_down.weight", "lora.up.weight", "lora.down.weight", 
+                                               "lora_A.weight", "lora_B.weight", "lora.A.weight", "lora.B.weight"]):
+            has_standard = True
+            standard_keys.append(key)
+    
+    return {
+        "has_lokr": has_lokr,
+        "has_loha": has_loha,
+        "has_ia3": has_ia3,
+        "has_standard": has_standard,
+        "lokr_keys": lokr_keys,
+        "loha_keys": loha_keys,
+        "ia3_keys": ia3_keys,
+        "standard_keys": standard_keys[:10],  # Limit to first 10 for logging
+    }
+
 
 def compose_loras_v2(
         model: torch.nn.Module,
@@ -980,6 +1105,7 @@ def compose_loras_v2(
     """
     logger.info(f"Composing {len(lora_configs)} LoRAs...")
     reset_lora_v2(model)
+    
 
     # Select mapping based on model structure (NextDiT vs fused Nunchaku-style)
     # IMPORTANT: This must not change existing log messages; it only affects internal mapping.
@@ -1034,6 +1160,71 @@ def compose_loras_v2(
     for lora_path_or_dict, strength in lora_configs:
         lora_name = lora_path_or_dict if isinstance(lora_path_or_dict, str) else "dict"
         lora_state_dict = _load_lora_state_dict(lora_path_or_dict)
+        
+        # Detect and log LoRA format for this file
+        format_info = _detect_lora_format(lora_state_dict)
+        logger.info("=" * 80)
+        logger.info(f"LoRA Format Detection: {lora_name}")
+        logger.info("=" * 80)
+        
+        detected_formats = []
+        if format_info["has_standard"]:
+            detected_formats.append("✅ Standard LoRA (Rank-Decomposed)")
+        if format_info["has_lokr"]:
+            detected_formats.append("❌ LoKR (Lycoris) - Not Supported")
+        if format_info["has_loha"]:
+            detected_formats.append("❌ LoHa (Lycoris) - Not Supported")
+        if format_info["has_ia3"]:
+            detected_formats.append("❌ IA3 - Not Supported")
+        
+        if not detected_formats:
+            logger.info("❌ Unknown/Unsupported Format - No recognized LoRA format detected")
+        else:
+            logger.info("Detected Formats:")
+            for fmt in detected_formats:
+                logger.info(f"  {fmt}")
+        
+        if format_info["has_standard"]:
+            logger.info("")
+            logger.info("✅ Standard LoRA Details:")
+            logger.info("   Supported weight keys:")
+            logger.info("   - lora_up.weight / lora_down.weight")
+            logger.info("   - lora.up.weight / lora.down.weight")
+            logger.info("   - lora_A.weight / lora_B.weight")
+            logger.info("   - lora.A.weight / lora.B.weight")
+            logger.info("   These are the standard formats produced by Kohya-ss, Diffusers, and most training scripts.")
+        
+        if format_info["has_lokr"]:
+            logger.info("")
+            logger.info("❌ LoKR (Lycoris) - Not Supported")
+            logger.info("   Issue: LoRAs in LoKR format (created by Lycoris) are not supported.")
+            logger.info("   Important Note: This limitation applies specifically to Nunchaku quantization models.")
+            logger.info("   LoKR format LoRAs may work with standard (non-quantized) Qwen Image models, but this node is designed for Nunchaku models only.")
+            logger.info("   LoKR weights are automatically skipped when detected (experimental conversion code is disabled).")
+            logger.info("   Converting to Standard LoRA using SVD approximation (via external tools or scripts) has also been tested")
+            logger.info("   and found to result in noise/artifacts when applied to Nunchaku quantization models.")
+            logger.info("   Conclusion: At this time, we have not found a way to successfully apply LoKR weights to Nunchaku models.")
+            logger.info("   Please use Standard LoRA formats.")
+            if format_info["lokr_keys"]:
+                logger.info(f"   Sample LoKR keys found: {format_info['lokr_keys'][:3]}")
+                if len(format_info["lokr_keys"]) > 3:
+                    logger.info(f"   ... and {len(format_info['lokr_keys']) - 3} more LoKR keys")
+        
+        if format_info["has_loha"]:
+            logger.info("")
+            logger.info("❌ LoHa (Lycoris) - Not Supported")
+            logger.info("   Keys like hada_w1, hada_w2 are not supported.")
+            if format_info["loha_keys"]:
+                logger.info(f"   Sample LoHa keys found: {format_info['loha_keys'][:3]}")
+        
+        if format_info["has_ia3"]:
+            logger.info("")
+            logger.info("❌ IA3 - Not Supported")
+            logger.info("   IA3 format is not supported.")
+            if format_info["ia3_keys"]:
+                logger.info(f"   Sample IA3 keys found: {format_info['ia3_keys'][:3]}")
+        
+        logger.info("=" * 80)
 
         lora_grouped: Dict[str, Dict[str, torch.Tensor]] = defaultdict(dict)
         lokr_keys_count = 0
@@ -1189,7 +1380,26 @@ def compose_loras_v2(
             # Additive collection for visualization
             miss_not_found.append(f"[MISS] Module not found: {module_name} (resolved: {resolved_name})")
             continue
-        if not (hasattr(module, "proj_down") and hasattr(module, "proj_up")) and not isinstance(module, nn.Linear):
+        is_nunchaku_lora_ready = hasattr(module, "proj_down") and hasattr(module, "proj_up")
+        is_linear = isinstance(module, nn.Linear)
+        is_awq_w4a16 = (
+            module.__class__.__name__ == "AWQW4A16Linear"
+            and hasattr(module, "qweight")
+            and hasattr(module, "wscales")
+            and hasattr(module, "wzeros")
+            and hasattr(module, "in_features")
+            and hasattr(module, "out_features")
+        )
+
+        # Default-skip AWQ modulation layers to avoid catastrophic noise.
+        if is_awq_w4a16 and (".img_mod.1" in resolved_name or ".txt_mod.1" in resolved_name) and not _APPLY_AWQ_MOD:
+            logger.warning(
+                f"[SKIP] {resolved_name}: AWQ modulation layer LoRA is disabled by default (prevents noise). "
+                f"Set QWENIMAGE_LORA_APPLY_AWQ_MOD=1 to force-enable."
+            )
+            continue
+
+        if not (is_nunchaku_lora_ready or is_linear or is_awq_w4a16):
             # Legacy log (do not change)
             logger.info(f"[MISS] Module found but unsupported/missing proj_down/proj_up: {resolved_name} (Type: {type(module)})")
             # Additive collection for visualization
@@ -1204,17 +1414,39 @@ def compose_loras_v2(
             scale_alpha = alpha.item() if alpha is not None else float(r_lora)
             scale = strength * (scale_alpha / max(1.0, float(r_lora)))
 
+            # QwenImage modulation layers (img_mod.1 / txt_mod.1) are AWQ-quantized in Nunchaku
+            # and their output is *interleaved* as [B, dim, 6] flattened, then later reordered by:
+            #   view(B, dim, 6).transpose(1, 2).reshape(B, 6*dim)
+            #
+            # Most LoRAs are trained against the *standard* (non-interleaved) layout (6 blocks of dim).
+            # Because our AWQ LoRA path adds the LoRA output BEFORE that reorder, we must convert the
+            # LoRA "up" matrix B from standard->interleaved order (permute output channels).
+            if (".img_mod.1" in resolved_name) or (".txt_mod.1" in resolved_name):
+                if B.ndim == 2 and (B.shape[0] % 6 == 0):
+                    dim = B.shape[0] // 6
+                    # standard [6, dim, r] -> interleaved [dim, 6, r] -> [6*dim, r]
+                    B = B.contiguous().view(6, dim, B.shape[1]).transpose(0, 1).reshape(B.shape[0], B.shape[1])
+                else:
+                    logger.warning(
+                        f"{resolved_name}: expected mod up-matrix with out_features divisible by 6, got B{tuple(B.shape)}; "
+                        f"skipping mod-channel reorder"
+                    )
+
             if ".norm1.linear" in resolved_name or ".norm1_context.linear" in resolved_name:
                 B = reorder_adanorm_lora_up(B, splits=6)
             elif ".single_transformer_blocks." in resolved_name and ".norm.linear" in resolved_name:
                 B = reorder_adanorm_lora_up(B, splits=3)
 
-            if hasattr(module, "proj_down"):
+            if is_nunchaku_lora_ready:
                 target_dtype = module.proj_down.dtype
                 target_device = module.proj_down.device
-            else:
+            elif is_linear:
                 target_dtype = module.weight.dtype
                 target_device = module.weight.device
+            else:
+                # AWQW4A16Linear: use wscales (float dtype on correct device)
+                target_dtype = module.wscales.dtype
+                target_device = module.wscales.device
 
             all_A.append(A.to(dtype=target_dtype, device=target_device))
             all_B_scaled.append((B * scale).to(dtype=target_dtype, device=target_device))
@@ -1333,6 +1565,20 @@ def reset_lora_v2(model: nn.Module) -> None:
                 # Restore original weight
                 with torch.no_grad():
                     module.weight.data.copy_(info["original_weight"].to(module.weight.device))
+        elif module_type == "awq_w4a16":
+            # Restore original forward and remove attached LoRA tensors
+            if hasattr(module, "_lora_original_forward"):
+                try:
+                    module.forward = module._lora_original_forward
+                except Exception:
+                    # Safety: never fail reset
+                    pass
+            for attr in ("_lora_A", "_lora_B", "_lora_original_forward"):
+                if hasattr(module, attr):
+                    try:
+                        delattr(module, attr)
+                    except Exception:
+                        pass
             
     model._lora_slots.clear()
     model._lora_strength = 1.0

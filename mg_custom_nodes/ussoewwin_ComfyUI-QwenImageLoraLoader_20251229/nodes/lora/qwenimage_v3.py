@@ -1,6 +1,6 @@
 """
-This module provides the :class:`NunchakuZImageTurboLoraStackV2` node
-for applying LoRA weights to Nunchaku Z-Image-Turbo models within ComfyUI.
+This module provides the :class:`NunchakuQwenImageLoraStackV2` node
+for applying LoRA weights to Nunchaku Qwen Image models within ComfyUI.
 """
 
 import copy
@@ -16,7 +16,7 @@ if lora_loader_dir not in sys.path:
     sys.path.insert(0, lora_loader_dir)
     print(f"[DEBUG] Added to sys.path: {lora_loader_dir}")
     print(f"[DEBUG] wrappers dir exists: {os.path.exists(os.path.join(lora_loader_dir, 'wrappers'))}")
-    print(f"[DEBUG] zimageturbo.py exists: {os.path.exists(os.path.join(lora_loader_dir, 'wrappers', 'zimageturbo.py'))}")
+    print(f"[DEBUG] qwenimage.py exists: {os.path.exists(os.path.join(lora_loader_dir, 'wrappers', 'qwenimage.py'))}")
 
 import folder_paths
 
@@ -28,13 +28,12 @@ logging.basicConfig(level=getattr(logging, log_level, logging.INFO), format="%(a
 logger = logging.getLogger(__name__)
 
 
-class NunchakuZImageTurboLoraStackV2:
+class NunchakuQwenImageLoraStackV2:
     """
-    Node for loading and applying multiple LoRAs to a Nunchaku Z-Image-Turbo model with dynamic UI.
-    V3 is for official Nunchaku Z-Image loader only. For unofficial loader, use V2.
+    Node for loading and applying multiple LoRAs to a Nunchaku Qwen Image model with dynamic UI.
     """
     @classmethod
-    def IS_CHANGED(cls, model, lora_count, cpu_offload="disable", **kwargs):
+    def IS_CHANGED(cls, model, lora_count, cpu_offload="disable", toggle_all=True, **kwargs):
         """
         Detect changes to trigger node re-execution.
         Returns a hash of relevant parameters to detect changes.
@@ -44,10 +43,12 @@ class NunchakuZImageTurboLoraStackV2:
         m.update(str(model).encode())
         m.update(str(lora_count).encode())
         m.update(cpu_offload.encode())
+        m.update(str(toggle_all).encode())
         # Hash all LoRA parameters
         for i in range(1, 11):
             m.update(kwargs.get(f"lora_name_{i}", "").encode())
             m.update(str(kwargs.get(f"lora_strength_{i}", 0)).encode())
+            m.update(str(kwargs.get(f"enabled_{i}", True)).encode())
         return m.digest().hex()
 
     @classmethod
@@ -81,12 +82,26 @@ class NunchakuZImageTurboLoraStackV2:
                         "tooltip": "CPU offload setting. 'auto' enables offload when VRAM is low, 'enable' forces offload, 'disable' disables offload.",
                     },
                 ),
+                "toggle_all": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": "Enable/disable all LoRAs at once.",
+                    },
+                ),
             },
             "optional": {},
         }
 
         # Add all LoRA inputs (up to 10 slots) as optional
         for i in range(1, 11):
+            inputs["optional"][f"enabled_{i}"] = (
+                "BOOLEAN",
+                {
+                    "default": True,
+                    "tooltip": f"Enable/disable LoRA {i}.",
+                },
+            )
             inputs["optional"][f"lora_name_{i}"] = (
                 loras,
                 {"tooltip": f"The file name of LoRA {i}. Select 'None' to skip this slot."},
@@ -107,21 +122,48 @@ class NunchakuZImageTurboLoraStackV2:
     RETURN_TYPES = ("MODEL",)
     OUTPUT_TOOLTIPS = ("The modified diffusion model with all LoRAs applied.",)
     FUNCTION = "load_lora_stack"
-    TITLE = "Nunchaku Z-Image-Turbo LoRA Stack V3"
+    TITLE = "Nunchaku Qwen Image LoRA Stack V3"
     CATEGORY = "Nunchaku"
-    DESCRIPTION = "Apply multiple LoRAs to a diffusion model in a single node with dynamic UI control. V3 is for official Nunchaku Z-Image loader only. For unofficial loader, use V2."
+    DESCRIPTION = "Apply multiple LoRAs to a diffusion model in a single node with dynamic UI control. V3 includes toggle controls."
 
-    def load_lora_stack(self, model, lora_count, cpu_offload="disable", **kwargs):
+    def load_lora_stack(self, model, lora_count, cpu_offload="disable", toggle_all=True, **kwargs):
         loras_to_apply = []
+        
+        # Log toggle_all state
+        logger.info(f"[LoRA Stack Status] toggle_all: {toggle_all}")
+        logger.info(f"[LoRA Stack Status] Processing {lora_count} LoRA slot(s):")
         
         # Process only the number of LoRAs specified by lora_count
         for i in range(1, lora_count + 1):
             lora_name = kwargs.get(f"lora_name_{i}")
             lora_strength = kwargs.get(f"lora_strength_{i}", 1.0)
+            enabled_individual = kwargs.get(f"enabled_{i}", True)
+            # Check if this LoRA is enabled (considering both toggle_all and individual enabled_<i>)
+            enabled = toggle_all and enabled_individual
             
-            # Skip if lora_name is None or strength is negligible
-            if lora_name and lora_name != "None" and abs(lora_strength) > 1e-5:
+            # Log each LoRA slot status
+            status_parts = []
+            status_parts.append(f"Slot {i}:")
+            if lora_name and lora_name != "None":
+                status_parts.append(f"'{lora_name}'")
+                status_parts.append(f"strength={lora_strength}")
+            else:
+                status_parts.append("(no LoRA selected)")
+            
+            status_parts.append(f"toggle_all={toggle_all}")
+            status_parts.append(f"enabled_{i}={enabled_individual}")
+            status_parts.append(f"final_enabled={enabled}")
+            
+            if enabled and lora_name and lora_name != "None" and abs(lora_strength) > 1e-5:
+                status_parts.append("→ APPLIED ✓")
                 loras_to_apply.append((lora_name, lora_strength))
+            else:
+                status_parts.append("→ SKIPPED ✗")
+            
+            logger.info(f"[LoRA Stack Status] {' | '.join(status_parts)}")
+        
+        # Log summary
+        logger.info(f"[LoRA Stack Status] Summary: {len(loras_to_apply)} LoRA(s) will be applied out of {lora_count} slot(s)")
 
         if not loras_to_apply:
             return (model,)
@@ -136,14 +178,14 @@ class NunchakuZImageTurboLoraStackV2:
             sys.path.insert(0, lora_loader_dir)
         
         spec = importlib.util.spec_from_file_location(
-            "wrappers.zimageturbo",
-            os.path.join(lora_loader_dir, "wrappers", "zimageturbo.py")
+            "wrappers.qwenimage",
+            os.path.join(lora_loader_dir, "wrappers", "qwenimage.py")
         )
         wrappers_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(wrappers_module)
-        ComfyZImageTurboWrapper = wrappers_module.ComfyZImageTurboWrapper
+        ComfyQwenImageWrapper = wrappers_module.ComfyQwenImageWrapper
         
-        from nunchaku import NunchakuZImageTransformer2DModel
+        from nunchaku import NunchakuQwenImageTransformer2DModel
         
         # Debug logging
         model_wrapper_type_name = type(model_wrapper).__name__
@@ -155,7 +197,7 @@ class NunchakuZImageTurboLoraStackV2:
         logger.info(f"🔍 Has 'loras' attr? {hasattr(model_wrapper, 'loras')}")
         
         # Check if it's already wrapped
-        # ComfyZImageTurboWrapper has a 'model' attribute that contains the transformer
+        # ComfyQwenImageWrapper has a 'model' attribute that contains the transformer
         # and a 'loras' list attribute
         if hasattr(model_wrapper, 'model') and hasattr(model_wrapper, 'loras'):
             # Already wrapped, proceed normally
@@ -166,29 +208,29 @@ class NunchakuZImageTurboLoraStackV2:
                 logger.info(f"🔄 Updating CPU offload setting from '{model_wrapper.cpu_offload_setting}' to '{cpu_offload}'")
                 model_wrapper.cpu_offload_setting = cpu_offload
             transformer = model_wrapper.model
-        elif model_wrapper_type_name == "NextDiT" and model_wrapper_module == "comfy.ldm.lumina.model":
-            # Official Nunchaku loader uses ComfyUI Lumina2 / NextDiT signature.
-            # Our ComfyZImageTurboWrapper now supports both NextDiT and Z-Image signatures.
-            logger.info("🔧 Official loader detected (NextDiT), wrapping with ComfyZImageTurboWrapper")
-            transformer = model_wrapper
-            logger.info(f"📦 Creating ComfyZImageTurboWrapper for NextDiT with cpu_offload='{cpu_offload}'")
-            wrapped_model = ComfyZImageTurboWrapper(
-                transformer,
-                getattr(transformer, 'config', {}),
+        elif model_wrapper_type_name == "NunchakuQwenImageTransformer2DModel" or model_wrapper_type_name.endswith("NunchakuQwenImageTransformer2DModel"):
+            # Not wrapped yet, need to wrap it first
+            logger.info("🔧 Wrapping NunchakuQwenImageTransformer2DModel with ComfyQwenImageWrapper")
+            
+            # Create wrapper
+            logger.info(f"📦 Creating ComfyQwenImageWrapper with cpu_offload='{cpu_offload}'")
+            wrapped_model = ComfyQwenImageWrapper(
+                model_wrapper,
+                getattr(model_wrapper, 'config', {}),
                 None,  # customized_forward
                 {},    # forward_kwargs
                 cpu_offload,  # cpu_offload_setting
                 4.0,   # vram_margin_gb
             )
-
+            
             # Replace the model's diffusion_model with our wrapper
             model.model.diffusion_model = wrapped_model
             model_wrapper = wrapped_model
             transformer = model_wrapper.model
         else:
             logger.error(f"❌ Model type mismatch! Type: {model_wrapper_type_name}, Module: {model_wrapper_module}")
-            logger.error("V3 is for official Nunchaku Z-Image DiT Loader only. For unofficial loader, please use V2.")
-            raise TypeError(f"This LoRA loader (V3) only works with official Nunchaku Z-Image loader, but got {model_wrapper_type_name}.")
+            logger.error("Please use 'Nunchaku Qwen Image DiT Loader'.")
+            raise TypeError(f"This LoRA loader only works with Nunchaku Qwen Image models, but got {model_wrapper_type_name}.")
 
         # Flux-style deepcopy
         # Save config before deepcopy to avoid __setstate__ errors
@@ -224,9 +266,9 @@ class NunchakuZImageTurboLoraStackV2:
         return (ret_model,)
 
 GENERATED_NODES = {
-    "NunchakuZImageTurboLoraStackV3": NunchakuZImageTurboLoraStackV2
+    "NunchakuQwenImageLoraStackV3": NunchakuQwenImageLoraStackV2
 }
 
 GENERATED_DISPLAY_NAMES = {
-    "NunchakuZImageTurboLoraStackV3": "Nunchaku Z-Image-Turbo LoRA Stack V3"
+    "NunchakuQwenImageLoraStackV3": "Nunchaku Qwen Image LoRA Stack V3"
 }

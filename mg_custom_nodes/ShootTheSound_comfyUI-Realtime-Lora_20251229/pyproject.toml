@@ -15,5 +15,6 @@ Repository = "https://github.com/ShootTheSound/comfyUI-Realtime-Lora"
 Issues = "https://github.com/ShootTheSound/comfyUI-Realtime-Lora/issues"
 
 [tool.comfy]
-node_class_mappings = "NODE_CLASS_MAPPINGS"
-node_display_name_mappings = "NODE_DISPLAY_NAME_MAPPINGS"
+PublisherId = "shootthesound"
+DisplayName = "-realtime-lora"
+Icon = ""

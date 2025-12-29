@@ -12,7 +12,6 @@ try:
 except ImportError:
     PERTH_AVAILABLE = False
     print("Warning: Perth watermarking not available. Audio will be generated without watermarking.")
-from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
 from .models.t3 import T3
@@ -21,9 +20,11 @@ from .models.s3gen import S3GEN_SR, S3Gen
 from .models.tokenizers import EnTokenizer
 from .models.voice_encoder import VoiceEncoder
 from .models.t3.modules.cond_enc import T3Cond
+from .paths import get_chatterbox_tts_dir, download_to_local
 
 
 REPO_ID = "ResembleAI/chatterbox"
+TTS_MODEL_FILES = ["ve.safetensors", "t3_cfg.safetensors", "s3gen.safetensors", "tokenizer.json", "conds.pt"]
 
 
 def punc_norm(text: str) -> str:
@@ -181,10 +182,12 @@ class ChatterboxTTS:
                 print("MPS not available because the current MacOS version is not 12.3+ and/or you do not have an MPS-enabled device on this machine.")
             device = "cpu"
 
-        for fpath in ["ve.safetensors", "t3_cfg.safetensors", "s3gen.safetensors", "tokenizer.json", "conds.pt"]:
-            local_path = hf_hub_download(repo_id=REPO_ID, filename=fpath)
+        # Download models to centralized location: ComfyUI/models/chatterbox/chatterbox/
+        local_dir = get_chatterbox_tts_dir()
+        print(f"[FL Chatterbox] Model download path: {local_dir}")
+        download_to_local(REPO_ID, TTS_MODEL_FILES, local_dir)
 
-        return cls.from_local(Path(local_path).parent, device)
+        return cls.from_local(local_dir, device)
 
     def prepare_conditionals(self, wav_fpath, exaggeration=0.5):
         ## Load reference wav

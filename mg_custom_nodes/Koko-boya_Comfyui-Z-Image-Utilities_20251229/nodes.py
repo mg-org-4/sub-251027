@@ -67,6 +67,12 @@ except ImportError:
 
 try:
     import folder_paths
+    import comfy.samplers
+    import comfy.sample
+    import comfy.utils
+    import comfy.model_management
+    import latent_preview
+    import node_helpers
     HAS_COMFYUI = True
 except ImportError:
     HAS_COMFYUI = False
@@ -371,6 +377,121 @@ def batch_tensors_to_base64(tensors: "torch.Tensor") -> List[str]:
     for i in range(tensors.shape[0]):
         images_b64.append(tensor_to_base64(tensors[i]))
     return images_b64
+
+
+# ============================================================================
+# INTEGRATED KSAMPLER HELPERS
+# ============================================================================
+
+def common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
+    """Common KSampler implementation for integrated sampling."""
+    if not HAS_COMFYUI:
+        raise RuntimeError("ComfyUI is required for sampling")
+    
+    latent_image = latent["samples"]
+    latent_image = comfy.sample.fix_empty_latent_channels(model, latent_image)
+
+    if disable_noise:
+        noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")
+    else:
+        batch_inds = latent["batch_index"] if "batch_index" in latent else None
+        noise = comfy.sample.prepare_noise(latent_image, seed, batch_inds)
+
+    noise_mask = None
+    if "noise_mask" in latent:
+        noise_mask = latent["noise_mask"]
+
+    callback = latent_preview.prepare_callback(model, steps)
+    disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+    samples = comfy.sample.sample(model, noise, steps, cfg, sampler_name, scheduler, positive, negative, latent_image,
+                                denoise=denoise, disable_noise=disable_noise, start_step=start_step, last_step=last_step,
+                                force_full_denoise=force_full_denoise, noise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=seed)
+
+    out = latent.copy()
+    out["samples"] = samples
+    return out
+
+
+def get_z_image_prompt(vae, images: List, instruction: str = ""):
+    """
+    Get image prompt and latents for Z-Image pipeline.
+    Optimizes official extension offset issues.
+    """
+    ref_latents = []
+    images_vl = []
+    image_prompt = ""
+    
+    # System prompt for image editing
+    llama_template = {
+        "system": f"You are a helpful assistant. {instruction}" if instruction else "You are a helpful assistant.",
+    }
+    
+    for i, image in enumerate(images):
+        if image is not None:
+            samples = image.movedim(-1, 1)
+            
+            # Vision-Language path (384x384 for VL model)
+            total = int(384 * 384)
+            scale_by = (total / (samples.shape[2] * samples.shape[3])) ** 0.5
+            width = round(samples.shape[3] * scale_by)
+            height = round(samples.shape[2] * scale_by)
+            s_vl = comfy.utils.common_upscale(samples, width, height, "lanczos", "disabled")
+            images_vl.append(s_vl.movedim(1, -1))
+            
+            # VAE latent path (original resolution, aligned to 8)
+            if vae is not None:
+                width = (samples.shape[3] + 7) // 8 * 8
+                height = (samples.shape[2] + 7) // 8 * 8
+                s_vae = comfy.utils.common_upscale(samples, width, height, "lanczos", "disabled")
+                ref_latents.append(vae.encode(s_vae.movedim(1, -1)[:, :, :, :3]))
+            
+            image_prompt += f"Picture {i+1}: <|vision_start|><|image_pad|><|vision_end|>"
+    
+    return (image_prompt, images_vl, llama_template, ref_latents)
+
+
+def z_prompt_encode(clip, prompt, image_prompt="", images_vl=[], llama_template=None, ref_latents=[]):
+    """Encode prompt with optional image conditioning for Z-Image pipeline."""
+    if len(images_vl) > 0:
+        tokens = clip.tokenize(image_prompt + prompt, images=images_vl, llama_template=llama_template)
+    else:
+        tokens = clip.tokenize(prompt)
+    conditioning = clip.encode_from_tokens_scheduled(tokens)
+    if len(ref_latents) > 0:
+        conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": ref_latents}, append=True)
+    return conditioning
+
+
+def image_scale_aspect_ratio(image, target_width, target_height, upscale_method="lanczos"):
+    """Scale image maintaining aspect ratio to fit within target dimensions."""
+    if image is None:
+        return None
+    
+    samples = image.movedim(-1, 1)
+    orig_h, orig_w = samples.shape[2], samples.shape[3]
+    
+    # Calculate scale to fit within target while maintaining aspect ratio
+    scale_w = target_width / orig_w
+    scale_h = target_height / orig_h
+    scale = min(scale_w, scale_h)
+    
+    new_w = int(orig_w * scale)
+    new_h = int(orig_h * scale)
+    
+    # Align to 8
+    new_w = (new_w + 7) // 8 * 8
+    new_h = (new_h + 7) // 8 * 8
+    
+    scaled = comfy.utils.common_upscale(samples, new_w, new_h, upscale_method, "disabled")
+    return scaled.movedim(1, -1)
+
+
+def cleanGPUUsedForce():
+    """Force clean GPU memory."""
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+    gc.collect()
 
 
 # ============================================================================
@@ -934,7 +1055,13 @@ class DirectLocalModelClient(BaseLLMClient):
         """Generate response using loaded model."""
         self.clear_debug_log()
         
-        # Safety check for vision input on text-only models
+        self._log(f"Direct Local Model - Repo: {self.repo_id}", "INFO")
+        self._log(f"Quantization: {self.quantization.value}, Temperature: {temperature}")
+        
+        # Load model first to determine if it's a VL model (sets self.is_vl_model)
+        self.load_model(keep_loaded=keep_loaded)
+        
+        # Extract images from messages
         has_images = False
         image_inputs = []
         
@@ -950,13 +1077,9 @@ class DirectLocalModelClient(BaseLLMClient):
                             b64_str = url.split(",")[1]
                             image_inputs.append(Image.open(BytesIO(base64.b64decode(b64_str))))
         
+        # Validate vision input compatibility (now is_vl_model is correctly set)
         if has_images and not self.is_vl_model:
              raise ValueError("This model does not support vision inputs. Please use a Vision-Language model (e.g., Qwen-VL) or disconnect the image.")
-
-        self._log(f"Direct Local Model - Repo: {self.repo_id}", "INFO")
-        self._log(f"Quantization: {self.quantization.value}, Temperature: {temperature}")
-        
-        self.load_model(keep_loaded=keep_loaded)
         
         # Handle Seed
         if "seed" in kwargs:
@@ -1916,12 +2039,46 @@ class Z_ImagePromptEnhancer:
 
 
 # ============================================================================
-# PROMPT ENHANCER WITH CLIP OUTPUT
+# PROMPT ENHANCER WITH CLIP OUTPUT (Enhanced with Omni Support)
 # ============================================================================
+
+def format_omni_prompt(prompt: str, num_condition_images: int = 0) -> str:
+    """
+    Format prompt for Z-Image-Omni pipeline with vision tokens.
+    
+    This generates the appropriate prompt format expected by ZImageOmniPipeline:
+    - For text-only: <|im_start|>user\n[prompt]<|im_end|>\n<|im_start|>assistant\n
+    - For image+text: <|im_start|>user\n<|vision_start|><|vision_end|>...[prompt]<|im_end|>\n<|im_start|>assistant\n<|vision_start|>
+    
+    Args:
+        prompt: The enhanced text prompt
+        num_condition_images: Number of condition images (0 for text-to-image)
+    
+    Returns:
+        Formatted prompt string with vision tokens
+    """
+    if num_condition_images == 0:
+        # Text-to-image mode
+        return f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+    else:
+        # Image editing/conditioning mode
+        # Build vision token sequence for each condition image
+        parts = ["<|im_start|>user\n<|vision_start|>"]
+        parts.extend(["<|vision_end|><|vision_start|>"] * (num_condition_images - 1))
+        parts.append(f"<|vision_end|>{prompt}<|im_end|>\n<|im_start|>assistant\n<|vision_start|>")
+        parts.append("<|vision_end|><|im_end|>")
+        return "".join(parts)
+
 
 class Z_ImagePromptEnhancerWithCLIP:
     """
-    Prompt Enhancer with CLIP conditioning output.
+    Prompt Enhancer with CLIP conditioning output and Omni pipeline support.
+    
+    Features:
+    - CLIP conditioning output for direct use in ComfyUI
+    - Multiple condition image support (up to 4 images) for Z-Image-Omni
+    - Automatic vision token formatting for Omni pipeline
+    - Backward compatible with single image input
     """
     
     @classmethod
@@ -1939,12 +2096,27 @@ class Z_ImagePromptEnhancerWithCLIP:
                     "default": "chinese",
                     "tooltip": TOOLTIPS["prompt_template"]
                 }),
+                "generation_mode": (["text_to_image", "image_to_image"], {
+                    "default": "text_to_image",
+                    "tooltip": "Generation mode: text_to_image (T2I) or image_to_image (I2I/Omni editing)"
+                }),
             },
             "optional": {
                 "options": ("ZIMAGE_OPTIONS",),
-                "image": ("IMAGE", {
-                    "tooltip": TOOLTIPS["image"]
+                # Multi-image input for vision enhancement and Omni
+                "image_1": ("IMAGE", {
+                    "tooltip": "First image for vision enhancement and Z-Image-Omni editing"
                 }),
+                "image_2": ("IMAGE", {
+                    "tooltip": "Second image (optional)"
+                }),
+                "image_3": ("IMAGE", {
+                    "tooltip": "Third image (optional)"
+                }),
+                "image_4": ("IMAGE", {
+                    "tooltip": "Fourth image (optional)"
+                }),
+
                 "retry_count": ("INT", {
                     "default": 3,
                     "min": 0,
@@ -1986,11 +2158,11 @@ class Z_ImagePromptEnhancerWithCLIP:
             }
         }
     
-    RETURN_TYPES = ("CONDITIONING", "STRING", "STRING")
-    RETURN_NAMES = ("conditioning", "enhanced_prompt", "debug_log")
+    RETURN_TYPES = ("CONDITIONING", "STRING", "STRING", "STRING", "INT")
+    RETURN_NAMES = ("conditioning", "enhanced_prompt", "omni_formatted_prompt", "debug_log", "num_condition_images")
     FUNCTION = "enhance_and_encode"
     CATEGORY = "Z-Image"
-    DESCRIPTION = "Enhance prompt and encode with CLIP for direct use in image generation."
+    DESCRIPTION = "Enhance prompt and encode with CLIP. Supports Z-Image-Omni multi-image conditioning."
     
     def enhance_and_encode(
         self,
@@ -1998,9 +2170,15 @@ class Z_ImagePromptEnhancerWithCLIP:
         config: Dict[str, Any],
         prompt: str,
         prompt_template: str,
+        generation_mode: str,
         unique_id: str = "",
         options: Optional[Dict[str, Any]] = None,
-        image: Optional["torch.Tensor"] = None,
+
+        image_1: Optional["torch.Tensor"] = None,
+        image_2: Optional["torch.Tensor"] = None,
+        image_3: Optional["torch.Tensor"] = None,
+        image_4: Optional["torch.Tensor"] = None,
+
         retry_count: int = 3,
         max_output_length: int = 6000,
         session_id: str = "",
@@ -2009,16 +2187,52 @@ class Z_ImagePromptEnhancerWithCLIP:
         utf8_sanitize: bool = False,
         custom_system_prompt: str = "",
     ):
-        """Enhance prompt and encode with CLIP."""
+        """Enhance prompt and encode with CLIP. Supports Omni multi-image conditioning."""
         
+        debug_lines = ["[Z-IMAGE PROMPT ENHANCER + CLIP]", "=" * 50]
+        
+        # Collect input images
+        input_images = []
+        for idx, img in enumerate([image_1, image_2, image_3, image_4], 1):
+            if img is not None:
+                input_images.append(img)
+                debug_lines.append(f"Image {idx}: shape={img.shape}")
+        
+        num_condition_images = len(input_images)
+        
+        # Determine mode based on user selection and images
+        debug_lines.append(f"Generation mode: {generation_mode}")
+        
+        if generation_mode == "image_to_image" and input_images:
+            # Image-to-Image / Omni mode - use all attached images
+            vision_images = torch.cat(input_images, dim=0)
+            debug_lines.append(f"Total images: {num_condition_images}")
+            debug_lines.append(f"Vision batch shape: {vision_images.shape}")
+            if num_condition_images > 1:
+                debug_lines.append(f"Mode: Image Editing (Omni) - All {num_condition_images} images sent to VL")
+            else:
+                debug_lines.append(f"Mode: Image-to-Image")
+        elif generation_mode == "image_to_image" and not input_images:
+            # I2I mode but no images - warn and fallback to T2I
+            debug_lines.append("WARNING: image_to_image mode selected but no images attached. Falling back to text_to_image.")
+            vision_images = None
+            debug_lines.append(f"Mode: Text-to-Image (fallback)")
+        else:
+            # Text-to-Image mode - ignore any attached images for VL
+            vision_images = None
+            debug_lines.append(f"Mode: Text-to-Image")
+        
+        debug_lines.append("")
+        
+        # Enhance the prompt using base enhancer
         enhancer = Z_ImagePromptEnhancer()
-        enhanced_prompt, debug_log = enhancer.enhance(
+        enhanced_prompt, enhance_debug = enhancer.enhance(
             config=config,
             prompt=prompt,
             prompt_template=prompt_template,
             unique_id=unique_id,
             options=options,
-            image=image,
+            image=vision_images,
             retry_count=retry_count,
             max_output_length=max_output_length,
             session_id=session_id,
@@ -2028,12 +2242,363 @@ class Z_ImagePromptEnhancerWithCLIP:
             custom_system_prompt=custom_system_prompt,
         )
         
+        debug_lines.append(enhance_debug)
+        
+        # Format for Omni pipeline with vision tokens (always enabled)
+        debug_lines.append("")
+        debug_lines.append("[OMNI FORMATTING]")
+        debug_lines.append("=" * 50)
+        omni_formatted = format_omni_prompt(enhanced_prompt, num_condition_images)
+        debug_lines.append(f"Formatted with {num_condition_images} vision token(s)")
+        debug_lines.append(f"Omni prompt length: {len(omni_formatted)} characters")
+        if num_condition_images == 0:
+            debug_lines.append("  - Text-only mode (standard vision tokens)")
+        else:
+            debug_lines.append(f"  - {num_condition_images}x <|vision_start|>...<|vision_end|> for condition images")
+            debug_lines.append("  - 1x <|vision_start|>...<|vision_end|> for generated output")
+        
+        # Noise mask info
+        debug_lines.append("")
+        debug_lines.append("[NOISE MASK INFO]")
+        debug_lines.append("=" * 50)
+        if num_condition_images > 0:
+            noise_mask_preview = [0] * num_condition_images + [1]
+            debug_lines.append(f"Expected noise mask: {noise_mask_preview}")
+            debug_lines.append(f"  - {num_condition_images}x 0 (clean/condition images)")
+            debug_lines.append("  - 1x 1 (noisy/target image)")
+        else:
+            debug_lines.append("No noise mask needed for text-to-image generation")
+        
         # Encode with CLIP
         tokens = clip.tokenize(enhanced_prompt)
         cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
         conditioning = [[cond, {"pooled_output": pooled}]]
         
-        return (conditioning, enhanced_prompt, debug_log)
+        debug_lines.append("")
+        debug_lines.append("[CLIP ENCODING]")
+        debug_lines.append(f"Conditioning shape: {cond.shape}")
+        
+        return (
+            conditioning,
+            enhanced_prompt,
+            omni_formatted,
+            "\n".join(debug_lines),
+            num_condition_images
+        )
+
+# ============================================================================
+# INTEGRATED KSAMPLER WITH PROMPT ENHANCEMENT
+# ============================================================================
+
+class Z_ImageIntegratedKSampler:
+    """
+    Z-Image Integrated KSampler - All-in-one image generation with prompt enhancement.
+    
+    Features:
+    - Integrated prompt enhancement using LLM
+    - Full KSampler with model, VAE, and sampling
+    - Text-to-Image and Image-to-Image modes
+    - Multi-image conditioning (up to 4 images)
+    - AuraFlow shift optimization
+    - CFGNorm integration
+    - Batch generation
+    - Auto-save to folder
+    - GPU/RAM memory cleanup
+    """
+    
+    def __init__(self):
+        self.device = comfy.model_management.intermediate_device() if HAS_COMFYUI else "cpu"
+    
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": ("MODEL", {"tooltip": "Diffusion model for image generation"}),
+                "clip": ("CLIP", {"tooltip": "CLIP model for text encoding"}),
+                "vae": ("VAE", {"tooltip": "VAE model for latent encode/decode"}),
+                "config": ("ZIMAGE_CONFIG", {"tooltip": "LLM configuration for prompt enhancement"}),
+                "positive_prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "placeholder": "Enter your positive prompt...",
+                    "tooltip": "Positive prompt - will be enhanced by LLM"
+                }),
+                "negative_prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "placeholder": "Enter your negative prompt...",
+                    "tooltip": "Negative prompt for unwanted elements"
+                }),
+                "generation_mode": (["text_to_image", "image_to_image"], {
+                    "default": "text_to_image",
+                    "tooltip": "T2I: Generate from text. I2I: Edit/transform input images"
+                }),
+                "width": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 8, "tooltip": "Output image width"}),
+                "height": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 8, "tooltip": "Output image height"}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "control_after_generate": True, "tooltip": "Random seed"}),
+                "steps": ("INT", {"default": 20, "min": 1, "max": 1000, "tooltip": "Sampling steps"}),
+                "cfg": ("FLOAT", {"default": 7.0, "min": 0.0, "max": 100.0, "step": 0.1, "tooltip": "CFG scale"}),
+                "sampler_name": (comfy.samplers.KSampler.SAMPLERS, {"default": "euler", "tooltip": "Sampler algorithm"}),
+                "scheduler": (comfy.samplers.KSampler.SCHEDULERS, {"default": "normal", "tooltip": "Scheduler type"}),
+                "denoise": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01, "tooltip": "Denoise strength (1.0 = full, <1.0 for I2I)"}),
+            },
+            "optional": {
+                "options": ("ZIMAGE_OPTIONS", {"tooltip": "Advanced LLM options"}),
+                "image_1": ("IMAGE", {"tooltip": "First image for I2I/vision enhancement"}),
+                "image_2": ("IMAGE", {"tooltip": "Second image (optional)"}),
+                "image_3": ("IMAGE", {"tooltip": "Third image (optional)"}),
+                "image_4": ("IMAGE", {"tooltip": "Fourth image (optional)"}),
+                "latent": ("LATENT", {"tooltip": "Optional latent input (for custom latent)"}),
+                "prompt_template": (["auto", "chinese", "english", "custom"], {
+                    "default": "chinese",
+                    "tooltip": "LLM prompt template language"
+                }),
+                "enable_prompt_enhance": ("BOOLEAN", {"default": True, "tooltip": "Enable LLM prompt enhancement (disable to use prompt as-is)"}),
+                "batch_size": ("INT", {"default": 1, "min": 1, "max": 16, "tooltip": "Number of images to generate"}),
+                "auraflow_shift": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 100.0, "step": 0.01, "tooltip": "AuraFlow shift (0 = disabled)"}),
+                "cfg_norm_strength": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 10.0, "step": 0.01, "tooltip": "CFGNorm strength (0 = disabled)"}),
+                "enable_clean_gpu": ("BOOLEAN", {"default": False, "tooltip": "Clean GPU memory before/after sampling"}),
+                "enable_clean_ram": ("BOOLEAN", {"default": False, "tooltip": "Clean RAM after completion"}),
+                "auto_save_folder": ("STRING", {"default": "", "tooltip": "Auto-save folder (empty = disabled)"}),
+                "output_prefix": ("STRING", {"default": "z_image", "tooltip": "Filename prefix for auto-save"}),
+                "custom_system_prompt": ("STRING", {"multiline": True, "default": "", "placeholder": "Custom system prompt (use with 'custom' template)"}),
+                "instruction": ("STRING", {
+                    "multiline": True, 
+                    "default": "Describe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate.",
+                    "placeholder": "VLM System Instruction (for Image-to-Image)",
+                    "tooltip": "System instruction for the Vision-Language Model in I2I mode"
+                }),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID"
+            }
+        }
+    
+    RETURN_TYPES = ("IMAGE", "LATENT", "STRING", "STRING")
+    RETURN_NAMES = ("images", "latent", "enhanced_prompt", "debug_log")
+    FUNCTION = "generate"
+    CATEGORY = "Z-Image"
+    DESCRIPTION = "Z-Image Integrated KSampler - All-in-one generation with LLM prompt enhancement, sampling, AuraFlow, CFGNorm, and auto-save."
+    
+    def generate(
+        self,
+        model,
+        clip,
+        vae,
+        config: Dict[str, Any],
+        positive_prompt: str,
+        negative_prompt: str,
+        generation_mode: str,
+        width: int,
+        height: int,
+        seed: int,
+        steps: int,
+        cfg: float,
+        sampler_name: str,
+        scheduler: str,
+        denoise: float = 1.0,
+        unique_id: str = "",
+        options: Optional[Dict[str, Any]] = None,
+        image_1: Optional["torch.Tensor"] = None,
+        image_2: Optional["torch.Tensor"] = None,
+        image_3: Optional["torch.Tensor"] = None,
+        image_4: Optional["torch.Tensor"] = None,
+        latent: Optional[Dict] = None,
+        prompt_template: str = "chinese",
+        enable_prompt_enhance: bool = True,
+        batch_size: int = 1,
+        auraflow_shift: float = 0.0,
+        cfg_norm_strength: float = 0.0,
+        enable_clean_gpu: bool = False,
+        enable_clean_ram: bool = False,
+        auto_save_folder: str = "",
+        output_prefix: str = "z_image",
+        custom_system_prompt: str = "",
+        instruction: str = "",
+    ):
+        """Generate images with integrated prompt enhancement and sampling."""
+        
+        debug_lines = ["[Z-IMAGE INTEGRATED KSAMPLER]", "=" * 60]
+        debug_lines.append(f"Generation mode: {generation_mode}")
+        debug_lines.append(f"Resolution: {width}x{height}")
+        debug_lines.append(f"Seed: {seed}, Steps: {steps}, CFG: {cfg}")
+        debug_lines.append(f"Sampler: {sampler_name}, Scheduler: {scheduler}")
+        debug_lines.append(f"Batch size: {batch_size}")
+        
+        # Collect input images
+        input_images = []
+        for idx, img in enumerate([image_1, image_2, image_3, image_4], 1):
+            if img is not None:
+                input_images.append(img)
+                debug_lines.append(f"Image {idx}: shape={img.shape}")
+        
+        # Apply AuraFlow shift if specified
+        if auraflow_shift > 0:
+            debug_lines.append(f"Applying AuraFlow shift: {auraflow_shift}")
+            m = model.clone()
+            import comfy.model_sampling
+            sampling_base = comfy.model_sampling.ModelSamplingDiscreteFlow
+            sampling_type = comfy.model_sampling.CONST
+            class ModelSamplingAdvanced(sampling_base, sampling_type):
+                pass
+            model_sampling = ModelSamplingAdvanced(m.model.model_config)
+            model_sampling.set_parameters(shift=auraflow_shift, multiplier=1.0)
+            m.add_object_patch("model_sampling", model_sampling)
+            model = m
+            debug_lines.append("AuraFlow shift applied")
+        
+        # Apply CFGNorm if specified
+        if cfg_norm_strength > 0:
+            debug_lines.append(f"Applying CFGNorm strength: {cfg_norm_strength}")
+            m = model.clone()
+            strength = cfg_norm_strength
+            def cfg_norm(args):
+                cond_p = args['cond_denoised']
+                pred_text_ = args["denoised"]
+                norm_full_cond = torch.norm(cond_p, dim=1, keepdim=True)
+                norm_pred_text = torch.norm(pred_text_, dim=1, keepdim=True)
+                scale = (norm_full_cond / (norm_pred_text + 1e-8)).clamp(min=0.0, max=1.0)
+                return pred_text_ * scale * strength
+            m.set_model_sampler_post_cfg_function(cfg_norm)
+            model = m
+            debug_lines.append("CFGNorm applied")
+        
+        # Enhance positive prompt using LLM (if enabled)
+        debug_lines.append("")
+        debug_lines.append("[PROMPT ENHANCEMENT]")
+        debug_lines.append("=" * 40)
+        
+        if enable_prompt_enhance:
+            enhancer = Z_ImagePromptEnhancer()
+            
+            # Prepare vision images for LLM if in I2I mode
+            vision_images = None
+            if generation_mode == "image_to_image" and input_images:
+                vision_images = torch.cat(input_images, dim=0)
+                debug_lines.append(f"Sending {len(input_images)} images to LLM for enhancement")
+            
+            enhanced_prompt, enhance_debug = enhancer.enhance(
+                config=config,
+                prompt=positive_prompt,
+                prompt_template=prompt_template,
+                unique_id=unique_id,
+                options=options,
+                image=vision_images,
+                retry_count=3,
+                max_output_length=6000,
+                session_id="",
+                reset_session=True,
+                keep_model_loaded=True,
+                utf8_sanitize=False,
+                custom_system_prompt=custom_system_prompt,
+            )
+            
+            debug_lines.append(enhance_debug)
+            debug_lines.append(f"Enhanced prompt length: {len(enhanced_prompt)} chars")
+        else:
+            # Use prompt as-is
+            enhanced_prompt = positive_prompt
+            debug_lines.append("Prompt enhancement DISABLED - using prompt as-is")
+            debug_lines.append(f"Prompt length: {len(enhanced_prompt)} chars")
+        
+        # Pre-clean GPU if requested
+        if enable_clean_gpu:
+            debug_lines.append("Pre-cleaning GPU memory...")
+            cleanGPUUsedForce()
+        
+        # Encode prompts
+        debug_lines.append("")
+        debug_lines.append("[ENCODING]")
+        
+        if generation_mode == "image_to_image" and input_images:
+            # Use Z-Image pipeline with reference latents
+            image_prompt, images_vl, llama_template, ref_latents = get_z_image_prompt(vae, input_images, instruction)
+            positive = z_prompt_encode(clip, enhanced_prompt, image_prompt, images_vl, llama_template, ref_latents)
+            negative = z_prompt_encode(clip, negative_prompt, image_prompt, images_vl, llama_template, ref_latents)
+            debug_lines.append(f"I2I encoding with {len(input_images)} reference images")
+        else:
+            # Standard encoding
+            tokens_pos = clip.tokenize(enhanced_prompt)
+            positive, pooled_pos = clip.encode_from_tokens(tokens_pos, return_pooled=True)
+            positive = [[positive, {"pooled_output": pooled_pos}]]
+            
+            tokens_neg = clip.tokenize(negative_prompt)
+            negative, pooled_neg = clip.encode_from_tokens(tokens_neg, return_pooled=True)
+            negative = [[negative, {"pooled_output": pooled_neg}]]
+            debug_lines.append("T2I standard encoding")
+        
+        # Create or use latent
+        if latent is None:
+            if generation_mode == "image_to_image" and input_images:
+                # Encode first image as starting latent
+                scaled_img = image_scale_aspect_ratio(input_images[0], width, height) if width > 0 and height > 0 else input_images[0]
+                samples = vae.encode(scaled_img[:,:,:,:3])
+                debug_lines.append("Using encoded image as latent")
+            else:
+                # Empty latent for T2I
+                samples = torch.zeros([batch_size, 4, height // 8, width // 8], device=self.device)
+                debug_lines.append(f"Created empty latent: {batch_size}x4x{height//8}x{width//8}")
+            
+            if batch_size > 1 and samples.shape[0] == 1:
+                samples = samples.repeat((batch_size,) + ((1,) * (samples.ndim - 1)))
+            
+            latent = {"samples": samples}
+        
+        # Sample
+        debug_lines.append("")
+        debug_lines.append("[SAMPLING]")
+        debug_lines.append(f"Starting {steps} steps...")
+        
+        latent_output = common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=denoise)
+        
+        debug_lines.append("Sampling complete")
+        
+        # Decode
+        debug_lines.append("")
+        debug_lines.append("[DECODING]")
+        output_images = vae.decode(latent_output["samples"])
+        if len(output_images.shape) == 5:
+            output_images = output_images.reshape(-1, output_images.shape[-3], output_images.shape[-2], output_images.shape[-1])
+        debug_lines.append(f"Output shape: {output_images.shape}")
+        
+        # Auto-save
+        if auto_save_folder:
+            try:
+                if os.path.isabs(auto_save_folder):
+                    full_output_folder = auto_save_folder
+                else:
+                    output_dir = folder_paths.get_output_directory()
+                    full_output_folder = os.path.join(output_dir, auto_save_folder)
+                
+                if not os.path.exists(full_output_folder):
+                    os.makedirs(full_output_folder, exist_ok=True)
+                
+                debug_lines.append(f"Auto-saving to: {full_output_folder}")
+                
+                for batch_number, image in enumerate(output_images):
+                    img = Image.fromarray((image.cpu().numpy() * 255).astype(np.uint8))
+                    file = f"{output_prefix}_{seed}_{batch_number:05}.png"
+                    img.save(os.path.join(full_output_folder, file))
+                
+                debug_lines.append(f"Saved {len(output_images)} images")
+            except Exception as e:
+                debug_lines.append(f"Auto-save failed: {e}")
+        
+        # Post-clean GPU
+        if enable_clean_gpu:
+            debug_lines.append("Post-cleaning GPU memory...")
+            cleanGPUUsedForce()
+        
+        # Clean RAM
+        if enable_clean_ram:
+            debug_lines.append("Cleaning RAM...")
+            gc.collect()
+        
+        debug_lines.append("")
+        debug_lines.append("[COMPLETE]")
+        debug_lines.append(f"Generated {len(output_images)} images")
+        
+        return (output_images, latent_output, enhanced_prompt, "\n".join(debug_lines))
 
 
 # ============================================================================
@@ -2123,6 +2688,7 @@ NODE_CLASS_MAPPINGS = {
     "Z_ImageOptions": Z_ImageOptions,
     "Z_ImagePromptEnhancer": Z_ImagePromptEnhancer,
     "Z_ImagePromptEnhancerWithCLIP": Z_ImagePromptEnhancerWithCLIP,
+    "Z_ImageIntegratedKSampler": Z_ImageIntegratedKSampler,
     "Z_ImageUnloadModels": Z_ImageUnloadModels,
     "Z_ImageClearSessions": Z_ImageClearSessions,
 }
@@ -2132,6 +2698,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Z_ImageOptions": "Z-Image Options",
     "Z_ImagePromptEnhancer": "Z-Image Prompt Enhancer",
     "Z_ImagePromptEnhancerWithCLIP": "Z-Image Prompt Enhancer + CLIP",
+    "Z_ImageIntegratedKSampler": "Z-Image Integrated KSampler",
     "Z_ImageUnloadModels": "Z-Image Unload Models",
     "Z_ImageClearSessions": "Z-Image Clear Sessions",
 }

@@ -68,6 +68,69 @@ function setupNodeHoverListeners(connectionAnimation) {
     }
 }
 
+// 设置节点选择监听
+function setupNodeSelectionListeners(connectionAnimation) {
+    if (!app.canvas) return;
+
+    // 监听选择变化
+    const originalOnSelectionChange = app.canvas.onSelectionChange;
+    app.canvas.onSelectionChange = function(nodes) {
+        try {
+            if (connectionAnimation.notifySelectionChanged) {
+                connectionAnimation.notifySelectionChanged();
+            }
+        } catch (e) {
+            console.warn("Connection Animation: Error handling selection change:", e);
+        }
+        return originalOnSelectionChange?.call(this, nodes);
+    };
+
+    // 某些情况下 onSelectionChange 可能不会被触发（取决于 LiteGraph 版本），
+    // 所以我们也 hook selectNode 和 deselectNode 作为备份
+    const originalSelectNode = app.canvas.selectNode;
+    app.canvas.selectNode = function(node, addToSelection) {
+        const result = originalSelectNode?.call(this, node, addToSelection);
+        try {
+            if (connectionAnimation.notifySelectionChanged) {
+                connectionAnimation.notifySelectionChanged();
+            }
+        } catch (e) {
+            console.warn("Connection Animation: Error handling selectNode:", e);
+        }
+        return result;
+    };
+
+    const originalDeselectNode = app.canvas.deselectNode;
+    app.canvas.deselectNode = function(node) {
+        const result = originalDeselectNode?.call(this, node);
+        try {
+            if (connectionAnimation.notifySelectionChanged) {
+                connectionAnimation.notifySelectionChanged();
+            }
+        } catch (e) {
+            console.warn("Connection Animation: Error handling deselectNode:", e);
+        }
+        return result;
+    };
+    
+    // 同时也监听 processMouseUp 以处理框选
+    const originalProcessMouseUp = app.canvas.processMouseUp;
+    app.canvas.processMouseUp = function(e) {
+        const result = originalProcessMouseUp?.call(this, e);
+        try {
+            // 延迟一下以确保选择状态已更新
+            setTimeout(() => {
+                if (connectionAnimation.notifySelectionChanged) {
+                    connectionAnimation.notifySelectionChanged();
+                }
+            }, 0);
+        } catch (e) {
+            console.warn("Connection Animation: Error handling processMouseUp:", e);
+        }
+        return result;
+    };
+}
+
 app.registerExtension({
     name: "ComfyUI.ConnectionAnimation",
     setup() {
@@ -79,6 +142,9 @@ app.registerExtension({
         
         // 设置节点悬停监听
         setupNodeHoverListeners(connectionAnimation);
+
+        // 设置节点选择监听
+        setupNodeSelectionListeners(connectionAnimation);
     },
     settings: [
         {
@@ -210,9 +276,9 @@ app.registerExtension({
             id: "ConnectionAnimation.displayMode",
             name: "动画显示",
             type: "combo",
-            options: ["全部显示", "悬停节点"],
+            options: ["全部显示", "悬停节点", "选中节点"],
             defaultValue: "全部显示",
-            tooltip: "控制动画连线的显示方式：全部显示=所有连线都显示动画；悬停节点=只有鼠标悬停节点的连线显示动画",
+            tooltip: "控制动画连线的显示方式：全部显示=所有连线都显示动画；悬停节点=只有鼠标悬停节点的连线显示动画；选中节点=只有选中节点的连线显示动画",
             category: ["🍺连线动画", "2·样式", "动画显示"],
             onChange(value) {
                 const connectionAnim = app.canvas?._connectionAnimation;

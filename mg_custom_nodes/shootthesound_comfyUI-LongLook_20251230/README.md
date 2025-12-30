@@ -1,18 +1,21 @@
 # comfyUI-LongLook
 
-> **v3.0.5 Update:** New **FreeLong Enforcer** node for stricter motion locking. Performance optimizations (faster + improved float16 precision). Better defaults. See [Nodes](#nodes) section.
+> **v3.0.6 Update:** New **Motion Scale** node for temporal speed control via RoPE scaling. New **FreeLong Enforcer** for stricter motion locking. Performance optimizations (faster + improved float16 precision). See [Nodes](#nodes) section.
 
 **Towards consistent motion and prompt adherence for Wan 2.2 video generation.**
 
 **TL;DR:**
-- **Chunked generation (best and most reliable use case)**: Stable motion provides clean anchors AND makes the next chunk far more likely to correctly continue the direction of a given action
-- **Single generation**: Can smooth motion reversal and "ping-pong" in 81+ frame generations.
+- **Primary value**: Improved motion consistency *within* 81 frames - smoother trajectories, less reversal, better prompt adherence
+- **Chunked generation (best use case)**: Because each 81-frame chunk is more consistent, you get clean anchors and reliable continuation for unlimited length videos
+- **Single generation 81+ frames**: May help sometimes, but results vary - the real benefit is consistency within the native window
 
 Works with both **i2v** (image-to-video) and **t2v** (text-to-video), though i2v sees the most benefit due to anchor-based continuation.
 
-See Demo Workflows in Folder and demo clip below:
+### Motion Scale Demo (NEW)
+[![Motion Scale Demo](https://img.youtube.com/vi/Zmkn6_vyMN8/maxresdefault.jpg)](https://youtu.be/Zmkn6_vyMN8)
 
-[![Watch the demo](https://img.youtube.com/vi/wZgoklsVplc/maxresdefault.jpg)](https://youtu.be/wZgoklsVplc)
+### FreeLong Demo
+[![FreeLong Demo](https://img.youtube.com/vi/wZgoklsVplc/maxresdefault.jpg)](https://youtu.be/wZgoklsVplc)
 
 If you find this useful:
 
@@ -143,6 +146,28 @@ Experimental extension with stricter motion locking for complex motion scenes. U
 
 **When to use**: Complex motion scenes (vehicles cornering, camera movement, choreographed action) where standard FreeLong still shows drift. Try standard FreeLong first.
 
+### WanMotionScale (Temporal RoPE Scaling)
+Control motion speed by scaling temporal position embeddings. Works with both **i2v** and **t2v**.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| enabled | true | Toggle on/off |
+| scale_t | 1.5 | Temporal scale: >1 = faster motion, <1 = slower, <0 = experimental reverse |
+| scale_y | 1.0 | Height scale (optional) |
+| scale_x | 1.0 | Width scale (optional) |
+
+**Recommended values for scale_t:**
+- **1.5** - Optimal for acceleration. Feels like ~2x motion speed, stable output
+- **1.0-1.5** - Safe range for faster motion
+- **0.75-1.0** - Slowdown range, works reliably
+- **Negative values** - Can produce reverse movement, but inconsistent since it contradicts training data. May work better for certain scene types or i2v
+
+**Use case:** Generate at scale_t=1.5 → RIFE 2x interpolation → effectively double video length with same motion coverage.
+
+**scale_x / scale_y notes:**
+- **t2v**: Can help adjust aspect ratio of generations
+- **i2v**: Can produce wild spatial effects - experimental
+
 ### WanContinuationConditioning
 Creates i2v conditioning from previous chunk's last frame.
 
@@ -160,7 +185,7 @@ Creates i2v conditioning from previous chunk's last frame.
 Multi-chunk continuation with different prompts per chunk for scene evolution.
 
 ### Single Shot (`Single-Shot-Example.json`)
-Single generation with FreeLong for improved motion consistency.  This workflow shows you a short clip with and without FeeLong node activation for comparison of 81+ frame gens
+Single generation with FreeLong for improved motion consistency. Includes A/B comparison with and without FreeLong. Note: For 81+ frame generations, results vary - FreeLong helps sometimes but not always. The consistent benefit is within 81 frames.
 
 ## Parameter Tuning
 
@@ -180,6 +205,15 @@ Single generation with FreeLong for improved motion consistency.  This workflow 
 | More natural/dynamic | Decrease `motion_lock_ratio` (0.05-0.1) |
 | Earlier motion establishment | Increase `motion_lock_blocks` (8-12) |
 | More detail influence | Decrease `motion_lock_blocks` (0-3) |
+
+### WanMotionScale
+| Goal | Adjustment |
+|------|------------|
+| Faster motion (for RIFE workflow) | `scale_t` = 1.5 (optimal) |
+| Gentle speedup | `scale_t` = 1.2-1.3 |
+| Slow motion effect | `scale_t` = 0.75-0.9 |
+| Experimental reverse | `scale_t` < 0 (inconsistent) |
+| Adjust t2v aspect ratio | Modify `scale_x` / `scale_y` |
 
 ## Technical Details
 
@@ -208,12 +242,13 @@ Single generation with FreeLong for improved motion consistency.  This workflow 
 - Unlimited chunk count
 - 8GB+ VRAM compatible
 
-## Experimental: Beyond 81 Frames
+## Note: Beyond 81 Frames
 
-FreeLong was designed to extend beyond training length. You may be able to generate 97, 113, or more frames in a single pass. Trade-offs:
-- VRAM scales with frame count
-- Quality may degrade at extreme lengths
-- Chunking approach is proven stable
+While FreeLong was originally designed to extend beyond training length, results for single generations beyond 81 frames are inconsistent. You may see improvement, or you may not.
+
+**The primary value of this implementation is consistency *within* the 81-frame window** - which is exactly why it makes chunked generation so reliable. Each chunk benefits from better motion consistency, giving you clean anchors for continuation.
+
+If you need longer videos, chunking is the proven approach.
 
 ## Requirements
 

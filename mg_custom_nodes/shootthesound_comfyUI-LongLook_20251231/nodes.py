@@ -44,14 +44,17 @@ class WanContinuationConditioning:
                     "step": 4,
                     "tooltip": "Output video length in frames. Must match your sampler settings."
                 }),
-            }
+            },
+            "optional": {
+                "end_images": ("IMAGE",),
+            },
         }
 
     RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
     RETURN_NAMES = ("positive", "negative", "latent")
     FUNCTION = "modify_conditioning"
     CATEGORY = "video/wan"
-    DESCRIPTION = "Creates i2v conditioning from last frame for video continuation"
+    DESCRIPTION = "Creates i2v conditioning from last frame with optional end-frame guidance"
 
     def modify_conditioning(
         self,
@@ -61,7 +64,8 @@ class WanContinuationConditioning:
         vae,
         width: int,
         height: int,
-        video_length: int
+        video_length: int,
+        end_images: Optional[torch.Tensor] = None
     ) -> Tuple[list, list, Dict[str, torch.Tensor]]:
         """
         Modify conditioning to use anchor frames for continuation.
@@ -74,24 +78,40 @@ class WanContinuationConditioning:
         latent_w = width // 8
 
         # Get the LAST frame from anchor images (single frame continuation like standard i2v)
-        frames_to_encode = anchor_images[-1:]  # Always use just the last frame
+        start_frame = anchor_images[-1:]  # Always use just the last frame
+
+        end_frame = None
+        if end_images is not None:
+            end_frame = end_images[-1:]  # Use last frame as end anchor
 
         # Resize to target dimensions if needed
-        if frames_to_encode.shape[1] != height or frames_to_encode.shape[2] != width:
-            frames_to_encode = comfy.utils.common_upscale(
-                frames_to_encode.movedim(-1, 1),
+        if start_frame.shape[1] != height or start_frame.shape[2] != width:
+            start_frame = comfy.utils.common_upscale(
+                start_frame.movedim(-1, 1),
                 width, height, "bilinear", "center"
             ).movedim(1, -1)
+
+        if end_frame is not None and (end_frame.shape[1] != height or end_frame.shape[2] != width):
+            end_frame = comfy.utils.common_upscale(
+                end_frame.movedim(-1, 1),
+                width, height, "bilinear", "center"
+            ).movedim(1, -1)
+        if end_frame is not None and (end_frame.device != start_frame.device or end_frame.dtype != start_frame.dtype):
+            end_frame = end_frame.to(device=start_frame.device, dtype=start_frame.dtype)
 
         # Create full video tensor for VAE encoding (matches WanImageToVideo exactly)
         # Gray (0.5) for frames to generate, actual image for first frame
         full_video = torch.ones(
             video_length, height, width, 3,
-            device=frames_to_encode.device, dtype=frames_to_encode.dtype
+            device=start_frame.device, dtype=start_frame.dtype
         ) * 0.5
 
-        # Place the single anchor frame at the beginning
-        full_video[:1] = frames_to_encode[:, :, :, :3]
+        # Place the start anchor at the beginning
+        full_video[:1] = start_frame[:, :, :, :3]
+
+        # Optionally place end anchor at the end
+        if end_frame is not None:
+            full_video[-1:] = end_frame[:, :, :, :3]
 
         # VAE encode the entire video (anchor frames + gray neutral frames)
         concat_latent_image = vae.encode(full_video)
@@ -105,18 +125,34 @@ class WanContinuationConditioning:
         # Formula: ((1 - 1) // 4) + 1 = 1
         anchor_latent_frames = 1
 
-        # Create concat_mask using LATENT frames (like WanImageToVideo does - simpler, no reshape)
-        # Shape: [1, 1, latent_frames, h, w]
-        # Wan convention: 0.0 = preserve (don't denoise), 1.0 = generate (full denoise)
-        concat_mask = torch.ones(
-            1, 1, encoded_latent_frames,
-            concat_latent_image.shape[-2],
-            concat_latent_image.shape[-1],
-            device=frames_to_encode.device, dtype=frames_to_encode.dtype
-        )
-
-        # Preserve anchor latent frames
-        concat_mask[:, :, :anchor_latent_frames] = 0.0
+        if end_frame is None:
+            # Create concat_mask using LATENT frames (like WanImageToVideo does - simpler, no reshape)
+            # Shape: [1, 1, latent_frames, h, w]
+            # Wan convention: 0.0 = preserve (don't denoise), 1.0 = generate (full denoise)
+            concat_mask = torch.ones(
+                1, 1, encoded_latent_frames,
+                concat_latent_image.shape[-2],
+                concat_latent_image.shape[-1],
+                device=start_frame.device, dtype=start_frame.dtype
+            )
+            # Preserve anchor latent frames
+            concat_mask[:, :, :anchor_latent_frames] = 0.0
+        else:
+            # ComfyCore-style frame mask with end-frame preservation
+            # Uses expanded [1, 4, latent_frames, h, w] format for per-subframe control
+            # (vs simple [1, 1, latent_frames, h, w] when no end_frame)
+            frame_mask = torch.ones(
+                1, 1, encoded_latent_frames * 4,
+                concat_latent_image.shape[-2],
+                concat_latent_image.shape[-1],
+                device=start_frame.device, dtype=start_frame.dtype
+            )
+            frame_mask[:, :, :start_frame.shape[0] + 3] = 0.0
+            frame_mask[:, :, -end_frame.shape[0]:] = 0.0
+            concat_mask = frame_mask.view(
+                1, frame_mask.shape[2] // 4, 4,
+                frame_mask.shape[-2], frame_mask.shape[-1]
+            ).movedim(1, 2)
 
         # Move to CPU for conditioning storage
         concat_latent_image = concat_latent_image.cpu()
@@ -1006,6 +1042,8 @@ class WanMotionScale:
                     "step": 0.05,
                     "tooltip": "Width/X scale. Affects horizontal spatial encoding."
                 }),
+                # shift_t, shift_y, shift_x support exists in backend but hidden from UI
+                # (RoPE uses relative positions, so shifts have minimal effect)
             }
         }
 
@@ -1022,26 +1060,39 @@ class WanMotionScale:
         scale_t: float,
         scale_y: float = 1.0,
         scale_x: float = 1.0,
+        shift_t: float = 0.0,
+        shift_y: float = 0.0,
+        shift_x: float = 0.0,
     ):
         """
-        Patch the model to scale RoPE positions via transformer_options.
+        Patch the model to scale/shift RoPE positions via transformer_options.
         """
         if not enabled:
             logger.info("[WanMotionScale] DISABLED - Model returned without patching")
             return (model,)
 
-        if scale_t == 1.0 and scale_y == 1.0 and scale_x == 1.0:
-            logger.info("[WanMotionScale] All scales are 1.0 - Model returned without patching")
+        # Check if anything is actually being changed
+        no_scale = (scale_t == 1.0 and scale_y == 1.0 and scale_x == 1.0)
+        no_shift = (shift_t == 0.0 and shift_y == 0.0 and shift_x == 0.0)
+        if no_scale and no_shift:
+            logger.info("[WanMotionScale] All values at default - Model returned without patching")
             return (model,)
 
         logger.info("=" * 60)
-        logger.info("[WanMotionScale] TEMPORAL ROPE SCALING")
+        logger.info("[WanMotionScale] TEMPORAL ROPE SCALING/SHIFTING")
         logger.info("=" * 60)
-        logger.info(f"  Temporal Scale (scale_t): {scale_t:.2f}x")
+        if scale_t != 1.0:
+            logger.info(f"  Temporal Scale (scale_t): {scale_t:.2f}x")
         if scale_y != 1.0:
             logger.info(f"  Height Scale (scale_y): {scale_y:.2f}x")
         if scale_x != 1.0:
             logger.info(f"  Width Scale (scale_x): {scale_x:.2f}x")
+        if shift_t != 0.0:
+            logger.info(f"  Temporal Shift (shift_t): {shift_t:.1f}")
+        if shift_y != 0.0:
+            logger.info(f"  Height Shift (shift_y): {shift_y:.1f}")
+        if shift_x != 0.0:
+            logger.info(f"  Width Shift (shift_x): {shift_x:.1f}")
         logger.info("=" * 60)
 
         model = model.clone()
@@ -1051,12 +1102,150 @@ class WanMotionScale:
             "scale_t": scale_t,
             "scale_y": scale_y,
             "scale_x": scale_x,
+            "shift_t": shift_t,
+            "shift_y": shift_y,
+            "shift_x": shift_x,
         }
 
         # Add rope_options to the model's transformer options
         model.model_options.setdefault("transformer_options", {})["rope_options"] = rope_options
 
         logger.info("[WanMotionScale] rope_options added to transformer_options")
+        logger.info("=" * 60)
+
+        return (model,)
+
+
+# ============================================================================
+# WanMotionScaleAdvanced - Experimental RoPE controls including theta
+# ============================================================================
+
+class WanMotionScaleAdvanced:
+    """
+    Advanced motion scaling with theta control for Wan video generation.
+
+    Extends the basic Motion Scale with access to RoPE theta parameter,
+    which controls the base frequency of position embeddings.
+
+    WARNING: This is experimental. Theta modification changes fundamental
+    model behavior and may produce unexpected results.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls) -> Dict[str, Any]:
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "enabled": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Enable/disable all modifications."
+                }),
+            },
+            "optional": {
+                "scale_t": ("FLOAT", {
+                    "default": 1.0,
+                    "min": -10.0,
+                    "max": 10.0,
+                    "step": 0.05,
+                    "tooltip": "Temporal scale. >1 = faster motion, <1 = slower. Same as basic Motion Scale."
+                }),
+                "scale_y": ("FLOAT", {
+                    "default": 1.0,
+                    "min": -10.0,
+                    "max": 10.0,
+                    "step": 0.05,
+                    "tooltip": "Height/Y position scale."
+                }),
+                "scale_x": ("FLOAT", {
+                    "default": 1.0,
+                    "min": -10.0,
+                    "max": 10.0,
+                    "step": 0.05,
+                    "tooltip": "Width/X position scale."
+                }),
+                "theta": ("FLOAT", {
+                    "default": 10000.0,
+                    "min": 100.0,
+                    "max": 1000000.0,
+                    "step": 100.0,
+                    "tooltip": "RoPE base frequency (default 10000 = Wan's training). Higher theta (20000-50000) = longer effective context, frames appear 'closer together' - may help >81 frame generations stay coherent. Lower theta (2000-5000) = frames seem 'further apart' temporally, may increase motion intensity or cause instability. EXPERIMENTAL - start with small changes."
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("MODEL",)
+    RETURN_NAMES = ("model",)
+    FUNCTION = "patch_model"
+    CATEGORY = "video/wan"
+    DESCRIPTION = "Advanced motion control with theta - EXPERIMENTAL"
+
+    def patch_model(
+        self,
+        model,
+        enabled: bool,
+        scale_t: float = 1.0,
+        scale_y: float = 1.0,
+        scale_x: float = 1.0,
+        theta: float = 10000.0,
+    ):
+        """
+        Patch the model with advanced RoPE modifications including theta.
+        """
+        if not enabled:
+            logger.info("[WanMotionScaleAdvanced] DISABLED - Model returned without patching")
+            return (model,)
+
+        # Check if anything is actually being changed
+        no_scale = (scale_t == 1.0 and scale_y == 1.0 and scale_x == 1.0)
+        default_theta = (theta == 10000.0)
+
+        if no_scale and default_theta:
+            logger.info("[WanMotionScaleAdvanced] All values at default - Model returned without patching")
+            return (model,)
+
+        logger.info("=" * 60)
+        logger.info("[WanMotionScaleAdvanced] ADVANCED ROPE MODIFICATIONS")
+        logger.info("=" * 60)
+        if scale_t != 1.0:
+            logger.info(f"  Temporal Scale (scale_t): {scale_t:.2f}x")
+        if scale_y != 1.0:
+            logger.info(f"  Height Scale (scale_y): {scale_y:.2f}x")
+        if scale_x != 1.0:
+            logger.info(f"  Width Scale (scale_x): {scale_x:.2f}x")
+        if not default_theta:
+            logger.info(f"  Theta: {theta:.0f} (default: 10000)")
+            if theta > 10000:
+                logger.info(f"    → Higher theta = longer effective context window")
+            else:
+                logger.info(f"    → Lower theta = positions cycle faster")
+        logger.info("=" * 60)
+
+        model = model.clone()
+
+        # Apply scale options via rope_options (same mechanism as basic Motion Scale)
+        if not no_scale:
+            rope_options = {
+                "scale_t": scale_t,
+                "scale_y": scale_y,
+                "scale_x": scale_x,
+            }
+            model.model_options.setdefault("transformer_options", {})["rope_options"] = rope_options
+            logger.info("[WanMotionScaleAdvanced] rope_options (scales) added to transformer_options")
+
+        # Apply theta modification directly to the rope_embedder
+        if not default_theta:
+            try:
+                # Access the diffusion model's rope_embedder
+                diffusion_model = model.model.diffusion_model
+                if hasattr(diffusion_model, 'rope_embedder'):
+                    original_theta = diffusion_model.rope_embedder.theta
+                    diffusion_model.rope_embedder.theta = theta
+                    logger.info(f"[WanMotionScaleAdvanced] rope_embedder.theta: {original_theta} → {theta}")
+                else:
+                    logger.warning("[WanMotionScaleAdvanced] Model does not have rope_embedder - theta not applied")
+            except Exception as e:
+                logger.error(f"[WanMotionScaleAdvanced] Failed to set theta: {e}")
+
         logger.info("=" * 60)
 
         return (model,)

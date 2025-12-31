@@ -1,6 +1,6 @@
 # comfyUI-LongLook
 
-> **v3.0.6 Update:** New **Motion Scale** node for temporal speed control via RoPE scaling. New **FreeLong Enforcer** for stricter motion locking. Performance optimizations (faster + improved float16 precision). See [Nodes](#nodes) section.
+> **v3.0.7 Update:** New **Motion Scale Advanced** node with experimental theta control for >81 frame coherence. **End-frame guidance** added to Continuation Conditioning (thanks [@onerok](https://github.com/onerok)). See [Nodes](#nodes) section.
 
 **Towards consistent motion and prompt adherence for Wan 2.2 video generation.**
 
@@ -11,7 +11,7 @@
 
 Works with both **i2v** (image-to-video) and **t2v** (text-to-video), though i2v sees the most benefit due to anchor-based continuation.
 
-### Motion Scale Demo (NEW)
+### Motion Scale Demo (NEW) - Change movement speed in Wan 2.2 videos
 [![Motion Scale Demo](https://img.youtube.com/vi/Zmkn6_vyMN8/maxresdefault.jpg)](https://youtu.be/Zmkn6_vyMN8)
 
 ### FreeLong Demo
@@ -168,6 +168,9 @@ Control motion speed by scaling temporal position embeddings. Works with both **
 - **t2v**: Can help adjust aspect ratio of generations
 - **i2v**: Can produce wild spatial effects - experimental
 
+### WanMotionScaleAdvanced
+*Work in progress - not yet fully documented.* Experimental node with additional RoPE controls including theta adjustment for potential >81 frame coherence improvements.
+
 ### WanContinuationConditioning
 Creates i2v conditioning from previous chunk's last frame.
 
@@ -177,7 +180,7 @@ Creates i2v conditioning from previous chunk's last frame.
 | height | 512 | Output video height |
 | video_frames | 81 | Frames to generate |
 
-**Inputs**: `positive`, `negative`, `anchor_images` (from previous VAE decode), `vae`
+**Inputs**: `positive`, `negative`, `anchor_images` (from previous VAE decode), `vae`, optional `end_images`
 
 ## Workflows
 
@@ -260,6 +263,7 @@ If you need longer videos, chunking is the proven approach.
 
 - FreeLong paper: [arxiv.org/abs/2407.19918](https://arxiv.org/abs/2407.19918)
 - Wan 2.2: Alibaba
+- End-frame guidance (WanContinuationConditioning): [@onerok](https://github.com/onerok)
 
 ## License
 

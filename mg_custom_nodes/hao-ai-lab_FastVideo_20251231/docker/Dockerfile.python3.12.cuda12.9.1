@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 --slave /usr/bin/g++ g++ /usr/bin/g++-11
 
 # Set CUDA environment variables
-ENV CUDA_HOME=/usr/local/cuda-12.8
+ENV CUDA_HOME=/usr/local/cuda-12.9
 ENV PATH=${CUDA_HOME}/bin:${PATH}
 ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:$LD_LIBRARY_PATH
 
@@ -43,7 +43,7 @@ RUN source $HOME/.local/bin/env && \
     source /opt/venv/bin/activate && \
     uv pip install --no-cache-dir --upgrade pip && \
     uv pip install --no-cache-dir .[dev] && \
-    uv pip install --no-cache-dir https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.5.4/flash_attn-2.8.3%2Bcu128torch2.9-cp312-cp312-linux_x86_64.whl
+    uv pip install --no-cache-dir flash-attn==2.8.3 --no-build-isolation
 
 COPY . .
 
@@ -60,6 +60,7 @@ RUN source $HOME/.local/bin/env && \
     source /opt/venv/bin/activate && \
     cd fastvideo-kernel && \
     git submodule update --init --recursive && \
-    ./build.sh --release
+    ./build.sh
+
 
 EXPOSE 22

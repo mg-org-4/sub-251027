@@ -2962,12 +2962,31 @@ from ..main_unit import *
 import math
 from itertools import repeat
 from typing import Iterable
-import nums_from_string
-import skia
+import re
+
 from comfy_api.latest import io
-from skia import textlayout as tl
 import torch
 import numpy as np
+
+
+try:
+    import skia
+    REMOVER_AVAILABLE = True  
+except ImportError:
+    skia = None
+    REMOVER_AVAILABLE = False  
+
+try:
+    from skia import textlayout as tl
+    REMOVER_AVAILABLE = True  
+except ImportError:
+    tl = None
+    REMOVER_AVAILABLE = False  
+
+
+
+
+
 
 def tensor_to_skia_image(img: torch.tensor) -> skia.Image:
     if img.ndim == 4:
@@ -3027,11 +3046,14 @@ def get_texts_type(texts: Iterable[str], paragraphs: Iterable[tl.ParagraphStyle]
     if is_multiline: return "multiline"
     is_numeric = True
     for t in texts:
-        tokens = nums_from_string.get_numeric_string_tokens(t)
+        # 使用正则表达式替代 nums_from_string.get_numeric_string_tokens(t)
+        tokens = re.findall(r'[+-]?\d+\.?\d*', t.strip())
         if len(tokens) != 1: is_numeric = False; break
         if not t.rstrip().endswith(tokens[0]): is_numeric = False; break
     if is_numeric: return "numeric"
     return "singleline"
+
+
 
 def find_imgs_rectangularpack(imgs: Iterable[tuple[int, int]]) -> tuple[int, int]:
     if not imgs: return [0, 0]

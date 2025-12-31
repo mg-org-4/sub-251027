@@ -6,7 +6,7 @@ A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nun
 
 **Currently under development and testing. Debug logs are being output extensively. This does not affect functionality.**
 
-> Latest release: [v2.2.4 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.4)
+> Latest release: [v2.2.5 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.5)
 > 
 > ⚠️ **Note for v2.0+ users**: If you encounter `TypeError: got multiple values for argument 'guidance'` errors, see [troubleshooting section](#issue-30-typeerror-got-multiple-values-for-argument-guidance-v20) below.
 
@@ -173,6 +173,30 @@ For detailed information, see [COMFYUI_0.4.0_MODEL_MANAGEMENT_ERRORS.md](md/COMF
 - **Related Issues**: 
   - [Issue #32](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/32) - `TypeError: got multiple values for argument 'guidance'` error when using LoRA with KSampler
 
+### Error: "No module named 'diffusers.models.transformers.transformer_z_image'"
+
+**Problem**: This error occurs when using Qwen-Edit models or Z-Image-Turbo models with an outdated `diffusers` library version.
+
+**Error Message**: `ModuleNotFoundError: No module named 'diffusers.models.transformers.transformer_z_image'`
+
+**Root Cause**: The most likely cause is that the `diffusers` library version is too old and does not include the `transformer_z_image` module, which is required for Z-Image-Turbo model support. When ComfyUI-nunchaku's model loader tries to load Z-Image-Turbo models (or Qwen-Edit models that may be detected as Z-Image format), it attempts to import this module, but it doesn't exist in older `diffusers` versions. This module was added in a later version of `diffusers` to support Z-Image-Turbo models.
+
+**Solution**: Update the `diffusers` library to the latest version:
+
+**If using a virtual environment (venv):**
+```bash
+pip install --upgrade diffusers
+```
+
+**If using ComfyUI's embedded Python:**
+```bash
+ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
+```
+
+**How to Verify**: After updating, restart ComfyUI and try loading your model again. The error should be resolved.
+
+**Related Issue**: [Issue #38](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/38)
+
 ## Known Limitations
 
 ### LoKR (Lycoris) LoRA Support
@@ -207,14 +231,17 @@ For detailed information, see [COMFYUI_0.4.0_MODEL_MANAGEMENT_ERRORS.md](md/COMF
 
 ## Changelog
 
-### v2.2.4 (latest)
+### v2.2.5 (latest)
+- **Fixed**: Repository recovery - All updates after v2.0.8 were completely broken, and recovery work has been performed to restore all functionality.
+
+### v2.2.4
 - **Added**: AWQ modulation layer detection and skip logic - `img_mod.1` and `txt_mod.1` layers are detected and LoRA application is skipped by default to prevent noise. Can be overridden with `QWENIMAGE_LORA_APPLY_AWQ_MOD=1` environment variable.
 - **Removed**: `NunchakuZImageTurboLoraStackV2` node registration has been removed from ComfyUI node list to avoid confusion when using official Nunchaku Z-Image loader. The node file remains in the repository but is no longer registered. Users of the official loader should use `NunchakuZImageTurboLoraStackV3` instead. ([Issue #37](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/37))
 - **Technical Details**: See [v2.2.4 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.4) for complete explanation
 
 ### v2.2.3
-- **Added**: Toggle buttons to enable/disable individual LoRA slots and all LoRAs at once ([Issue #12](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/12) and [Issue #36](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/36))
-- ⚠️ **DEVELOPMENT STATUS**: These features are currently experimental implementations for the `NunchakuZImageTurboLoraStackV3` and `NunchakuQwenImageLoraStackV3` nodes only. ComfyUI Nodes 2.0 environment only. With current technical capabilities, it is not possible to fully implement all requested features in JavaScript.
+- **Added**: Toggle buttons to enable/disable individual LoRA slots and all LoRAs at once ([Issue #12](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/12), [Issue #36](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/36))
+- ⚠️ **DEVELOPMENT STATUS**: These features are currently experimental implementations for the `NunchakuZImageTurboLoraStackV3` node only. ComfyUI Nodes 2.0 environment only. With current technical capabilities, it is not possible to fully implement all requested features in JavaScript.
 - **Technical Details**: See [v2.2.3 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.3) for complete explanation
 
 ### v2.2.2
@@ -223,7 +250,7 @@ For detailed information, see [COMFYUI_0.4.0_MODEL_MANAGEMENT_ERRORS.md](md/COMF
 
 ### v2.2.0
 - **Added**: NunchakuZImageTurboLoraStackV3 node – Z-Image-Turbo LoRA stacker with dynamic UI for official Nunchaku Z-Image loader
-- **Technical Details**: See [v2.2.0 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.0) for complete explanation
+- **Technical Details**: See [v2.2.0 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.0) for complete explanation
 
 ### v2.1.1
 - **Fixed**: ComfyUI v0.6.0+ compatibility – Migrated from `guidance` to `additional_t_cond` parameter in `_execute_model` method to support ComfyUI v0.6.0+ API changes ([PR #34](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/pull/34))

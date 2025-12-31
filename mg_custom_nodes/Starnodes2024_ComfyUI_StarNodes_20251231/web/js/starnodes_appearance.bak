@@ -1,4 +1,5 @@
 import { app } from "../../../../scripts/app.js";
+import { api } from "../../../../scripts/api.js";
 import { $el } from "../../../../scripts/ui.js";
 
 // Extension to apply custom colors to all StarNodes
@@ -152,6 +153,64 @@ app.registerExtension({
     async setup() {
         // This runs once when the extension is loaded
         console.log("StarNodes appearance extension setup");
+        
+        // Listen for individual node execution events
+        api.addEventListener("executing", (e) => {
+            const nodeId = e.detail;
+            console.log("StarNodes: Executing event fired, nodeId:", nodeId);
+            
+            // If nodeId is null, execution has finished
+            if (nodeId === null) {
+                console.log("StarNodes: Execution finished, restoring all nodes");
+                // Restore all nodes that were executing
+                const nodes = app.graph?._nodes || [];
+                for (const node of nodes) {
+                    if (node._starnodes_is_executing) {
+                        node.title = node._starnodes_original_title;
+                        node.color = node._starnodes_original_color;
+                        node._starnodes_is_executing = false;
+                        console.log("StarNodes: Restored node:", node.type);
+                    }
+                }
+                if (app.canvas) {
+                    app.canvas.setDirty(true, true);
+                }
+                return;
+            }
+            
+            // Find the node that is currently executing
+            const nodes = app.graph?._nodes || [];
+            for (const node of nodes) {
+                // Initialize tracking properties if not present
+                if (node._starnodes_is_executing === undefined) {
+                    node._starnodes_is_executing = false;
+                    node._starnodes_original_title = null;
+                    node._starnodes_original_color = null;
+                }
+                
+                if (String(node.id) === String(nodeId)) {
+                    // This node is now executing - mark it as active
+                    if (!node._starnodes_is_executing) {
+                        node._starnodes_original_title = node.title || node.type;
+                        node._starnodes_original_color = node.color;
+                        node._starnodes_is_executing = true;
+                        node.title = "\u26A1" + node._starnodes_original_title + "\u26A1";
+                        node.color = "#009933";
+                        console.log("StarNodes: Activated node:", node.type, "ID:", node.id, "Color:", node.color);
+                    }
+                } else if (node._starnodes_is_executing) {
+                    // This node was executing but is no longer - restore it
+                    node.title = node._starnodes_original_title;
+                    node.color = node._starnodes_original_color;
+                    node._starnodes_is_executing = false;
+                    console.log("StarNodes: Deactivated node:", node.type);
+                }
+            }
+            
+            if (app.canvas) {
+                app.canvas.setDirty(true, true);
+            }
+        });
     },
     
     async beforeRegisterNodeDef(nodeType, nodeData) {
@@ -498,6 +557,11 @@ app.registerExtension({
                     // Call the original function first
                     originalDrawTitleBar.call(this, ctx, title_height);
                 };
+                
+                // Initialize execution tracking properties
+                this._starnodes_original_title = null;
+                this._starnodes_original_color = null;
+                this._starnodes_is_executing = false;
                 
                 console.log(`Applied custom colors to StarNode: ${this.type}`);
             };

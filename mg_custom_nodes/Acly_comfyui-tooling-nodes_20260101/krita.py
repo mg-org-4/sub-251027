@@ -1,6 +1,7 @@
 import sys
 import torch
 import numpy as np
+from enum import Enum
 from pathlib import Path
 from typing import Any, NamedTuple
 from PIL import Image
@@ -73,6 +74,13 @@ class _BasicTypes(str):
 BasicTypes = _BasicTypes("BASIC")
 
 
+class OutputBatchMode(Enum):
+    default = "default"
+    images = "images"
+    animation = "animation"
+    layers = "layers"
+
+
 class KritaOutput(io.ComfyNode):
     @classmethod
     def define_schema(cls):
@@ -82,22 +90,39 @@ class KritaOutput(io.ComfyNode):
             category="krita",
             inputs=[
                 io.Image.Input("images"),
-                io.Boolean.Input("resize_canvas", default=False),
+                io.Int.Input("x", "offset x", default=0),
+                io.Int.Input("y", "offset y", default=0),
+                io.String.Input("name", default=""),
+                io.Combo.Input(
+                    "batch_mode", OutputBatchMode, "batch mode", default=OutputBatchMode.default
+                ),
+                io.Boolean.Input("resize_canvas", "resize canvas", default=False),
             ],
             is_output_node=True,
         )
 
     @classmethod
-    def execute(cls, images: torch.Tensor, resize_canvas: bool = False):
-        result = SendImageWebSocket.execute(images, "PNG")
-        ui = getattr(result, "ui", {}) or {}
-        ui = dict(ui)
-        # Values in the UI dict must be lists so ComfyUI can concatenate them
-        # across batched executions. Store a single structured entry.
-        ui["resize_canvas"] = [{"enabled": bool(resize_canvas)}]
-        result.ui = ui
-
-        return result
+    def execute(
+        cls,
+        images: torch.Tensor,
+        x: int = 0,
+        y: int = 0,
+        name="",
+        batch_mode: OutputBatchMode | str = OutputBatchMode.default,
+        resize_canvas=False,
+    ):
+        batch_mode = batch_mode.value if isinstance(batch_mode, OutputBatchMode) else batch_mode
+        info = {
+            "name": name,
+            "offset_x": x,
+            "offset_y": y,
+            "batch_mode": batch_mode,
+            "resize_canvas": resize_canvas,
+        }
+        output = SendImageWebSocket.execute(images, "PNG")
+        assert isinstance(output.ui, dict)
+        output.ui["info"] = [info]
+        return output
 
 
 class KritaSendText(io.ComfyNode):
@@ -152,6 +177,21 @@ class KritaCanvas(io.ComfyNode):
         return io.NodeOutput(_placeholder_image(), 512, 512, 0)
 
 
+class SelectionContext(Enum):
+    automatic = "automatic"
+    entire_image = "entire image"
+    mask_bounds = "mask bounds"
+
+
+_selection_context_help = """
+Determines the section (crop bounding box) of the image and mask to transmit:
+- automatic: area around the selection determined by Krita settings
+- entire image: always use the entire canvas area
+- mask bounds: tight bounding box of the current selection
+
+This affects the Selection and Canvas nodes. The offset x/y outputs indicate the top-left corner of the context area relative to the full canvas."""
+
+
 class KritaSelection(io.ComfyNode):
     @classmethod
     def define_schema(cls):
@@ -159,12 +199,26 @@ class KritaSelection(io.ComfyNode):
             node_id="ETN_KritaSelection",
             display_name="Krita Selection",
             category="krita",
-            outputs=[io.Mask.Output(display_name="mask"), io.Boolean.Output(display_name="active")],
+            inputs=[
+                io.Combo.Input(
+                    "context",
+                    options=SelectionContext,
+                    default=SelectionContext.entire_image,
+                    tooltip=_selection_context_help,
+                ),
+                io.Int.Input("padding", "padding", default=0, min=0),
+            ],
+            outputs=[
+                io.Mask.Output("mask", "mask"),
+                io.Boolean.Output("active", "active"),
+                io.Int.Output("x", "offset x"),
+                io.Int.Output("y", "offset y"),
+            ],
         )
 
     @classmethod
-    def execute(cls):
-        return io.NodeOutput(torch.ones(1, 512, 512), False)
+    def execute(cls, **kwargs):
+        return io.NodeOutput(torch.ones(1, 512, 512), False, 0, 0)
 
 
 class KritaImageLayer(io.ComfyNode):

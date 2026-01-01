@@ -1,0 +1,12 @@
+{
+  "mode": "random",
+  "split_rule": "auto",
+  "load_mode": "single",
+  "pool_shuffle": "sequential",
+  "selected": [
+    {
+      "name": "NSFW/vigee_mysex.txt",
+      "source": "system"
+    }
+  ]
+}

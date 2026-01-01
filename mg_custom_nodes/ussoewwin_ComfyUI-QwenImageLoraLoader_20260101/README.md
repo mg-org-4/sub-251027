@@ -195,7 +195,7 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 
 **How to Verify**: After updating, restart ComfyUI and try loading your model again. The error should be resolved.
 
-**Related Issue**: [Issue #38](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/38)
+**Related Issues**: [Issue #38](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/38), [Issue #40](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/40)
 
 ## Known Limitations
 
@@ -220,6 +220,14 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 - **Related Issues**: 
   - [Issue #29](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/29) - LyCORIS / LoKr Qwen Image LoRA not recognized by ComfyUI
 
+### context_refiner and noise_refiner Layer Support
+- **Status**: ❌ **Not Currently Supported**
+- **Issue**: LoRA keys for `context_refiner` and `noise_refiner` layers are **not currently supported**. These are specialized layers used in Z-Image-Turbo models for refiner functionality.
+- **Details**: We have not tested LoRAs that contain `context_refiner` and `noise_refiner` layers with actual models. Without testing, we cannot determine if correct key mappings are possible for these layers. The current key mapping system does not include mappings for these layers, and they **will not work** at this time.
+- **Conclusion**: Support for `context_refiner` and `noise_refiner` layers is not implemented because we have not been able to test LoRAs containing these layers. Even if we test them, it is unknown whether correct key mappings can be determined. Please use LoRAs that target the standard transformer layers only.
+- **Related Issues**: 
+  - [#41](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/41) - 无法加载context_refiner和noise_refiner层的参数
+
 ### RES4LYF Sampler Compatibility Issue
 - **Status**: ✅ Fixed in ComfyUI-nunchaku v1.0.2
 - **Issue**: Device mismatch errors occurred when using RES4LYF sampler with LoRA ([Issue #7](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/7), [Issue #8](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/8))
@@ -232,7 +240,10 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 ## Changelog
 
 ### v2.2.5 (latest)
-- **Fixed**: Repository recovery - All updates after v2.0.8 were completely broken, and recovery work has been performed to restore all functionality.
+- **Fixed**: Repository recovery - All updates after v2.0.8 were completely broken, and recovery work has been performed to restore all functionality. Related to [Issue #39](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/39)
+- **Recovery Details**: Restored all deleted files (images/, nodes/, wrappers/, nunchaku_code/, js/, md/, LICENSE, pyproject.toml) from local backups
+- **Feature Verification**: Verified and restored all features from v2.0.8 through v2.2.4 (NextDiT support, AWQ skip logic, toggle buttons, LoRA format detection)
+- **Technical Details**: See [v2.2.5 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.5) for complete explanation
 
 ### v2.2.4
 - **Added**: AWQ modulation layer detection and skip logic - `img_mod.1` and `txt_mod.1` layers are detected and LoRA application is skipped by default to prevent noise. Can be overridden with `QWENIMAGE_LORA_APPLY_AWQ_MOD=1` environment variable.
@@ -240,8 +251,8 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 - **Technical Details**: See [v2.2.4 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.4) for complete explanation
 
 ### v2.2.3
-- **Added**: Toggle buttons to enable/disable individual LoRA slots and all LoRAs at once ([Issue #12](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/12), [Issue #36](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/36))
-- ⚠️ **DEVELOPMENT STATUS**: These features are currently experimental implementations for the `NunchakuZImageTurboLoraStackV3` node only. ComfyUI Nodes 2.0 environment only. With current technical capabilities, it is not possible to fully implement all requested features in JavaScript.
+- **Added**: Toggle buttons to enable/disable individual LoRA slots and all LoRAs at once. Resolved [Issue #12](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/12) and [Issue #36](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/36)
+- ⚠️ **DEVELOPMENT STATUS**: These features are currently experimental implementations for the `NunchakuQwenImageLoraStackV3` and `NunchakuZImageTurboLoraStackV3` nodes. ComfyUI Nodes 2.0 environment only. With current technical capabilities, it is not possible to fully implement all requested features in JavaScript.
 - **Technical Details**: See [v2.2.3 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.3) for complete explanation
 
 ### v2.2.2

@@ -6,3 +6,4 @@ torch
 torchvision
 piexif
 onnxruntime
+onnxruntime-gpu

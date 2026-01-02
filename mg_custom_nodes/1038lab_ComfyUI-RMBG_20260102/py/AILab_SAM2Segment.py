@@ -1,6 +1,7 @@
 import os
 import sys
 import copy
+from pathlib import Path
 import torch
 import numpy as np
 from PIL import Image, ImageFilter
@@ -10,7 +11,7 @@ from safetensors.torch import load_file
 import folder_paths
 import comfy.model_management
 
-from hydra import initialize
+from hydra import initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
 
 try:
@@ -24,19 +25,23 @@ except ImportError:
     GROUNDINGDINO_AVAILABLE = False
     print("Warning: GroundingDINO not available. Text prompts will use fallback method.")
 
-current_dir = os.path.dirname(__file__)
-sam2_path = os.path.join(current_dir, "sam2")
-sys.path.insert(0, sam2_path)
+# Disable PyTorch JIT compilation
+# torch.jit._state._python_cu = None
+# torch._C._jit_set_profiling_mode(False)
+# torch._C._jit_set_profiling_executor(False)
+
+# original_jit_script = torch.jit.script
+# def patched_jit_script(obj):
+#     return obj
+# torch.jit.script = patched_jit_script
+
+current_dir = Path(__file__).resolve().parent
+repo_root = current_dir.parent
+sam2_path = repo_root / "models" / "sam2"
+sys.path.insert(0, str(sam2_path))
 
 import torch.serialization
 original_torch_load = torch.load
-
-def patched_torch_load(*args, **kwargs):
-    if 'weights_only' not in kwargs:
-        kwargs['weights_only'] = False
-    return original_torch_load(*args, **kwargs)
-
-torch.load = patched_torch_load
 
 from contextlib import contextmanager
 
@@ -48,6 +53,13 @@ def _sam2_no_jit():
         yield
     finally:
         torch.jit.script = _orig
+
+def patched_torch_load(*args, **kwargs):
+    if 'weights_only' not in kwargs:
+        kwargs['weights_only'] = False
+    return original_torch_load(*args, **kwargs)
+
+torch.load = patched_torch_load
 
 from sam2_image_predictor import SAM2ImagePredictor
 from AILab_ImageMaskTools import pil2tensor, tensor2pil
@@ -220,7 +232,7 @@ class SAM2Segment:
             if GlobalHydra().is_initialized():
                 GlobalHydra.instance().clear()
             
-            initialize(config_path="sam2/configs")
+            initialize_config_dir(config_dir=os.path.join(sam2_path, "configs"), job_name="sam2")
             
             config_map = {
                 "sam2.1_hiera_tiny": "sam2.1/sam2.1_hiera_t.yaml",
@@ -251,7 +263,7 @@ class SAM2Segment:
             # predictor = SAM2ImagePredictor(sam_model)
             with _sam2_no_jit():
                 predictor = SAM2ImagePredictor(sam_model)
-                
+
             self.sam2_model_cache[cache_key] = predictor
         return self.sam2_model_cache[cache_key]
 
@@ -410,5 +422,4 @@ NODE_CLASS_MAPPINGS = {
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "SAM2Segment": "SAM2 Segmentation (RMBG)",
-
 }

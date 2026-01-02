@@ -14,6 +14,7 @@
 import os
 import sys
 import copy
+from pathlib import Path
 
 if os.environ.get('SDMATTE_CPU_ONLY', '').lower() in ('1', 'true', 'yes'):
     os.environ['CUDA_VISIBLE_DEVICES'] = ''
@@ -59,9 +60,10 @@ except ImportError:
     DIFFUSERS_AVAILABLE = False
     print("Warning: diffusers/transformers not available. SDMatte functionality will be limited.")
 
-current_dir = os.path.dirname(__file__)
-if str(current_dir) not in sys.path:
-    sys.path.insert(0, current_dir)
+current_dir = Path(__file__).resolve().parent
+repo_root = current_dir.parent
+sdmatte_path = repo_root / "models" / "SDMatte"
+sys.path.insert(0, str(sdmatte_path))
 
 SDMATTE_MODELS = {
     "SDMatte": {

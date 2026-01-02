@@ -223,7 +223,9 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 ### context_refiner and noise_refiner Layer Support
 - **Status**: ❌ **Not Currently Supported**
 - **Issue**: LoRA keys for `context_refiner` and `noise_refiner` layers are **not currently supported**. These are specialized layers used in Z-Image-Turbo models for refiner functionality.
-- **Details**: We have not tested LoRAs that contain `context_refiner` and `noise_refiner` layers with actual models. Without testing, we cannot determine if correct key mappings are possible for these layers. The current key mapping system does not include mappings for these layers, and they **will not work** at this time.
+- **Details**: 
+  - ⚠️ **Testing Limitation**: We have not tested LoRAs that contain `context_refiner` and `noise_refiner` layers with actual models. The reason we cannot test them is that **we do not know which LoRAs are in this format**. If we can identify specific LoRAs that contain these layers, we can proceed with testing.
+  - Without testing, we cannot determine if correct key mappings are possible for these layers. The current key mapping system does not include mappings for these layers, and they **will not work** at this time.
 - **Conclusion**: Support for `context_refiner` and `noise_refiner` layers is not implemented because we have not been able to test LoRAs containing these layers. Even if we test them, it is unknown whether correct key mappings can be determined. Please use LoRAs that target the standard transformer layers only.
 - **Related Issues**: 
   - [#41](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/41) - 无法加载context_refiner和noise_refiner层的参数
@@ -243,6 +245,7 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 - **Fixed**: Repository recovery - All updates after v2.0.8 were completely broken, and recovery work has been performed to restore all functionality. Related to [Issue #39](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/39)
 - **Recovery Details**: Restored all deleted files (images/, nodes/, wrappers/, nunchaku_code/, js/, md/, LICENSE, pyproject.toml) from local backups
 - **Feature Verification**: Verified and restored all features from v2.0.8 through v2.2.4 (NextDiT support, AWQ skip logic, toggle buttons, LoRA format detection)
+- **Fixed**: Issue #42 - Fixed toggle button logic in `NunchakuQwenImageLoraStackV3` and `NunchakuZImageTurboLoraStackV3` nodes. Individual LoRAs can now be enabled even when `toggle_all` is `False`. ([Issue #42](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/42))
 - **Technical Details**: See [v2.2.5 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.5) for complete explanation
 
 ### v2.2.4

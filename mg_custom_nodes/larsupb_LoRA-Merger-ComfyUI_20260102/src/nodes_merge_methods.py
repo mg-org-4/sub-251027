@@ -105,12 +105,12 @@ class TaskArithmeticMergeMethod:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "rescale_norm": (["default", "dare", "l1", "l2", "none"],
+                "rescale_norm": (["default", "l1", "l2", "linf", "none"],
                                  {"default": "default", "tooltip": "Rescaling strategy:\n"
                                   "• default: Auto-select (L1 for methods needing it, none otherwise)\n"
-                                  "• dare: DARE-style 1/(1-density) rescaling (fast, preserves expectation)\n"
                                   "• l1: L1 norm preservation (precise, preserves magnitude sum)\n"
                                   "• l2: L2 norm preservation (precise, preserves Euclidean norm)\n"
+                                  "• linf: L-infinity norm (preserves max absolute value, prevents amplification)\n"
                                   "• none: No rescaling (may reduce merge strength)"}),
                 "normalize": ("BOOLEAN", {
                     "default": True,
@@ -153,12 +153,12 @@ class TIESMergeMethod:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "rescale_norm": (["default", "dare", "l1", "l2", "none"],
+                "rescale_norm": (["default", "l1", "l2", "linf", "none"],
                                  {"default": "default", "tooltip": "Rescaling strategy:\n"
                                   "• default: Auto-select (L1 for methods needing it, none otherwise)\n"
-                                  "• dare: DARE-style 1/(1-density) rescaling (fast, preserves expectation)\n"
                                   "• l1: L1 norm preservation (precise, preserves magnitude sum)\n"
                                   "• l2: L2 norm preservation (precise, preserves Euclidean norm)\n"
+                                  "• linf: L-infinity norm (preserves max absolute value, prevents amplification)\n"
                                   "• none: No rescaling (may reduce merge strength)"}),
                 "normalize": ("BOOLEAN", {
                     "default": True,
@@ -213,12 +213,12 @@ class BreadcrumbsMergeMethod:
                     "default": False,
                     "tooltip": "Use sign consensus algorithm of ties algorithm.",
                 }),
-                "rescale_norm": (["default", "dare", "l1", "l2", "none"],
+                "rescale_norm": (["default", "l1", "l2", "linf", "none"],
                                  {"default": "default", "tooltip": "Rescaling strategy:\n"
                                   "• default: Auto-select (L1 for methods needing it, none otherwise)\n"
-                                  "• dare: DARE-style 1/(1-density) rescaling (fast, preserves expectation)\n"
                                   "• l1: L1 norm preservation (precise, preserves magnitude sum)\n"
                                   "• l2: L2 norm preservation (precise, preserves Euclidean norm)\n"
+                                  "• linf: L-infinity norm (preserves max absolute value, prevents amplification)\n"
                                   "• none: No rescaling (may reduce merge strength)"}),
                 "density": ("FLOAT", {
                     "default": .9,
@@ -322,12 +322,12 @@ class DAREMergeMethod:
                     "default": False,
                     "tooltip": "Use sign consensus algorithm of ties algorithm.",
                 }),
-                "rescale_norm": (["default", "l1", "l2", "none"],
+                "rescale_norm": (["default", "l1", "l2", "linf", "none"],
                                  {"default": "default", "tooltip": "Rescaling strategy:\n"
                                   "• default: Auto-select (L1 for methods needing it, none otherwise)\n"
-                                  "• dare: DARE-style 1/(1-density) rescaling (fast, preserves expectation)\n"
                                   "• l1: L1 norm preservation (precise, preserves magnitude sum)\n"
                                   "• l2: L2 norm preservation (precise, preserves Euclidean norm)\n"
+                                  "• linf: L-infinity norm (preserves max absolute value, prevents amplification)\n"
                                   "• none: No rescaling (may reduce merge strength)"}),
                 "density": ("FLOAT", {
                     "default": .85,
@@ -388,12 +388,12 @@ class DELLAMergeMethod:
                     "default": False,
                     "tooltip": "Use sign consensus algorithm of ties algorithm.",
                 }),
-                "rescale_norm": (["default", "dare", "l1", "l2", "none"],
+                "rescale_norm": (["default", "l1", "l2", "linf", "none"],
                                  {"default": "default", "tooltip": "Rescaling strategy:\n"
                                   "• default: Auto-select (L1 for methods needing it, none otherwise)\n"
-                                  "• dare: DARE-style 1/(1-density) rescaling (fast, preserves expectation)\n"
                                   "• l1: L1 norm preservation (precise, preserves magnitude sum)\n"
                                   "• l2: L2 norm preservation (precise, preserves Euclidean norm)\n"
+                                  "• linf: L-infinity norm (preserves max absolute value, prevents amplification)\n"
                                   "• none: No rescaling (may reduce merge strength)"}),
                 "density": ("FLOAT", {
                     "default": .85,
@@ -629,10 +629,6 @@ class NearSwapMergeMethod:
                     "step": 0.0001,
                     "tooltip": "Similarity threshold for NearSwap merge.",
                 }),
-                "normalize": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": "If true, the weights of all models contributing to a tensor will be normalized. Default behavior.",
-                }),
             },
         }
 
@@ -661,41 +657,13 @@ class NearSwapMergeMethod:
     then returns weight * secondary + (1 - weight) * base
     """
 
-    def get_method(self, similarity_threshold: float = 0.001, normalize: bool = True):
+    def get_method(self, similarity_threshold: float = 0.001):
         method_def = {
             "name": "nearswap",
             "settings": {
                 "similarity_threshold": similarity_threshold,
-                "normalize": normalize
             }
         }
         return (method_def,)
 
 
-class ArceeFusionMergeMethod:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {}
-
-    RETURN_TYPES = ("MergeMethod",)
-    FUNCTION = "execute"
-    CATEGORY = "LoRA PowerMerge/Specialized Methods"
-    DESCRIPTION = """
-    Arcee Fusion
-    Concept: Merges two models by dynamically identifying and fusing important parameter changes. 
-    It calculates importance scores based on parameter differences and KL divergence, 
-    then uses a dynamic threshold to create a fusion mask.
-
-    Use Cases:
-    Intelligently combining two models by prioritizing the most salient differences
-    Inputs: Requires exactly 2 models. One model must be specified as base_model.
-
-    Key Parameters: None beyond standard model selection
-    """
-
-    def execute(self):
-        method_def = {
-            "name": "arcee_fusion",
-            "settings": {}
-        }
-        return (method_def,)

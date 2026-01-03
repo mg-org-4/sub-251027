@@ -1,0 +1,11 @@
+opencv-python
+pandas
+matplotlib
+flow-vis
+librosa
+albumentations
+albucore
+torchdiffeq
+timm>=1.0.9
+face_alignment
+torchcodec

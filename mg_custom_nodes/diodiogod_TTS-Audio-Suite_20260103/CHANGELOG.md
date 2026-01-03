@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.16.4] - 2026-01-02
+
+### Fixed
+
+- Fix CosyVoice3 model loading with PyYAML 6.0+ (tentative)
+- Fix 'Loader' object has no attribute max_depth error in CosyVoice3
+- Improve compatibility with newer PyYAML versions (6.0+)
+- Resolve CosyVoice3 initialization failures
+## [4.16.3] - 2026-01-02
+
+### Added
+
+- Address issues with embed_tokens and affine layers staying on CPU
+
+### Fixed
+
+- Fix CosyVoice3 device mismatch errors (tentative)
+- Fix 'Expected all tensors to be on the same device' error in CosyVoice3
+- Improve compatibility with PyTorch 2.9.1+cu130
+## [4.16.2] - 2026-01-02
+
+### Changed
+
+- Improve detection accuracy by checking actual module location instead of path keywords
+
+### Fixed
+
+- Fix IndexTTS-2 false positive detection in conda environments
+- Fix bundled IndexTTS-2 incorrectly flagged as external installation
+- Resolve compatibility issue when ComfyUI installed in directories with 'conda' in path
 ## [4.16.1] - 2025-12-29
 
 ### Fixed

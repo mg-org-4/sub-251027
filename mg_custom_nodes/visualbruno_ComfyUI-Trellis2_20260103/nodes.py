@@ -143,6 +143,44 @@ def pymeshlab_remove_floater(mesh: pymeshlab.MeshSet):
     mesh.apply_filter("compute_selection_transfer_face_to_vertex", inclusive=False)
     mesh.apply_filter("meshing_remove_selected_vertices_and_faces")
     return mesh 
+    
+def _batched_unsigned_distance(bvh, positions, batch_size=100000, return_uvw=False):
+    """
+    Batch unsigned_distance queries to avoid GPU kernel timeout on large meshes.
+    When processing high-resolution textures (e.g., 2048x2048 = ~4M pixels) on complex
+    meshes, a single BVH query can cause GPU watchdog timeout. This function splits
+    the query into smaller batches.
+    Args:
+        bvh: The BVH structure from cumesh
+        positions: (N, 3) tensor of query positions
+        batch_size: Maximum number of queries per batch (default 100K, matching
+            the rasterization chunk size used elsewhere in this file)
+        return_uvw: Whether to return barycentric coordinates
+    Returns:
+        Same as bvh.unsigned_distance()
+    """
+    import torch
+    N = positions.shape[0]
+    if N <= batch_size:
+        return bvh.unsigned_distance(positions, return_uvw=return_uvw)
+
+    distances_list = []
+    face_id_list = []
+    uvw_list = [] if return_uvw else None
+
+    for i in range(0, N, batch_size):
+        end = min(i + batch_size, N)
+        d, f, u = bvh.unsigned_distance(positions[i:end], return_uvw=return_uvw)
+        distances_list.append(d)
+        face_id_list.append(f)
+        if return_uvw:
+            uvw_list.append(u)
+
+    return (
+        torch.cat(distances_list),
+        torch.cat(face_id_list),
+        torch.cat(uvw_list) if return_uvw else None
+    )    
 
 class Trellis2LoadModel:
     @classmethod
@@ -239,13 +277,13 @@ class Trellis2MeshWithVoxelGenerator:
                 "pipeline": ("TRELLIS2PIPELINE",),
                 "image": ("IMAGE",),                
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
-                "pipeline_type": (["512","1024","1024_cascade","1536_cascade"],{"default":"1024_cascade"}),
+                "pipeline_type": (["512","1024","1024_cascade","1536_cascade","2048_cascade"],{"default":"1024_cascade"}),
                 "sparse_structure_steps": ("INT",{"default":12, "min":1, "max":100},),
                 "shape_steps": ("INT",{"default":12, "min":1, "max":100},),
                 "texture_steps": ("INT",{"default":12, "min":1, "max":100},),
                 "max_num_tokens": ("INT",{"default":49152,"min":0,"max":999999}),
                 "max_views": ("INT", {"default": 4, "min": 1, "max": 16}),
-                "sparse_structure_resolution": ("INT", {"default":32,"min":8,"max":64,"step":8}),
+                "sparse_structure_resolution": ("INT", {"default":32,"min":8,"max":128,"step":8}),
                 "generate_texture_slat": ("BOOLEAN", {"default":True}),
             },
         }
@@ -356,7 +394,7 @@ class Trellis2SimplifyMesh:
         return {
             "required": {
                 "mesh": ("MESHWITHVOXEL",),
-                "target_face_num": ("INT",{"default":1000000,"min":1,"max":16000000}),
+                "target_face_num": ("INT",{"default":1000000,"min":1,"max":30000000}),
                 "method": (["Cumesh","Meshlib"],{"default":"Cumesh"}),
             },
         }
@@ -717,29 +755,29 @@ class Trellis2MeshWithVoxelAdvancedGenerator:
                 "pipeline": ("TRELLIS2PIPELINE",),
                 "image": ("IMAGE",),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
-                "pipeline_type": (["512","1024","1024_cascade","1536_cascade"],{"default":"1024_cascade"}),
+                "pipeline_type": (["512","1024","1024_cascade","1536_cascade","2048_cascade"],{"default":"1024_cascade"}),
                 "sparse_structure_steps": ("INT",{"default":12, "min":1, "max":100},),
-                "sparse_structure_guidance_strength": ("FLOAT",{"default":7.5}),
-                "sparse_structure_guidance_rescale": ("FLOAT",{"default":0.7}),
-                "sparse_structure_rescale_t": ("FLOAT",{"default":5.0}),
+                "sparse_structure_guidance_strength": ("FLOAT",{"default":7.50}),
+                "sparse_structure_guidance_rescale": ("FLOAT",{"default":0.70}),
+                "sparse_structure_rescale_t": ("FLOAT",{"default":5.00}),
                 "shape_steps": ("INT",{"default":12, "min":1, "max":100},),
-                "shape_guidance_strength": ("FLOAT",{"default":7.5}),
-                "shape_guidance_rescale": ("FLOAT",{"default":0.5}),
-                "shape_rescale_t": ("FLOAT",{"default":3.0}),                
+                "shape_guidance_strength": ("FLOAT",{"default":7.50}),
+                "shape_guidance_rescale": ("FLOAT",{"default":0.50}),
+                "shape_rescale_t": ("FLOAT",{"default":3.00}),                
                 "texture_steps": ("INT",{"default":12, "min":1, "max":100},),
-                "texture_guidance_strength": ("FLOAT",{"default":1.0}),
-                "texture_guidance_rescale": ("FLOAT",{"default":0.0}),
-                "texture_rescale_t": ("FLOAT",{"default":3.0}),                
+                "texture_guidance_strength": ("FLOAT",{"default":1.00}),
+                "texture_guidance_rescale": ("FLOAT",{"default":0.00}),
+                "texture_rescale_t": ("FLOAT",{"default":3.00}),                
                 "max_num_tokens": ("INT",{"default":49152,"min":0,"max":999999}),
                 "max_views": ("INT", {"default": 4, "min": 1, "max": 16}),
-                "sparse_structure_resolution": ("INT", {"default":32,"min":8,"max":64,"step":8}),
+                "sparse_structure_resolution": ("INT", {"default":32,"min":8,"max":128,"step":8}),
                 "generate_texture_slat": ("BOOLEAN", {"default":True}),
-                "sparse_structure_guidance_interval_start": ("FLOAT",{"default":0.3,"min":0.0,"max":1.0}),
-                "sparse_structure_guidance_interval_end": ("FLOAT",{"default":1.0,"min":0.0,"max":1.0}),
-                "shape_guidance_interval_start": ("FLOAT",{"default":0.3,"min":0.0,"max":1.0}),
-                "shape_guidance_interval_end": ("FLOAT",{"default":1.0,"min":0.0,"max":1.0}),
-                "texture_guidance_interval_start": ("FLOAT",{"default":0.6,"min":0.0,"max":1.0}),
-                "texture_guidance_interval_end": ("FLOAT",{"default":0.9,"min":0.0,"max":1.0}),
+                "sparse_structure_guidance_interval_start": ("FLOAT",{"default":0.30,"min":0.00,"max":1.00,"step":0.01}),
+                "sparse_structure_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
+                "shape_guidance_interval_start": ("FLOAT",{"default":0.30,"min":0.00,"max":1.00,"step":0.01}),
+                "shape_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_guidance_interval_start": ("FLOAT",{"default":0.60,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
             },
         }
 
@@ -782,8 +820,15 @@ class Trellis2MeshWithVoxelAdvancedGenerator:
         sparse_structure_sampler_params = {"steps":sparse_structure_steps,"guidance_strength":sparse_structure_guidance_strength,"guidance_rescale":sparse_structure_guidance_rescale,"guidance_interval":sparse_structure_guidance_interval,"rescale_t":sparse_structure_rescale_t}        
         shape_slat_sampler_params = {"steps":shape_steps,"guidance_strength":shape_guidance_strength,"guidance_rescale":shape_guidance_rescale,"guidance_interval":shape_guidance_interval,"rescale_t":shape_rescale_t}       
         tex_slat_sampler_params = {"steps":texture_steps,"guidance_strength":texture_guidance_strength,"guidance_rescale":texture_guidance_rescale,"guidance_interval":texture_guidance_interval,"rescale_t":texture_rescale_t}
+            
+        if generate_texture_slat:
+            num_steps = 5
+        else:
+            num_steps = 4
+
+        pbar = ProgressBar(num_steps)
         
-        mesh = pipeline.run(image=image_in, seed=seed, pipeline_type=pipeline_type, sparse_structure_sampler_params = sparse_structure_sampler_params, shape_slat_sampler_params = shape_slat_sampler_params, tex_slat_sampler_params = tex_slat_sampler_params, max_num_tokens = max_num_tokens, sparse_structure_resolution = sparse_structure_resolution, max_views = max_views, generate_texture_slat=generate_texture_slat)[0]         
+        mesh = pipeline.run(image=image_in, seed=seed, pipeline_type=pipeline_type, sparse_structure_sampler_params = sparse_structure_sampler_params, shape_slat_sampler_params = shape_slat_sampler_params, tex_slat_sampler_params = tex_slat_sampler_params, max_num_tokens = max_num_tokens, sparse_structure_resolution = sparse_structure_resolution, max_views = max_views, generate_texture_slat=generate_texture_slat, pbar=pbar)[0]         
         
         return (mesh,)    
 
@@ -819,6 +864,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
     OUTPUT_NODE = True
 
     def process(self, mesh, mesh_cluster_threshold_cone_half_angle_rad, mesh_cluster_refine_iterations, mesh_cluster_global_iterations, mesh_cluster_smooth_strength, texture_size, remesh, remesh_band, remesh_project, target_face_num, simplify_method, fill_holes, fill_holes_max_perimeter, texture_alpha_mode, dual_contouring_resolution, double_side_material,remove_floaters):
+        pbar = ProgressBar(5)
         mesh_copy = copy.deepcopy(mesh)
         
         aabb = [[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]
@@ -877,6 +923,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
         # Build BVH for the current mesh to guide remeshing
         print(f"Building BVH for current mesh...")
         bvh = CuMesh.cuBVH(vertices, faces)
+        pbar.update(1)
             
         print("Cleaning mesh...")        
         # --- Branch 1: Standard Pipeline (Simplification & Cleaning) ---
@@ -954,6 +1001,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
                 cumesh.init(torch.from_numpy(new_vertices).float().cuda(), torch.from_numpy(new_faces).int().cuda())
 
         print(f"After simplifying: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")            
+        pbar.update(1)
         
         print('Unwrapping ...')        
         out_vertices, out_faces, out_uvs, out_vmaps = cumesh.uv_unwrap(
@@ -966,6 +1014,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
             return_vmaps=True,
             verbose=True,
         )
+        pbar.update(1)
         
         out_vertices = out_vertices.cuda()
         out_faces = out_faces.cuda()
@@ -1016,6 +1065,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
         
         # --- Texture Post-Processing & Material Construction ---
         print("Finalizing mesh...")
+        pbar.update(1)
         
         mask = mask.cpu().numpy()
         
@@ -1063,7 +1113,8 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
             vertex_normals=normals_np,
             process=False,
             visual=Trimesh.visual.TextureVisuals(uv=uvs_np,material=material)
-        )        
+        )
+        pbar.update(1)        
         
         del cumesh
         gc.collect()         
@@ -1208,7 +1259,9 @@ class Trellis2MeshTexturing:
                 "resolution": ([512,1024],{"default":1024}),
                 "texture_size": ("INT",{"default":2048,"min":512,"max":16384}),
                 "texture_alpha_mode": (["OPAQUE","MASK","BLEND"],{"default":"OPAQUE"}),
-                "double_side_material": ("BOOLEAN",{"default":True}),                
+                "double_side_material": ("BOOLEAN",{"default":True}), 
+                "texture_guidance_interval_start": ("FLOAT",{"default":0.60,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),                
             },
         }
 
@@ -1218,10 +1271,13 @@ class Trellis2MeshTexturing:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material):
+    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material, texture_guidance_interval_start, texture_guidance_interval_end):
         #image = tensor2pil_v2(image)
         image = tensor2pil(image)
-        tex_slat_sampler_params = {"steps":texture_steps,"guidance_strength":texture_guidance_strength,"guidance_rescale":texture_guidance_rescale,"rescale_t":texture_rescale_t}
+        
+        texture_guidance_interval = [texture_guidance_interval_start,texture_guidance_interval_end]                
+        
+        tex_slat_sampler_params = {"steps":texture_steps,"guidance_strength":texture_guidance_strength,"guidance_rescale":texture_guidance_rescale,"guidance_interval":texture_guidance_interval,"rescale_t":texture_rescale_t}
 
         textured_mesh, baseColorTexture_np, metallicRoughnessTexture_np = pipeline.texture_mesh(mesh=trimesh, 
             image=image, 
@@ -1296,7 +1352,7 @@ class Trellis2PreProcessImage:
             if not np.all(alpha == 255):
                 has_alpha = True
         max_size = max(input.size)
-        scale = min(1, 1024 / max_size)
+        scale = min(1, 2048 / max_size)
         if scale < 1:
             input = input.resize((int(input.width * scale), int(input.height * scale)), Image.Resampling.LANCZOS)
         # if has_alpha:
@@ -1334,16 +1390,20 @@ class Trellis2MeshRefiner:
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
                 "resolution": ([512,1024,1536],{"default":1024}),
                 "shape_steps": ("INT",{"default":12, "min":1, "max":100},),
-                "shape_guidance_strength": ("FLOAT",{"default":7.5}),
-                "shape_guidance_rescale": ("FLOAT",{"default":0.5}),
-                "shape_rescale_t": ("FLOAT",{"default":3.0}),                
+                "shape_guidance_strength": ("FLOAT",{"default":7.50}),
+                "shape_guidance_rescale": ("FLOAT",{"default":0.50}),
+                "shape_rescale_t": ("FLOAT",{"default":3.00}),                
                 "texture_steps": ("INT",{"default":12, "min":1, "max":100},),
-                "texture_guidance_strength": ("FLOAT",{"default":1.0}),
-                "texture_guidance_rescale": ("FLOAT",{"default":0.0}),
-                "texture_rescale_t": ("FLOAT",{"default":3.0}),                
+                "texture_guidance_strength": ("FLOAT",{"default":1.00}),
+                "texture_guidance_rescale": ("FLOAT",{"default":0.00}),
+                "texture_rescale_t": ("FLOAT",{"default":3.00}),                
                 "max_num_tokens": ("INT",{"default":49152,"min":0,"max":999999}),
                 "generate_texture_slat": ("BOOLEAN", {"default":True}),
                 "downsampling":([16,32,64],{"default":16}),
+                "shape_guidance_interval_start": ("FLOAT",{"default":0.30,"min":0.00,"max":1.00,"step":0.01}),
+                "shape_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_guidance_interval_start": ("FLOAT",{"default":0.60,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
             },
         }
 
@@ -1364,12 +1424,19 @@ class Trellis2MeshRefiner:
         texture_rescale_t,        
         max_num_tokens,
         generate_texture_slat,
-        downsampling):
+        downsampling,
+        shape_guidance_interval_start,
+        shape_guidance_interval_end,
+        texture_guidance_interval_start,
+        texture_guidance_interval_end):
 
         image = tensor2pil(image)
         
-        shape_slat_sampler_params = {"steps":shape_steps,"guidance_strength":shape_guidance_strength,"guidance_rescale":shape_guidance_rescale,"rescale_t":shape_rescale_t}       
-        tex_slat_sampler_params = {"steps":texture_steps,"guidance_strength":texture_guidance_strength,"guidance_rescale":texture_guidance_rescale,"rescale_t":texture_rescale_t}
+        shape_guidance_interval = [shape_guidance_interval_start,shape_guidance_interval_end]
+        texture_guidance_interval = [texture_guidance_interval_start,texture_guidance_interval_end]        
+        
+        shape_slat_sampler_params = {"steps":shape_steps,"guidance_strength":shape_guidance_strength,"guidance_rescale":shape_guidance_rescale,"guidance_interval":shape_guidance_interval,"rescale_t":shape_rescale_t}       
+        tex_slat_sampler_params = {"steps":texture_steps,"guidance_strength":texture_guidance_strength,"guidance_rescale":texture_guidance_rescale,"guidance_interval":texture_guidance_interval,"rescale_t":texture_rescale_t}
         
         mesh = pipeline.refine_mesh(mesh = trimesh, image=image, seed=seed, shape_slat_sampler_params = shape_slat_sampler_params, tex_slat_sampler_params = tex_slat_sampler_params, resolution = resolution, max_num_tokens = max_num_tokens, generate_texture_slat=generate_texture_slat, downsampling=downsampling)[0]         
         

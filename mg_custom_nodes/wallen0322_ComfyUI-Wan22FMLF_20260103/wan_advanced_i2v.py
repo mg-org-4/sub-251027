@@ -39,7 +39,7 @@ class WanAdvancedI2V(io.ComfyNode):
                 io.Float.Input("middle_frame_ratio", default=0.5, min=0.0, max=1.0, step=0.01, round=0.01, display_mode=io.NumberDisplay.slider, optional=True),
                 io.Image.Input("motion_frames", optional=True),
                 io.Int.Input("video_frame_offset", default=0, min=0, max=1000000, step=1, display_mode=io.NumberDisplay.number, optional=True),
-                io.Combo.Input("long_video_mode", ["DISABLED", "AUTO_CONTINUE", "SVI"], default="DISABLED", optional=True),
+                io.Combo.Input("long_video_mode", ["DISABLED", "AUTO_CONTINUE", "SVI", "LATENT_CONTINUE"], default="DISABLED", optional=True),
                 io.Int.Input("continue_frames_count", default=5, min=0, max=20, step=1, display_mode=io.NumberDisplay.number, optional=True),
                 io.Float.Input("high_noise_start_strength", default=1.0, min=0.0, max=1.0, step=0.05, round=0.01, display_mode=io.NumberDisplay.slider, optional=True),
                 io.Float.Input("high_noise_mid_strength", default=0.8, min=0.0, max=1.0, step=0.05, round=0.01, display_mode=io.NumberDisplay.slider, optional=True),
@@ -152,6 +152,25 @@ class WanAdvancedI2V(io.ComfyNode):
         mask_low_noise = mask_base.clone()
         
         svi_continue_mode = False
+
+        # --- Latent Continue Mode Logic ---
+        latent_continue_mode = False
+        prev_latent_for_concat = None
+        if long_video_mode == 'LATENT_CONTINUE':
+            has_prev_latent = (prev_latent is not None and prev_latent.get("samples") is not None)
+            if has_prev_latent and continue_frames_count > 0 and start_image is None:
+                latent_continue_mode = True
+                prev_samples = prev_latent["samples"]
+                
+                if prev_samples.shape[2] > 0:
+                    for b in range(batch_size):
+                        latent[b:b+1, :, 0:1, :, :] = prev_samples[:, :, -1:].clone()
+                    
+                    mask_high_noise[:, :, :4] = 0.0
+                    mask_low_noise[:, :, :4] = 0.0
+                    
+                    prev_latent_for_concat = prev_samples[:, :, -1:].clone()
+        # --- End of Latent Continue Mode Logic ---
 
         # --- SVI Mode Logic ---
         if long_video_mode == 'SVI':
@@ -361,7 +380,7 @@ class WanAdvancedI2V(io.ComfyNode):
         # --- End of SVI Mode Logic ---
 
         # Original logic for other modes (AUTO_CONTINUE, NORMAL)
-        if has_motion_frames and long_video_mode != 'SVI':
+        if has_motion_frames and long_video_mode != 'SVI' and long_video_mode != 'LATENT_CONTINUE':
             image[:motion_frames.shape[0]] = motion_frames[:, :, :, :3]
             
             motion_latent_frames = ((motion_frames.shape[0] - 1) // 4) + 1
@@ -384,7 +403,7 @@ class WanAdvancedI2V(io.ComfyNode):
                 mask_high_noise[:, :, -1:] = 0.0
                 mask_low_noise[:, :, -1:] = max(0.0, 1.0 - low_noise_end_strength)
         else:
-            if start_image is not None:
+            if start_image is not None and long_video_mode != 'LATENT_CONTINUE':
                 image[:start_image.shape[0]] = start_image[:, :, :, :3]
                 
                 if is_pure_triple_mode:
@@ -415,7 +434,11 @@ class WanAdvancedI2V(io.ComfyNode):
                     mask_high_noise[:, :, -1:] = 0.0
                     mask_low_noise[:, :, -1:] = max(0.0, 1.0 - low_noise_end_strength)
         
-        concat_latent_image = vae.encode(image[:, :, :, :3])
+        if latent_continue_mode and prev_latent_for_concat is not None:
+            concat_latent_image = vae.encode(image[:, :, :, :3])
+            concat_latent_image[:, :, 0:1, :, :] = prev_latent_for_concat
+        else:
+            concat_latent_image = vae.encode(image[:, :, :, :3])
         
         if structural_repulsion_boost > 1.001 and length > 4:
             mask_h, mask_w = mask_high_noise.shape[-2], mask_high_noise.shape[-1]
@@ -496,6 +519,10 @@ class WanAdvancedI2V(io.ComfyNode):
                 mask_low_noise[:, :, :start_latent_frames * 4] = 0.0
             
             concat_latent_image_low = vae.encode(image_low[:, :, :, :3])
+        elif latent_continue_mode:
+            # LATENT_CONTINUE mode: concat image and concat latent should be the same
+            # Use the same image for both high and low noise conditioning
+            concat_latent_image_low = concat_latent_image
         elif mode == "SINGLE_PERSON":
             image_low_only = torch.ones((length, height, width, 3), device=device) * 0.5
             

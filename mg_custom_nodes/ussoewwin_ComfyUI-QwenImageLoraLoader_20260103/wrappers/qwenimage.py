@@ -96,8 +96,10 @@ class ComfyQwenImageWrapper(nn.Module):
         # which could cause issues when passing to _execute_model
         # Note: ref_latents is NOT a parameter of forward(), so we keep it in kwargs for _execute_model to use
         if "guidance" in kwargs:
-            # If guidance is in kwargs, use the explicit parameter value (which takes precedence)
-            # and remove it from kwargs to avoid duplication
+            # Preserve legacy guidance if it only arrives via kwargs (environment-dependent),
+            # then remove it to avoid duplication downstream.
+            if guidance is None:
+                guidance = kwargs.get("guidance")
             kwargs.pop("guidance")
         if "transformer_options" in kwargs:
             # Merge transformer_options from kwargs into the parameter if needed
@@ -105,6 +107,10 @@ class ComfyQwenImageWrapper(nn.Module):
                 transformer_options = {**transformer_options, **kwargs.pop("transformer_options")}
             else:
                 kwargs.pop("transformer_options")
+        # Preserve legacy guidance if it only arrives via transformer_options (environment-dependent).
+        # We will later remove it from transformer_options when actually calling the model.
+        if guidance is None and isinstance(transformer_options, dict) and "guidance" in transformer_options:
+            guidance = transformer_options.get("guidance")
         if "attention_mask" in kwargs:
             kwargs.pop("attention_mask")
         if isinstance(timestep, torch.Tensor):
@@ -267,6 +273,22 @@ class ComfyQwenImageWrapper(nn.Module):
         # Extract additional_t_cond from kwargs before removing it (needed for both customized_forward and direct model call)
         # ComfyUI v0.6.0+ uses additional_t_cond instead of guidance
         additional_t_cond_value = kwargs.pop("additional_t_cond", None)
+
+        # CRITICAL FIX for Issue #43 (ComfyUI-nunchaku):
+        # - ComfyUI-nunchaku's _forward() has a bug where it calls:
+        #     time_text_embed(timestep, guidance, hidden_states)
+        #   when guidance is not None, causing:
+        #     TypeError: QwenTimestepProjEmbeddings.forward() takes 3 positional arguments but 4 were given
+        # - We must ensure "guidance" never reaches ComfyUI-nunchaku as a non-None value.
+        #
+        # However, we still want to preserve the original *meaning* of legacy "guidance" inputs:
+        # if additional_t_cond is missing but guidance is provided (and the model supports guidance embedding),
+        # treat guidance as additional_t_cond.
+        #
+        # So we *convert* guidance -> additional_t_cond_value (fallback), then force guidance=None.
+        if additional_t_cond_value is None and guidance is not None and self.config.get("guidance_embed", False):
+            additional_t_cond_value = guidance
+        guidance = None
         
         # Double-check: Remove guidance, transformer_options, and attention_mask from kwargs
         # This is a defensive measure in case any code path adds these to kwargs after forward() method

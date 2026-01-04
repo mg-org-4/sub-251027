@@ -70,3 +70,10 @@
 - Offering a B-spline-smoothed displacement interpolation (bicubic upsample + separable
   cubic B-spline blur passes) makes mesh drags feel more organic without the cost and
   instability of full thin-plate-spline warps at high point counts.
+- Splitting mesh-drag + latent diagnostic nodes into a standalone `Skoogeer-Noise` pack
+  keeps this repository focused on flow-matching upscaling + DyPE while letting the
+  perturbation/debug helpers evolve independently.
+- A covariance-aware latent upscale can be implemented cheaply with global PCA whitening
+  (estimate μ/Σ → whiten → upscale → re-color) plus an optional moment-matching pass to
+  restore the target mean/covariance after interpolation; using `torch.linalg.eigh`
+  keeps the transform stable even when the sample covariance is only semi-definite.

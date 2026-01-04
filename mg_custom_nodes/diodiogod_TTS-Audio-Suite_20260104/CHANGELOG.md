@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.16.7] - 2026-01-03
+
+### Added
+
+- Voices configured in extra_model_paths.yaml now properly discovered
+- Voice files from shared model directories now appear in dropdowns
+
+### Fixed
+
+- Fix voices folder not discovered from extra_model_paths.yaml
+- Fixes issue where only local ComfyUI voices folder was scanned
+## [4.16.6] - 2026-01-03
+
+### Added
+
+- Characters without .txt files now properly clone voice from audio only
+
+### Fixed
+
+- Fix CosyVoice3 character switching without text references
+- Fix characters with audio but no .txt file using wrong voice
+- Automatically use cross_lingual mode when text reference is missing
+## [4.16.5] - 2026-01-03
+
+### Fixed
+
+- Fix CosyVoice3 PyYAML 6.0+ compatibility (enhanced fix)
+- Apply PyYAML compatibility patch across all CosyVoice entry points
+- Fix 'Loader' object has no attribute max_depth error more reliably
+- Ensure patch is applied before any yaml imports in the loading chain
 ## [4.16.4] - 2026-01-02
 
 ### Fixed

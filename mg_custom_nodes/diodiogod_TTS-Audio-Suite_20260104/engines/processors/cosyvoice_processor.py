@@ -9,6 +9,16 @@ Provides:
 - Caching integration
 """
 
+# FIX: PyYAML 6.0+ compatibility patch - MUST be before any yaml imports
+# Issue: 'Loader' object has no attribute 'max_depth' error (GitHub #220)
+import yaml
+if not hasattr(yaml.Loader, 'max_depth'):
+    yaml.Loader.max_depth = 100
+if not hasattr(yaml.FullLoader, 'max_depth'):
+    yaml.FullLoader.max_depth = 100
+if not hasattr(yaml.SafeLoader, 'max_depth'):
+    yaml.SafeLoader.max_depth = 100
+
 import torch
 from typing import Dict, Any, Optional, List, Tuple
 import os
@@ -308,6 +318,10 @@ class CosyVoiceProcessor:
                         current_speaker_audio = char_audio
                         if char_text:
                             current_reference_text = char_text
+                        else:
+                            # Character has audio but NO text reference - clear reference_text
+                            # This forces cross_lingual mode instead of zero_shot with wrong voice
+                            current_reference_text = None
                         print(f"🎭 Using character voice '{character}'")
 
             # Process pause tags if enabled

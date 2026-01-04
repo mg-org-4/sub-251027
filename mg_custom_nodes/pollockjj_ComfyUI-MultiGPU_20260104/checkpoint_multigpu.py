@@ -62,6 +62,11 @@ def patched_load_state_dict_guess_config(sd, output_vae=True, output_clip=True, 
         diffusion_model_prefix = comfy.model_detection.unet_prefix_from_state_dict(sd)
         parameters = comfy.utils.calculate_parameters(sd, diffusion_model_prefix)
         weight_dtype = comfy.utils.weight_dtype(sd, diffusion_model_prefix)
+
+        custom_operations = model_options.get("custom_operations", None)
+        if custom_operations is None:
+            sd, metadata = comfy.utils.convert_old_quants(sd, diffusion_model_prefix, metadata=metadata)
+
         model_config = comfy.model_detection.model_config_from_unet(sd, diffusion_model_prefix, metadata=metadata)
         
         if model_config is None:
@@ -79,13 +84,17 @@ def patched_load_state_dict_guess_config(sd, output_vae=True, output_clip=True, 
         if model_config.scaled_fp8 is not None:
             weight_dtype = None
         
-        model_config.custom_operations = model_options.get("custom_operations", None)
+        if custom_operations is not None:
+            model_config.custom_operations = custom_operations
         unet_dtype = model_options.get("dtype", model_options.get("weight_dtype", None))
         if unet_dtype is None:
             unet_dtype = mm.unet_dtype(model_params=parameters, supported_dtypes=unet_weight_dtype, weight_dtype=weight_dtype)
         
         unet_compute_device = device_config.get('unet_device', original_main_device)
-        manual_cast_dtype = mm.unet_manual_cast(unet_dtype, torch.device(unet_compute_device), model_config.supported_inference_dtypes)
+        if model_config.scaled_fp8 is not None:
+            manual_cast_dtype = mm.unet_manual_cast(None, torch.device(unet_compute_device), model_config.supported_inference_dtypes)
+        else:
+            manual_cast_dtype = mm.unet_manual_cast(unet_dtype, torch.device(unet_compute_device), model_config.supported_inference_dtypes)
         model_config.set_inference_dtype(unet_dtype, manual_cast_dtype)
         logger.info(f"UNet DType: {unet_dtype}, Manual Cast: {manual_cast_dtype}")
 
@@ -101,6 +110,8 @@ def patched_load_state_dict_guess_config(sd, output_vae=True, output_clip=True, 
             multigpu_memory_log(f"unet:{config_hash[:8]}", "pre-load")
 
             model = model_config.get_model(sd, diffusion_model_prefix, device=inital_load_device)
+            model.load_model_weights(sd, diffusion_model_prefix)
+            multigpu_memory_log(f"unet:{config_hash[:8]}", "post-weights")
 
             logger.mgpu_mm_log("Invoking soft_empty_cache_multigpu before UNet ModelPatcher setup")
             soft_empty_cache_multigpu()
@@ -116,9 +127,6 @@ def patched_load_state_dict_guess_config(sd, output_vae=True, output_clip=True, 
                     logger.info(f"[CHECKPOINT_META] UNET inner_model id=0x{id(inner_model):x}")
                     model._distorch_high_precision_loras = distorch_config.get('high_precision_loras', True)
 
-            model.load_model_weights(sd, diffusion_model_prefix)
-            multigpu_memory_log(f"unet:{config_hash[:8]}", "post-weights")
-
         if output_vae:
             vae_target_device = torch.device(device_config.get('vae_device', original_main_device))
             set_current_device(vae_target_device) # Use main device context for VAE
@@ -130,6 +138,27 @@ def patched_load_state_dict_guess_config(sd, output_vae=True, output_clip=True, 
             multigpu_memory_log(f"vae:{config_hash[:8]}", "post-load")
 
         if output_clip:
+            if te_model_options.get("custom_operations", None) is None:
+                scaled_fp8_list = []
+                for k in list(sd.keys()):  # Convert scaled fp8 to mixed ops
+                    if k.endswith(".scaled_fp8"):
+                        scaled_fp8_list.append(k[:-len("scaled_fp8")])
+
+                if len(scaled_fp8_list) > 0:
+                    out_sd = {}
+                    for k in sd:
+                        skip = False
+                        for pref in scaled_fp8_list:
+                            skip = skip or k.startswith(pref)
+                        if not skip:
+                           out_sd[k] = sd[k]
+
+                    for pref in scaled_fp8_list:
+                        quant_sd, qmetadata = comfy.utils.convert_old_quants(sd, pref, metadata={})
+                        for k in quant_sd:
+                            out_sd[k] = quant_sd[k]
+                        sd = out_sd
+
             clip_target_device = device_config.get('clip_device', original_clip_device)
             set_current_text_encoder_device(clip_target_device)
             
@@ -224,15 +253,16 @@ class CheckpointLoaderAdvancedDisTorch2MultiGPU:
                 "ckpt_name": (folder_paths.get_filename_list("checkpoints"), ),
                 "unet_compute_device": (devices, {"default": compute_device}),
                 "unet_virtual_vram_gb": ("FLOAT", {"default": 4.0, "min": 0.0, "max": 128.0, "step": 0.1}),
-                "unet_donor_device": ("STRING", {"default": "cpu"}),
+                "unet_donor_device": (devices, {"default": "cpu"}),
                 "clip_compute_device": (devices, {"default": "cpu"}),
                 "clip_virtual_vram_gb": ("FLOAT", {"default": 2.0, "min": 0.0, "max": 128.0, "step": 0.1}),
-                "clip_donor_device": ("STRING", {"default": "cpu"}),
+                "clip_donor_device": (devices, {"default": "cpu"}),
                 "vae_device": (devices, {"default": compute_device}),
             }, "optional": {
                 "unet_expert_mode_allocations": ("STRING", {"multiline": False, "default": ""}),
                 "clip_expert_mode_allocations": ("STRING", {"multiline": False, "default": ""}),
                 "high_precision_loras": ("BOOLEAN", {"default": True}),
+                "eject_models": ("BOOLEAN", {"default": True}),
             }
         }
     
@@ -243,7 +273,22 @@ class CheckpointLoaderAdvancedDisTorch2MultiGPU:
     
     def load_checkpoint(self, ckpt_name, unet_compute_device, unet_virtual_vram_gb, unet_donor_device,
                        clip_compute_device, clip_virtual_vram_gb, clip_donor_device, vae_device,
-                       unet_expert_mode_allocations="", clip_expert_mode_allocations="", high_precision_loras=True):
+                       unet_expert_mode_allocations="", clip_expert_mode_allocations="", high_precision_loras=True, eject_models=True):
+        
+        if eject_models:
+            logger.mgpu_mm_log(f"[EJECT_MODELS_SETUP] eject_models=True - marking all loaded models for eviction")
+            ejection_count = 0
+            for i, lm in enumerate(mm.current_loaded_models):
+                model_name = type(getattr(lm.model, 'model', lm.model)).__name__ if lm.model else 'Unknown'
+                if hasattr(lm.model, 'model') and lm.model.model is not None:
+                    lm.model.model._mgpu_unload_distorch_model = True
+                    logger.mgpu_mm_log(f"[EJECT_MARKED] Model {i}: {model_name} (id=0x{id(lm):x}) → marked for eviction")
+                    ejection_count += 1
+                elif lm.model is not None:
+                    lm.model._mgpu_unload_distorch_model = True
+                    logger.mgpu_mm_log(f"[EJECT_MARKED] Model {i}: {model_name} (direct patcher) → marked for eviction")
+                    ejection_count += 1
+            logger.mgpu_mm_log(f"[EJECT_MODELS_SETUP_COMPLETE] Marked {ejection_count} models for Comfy Core eviction during load_models_gpu")
         
         patch_load_state_dict_guess_config()        
         

@@ -20,6 +20,20 @@ from .device_utils import get_device_list, soft_empty_cache_multigpu
 from .model_management_mgpu import multigpu_memory_log, force_full_system_cleanup
 
 
+
+def unpack_load_item(item):
+    """Handle ComfyUI 0.6.0+ 5-tuple vs legacy 4-tuple"""
+    if len(item) == 5:
+        # (module_offload_mem, module_mem, module_name, module_object, params)
+        return item[1], item[2], item[3], item[4]
+    # (module_mem, module_name, module_object, params)
+    return item[0], item[1], item[2], item[3]
+
+
+
+
+
+
 def register_patched_safetensor_modelpatcher():
     """Register and patch the ModelPatcher for distributed safetensor loading"""
     from comfy.model_patcher import wipe_lowvram_weight, move_weight_functions
@@ -53,7 +67,7 @@ def register_patched_safetensor_modelpatcher():
                 models_temp.add(m)
                 model_type = type(m).__name__
 
-                if ("GGUF" in model_type or "ModelPatcher" in model_type) and hasattr(m, "model_patches_to"):
+                if ("GGUF" in model_type or "ModelPatcher" in model_type) and hasattr(m, "model_patches_to") and not hasattr(m, "model_patches_models"):
                     logger.info(f"[MultiGPU DisTorch V2] {type(m).__name__} missing 'model_patches_models' attribute, using 'model_patches_to' fallback.")
                     target_device = m.load_device
                     logger.debug(f"[MultiGPU DisTorch V2] Target device: {target_device}")
@@ -236,13 +250,26 @@ def register_patched_safetensor_modelpatcher():
             mem_counter = 0
 
             is_clip_model = getattr(self, 'is_clip', False)
-            device_assignments = analyze_safetensor_loading(self, allocations, is_clip=is_clip_model)
+            ## TODO - I do not believe this code is needed and needs to be flagged for proof it is needed
+            # Check for valid cache
+            allocations_match = hasattr(self, '_distorch_last_allocations') and self._distorch_last_allocations == allocations
+            cache_exists = hasattr(self, '_distorch_cached_assignments')
+            
+            if cache_exists and allocations_match and not unpatch_weights and not force_patch_weights:
+                device_assignments = self._distorch_cached_assignments
+                logger.debug(f"[MultiGPU DisTorch V2] Reusing cached analysis for {type(inner_model).__name__}")
+            else:
+                device_assignments = analyze_safetensor_loading(self, allocations, is_clip=is_clip_model)  ## This should be the only required line - that is how it worked previous release so if it doesn't it is Comfy changes
+                self._distorch_cached_assignments = device_assignments
+                self._distorch_last_allocations = allocations
             
             model_original_dtype = comfy.utils.weight_dtype(self.model.state_dict())
             high_precision_loras = getattr(self.model, "_distorch_high_precision_loras", True)
+            # Use standard ComfyUI load list - the device comparison fix ensures we don't crash
             loading = self._load_list()
             loading.sort(reverse=True)
-            for module_size, module_name, module_object, params in loading:
+            for item in loading:
+                module_size, module_name, module_object, params = unpack_load_item(item)
                 if not unpatch_weights and hasattr(module_object, "comfy_patched_weights") and module_object.comfy_patched_weights == True:
                     block_target_device = device_assignments['block_assignments'].get(module_name, device_to)
                     current_module_device = None
@@ -290,7 +317,7 @@ def register_patched_safetensor_modelpatcher():
                             logger.debug(f"[MultiGPU DisTorch V2] Cast {module_name}.{param_name} to FP8 for CPU storage")
 
                 # Step 4: Move to ultimate destination based on DisTorch assignment
-                if block_target_device != device_to:
+                if str(block_target_device) != str(device_to):
                     logger.debug(f"[MultiGPU DisTorch V2] Moving {module_name} from {device_to} to {block_target_device}")
                     module_object.to(block_target_device)
                     module_object.comfy_cast_weights = True
@@ -321,7 +348,10 @@ def _extract_clip_head_blocks(raw_block_list, compute_device):
     head_memory = 0
     block_assignments = {}
     
-    for module_size, module_name, module_object, params in raw_block_list:
+    block_assignments = {}
+    
+    for item in raw_block_list:
+        module_size, module_name, module_object, params = unpack_load_item(item)
         if any(kw in module_name.lower() for kw in head_keywords):
             head_blocks.append((module_size, module_name, module_object, params))
             block_assignments[module_name] = compute_device
@@ -423,7 +453,7 @@ def analyze_safetensor_loading(model_patcher, allocations_string, is_clip=False)
     total_memory = 0
 
     raw_block_list = model_patcher._load_list()
-    total_memory = sum(module_size for module_size, _, _, _ in raw_block_list)
+    total_memory = sum(unpack_load_item(x)[0] for x in raw_block_list)
 
     MIN_BLOCK_THRESHOLD = total_memory * 0.0001
     logger.debug(f"[MultiGPU DisTorch V2] Total model memory: {total_memory} bytes")
@@ -441,7 +471,8 @@ def analyze_safetensor_loading(model_patcher, allocations_string, is_clip=False)
 
     # Build all_blocks list for summary (using full raw_block_list)
     all_blocks = []
-    for module_size, module_name, module_object, params in raw_block_list:
+    for item in raw_block_list:
+        module_size, module_name, module_object, params = unpack_load_item(item)
         block_type = type(module_object).__name__
         # Populate summary dictionaries
         block_summary[block_type] = block_summary.get(block_type, 0) + 1
@@ -450,11 +481,12 @@ def analyze_safetensor_loading(model_patcher, allocations_string, is_clip=False)
 
     # Use distributable blocks for actual allocation (for CLIP, this excludes heads)
     distributable_all_blocks = []
-    for module_size, module_name, module_object, params in distributable_raw:
+    for item in distributable_raw:
+        module_size, module_name, module_object, params = unpack_load_item(item)
         distributable_all_blocks.append((module_name, module_object, type(module_object).__name__, module_size))
 
-    block_list = [b for b in distributable_all_blocks if b[3] >= MIN_BLOCK_THRESHOLD]
-    tiny_block_list = [b for b in distributable_all_blocks if b[3] < MIN_BLOCK_THRESHOLD]
+    block_list = [b for b in distributable_all_blocks if (b[3] >= MIN_BLOCK_THRESHOLD and hasattr(b[1], "bias"))] 
+    tiny_block_list = [b for b in distributable_all_blocks if b not in block_list]
     
     logger.debug(f"[MultiGPU DisTorch V2] Total blocks: {len(all_blocks)}")
     logger.debug(f"[MultiGPU DisTorch V2] Distributable blocks: {len(block_list)}")
@@ -476,8 +508,6 @@ def analyze_safetensor_loading(model_patcher, allocations_string, is_clip=False)
     # Distribute blocks sequentially from the tail of the model
 
     device_assignments = {device: [] for device in DEVICE_RATIOS_DISTORCH.keys()}
-    block_assignments = {}
-
     # Create a memory quota for each donor device based on its calculated allocation.
     donor_devices = [d for d in sorted_devices]
     donor_quotas = {
@@ -581,7 +611,7 @@ def parse_memory_string(mem_str):
 def calculate_fraction_from_byte_expert_string(model_patcher, byte_str):
     """Convert byte allocation string (e.g. 'cuda:1,4gb;cpu,*') to fractional VRAM allocation string respecting device order and byte quotas."""
     raw_block_list = model_patcher._load_list()
-    total_model_memory = sum(module_size for module_size, _, _, _ in raw_block_list)
+    total_model_memory = sum(unpack_load_item(x)[0] for x in raw_block_list)
     remaining_model_bytes = total_model_memory
 
     # Use a list of tuples to preserve the user-defined order
@@ -640,7 +670,7 @@ def calculate_fraction_from_byte_expert_string(model_patcher, byte_str):
 def calculate_fraction_from_ratio_expert_string(model_patcher, ratio_str):
     """Convert ratio allocation string (e.g. 'cuda:0,25%;cpu,75%') describing model split to fractional VRAM allocation string."""
     raw_block_list = model_patcher._load_list()
-    total_model_memory = sum(module_size for module_size, _, _, _ in raw_block_list)
+    total_model_memory = sum(unpack_load_item(x)[0] for x in raw_block_list)
 
     raw_ratios = {}
     for allocation in ratio_str.split(';'):

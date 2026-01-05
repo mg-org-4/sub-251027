@@ -277,7 +277,7 @@ class Trellis2MeshWithVoxelGenerator:
                 "pipeline": ("TRELLIS2PIPELINE",),
                 "image": ("IMAGE",),                
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
-                "pipeline_type": (["512","1024","1024_cascade","1536_cascade","2048_cascade"],{"default":"1024_cascade"}),
+                "pipeline_type": (["512","1024","1024_cascade","1536_cascade"],{"default":"1024_cascade"}),
                 "sparse_structure_steps": ("INT",{"default":12, "min":1, "max":100},),
                 "shape_steps": ("INT",{"default":12, "min":1, "max":100},),
                 "texture_steps": ("INT",{"default":12, "min":1, "max":100},),
@@ -302,7 +302,14 @@ class Trellis2MeshWithVoxelGenerator:
         shape_slat_sampler_params = {"steps":shape_steps}
         tex_slat_sampler_params = {"steps":texture_steps}
         
-        mesh = pipeline.run(image=image_in, seed=seed, pipeline_type=pipeline_type, sparse_structure_sampler_params = sparse_structure_sampler_params, shape_slat_sampler_params = shape_slat_sampler_params, tex_slat_sampler_params = tex_slat_sampler_params, max_num_tokens = max_num_tokens, sparse_structure_resolution = sparse_structure_resolution, max_views = max_views, generate_texture_slat = generate_texture_slat)[0]
+        if generate_texture_slat:
+            num_steps = 5
+        else:
+            num_steps = 4
+
+        pbar = ProgressBar(num_steps)        
+        
+        mesh = pipeline.run(image=image_in, seed=seed, pipeline_type=pipeline_type, sparse_structure_sampler_params = sparse_structure_sampler_params, shape_slat_sampler_params = shape_slat_sampler_params, tex_slat_sampler_params = tex_slat_sampler_params, max_num_tokens = max_num_tokens, sparse_structure_resolution = sparse_structure_resolution, max_views = max_views, generate_texture_slat = generate_texture_slat, pbar=pbar)[0]
         
         return (mesh,)    
 
@@ -755,7 +762,7 @@ class Trellis2MeshWithVoxelAdvancedGenerator:
                 "pipeline": ("TRELLIS2PIPELINE",),
                 "image": ("IMAGE",),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
-                "pipeline_type": (["512","1024","1024_cascade","1536_cascade","2048_cascade"],{"default":"1024_cascade"}),
+                "pipeline_type": (["512","1024","1024_cascade","1536_cascade"],{"default":"1024_cascade"}),
                 "sparse_structure_steps": ("INT",{"default":12, "min":1, "max":100},),
                 "sparse_structure_guidance_strength": ("FLOAT",{"default":7.50}),
                 "sparse_structure_guidance_rescale": ("FLOAT",{"default":0.70}),

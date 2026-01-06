@@ -371,6 +371,44 @@ class FlowMatchingUpscalerTests(unittest.TestCase):
         first_call = utils_module._common_upscale_calls[0]
         self.assertEqual(first_call["method"], "bicubic")
 
+    def test_lanczos_falls_back_for_latent_tensors(self):
+        latent = {"samples": torch.ones((1, 4, 8, 8), dtype=torch.float32)}
+
+        def fake_common_ksampler(**kwargs):
+            latent_payload = kwargs["latent"]
+            result = latent_payload.copy()
+            result["samples"] = torch.zeros_like(latent_payload["samples"])
+            return (result,)
+
+        utils_module = fm_upscaler.comfy.utils
+        utils_module._common_upscale_calls.clear()
+
+        with mock.patch.object(fm_upscaler, "common_ksampler", new=fake_common_ksampler):
+            self.node.progressive_upscale(
+                model=object(),
+                positive=[],
+                negative=[],
+                latent=latent,
+                seed=11,
+                steps_per_stage=1,
+                cfg=1.0,
+                sampler_name=self.default_sampler,
+                scheduler=self.default_scheduler,
+                total_scale=2.0,
+                stages=1,
+                renoise_start=0.0,
+                renoise_end=0.0,
+                skip_blend_start=0.5,
+                skip_blend_end=0.5,
+                upscale_method="lanczos",
+                noise_schedule_override="0.0",
+                skip_schedule_override="0.5",
+                enable_dilated_sampling="disable",
+            )
+
+        first_call = utils_module._common_upscale_calls[0]
+        self.assertEqual(first_call["method"], "bicubic")
+
     def test_stage_seeds_are_perturbed(self):
         latent = {"samples": torch.ones((1, 4, 8, 8), dtype=torch.float32)}
         recorded_seeds = []
@@ -522,6 +560,126 @@ class FlowMatchingUpscalerTests(unittest.TestCase):
         self.assertIs(out_model, model_obj)
         self.assertEqual(out_positive, [])
         self.assertEqual(out_negative, [])
+
+    def test_stage_prep_and_merge_nodes_match_stage_skip_blend(self):
+        stage_prep = fm_upscaler.FlowMatchingStagePrep()
+        stage_merge = fm_upscaler.FlowMatchingStageMerge()
+
+        latent = {
+            "samples": torch.ones((1, 4, 8, 8), dtype=torch.float32),
+            "noise_mask": torch.zeros((1, 1, 8, 8), dtype=torch.float32),
+        }
+
+        with mock.patch.object(fm_upscaler, "apply_flow_renoise", side_effect=lambda tensor, *_: tensor):
+            skip_latent, presampler_latent, seed_out, next_seed = stage_prep.execute(
+                latent=latent,
+                seed=99,
+                scale_factor=2.0,
+                noise_ratio=0.0,
+                upscale_method="nearest-exact",
+            )
+
+        self.assertEqual(tuple(skip_latent["samples"].shape[-2:]), (16, 16))
+        self.assertEqual(tuple(presampler_latent["samples"].shape[-2:]), (16, 16))
+        self.assertIn("noise_mask", skip_latent)
+        self.assertEqual(tuple(skip_latent["noise_mask"].shape[-2:]), (16, 16))
+        self.assertIn("noise_mask", presampler_latent)
+        self.assertEqual(tuple(presampler_latent["noise_mask"].shape[-2:]), (16, 16))
+
+        self.assertEqual(seed_out, 99)
+        mask64 = 0xFFFFFFFFFFFFFFFF
+        self.assertEqual(next_seed, (99 + fm_upscaler._SEED_STRIDE) & mask64)
+
+        sampled_latent = {
+            "samples": torch.full_like(presampler_latent["samples"], 2.0),
+        }
+        output_latent, = stage_merge.execute(
+            skip_latent=skip_latent,
+            sampled_latent=sampled_latent,
+            skip_blend=0.25,
+        )
+        expected_value = 0.25 * 1.0 + 0.75 * 2.0
+        self.assertTrue(
+            torch.allclose(
+                output_latent["samples"],
+                torch.full_like(output_latent["samples"], expected_value),
+            )
+        )
+
+    def test_stage_merge_rescales_mismatched_sampled_latent(self):
+        stage_merge = fm_upscaler.FlowMatchingStageMerge()
+        skip_latent = {
+            "samples": torch.ones((1, 4, 16, 16), dtype=torch.float32),
+            "noise_mask": torch.zeros((1, 1, 16, 16), dtype=torch.float32),
+        }
+        sampled_latent = {
+            "samples": torch.full((1, 4, 8, 8), 2.0, dtype=torch.float32),
+        }
+
+        utils_module = fm_upscaler.comfy.utils
+        utils_module._common_upscale_calls.clear()
+
+        output_latent, = stage_merge.execute(
+            skip_latent=skip_latent,
+            sampled_latent=sampled_latent,
+            skip_blend=0.25,
+        )
+
+        self.assertEqual(tuple(output_latent["samples"].shape[-2:]), (16, 16))
+        self.assertEqual(utils_module._common_upscale_calls[0]["method"], "bilinear")
+        expected_value = 0.25 * 1.0 + 0.75 * 2.0
+        self.assertTrue(
+            torch.allclose(
+                output_latent["samples"],
+                torch.full_like(output_latent["samples"], expected_value),
+            )
+        )
+
+    def test_stage_nodes_expose_tooltips_for_inputs(self):
+        stage_specs = fm_upscaler.FlowMatchingStage.INPUT_TYPES()
+        for section in ("required", "optional"):
+            for name, spec in stage_specs.get(section, {}).items():
+                self.assertGreaterEqual(
+                    len(spec),
+                    2,
+                    msg=f"FlowMatchingStage.{section}.{name} should include an options dict with a tooltip.",
+                )
+                self.assertIn(
+                    "tooltip",
+                    spec[1],
+                    msg=f"FlowMatchingStage.{section}.{name} should include a tooltip.",
+                )
+                self.assertTrue(
+                    str(spec[1]["tooltip"]).strip(),
+                    msg=f"FlowMatchingStage.{section}.{name} tooltip should be non-empty.",
+                )
+
+        prep_specs = fm_upscaler.FlowMatchingStagePrep.INPUT_TYPES()
+        for section in ("required", "optional"):
+            for name, spec in prep_specs.get(section, {}).items():
+                self.assertGreaterEqual(
+                    len(spec),
+                    2,
+                    msg=f"FlowMatchingStagePrep.{section}.{name} should include an options dict with a tooltip.",
+                )
+                self.assertIn(
+                    "tooltip",
+                    spec[1],
+                    msg=f"FlowMatchingStagePrep.{section}.{name} should include a tooltip.",
+                )
+
+        merge_specs = fm_upscaler.FlowMatchingStageMerge.INPUT_TYPES()
+        for name, spec in merge_specs.get("required", {}).items():
+            self.assertGreaterEqual(
+                len(spec),
+                2,
+                msg=f"FlowMatchingStageMerge.required.{name} should include an options dict with a tooltip.",
+            )
+            self.assertIn(
+                "tooltip",
+                spec[1],
+                msg=f"FlowMatchingStageMerge.required.{name} should include a tooltip.",
+            )
 
     def test_stage_falls_back_to_streaming_on_oom(self):
         stage_node = fm_upscaler.FlowMatchingStage()

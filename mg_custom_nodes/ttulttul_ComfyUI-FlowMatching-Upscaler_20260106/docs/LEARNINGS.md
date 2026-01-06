@@ -18,6 +18,10 @@
 - Exposing a per-stage node mirrors the progressive pipeline while allowing
   ComfyUI’s existing cache to short-circuit unchanged stages, speeding up
   iteration on late-stage parameters.
+- Splitting a stage into a pure-prep node (upscale + flow re-noise) and a pure-merge
+  node (skip blend) makes the approach modular and lets ComfyUI’s built-in
+  `SamplerCustom` / `SamplerCustomAdvanced` handle sampling, sigmas, guiders, and
+  alternative samplers without duplicating sampler logic in this repository.
 - Shipping a lightweight frontend extension lets custom nodes hook into ComfyUI’s
   live preview events so users retain the familiar inline thumbnail experience.
 - Progressive stages currently invoke `common_ksampler` on the full latent; to
@@ -77,3 +81,11 @@
   (estimate μ/Σ → whiten → upscale → re-color) plus an optional moment-matching pass to
   restore the target mean/covariance after interpolation; using `torch.linalg.eigh`
   keeps the transform stable even when the sample covariance is only semi-definite.
+- ComfyUI’s `common_upscale(..., upscale_method="lanczos")` path uses PIL and clamps to
+  image-like ranges, making it unsafe for `LATENT` tensors; treat it as a deprecated
+  alias for `bicubic` when resizing latents.
+- Any global linear transform applied on the channel axis (e.g., PCA whitening) commutes
+  with per-channel linear spatial interpolation kernels (nearest/bilinear/bicubic/area),
+  so `whiten → linear_upscale → recolor` is algebraically identical to directly upscaling
+  the latent; only non-linear methods (e.g., `bislerp`) or per-component kernels can
+  produce a materially different result.

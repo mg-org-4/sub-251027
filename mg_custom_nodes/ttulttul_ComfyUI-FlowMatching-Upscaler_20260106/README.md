@@ -19,8 +19,9 @@ high-resolution generation.
     far beyond its native training resolution by applying Dynamic Position
     Extrapolation (DyPE).
 3.  **Latent Upscale Advanced:** A covariance-aware latent resampler inspired by
-    `upscaling.md` (global whitening → upscale → re-color, plus optional
-    moment-matching so channel statistics stay consistent after interpolation).
+    `upscaling.md` (optional global whitening / moment matching around the
+    spatial upscaler). Defaults to matching ComfyUI’s standard latent upscale
+    behavior unless you enable covariance processing.
 
 The mesh drag and latent diagnostic nodes that previously shipped here now live
 in the `Skoogeer-Noise` node pack.
@@ -138,10 +139,16 @@ Chain these nodes manually for caching benefits.
 *   `noise_ratio`: Amount of flow-noise to inject.
 *   `skip_blend`: Blend factor between pre-sampler latent and denoised result.
 *   `next_seed`: Connect this output to the `seed` of the next stage for deterministic chains.
-*   Dilated refinement blends results in the frequency domain automatically—no manual method selection is required.
+*   Dilated refinement blends results in the frequency domain automatically—no manual method selection is required (FlowMatchingStage only).
+
+**Custom Sampler workflow (modular):**
+*   `FlowMatchingStagePrep` outputs `skip_latent` + `presampler_latent` (+ `seed`/`next_seed`).
+*   Feed `presampler_latent` into ComfyUI’s `SamplerCustom` / `SamplerCustomAdvanced` (use `seed` as the noise seed).
+*   `FlowMatchingStageMerge` blends the sampled latent with `skip_latent` via `skip_blend`.
+*   This modular path intentionally omits the stage node’s low-VRAM fallback and dilated refinement.
 
 #### 2. Latent Upscale Advanced
-Upscales latents using covariance-aware whitening (PCA/eigenbasis) so spatial interpolation respects cross-channel statistics. Enable `moment_match` to re-match mean/covariance after upscaling.
+Upscales latents like ComfyUI’s built-in latent upscale node by default, with optional covariance-aware whitening (PCA/eigenbasis) and an optional `moment_match` pass to restore mean/covariance after interpolation. Note: ComfyUI’s `lanczos` path is image/PIL-based and is treated as `bicubic` for latents here.
 
 ---
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.2 - 2026-01-06
+- Added `FlowMatchingStagePrep` + `FlowMatchingStageMerge` nodes for integrating the flow-matching stage workflow with ComfyUI’s Custom Sampler nodes.
+- Added unit tests covering the new modular stage nodes.
+
+## 2.1.1 - 2026-01-04
+- Changed `Latent Upscale Advanced` defaults to match ComfyUI’s standard latent upscale behavior unless covariance processing is explicitly enabled.
+- Treat `lanczos` as a deprecated alias for `bicubic` when resizing LATENT tensors (PIL-based Lanczos clamps values and damages latents).
+- Added regression tests covering the safer defaults and Lanczos fallback.
+
 ## 2.1.0 - 2026-01-03
 - Added `Latent Upscale Advanced` node implementing covariance-aware whitening + optional moment matching.
 - Added unit tests covering covariance-aware upscaling behavior.

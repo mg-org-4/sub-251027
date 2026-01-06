@@ -236,15 +236,12 @@ def progressive_upscale_latent(
 
     upscale_method = method
 
-    # Lanczos uses PIL internally and only supports 1/3/4 channel tensors.
-    if method == "lanczos" and latent.ndim >= 4:
-        channels = latent.shape[1]
-        if channels not in (1, 3, 4):
-            logger.warning(
-                "Lanczos upscaling is unsupported for %d-channel latents. Falling back to bicubic.",
-                channels,
-            )
-            upscale_method = "bicubic"
+    # Lanczos uses PIL internally and is unsafe for LATENT tensors.
+    if method == "lanczos":
+        logger.warning(
+            "Lanczos upscaling uses PIL under the hood and is unsafe for LATENT tensors; falling back to bicubic."
+        )
+        upscale_method = "bicubic"
 
     with torch.no_grad():
         upscaled = comfy.utils.common_upscale(
@@ -1125,19 +1122,21 @@ class FlowMatchingStage:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model": ("MODEL",),
-                "positive": ("CONDITIONING",),
-                "negative": ("CONDITIONING",),
-                "latent": ("LATENT",),
+                "model": ("MODEL", {"tooltip": "Flow-matching diffusion model to drive refinement."}),
+                "positive": ("CONDITIONING", {"tooltip": "Positive conditioning for CFG."}),
+                "negative": ("CONDITIONING", {"tooltip": "Negative conditioning for CFG."}),
+                "latent": ("LATENT", {"tooltip": "Latent to upscale and refine in this single stage."}),
                 "seed": ("INT", {
                     "default": 0,
                     "min": 0,
                     "max": 0xffffffffffffffff,
+                    "tooltip": "Seed controlling re-noising for this stage (and typically the sampler noise).",
                 }),
                 "steps": ("INT", {
                     "default": 16,
                     "min": 1,
                     "max": 256,
+                    "tooltip": "Denoising steps for this stage.",
                 }),
                 "cfg": ("FLOAT", {
                     "default": 4.5,
@@ -1145,26 +1144,30 @@ class FlowMatchingStage:
                     "max": 20.0,
                     "step": 0.1,
                     "round": 0.01,
+                    "tooltip": "Classifier Free Guidance strength.",
                 }),
-                "sampler_name": (cls._SAMPLERS, {}),
-                "scheduler": (cls._SCHEDULERS, {}),
+                "sampler_name": (cls._SAMPLERS, {"tooltip": "Sampler backend leveraged during refinement."}),
+                "scheduler": (cls._SCHEDULERS, {"tooltip": "Noise schedule applied during denoising."}),
                 "scale_factor": ("FLOAT", {
                     "default": 1.0,
                     "min": 0.1,
                     "max": 8.0,
                     "step": 0.05,
+                    "tooltip": "Spatial scale factor applied to the latent grid for this stage.",
                 }),
                 "noise_ratio": ("FLOAT", {
                     "default": 0.0,
                     "min": 0.0,
                     "max": 1.0,
                     "step": 0.01,
+                    "tooltip": "Flow-style re-noise amount (0 = keep latent, 1 = replace with pure noise).",
                 }),
                 "skip_blend": ("FLOAT", {
                     "default": 0.5,
                     "min": 0.0,
                     "max": 1.0,
                     "step": 0.01,
+                    "tooltip": "Skip blend weight (0 = all denoised, 1 = all pre-sampler latent).",
                 }),
                 "denoise": ("FLOAT", {
                     "default": 1.0,
@@ -1172,29 +1175,38 @@ class FlowMatchingStage:
                     "max": 1.0,
                     "step": 0.01,
                     "round": 0.01,
+                    "tooltip": "Denoising strength supplied to the sampler.",
                 }),
                 "upscale_method": (cls._UPSCALE_METHODS, {
                     "default": "bicubic",
+                    "tooltip": (
+                        "Resampling kernel for spatial upscaling. NOTE: ComfyUI's `lanczos` path uses PIL and is "
+                        "unsafe for LATENT tensors; this node will fall back to `bicubic` if selected."
+                    ),
                 }),
             },
             "optional": {
                 "enable_dilated_sampling": (["disable", "enable"], {
                     "default": "disable",
+                    "tooltip": "Optionally run a dilated refinement pass for global coherence (experimental).",
                 }),
                 "reduce_memory_use": (["disable", "enable"], {
                     "default": "enable",
+                    "tooltip": "Enable to reduce VRAM use by avoiding extra tensor clones where possible.",
                 }),
                 "dilated_downscale": ("FLOAT", {
                     "default": 2.0,
                     "min": 1.0,
                     "max": 4.0,
                     "step": 0.25,
+                    "tooltip": "Factor used when downscaling for the dilated pass (>=1.0).",
                 }),
                 "dilated_blend": ("FLOAT", {
                     "default": 0.25,
                     "min": 0.0,
                     "max": 1.0,
                     "step": 0.01,
+                    "tooltip": "Blend weight of the dilated refinement result (frequency-domain blend).",
                 }),
                 "dilated_min_steps": ("INT", {
                     "default": 1,
@@ -1438,12 +1450,192 @@ class FlowMatchingStage:
         return (out, presampler_latent, next_seed, model, positive, negative)
 
 
+class FlowMatchingStagePrep:
+    CATEGORY = "latent/upscaling"
+    FUNCTION = "execute"
+    RETURN_TYPES = ("LATENT", "LATENT", "INT", "INT")
+    RETURN_NAMES = ("skip_latent", "presampler_latent", "seed", "next_seed")
+
+    _UPSCALE_METHODS: Tuple[str, ...] = FlowMatchingStage._UPSCALE_METHODS
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "latent": ("LATENT", {"tooltip": "Latent to upscale and re-noise before sampling."}),
+                "seed": ("INT", {
+                    "default": 0,
+                    "min": 0,
+                    "max": 0xffffffffffffffff,
+                    "tooltip": "Seed controlling flow re-noise (use as Custom Sampler noise seed for determinism).",
+                }),
+                "scale_factor": ("FLOAT", {
+                    "default": 1.0,
+                    "min": 0.1,
+                    "max": 8.0,
+                    "step": 0.05,
+                    "tooltip": "Spatial scale factor applied to the latent grid for this stage.",
+                }),
+                "noise_ratio": ("FLOAT", {
+                    "default": 0.0,
+                    "min": 0.0,
+                    "max": 1.0,
+                    "step": 0.01,
+                    "tooltip": "Flow-style re-noise amount (0 = keep latent, 1 = replace with pure noise).",
+                }),
+                "upscale_method": (cls._UPSCALE_METHODS, {
+                    "default": "bicubic",
+                    "tooltip": (
+                        "Resampling kernel for spatial upscaling. NOTE: ComfyUI's `lanczos` path uses PIL and is "
+                        "unsafe for LATENT tensors; this node will fall back to `bicubic` if selected."
+                    ),
+                }),
+            },
+            "optional": {
+                "reduce_memory_use": (["disable", "enable"], {
+                    "default": "enable",
+                    "tooltip": "Enable to reduce VRAM use by avoiding extra tensor clones where possible.",
+                }),
+            },
+        }
+
+    def execute(
+        self,
+        latent,
+        seed,
+        scale_factor,
+        noise_ratio,
+        upscale_method,
+        reduce_memory_use="enable",
+    ):
+        if not isinstance(latent, dict) or "samples" not in latent:
+            raise ValueError("FlowMatchingStagePrep expected a LATENT dict with a 'samples' entry.")
+
+        reduce_memory_flag = reduce_memory_use == "enable"
+
+        current_latent_dict = latent.copy()
+        current_latent = current_latent_dict["samples"]
+        if not isinstance(current_latent, torch.Tensor):
+            raise ValueError("FlowMatchingStagePrep expected latent['samples'] to be a torch.Tensor.")
+
+        logger.debug(
+            "Stage prep: scale_factor=%.3f noise_ratio=%.3f method=%s input_shape=%s",
+            scale_factor,
+            noise_ratio,
+            upscale_method,
+            tuple(current_latent.shape),
+        )
+
+        upscaled = progressive_upscale_latent(
+            current_latent,
+            scale_factor,
+            method=upscale_method,
+        )
+
+        _resize_noise_mask(
+            current_latent_dict,
+            scale_factor=scale_factor,
+            method=upscale_method,
+            context="FlowMatchingStagePrep/mask",
+        )
+
+        skip_reference = upscaled if reduce_memory_flag else upscaled.clone()
+        re_noised = apply_flow_renoise(
+            upscaled,
+            noise_ratio,
+            seed,
+        )
+
+        skip_latent = current_latent_dict.copy()
+        skip_latent["samples"] = skip_reference
+
+        presampler_latent = current_latent_dict.copy()
+        presampler_latent["samples"] = re_noised
+
+        next_seed = (seed + _SEED_STRIDE) & 0xFFFFFFFFFFFFFFFF
+        return (skip_latent, presampler_latent, seed, next_seed)
+
+
+class FlowMatchingStageMerge:
+    CATEGORY = "latent/upscaling"
+    FUNCTION = "execute"
+    RETURN_TYPES = ("LATENT",)
+    RETURN_NAMES = ("latent",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "skip_latent": ("LATENT", {"tooltip": "Skip latent from FlowMatchingStagePrep (upscaled latent before sampling)."}),
+                "sampled_latent": ("LATENT", {"tooltip": "Sampled latent output from ComfyUI's Custom Sampler nodes."}),
+                "skip_blend": ("FLOAT", {
+                    "default": 0.5,
+                    "min": 0.0,
+                    "max": 1.0,
+                    "step": 0.01,
+                    "tooltip": "Skip blend weight (0 = all sampled, 1 = all skip latent).",
+                }),
+            },
+        }
+
+    def execute(
+        self,
+        skip_latent,
+        sampled_latent,
+        skip_blend,
+    ):
+        skip_blend = max(0.0, min(1.0, float(skip_blend)))
+
+        if not isinstance(skip_latent, dict) or "samples" not in skip_latent:
+            raise ValueError("FlowMatchingStageMerge expected skip_latent to be a LATENT dict with a 'samples' entry.")
+        if not isinstance(sampled_latent, dict) or "samples" not in sampled_latent:
+            raise ValueError("FlowMatchingStageMerge expected sampled_latent to be a LATENT dict with a 'samples' entry.")
+
+        skip_reference = skip_latent["samples"]
+        refined_samples = sampled_latent["samples"]
+        if not isinstance(skip_reference, torch.Tensor):
+            raise ValueError("FlowMatchingStageMerge expected skip_latent['samples'] to be a torch.Tensor.")
+        if not isinstance(refined_samples, torch.Tensor):
+            raise ValueError("FlowMatchingStageMerge expected sampled_latent['samples'] to be a torch.Tensor.")
+        if refined_samples.ndim != skip_reference.ndim:
+            raise ValueError(
+                "FlowMatchingStageMerge requires sampled_latent and skip_latent to have the same dimensionality; "
+                f"got sampled_latent ndim={refined_samples.ndim}, skip_latent ndim={skip_reference.ndim}."
+            )
+
+        if refined_samples.shape != skip_reference.shape:
+            logger.debug(
+                "Stage merge: rescaling sampled latent from %s to %s.",
+                tuple(refined_samples.shape),
+                tuple(skip_reference.shape),
+            )
+            refined_samples = comfy.utils.common_upscale(
+                refined_samples,
+                skip_reference.shape[-1],
+                skip_reference.shape[-2],
+                "bilinear",
+                crop="disabled",
+            )
+
+        if skip_reference.device != refined_samples.device:
+            skip_reference = skip_reference.to(refined_samples.device)
+
+        blended = torch.lerp(refined_samples, skip_reference, skip_blend)
+        out = skip_latent.copy()
+        out["samples"] = blended
+        return (out,)
+
+
 NODE_CLASS_MAPPINGS = {
     "FlowMatchingProgressiveUpscaler": FlowMatchingProgressiveUpscaler,
     "FlowMatchingStage": FlowMatchingStage,
+    "FlowMatchingStagePrep": FlowMatchingStagePrep,
+    "FlowMatchingStageMerge": FlowMatchingStageMerge,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FlowMatchingProgressiveUpscaler": "Flow Matching Progressive Upscaler",
     "FlowMatchingStage": "Flow Matching Stage",
+    "FlowMatchingStagePrep": "Flow Matching Stage Prep",
+    "FlowMatchingStageMerge": "Flow Matching Stage Merge",
 }

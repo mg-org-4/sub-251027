@@ -713,7 +713,7 @@ class PrimereKSampler:
                                                         steps, cfg, sampler_name, scheduler_name,
                                                         positive, negative,
                                                         latent_image, denoise,
-                                                        variation_extender, variation_batch_step_original, batch_counter, variation_extender_original, variation_batch_step, variation_level, variation_limit,
+                                                        0, variation_batch_step_original, batch_counter, variation_extender_original, 0, False, variation_limit,
                                                         align_your_steps, noise_extender_ksampler, None)[0]
 
             case 'Z-Image':
@@ -1071,7 +1071,7 @@ class PrimereAestheticCKPTScorer:
                         is_random_style = utility.getDataFromWorkflowByName(WORKFLOWDATA, 'PrimereVisualStyle', 'random_prompt', prompt)
                         if is_random_style == True:
                             styles_csv = PrimereVisualStyle.styles_csv
-                            seed = utility.getDataFromWorkflowByName(WORKFLOWDATA, 'PrimereSeed', 'seed', prompt)
+                            seed = utility.getDataFromWorkflowByName(WORKFLOWDATA, 'PrimereFastSeed', 'seed', prompt)
                             random.seed(seed)
                             styleKey = styles_csv['name'] == selectedStyle
                             try:

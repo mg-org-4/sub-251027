@@ -14,6 +14,9 @@ import folder_paths
 import urllib.request
 from typing import Optional, Tuple, List
 
+# Import JSON prompt extractor for automatic prompt list extraction
+from .json_prompt_extractor import extract_prompts_from_json
+
 # Suggested models for download
 SUGGESTED_MODELS = {
     "Download: Z-Image": "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q5_K_M.gguf",
@@ -42,6 +45,8 @@ class GGUFInference:
         self.clip_model_array = None
         self.llama_cpp_available = False
         self.failed_versions = []  # Track failed installation versions
+        self.ggml_error_retry_count = 0  # Track retry attempts for ggml errors
+        self.max_ggml_retries = 2  # Maximum retry attempts
         self._check_llama_cpp()
 
     def _check_llama_cpp(self):
@@ -281,8 +286,9 @@ class GGUFInference:
             }
         }
 
-    RETURN_TYPES = ("STRING", "INT",)
-    RETURN_NAMES = ("text", "used_seed",)
+    RETURN_TYPES = ("STRING", "INT", "STRING")
+    RETURN_NAMES = ("text", "used_seed", "prompts")
+    OUTPUT_IS_LIST = (False, False, True)  # prompts 是列表
     FUNCTION = "inference"
     CATEGORY = "ListHelper/LLM"
 
@@ -368,6 +374,134 @@ class GGUFInference:
             pass
         except Exception as e:
             print(f"⚠️ Error freeing image memory: {e}")
+
+    def _is_ggml_error(self, exception) -> bool:
+        """Detect if exception is related to ggml/CUDA compatibility issues
+
+        Args:
+            exception: The exception object to check
+
+        Returns:
+            True if this is a ggml-related error that might be fixed by reinstalling
+        """
+        error_str = str(exception).lower()
+
+        # Check for common ggml-related error patterns
+        ggml_patterns = [
+            'ggml',
+            'cannot load library',
+            'dll load failed',
+            'cuda',
+            'shared library',
+            'importerror',
+            'oserror',
+        ]
+
+        return any(pattern in error_str for pattern in ggml_patterns)
+
+    def _handle_ggml_error_and_reinstall(self) -> Tuple[bool, Optional[str]]:
+        """Handle ggml error by detecting system and reinstalling compatible version
+
+        This method is called when a ggml-related error occurs during model loading.
+        It will:
+        1. Re-detect system configuration (Python/CUDA versions)
+        2. Uninstall current llama-cpp-python
+        3. Search for and install compatible version
+
+        Returns:
+            Tuple of (success: bool, message: str or None)
+        """
+        print("=" * 70)
+        print("GGML ERROR DETECTED - Attempting automatic recovery")
+        print("=" * 70)
+
+        # Increment retry count
+        self.ggml_error_retry_count += 1
+
+        # Check if we've exceeded max retries
+        if self.ggml_error_retry_count > self.max_ggml_retries:
+            error_msg = (
+                f"Maximum retry attempts ({self.max_ggml_retries}) reached.\n\n"
+                "Unable to automatically resolve the ggml compatibility issue.\n"
+                "This usually means:\n"
+                "1. Your CUDA/Python version changed and no compatible wheel is available\n"
+                "2. System libraries are missing or corrupted\n\n"
+                "Please manually install from:\n"
+                "https://github.com/JamePeng/llama-cpp-python/releases"
+            )
+            print(error_msg)
+            print("=" * 70)
+            return (False, error_msg)
+
+        print(f"Retry attempt {self.ggml_error_retry_count}/{self.max_ggml_retries}")
+        print("Re-detecting system configuration...")
+
+        # Get current installed version to add to skip list
+        try:
+            import pkg_resources
+            current_version = pkg_resources.get_distribution("llama-cpp-python").version
+            # Extract tag from version if possible
+            # Version format like: 0.3.18+cu128
+            if current_version:
+                print(f"Current version: {current_version}")
+                # Add current version to failed list if not already there
+                # We need to find the matching tag, but for now just track by version
+                pass
+        except:
+            current_version = None
+
+        # Uninstall current version
+        print("Uninstalling incompatible version...")
+        if not self._uninstall_llama_cpp():
+            error_msg = (
+                "Failed to uninstall current llama-cpp-python.\n"
+                "Please manually uninstall: pip uninstall llama-cpp-python"
+            )
+            print(error_msg)
+            print("=" * 70)
+            return (False, error_msg)
+
+        # Try to install compatible version, skipping previously failed versions
+        print("Searching for compatible version...")
+        print("System will be re-detected automatically during installation")
+        print("=" * 70)
+
+        success, new_version = self._install_llama_cpp(skip_versions=set(self.failed_versions))
+
+        if success and new_version:
+            # Add this version to failed list (since we got here, it had issues)
+            if new_version not in self.failed_versions:
+                self.failed_versions.append(new_version)
+
+            success_msg = (
+                f"Successfully installed llama-cpp-python {new_version}\n\n"
+                "IMPORTANT: Please restart ComfyUI to use the new version.\n"
+                "The current session may still have compatibility issues."
+            )
+            print("=" * 70)
+            print(success_msg)
+            print("=" * 70)
+            return (True, success_msg)
+        else:
+            # Add to failed list even if we couldn't install
+            if new_version and new_version not in self.failed_versions:
+                self.failed_versions.append(new_version)
+
+            error_msg = (
+                "Failed to find/install compatible llama-cpp-python version.\n\n"
+                "Please visit: https://github.com/JamePeng/llama-cpp-python/releases\n"
+                "And manually install a version compatible with:\n"
+                f"- Python {sys.version_info.major}.{sys.version_info.minor}\n"
+            )
+
+            # Add CUDA info if available
+            cuda_version = self._detect_cuda_version()
+            if cuda_version:
+                error_msg += f"- CUDA {cuda_version}\n"
+
+            print(error_msg)
+            print("=" * 70)
+            return (False, error_msg)
 
     def _detect_cuda_version(self):
         """Detect CUDA version from system"""
@@ -779,6 +913,11 @@ class GGUFInference:
             # Clean up all resources on load failure (silently)
             self._free_memory()
 
+            # Check if this is a ggml-related error and raise it for handling
+            if self._is_ggml_error(e):
+                # Re-raise with ggml indicator for upstream handling
+                raise RuntimeError(f"GGML_ERROR: {str(e)}") from e
+
             return False
 
     def _remove_thinking_tags(self, text: str) -> str:
@@ -1057,13 +1196,40 @@ class GGUFInference:
                         print(f"⚠️ mmproj not found: {mmproj_file}")
                         enable_vision = False
 
-        # Load model (first attempt)
-        load_result = self._load_model(model_path, enable_vision, mmproj_path)
+        # Load model with ggml error handling
+        load_result = False
+        ggml_error_occurred = False
 
-        # If loading failed, try force reload once
-        if not load_result:
-            print("⚠️ Retrying with force reload...")
-            load_result = self._load_model(model_path, enable_vision, mmproj_path, force_reload=True)
+        try:
+            # First attempt to load model
+            load_result = self._load_model(model_path, enable_vision, mmproj_path)
+        except RuntimeError as e:
+            # Check if this is a ggml error
+            if "GGML_ERROR" in str(e):
+                ggml_error_occurred = True
+                print("⚠️ GGML compatibility error detected during model loading")
+            else:
+                # Re-raise if not a ggml error
+                raise
+
+        # If loading failed (but not ggml error), try force reload once
+        if not load_result and not ggml_error_occurred:
+            try:
+                print("⚠️ Retrying with force reload...")
+                load_result = self._load_model(model_path, enable_vision, mmproj_path, force_reload=True)
+            except RuntimeError as e:
+                if "GGML_ERROR" in str(e):
+                    ggml_error_occurred = True
+                    print("⚠️ GGML compatibility error detected during force reload")
+                else:
+                    raise
+
+        # Handle ggml error with auto-reinstall
+        if ggml_error_occurred and auto_install_llama_cpp:
+            print("Attempting automatic recovery from GGML error...")
+            success, message = self._handle_ggml_error_and_reinstall()
+            # Return the message to user (success or failure)
+            return (message, seed, [])
 
         if not load_result:
             # Model loading failed - get the error details from the exception
@@ -1247,7 +1413,16 @@ class GGUFInference:
             if not keep_model_loaded:
                 self._free_memory()
 
-            return (response_text, seed)
+            # 自動提取提示詞列表（如果輸出包含 JSON 格式的雜誌數據）
+            try:
+                prompts = extract_prompts_from_json(response_text)
+                if prompts:
+                    print(f"✅ 自動提取到 {len(prompts)} 個圖片提示詞")
+            except Exception as e:
+                print(f"ℹ️ 提示詞提取失敗（這是正常的，如果輸出不是雜誌 JSON）: {e}")
+                prompts = []
+
+            return (response_text, seed, prompts)
 
         except Exception as e:
             import traceback
@@ -1263,4 +1438,4 @@ class GGUFInference:
             if any(keyword in error_str for keyword in ['memory', 'load', 'allocation', 'cuda', 'out of memory']):
                 self._free_memory()
 
-            return (error_msg, seed)
+            return (error_msg, seed, [])  # 錯誤時返回空的提示詞列表

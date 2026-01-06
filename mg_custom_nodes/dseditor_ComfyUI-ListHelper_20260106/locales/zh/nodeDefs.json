@@ -1,53 +1,53 @@
 {
   "AudioListGenerator": {
-    "display_name": "音訊分割為列表",
+    "display_name": "音讯分割为列表",
     "inputs": {
       "waveform": {
         "name": "波形"
       },
       "videofps": {
-        "name": "影片幀率"
+        "name": "影片帧率"
       },
       "samplefps": {
-        "name": "取樣幀率"
+        "name": "取样帧率"
       },
       "pad_last_segment": {
-        "name": "填充最後片段"
+        "name": "填充最后片段"
       },
       "crossfade_duration": {
-        "name": "交叉淡化時長"
+        "name": "交叉淡化时长"
       },
       "crossfade_type": {
-        "name": "交叉淡化類型"
+        "name": "交叉淡化类型"
       }
     },
     "outputs": {
       "0": {
-        "name": "循環"
+        "name": "循环"
       },
       "1": {
-        "name": "音訊列表"
+        "name": "音讯列表"
       }
     }
   },
   "AudioToFrameCount": {
-    "display_name": "音訊轉幀數",
+    "display_name": "音讯转帧数",
     "inputs": {
       "audio": {
-        "name": "音訊"
+        "name": "音讯"
       },
       "fps": {
-        "name": "幀率"
+        "name": "帧率"
       }
     },
     "outputs": {
       "0": {
-        "name": "幀數"
+        "name": "帧数"
       }
     }
   },
   "PromptListGenerator": {
-    "display_name": "提示詞列表產生器",
+    "display_name": "提示词列表产生器",
     "inputs": {
       "text": {
         "name": "文字"
@@ -56,7 +56,7 @@
         "name": "分隔符"
       },
       "use_regex": {
-        "name": "使用正規表示式"
+        "name": "使用正规表示式"
       },
       "keep_delimiter": {
         "name": "保留分隔符"
@@ -65,19 +65,19 @@
         "name": "起始索引"
       },
       "skip_every": {
-        "name": "跳過間隔"
+        "name": "跳过间隔"
       },
       "max_count": {
-        "name": "最大數量"
+        "name": "最大数量"
       },
       "skip_first_index": {
-        "name": "跳過第一個索引"
+        "name": "跳过第一个索引"
       },
       "random_order": {
-        "name": "隨機排序"
+        "name": "随机排序"
       },
       "seed": {
-        "name": "種子"
+        "name": "种子"
       }
     },
     "outputs": {
@@ -85,12 +85,12 @@
         "name": "文字列表"
       },
       "1": {
-        "name": "總索引"
+        "name": "总索引"
       }
     }
   },
   "NumberListGenerator": {
-    "display_name": "數字列表產生器",
+    "display_name": "数字列表产生器",
     "inputs": {
       "min_value": {
         "name": "最小值"
@@ -99,57 +99,57 @@
         "name": "最大值"
       },
       "step": {
-        "name": "步長"
+        "name": "步长"
       },
       "count": {
-        "name": "數量"
+        "name": "数量"
       },
       "random": {
-        "name": "隨機"
+        "name": "随机"
       },
       "seed": {
-        "name": "種子"
+        "name": "种子"
       }
     },
     "outputs": {
       "0": {
-        "name": "整數列表"
+        "name": "整数列表"
       },
       "1": {
-        "name": "浮點數列表"
+        "name": "浮点数列表"
       },
       "2": {
-        "name": "總數量"
+        "name": "总数量"
       }
     }
   },
   "AudioListCombine": {
-    "display_name": "音訊列表合併",
+    "display_name": "音讯列表合并",
     "inputs": {
       "audio_list": {
-        "name": "音訊列表"
+        "name": "音讯列表"
       },
       "combine_mode": {
-        "name": "合併模式"
+        "name": "合并模式"
       },
       "fade_duration": {
-        "name": "淡化時長"
+        "name": "淡化时长"
       },
       "normalize_output": {
-        "name": "標準化輸出"
+        "name": "标准化输出"
       },
       "target_sample_rate": {
-        "name": "目標取樣率"
+        "name": "目标取样率"
       }
     },
     "outputs": {
       "0": {
-        "name": "音訊"
+        "name": "音讯"
       }
     }
   },
   "CeilDivide": {
-    "display_name": "無條件進位除法",
+    "display_name": "无条件进位除法",
     "inputs": {
       "a": {
         "name": "A"
@@ -160,18 +160,18 @@
     },
     "outputs": {
       "0": {
-        "name": "結果"
+        "name": "结果"
       }
     }
   },
   "FrameMatch": {
-    "display_name": "幀數匹配",
+    "display_name": "帧数匹配",
     "inputs": {
       "images": {
-        "name": "圖像"
+        "name": "图像"
       },
       "target_frames": {
-        "name": "目標幀數"
+        "name": "目标帧数"
       },
       "fill_mode": {
         "name": "填充模式"
@@ -179,58 +179,58 @@
     },
     "outputs": {
       "0": {
-        "name": "圖像"
+        "name": "图像"
       }
     }
   },
   "SimpleWildCardPlayer": {
-    "display_name": "簡易萬用字元播放器",
+    "display_name": "简易万用字元播放器",
     "inputs": {
       "basic_prompt": {
-        "name": "基礎提示詞"
+        "name": "基础提示词"
       },
       "wildcard_template": {
-        "name": "萬用字元範本"
+        "name": "万用字元范本"
       },
       "wildcard_files": {
-        "name": "萬用字元檔案"
+        "name": "万用字元档案"
       },
       "batch_count": {
-        "name": "批次數量"
+        "name": "批次数量"
       },
       "seed": {
-        "name": "種子"
+        "name": "种子"
       }
     },
     "outputs": {
       "0": {
-        "name": "提示詞列表"
+        "name": "提示词列表"
       }
     }
   },
   "QwenGPUInference": {
-    "display_name": "Qwen TE 語言模型",
+    "display_name": "Qwen TE 语言模型",
     "inputs": {
       "user_prompt": {
-        "name": "使用者提示詞"
+        "name": "使用者提示词"
       },
       "prompt_template": {
-        "name": "提示詞範本"
+        "name": "提示词范本"
       },
       "system_prompt": {
-        "name": "系統提示詞"
+        "name": "系统提示词"
       },
       "max_new_tokens": {
-        "name": "最大生成標記數"
+        "name": "最大生成标记数"
       },
       "temperature": {
-        "name": "溫度"
+        "name": "温度"
       },
       "seed": {
-        "name": "種子"
+        "name": "种子"
       },
       "keep_model_loaded": {
-        "name": "保持模型載入"
+        "name": "保持模型载入"
       },
       "use_flash_attention": {
         "name": "使用 Flash Attention"
@@ -250,30 +250,30 @@
         "name": "文字"
       },
       "1": {
-        "name": "使用的種子"
+        "name": "使用的种子"
       }
     }
   },
   "GGUFInference": {
-    "display_name": "GGUF 語言模型",
+    "display_name": "GGUF 语言模型",
     "inputs": {
       "model": {
         "name": "模型"
       },
       "prompt": {
-        "name": "提示詞"
+        "name": "提示词"
       },
       "prompt_template": {
-        "name": "提示詞範本"
+        "name": "提示词范本"
       },
       "system_prompt": {
-        "name": "系統提示詞"
+        "name": "系统提示词"
       },
       "max_tokens": {
-        "name": "最大標記數"
+        "name": "最大标记数"
       },
       "temperature": {
-        "name": "溫度"
+        "name": "温度"
       },
       "top_p": {
         "name": "Top P"
@@ -282,25 +282,25 @@
         "name": "Top K"
       },
       "seed": {
-        "name": "種子"
+        "name": "种子"
       },
       "keep_model_loaded": {
-        "name": "保持模型載入"
+        "name": "保持模型载入"
       },
       "mmproj_file": {
-        "name": "MMProj 檔案"
+        "name": "MMProj 档案"
       },
       "image_1": {
-        "name": "圖像 1"
+        "name": "图像 1"
       },
       "image_2": {
-        "name": "圖像 2"
+        "name": "图像 2"
       },
       "image_3": {
-        "name": "圖像 3"
+        "name": "图像 3"
       },
       "auto_install_llama_cpp": {
-        "name": "自動安裝 Llama CPP"
+        "name": "自动安装 Llama CPP"
       }
     },
     "outputs": {
@@ -308,92 +308,98 @@
         "name": "文字"
       },
       "1": {
-        "name": "使用的種子"
+        "name": "使用的种子"
+      },
+      "2": {
+        "name": "提示词列表"
       }
     }
   },
   "BatchToPSD": {
-    "display_name": "批次轉 PSD",
+    "display_name": "批次转 PSD",
     "inputs": {
       "images": {
-        "name": "圖像"
+        "name": "图像"
       },
       "filename_prefix": {
-        "name": "檔案名稱前綴"
+        "name": "档案名称前缀"
       },
       "reverse_layer_order": {
-        "name": "反轉圖層順序"
+        "name": "反转图层顺序"
       }
     },
     "outputs": {
       "0": {
-        "name": "訊息"
+        "name": "讯息"
       }
     }
   },
   "ModelDownloader": {
-    "display_name": "模型下載器",
+    "display_name": "模型下载器",
     "inputs": {
       "download_list": {
-        "name": "下載列表"
+        "name": "下载列表"
       },
       "use_s3c": {
         "name": "使用 S3C"
       },
       "use_custom_path": {
-        "name": "使用自訂路徑"
+        "name": "使用自订路径"
       },
       "chunk_size_mb": {
-        "name": "分塊大小 (MB)"
+        "name": "分块大小 (MB)"
       },
       "max_workers": {
-        "name": "最大執行緒數"
+        "name": "最大执行绪数"
       }
     },
     "outputs": {
       "0": {
-        "name": "狀態訊息"
+        "name": "状态讯息"
       }
     }
   },
   "OpenAIHelper": {
-    "display_name": "OpenAI 輔助工具",
+    "display_name": "OpenAI 辅助工具",
     "inputs": {
+      "config_template": {
+        "name": "配置模板"
+      },
       "endpoint": {
-        "name": "端點"
+        "name": "端点"
       },
       "api_key": {
-        "name": "API 金鑰"
+        "name": "API 金钥"
       },
       "model_name": {
-        "name": "模型名稱"
+        "name": "模型名称"
       },
       "user_prompt": {
-        "name": "使用者提示詞"
+        "name": "使用者提示词"
       },
       "prompt_template": {
-        "name": "提示詞範本"
+        "name": "提示词范本"
       },
       "max_tokens": {
-        "name": "最大標記數"
+        "name": "最大标记数"
       },
       "system_prompt": {
-        "name": "系統提示詞"
+        "name": "系统提示词"
       },
       "image1": {
-        "name": "圖像 1"
+        "name": "图像 1"
       },
       "image2": {
-        "name": "圖像 2"
+        "name": "图像 2"
       },
       "image3": {
-        "name": "圖像 3"
+        "name": "图像 3"
       },
       "audio": {
-        "name": "音訊"
+        "name": "音讯"
       },
       "file_path": {
-        "name": "檔案路徑"
+        "name": "档案路径"
       }
     },
     "outputs": {
@@ -401,116 +407,200 @@
         "name": "文字"
       },
       "1": {
-        "name": "模型名稱列表"
+        "name": "模型名称列表"
+      },
+      "2": {
+        "name": "提示词列表"
       }
     }
   },
   "OpenRouterLLM": {
-    "display_name": "OpenRouter 語言模型",
+    "display_name": "OpenRouter 语言模型",
     "inputs": {
       "api_key": {
-        "name": "API 金鑰"
+        "name": "API 金钥"
       },
       "user_prompt": {
-        "name": "使用者提示詞"
+        "name": "使用者提示词"
       },
       "text_model": {
         "name": "文字模型"
       },
       "prompt_template": {
-        "name": "提示詞範本"
+        "name": "提示词范本"
       },
       "seed": {
-        "name": "種子"
+        "name": "种子"
       },
       "custom_model": {
-        "name": "自訂模型"
+        "name": "自订模型"
       },
       "system_prompt": {
-        "name": "系統提示詞"
+        "name": "系统提示词"
       },
       "enable_resize": {
-        "name": "啟用調整大小"
+        "name": "启用调整大小"
       },
       "target_width": {
-        "name": "目標寬度"
+        "name": "目标宽度"
       },
       "target_height": {
-        "name": "目標高度"
+        "name": "目标高度"
       },
       "resize_method": {
-        "name": "縮放方法"
+        "name": "缩放方法"
       },
       "image_input_1": {
-        "name": "圖像輸入 1"
+        "name": "图像输入 1"
       },
       "image_input_2": {
-        "name": "圖像輸入 2"
+        "name": "图像输入 2"
       },
       "image_input_3": {
-        "name": "圖像輸入 3"
+        "name": "图像输入 3"
       }
     },
     "outputs": {
       "0": {
-        "name": "圖像輸出"
+        "name": "图像输出"
       },
       "1": {
-        "name": "文字輸出"
+        "name": "文字输出"
       }
     }
   },
   "ChineseConverter": {
-    "display_name": "中文簡繁轉換",
+    "display_name": "中文简繁转换",
     "inputs": {
       "input_text": {
-        "name": "輸入文字"
+        "name": "输入文字"
       },
       "simp_to_trad": {
-        "name": "簡體轉繁體"
+        "name": "简体转繁体"
       }
     },
     "outputs": {
       "0": {
-        "name": "轉換後文字"
+        "name": "转换后文字"
       }
     }
   },
   "ChineseTranslate": {
-    "display_name": "中文翻譯英文",
+    "display_name": "中文翻译英文",
     "inputs": {
       "input_text": {
-        "name": "輸入文字"
+        "name": "输入文字"
       }
     },
     "outputs": {
       "0": {
-        "name": "翻譯後文字"
+        "name": "翻译后文字"
       }
     }
   },
   "AutoWhiteBalance": {
-    "display_name": "自動白平衡",
+    "display_name": "自动白平衡",
     "inputs": {
       "image": {
-        "name": "圖像"
+        "name": "图像"
       },
       "method": {
         "name": "方法"
       },
       "strength": {
-        "name": "強度"
+        "name": "强度"
       },
       "preserve_brightness": {
         "name": "保持亮度"
       },
       "clip_values": {
-        "name": "裁剪數值"
+        "name": "裁剪数值"
       }
     },
     "outputs": {
       "0": {
-        "name": "圖像"
+        "name": "图像"
+      }
+    }
+  },
+  "PhotoMagazinePromptGenerator": {
+    "display_name": "写真杂志提示词产生器",
+    "inputs": {
+      "model_name": {
+        "name": "模特儿名称"
+      },
+      "photo_style": {
+        "name": "拍摄风格"
+      },
+      "custom_style": {
+        "name": "自订风格"
+      },
+      "custom_scene": {
+        "name": "自订场景"
+      },
+      "content_pages": {
+        "name": "内容页数"
+      },
+      "prompt_template": {
+        "name": "提示词范本"
+      },
+      "features": {
+        "name": "人物特征"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "提示词"
+      }
+    }
+  },
+  "PhotoMagazineParser": {
+    "display_name": "写真杂志解析器",
+    "inputs": {
+      "llm_output": {
+        "name": "LLM 输出"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "图片提示词"
+      },
+      "1": {
+        "name": "JSON 资料"
+      }
+    }
+  },
+  "PhotoMagazineMaker": {
+    "display_name": "写真杂志制作器",
+    "inputs": {
+      "images": {
+        "name": "图像"
+      },
+      "json_data": {
+        "name": "JSON 资料"
+      },
+      "template": {
+        "name": "范本"
+      },
+      "layout": {
+        "name": "版型"
+      },
+      "font": {
+        "name": "字体"
+      },
+      "compress_pdf": {
+        "name": "压缩 PDF"
+      },
+      "disable_cover_layout": {
+        "name": "关闭封面排版"
+      },
+      "output_path": {
+        "name": "输出路径"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "结果"
       }
     }
   }

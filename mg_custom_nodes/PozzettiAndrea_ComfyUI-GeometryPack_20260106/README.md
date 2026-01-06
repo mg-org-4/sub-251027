@@ -140,6 +140,9 @@ Load Mesh → PyMeshLab Remesh → Save Mesh
 **Depth Map to Mesh**
 ![Depth Map to Mesh](docs/workflows/depth_map_to_mesh.png)
 
+**Alpha Wrapping**
+![uv_unwrapping](docs/uv_unwrapping.png)
+
 ## Demo Videos
 
 *Coming soon - video demonstrations will be added here*
@@ -163,7 +166,7 @@ All nodes use `trimesh.Trimesh` objects for mesh data.
 
 Questions or feature requests? Open a [Discussion](https://github.com/PozzettiAndrea/ComfyUI-GeometryPack/discussions) on GitHub.
 
-Join the [Comfy3D Discord](https://discord.gg/PN743tE5) for help, updates, and chat about 3D workflows in ComfyUI.
+Join the [Comfy3D Discord](https://discord.gg/bcdQCUjnHE) for help, updates, and chat about 3D workflows in ComfyUI.
 
 ## Credits
 

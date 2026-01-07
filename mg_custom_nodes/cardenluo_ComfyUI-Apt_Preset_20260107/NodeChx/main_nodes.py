@@ -3185,6 +3185,7 @@ class chx_YC_LG_Redux:
 
 
 
+
 #region------------nanchaku--------------------------
 import sys
 import os
@@ -3221,9 +3222,6 @@ def check_Nunchaku_installed():
 
 
 class load_Nanchaku:
-    # 类级别的模型缓存
-    _model_cache = {}
-    
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -3267,65 +3265,6 @@ class load_Nanchaku:
 - 请注意，20系列显卡只能使用nunchaku-fp16。
     """
 
-    @classmethod
-    def _compute_cache_key(cls, unet_name, attention, cache_threshold, cpu_offload, 
-                           clip1, clip2, lora, lora_strength, lora_stack, 
-                           over_model, over_clip, pos, neg, vae, device="default"):
-        """计算模型加载参数的缓存键"""
-        key_data = f"{unet_name}|{attention}|{cache_threshold}|{cpu_offload}|{clip1}|{clip2}|{lora}|{lora_strength}|{lora_stack}|{over_model}|{over_clip}|{pos}|{neg}|{vae}"
-        return hashlib.md5(key_data.encode()).hexdigest()
-
-    @classmethod
-    def _load_model_and_clip_cached(cls, unet_name, attention, cache_threshold, cpu_offload, device_id, data_type, 
-                                    clip1, clip2, clip_type, lora, lora_strength, lora_stack, 
-                                    over_model, over_clip, pos, neg, vae, device="default", **kwargs):
-        """带缓存的模型和CLIP加载"""
-        cache_key = cls._compute_cache_key(unet_name, attention, cache_threshold, cpu_offload, 
-                                        clip1, clip2, lora, lora_strength, lora_stack, 
-                                        over_model, over_clip, pos, neg, vae, device)
-        
-        if cache_key in cls._model_cache:
-            print(f"[load_Nanchaku] Cache hit, reusing loaded model and conditioning")
-            return cls._model_cache[cache_key]
-        
-        print(f"[load_Nanchaku] Cache miss, loading model and encoding prompts...")
-        
-        # 初始化model和clip变量
-        model = over_model
-        clip = over_clip
-        vae_obj = None
-        
-        # 处理VAE
-        if isinstance(vae, str) and vae != "None":
-            vae_path = folder_paths.get_full_path("vae", vae)
-            vae_obj = comfy.sd.VAE(comfy.utils.load_torch_file(vae_path))
-        
-        # 如果没有提供over_model，则加载模型
-        if over_model is None:
-            clip = cls._load_clip(clip1, clip2, clip_type, device)
-            model = load_Nanchaku._load_model_static(unet_name, attention, cache_threshold, cpu_offload, device_id, data_type, clip1, clip2, **kwargs)
-        # 如果提供了over_model但没有提供over_clip，则只加载clip
-        elif over_clip is None:
-            clip = cls._load_clip(clip1, clip2, clip_type, device)
-
-        # 应用LoRA
-        if lora_stack is not None and model is not None and clip is not None:
-            model, clip = apply_lora_stack(model, clip, lora_stack)
-        if lora != "None" and lora_strength != 0 and model is not None and clip is not None:
-            model, clip = LoraLoader().load_lora(model, clip, lora, lora_strength, lora_strength)
-
-        # 编码文本
-        positive = None
-        negative = None
-        if clip is not None:
-            (positive,) = CLIPTextEncode().encode(clip, pos)
-            (negative,) = CLIPTextEncode().encode(clip, neg)
-            positive = node_helpers.conditioning_set_values(positive, {"guidance": 3.5})  # 默认guidance值
-            
-        # 缓存结果
-        cls._model_cache[cache_key] = (model, clip, vae_obj, positive, negative)
-        return model, clip, vae_obj, positive, negative
-    
     def _load_clip(self, clip1, clip2, clip_type, device):
         """加载CLIP模型"""
         clip = None
@@ -3350,46 +3289,6 @@ class load_Nanchaku:
                 clip = CLIPLoader().load_clip(clip_file, clip_type, device)[0]
                 
         return clip
-
-    @staticmethod
-    def _load_model_static(unet_name, attention, cache_threshold, cpu_offload, device_id, data_type, clip1, clip2, **kwargs):
-        """加载模型 - 静态方法版本"""
-        model = None
-        
-        # 双CLIP加载情况 (FluxDiT)
-        if clip1 != "None" and clip2 != "None":
-            if NunchakuFluxDiTLoader is not None:
-                try:
-                    if callable(NunchakuFluxDiTLoader):
-                        model_loader = NunchakuFluxDiTLoader()
-                        model_result = model_loader.load_model(unet_name, attention, cache_threshold, cpu_offload, device_id, data_type, **kwargs)
-                        model = model_result[0] if isinstance(model_result, tuple) else model_result
-                    else:
-                        model_result = NunchakuFluxDiTLoader.load_model(unet_name, attention, cache_threshold, cpu_offload, device_id, data_type, **kwargs)
-                        model = model_result[0] if isinstance(model_result, tuple) else model_result
-                except Exception as e:
-                    raise RuntimeError(f"Failed to load model with NunchakuFluxDiTLoader: {e}")
-            else:
-                raise RuntimeError("NunchakuFluxDiTLoader is not available")
-
-        # 单CLIP加载情况 (QwenImageDiT)
-        elif (clip1 != "None" and clip2 == "None") or (clip1 == "None" and clip2 != "None"):
-            # 检查并加载QwenImageDiT模型
-            if NunchakuQwenImageDiTLoader is not None:
-                try:
-                    if callable(NunchakuQwenImageDiTLoader):
-                        model_loader = NunchakuQwenImageDiTLoader()
-                        model_result = model_loader.load_model(unet_name, cpu_offload, **kwargs)
-                        model = model_result[0] if isinstance(model_result, tuple) else model_result
-                    else:
-                        model_result = NunchakuQwenImageDiTLoader.load_model(unet_name, cpu_offload, **kwargs)
-                        model = model_result[0] if isinstance(model_result, tuple) else model_result
-                except Exception as e:
-                    raise RuntimeError(f"Failed to load model with NunchakuQwenImageDiTLoader: {e}")
-            else:
-                raise RuntimeError("NunchakuQwenImageDiTLoader is not available")
-                
-        return model
 
     def _load_model(self, unet_name, attention, cache_threshold, cpu_offload, device_id, data_type, clip1, clip2, **kwargs):
         """加载模型"""
@@ -3430,8 +3329,7 @@ class load_Nanchaku:
                 
         return model
 
-    @classmethod
-    def process_settings(cls, node_id, width, height, steps, cfg, sampler, scheduler, guidance, device="default", 
+    def process_settings(self, node_id, width, height, steps, cfg, sampler, scheduler, guidance, device="default", 
                          lora=None, lora_strength=1.0, cache_threshold=0, cpu_offload="auto", attention="nunchaku-fp16",
                          vae=None, clip1=None, unet_name=None, data_type=None, lora_stack=None, over_model=None, over_clip=None,
                          clip2=None, pos="default", preset=[], **kwargs):
@@ -3477,30 +3375,43 @@ class load_Nanchaku:
         if latent.shape[1] != 16:
             latent = latent.repeat(1, 16 // 4, 1, 1)
 
-        # 使用缓存的模型加载和提示词编码
-        model, clip, vae_obj, positive, negative = cls._load_model_and_clip_cached(
-            unet_name, attention, cache_threshold, cpu_offload, device_id, data_type, 
-            clip1, clip2, clip_type, lora, lora_strength, lora_stack, 
-            over_model, over_clip, pos, neg, vae, device, **kwargs
-        )
-        
-        # 更新positive的guidance
-        if positive is not None:
-            positive = node_helpers.conditioning_set_values(positive, {"guidance": guidance})
-
-        # 如果VAE对象不存在且vae是字符串，则加载VAE
-        if vae_obj is None and isinstance(vae, str) and vae != "None":
+        # 处理VAE
+        if isinstance(vae, str) and vae != "None":
             vae_path = folder_paths.get_full_path("vae", vae)
-            vae_obj = comfy.sd.VAE(comfy.utils.load_torch_file(vae_path))
-        elif vae_obj is None:
-            vae_obj = vae
+            vae = comfy.sd.VAE(comfy.utils.load_torch_file(vae_path))
+
+        # 初始化model和clip变量
+        model = over_model
+        clip = over_clip
+
+        # 如果没有提供over_model，则加载模型
+        if over_model is None:
+            clip = self._load_clip(clip1, clip2, clip_type, device)
+            model = self._load_model(unet_name, attention, cache_threshold, cpu_offload, device_id, data_type, clip1, clip2, **kwargs)
+        # 如果提供了over_model但没有提供over_clip，则只加载clip
+        elif over_clip is None:
+            clip = self._load_clip(clip1, clip2, clip_type, device)
+
+        # 应用LoRA
+        if lora_stack is not None and model is not None and clip is not None:
+            model, clip = apply_lora_stack(model, clip, lora_stack)
+        if lora != "None" and lora_strength != 0 and model is not None and clip is not None:
+            model, clip = LoraLoader().load_lora(model, clip, lora, lora_strength, lora_strength)
+
+        # 编码文本
+        positive = None
+        negative = None
+        if clip is not None:
+            (positive,) = CLIPTextEncode().encode(clip, pos)
+            (negative,) = CLIPTextEncode().encode(clip, neg)
+            positive = node_helpers.conditioning_set_values(positive, {"guidance": guidance})
 
         context = {
             "model": model,
             "positive": positive,
             "negative": negative,
             "latent": {"samples": latent},
-            "vae": vae_obj,
+            "vae": vae,
             "clip": clip,
             "steps": steps,
             "cfg": cfg,
@@ -3521,17 +3432,13 @@ class load_Nanchaku:
         }
         return (context, model, parameters_data,)
 
-    @classmethod
-    def handle_my_message(cls, d):
+    def handle_my_message(d):
         
         preset_data = ""
         preset_path = os.path.join(presets_directory_path, d['message'])
         with open(preset_path, 'r', encoding='utf-8') as f:    
             preset_data = toml.load(f)
         PromptServer.instance.send_sync("my.custom.message", {"message":preset_data, "node":d['node_id']})
-
-
-
 
 
 

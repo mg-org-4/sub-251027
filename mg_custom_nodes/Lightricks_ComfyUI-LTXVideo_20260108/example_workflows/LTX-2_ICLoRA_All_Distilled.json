@@ -37,90 +37,6 @@
       ]
     },
     {
-      "id": 263,
-      "type": "SaveVideo",
-      "pos": [
-        -3300.791002295813,
-        4850.00281731496
-      ],
-      "size": [
-        407.5231522848858,
-        444.0448474342347
-      ],
-      "flags": {},
-      "order": 11,
-      "mode": 4,
-      "inputs": [
-        {
-          "name": "video",
-          "type": "VIDEO",
-          "link": 454
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.5.1"
-      },
-      "widgets_values": [
-        "video/ComfyUI",
-        "auto",
-        "auto"
-      ]
-    },
-    {
-      "id": 272,
-      "type": "MarkdownNote",
-      "pos": [
-        -4750.121632656192,
-        4942.588985581988
-      ],
-      "size": [
-        449.98823755897365,
-        205.15008103687887
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Prompting LTX-2",
-      "properties": {},
-      "widgets_values": [
-        "## LTX-2 Prompting Tips\n1. **Core Actions**: Describe events and actions as they occur over time  \n2. **Audio**: Describe sounds and dialogue needed for the scene  \n3. **Reference Image**: Do not repeat details already present  \n4. **Consistency**: Avoid instructions that do not match the reference image, as this will degrade results\n"
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
-      "id": 273,
-      "type": "MarkdownNote",
-      "pos": [
-        -4755.900143250212,
-        4452.350555323921
-      ],
-      "size": [
-        452.9937955776454,
-        446.01542081507796
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 1,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Model Links",
-      "properties": {},
-      "widgets_values": [
-        "## Model Links\n\n**LTX-2 Model Weights**\n\n- [ltx-2-19b-distilled.safetensors](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled.safetensors)\n- [ ltx-2-spatial-upscaler-x2-1.0.safetensors ](https://huggingface.co/Lightricks/LTX-2/tree/main/ltx-2-spatial-upscaler-x2-1.0.safetensors)\n- [ IC LoRA - Canny ](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Canny-Control/tree/main/ltx-2-19b-ic-lora-canny-control.safetensors)\n- [ IC LoRA - Depth ](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Depth-Control/tree/main/ltx-2-19b-ic-lora-depth-control.safetensors)\n- [ IC LoRA - Pose ](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Pose-Control/tree/main/ltx-2-19b-ic-lora-pose-control.safetensors)\n\n\n**Text Encoder**\n- [Google Gemma 3](https://huggingface.co/google/gemma-3-12b-pt)\n\n**Model Storage Location**\n\n```\n📂 ComfyUI/\n├── 📂 models/\n│   ├── 📂 text_encoders/\n│   │      ├── comfy_gemma_3_12B_it.safetensors\n│   ├── 📂 checkpoints/\n│   │      └── ltx-2-19b-distilled.safetensors\n│   ├── 📂 latent_upscale_models/ \n│   │      └── ltx-2-spatial-upscaler-x2-1.0.safetensors\n│   ├── 📂 loras/ \n│           └── ltx-2-19b-ic-lora-canny-control.safetensors\n│           └── ltx-2-19b-ic-lora-depth-control.safetensors\n│           └── ltx-2-19b-ic-lora-pose-control.safetensors\n```\n\n## Report Issues\nTo report any issues when running this workflow, [go to GitHub](https://github.com/Lightricks/ComfyUI-LTXVideo/issues)\n"
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
       "id": 274,
       "type": "MarkdownNote",
       "pos": [
@@ -134,7 +50,7 @@
       "flags": {
         "collapsed": false
       },
-      "order": 2,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -145,200 +61,6 @@
       ],
       "color": "#432",
       "bgcolor": "#653"
-    },
-    {
-      "id": 271,
-      "type": "MarkdownNote",
-      "pos": [
-        -4514.828909451778,
-        5344.275812975885
-      ],
-      "size": [
-        210,
-        88
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 3,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Important",
-      "properties": {},
-      "widgets_values": [
-        "# Always load Image"
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
-      "id": 240,
-      "type": "b83ac947-e174-4a8e-b0c1-f7c3b8f00419",
-      "pos": [
-        -3775.456558964413,
-        4846.109439002414
-      ],
-      "size": [
-        428.1032473412265,
-        462.6733832580858
-      ],
-      "flags": {},
-      "order": 8,
-      "mode": 4,
-      "inputs": [
-        {
-          "name": "switch",
-          "type": "BOOLEAN",
-          "widget": {
-            "name": "switch"
-          },
-          "link": 397
-        },
-        {
-          "name": "video",
-          "type": "VIDEO",
-          "link": 398
-        },
-        {
-          "label": "first frame",
-          "name": "image_1",
-          "type": "IMAGE",
-          "link": 451
-        }
-      ],
-      "outputs": [
-        {
-          "label": "video",
-          "name": "VIDEO",
-          "type": "VIDEO",
-          "links": [
-            454
-          ]
-        }
-      ],
-      "properties": {
-        "proxyWidgets": [
-          [
-            "-1",
-            "height"
-          ],
-          [
-            "229",
-            "value"
-          ],
-          [
-            "-1",
-            "width"
-          ],
-          [
-            "239",
-            "noise_seed"
-          ],
-          [
-            "239",
-            "461: control_after_generate"
-          ],
-          [
-            "-1",
-            "switch"
-          ]
-        ],
-        "cnr_id": "comfy-core",
-        "ver": "0.5.1"
-      },
-      "widgets_values": [
-        1920,
-        null,
-        1920,
-        null,
-        null,
-        true
-      ]
-    },
-    {
-      "id": 256,
-      "type": "3ad0b41c-8c47-4e10-a53e-ed340cc26b5f",
-      "pos": [
-        -3774.406825396875,
-        5370.867781047884
-      ],
-      "size": [
-        425.6797091343742,
-        459.5094361285983
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 4,
-      "inputs": [
-        {
-          "name": "video",
-          "type": "VIDEO",
-          "link": 432
-        },
-        {
-          "name": "switch",
-          "type": "BOOLEAN",
-          "widget": {
-            "name": "switch"
-          },
-          "link": 433
-        },
-        {
-          "label": "first frame",
-          "name": "image_1",
-          "type": "IMAGE",
-          "link": 452
-        }
-      ],
-      "outputs": [
-        {
-          "label": "video",
-          "name": "VIDEO",
-          "type": "VIDEO",
-          "links": [
-            456
-          ]
-        }
-      ],
-      "properties": {
-        "proxyWidgets": [
-          [
-            "-1",
-            "height"
-          ],
-          [
-            "244",
-            "value"
-          ],
-          [
-            "-1",
-            "width"
-          ],
-          [
-            "253",
-            "noise_seed"
-          ],
-          [
-            "253",
-            "461: control_after_generate"
-          ],
-          [
-            "-1",
-            "switch"
-          ]
-        ],
-        "cnr_id": "comfy-core",
-        "ver": "0.5.1"
-      },
-      "widgets_values": [
-        1920,
-        null,
-        1920,
-        null,
-        null,
-        true
-      ]
     },
     {
       "id": 264,
@@ -384,7 +106,7 @@
         58
       ],
       "flags": {},
-      "order": 4,
+      "order": 1,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -406,6 +128,115 @@
       },
       "widgets_values": [
         false
+      ]
+    },
+    {
+      "id": 200,
+      "type": "LoadImage",
+      "pos": [
+        -4285.129479933403,
+        5143.939169472896
+      ],
+      "size": [
+        400.4874419937255,
+        378.7916882359277
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            450,
+            451,
+            452
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "buildings ff.png",
+        "image"
+      ]
+    },
+    {
+      "id": 263,
+      "type": "SaveVideo",
+      "pos": [
+        -3300.791002295813,
+        4850.00281731496
+      ],
+      "size": [
+        407.5231522848858,
+        444.0448474342347
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 454
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1"
+      },
+      "widgets_values": [
+        "video/ComfyUI",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 164,
+      "type": "LoadVideo",
+      "pos": [
+        -4273.650112839631,
+        4496.243204253725
+      ],
+      "size": [
+        386.798828125,
+        458.5515914425977
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            362,
+            398,
+            432
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "buildings.mp4",
+        "image"
       ]
     },
     {
@@ -493,80 +324,249 @@
       ]
     },
     {
-      "id": 200,
-      "type": "LoadImage",
+      "id": 273,
+      "type": "MarkdownNote",
       "pos": [
-        -4285.129479933403,
-        5143.939169472896
+        -4785.564205750212,
+        4455.096649073921
       ],
       "size": [
-        400.4874419937255,
-        378.7916882359277
+        474.7453652124491,
+        605.585189911063
       ],
-      "flags": {},
+      "flags": {
+        "collapsed": false
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Model Links",
+      "properties": {},
+      "widgets_values": [
+        "## Model Links\n\n**LTX-2 Model Weights**\n\n- [ltx-2-19b-distilled.safetensors](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled.safetensors)\n- [ ltx-2-spatial-upscaler-x2-1.0.safetensors ](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-spatial-upscaler-x2-1.0.safetensors)\n- [ IC LoRA - Canny ](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Canny-Control/resolve/main/ltx-2-19b-ic-lora-canny-control.safetensors)\n- [ IC LoRA - Depth ](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Depth-Control/resolve/main/ltx-2-19b-ic-lora-depth-control.safetensors)\n- [ IC LoRA - Pose ](https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Pose-Control/resolve/main/ltx-2-19b-ic-lora-pose-control.safetensors)\n\n\n\n**Text Encoder**\n- [Google Gemma 3](https://huggingface.co/google/gemma-3-12b-it-qat-q4_0-unquantized)\n\nPlease download the entire folder - \n\n- Run: \n 1. cd models/text_encoders\n 2. git clone https://huggingface.co/google/gemma-3-12b-it-qat-q4_0-unquantized\n\n*Full documentation can be found [here](https://docs.ltx.video/open-source-model/integration-tools/comfy-ui#text-encoder)\n\n\n**Model Storage Location**\n\n```\n📂 ComfyUI/\n├── 📂 models/\n│   ├── 📂 text_encoders/\n│   │      ├── gemma-3-12b-it-qat-q4_0-unquantized/model-00001-of-00005.safetensors\n│   ├── 📂 checkpoints/\n│   │      └── ltx-2-19b-distilled.safetensors\n│   ├── 📂 latent_upscale_models/ \n│   │      └── ltx-2-spatial-upscaler-x2-1.0.safetensors\n│   ├── 📂 loras/ \n│           └── ltx-2-19b-ic-lora-canny-control.safetensors\n│           └── ltx-2-19b-ic-lora-depth-control.safetensors\n│           └── ltx-2-19b-ic-lora-pose-control.safetensors\n```\n**Assets**\n- [buildings.mp4 (input video)](https://github.com/Lightricks/ComfyUI-LTXVideo/blob/master/example_workflows/assets/buildings.mp4)\n- [buildings ff (first frame)](https://github.com/Lightricks/ComfyUI-LTXVideo/blob/master/example_workflows/assets/buildings%20ff.png)\n\n## Report Issues\nTo report any issues when running this workflow, [go to GitHub](https://github.com/Lightricks/ComfyUI-LTXVideo/issues)\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 271,
+      "type": "MarkdownNote",
+      "pos": [
+        -4517.278638109156,
+        5357.133250216258
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {
+        "collapsed": false
+      },
       "order": 5,
       "mode": 0,
       "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            450,
-            451,
-            452
-          ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.5.1",
-        "Node name for S&R": "LoadImage"
-      },
+      "outputs": [],
+      "title": "Important",
+      "properties": {},
       "widgets_values": [
-        "buildings ff.png",
-        "image"
-      ]
+        "# Always load Image"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
     },
     {
-      "id": 164,
-      "type": "LoadVideo",
+      "id": 272,
+      "type": "MarkdownNote",
       "pos": [
-        -4273.650112839631,
-        4496.243204253725
+        -4782.341673813574,
+        5107.78314157236
       ],
       "size": [
-        386.798828125,
-        458.5515914425977
+        471.21870630897365,
+        207.61883103687887
       ],
-      "flags": {},
+      "flags": {
+        "collapsed": false
+      },
       "order": 6,
       "mode": 0,
       "inputs": [],
+      "outputs": [],
+      "title": "Prompting LTX-2",
+      "properties": {},
+      "widgets_values": [
+        "## LTX-2 Prompting Tips\n1. **Core Actions**: Describe events and actions as they occur over time  \n2. **Audio**: Describe sounds and dialogue needed for the scene  \n3. **Reference Image**: Do not repeat details already present  \n4. **Consistency**: Avoid instructions that do not match the reference image, as this will degrade results\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 256,
+      "type": "3ad0b41c-8c47-4e10-a53e-ed340cc26b5f",
+      "pos": [
+        -3774.406825396875,
+        5370.867781047884
+      ],
+      "size": [
+        425.6797091343742,
+        459.5094361285983
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 432
+        },
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": 433
+        },
+        {
+          "label": "first frame",
+          "name": "image_1",
+          "type": "IMAGE",
+          "link": 452
+        }
+      ],
       "outputs": [
         {
+          "label": "video",
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            362,
-            398,
-            432
+            456
           ]
         }
       ],
       "properties": {
+        "proxyWidgets": [
+          [
+            "244",
+            "value"
+          ],
+          [
+            "-1",
+            "width"
+          ],
+          [
+            "-1",
+            "height"
+          ],
+          [
+            "253",
+            "noise_seed"
+          ],
+          [
+            "253",
+            "461: control_after_generate"
+          ],
+          [
+            "-1",
+            "switch"
+          ]
+        ],
         "cnr_id": "comfy-core",
-        "ver": "0.5.1",
-        "Node name for S&R": "LoadVideo"
+        "ver": "0.5.1"
       },
       "widgets_values": [
-        "buildings.mp4",
-        "image"
+        null,
+        1920,
+        1088,
+        null,
+        null,
+        true
+      ]
+    },
+    {
+      "id": 240,
+      "type": "b83ac947-e174-4a8e-b0c1-f7c3b8f00419",
+      "pos": [
+        -3775.456558964413,
+        4846.109439002414
+      ],
+      "size": [
+        428.1032473412265,
+        462.6733832580858
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": 397
+        },
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 398
+        },
+        {
+          "label": "first frame",
+          "name": "image_1",
+          "type": "IMAGE",
+          "link": 451
+        }
+      ],
+      "outputs": [
+        {
+          "label": "video",
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            454
+          ]
+        }
+      ],
+      "properties": {
+        "proxyWidgets": [
+          [
+            "229",
+            "value"
+          ],
+          [
+            "-1",
+            "width"
+          ],
+          [
+            "-1",
+            "height"
+          ],
+          [
+            "239",
+            "noise_seed"
+          ],
+          [
+            "239",
+            "461: control_after_generate"
+          ],
+          [
+            "-1",
+            "switch"
+          ]
+        ],
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1"
+      },
+      "widgets_values": [
+        null,
+        1920,
+        1088,
+        null,
+        null,
+        true
       ]
     }
   ],
@@ -3709,7 +3709,7 @@
         "state": {
           "lastGroupId": 31,
           "lastNodeId": 636,
-          "lastLinkId": 1320,
+          "lastLinkId": 1321,
           "lastRerouteId": 0
         },
         "revision": 0,
@@ -3745,7 +3745,7 @@
             "label": "model stage 1",
             "pos": [
               -5711.57487156867,
-              3637.6135133757766
+              3617.6135133757766
             ]
           },
           {
@@ -3760,7 +3760,7 @@
             "label": "model stage 2",
             "pos": [
               -5711.57487156867,
-              3717.6135133757766
+              3637.6135133757766
             ]
           },
           {
@@ -3773,7 +3773,7 @@
             "label": "upscale model",
             "pos": [
               -5711.57487156867,
-              3877.6135133757766
+              3657.6135133757766
             ]
           },
           {
@@ -3786,7 +3786,7 @@
             "localized_name": "positive",
             "pos": [
               -5711.57487156867,
-              3737.6135133757766
+              3677.6135133757766
             ]
           },
           {
@@ -3799,7 +3799,7 @@
             "localized_name": "negative",
             "pos": [
               -5711.57487156867,
-              3757.6135133757766
+              3697.6135133757766
             ]
           },
           {
@@ -3818,7 +3818,7 @@
             "label": "VAE",
             "pos": [
               -5711.57487156867,
-              3697.6135133757766
+              3717.6135133757766
             ]
           },
           {
@@ -3834,7 +3834,7 @@
             "label": "audio VAE",
             "pos": [
               -5711.57487156867,
-              3657.6135133757766
+              3737.6135133757766
             ]
           },
           {
@@ -3848,7 +3848,7 @@
             "label": "first frame",
             "pos": [
               -5711.57487156867,
-              3797.6135133757766
+              3757.6135133757766
             ]
           },
           {
@@ -3862,7 +3862,7 @@
             "label": "frame rate",
             "pos": [
               -5711.57487156867,
-              3677.6135133757766
+              3777.6135133757766
             ]
           },
           {
@@ -3878,7 +3878,7 @@
             "shape": 7,
             "pos": [
               -5711.57487156867,
-              3777.6135133757766
+              3797.6135133757766
             ]
           },
           {
@@ -3891,7 +3891,7 @@
             ],
             "pos": [
               -5711.57487156867,
-              3837.6135133757766
+              3817.6135133757766
             ]
           },
           {
@@ -3904,7 +3904,7 @@
             ],
             "pos": [
               -5711.57487156867,
-              3857.6135133757766
+              3837.6135133757766
             ]
           },
           {
@@ -3917,7 +3917,7 @@
             "localized_name": "image",
             "pos": [
               -5711.57487156867,
-              3617.6135133757766
+              3857.6135133757766
             ]
           },
           {
@@ -3930,7 +3930,7 @@
             "label": "noise seed",
             "pos": [
               -5711.57487156867,
-              3817.6135133757766
+              3877.6135133757766
             ]
           },
           {
@@ -5047,7 +5047,7 @@
                 "localized_name": "images",
                 "name": "images",
                 "type": "IMAGE",
-                "link": 1259
+                "link": 1321
               }
             ],
             "outputs": [
@@ -5117,8 +5117,7 @@
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "links": [
-                  1226,
-                  1259
+                  1226
                 ]
               }
             ],
@@ -5131,7 +5130,7 @@
             "widgets_values": [
               "bicubic",
               1920,
-              1920,
+              1088,
               "center"
             ]
           },
@@ -5197,49 +5196,6 @@
               1920,
               1088,
               "disabled"
-            ]
-          },
-          {
-            "id": 587,
-            "type": "ImageScaleBy",
-            "pos": [
-              -4981.92269765682,
-              3714.861944166483
-            ],
-            "size": [
-              210,
-              82
-            ],
-            "flags": {},
-            "order": 28,
-            "mode": 4,
-            "inputs": [
-              {
-                "localized_name": "image",
-                "name": "image",
-                "type": "IMAGE",
-                "link": 1226
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "IMAGE",
-                "name": "IMAGE",
-                "type": "IMAGE",
-                "links": [
-                  1229
-                ]
-              }
-            ],
-            "title": "Upscale Video to Stage 1",
-            "properties": {
-              "cnr_id": "comfy-core",
-              "ver": "0.5.1",
-              "Node name for S&R": "ImageScaleBy"
-            },
-            "widgets_values": [
-              "bicubic",
-              0.5
             ]
           },
           {
@@ -5425,7 +5381,7 @@
             "widgets_values": [
               "bicubic",
               1920,
-              1920,
+              1088,
               "center"
             ]
           },
@@ -6074,6 +6030,50 @@
               "Node name for S&R": "ImpactExecutionOrderController"
             },
             "widgets_values": []
+          },
+          {
+            "id": 587,
+            "type": "ImageScaleBy",
+            "pos": [
+              -4981.92269765682,
+              3714.861944166483
+            ],
+            "size": [
+              210,
+              82
+            ],
+            "flags": {},
+            "order": 28,
+            "mode": 4,
+            "inputs": [
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "link": 1226
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  1229,
+                  1321
+                ]
+              }
+            ],
+            "title": "Upscale Video to Stage 1",
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.5.1",
+              "Node name for S&R": "ImageScaleBy"
+            },
+            "widgets_values": [
+              "bicubic",
+              0.5
+            ]
           }
         ],
         "groups": [
@@ -6089,7 +6089,22 @@
             "color": "#3f789e",
             "font_size": 24,
             "flags": {},
-            "nodes": []
+            "nodes": [
+              486,
+              490,
+              502,
+              478,
+              479,
+              516,
+              489,
+              480,
+              592,
+              623,
+              625,
+              487,
+              474,
+              471
+            ]
           },
           {
             "id": 26,
@@ -6103,7 +6118,18 @@
             "color": "#3f789e",
             "font_size": 24,
             "flags": {},
-            "nodes": []
+            "nodes": [
+              584,
+              583,
+              585,
+              590,
+              588,
+              589,
+              586,
+              624,
+              591,
+              587
+            ]
           },
           {
             "id": 27,
@@ -6117,7 +6143,11 @@
             "color": "#b58b2a",
             "font_size": 24,
             "flags": {},
-            "nodes": []
+            "nodes": [
+              511,
+              508,
+              593
+            ]
           },
           {
             "id": 28,
@@ -6131,7 +6161,16 @@
             "color": "#3f789e",
             "font_size": 24,
             "flags": {},
-            "nodes": []
+            "nodes": [
+              472,
+              462,
+              485,
+              501,
+              477,
+              468,
+              515,
+              461
+            ]
           }
         ],
         "links": [
@@ -6648,14 +6687,6 @@
             "type": "IMAGE"
           },
           {
-            "id": 1259,
-            "origin_id": 590,
-            "origin_slot": 0,
-            "target_id": 508,
-            "target_slot": 1,
-            "type": "IMAGE"
-          },
-          {
             "id": 1286,
             "origin_id": 481,
             "origin_slot": 0,
@@ -6830,6 +6861,14 @@
             "target_id": 590,
             "target_slot": 0,
             "type": "IMAGE"
+          },
+          {
+            "id": 1321,
+            "origin_id": 587,
+            "origin_slot": 0,
+            "target_id": 508,
+            "target_slot": 1,
+            "type": "IMAGE"
           }
         ],
         "extra": {
@@ -6878,7 +6917,7 @@
             "label": "model stage 1",
             "pos": [
               -5717.390884569629,
-              3569.011919677603
+              3549.011919677603
             ]
           },
           {
@@ -6893,7 +6932,7 @@
             "label": "model stage 2",
             "pos": [
               -5717.390884569629,
-              3649.011919677603
+              3569.011919677603
             ]
           },
           {
@@ -6906,7 +6945,7 @@
             "label": "upscale model",
             "pos": [
               -5717.390884569629,
-              3809.011919677603
+              3589.011919677603
             ]
           },
           {
@@ -6919,7 +6958,7 @@
             "localized_name": "positive",
             "pos": [
               -5717.390884569629,
-              3669.011919677603
+              3609.011919677603
             ]
           },
           {
@@ -6932,7 +6971,7 @@
             "localized_name": "negative",
             "pos": [
               -5717.390884569629,
-              3689.011919677603
+              3629.011919677603
             ]
           },
           {
@@ -6951,7 +6990,7 @@
             "label": "VAE",
             "pos": [
               -5717.390884569629,
-              3629.011919677603
+              3649.011919677603
             ]
           },
           {
@@ -6967,7 +7006,7 @@
             "label": "audio VAE",
             "pos": [
               -5717.390884569629,
-              3589.011919677603
+              3669.011919677603
             ]
           },
           {
@@ -6982,7 +7021,7 @@
             "label": "first frame",
             "pos": [
               -5717.390884569629,
-              3729.011919677603
+              3689.011919677603
             ]
           },
           {
@@ -6996,7 +7035,7 @@
             "label": "frame rate",
             "pos": [
               -5717.390884569629,
-              3609.011919677603
+              3709.011919677603
             ]
           },
           {
@@ -7012,7 +7051,7 @@
             "shape": 7,
             "pos": [
               -5717.390884569629,
-              3709.011919677603
+              3729.011919677603
             ]
           },
           {
@@ -7025,7 +7064,7 @@
             ],
             "pos": [
               -5717.390884569629,
-              3769.011919677603
+              3749.011919677603
             ]
           },
           {
@@ -7038,7 +7077,7 @@
             ],
             "pos": [
               -5717.390884569629,
-              3789.011919677603
+              3769.011919677603
             ]
           },
           {
@@ -7051,7 +7090,7 @@
             "localized_name": "image",
             "pos": [
               -5717.390884569629,
-              3549.011919677603
+              3789.011919677603
             ]
           },
           {
@@ -7064,7 +7103,7 @@
             "label": "noise seed",
             "pos": [
               -5717.390884569629,
-              3749.011919677603
+              3809.011919677603
             ]
           },
           {
@@ -8416,7 +8455,7 @@
             "widgets_values": [
               "bicubic",
               1920,
-              1920,
+              1088,
               "center"
             ]
           },
@@ -8937,7 +8976,7 @@
             "widgets_values": [
               "bicubic",
               1920,
-              1920,
+              1088,
               "center"
             ]
           },
@@ -9825,7 +9864,7 @@
         "version": 1,
         "state": {
           "lastGroupId": 19,
-          "lastNodeId": 234,
+          "lastNodeId": 237,
           "lastLinkId": 375,
           "lastRerouteId": 0
         },
@@ -10334,15 +10373,15 @@
             "widgets_values": []
           },
           {
-            "id": 218,
-            "type": "LTXVGemmaCLIPModelLoader",
+            "id": 233,
+            "type": "MarkdownNote",
             "pos": [
-              -4717.118791809181,
-              3832.829005690576
+              -3923.1618258543112,
+              3835.7948591109102
             ],
             "size": [
-              361.9550439528154,
-              106
+              243.8124037464695,
+              146.00584955273098
             ],
             "flags": {
               "collapsed": false
@@ -10350,103 +10389,14 @@
             "order": 1,
             "mode": 0,
             "inputs": [],
-            "outputs": [
-              {
-                "localized_name": "clip",
-                "name": "clip",
-                "type": "CLIP",
-                "links": [
-                  334,
-                  340
-                ]
-              }
-            ],
-            "properties": {
-              "aux_id": "Lightricks/ComfyUI-LTXVideo",
-              "Node name for S&R": "LTXVGemmaCLIPModelLoader",
-              "ver": "445e087a43b95b57ef765874b6787446ec72546c"
-            },
-            "widgets_values": [
-              "gemma-3-12b-it-qat-q4_0-unquantized/model-00001-of-00005.safetensors",
-              "ltx-2-19b-distilled.safetensors",
-              1024
-            ]
-          },
-          {
-            "id": 224,
-            "type": "SaveVideo",
-            "pos": [
-              -3451.5346631448497,
-              3454.1334693386984
-            ],
-            "size": [
-              507.7172093653958,
-              399.11336809064983
-            ],
-            "flags": {},
-            "order": 12,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "video",
-                "name": "video",
-                "type": "VIDEO",
-                "link": 364
-              }
-            ],
             "outputs": [],
-            "properties": {
-              "cnr_id": "comfy-core",
-              "ver": "0.5.1"
-            },
+            "title": "RTX 5090",
+            "properties": {},
             "widgets_values": [
-              "LTX-2/Video",
-              "auto",
-              "auto"
-            ]
-          },
-          {
-            "id": 221,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              -4711.303941127742,
-              3576.0270328288934
+              "This workflow is structured for optimized GPU and VRAM usage.\n\nModel nodes are ordered intentionally to reduce peak VRAM load.\n\nInput dependencies are used to organize execution order and should not be removed."
             ],
-            "size": [
-              374.2736204838038,
-              82
-            ],
-            "flags": {},
-            "order": 9,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "model",
-                "name": "model",
-                "type": "MODEL",
-                "link": 367
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  345
-                ]
-              }
-            ],
-            "title": "IC LoRA - Canny",
-            "properties": {
-              "cnr_id": "comfy-core",
-              "ver": "0.3.75",
-              "Node name for S&R": "LoraLoaderModelOnly"
-            },
-            "widgets_values": [
-              "Internal/ltxv_apps/opensource_release/ic-loras/canny.safetensors",
-              1
-            ]
+            "color": "#432",
+            "bgcolor": "#653"
           },
           {
             "id": 229,
@@ -10500,7 +10450,7 @@
               "Node name for S&R": "LowVRAMCheckpointLoader"
             },
             "widgets_values": [
-              "ltx-av-distilled-from-42500.safetensors"
+              "ltx-2-19b-distilled.safetensors"
             ]
           },
           {
@@ -10540,19 +10490,135 @@
               "Node name for S&R": "LowVRAMAudioVAELoader"
             },
             "widgets_values": [
-              "ltx-av-distilled-from-42500.safetensors"
+              "ltx-2-19b-distilled.safetensors"
             ]
           },
           {
-            "id": 233,
-            "type": "MarkdownNote",
+            "id": 232,
+            "type": "LowVRAMLatentUpscaleModelLoader",
             "pos": [
-              -3923.1618258543112,
-              3835.7948591109102
+              -4706.116238030607,
+              3717.0363964895646
             ],
             "size": [
-              243.8124037464695,
-              146.00584955273098
+              353.34921875,
+              58
+            ],
+            "flags": {},
+            "order": 15,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "dependencies",
+                "name": "dependencies",
+                "shape": 7,
+                "type": "*",
+                "link": 373
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "LATENT_UPSCALE_MODEL",
+                "name": "LATENT_UPSCALE_MODEL",
+                "type": "LATENT_UPSCALE_MODEL",
+                "links": [
+                  374
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LowVRAMLatentUpscaleModelLoader"
+            },
+            "widgets_values": [
+              "ltx-2-spatial-upscaler-x2-1.0.safetensors"
+            ]
+          },
+          {
+            "id": 221,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              -4711.303941127742,
+              3576.0270328288934
+            ],
+            "size": [
+              374.2736204838038,
+              82
+            ],
+            "flags": {},
+            "order": 9,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "model",
+                "name": "model",
+                "type": "MODEL",
+                "link": 367
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  345
+                ]
+              }
+            ],
+            "title": "IC LoRA - Canny",
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.3.75",
+              "Node name for S&R": "LoraLoaderModelOnly"
+            },
+            "widgets_values": [
+              "ltx-2-19b-ic-lora-canny-control.safetensors",
+              1
+            ]
+          },
+          {
+            "id": 224,
+            "type": "SaveVideo",
+            "pos": [
+              -3449.9920902353,
+              3465.5558544546634
+            ],
+            "size": [
+              507.7172093653958,
+              399.11336809064983
+            ],
+            "flags": {},
+            "order": 12,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "video",
+                "name": "video",
+                "type": "VIDEO",
+                "link": 364
+              }
+            ],
+            "outputs": [],
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.5.1"
+            },
+            "widgets_values": [
+              "LTX-2/Video",
+              "auto",
+              "auto"
+            ]
+          },
+          {
+            "id": 218,
+            "type": "LTXVGemmaCLIPModelLoader",
+            "pos": [
+              -4717.118791809181,
+              3832.829005690576
+            ],
+            "size": [
+              361.9550439528154,
+              106
             ],
             "flags": {
               "collapsed": false
@@ -10560,14 +10626,27 @@
             "order": 2,
             "mode": 0,
             "inputs": [],
-            "outputs": [],
-            "title": "RTX 5090",
-            "properties": {},
-            "widgets_values": [
-              "This workflow is structured for optimized GPU and VRAM usage.\n\nModel nodes are ordered intentionally to reduce peak VRAM load.\n\nInput dependencies are used to organize execution order and should not be removed."
+            "outputs": [
+              {
+                "localized_name": "clip",
+                "name": "clip",
+                "type": "CLIP",
+                "links": [
+                  334,
+                  340
+                ]
+              }
             ],
-            "color": "#432",
-            "bgcolor": "#653"
+            "properties": {
+              "aux_id": "Lightricks/ComfyUI-LTXVideo",
+              "Node name for S&R": "LTXVGemmaCLIPModelLoader",
+              "ver": "445e087a43b95b57ef765874b6787446ec72546c"
+            },
+            "widgets_values": [
+              "gemma-3-12b-it-qat-q4_0-unquantized/model-00001-of-00005.safetensors",
+              "ltx-2-19b-distilled.safetensors",
+              1024
+            ]
           },
           {
             "id": 234,
@@ -10796,46 +10875,6 @@
               1088,
               1,
               42
-            ]
-          },
-          {
-            "id": 232,
-            "type": "LowVRAMLatentUpscaleModelLoader",
-            "pos": [
-              -4706.116238030607,
-              3717.0363964895646
-            ],
-            "size": [
-              353.34921875,
-              58
-            ],
-            "flags": {},
-            "order": 15,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "dependencies",
-                "name": "dependencies",
-                "shape": 7,
-                "type": "*",
-                "link": 373
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "LATENT_UPSCALE_MODEL",
-                "name": "LATENT_UPSCALE_MODEL",
-                "type": "LATENT_UPSCALE_MODEL",
-                "links": [
-                  374
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "LowVRAMLatentUpscaleModelLoader"
-            },
-            "widgets_values": [
-              "ltx-2-spatial-upscaler-x2-1.0.safetensors"
             ]
           }
         ],
@@ -11694,64 +11733,21 @@
               "Node name for S&R": "PrimitiveStringMultiline"
             },
             "widgets_values": [
-              ""
+              "cinematic aerial shot of a city landscape at night with warm lights illuminating the windows of the buildings. there is a visible green aurora borealis in the sky. soft piano melody playing "
             ],
             "color": "#232",
             "bgcolor": "#353"
           },
           {
-            "id": 232,
-            "type": "LoraLoaderModelOnly",
+            "id": 253,
+            "type": "MarkdownNote",
             "pos": [
-              -4876.456414820086,
-              3252.7804226113144
+              -4077.1904429734523,
+              3572.8970015988957
             ],
             "size": [
-              366.4906700768861,
-              82
-            ],
-            "flags": {},
-            "order": 9,
-            "mode": 4,
-            "inputs": [
-              {
-                "localized_name": "model",
-                "name": "model",
-                "type": "MODEL",
-                "link": 411
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  380
-                ]
-              }
-            ],
-            "title": "IC LoRA - Depth",
-            "properties": {
-              "cnr_id": "comfy-core",
-              "ver": "0.3.75",
-              "Node name for S&R": "LoraLoaderModelOnly"
-            },
-            "widgets_values": [
-              "Internal/ltxv_apps/opensource_release/ic-loras/depth.safetensors",
-              1
-            ]
-          },
-          {
-            "id": 237,
-            "type": "LTXVGemmaCLIPModelLoader",
-            "pos": [
-              -4879.374382504993,
-              3521.0348105408675
-            ],
-            "size": [
-              369.34488792888595,
-              106
+              243.8124037464695,
+              146.00584955273098
             ],
             "flags": {
               "collapsed": false
@@ -11759,27 +11755,40 @@
             "order": 1,
             "mode": 4,
             "inputs": [],
-            "outputs": [
-              {
-                "localized_name": "clip",
-                "name": "clip",
-                "type": "CLIP",
-                "links": [
-                  369,
-                  375
-                ]
-              }
-            ],
-            "properties": {
-              "aux_id": "Lightricks/ComfyUI-LTXVideo",
-              "Node name for S&R": "LTXVGemmaCLIPModelLoader",
-              "ver": "445e087a43b95b57ef765874b6787446ec72546c"
-            },
+            "outputs": [],
+            "title": "RTX 5090",
+            "properties": {},
             "widgets_values": [
-              "gemma-3-12b-it-qat-q4_0-unquantized_readout_proj/model/model.safetensors",
-              "ltx-2-19b-distilled.safetensors",
-              1024
-            ]
+              "This workflow is structured for optimized GPU and VRAM usage.\n\nModel nodes are ordered intentionally to reduce peak VRAM load.\n\nInput dependencies are used to organize execution order and should not be removed."
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 254,
+            "type": "MarkdownNote",
+            "pos": [
+              -5328.875479604414,
+              3439.3993891434043
+            ],
+            "size": [
+              428.34650223258404,
+              159.11619167692334
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 2,
+            "mode": 4,
+            "inputs": [],
+            "outputs": [],
+            "title": "IC LoRA",
+            "properties": {},
+            "widgets_values": [
+              "# IC LoRA Training \n\nFor your own IC LoRA - Upload to the \"IC LoRA\" node.\nMake sure to bypass the \"IC LoRA Preprocessing\" in the Samplers subgraph \n\n## Training\nWe have made available a full trainer to help you to train your own LoRA. You can [find it here](https://github.com/Lightricks/LTX-2)."
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
           },
           {
             "id": 250,
@@ -11833,47 +11842,7 @@
               "Node name for S&R": "LowVRAMCheckpointLoader"
             },
             "widgets_values": [
-              "ltx-av-distilled-from-42500.safetensors"
-            ]
-          },
-          {
-            "id": 251,
-            "type": "LowVRAMLatentUpscaleModelLoader",
-            "pos": [
-              -4866.020413516841,
-              3409.0859146237253
-            ],
-            "size": [
-              353.34921875,
-              58
-            ],
-            "flags": {},
-            "order": 14,
-            "mode": 4,
-            "inputs": [
-              {
-                "localized_name": "dependencies",
-                "name": "dependencies",
-                "shape": 7,
-                "type": "*",
-                "link": 417
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "LATENT_UPSCALE_MODEL",
-                "name": "LATENT_UPSCALE_MODEL",
-                "type": "LATENT_UPSCALE_MODEL",
-                "links": [
-                  418
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "LowVRAMLatentUpscaleModelLoader"
-            },
-            "widgets_values": [
-              "ltx2-spatial-upscaler-x2-1.0.safetensors"
+              "ltx-2-19b-distilled.safetensors"
             ]
           },
           {
@@ -11913,45 +11882,62 @@
               "Node name for S&R": "LowVRAMAudioVAELoader"
             },
             "widgets_values": [
-              "ltx-av-distilled-from-42500.safetensors"
+              "ltx-2-19b-distilled.safetensors"
             ]
           },
           {
-            "id": 253,
-            "type": "MarkdownNote",
+            "id": 232,
+            "type": "LoraLoaderModelOnly",
             "pos": [
-              -4077.1904429734523,
-              3572.8970015988957
+              -4876.456414820086,
+              3252.7804226113144
             ],
             "size": [
-              243.8124037464695,
-              146.00584955273098
+              366.4906700768861,
+              82
             ],
-            "flags": {
-              "collapsed": false
-            },
-            "order": 2,
+            "flags": {},
+            "order": 9,
             "mode": 4,
-            "inputs": [],
-            "outputs": [],
-            "title": "RTX 5090",
-            "properties": {},
-            "widgets_values": [
-              "This workflow is structured for optimized GPU and VRAM usage.\n\nModel nodes are ordered intentionally to reduce peak VRAM load.\n\nInput dependencies are used to organize execution order and should not be removed."
+            "inputs": [
+              {
+                "localized_name": "model",
+                "name": "model",
+                "type": "MODEL",
+                "link": 411
+              }
             ],
-            "color": "#432",
-            "bgcolor": "#653"
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  380
+                ]
+              }
+            ],
+            "title": "IC LoRA - Depth",
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.3.75",
+              "Node name for S&R": "LoraLoaderModelOnly"
+            },
+            "widgets_values": [
+              "ltx-2-19b-ic-lora-depth-control.safetensors",
+              1
+            ]
           },
           {
-            "id": 254,
-            "type": "MarkdownNote",
+            "id": 237,
+            "type": "LTXVGemmaCLIPModelLoader",
             "pos": [
-              -5328.875479604414,
-              3439.3993891434043
+              -4879.374382504993,
+              3521.0348105408675
             ],
             "size": [
-              428.34650223258404,
-              159.11619167692334
+              369.34488792888595,
+              106
             ],
             "flags": {
               "collapsed": false
@@ -11959,14 +11945,67 @@
             "order": 3,
             "mode": 4,
             "inputs": [],
-            "outputs": [],
-            "title": "IC LoRA",
-            "properties": {},
-            "widgets_values": [
-              "# IC LoRA Training \n\nFor your own IC LoRA - Upload to the \"IC LoRA\" node.\nMake sure to bypass the \"IC LoRA Preprocessing\" in the Samplers subgraph \n\n## Training\nWe have made available a full trainer to help you to train your own LoRA. You can [find it here](https://github.com/Lightricks/LTX-2)."
+            "outputs": [
+              {
+                "localized_name": "clip",
+                "name": "clip",
+                "type": "CLIP",
+                "links": [
+                  369,
+                  375
+                ]
+              }
             ],
-            "color": "#432",
-            "bgcolor": "#653"
+            "properties": {
+              "aux_id": "Lightricks/ComfyUI-LTXVideo",
+              "Node name for S&R": "LTXVGemmaCLIPModelLoader",
+              "ver": "445e087a43b95b57ef765874b6787446ec72546c"
+            },
+            "widgets_values": [
+              "gemma-3-12b-it-qat-q4_0-unquantized/model-00001-of-00005.safetensors",
+              "ltx-2-19b-distilled.safetensors",
+              1024
+            ]
+          },
+          {
+            "id": 251,
+            "type": "LowVRAMLatentUpscaleModelLoader",
+            "pos": [
+              -4866.020413516841,
+              3409.0859146237253
+            ],
+            "size": [
+              353.34921875,
+              58
+            ],
+            "flags": {},
+            "order": 14,
+            "mode": 4,
+            "inputs": [
+              {
+                "localized_name": "dependencies",
+                "name": "dependencies",
+                "shape": 7,
+                "type": "*",
+                "link": 417
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "LATENT_UPSCALE_MODEL",
+                "name": "LATENT_UPSCALE_MODEL",
+                "type": "LATENT_UPSCALE_MODEL",
+                "links": [
+                  418
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LowVRAMLatentUpscaleModelLoader"
+            },
+            "widgets_values": [
+              "ltx-2-spatial-upscaler-x2-1.0.safetensors"
+            ]
           },
           {
             "id": 239,
@@ -12164,7 +12203,7 @@
             "widgets_values": [
               24,
               true,
-              1920,
+              1088,
               1920,
               1,
               42
@@ -12184,7 +12223,13 @@
             "color": "#3f789e",
             "font_size": 24,
             "flags": {},
-            "nodes": []
+            "nodes": [
+              250,
+              252,
+              232,
+              237,
+              251
+            ]
           },
           {
             "id": 18,
@@ -12198,7 +12243,13 @@
             "color": "#3f789e",
             "font_size": 24,
             "flags": {},
-            "nodes": []
+            "nodes": [
+              225,
+              228,
+              231,
+              235,
+              229
+            ]
           },
           {
             "id": 19,
@@ -12212,7 +12263,12 @@
             "color": "#3f789e",
             "font_size": 24,
             "flags": {},
-            "nodes": []
+            "nodes": [
+              225,
+              228,
+              231,
+              235
+            ]
           }
         ],
         "links": [
@@ -12697,7 +12753,7 @@
               "Node name for S&R": "PrimitiveStringMultiline"
             },
             "widgets_values": [
-              ""
+              "cinematic aerial shot of a city landscape at night with warm lights illuminating the windows of the buildings. there is a visible green aurora borealis in the sky. soft piano melody playing"
             ],
             "color": "#232",
             "bgcolor": "#353"
@@ -13051,58 +13107,15 @@
             "widgets_values": []
           },
           {
-            "id": 246,
-            "type": "LoraLoaderModelOnly",
+            "id": 269,
+            "type": "MarkdownNote",
             "pos": [
-              -4703.035740729796,
-              6554.255921054208
+              -3924.9280052905788,
+              6873.5415123161265
             ],
             "size": [
-              323.90644822095646,
-              82
-            ],
-            "flags": {},
-            "order": 7,
-            "mode": 4,
-            "inputs": [
-              {
-                "localized_name": "model",
-                "name": "model",
-                "type": "MODEL",
-                "link": 450
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  415
-                ]
-              }
-            ],
-            "title": "IC LoRA - Pose",
-            "properties": {
-              "cnr_id": "comfy-core",
-              "ver": "0.3.75",
-              "Node name for S&R": "LoraLoaderModelOnly"
-            },
-            "widgets_values": [
-              "Internal/ltxv_apps/opensource_release/ic-loras/pose.safetensors",
-              1
-            ]
-          },
-          {
-            "id": 250,
-            "type": "LTXVGemmaCLIPModelLoader",
-            "pos": [
-              -4719.826929856459,
-              6811.4889293323395
-            ],
-            "size": [
-              353.23373465460344,
-              106
+              243.8124037464695,
+              146.00584955273098
             ],
             "flags": {
               "collapsed": false
@@ -13110,106 +13123,72 @@
             "order": 1,
             "mode": 4,
             "inputs": [],
-            "outputs": [
-              {
-                "localized_name": "clip",
-                "name": "clip",
-                "type": "CLIP",
-                "links": [
-                  404,
-                  410
-                ]
-              }
-            ],
-            "properties": {
-              "aux_id": "Lightricks/ComfyUI-LTXVideo",
-              "Node name for S&R": "LTXVGemmaCLIPModelLoader",
-              "ver": "445e087a43b95b57ef765874b6787446ec72546c"
-            },
+            "outputs": [],
+            "title": "RTX 5090",
+            "properties": {},
             "widgets_values": [
-              "gemma-3-12b-it-qat-q4_0-unquantized_readout_proj/model/model.safetensors",
-              "ltx-2-19b-distilled.safetensors",
-              1024
-            ]
+              "This workflow is structured for optimized GPU and VRAM usage.\n\nModel nodes are ordered intentionally to reduce peak VRAM load.\n\nInput dependencies are used to organize execution order and should not be removed."
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
           },
           {
-            "id": 268,
-            "type": "LowVRAMAudioVAELoader",
+            "id": 270,
+            "type": "MarkdownNote",
             "pos": [
-              -4734.310465787393,
-              6969.913236857175
+              -5181.39485402919,
+              6743.973328267672
             ],
             "size": [
-              369.648335325472,
-              58
+              428.34650223258404,
+              159.11619167692334
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 2,
+            "mode": 4,
+            "inputs": [],
+            "outputs": [],
+            "title": "IC LoRA",
+            "properties": {},
+            "widgets_values": [
+              "# IC LoRA Training \n\nFor your own IC LoRA - Upload to the \"IC LoRA\" node.\nMake sure to bypass the \"IC LoRA Preprocessing\" in the Samplers subgraph \n\n## Training\nWe have made available a full trainer to help you to train your own LoRA. You can [find it here](https://github.com/Lightricks/LTX-2)."
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 256,
+            "type": "SaveVideo",
+            "pos": [
+              -3445.418506295727,
+              6503.453622594923
+            ],
+            "size": [
+              403.7172093653958,
+              501.7172093653958
             ],
             "flags": {},
-            "order": 16,
+            "order": 12,
             "mode": 4,
             "inputs": [
               {
-                "localized_name": "dependencies",
-                "name": "dependencies",
-                "shape": 7,
-                "type": "*",
-                "link": 456
+                "localized_name": "video",
+                "name": "video",
+                "type": "VIDEO",
+                "link": 434
               }
             ],
-            "outputs": [
-              {
-                "localized_name": "audio_vae",
-                "name": "audio_vae",
-                "type": "VAE",
-                "links": [
-                  457
-                ]
-              }
-            ],
+            "outputs": [],
             "properties": {
-              "Node name for S&R": "LowVRAMAudioVAELoader"
+              "cnr_id": "comfy-core",
+              "ver": "0.5.1"
             },
             "widgets_values": [
-              "ltx-av-distilled-from-42500.safetensors"
-            ]
-          },
-          {
-            "id": 267,
-            "type": "LowVRAMLatentUpscaleModelLoader",
-            "pos": [
-              -4719.478697480771,
-              6694.642921567023
-            ],
-            "size": [
-              353.34921875,
-              58
-            ],
-            "flags": {},
-            "order": 15,
-            "mode": 4,
-            "inputs": [
-              {
-                "localized_name": "dependencies",
-                "name": "dependencies",
-                "shape": 7,
-                "type": "*",
-                "link": 454
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "LATENT_UPSCALE_MODEL",
-                "name": "LATENT_UPSCALE_MODEL",
-                "type": "LATENT_UPSCALE_MODEL",
-                "links": [
-                  453
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "LowVRAMLatentUpscaleModelLoader"
-            },
-            "widgets_values": [
-              "ltx2-spatial-upscaler-x2-1.0.safetensors"
+              "LTX-2/Video",
+              "auto",
+              "auto"
             ]
           },
           {
@@ -13264,45 +13243,102 @@
               "Node name for S&R": "LowVRAMCheckpointLoader"
             },
             "widgets_values": [
-              "ltx-av-distilled-from-42500.safetensors"
+              "ltx-2-19b-distilled.safetensors"
             ]
           },
           {
-            "id": 269,
-            "type": "MarkdownNote",
+            "id": 268,
+            "type": "LowVRAMAudioVAELoader",
             "pos": [
-              -3924.9280052905788,
-              6873.5415123161265
+              -4734.310465787393,
+              6969.913236857175
             ],
             "size": [
-              243.8124037464695,
-              146.00584955273098
+              369.648335325472,
+              58
             ],
-            "flags": {
-              "collapsed": false
-            },
-            "order": 2,
+            "flags": {},
+            "order": 16,
             "mode": 4,
-            "inputs": [],
-            "outputs": [],
-            "title": "RTX 5090",
-            "properties": {},
-            "widgets_values": [
-              "This workflow is structured for optimized GPU and VRAM usage.\n\nModel nodes are ordered intentionally to reduce peak VRAM load.\n\nInput dependencies are used to organize execution order and should not be removed."
+            "inputs": [
+              {
+                "localized_name": "dependencies",
+                "name": "dependencies",
+                "shape": 7,
+                "type": "*",
+                "link": 456
+              }
             ],
-            "color": "#432",
-            "bgcolor": "#653"
+            "outputs": [
+              {
+                "localized_name": "audio_vae",
+                "name": "audio_vae",
+                "type": "VAE",
+                "links": [
+                  457
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LowVRAMAudioVAELoader"
+            },
+            "widgets_values": [
+              "ltx-2-19b-distilled.safetensors"
+            ]
           },
           {
-            "id": 270,
-            "type": "MarkdownNote",
+            "id": 246,
+            "type": "LoraLoaderModelOnly",
             "pos": [
-              -5181.39485402919,
-              6743.973328267672
+              -4715.515138064328,
+              6555.232987817329
             ],
             "size": [
-              428.34650223258404,
-              159.11619167692334
+              346.1144241569232,
+              82
+            ],
+            "flags": {},
+            "order": 7,
+            "mode": 4,
+            "inputs": [
+              {
+                "localized_name": "model",
+                "name": "model",
+                "type": "MODEL",
+                "link": 450
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  415
+                ]
+              }
+            ],
+            "title": "IC LoRA - Pose",
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.3.75",
+              "Node name for S&R": "LoraLoaderModelOnly"
+            },
+            "widgets_values": [
+              "ltx-2-19b-ic-lora-pose-control.safetensors",
+              1
+            ]
+          },
+          {
+            "id": 250,
+            "type": "LTXVGemmaCLIPModelLoader",
+            "pos": [
+              -4719.826929856459,
+              6811.4889293323395
+            ],
+            "size": [
+              353.23373465460344,
+              106
             ],
             "flags": {
               "collapsed": false
@@ -13310,46 +13346,26 @@
             "order": 3,
             "mode": 4,
             "inputs": [],
-            "outputs": [],
-            "title": "IC LoRA",
-            "properties": {},
-            "widgets_values": [
-              "# IC LoRA Training \n\nFor your own IC LoRA - Upload to the \"IC LoRA\" node.\nMake sure to bypass the \"IC LoRA Preprocessing\" in the Samplers subgraph \n\n## Training\nWe have made available a full trainer to help you to train your own LoRA. You can [find it here](https://github.com/Lightricks/LTX-2)."
-            ],
-            "color": "#432",
-            "bgcolor": "#653"
-          },
-          {
-            "id": 256,
-            "type": "SaveVideo",
-            "pos": [
-              -3445.418506295727,
-              6503.453622594923
-            ],
-            "size": [
-              403.7172093653958,
-              501.7172093653958
-            ],
-            "flags": {},
-            "order": 12,
-            "mode": 4,
-            "inputs": [
+            "outputs": [
               {
-                "localized_name": "video",
-                "name": "video",
-                "type": "VIDEO",
-                "link": 434
+                "localized_name": "clip",
+                "name": "clip",
+                "type": "CLIP",
+                "links": [
+                  404,
+                  410
+                ]
               }
             ],
-            "outputs": [],
             "properties": {
-              "cnr_id": "comfy-core",
-              "ver": "0.5.1"
+              "aux_id": "Lightricks/ComfyUI-LTXVideo",
+              "Node name for S&R": "LTXVGemmaCLIPModelLoader",
+              "ver": "445e087a43b95b57ef765874b6787446ec72546c"
             },
             "widgets_values": [
-              "LTX-2/Video",
-              "auto",
-              "auto"
+              "gemma-3-12b-it-qat-q4_0-unquantized/model-00001-of-00005.safetensors",
+              "ltx-2-19b-distilled.safetensors",
+              1024
             ]
           },
           {
@@ -13549,9 +13565,49 @@
               24,
               true,
               1920,
-              1920,
+              1088,
               1,
               42
+            ]
+          },
+          {
+            "id": 267,
+            "type": "LowVRAMLatentUpscaleModelLoader",
+            "pos": [
+              -4719.478697480771,
+              6694.642921567023
+            ],
+            "size": [
+              353.34921875,
+              58
+            ],
+            "flags": {},
+            "order": 15,
+            "mode": 4,
+            "inputs": [
+              {
+                "localized_name": "dependencies",
+                "name": "dependencies",
+                "shape": 7,
+                "type": "*",
+                "link": 454
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "LATENT_UPSCALE_MODEL",
+                "name": "LATENT_UPSCALE_MODEL",
+                "type": "LATENT_UPSCALE_MODEL",
+                "links": [
+                  453
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LowVRAMLatentUpscaleModelLoader"
+            },
+            "widgets_values": [
+              "ltx-2-spatial-upscaler-x2-1.0.safetensors"
             ]
           }
         ],

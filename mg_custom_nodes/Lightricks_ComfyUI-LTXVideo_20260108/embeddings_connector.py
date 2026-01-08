@@ -284,7 +284,8 @@ class Embeddings1DConnector(nn.Module):
             )
             learnable_registers = torch.tile(
                 self.learnable_registers, (num_registers_duplications, 1)
-            )
+            ).to(hidden_states.device)
+
             attention_mask_binary = (
                 attention_mask.squeeze(1).squeeze(1).unsqueeze(-1) >= -9000.0
             ).int()

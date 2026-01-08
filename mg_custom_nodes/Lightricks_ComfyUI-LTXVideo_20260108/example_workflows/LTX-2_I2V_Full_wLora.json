@@ -203,45 +203,6 @@
       ]
     },
     {
-      "id": 5178,
-      "type": "LTXVGemmaCLIPModelLoader",
-      "pos": [
-        -3530.572231483516,
-        7128.353572103167
-      ],
-      "size": [
-        421.93656760943577,
-        106
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "links": [
-            13924,
-            13926,
-            13952
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LTXVGemmaCLIPModelLoader",
-        "widget_ue_connectable": {
-          "model_path": true,
-          "max_length": true
-        }
-      },
-      "widgets_values": [
-        "gemma-3-12b-it-qat-q4_0-unquantized/model-00001-of-00005.safetensors",
-        "ltx-2-19b-dev.safetensors",
-        1024
-      ]
-    },
-    {
       "id": 5173,
       "type": "LTXVConditioning",
       "pos": [
@@ -314,7 +275,7 @@
         115.06840156250018
       ],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -349,48 +310,6 @@
       ]
     },
     {
-      "id": 5199,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        -3044.221020705583,
-        6862.9289547908165
-      ],
-      "size": [
-        216.56215979270246,
-        137.56554105343366
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 16,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 13954
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            13955
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.68",
-        "Node name for S&R": "LoraLoaderModelOnly"
-      },
-      "widgets_values": [
-        "ltxv/ltx2/ltx-2-19b-distilled-lora-384.safetensors",
-        0.6
-      ]
-    },
-    {
       "id": 5182,
       "type": "LoraLoaderModelOnly",
       "pos": [
@@ -402,7 +321,7 @@
         82
       ],
       "flags": {},
-      "order": 15,
+      "order": 14,
       "mode": 4,
       "inputs": [
         {
@@ -516,7 +435,7 @@
       "flags": {
         "collapsed": false
       },
-      "order": 14,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
@@ -600,110 +519,6 @@
       "bgcolor": "#353"
     },
     {
-      "id": 5213,
-      "type": "MarkdownNote",
-      "pos": [
-        -3993.0735339452635,
-        7184.948009775131
-      ],
-      "size": [
-        421.80023671152276,
-        204.8409142517039
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 5,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Prompting LTX-2",
-      "properties": {},
-      "widgets_values": [
-        "## LTX-2 Prompting Tips\n1. **Core Actions**: Describe events and actions as they occur over time  \n2. **Audio**: Describe sounds and dialogue needed for the scene  \n3. **Reference Image**: Do not repeat details already present  \n4. **Consistency**: Avoid instructions that do not match the reference image, as this will degrade results\n\n"
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
-      "id": 5214,
-      "type": "MarkdownNote",
-      "pos": [
-        -3995.19689724344,
-        6706.943697375089
-      ],
-      "size": [
-        421.1303542521987,
-        436.3332627074051
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 6,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Model Links",
-      "properties": {},
-      "widgets_values": [
-        "## Model Links\n\n**LTX-2 Model Weights**\n\n- [ltx-2-19b.safetensors](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b.safetensors)\n- [ ltx-2-spatial-upscaler-x2-1.0.safetensors ](https://huggingface.co/Lightricks/LTX-2/tree/main/ltx-2-spatial-upscaler-x2-1.0.safetensors)\n\n**Text Encoder**\n- [Google Gemma 3](https://huggingface.co/google/gemma-3-12b-pt)\n\n**Model Storage Location**\n\n```\n📂 ComfyUI/\n├── 📂 models/\n│   ├── 📂 text_encoders/\n│   │      ├── comfy_gemma_3_12B_it.safetensors\n│   ├── 📂 checkpoints/\n│   │      └── ltx-2-19b.safetensors\n│   ├── 📂 latent_upscale_models/ \n           └── ltx-2-spatial-upscaler-x2-1.0.safetensors\n```\n\n## Report Issues\nTo report any issues when running this workflow, [go to GitHub](https://github.com/Lightricks/ComfyUI-LTXVideo/issues)\n"
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
-      "id": 5215,
-      "type": "MarkdownNote",
-      "pos": [
-        -2678.84490556659,
-        6636.50017724438
-      ],
-      "size": [
-        240.16187366614236,
-        98.41687371924309
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 7,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Video Size",
-      "properties": {},
-      "widgets_values": [
-        "Width & height settings must be divisible by 32 + 1. \nFrame count must be divisible by 8 + 1. \n\n\nRunning with invalid parameters **will not cause errors**. Instead, the flow will silently choose the closest valid parameters. "
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
-      "id": 5216,
-      "type": "MarkdownNote",
-      "pos": [
-        -1976.902195401015,
-        6320.914024269011
-      ],
-      "size": [
-        469.5872194653941,
-        209.10385276580928
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 8,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "LoRA",
-      "properties": {},
-      "widgets_values": [
-        "# Using LoRAs\n**Ctrl + B to enable**\n\nFor the camera LoRA we recommend setting strength = 1\n\nYou can use LTX [Ready to use camera LoRAs](https://huggingface.co/collections/Lightricks/ltx-2)\n\n\n\n\nUse a second LoRa only when the details are important in the LoRa. \n\n## Training\nWe have made available a full trainer to help you to train your own LoRA. You can [find it here](https://github.com/Lightricks/LTX-2)."
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
       "id": 5192,
       "type": "LTXVGemmaEnhancePrompt",
       "pos": [
@@ -717,7 +532,7 @@
       "flags": {
         "collapsed": true
       },
-      "order": 17,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
@@ -774,7 +589,7 @@
         58
       ],
       "flags": {},
-      "order": 9,
+      "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -807,7 +622,7 @@
         328.2067665578588
       ],
       "flags": {},
-      "order": 10,
+      "order": 5,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -843,7 +658,7 @@
         433.14022877831576
       ],
       "flags": {},
-      "order": 11,
+      "order": 6,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -870,6 +685,175 @@
         "base model image.png",
         "image"
       ]
+    },
+    {
+      "id": 5185,
+      "type": "EmptyImage",
+      "pos": [
+        -2667.561287475645,
+        6824.636229314792
+      ],
+      "size": [
+        210,
+        130
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            13943
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "EmptyImage"
+      },
+      "widgets_values": [
+        1280,
+        704,
+        1,
+        0
+      ]
+    },
+    {
+      "id": 5215,
+      "type": "MarkdownNote",
+      "pos": [
+        -2678.84490556659,
+        6636.50017724438
+      ],
+      "size": [
+        240.16187366614236,
+        98.41687371924309
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Video Size",
+      "properties": {},
+      "widgets_values": [
+        "Width & height settings must be divisible by 32 + 1. \nFrame count must be divisible by 8 + 1. \n\n\nRunning with invalid parameters **will not cause errors**. Instead, the flow will silently choose the closest valid parameters. "
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 5178,
+      "type": "LTXVGemmaCLIPModelLoader",
+      "pos": [
+        -3530.572231483516,
+        7128.353572103167
+      ],
+      "size": [
+        421.93656760943577,
+        106
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": [
+            13924,
+            13926,
+            13952
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVGemmaCLIPModelLoader",
+        "widget_ue_connectable": {
+          "model_path": true,
+          "max_length": true
+        }
+      },
+      "widgets_values": [
+        "gemma-3-12b-it-qat-q4_0-unquantized/model-00001-of-00005.safetensors",
+        "ltx-2-19b-dev.safetensors",
+        1024
+      ]
+    },
+    {
+      "id": 5199,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        -3044.221020705583,
+        6862.9289547908165
+      ],
+      "size": [
+        216.56215979270246,
+        137.56554105343366
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 13954
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            13955
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.68",
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "ltx-2-19b-distilled-lora-384.safetensors",
+        0.6
+      ]
+    },
+    {
+      "id": 5216,
+      "type": "MarkdownNote",
+      "pos": [
+        -1976.902195401015,
+        6320.914024269011
+      ],
+      "size": [
+        469.5872194653941,
+        209.10385276580928
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LoRA",
+      "properties": {},
+      "widgets_values": [
+        "# Using LoRAs\n**Ctrl + B to enable**\n\nFor the camera LoRA we recommend setting strength = 1\n\nYou can use LTX [Ready to use camera LoRAs](https://huggingface.co/collections/Lightricks/ltx-2)\n\n\n\n\nUse a second LoRa only when the details are important in the LoRa. \n\n## Training\nWe have made available a full trainer to help you to train your own LoRA. You can [find it here](https://github.com/Lightricks/LTX-2)."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
     },
     {
       "id": 5189,
@@ -1016,40 +1000,56 @@
       ]
     },
     {
-      "id": 5185,
-      "type": "EmptyImage",
+      "id": 5213,
+      "type": "MarkdownNote",
       "pos": [
-        -2667.561287475645,
-        6824.636229314792
+        -3994.7241915629565,
+        7355.912237736982
       ],
       "size": [
-        210,
-        130
+        421.80023671152276,
+        204.8409142517039
       ],
-      "flags": {},
+      "flags": {
+        "collapsed": false
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Prompting LTX-2",
+      "properties": {},
+      "widgets_values": [
+        "## LTX-2 Prompting Tips\n1. **Core Actions**: Describe events and actions as they occur over time  \n2. **Audio**: Describe sounds and dialogue needed for the scene  \n3. **Reference Image**: Do not repeat details already present  \n4. **Consistency**: Avoid instructions that do not match the reference image, as this will degrade results\n\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 5214,
+      "type": "MarkdownNote",
+      "pos": [
+        -3995.19689724344,
+        6706.943697375089
+      ],
+      "size": [
+        423.19410866682347,
+        606.8676527747002
+      ],
+      "flags": {
+        "collapsed": false
+      },
       "order": 12,
       "mode": 0,
       "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            13943
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.5.1",
-        "Node name for S&R": "EmptyImage"
-      },
+      "outputs": [],
+      "title": "Model Links",
+      "properties": {},
       "widgets_values": [
-        1280,
-        704,
-        1,
-        0
-      ]
+        "## Model Links\n\n**LTX-2 Model Weights**\n\n- [ltx-2-19b-dev.safetensors](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-dev.safetensors)\n- [ ltx-2-19b-distilled-lora-384.safetensors ](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled-lora-384.safetensors)\n- [ ltx-2-spatial-upscaler-x2-1.0.safetensors ](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-spatial-upscaler-x2-1.0.safetensors)\n\n\n**Text Encoder**\n- [Google Gemma 3](https://huggingface.co/google/gemma-3-12b-it-qat-q4_0-unquantized)\n\nPlease download the entire folder - \n\n- Run: \n 1. cd models/text_encoders\n 2. git clone https://huggingface.co/google/gemma-3-12b-it-qat-q4_0-unquantized\n\n*Full documentation can be found [here](https://docs.ltx.video/open-source-model/integration-tools/comfy-ui#text-encoder)\n\n**Sampler**\n\n- [RES4LYF](https://github.com/ClownsharkBatwing/RES4LYF)\n\n\n\n**Model Storage Location**\n\n```\n📂 ComfyUI/\n├── 📂 models/\n│   ├── 📂 text_encoders/\n│   │      ├── gemma-3-12b-it-qat-q4_0-unquantized/model-00001-of-00005.safetensors\n│   ├── 📂 checkpoints/\n│   │      └── ltx-2-19b-dev.safetensors\n│   ├── 📂 loras/\n│   │      └── ltx-2-19b-distilled-lora-384.safetensors\n│   ├── 📂 latent_upscale_models/ \n           └── ltx-2-spatial-upscaler-x2-1.0.safetensors\n```\n\n**Assets**\n- [base model image](https://github.com/Lightricks/ComfyUI-LTXVideo/blob/master/example_workflows/assets/base%20model%20image.png)\n\n## Report Issues\nTo report any issues when running this workflow, [go to GitHub](https://github.com/Lightricks/ComfyUI-LTXVideo/issues)\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
     }
   ],
   "links": [
@@ -1368,10 +1368,10 @@
       "flags": {},
       "nodes": [
         5188,
-        5178,
         5176,
-        5199,
-        5212
+        5212,
+        5178,
+        5199
       ]
     },
     {
@@ -1398,7 +1398,7 @@
         "version": 1,
         "state": {
           "lastGroupId": 21,
-          "lastNodeId": 5247,
+          "lastNodeId": 5251,
           "lastLinkId": 14012,
           "lastRerouteId": 0
         },
@@ -1647,7 +1647,7 @@
               46
             ],
             "flags": {},
-            "order": 15,
+            "order": 17,
             "mode": 0,
             "inputs": [
               {
@@ -1694,7 +1694,7 @@
               130
             ],
             "flags": {},
-            "order": 10,
+            "order": 12,
             "mode": 0,
             "inputs": [
               {
@@ -1763,7 +1763,7 @@
               158.23828815113302
             ],
             "flags": {},
-            "order": 16,
+            "order": 18,
             "mode": 0,
             "inputs": [
               {
@@ -1865,7 +1865,7 @@
               46
             ],
             "flags": {},
-            "order": 11,
+            "order": 13,
             "mode": 0,
             "inputs": [
               {
@@ -1900,61 +1900,6 @@
             "widgets_values": []
           },
           {
-            "id": 5069,
-            "type": "GetImageSize",
-            "pos": [
-              -2024.3908648247834,
-              6541.936259651618
-            ],
-            "size": [
-              140,
-              66
-            ],
-            "flags": {
-              "collapsed": false
-            },
-            "order": 4,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "image",
-                "name": "image",
-                "type": "IMAGE",
-                "link": 13730
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "width",
-                "name": "width",
-                "type": "INT",
-                "links": [
-                  13846
-                ]
-              },
-              {
-                "localized_name": "height",
-                "name": "height",
-                "type": "INT",
-                "links": [
-                  13847
-                ]
-              },
-              {
-                "localized_name": "batch_size",
-                "name": "batch_size",
-                "type": "INT",
-                "links": []
-              }
-            ],
-            "properties": {
-              "cnr_id": "comfy-core",
-              "ver": "0.5.1",
-              "Node name for S&R": "GetImageSize"
-            },
-            "widgets_values": []
-          },
-          {
             "id": 5236,
             "type": "LTXVScheduler",
             "pos": [
@@ -1968,7 +1913,7 @@
             "flags": {
               "collapsed": false
             },
-            "order": 18,
+            "order": 20,
             "mode": 0,
             "inputs": [
               {
@@ -2014,7 +1959,7 @@
               114
             ],
             "flags": {},
-            "order": 12,
+            "order": 14,
             "mode": 0,
             "inputs": [
               {
@@ -2069,7 +2014,7 @@
             "flags": {
               "collapsed": false
             },
-            "order": 19,
+            "order": 21,
             "mode": 0,
             "inputs": [
               {
@@ -2122,7 +2067,7 @@
             "flags": {
               "collapsed": false
             },
-            "order": 8,
+            "order": 10,
             "mode": 0,
             "inputs": [
               {
@@ -2169,7 +2114,7 @@
             "flags": {
               "collapsed": false
             },
-            "order": 13,
+            "order": 15,
             "mode": 0,
             "inputs": [
               {
@@ -2203,82 +2148,6 @@
             ]
           },
           {
-            "id": 5109,
-            "type": "KSamplerSelect",
-            "pos": [
-              -966.317767074268,
-              6401.320879135822
-            ],
-            "size": [
-              210,
-              74
-            ],
-            "flags": {},
-            "order": 1,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [
-              {
-                "localized_name": "SAMPLER",
-                "name": "SAMPLER",
-                "type": "SAMPLER",
-                "links": [
-                  13785
-                ]
-              }
-            ],
-            "properties": {
-              "cnr_id": "comfy-core",
-              "ver": "0.3.71",
-              "Node name for S&R": "KSamplerSelect"
-            },
-            "widgets_values": [
-              "res_2s"
-            ]
-          },
-          {
-            "id": 5075,
-            "type": "ImageScaleBy",
-            "pos": [
-              -2034.64249182114,
-              6414.9725819876285
-            ],
-            "size": [
-              210,
-              82
-            ],
-            "flags": {},
-            "order": 5,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "image",
-                "name": "image",
-                "type": "IMAGE",
-                "link": 13731
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "IMAGE",
-                "name": "IMAGE",
-                "type": "IMAGE",
-                "links": [
-                  13730
-                ]
-              }
-            ],
-            "properties": {
-              "cnr_id": "comfy-core",
-              "ver": "0.5.1",
-              "Node name for S&R": "ImageScaleBy"
-            },
-            "widgets_values": [
-              "bicubic",
-              0.5
-            ]
-          },
-          {
             "id": 5238,
             "type": "ImpactExecutionOrderController",
             "pos": [
@@ -2290,7 +2159,7 @@
               47.506006012050875
             ],
             "flags": {},
-            "order": 20,
+            "order": 22,
             "mode": 0,
             "inputs": [
               {
@@ -2347,7 +2216,7 @@
             "flags": {
               "collapsed": false
             },
-            "order": 17,
+            "order": 19,
             "mode": 0,
             "inputs": [
               {
@@ -2410,7 +2279,7 @@
             "flags": {
               "collapsed": true
             },
-            "order": 22,
+            "order": 24,
             "mode": 0,
             "inputs": [
               {
@@ -2440,50 +2309,6 @@
             ]
           },
           {
-            "id": 5239,
-            "type": "ResizeImagesByLongerEdge",
-            "pos": [
-              -1990.9408758658353,
-              6790.223639374309
-            ],
-            "size": [
-              303.6109375,
-              58
-            ],
-            "flags": {
-              "collapsed": true
-            },
-            "order": 21,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "images",
-                "name": "images",
-                "type": "IMAGE",
-                "link": 13994
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "images",
-                "name": "images",
-                "type": "IMAGE",
-                "links": [
-                  13993,
-                  14002
-                ]
-              }
-            ],
-            "properties": {
-              "cnr_id": "comfy-core",
-              "ver": "0.5.1",
-              "Node name for S&R": "ResizeImagesByLongerEdge"
-            },
-            "widgets_values": [
-              1536
-            ]
-          },
-          {
             "id": 5100,
             "type": "SamplerCustomAdvanced",
             "pos": [
@@ -2495,7 +2320,7 @@
               106
             ],
             "flags": {},
-            "order": 7,
+            "order": 9,
             "mode": 0,
             "inputs": [
               {
@@ -2564,7 +2389,7 @@
               46
             ],
             "flags": {},
-            "order": 9,
+            "order": 11,
             "mode": 0,
             "inputs": [
               {
@@ -2611,7 +2436,7 @@
               58
             ],
             "flags": {},
-            "order": 2,
+            "order": 1,
             "mode": 0,
             "inputs": [],
             "outputs": [
@@ -2645,7 +2470,7 @@
               98
             ],
             "flags": {},
-            "order": 6,
+            "order": 8,
             "mode": 0,
             "inputs": [
               {
@@ -2687,40 +2512,6 @@
             ]
           },
           {
-            "id": 5099,
-            "type": "KSamplerSelect",
-            "pos": [
-              358.5710759382591,
-              6424.6268458653085
-            ],
-            "size": [
-              210,
-              74
-            ],
-            "flags": {},
-            "order": 3,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [
-              {
-                "localized_name": "SAMPLER",
-                "name": "SAMPLER",
-                "type": "SAMPLER",
-                "links": [
-                  13770
-                ]
-              }
-            ],
-            "properties": {
-              "cnr_id": "comfy-core",
-              "ver": "0.3.71",
-              "Node name for S&R": "KSamplerSelect"
-            },
-            "widgets_values": [
-              "res_2s"
-            ]
-          },
-          {
             "id": 5112,
             "type": "LTXVConcatAVLatent",
             "pos": [
@@ -2732,7 +2523,7 @@
               46
             ],
             "flags": {},
-            "order": 14,
+            "order": 16,
             "mode": 0,
             "inputs": [
               {
@@ -2777,7 +2568,7 @@
               122
             ],
             "flags": {},
-            "order": 24,
+            "order": 26,
             "mode": 0,
             "inputs": [
               {
@@ -2831,7 +2622,7 @@
               66
             ],
             "flags": {},
-            "order": 25,
+            "order": 27,
             "mode": 0,
             "inputs": [
               {
@@ -2882,7 +2673,7 @@
               122
             ],
             "flags": {},
-            "order": 23,
+            "order": 25,
             "mode": 0,
             "inputs": [
               {
@@ -2931,6 +2722,267 @@
             "widgets_values": [
               0.6,
               false
+            ]
+          },
+          {
+            "id": 5251,
+            "type": "MarkdownNote",
+            "pos": [
+              358.90851475055354,
+              6284.424034545774
+            ],
+            "size": [
+              210,
+              88
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 2,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "title": "Sampler",
+            "properties": {},
+            "widgets_values": [
+              "We recommend using res_2s. \nhttps://github.com/ClownsharkBatwing/RES4LYF\n\nPlease make sure to install RES4LYF"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 5250,
+            "type": "MarkdownNote",
+            "pos": [
+              -965.2104305619457,
+              6261.107393920771
+            ],
+            "size": [
+              210,
+              88
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 3,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "title": "Sampler",
+            "properties": {},
+            "widgets_values": [
+              "We recommend using res_2s. \nhttps://github.com/ClownsharkBatwing/RES4LYF\n\nPlease make sure to install RES4LYF"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 5075,
+            "type": "ImageScaleBy",
+            "pos": [
+              -2034.64249182114,
+              6414.9725819876285
+            ],
+            "size": [
+              210,
+              82
+            ],
+            "flags": {},
+            "order": 7,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "link": 13731
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  13730
+                ]
+              }
+            ],
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.5.1",
+              "Node name for S&R": "ImageScaleBy"
+            },
+            "widgets_values": [
+              "bicubic",
+              0.5
+            ]
+          },
+          {
+            "id": 5069,
+            "type": "GetImageSize",
+            "pos": [
+              -2024.3908648247834,
+              6541.936259651618
+            ],
+            "size": [
+              140,
+              66
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 6,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "link": 13730
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "width",
+                "name": "width",
+                "type": "INT",
+                "links": [
+                  13846
+                ]
+              },
+              {
+                "localized_name": "height",
+                "name": "height",
+                "type": "INT",
+                "links": [
+                  13847
+                ]
+              },
+              {
+                "localized_name": "batch_size",
+                "name": "batch_size",
+                "type": "INT",
+                "links": []
+              }
+            ],
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.5.1",
+              "Node name for S&R": "GetImageSize"
+            },
+            "widgets_values": []
+          },
+          {
+            "id": 5239,
+            "type": "ResizeImagesByLongerEdge",
+            "pos": [
+              -1990.9408758658353,
+              6790.223639374309
+            ],
+            "size": [
+              303.6109375,
+              58
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 23,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "images",
+                "name": "images",
+                "type": "IMAGE",
+                "link": 13994
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "images",
+                "name": "images",
+                "type": "IMAGE",
+                "links": [
+                  13993,
+                  14002
+                ]
+              }
+            ],
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.5.1",
+              "Node name for S&R": "ResizeImagesByLongerEdge"
+            },
+            "widgets_values": [
+              1536
+            ]
+          },
+          {
+            "id": 5109,
+            "type": "KSamplerSelect",
+            "pos": [
+              -966.317767074268,
+              6401.320879135822
+            ],
+            "size": [
+              210,
+              74
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [
+              {
+                "localized_name": "SAMPLER",
+                "name": "SAMPLER",
+                "type": "SAMPLER",
+                "links": [
+                  13785
+                ]
+              }
+            ],
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.3.71",
+              "Node name for S&R": "KSamplerSelect"
+            },
+            "widgets_values": [
+              "res_2s"
+            ]
+          },
+          {
+            "id": 5099,
+            "type": "KSamplerSelect",
+            "pos": [
+              358.5710759382591,
+              6424.6268458653085
+            ],
+            "size": [
+              210,
+              74
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [
+              {
+                "localized_name": "SAMPLER",
+                "name": "SAMPLER",
+                "type": "SAMPLER",
+                "links": [
+                  13770
+                ]
+              }
+            ],
+            "properties": {
+              "cnr_id": "comfy-core",
+              "ver": "0.3.71",
+              "Node name for S&R": "KSamplerSelect"
+            },
+            "widgets_values": [
+              "res_2s"
             ]
           }
         ],

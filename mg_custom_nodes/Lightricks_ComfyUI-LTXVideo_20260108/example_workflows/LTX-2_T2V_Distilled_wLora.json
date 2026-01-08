@@ -252,44 +252,6 @@
       ]
     },
     {
-      "id": 5227,
-      "type": "LTXVGemmaCLIPModelLoader",
-      "pos": [
-        -3298.5249619455894,
-        7907.801436963024
-      ],
-      "size": [
-        421.93656760943577,
-        106
-      ],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "links": [
-            13961,
-            13962
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LTXVGemmaCLIPModelLoader",
-        "widget_ue_connectable": {
-          "model_path": true,
-          "max_length": true
-        }
-      },
-      "widgets_values": [
-        "gemma-3-12b-it-qat-q4_0-unquantized/model-00001-of-00005.safetensors",
-        "ltx-2-19b-distilled.safetensors",
-        1024
-      ]
-    },
-    {
       "id": 5219,
       "type": "LTXVAudioVAELoader",
       "pos": [
@@ -301,7 +263,7 @@
         58
       ],
       "flags": {},
-      "order": 5,
+      "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -552,42 +514,6 @@
       ]
     },
     {
-      "id": 5222,
-      "type": "PrimitiveStringMultiline",
-      "pos": [
-        -2567.508915639494,
-        7588.770792256889
-      ],
-      "size": [
-        337.7200214704494,
-        515.3418506718763
-      ],
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            13980
-          ]
-        }
-      ],
-      "title": "Positive Prompt",
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.5.1",
-        "Node name for S&R": "PrimitiveStringMultiline"
-      },
-      "widgets_values": [
-        "A medium shot captures a doctor, clad in a white lab coat over a blue shirt, with a stethoscope draped around his neck, as he gently palpates the right knee of a patient. The patient, wearing a dark blue garment, sits on a light blue examination table, her left hand resting on her left thigh, and her right hand resting on her right thigh, just above the knee. A subtle red inflamed area is visible on the patient's right knee. The background is softly blurred, showing medical supplies on a counter. The camera slowly tilts up, revealing the doctor's face as he carefully flexes the patient's knee, testing its range of movement. The patient's expression shifts, her brow furrowing slightly, and she winces in discomfort. As the doctor continues to assess the knee, a nurse, dressed in scrubs and holding a notepad, enters the frame from the left, walking past the doctor and patient. She briefly pauses, extending the notepad towards the doctor, who glances at the notes and gives a subtle nod of acknowledgment before returning his attention to the patient's knee. The nurse continues walking out of frame to the right, and the doctor resumes his examination, his hands continuing to gently manipulate the patient's knee, who continues to wince.\n"
-      ],
-      "color": "#232",
-      "bgcolor": "#353"
-    },
-    {
       "id": 5244,
       "type": "LatentUpscaleModelLoader",
       "pos": [
@@ -599,7 +525,7 @@
         100.68012732230727
       ],
       "flags": {},
-      "order": 7,
+      "order": 5,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -621,58 +547,6 @@
       ]
     },
     {
-      "id": 5246,
-      "type": "MarkdownNote",
-      "pos": [
-        -3759.587881115107,
-        7906.926955158114
-      ],
-      "size": [
-        418.0950915480007,
-        208.54998853542747
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 8,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Prompting LTX-2",
-      "properties": {},
-      "widgets_values": [
-        "## LTX-2 Prompting Tips\n1. **Core Actions**: Describe events and actions as they occur over time  \n2. **Audio**: Describe sounds and dialogue needed for the scene  \n3. **Consistency**: Avoid instructions that do not match the reference image, as this will degrade results\n"
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
-      "id": 5245,
-      "type": "MarkdownNote",
-      "pos": [
-        -3759.592503870824,
-        7426.935420507221
-      ],
-      "size": [
-        421.1303542521987,
-        436.3332627074051
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 9,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "Model Links",
-      "properties": {},
-      "widgets_values": [
-        "## Model Links\n\n**LTX-2 Model Weights**\n\n- [ltx-2-19b-distilled.safetensors](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled.safetensors)\n- [ ltx-2-spatial-upscaler-x2-1.0.safetensors ](https://huggingface.co/Lightricks/LTX-2/tree/main/ltx-2-spatial-upscaler-x2-1.0.safetensors)\n\n**Text Encoder**\n- [Google Gemma 3](https://huggingface.co/google/gemma-3-12b-pt)\n\n**Model Storage Location**\n\n```\n📂 ComfyUI/\n├── 📂 models/\n│   ├── 📂 text_encoders/\n│   │      ├── comfy_gemma_3_12B_it.safetensors\n│   ├── 📂 checkpoints/\n│   │      └── ltx-2-19b-distilled.safetensors\n│   ├── 📂 latent_upscale_models/ \n           └── ltx-2-spatial-upscaler-x2-1.0.safetensors\n```\n\n## Report Issues\nTo report any issues when running this workflow, [go to GitHub](https://github.com/Lightricks/ComfyUI-LTXVideo/issues)\n"
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
       "id": 5247,
       "type": "MarkdownNote",
       "pos": [
@@ -686,7 +560,7 @@
       "flags": {
         "collapsed": false
       },
-      "order": 10,
+      "order": 6,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -694,32 +568,6 @@
       "properties": {},
       "widgets_values": [
         "Width & height settings must be divisible by 32 + 1. \nFrame count must be divisible by 8 + 1. \n\n\nRunning with invalid parameters **will not cause errors**. Instead, the flow will silently choose the closest valid parameters. "
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
-      "id": 5248,
-      "type": "MarkdownNote",
-      "pos": [
-        -2581.888874206601,
-        7104.237854538457
-      ],
-      "size": [
-        469.5872194653941,
-        209.10385276580928
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 11,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "LoRA",
-      "properties": {},
-      "widgets_values": [
-        "# Using LoRAs\n**Ctrl + B to enable**\n\nFor the camera LoRA we recommend setting strength = 1\n\nYou can use LTX [Ready to use camera LoRAs](https://huggingface.co/collections/Lightricks/ltx-2)\n\n\n\n\nUse a second LoRa only when the details are important in the LoRa. \n\n## Training\nWe have made available a full trainer to help you to train your own LoRA. You can [find it here](https://github.com/Lightricks/LTX-2)."
       ],
       "color": "#432",
       "bgcolor": "#653"
@@ -778,8 +626,110 @@
         "",
         "You are a Creative Assistant. Given a user's raw input prompt describing a scene or concept, expand it into a detailed video generation prompt with specific visuals and integrated audio to guide a text-to-video model.\n\n#### Guidelines\n- Strictly follow all aspects of the user's raw input: include every element requested (style, visuals, motions, actions, camera movement, audio).\n    - If the input is vague, invent concrete details: lighting, textures, materials, scene settings, etc.\n        - For characters: describe gender, clothing, hair, expressions. DO NOT invent unrequested characters.\n- Use active language: present-progressive verbs (\"is walking,\" \"speaking\"). If no action specified, describe natural movements.\n- Maintain chronological flow: use temporal connectors (\"as,\" \"then,\" \"while\").\n- Audio layer: Describe complete soundscape (background audio, ambient sounds, SFX, speech/music when requested). Integrate sounds chronologically alongside actions. Be specific (e.g., \"soft footsteps on tile\"), not vague (e.g., \"ambient sound is present\").\n- Speech (only when requested): \n    - For ANY speech-related input (talking, conversation, singing, etc.), ALWAYS include exact words in quotes with voice characteristics (e.g., \"The man says in an excited voice: 'You won't believe what I just saw!'\").\n    - Specify language if not English and accent if relevant.\n- Style: Include visual style at the beginning: \"Style: <style>, <rest of prompt>.\" Default to cinematic-realistic if unspecified. Omit if unclear.\n- Visual and audio only: NO non-visual/auditory senses (smell, taste, touch).\n- Restrained language: Avoid dramatic/exaggerated terms. Use mild, natural phrasing.\n    - Colors: Use plain terms (\"red dress\"), not intensified (\"vibrant blue,\" \"bright red\").\n    - Lighting: Use neutral descriptions (\"soft overhead light\"), not harsh (\"blinding light\").\n    - Facial features: Use delicate modifiers for subtle features (i.e., \"subtle freckles\").\n\n#### Important notes: \n- Analyze the user's raw input carefully. In cases of FPV or POV, exclude the description of the subject whose POV is requested.\n- Camera motion: DO NOT invent camera motion unless requested by the user.\n- Speech: DO NOT modify user-provided character dialogue unless it's a typo.\n- No timestamps or cuts: DO NOT use timestamps or describe scene cuts unless explicitly requested.\n- Format: DO NOT use phrases like \"The scene opens with...\". Start directly with Style (optional) and chronological scene description.\n- Format: DO NOT start your response with special characters.\n- DO NOT invent dialogue unless the user mentions speech/talking/singing/conversation.\n- If the user's raw input prompt is highly detailed, chronological and in the requested format: DO NOT make major edits or introduce new elements. Add/enhance audio descriptions if missing.\n\n#### Output Format (Strict):\n- Single continuous paragraph in natural language (English).\n- NO titles, headings, prefaces, code fences, or Markdown.\n- If unsafe/invalid, return original user prompt. Never ask questions or clarifications.\n\nYour output quality is CRITICAL. Generate visually rich, dynamic prompts with integrated audio for high-quality video generation.\n\n#### Example\nInput: \"A woman at a coffee shop talking on the phone\"\nOutput:\nStyle: realistic with cinematic lighting. In a medium close-up, a woman in her early 30s with shoulder-length brown hair sits at a small wooden table by the window. She wears a cream-colored turtleneck sweater, holding a white ceramic coffee cup in one hand and a smartphone to her ear with the other. Ambient cafe sounds fill the space—espresso machine hiss, quiet conversations, gentle clinking of cups. The woman listens intently, nodding slightly, then takes a sip of her coffee and sets it down with a soft clink. Her face brightens into a warm smile as she speaks in a clear, friendly voice, 'That sounds perfect! I'd love to meet up this weekend. How about Saturday afternoon?' She laughs softly—a genuine chuckle—and shifts in her chair. Behind her, other patrons move subtly in and out of focus. 'Great, I'll see you then,' she concludes cheerfully, lowering the phone.",
         512,
-        true
+        true,
+        42,
+        "randomize"
       ]
+    },
+    {
+      "id": 5222,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -2567.508915639494,
+        7588.770792256889
+      ],
+      "size": [
+        337.7200214704494,
+        515.3418506718763
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            13980
+          ]
+        }
+      ],
+      "title": "Positive Prompt",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.1",
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "cinematic epic war movie scene shows a medium closeup shot of a fierce muscular Viking warrior standing in place, clad in weathered leather armor and gripping a battle-worn axe, his long, tangled hair billowing against the stormy sky. The scene is set under a foreboding, cloud-heavy sky, casting an eerie, dim light that reflects off his glinting axe. we hear him roar: \"prepare for battle, and eternal glory!\". the camera slowly zooms in on his determined face"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 5227,
+      "type": "LTXVGemmaCLIPModelLoader",
+      "pos": [
+        -3298.5249619455894,
+        7907.801436963024
+      ],
+      "size": [
+        421.93656760943577,
+        106
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": [
+            13961,
+            13962
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVGemmaCLIPModelLoader",
+        "widget_ue_connectable": {
+          "model_path": true,
+          "max_length": true
+        }
+      },
+      "widgets_values": [
+        "gemma-3-12b-it-qat-q4_0-unquantized/model-00001-of-00005.safetensors",
+        "ltx-2-19b-distilled.safetensors",
+        1024
+      ]
+    },
+    {
+      "id": 5248,
+      "type": "MarkdownNote",
+      "pos": [
+        -2581.888874206601,
+        7104.237854538457
+      ],
+      "size": [
+        469.5872194653941,
+        209.10385276580928
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LoRA",
+      "properties": {},
+      "widgets_values": [
+        "# Using LoRAs\n**Ctrl + B to enable**\n\nFor the camera LoRA we recommend setting strength = 1\n\nYou can use LTX [Ready to use camera LoRAs](https://huggingface.co/collections/Lightricks/ltx-2)\n\n\n\n\nUse a second LoRa only when the details are important in the LoRa. \n\n## Training\nWe have made available a full trainer to help you to train your own LoRA. You can [find it here](https://github.com/Lightricks/LTX-2)"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
     },
     {
       "id": 5232,
@@ -912,8 +862,60 @@
       "widgets_values": [
         121,
         25,
-        42
+        45
       ]
+    },
+    {
+      "id": 5246,
+      "type": "MarkdownNote",
+      "pos": [
+        -3759.009376983867,
+        7951.430451540103
+      ],
+      "size": [
+        418.0950915480007,
+        208.54998853542747
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Prompting LTX-2",
+      "properties": {},
+      "widgets_values": [
+        "## LTX-2 Prompting Tips\n1. **Core Actions**: Describe events and actions as they occur over time  \n2. **Audio**: Describe sounds and dialogue needed for the scene  \n3. **Consistency**: Avoid instructions that do not match the reference image, as this will degrade results\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 5245,
+      "type": "MarkdownNote",
+      "pos": [
+        -3759.592503870824,
+        7426.935420507221
+      ],
+      "size": [
+        419.9816103344465,
+        480.7830408486252
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Model Links",
+      "properties": {},
+      "widgets_values": [
+        "## Model Links\n\n**LTX-2 Model Weights**\n\n- [ltx-2-19b-distilled.safetensors](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled.safetensors)\n- [ ltx-2-spatial-upscaler-x2-1.0.safetensors ](https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-spatial-upscaler-x2-1.0.safetensors)\n\n**Text Encoder**\n- [Google Gemma 3](https://huggingface.co/google/gemma-3-12b-it-qat-q4_0-unquantized)\n\nPlease download the entire folder - \n\n- Run: \n 1. cd models/text_encoders\n 2. git clone https://huggingface.co/google/gemma-3-12b-it-qat-q4_0-unquantized\n\n*Full documentation can be found [here](https://docs.ltx.video/open-source-model/integration-tools/comfy-ui#text-encoder)\n\n**Model Storage Location**\n\n```\n📂 ComfyUI/\n├── 📂 models/\n│   ├── 📂 text_encoders/\n│   │      ├── gemma-3-12b-it-qat-q4_0-unquantized/model-00001-of-00005.safetensors\n│   ├── 📂 checkpoints/\n│   │      └── ltx-2-19b-distilled.safetensors\n│   ├── 📂 latent_upscale_models/ \n           └── ltx-2-spatial-upscaler-x2-1.0.safetensors\n```\n\n## Report Issues\nTo report any issues when running this workflow, [go to GitHub](https://github.com/Lightricks/ComfyUI-LTXVideo/issues)\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
     }
   ],
   "links": [
@@ -1126,8 +1128,8 @@
       "nodes": [
         5224,
         5223,
-        5222,
-        5225
+        5225,
+        5222
       ]
     },
     {
@@ -1163,9 +1165,9 @@
       "flags": {},
       "nodes": [
         5228,
-        5227,
         5219,
-        5244
+        5244,
+        5227
       ]
     },
     {
@@ -2021,7 +2023,7 @@
               "Node name for S&R": "RandomNoise"
             },
             "widgets_values": [
-              42,
+              45,
               "fixed"
             ]
           },

@@ -7,7 +7,6 @@ from .easy_samplers import (
     LTXVInContextSampler,
 )
 from .gemma_encoder import LTXVGemmaCLIPModelLoader, LTXVGemmaEnhancePrompt
-from .gemma_encoder_mgpu_loader import LTXVGemmaCLIPModelLoaderMGPU
 from .guide import LTXVAddGuideAdvanced
 from .guiders import GuiderParametersNode, MultimodalGuiderNode
 from .latent_norm import (
@@ -83,7 +82,6 @@ NODE_CLASS_MAPPINGS = {
     "LTXVStatNormLatent": LTXVStatNormLatent,
     "LTXVPerStepStatNormPatcher": LTXVPerStepStatNormPatcher,
     "LTXVGemmaCLIPModelLoader": LTXVGemmaCLIPModelLoader,
-    "LTXVGemmaCLIPModelLoaderMGPU": LTXVGemmaCLIPModelLoaderMGPU,
     "LTXVGemmaEnhancePrompt": LTXVGemmaEnhancePrompt,
     "DynamicConditioning": DynamicConditioning,
     "LowVRAMCheckpointLoader": LowVRAMCheckpointLoader,

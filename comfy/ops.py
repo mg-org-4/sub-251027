@@ -427,12 +427,12 @@ def fp8_linear(self, input):
     input = torch.clamp(input, min=-448, max=448, out=input)
     input_fp8 = input.to(dtype).contiguous()
     layout_params_input = TensorCoreFP8Layout.Params(scale=scale_input, orig_dtype=input_dtype, orig_shape=tuple(input_fp8.shape))
-    quantized_input = QuantizedTensor(input_fp8, TensorCoreFP8Layout, layout_params_input)
+    quantized_input = QuantizedTensor(input_fp8, "TensorCoreFP8Layout", layout_params_input)
 
     # Wrap weight in QuantizedTensor - this enables unified dispatch
     # Call F.linear - __torch_dispatch__ routes to fp8_linear handler in quant_ops.py!
     layout_params_weight = TensorCoreFP8Layout.Params(scale=scale_weight, orig_dtype=input_dtype, orig_shape=tuple(w.shape))
-    quantized_weight = QuantizedTensor(w, TensorCoreFP8Layout, layout_params_weight)
+    quantized_weight = QuantizedTensor(w, "TensorCoreFP8Layout", layout_params_weight)
     o = torch.nn.functional.linear(quantized_input, quantized_weight, bias)
 
     uncast_bias_weight(self, w, bias, offload_stream)
@@ -654,29 +654,29 @@ def mixed_precision_ops(quant_config={}, compute_dtype=torch.bfloat16, full_prec
                 run_every_op()
 
                 input_shape = input.shape
-                tensor_3d = input.ndim == 3
-
-                if self._full_precision_mm or self.comfy_cast_weights or len(self.weight_function) > 0 or len(self.bias_function) > 0:
-                    return self.forward_comfy_cast_weights(input, *args, **kwargs)
+                reshaped_3d = False
 
                 if (getattr(self, 'layout_type', None) is not None and
-                    not isinstance(input, QuantizedTensor)):
+                    not isinstance(input, QuantizedTensor) and not self._full_precision_mm and
+                    not getattr(self, 'comfy_force_cast_weights', False) and
+                    len(self.weight_function) == 0 and len(self.bias_function) == 0):
 
                     # Reshape 3D tensors to 2D for quantization (needed for NVFP4 and others)
-                    if tensor_3d:
-                        input = input.reshape(-1, input_shape[2])
+                    input_reshaped = input.reshape(-1, input_shape[2]) if input.ndim == 3 else input
 
-                    if input.ndim != 2:
-                        # Fall back to comfy_cast_weights for non-2D tensors
-                        return self.forward_comfy_cast_weights(input.reshape(input_shape), *args, **kwargs)
+                    # Fall back to non-quantized for non-2D tensors
+                    if input_reshaped.ndim == 2:
+                        reshaped_3d = input.ndim == 3
+                        # dtype is now implicit in the layout class
+                        scale = getattr(self, 'input_scale', None)
+                        if scale is not None:
+                            scale = comfy.model_management.cast_to_device(scale, input.device, None)
+                        input = QuantizedTensor.from_float(input_reshaped, self.layout_type, scale=scale)
 
-                    # dtype is now implicit in the layout class
-                    input = QuantizedTensor.from_float(input, self.layout_type, scale=getattr(self, 'input_scale', None))
-
-                output = self._forward(input, self.weight, self.bias)
+                output = self.forward_comfy_cast_weights(input)
 
                 # Reshape output back to 3D if input was 3D
-                if tensor_3d:
+                if reshaped_3d:
                     output = output.reshape((input_shape[0], input_shape[1], self.weight.shape[0]))
 
                 return output

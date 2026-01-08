@@ -2385,7 +2385,7 @@ class VAELoaderKJ:
                           "weight_dtype": (["bf16", "fp16", "fp32" ],),
                          }
             }
-        
+
     RETURN_TYPES = ("VAE",)
     FUNCTION = "load_vae"
     CATEGORY = "KJNodes/vae"
@@ -2401,8 +2401,13 @@ class VAELoaderKJ:
             sd = self.load_taesd(vae_name)
         else:
             vae_path = folder_paths.get_full_path_or_raise("vae", vae_name)
-            sd = load_torch_file(vae_path)
-        vae = VAE(sd=sd, device=device, dtype=dtype)
+            sd, metadata = comfy.utils.load_torch_file(vae_path, return_metadata=True)
+
+        if "vocoder.conv_post.weight" in sd:
+            from comfy.ldm.lightricks.vae.audio_vae import AudioVAE
+            vae = AudioVAE(sd, metadata)
+        else:
+            vae = VAE(sd=sd, device=device, dtype=dtype)
         return (vae,)
 
 from comfy.samplers import sampling_function, CFGGuider
@@ -3077,3 +3082,249 @@ class DeprecatedCompileNodeKJ:
     DESCRIPTION = "This node has been replaced with TorchCompileModelAdvanced node, please use that instead."
     def passthrough(self, model):
         return (model,)
+
+
+class VisualizeSigmasKJ(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="VisualizeSigmasKJ",
+            category="KJNodes/misc",
+            inputs=[
+                io.Sigmas.Input("sigmas"),
+                io.Int.Input("start_step", default=0, min=-1, max=1000, step=1,
+                             tooltip="Step index to mark as the start of a range (inclusive). Set to -1 to disable."),
+                io.Int.Input("end_step", default=-1, min=-1, max=1000, step=1,
+                             tooltip="Step index to mark as the end of a range (inclusive). Set to - 1 to disable."),
+            ],
+            outputs=[
+                io.Sigmas.Output(display_name="sigmas_out"),
+                io.Image.Output(display_name="image"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, sigmas, start_step=0, end_step=-1) -> io.NodeOutput:
+
+        start_idx = 0
+        end_idx = len(sigmas) - 1
+
+        if isinstance(start_step, float):
+            idxs = (sigmas <= start_step).nonzero(as_tuple=True)[0]
+            if len(idxs) > 0:
+                start_idx = idxs[0].item()
+        elif isinstance(start_step, int):
+            if start_step > 0:
+                start_idx = start_step
+
+        if isinstance(end_step, float):
+            idxs = (sigmas >= end_step).nonzero(as_tuple=True)[0]
+            if len(idxs) > 0:
+                end_idx = idxs[-1].item()
+        elif isinstance(end_step, int):
+            if end_step != -1:
+                end_idx = end_step - 1
+
+        import matplotlib.pyplot as plt
+        sigmas_np = sigmas.cpu().numpy()
+        if not np.isclose(sigmas_np[-1], 0.0, atol=1e-6):
+            sigmas_np = np.append(sigmas_np, 0.0)
+        buf = BytesIO()
+        fig = plt.figure(facecolor='#353535')
+        ax = fig.add_subplot(111)
+        ax.set_facecolor('#353535')  # Set axes background color
+        x_values = range(0, len(sigmas_np))
+        ax.plot(x_values, sigmas_np)
+        # Annotate each sigma value
+        ax.scatter(x_values, sigmas_np, color='white', s=20, zorder=3)  # Small dots at each sigma
+        for x, y in zip(x_values, sigmas_np):
+            # Show all annotations if few steps, or just show split step annotations
+            show_annotation = len(sigmas_np) <= 10
+            is_split_step = (start_idx > 0 and x == start_idx) or (end_idx != -1 and x == end_idx + 1)
+
+            if show_annotation or is_split_step:
+                color = 'orange'
+                if is_split_step:
+                    color = 'yellow'
+                ax.annotate(f"{y:.3f}", (x, y), textcoords="offset points", xytext=(10, 1), ha='center', color=color, fontsize=12)
+        ax.set_xticks(x_values)
+        ax.set_title("Sigmas", color='white')           # Title font color
+        ax.set_xlabel("Step", color='white')            # X label font color
+        ax.set_ylabel("Sigma Value", color='white')     # Y label font color
+        ax.tick_params(axis='x', colors='white', labelsize=10)        # X tick color
+        ax.tick_params(axis='y', colors='white', labelsize=10)        # Y tick color
+        # Add split point if end_step is defined
+        end_idx += 1
+        if end_idx != -1 and 0 <= end_idx < len(sigmas_np) - 1:
+            ax.axvline(end_idx, color='red', linestyle='--', linewidth=2, label='end_step split')
+        # Add split point if start_step is defined
+        if start_idx > 0 and 0 <= start_idx < len(sigmas_np):
+            ax.axvline(start_idx, color='green', linestyle='--', linewidth=2, label='start_step split')
+        if (end_idx != -1 and 0 <= end_idx < len(sigmas_np)) or (start_idx > 0 and 0 <= start_idx < len(sigmas_np)):
+            handles, labels = ax.get_legend_handles_labels()
+            if labels:
+                ax.legend()
+        # Draw shaded range
+        range_start_idx = start_idx if start_idx > 0 else 0
+        range_end_idx = end_idx if end_idx > 0 and end_idx < len(sigmas_np) else len(sigmas_np) - 1
+        if range_start_idx < range_end_idx:
+            ax.axvspan(range_start_idx, range_end_idx, color='lightblue', alpha=0.1, label='Sampled Range')
+
+
+        plt.tight_layout()
+        fig.canvas.draw()
+        w, h = fig.canvas.get_width_height()
+        buf = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        buf = buf.reshape(h, w, 3).copy()
+        image = torch.from_numpy(buf).float() / 255.0
+        image = image.unsqueeze(0) #(H, W, C) -> (1, H, W, C)
+        plt.close(fig)
+
+        sigmas_out = sigmas[start_idx:end_idx + 1] if end_idx != -1 else sigmas[start_idx:]
+
+        return io.NodeOutput(sigmas_out,image)
+
+from comfy_extras.nodes_lt import get_noise_mask, LTXVAddGuide
+class LTXVAddGuideMulti(LTXVAddGuide):
+
+    @classmethod
+    def define_schema(cls):
+        options = []
+        for num_guides in range(1, 21):  # 1 to 20 guides
+            guide_inputs = []
+            for i in range(1, num_guides + 1):
+                guide_inputs.extend([
+                    io.Image.Input(f"image_{i}"),
+                    io.Int.Input(
+                        f"frame_idx_{i}",
+                        default=0,
+                        min=-9999,
+                        max=9999,
+                        tooltip=f"Frame index for guide {i}.",
+                    ),
+                    io.Float.Input(f"strength_{i}", default=1.0, min=0.0, max=1.0, step=0.01, tooltip=f"Strength for guide {i}."),
+                ])
+            options.append(io.DynamicCombo.Option(
+                key=str(num_guides),
+                inputs=guide_inputs
+            ))
+
+        return io.Schema(
+            node_id="LTXVAddGuideMulti",
+            category="conditioning/video_models",
+            inputs=[
+                io.Conditioning.Input("positive"),
+                io.Conditioning.Input("negative"),
+                io.Vae.Input("vae"),
+                io.Latent.Input("latent"),
+                io.DynamicCombo.Input(
+                    "num_guides",
+                    options=options,
+                    display_name="Number of Guides",
+                    tooltip="Select how many guide images to use",
+                ),
+            ],
+            outputs=[
+                io.Conditioning.Output(display_name="positive"),
+                io.Conditioning.Output(display_name="negative"),
+                io.Latent.Output(display_name="latent"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, positive, negative, vae, latent, num_guides) -> io.NodeOutput:
+        scale_factors = vae.downscale_index_formula
+        latent_image = latent["samples"]
+        noise_mask = get_noise_mask(latent)
+
+        _, _, latent_length, latent_height, latent_width = latent_image.shape
+
+        # num_guides is a dict containing the inputs from the selected option
+        # e.g., {'image_1': tensor, 'frame_idx_1': 0, 'strength_1': 1.0, 'image_2': tensor, 'frame_idx_2': 20, 'strength_2': 0.8, ...}
+
+        image_keys = sorted([k for k in num_guides.keys() if k.startswith('image_')])
+
+        for img_key in image_keys:
+            i = img_key.split('_')[1]
+
+            img = num_guides[f"image_{i}"]
+            f_idx = num_guides[f"frame_idx_{i}"]
+            strength = num_guides[f"strength_{i}"]
+
+            image_1, t = cls.encode(vae, latent_width, latent_height, img, scale_factors)
+
+            frame_idx, latent_idx = cls.get_latent_index(positive, latent_length, len(image_1), f_idx, scale_factors)
+            assert latent_idx + t.shape[2] <= latent_length, "Conditioning frames exceed the length of the latent sequence."
+
+            positive, negative, latent_image, noise_mask = cls.append_keyframe(
+                positive,
+                negative,
+                frame_idx,
+                latent_image,
+                noise_mask,
+                t,
+                strength,
+                scale_factors,
+            )
+
+        return io.NodeOutput(positive, negative, {"samples": latent_image, "noise_mask": noise_mask})
+
+class LTXVAddGuidesFromBatch(LTXVAddGuide):
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="LTXVAddGuidesFromBatch",
+            category="conditioning/video_models",
+            inputs=[
+                io.Conditioning.Input("positive"),
+                io.Conditioning.Input("negative"),
+                io.Vae.Input("vae"),
+                io.Latent.Input("latent"),
+                io.Image.Input("images", tooltip="Batch of images - non-black images will be used as guides"),
+                io.Float.Input("strength", default=1.0, min=0.0, max=1.0, step=0.01),
+            ],
+            outputs=[
+                io.Conditioning.Output(display_name="positive"),
+                io.Conditioning.Output(display_name="negative"),
+                io.Latent.Output(display_name="latent"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, positive, negative, vae, latent, images, strength) -> io.NodeOutput:
+        scale_factors = vae.downscale_index_formula
+        latent_image = latent["samples"]
+        noise_mask = get_noise_mask(latent)
+
+        _, _, latent_length, latent_height, latent_width = latent_image.shape
+
+        # Process each image in the batch
+        batch_size = images.shape[0]
+
+        for i in range(batch_size):
+            img = images[i:i+1]
+
+            # Check if image is not black and use batch index as frame index
+            if img.max() > 0.001:
+                f_idx = i
+
+                image_1, t = cls.encode(vae, latent_width, latent_height, img, scale_factors)
+
+                frame_idx, latent_idx = cls.get_latent_index(positive, latent_length, len(image_1), f_idx, scale_factors)
+
+                if latent_idx + t.shape[2] <= latent_length:
+                    positive, negative, latent_image, noise_mask = cls.append_keyframe(
+                        positive,
+                        negative,
+                        frame_idx,
+                        latent_image,
+                        noise_mask,
+                        t,
+                        strength,
+                        scale_factors,
+                    )
+                else:
+                    print(f"Warning: Skipping guide at index {i} - conditioning frames exceed latent sequence length")
+
+        return io.NodeOutput(positive, negative, {"samples": latent_image, "noise_mask": noise_mask})

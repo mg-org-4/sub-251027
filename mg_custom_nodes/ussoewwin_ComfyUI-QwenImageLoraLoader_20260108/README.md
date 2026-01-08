@@ -6,7 +6,7 @@ A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nun
 
 **Currently under development and testing. Debug logs are being output extensively. This does not affect functionality.**
 
-> Latest release: [v2.2.6 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.6)
+> Latest release: [v2.2.8 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.8)
 > 
 > ⚠️ **Note for v2.0+ users**: If you encounter `TypeError: got multiple values for argument 'guidance'` errors, see [troubleshooting section](#issue-30-typeerror-got-multiple-values-for-argument-guidance-v20) below.
 
@@ -19,7 +19,7 @@ This LoRA loader was extracted and modified from GavChap's fork:
 
 ## 🎉 MAJOR UPDATE: v2.2.0 - Nunchaku Z Image Turbo LoRA Support Added!
 
-For detailed technical explanation, see [v2.2.0 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.0)
+For detailed technical explanation, see [v2.2.0 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.0)
 
 ## 🎉 MAJOR UPDATE: v2.0 - Diffsynth ControlNet Support Added!
 
@@ -203,6 +203,7 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 - **Status**: ❌ **Not Supported**
 - **Issue**: LoRAs in LoKR format (created by Lycoris) are **not supported**.
   - **Important Note**: This limitation applies specifically to **Nunchaku quantization models**. LoKR format LoRAs may work with standard (non-quantized) Qwen Image models, but this node is designed for Nunchaku models only.
+  - ⚠️ **Development History**: **We have spent considerable time analyzing the internal structure of LoKR format and performing extensive mapping tests. Despite these efforts, we have not been able to find a successful way to apply LoKR weights to Nunchaku quantization models.** The experimental conversion code has been tested but ultimately disabled due to incompatibility issues.
   - LoKR weights are automatically skipped when detected (experimental conversion code is disabled).
   - Converting to Standard LoRA using SVD approximation (via external tools or scripts) has also been tested and **found to result in noise/artifacts** when applied to Nunchaku quantization models.
 - **Conclusion**: At this time, we have not found a way to successfully apply LoKR weights to Nunchaku models. Please use Standard LoRA formats.
@@ -219,6 +220,7 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
   - ❌ **IA3**: Not supported
 - **Related Issues**: 
   - [Issue #29](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/29) - LyCORIS / LoKr Qwen Image LoRA not recognized by ComfyUI
+  - [Issue #44](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/44) - [MISS] Module found but unsupported/missing proj_down/proj_up (performance slowdown issue fixed in v2.2.8)
 
 ### context_refiner and noise_refiner Layer Support
 - **Status**: ❌ **Not Currently Supported**
@@ -241,30 +243,39 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 
 ## Changelog
 
-### v2.2.6 (latest)
+### v2.2.8 (latest)
+- **Fixed**: Resolved [Issue #44](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/44) – Fixed performance slowdown issue when loading unsupported LoRA formats (LoKR, LoHa, IA3, etc.). Unsupported formats are now detected early and detailed key inspection is skipped to prevent console slowdown. Retry logic is also skipped for unsupported formats to prevent duplicate logging
+- **Technical Details**: See [v2.2.8 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.8) for complete explanation
+
+### v2.2.7
+- **Performance**: LoRA loading speed improvement - Implemented optimization by eliminating duplicate file reads. The first LoRA file loaded for debug logging is now cached and reused in actual processing, eliminating duplicate file I/O and deserialization operations
+- **Technical Details**: See [v2.2.7 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.7) for complete explanation
+- **Acknowledgments**: 本次性能改进参考了知乎（zhihu.com）上 Jimmy 先生发表的文章《【closerAI ComfyUI】nunchaku V1.1 支持 z-image + 支持 zimage-LoRA 的修复方案，短板一次性补全，nunchaku zimage 全面高速生图解决方案！》。虽然本项目采用的实现方案在具体设计与实现细节上可能与 Jimmy 先生的方案有所不同，但该文章促使我重新审视 LoRA 加载流程中的性能瓶颈，并意识到在速度优化方面仍然存在改进空间。借此机会，谨向 Jimmy 先生表示诚挚的感谢。
+
+### v2.2.6
 - **Fixed**: Resolved [Issue #43](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/43) – Fixed `TypeError: QwenTimestepProjEmbeddings.forward() takes 3 positional arguments but 4 were given` error by forcing `guidance=None` after converting to `additional_t_cond` to prevent ComfyUI-nunchaku's buggy code path from executing
-- **Technical Details**: See [v2.2.6 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.6) for complete explanation
+- **Technical Details**: See [v2.2.6 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.6) for complete explanation
 
 ### v2.2.5
-- **Fixed**: Repository recovery - All updates after v2.0.8 were completely broken, and recovery work has been performed to restore all functionality. Related to [Issue #39](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.5).
+- **Fixed**: Repository recovery - All updates after v2.0.8 were completely broken, and recovery work has been performed to restore all functionality. Related to [Issue #39](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.5).
 - **Recovery Details**: Restored all deleted files (images/, nodes/, wrappers/, nunchaku_code/, js/, md/, LICENSE, pyproject.toml) from local backups
 - **Feature Verification**: Verified and restored all features from v2.0.8 through v2.2.4 (NextDiT support, AWQ skip logic, toggle buttons, LoRA format detection)
 - **Fixed**: Issue #42 - Fixed toggle button logic in `NunchakuQwenImageLoraStackV3` and `NunchakuZImageTurboLoraStackV3` nodes. Individual LoRAs can now be enabled even when `toggle_all` is `False`. ([Issue #42](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/42))
-- **Technical Details**: See [v2.2.5 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.5) for complete explanation
+- **Technical Details**: See [v2.2.5 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.5) for complete explanation
 
 ### v2.2.4
 - **Added**: AWQ modulation layer detection and skip logic - `img_mod.1` and `txt_mod.1` layers are detected and LoRA application is skipped by default to prevent noise. Can be overridden with `QWENIMAGE_LORA_APPLY_AWQ_MOD=1` environment variable.
 - **Removed**: `NunchakuZImageTurboLoraStackV2` node registration has been removed from ComfyUI node list to avoid confusion when using official Nunchaku Z-Image loader. The node file remains in the repository but is no longer registered. Users of the official loader should use `NunchakuZImageTurboLoraStackV3` instead. ([Issue #37](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/37))
-- **Technical Details**: See [v2.2.4 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.4) for complete explanation
+- **Technical Details**: See [v2.2.4 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.4) for complete explanation
 
 ### v2.2.3
 - **Added**: Toggle buttons to enable/disable individual LoRA slots and all LoRAs at once. Resolved [Issue #12](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/12) and [Issue #36](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/36)
 - ⚠️ **DEVELOPMENT STATUS**: These features are currently experimental implementations for the `NunchakuQwenImageLoraStackV3` and `NunchakuZImageTurboLoraStackV3` nodes. ComfyUI Nodes 2.0 environment only. With current technical capabilities, it is not possible to fully implement all requested features in JavaScript.
-- **Technical Details**: See [v2.2.3 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.3) for complete explanation
+- **Technical Details**: See [v2.2.3 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.3) for complete explanation
 
 ### v2.2.2
 - **Added**: Diffsynth ControlNet support for Nunchaku Z-ImageTurbo models
-- **Technical Details**: See [v2.2.2 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/2.2.2) for complete explanation
+- **Technical Details**: See [v2.2.2 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.2)for complete explanation
 
 ### v2.2.0
 - **Added**: NunchakuZImageTurboLoraStackV3 node – Z-Image-Turbo LoRA stacker with dynamic UI for official Nunchaku Z-Image loader

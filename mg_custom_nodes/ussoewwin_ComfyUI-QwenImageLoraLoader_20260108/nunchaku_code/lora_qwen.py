@@ -267,6 +267,11 @@ KEY_MAPPING = [
     (re.compile(r"^(time_text_embed)[._](timestep_embedder)[._](linear_1)$"), r"\1.\2.\3", "regular", None),
     (re.compile(r"^(time_text_embed)[._](timestep_embedder)[._](linear_2)$"), r"\1.\2.\3", "regular", None),
 ]
+
+
+
+
+
 _RE_LORA_SUFFIX = re.compile(r"\.(?P<tag>lora(?:[._](?:A|B|down|up)))(?:\.[^.]+)*\.weight$")
 _RE_LOKR_SUFFIX = re.compile(r"\.(?P<tag>lokr_w[12])(?:\.[^.]+)*$")
 _RE_ALPHA_SUFFIX = re.compile(r"\.(?:alpha|lora_alpha)(?:\.[^.]+)*$")
@@ -316,6 +321,7 @@ def _rename_layer_underscore_layer_name(old_name: str) -> str:
         new_name = re.sub(pattern, replacement, new_name)
 
     return new_name
+
 
 def _classify_and_map_key(key: str) -> Optional[Tuple[str, str, Optional[str], str]]:
     """
@@ -1153,12 +1159,17 @@ def _apply_lora_to_module(module: nn.Module, A: torch.Tensor, B: torch.Tensor, m
 def compose_loras_v2(
         model: torch.nn.Module,
         lora_configs: List[Tuple[Union[str, Path, Dict[str, torch.Tensor]], float]],
-) -> None:
+) -> bool:
     """
     Resets and composes multiple LoRAs into the model with individual strengths.
+
+    Returns:
+        bool: True if the LoRA format is supported and processed, False otherwise.
+              This allows wrappers to skip redundant retry logic.
     """
     logger.info(f"Composing {len(lora_configs)} LoRAs...")
     reset_lora_v2(model)
+    _first_detection = None  # Initialize for scope safety
 
     # ---------------------------------------------------------------------------------
     # Auto mapping switching for official Z-Image-Turbo loader (NextDiT / comfy.ldm.lumina)
@@ -1188,26 +1199,46 @@ def compose_loras_v2(
 
         # DEBUG: Inspect all keys in the first LoRA to help debug missing layers (very noisy)
         # NOTE: User requirement: do NOT hide/remove logs.
+        # OPTIMIZATION: Cache first LoRA state dict for reuse in processing loop
+        _cached_first_lora_state_dict = None
         if lora_configs:
             first_lora_path_or_dict, first_lora_strength = lora_configs[0]
             first_lora_state_dict = _load_lora_state_dict(first_lora_path_or_dict)
+            _cached_first_lora_state_dict = first_lora_state_dict  # Cache for reuse
             logger.info(f"--- DEBUG: Inspecting keys for LoRA 1 (Strength: {first_lora_strength}) ---")
-            for key in first_lora_state_dict.keys():
-                parsed_res = _classify_and_map_key(key)
-                if parsed_res:
-                    group, base_key, comp, ab = parsed_res
-                    mapped_name = f"{base_key}.{comp}.{ab}" if comp and ab else (f"{base_key}.{ab}" if ab else base_key)
-                    logger.info(f"Key: {key} -> Mapped to: {mapped_name} (Group: {group})")
-                else:
-                    logger.warning(f"Key: {key} -> UNMATCHED (Ignored)")
+            
+            # OPTIMIZATION: Check format first. If unsupported (e.g. LoKR/LoHa/SD1.5) without ANY standard keys,
+            # skipping thousands of UNMATCHED log lines prevents severe lag (Github Issue #44).
+            # [USER REQUEST] To restore full logs for unsupported formats, change the condition below to "if True:".
+            _first_detection = _detect_lora_format(first_lora_state_dict)
+            if _first_detection["has_standard"]:
+                # Standard format (or mixed): Log EVERYTHING as requested.
+                for key in first_lora_state_dict.keys():
+                    parsed_res = _classify_and_map_key(key)
+                    if parsed_res:
+                        group, base_key, comp, ab = parsed_res
+                        mapped_name = f"{base_key}.{comp}.{ab}" if comp and ab else (f"{base_key}.{ab}" if ab else base_key)
+                        logger.info(f"Key: {key} -> Mapped to: {mapped_name} (Group: {group})")
+                    else:
+                        logger.warning(f"Key: {key} -> UNMATCHED (Ignored)")
+            else:
+                # Unsupported format only: Skip loop to prevent freeze.
+                logger.warning(f"⚠️  Unsupported LoRA format detected (No standard keys).")
+                logger.warning(f"   Skipping detailed key inspection of {len(first_lora_state_dict)} keys to prevent console freeze.")
+                logger.warning(f"   Note: This LoRA will likely have no effect or will be skipped entirely.")
+
             logger.info("--- DEBUG: End key inspection ---")
 
         aggregated_weights: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
 
         # 1. Aggregate weights from all LoRAs
-        for lora_path_or_dict, strength in lora_configs:
+        for idx, (lora_path_or_dict, strength) in enumerate(lora_configs):
             lora_name = lora_path_or_dict if isinstance(lora_path_or_dict, str) else "dict"
-            lora_state_dict = _load_lora_state_dict(lora_path_or_dict)
+            # OPTIMIZATION: Reuse cached first LoRA state dict to avoid duplicate file I/O
+            if idx == 0 and _cached_first_lora_state_dict is not None:
+                lora_state_dict = _cached_first_lora_state_dict
+            else:
+                lora_state_dict = _load_lora_state_dict(lora_path_or_dict)
 
             # LoRA format detection + detailed logging (v2.2.3)
             try:
@@ -1430,6 +1461,14 @@ def compose_loras_v2(
     finally:
         _ACTIVE_KEY_MAPPING = prev_mapping
 
+    # Return True if standard keys were found and processed, False otherwise.
+    # This allows the wrapper to skip retry logic for unsupported formats.
+    is_success = True
+    if _first_detection is not None and not _first_detection.get("has_standard", True):
+        is_success = False
+    
+    return is_success
+
 def update_lora_params_v2(
         model: torch.nn.Module,
         lora_state_dict_or_path: Union[str, Path, Dict[str, torch.Tensor]],
@@ -1459,7 +1498,6 @@ def set_lora_strength_v2(model: nn.Module, strength: float) -> None:
             module.proj_up.data[:, base_rank: base_rank + appended] *= scale_factor
 
     model._lora_strength = strength
-    logger.info(f"LoRA global strength updated to {strength}.")
 
 
 def reset_lora_v2(model: nn.Module) -> None:

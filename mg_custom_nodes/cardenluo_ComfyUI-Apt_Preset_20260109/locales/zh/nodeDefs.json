@@ -8132,10 +8132,10 @@
         "name": "原始图像"
       },
       "1": {
-        "name": "图像张量"
+        "name": "标记图像"
       },
       "2": {
-        "name": "坐标"
+        "name": "norm坐标"
       }
     }
   },
@@ -10698,8 +10698,8 @@
   },
 
   
-  "flow_judge": {
-    "display_name": "flow_判断",
+  "flow_judge_input": {
+    "display_name": "flow_输入判断",
     "inputs": {
       "judge": {
         "name": "判断条件"
@@ -10754,12 +10754,60 @@
       }
     }
   },
-  "flow_switch": {
-    "display_name": "flow_开关",
+
+"flow_judge_output": {
+    "display_name": "flow_输出判断",
     "inputs": {
-      "input_method": {
-        "name": "输入方法"
-      },
+    "judge": {
+      "name": "判断条件"
+    },
+    "data": {
+    "name": "数据"
+    }
+    },
+    "outputs": {
+    "0": {
+    "name": "真"
+    },
+    "1": {
+    "name": "假"
+    }
+    }
+},
+
+"flow_switch_output": {
+  "display_name": "flow_切换输出",
+  "inputs": {
+    "any_input": {
+      "name": "任意输入"
+    },
+    "index": {
+      "name": "索引"
+    }
+  },
+  "outputs": {
+    "0": {
+      "name": "输出1"
+    },
+    "1": {
+      "name": "输出2"
+    },
+    "2": {
+      "name": "输出3"
+    },
+    "3": {
+      "name": "输出4"
+    },
+    "4": {
+      "name": "输出5"
+    }
+  }
+},
+
+
+  "flow_switch_input": {
+    "display_name": "flow_输入切换",
+    "inputs": {
       "input_index": {
         "name": "输入索引"
       },
@@ -10784,19 +10832,7 @@
     },
     "outputs": {
       "0": {
-        "name": "输出1"
-      },
-      "1": {
-        "name": "输出2"
-      },
-      "2": {
-        "name": "输出3"
-      },
-      "3": {
-        "name": "输出4"
-      },
-      "4": {
-        "name": "输出5"
+        "name": "输出"
       }
     }
   },
@@ -11123,6 +11159,46 @@
       }
     }
   },
+
+
+
+
+
+"flow_BooleanSwitch": {
+    "display_name": "flow_布尔开关",
+    "inputs": {
+      "any_input": {
+        "name": "any输入"
+      },
+      "switch": {
+        "name": "开关"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "any输出"
+      }
+    }
+  },
+
+  "basicIn_Boolean": {
+      "display_name": "basicIn_布尔值",
+      "inputs": {
+      "boolean_value": {
+      "name": "布尔值"
+      }
+      },
+      "outputs": {
+        "0": {
+          "name": "布尔值"
+        },
+        "1": {
+          "name": "反布尔"
+        }
+    }
+  },
+
+
   "basicIn_input": {
     "display_name": "IO_基础输入",
     "inputs": {

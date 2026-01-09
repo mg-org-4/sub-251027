@@ -153,7 +153,7 @@ def get_vertical_offset(paragraph: tl.ParagraphStyle, height: int, alignment: st
 	elif	alignment == "bottom"	: return (height - paragraph.Height)
 	else: return 0
 
-def flatten_and_pad_images(images: Iterable[torch.Tensor], rows: int, cols: int, order: bool = True) -> tuple[list[torch.Tensor], bool]:
+def flatten_and_pad_images(images: Iterable[torch.Tensor], order: bool = True) -> tuple[list[torch.Tensor], bool]:
 	"""
 	Flatten a list of BHWC tensors with different batch sizes, heights, widths.
 
@@ -319,10 +319,12 @@ def draw_image_grid(images: list[torch.tensor], row_heights: list[int], col_widt
 
 	chunk	= ceil(len(images) / (rows * cols))
 	idx	= 0
-	y = 0
+	y	= 0
 	for row_h in row_heights:
 		x	= 0
 		for col_w in col_widths:
+			if idx >= len(subs_axes): break
+
 			sub_axes	= subs_axes[idx]
 			sub_images	= images[(idx * chunk):(idx * chunk) + chunk]
 			sub_image	= draw_subimage_pack(sub_images, sub_axes)
@@ -352,6 +354,7 @@ class XyzGridPlot(io.ComfyNode):
 It takes a list of images (including batches) and flattens them into a long list first (thus `batch_size=1`).
 
 **Grid shape**
+
 Determines the shape of the grid by:
 1. the number of row labels
 2. the number of column labels
@@ -359,18 +362,21 @@ Determines the shape of the grid by:
 You can use `order=inside_out` to reverse the image selection (useful if `batch_size>1` and you want to label the batches).
 
 **Alignment**
+
 * If a label gets wrapped into the next line the whole axis is considered "multiline" and aligns them at top with justified-spacing.
 * If all the labels are numbers or all end in numbers (e.g. `strength: 1.`) the whole axis is considered "numeric" and aligns them right.
 * All other texts are considered "singleline" and aligns them centered.
 * Aligns singleline and numeric labels for columns at bottom, and for rows aligns them vertically in the middle.
 
 **Font-size**
+
 * The height of the column label area is determined by `font_size` or `half of largest sub-images packing height in any row` (whichever is greater).
 * The width of the row label area is determined by the widest width of the sub-images packing (with a minimum of {LABELAREA_ROW_HEIGHT_MIN}px).
 * The text is shrunk down until it fits (down to `font_size_min={FONT_SIZE_MIN}`) and uses the same font size for the whole axis (row labels or column labels).
 If the font size is already at the minimum, clips any remaining text.
 
 **Sub-images packing**
+
 Shapes the sub-images (usually from batches) into the most square area (the "sub-images packing"), unless `output_is_list=True`, in which case uses only one image for each cell and create a list of whole image grids instead.
 You can use this list of image grids to connect another XyzGridPlot node to create super-grids.
 If the sub-images consist of batches of different sizes, fills up the missing cells with empty images.
@@ -400,6 +406,14 @@ The number of images per cells (including batched images) have to be a multiple 
 	def execute(self, images: list[torch.tensor], row_labels: list[any] = [], col_labels: list[any] = [], row_label_orientation: str = ["horizontal"], gap: list[int] = [0], font_size: list[float] = [FONT_SIZE_MIN], order: list[bool] = ["outside-in"], output_is_list: list[bool] = [False]) -> io.NodeOutput:
 		outputs: list[torch.tensor] = []
 
+		# empty output
+		if len(images) == 0:
+			if not output_is_list:
+				image = torch.zeros((1, 64, 64, 3), dtype=torch.float32, device="cpu")
+				outputs.append(image)
+			ret = io.NodeOutput(outputs)
+			return ret
+
 		row_label_orientation	= row_label_orientation	[0]
 		gap	= gap	[0]
 		font_size	= font_size	[0]
@@ -407,17 +421,19 @@ The number of images per cells (including batched images) have to be a multiple 
 		output_is_list	= output_is_list	[0]
 
 		# flatten images
-		rows	= max(1, len(row_labels))
-		cols	= max(1, len(col_labels))
+		images, all_same_batch	= flatten_and_pad_images(images, order)
+
+		cols	= max(1, min(len(col_labels), len(images)))
+		rows	= max(1, min(len(row_labels), ceil(len(images) / cols)))
 		size	= rows * cols
-		row_labels	= [str(l).strip() for l in row_labels]
-		col_labels	= [str(l).strip() for l in col_labels]
-
-		images, all_same_batch	= flatten_and_pad_images(images, rows, cols, order)
-
+		row_labels	= [str(l).strip() for l in row_labels[:rows]]
+		col_labels	= [str(l).strip() for l in col_labels[:cols]]
 		chunk_num	= ceil(len(images) / size)
 		subs_num	= 1 if output_is_list else chunk_num
 		outputs_num	= chunk_num if output_is_list else 1
+
+		if len(images) > size and len(images) % size != 0:
+			raise Exception(f"Number of images must be a multiple of rows * cols ({rows} * {cols} = {size}) but got {len(images)}!")
 
 		if output_is_list:
 			images_transposed = []
@@ -427,7 +443,6 @@ The number of images per cells (including batched images) have to be a multiple 
 			images = images_transposed
 
 		img_sizes	= [(i.shape[2], i.shape[1]) for i in images] # BHWC
-
 		subs_packing	= [(img_sizes[i:i + subs_num], find_imgs_rectangularpack(img_sizes[i:i + subs_num])) for i in range(0, len(img_sizes), subs_num)]
 		subs_axes	= [get_grid_axes_max(imgs, shape) for imgs, shape in subs_packing]
 
@@ -526,19 +541,3 @@ The number of images per cells (including batched images) have to be a multiple 
 
 		ret = io.NodeOutput(outputs)
 		return ret
-
-	@classmethod
-	def validate_inputs(self, images: list[torch.tensor], row_labels: list[any] = [], col_labels: list[any] = [], row_label_orientation: str = ["horizontal"], gap: list[int] = [0], font_size: list[float] = [FONT_SIZE_MIN], order: list[bool] = ["outside-in"], output_is_list: list[bool] = [False]) -> bool | str:
-		imgs_len	= len(images)
-		rows	= len(row_labels)
-		cols	= len(col_labels)
-		n	= rows * cols
-
-		if rows	== 0: return True
-		if cols	== 0: return True
-		if n	== 1: return True
-
-		if imgs_len % n != 0:
-			return "Number of images must be a multiple of rows * cols ({rows} * {cols} = {n}) but got {len}!"
-
-		return True

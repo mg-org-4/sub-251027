@@ -1,0 +1,2005 @@
+{
+  "last_link_id": 198,
+  "nodes": [
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            174,
+            195
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#a2c8a2",
+      "widgets_values": [
+        "",
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text1"
+          },
+          "name": "text1",
+          "link": 167,
+          "label": "text1",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text2"
+          },
+          "name": "text2",
+          "link": 168,
+          "label": "text2",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "TextCombinerTwo",
+      "mode": 0,
+      "bgcolor": "#8eb48e",
+      "size": [
+        315,
+        82
+      ],
+      "pos": [
+        146.11796654276458,
+        -881.7101809983062
+      ],
+      "id": 61,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "TextCombinerTwo"
+      },
+      "order": 26
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            168
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#a2c8a2",
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text1"
+          },
+          "name": "text1",
+          "link": 163,
+          "label": "text1",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text2"
+          },
+          "name": "text2",
+          "link": 164,
+          "label": "text2",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text3"
+          },
+          "name": "text3",
+          "link": 165,
+          "label": "text3",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text4"
+          },
+          "name": "text4",
+          "link": 166,
+          "label": "text4",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text5"
+          },
+          "name": "text5",
+          "link": 175,
+          "label": "text5",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text6"
+          },
+          "name": "text6",
+          "link": 176,
+          "label": "text6",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "TextCombinerSix",
+      "mode": 0,
+      "bgcolor": "#8eb48e",
+      "size": [
+        210,
+        218.93951416015625
+      ],
+      "pos": [
+        -113.88203345723541,
+        -691.7101809983062
+      ],
+      "id": 60,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "TextCombinerSix"
+      },
+      "order": 23
+    },
+    {
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            41
+          ],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "[MOVIE-SHOTS] In an enchanting tale of nature's wonders,\n[SCENE-1] shows <Sophie> observing butterflies in a sunlit meadow, her expression one of awe and delight, \n[SCENE-2] transitioning to <Sophie> sketching the butterflies in her notebook, her brow furrowed in concentration, \n[SCENE-3] She looks up at the sky, surrounded by butterflies, a romantic atmosphere, a smile on her face."
+      ],
+      "inputs": [
+        {
+          "name": "clip",
+          "link": 119,
+          "label": "clip",
+          "type": "CLIP"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 178,
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "CLIPTextEncode",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        452.8356628417969,
+        113.51667022705078
+      ],
+      "pos": [
+        -170,
+        -90
+      ],
+      "id": 6,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "order": 30
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "LATENT",
+          "slot_index": 0,
+          "links": [
+            150
+          ],
+          "label": "LATENT",
+          "type": "LATENT"
+        }
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "pos": [
+        -590,
+        220
+      ],
+      "widgets_values": [
+        768,
+        1024,
+        1
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "width",
+          "link": 170,
+          "label": "width",
+          "type": "INT"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "link": 171,
+          "label": "height",
+          "type": "INT"
+        }
+      ],
+      "flags": {},
+      "id": 27,
+      "type": "EmptySD3LatentImage",
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "EmptySD3LatentImage"
+      },
+      "order": 22
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            54,
+            55
+          ],
+          "label": "MODEL",
+          "type": "MODEL"
+        }
+      ],
+      "size": [
+        315,
+        130
+      ],
+      "pos": [
+        -160,
+        220
+      ],
+      "widgets_values": [
+        1.15,
+        0.5,
+        768,
+        1024
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 120,
+          "slot_index": 0,
+          "label": "model",
+          "type": "MODEL"
+        },
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "width",
+          "link": 173,
+          "slot_index": 1,
+          "label": "width",
+          "type": "INT"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "link": 172,
+          "slot_index": 2,
+          "label": "height",
+          "type": "INT"
+        }
+      ],
+      "flags": {},
+      "id": 30,
+      "type": "ModelSamplingFlux",
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "ModelSamplingFlux"
+      },
+      "order": 25
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "SAMPLER",
+          "links": [
+            19
+          ],
+          "label": "SAMPLER",
+          "type": "SAMPLER"
+        }
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "pos": [
+        -160,
+        400
+      ],
+      "widgets_values": [
+        "euler"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 16,
+      "type": "KSamplerSelect",
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "VAE",
+          "slot_index": 0,
+          "links": [
+            12
+          ],
+          "label": "VAE",
+          "type": "VAE"
+        }
+      ],
+      "size": [
+        311.81634521484375,
+        60.429901123046875
+      ],
+      "pos": [
+        -160,
+        500
+      ],
+      "widgets_values": [
+        "ae.sft"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 10,
+      "type": "VAELoader",
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "order": 1
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "NOISE",
+          "links": [
+            37
+          ],
+          "label": "NOISE",
+          "type": "NOISE"
+        }
+      ],
+      "color": "#2a363b",
+      "widgets_values": [
+        719443376681317,
+        "randomize"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "RandomNoise",
+      "mode": 0,
+      "bgcolor": "#3f5159",
+      "size": [
+        315,
+        82
+      ],
+      "pos": [
+        -170,
+        80
+      ],
+      "id": 25,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "RandomNoise"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "SIGMAS",
+          "links": [
+            20
+          ],
+          "label": "SIGMAS",
+          "type": "SIGMAS"
+        }
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "pos": [
+        -170,
+        600
+      ],
+      "widgets_values": [
+        "simple",
+        20,
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 55,
+          "slot_index": 0,
+          "label": "model",
+          "type": "MODEL"
+        }
+      ],
+      "flags": {},
+      "id": 17,
+      "type": "BasicScheduler",
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "BasicScheduler"
+      },
+      "order": 27
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "GUIDER",
+          "slot_index": 0,
+          "links": [
+            30
+          ],
+          "label": "GUIDER",
+          "type": "GUIDER"
+        }
+      ],
+      "size": [
+        222.3482666015625,
+        46
+      ],
+      "pos": [
+        290,
+        70
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 54,
+          "slot_index": 0,
+          "label": "model",
+          "type": "MODEL"
+        },
+        {
+          "name": "conditioning",
+          "link": 151,
+          "slot_index": 1,
+          "label": "conditioning",
+          "type": "CONDITIONING"
+        }
+      ],
+      "flags": {},
+      "id": 22,
+      "type": "BasicGuider",
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "BasicGuider"
+      },
+      "order": 32
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "output",
+          "slot_index": 0,
+          "links": [
+            24
+          ],
+          "label": "output",
+          "type": "LATENT"
+        },
+        {
+          "shape": 3,
+          "name": "denoised_output",
+          "label": "denoised_output",
+          "type": "LATENT"
+        }
+      ],
+      "color": "#432",
+      "inputs": [
+        {
+          "name": "noise",
+          "link": 37,
+          "slot_index": 0,
+          "label": "noise",
+          "type": "NOISE"
+        },
+        {
+          "name": "guider",
+          "link": 30,
+          "slot_index": 1,
+          "label": "guider",
+          "type": "GUIDER"
+        },
+        {
+          "name": "sampler",
+          "link": 19,
+          "slot_index": 2,
+          "label": "sampler",
+          "type": "SAMPLER"
+        },
+        {
+          "name": "sigmas",
+          "link": 20,
+          "slot_index": 3,
+          "label": "sigmas",
+          "type": "SIGMAS"
+        },
+        {
+          "name": "latent_image",
+          "link": 150,
+          "slot_index": 4,
+          "label": "latent_image",
+          "type": "LATENT"
+        }
+      ],
+      "flags": {},
+      "type": "SamplerCustomAdvanced",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        220.78335571289062,
+        176.59463500976562
+      ],
+      "pos": [
+        290,
+        190
+      ],
+      "id": 13,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced"
+      },
+      "order": 33
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        928.6238403320312,
+        1955.64453125
+      ],
+      "pos": [
+        290,
+        610
+      ],
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 9,
+          "label": "images",
+          "type": "IMAGE"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "id": 9,
+      "type": "SaveImage",
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "order": 35
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            167
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#a2c8a2",
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text1"
+          },
+          "name": "text1",
+          "link": 159,
+          "label": "text1",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text2"
+          },
+          "name": "text2",
+          "link": 160,
+          "label": "text2",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text3"
+          },
+          "name": "text3",
+          "link": 161,
+          "label": "text3",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "text4"
+          },
+          "name": "text4",
+          "link": 162,
+          "label": "text4",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "TextCombinerSix",
+      "mode": 0,
+      "bgcolor": "#8eb48e",
+      "size": [
+        210,
+        218.93951416015625
+      ],
+      "pos": [
+        -103.88203345723541,
+        -1011.7101809983062
+      ],
+      "id": 59,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "TextCombinerSix"
+      },
+      "order": 24
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            151
+          ],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING"
+        }
+      ],
+      "color": "#233",
+      "widgets_values": [
+        3.5
+      ],
+      "inputs": [
+        {
+          "name": "conditioning",
+          "link": 41,
+          "label": "conditioning",
+          "type": "CONDITIONING"
+        }
+      ],
+      "flags": {},
+      "type": "FluxGuidance",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        211.60000610351562,
+        115.00855255126953
+      ],
+      "pos": [
+        300,
+        -100
+      ],
+      "id": 26,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "FluxGuidance"
+      },
+      "order": 31
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            9,
+            194
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE"
+        }
+      ],
+      "size": [
+        210,
+        46
+      ],
+      "pos": [
+        290,
+        420
+      ],
+      "inputs": [
+        {
+          "name": "samples",
+          "link": 24,
+          "label": "samples",
+          "type": "LATENT"
+        },
+        {
+          "name": "vae",
+          "link": 12,
+          "label": "vae",
+          "type": "VAE"
+        }
+      ],
+      "flags": {},
+      "id": 8,
+      "type": "VAEDecode",
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "order": 34
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "The reference sampling implementation auto adjusts the shift value based on the resolution, if you don't want this you can just bypass (CTRL-B) this ModelSamplingFlux node.\n"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": {
+        "0": 337.45501708984375,
+        "1": 80.03682708740234
+      },
+      "pos": [
+        -1440,
+        -1180
+      ],
+      "id": 37,
+      "properties": {
+        "text": ""
+      },
+      "order": 3
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            117
+          ],
+          "label": "MODEL",
+          "type": "MODEL"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "flux1-dev-fp8-Kijai.safetensors",
+        "default"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "UNETLoader",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        407.07098388671875,
+        82
+      ],
+      "pos": [
+        -1050,
+        -120
+      ],
+      "id": 12,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "CLIP",
+          "slot_index": 0,
+          "links": [
+            118
+          ],
+          "label": "CLIP",
+          "type": "CLIP"
+        }
+      ],
+      "size": [
+        404.835205078125,
+        106
+      ],
+      "pos": [
+        -1050,
+        20
+      ],
+      "widgets_values": [
+        "t5xxl_fp8_e4m3fn.safetensors",
+        "sd3/clip_l.safetensors",
+        "flux"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 11,
+      "type": "DualCLIPLoader",
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "DualCLIPLoader"
+      },
+      "order": 5
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "If you get an error in any of the nodes above make sure the files are in the correct directories.\n\nSee the top of the examples page for the links : https://comfyanonymous.github.io/ComfyUI_examples/flux/\n\nflux1-dev.safetensors goes in: ComfyUI/models/unet/\n\nt5xxl_fp16.safetensors and clip_l.safetensors go in: ComfyUI/models/clip/\n\nae.safetensors goes in: ComfyUI/models/vae/\n\n\nTip: You can set the weight_dtype above to one of the fp8 types if you have memory issues."
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": {
+        "0": 342.97015380859375,
+        "1": 276.8846435546875
+      },
+      "pos": [
+        -1440,
+        -1069
+      ],
+      "id": 28,
+      "properties": {
+        "text": ""
+      },
+      "order": 6
+    },
+    {
+      "outputs": [
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "INT",
+          "slot_index": 0,
+          "links": [
+            171,
+            172
+          ],
+          "label": "INT",
+          "type": "INT"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        1024,
+        "fixed"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "PrimitiveNode",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": {
+        "0": 210,
+        "1": 82
+      },
+      "pos": [
+        -1030,
+        300
+      ],
+      "id": 34,
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "order": 7
+    },
+    {
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "STRING",
+          "slot_index": 0,
+          "links": [
+            178
+          ],
+          "label": "STRING",
+          "type": "STRING"
+        }
+      ],
+      "color": "#a2c8a2",
+      "widgets_values": [
+        "",
+        "[RUNNINGHUB] This four-panel image shows a Drum Tower introduction theme PowerPoint template.[TOP-LEFT] introduces \"The Story of the Drum Tower\" in a Chinese-style, high-end, atmospheric red tone;[TOP-RIGHT]organizes the introduction sections such as \"History\", \"Style\", and \"Background\".[BOTTOM-LEFT]shows a list of Drum Tower architectural styles.[BOTTOM-RIGHT] includes a brief introduction."
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 174,
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "ShowText|pysssss",
+      "mode": 0,
+      "bgcolor": "#8eb48e",
+      "size": [
+        335.3730773925781,
+        337.51007080078125
+      ],
+      "pos": [
+        141.11796654276458,
+        -706.7101809983062
+      ],
+      "id": 63,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "order": 28
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            159
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#a2c8a2",
+      "widgets_values": [
+        "[RUNNINGHUB] "
+      ],
+      "flags": {},
+      "type": "JjkText",
+      "title": "Text1",
+      "mode": 0,
+      "bgcolor": "#8eb48e",
+      "size": [
+        377.4647521972656,
+        76.00000762939453
+      ],
+      "pos": [
+        -543.8820334572354,
+        -1011.7101809983062
+      ],
+      "id": 47,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "JjkText"
+      },
+      "order": 8
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            120
+          ],
+          "label": "MODEL",
+          "type": "MODEL"
+        },
+        {
+          "name": "CLIP",
+          "slot_index": 1,
+          "links": [
+            119
+          ],
+          "label": "CLIP",
+          "type": "CLIP"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "ppt-templates.safetensors",
+        1,
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 117,
+          "label": "model",
+          "type": "MODEL"
+        },
+        {
+          "name": "clip",
+          "link": 118,
+          "label": "clip",
+          "type": "CLIP"
+        }
+      ],
+      "flags": {},
+      "type": "LoraLoader",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        418.2059631347656,
+        126
+      ],
+      "pos": [
+        -610,
+        -110
+      ],
+      "id": 38,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "LoraLoader"
+      },
+      "order": 21
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            163
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#a2c8a2",
+      "widgets_values": [
+        "[TOP-RIGHT]"
+      ],
+      "flags": {},
+      "type": "JjkText",
+      "title": "Text5",
+      "mode": 0,
+      "bgcolor": "#8eb48e",
+      "size": [
+        377.4647521972656,
+        76.0000228881836
+      ],
+      "pos": [
+        -533.8820334572354,
+        -721.7101809983062
+      ],
+      "id": 51,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "JjkText"
+      },
+      "order": 9
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            175
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#a2c8a2",
+      "widgets_values": [
+        "[BOTTOM-RIGHT] "
+      ],
+      "flags": {},
+      "type": "JjkText",
+      "title": "Text7",
+      "mode": 0,
+      "bgcolor": "#8eb48e",
+      "size": [
+        377.4647521972656,
+        76.0000228881836
+      ],
+      "pos": [
+        -543.8820334572354,
+        -407.7101809983062
+      ],
+      "id": 64,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "JjkText"
+      },
+      "order": 10
+    },
+    {
+      "outputs": [
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "INT",
+          "slot_index": 0,
+          "links": [
+            170,
+            173
+          ],
+          "label": "INT",
+          "type": "INT"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        768,
+        "fixed"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "PrimitiveNode",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": {
+        "0": 210,
+        "1": 82
+      },
+      "pos": [
+        -1030,
+        170
+      ],
+      "id": 35,
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "order": 11
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            165
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#a2c8a2",
+      "widgets_values": [
+        "[BOTTOM-LEFT]"
+      ],
+      "flags": {},
+      "type": "JjkText",
+      "title": "Text7",
+      "mode": 0,
+      "bgcolor": "#8eb48e",
+      "size": [
+        377.4647521972656,
+        76.0000228881836
+      ],
+      "pos": [
+        -543.8820334572354,
+        -561.7101809983062
+      ],
+      "id": 48,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "JjkText"
+      },
+      "order": 12
+    },
+    {
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "STRING",
+          "slot_index": 0,
+          "links": [],
+          "label": "STRING",
+          "type": "STRING"
+        }
+      ],
+      "color": "#a2c8a2",
+      "widgets_values": [
+        "",
+        "[RUNNINGHUB] This four-panel image shows a Drum Tower introduction theme PowerPoint template.[TOP-LEFT] introduces \"The Story of the Drum Tower\" in a Chinese-style, high-end, atmospheric red tone;[TOP-RIGHT]organizes the introduction sections such as \"History\", \"Style\", and \"Background\".[BOTTOM-LEFT]shows a list of Drum Tower architectural styles.[BOTTOM-RIGHT] includes a brief introduction."
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 195,
+          "slot_index": 0,
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "ShowText|pysssss",
+      "mode": 0,
+      "bgcolor": "#8eb48e",
+      "size": [
+        335.3730773925781,
+        337.51007080078125
+      ],
+      "pos": [
+        141.11796654276458,
+        -706.7101809983062
+      ],
+      "id": 79,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "order": 29
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            164
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#679c68",
+      "widgets_values": [
+        "organizes the introduction sections such as \"History\", \"Style\", and \"Background\"."
+      ],
+      "flags": {},
+      "type": "JjkText",
+      "title": "Text6",
+      "mode": 0,
+      "bgcolor": "#538854",
+      "size": [
+        377.4647521972656,
+        76.0000228881836
+      ],
+      "pos": [
+        -1050.0522849252516,
+        -714.5043744704554
+      ],
+      "id": 52,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "JjkText"
+      },
+      "order": 13
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            166
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#679c68",
+      "widgets_values": [
+        "shows a list of Drum Tower architectural styles."
+      ],
+      "flags": {},
+      "type": "JjkText",
+      "title": "Text8",
+      "mode": 0,
+      "bgcolor": "#538854",
+      "size": [
+        377.4647521972656,
+        76.0000228881836
+      ],
+      "pos": [
+        -1040.0522849252516,
+        -564.5043744704554
+      ],
+      "id": 58,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "JjkText"
+      },
+      "order": 14
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            176
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#679c68",
+      "widgets_values": [
+        "includes a brief introduction."
+      ],
+      "flags": {},
+      "type": "JjkText",
+      "title": "Text8",
+      "mode": 0,
+      "bgcolor": "#538854",
+      "size": [
+        377.4647521972656,
+        76.0000228881836
+      ],
+      "pos": [
+        -1050.0522849252516,
+        -404.50437447045556
+      ],
+      "id": 65,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "JjkText"
+      },
+      "order": 15
+    },
+    {
+      "mode": 0,
+      "bgcolor": "#e9bae5",
+      "size": {
+        "0": 1173.0770263671875,
+        "1": 1397.379638671875
+      },
+      "color": "#fdcef9",
+      "pos": [
+        580,
+        -946
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 194,
+          "label": "images",
+          "type": "IMAGE"
+        }
+      ],
+      "flags": {},
+      "id": 66,
+      "type": "PreviewImage",
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "order": 36
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            160
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#679c68",
+      "widgets_values": [
+        "This four-panel image shows a Drum Tower introduction theme PowerPoint template."
+      ],
+      "flags": {},
+      "type": "JjkText",
+      "title": "Text2",
+      "mode": 0,
+      "bgcolor": "#538854",
+      "size": [
+        377.4647521972656,
+        76.0000228881836
+      ],
+      "pos": [
+        -1053,
+        -1011
+      ],
+      "id": 57,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "JjkText"
+      },
+      "order": 16
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            162
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#679c68",
+      "widgets_values": [
+        "introduces \"The Story of the Drum Tower\" in a Chinese-style, high-end, atmospheric red tone;"
+      ],
+      "flags": {},
+      "type": "JjkText",
+      "title": "Text4",
+      "mode": 0,
+      "bgcolor": "#538854",
+      "size": [
+        377.4647521972656,
+        76.0000228881836
+      ],
+      "pos": [
+        -1040.0522849252516,
+        -864.5043744704554
+      ],
+      "id": 50,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "JjkText"
+      },
+      "order": 17
+    },
+    {
+      "outputs": [
+        {
+          "shape": 3,
+          "name": "text",
+          "slot_index": 0,
+          "links": [
+            161
+          ],
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "color": "#a2c8a2",
+      "widgets_values": [
+        "[TOP-LEFT] "
+      ],
+      "flags": {},
+      "type": "JjkText",
+      "title": "Text3",
+      "mode": 0,
+      "bgcolor": "#8eb48e",
+      "size": [
+        377.4647521972656,
+        76.0000228881836
+      ],
+      "pos": [
+        -543.8820334572354,
+        -871.7101809983062
+      ],
+      "id": 49,
+      "locked": true,
+      "properties": {
+        "Node name for S&R": "JjkText"
+      },
+      "order": 18
+    },
+    {
+      "outputs": [],
+      "color": "#fff0",
+      "inputs": [],
+      "flags": {
+        "pinned": true,
+        "allow_interaction": false
+      },
+      "type": "Label (rgthree)",
+      "title": "Runninghub original workflow, please keep this tag if you need to move it",
+      "mode": 0,
+      "bgcolor": "#fff0",
+      "size": [
+        2256.9189453125,
+        70
+      ],
+      "pos": {
+        "0": -1058,
+        "1": -1299,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0
+      },
+      "id": 88,
+      "properties": {
+        "padding": 0,
+        "backgroundColor": "transparent",
+        "fontFamily": "Arial",
+        "borderRadius": 0,
+        "textAlign": "left",
+        "fontSize": 70,
+        "fontColor": "#ffffff"
+      },
+      "order": 19
+    },
+    {
+      "outputs": [],
+      "color": "#fff0",
+      "inputs": [],
+      "flags": {
+        "pinned": true,
+        "allow_interaction": false
+      },
+      "type": "Label (rgthree)",
+      "title": "You don’t need to set up a ComfyUI environment to run this workflow, and it’s free.",
+      "mode": 0,
+      "bgcolor": "#fff0",
+      "size": [
+        2540.849609375,
+        70
+      ],
+      "pos": {
+        "0": -1058,
+        "1": -1400,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0
+      },
+      "id": 87,
+      "properties": {
+        "padding": 0,
+        "backgroundColor": "transparent",
+        "fontFamily": "Arial",
+        "borderRadius": 0,
+        "textAlign": "left",
+        "fontSize": 70,
+        "fontColor": "#ffffff"
+      },
+      "order": 20
+    }
+  ],
+  "extra": {
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "groupNodes": {},
+    "ds": {
+      "offset": {
+        "0": 3999.0751953125,
+        "1": 2346.65380859375
+      },
+      "scale": 0.23092115320381806
+    }
+  },
+  "groups": [
+    {
+      "color": "#8A8",
+      "font_size": 80,
+      "title": "Prompt ",
+      "locked": true,
+      "bounding": [
+        -1074,
+        -1219,
+        1588,
+        935
+      ]
+    },
+    {
+      "color": "#8eb3b4",
+      "font_size": 80,
+      "title": "FLUX",
+      "locked": true,
+      "bounding": [
+        -1074,
+        -281,
+        1595,
+        1021
+      ]
+    },
+    {
+      "color": "#b06634",
+      "font_size": 24,
+      "title": "Prompt words can be modified",
+      "locked": true,
+      "bounding": [
+        -1060,
+        -1099,
+        475,
+        784
+      ]
+    },
+    {
+      "color": "#b58b2a",
+      "font_size": 24,
+      "title": "Try not to modify",
+      "locked": true,
+      "bounding": [
+        -557,
+        -1100,
+        1055,
+        780
+      ]
+    }
+  ],
+  "links": [
+    [
+      9,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      12,
+      10,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      19,
+      16,
+      0,
+      13,
+      2,
+      "SAMPLER"
+    ],
+    [
+      20,
+      17,
+      0,
+      13,
+      3,
+      "SIGMAS"
+    ],
+    [
+      24,
+      13,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      30,
+      22,
+      0,
+      13,
+      1,
+      "GUIDER"
+    ],
+    [
+      37,
+      25,
+      0,
+      13,
+      0,
+      "NOISE"
+    ],
+    [
+      41,
+      6,
+      0,
+      26,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      54,
+      30,
+      0,
+      22,
+      0,
+      "MODEL"
+    ],
+    [
+      55,
+      30,
+      0,
+      17,
+      0,
+      "MODEL"
+    ],
+    [
+      117,
+      12,
+      0,
+      38,
+      0,
+      "MODEL"
+    ],
+    [
+      118,
+      11,
+      0,
+      38,
+      1,
+      "CLIP"
+    ],
+    [
+      119,
+      38,
+      1,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      120,
+      38,
+      0,
+      30,
+      0,
+      "MODEL"
+    ],
+    [
+      150,
+      27,
+      0,
+      13,
+      4,
+      "LATENT"
+    ],
+    [
+      151,
+      26,
+      0,
+      22,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      159,
+      47,
+      0,
+      59,
+      0,
+      "STRING"
+    ],
+    [
+      160,
+      57,
+      0,
+      59,
+      1,
+      "STRING"
+    ],
+    [
+      161,
+      49,
+      0,
+      59,
+      2,
+      "STRING"
+    ],
+    [
+      162,
+      50,
+      0,
+      59,
+      3,
+      "STRING"
+    ],
+    [
+      163,
+      51,
+      0,
+      60,
+      0,
+      "STRING"
+    ],
+    [
+      164,
+      52,
+      0,
+      60,
+      1,
+      "STRING"
+    ],
+    [
+      165,
+      48,
+      0,
+      60,
+      2,
+      "STRING"
+    ],
+    [
+      166,
+      58,
+      0,
+      60,
+      3,
+      "STRING"
+    ],
+    [
+      167,
+      59,
+      0,
+      61,
+      0,
+      "STRING"
+    ],
+    [
+      168,
+      60,
+      0,
+      61,
+      1,
+      "STRING"
+    ],
+    [
+      170,
+      35,
+      0,
+      27,
+      0,
+      "INT"
+    ],
+    [
+      171,
+      34,
+      0,
+      27,
+      1,
+      "INT"
+    ],
+    [
+      172,
+      34,
+      0,
+      30,
+      2,
+      "INT"
+    ],
+    [
+      173,
+      35,
+      0,
+      30,
+      1,
+      "INT"
+    ],
+    [
+      174,
+      61,
+      0,
+      63,
+      0,
+      "STRING"
+    ],
+    [
+      175,
+      64,
+      0,
+      60,
+      4,
+      "STRING"
+    ],
+    [
+      176,
+      65,
+      0,
+      60,
+      5,
+      "STRING"
+    ],
+    [
+      178,
+      63,
+      0,
+      6,
+      1,
+      "STRING"
+    ],
+    [
+      194,
+      8,
+      0,
+      66,
+      0,
+      "IMAGE"
+    ],
+    [
+      195,
+      61,
+      0,
+      79,
+      0,
+      "STRING"
+    ]
+  ],
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 88
+}

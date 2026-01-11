@@ -1,8 +1,8 @@
 # MTB Nodes
 
-> [!CAUTION]
-> A lot of recent changes to comfy broke many things in mtb (colors, dynamic inputs and probably more)
-> [`dev/0.6.0`](https://github.com/melMass/comfy_mtb/tree/dev/0.6.0) partially address these. My time is limited lately so it might take time to finish and merge
+> [!NOTE]
+> master/main is outdated for now to keep backward compatibility, the next version is being worked on in
+> [`dev/0.6.0`](https://github.com/melMass/comfy_mtb/tree/dev/0.6.0)
 
 
 [![embedded test](https://github.com/melMass/comfy_mtb/actions/workflows/test_embedded.yml/badge.svg)](https://github.com/melMass/comfy_mtb/actions/workflows/test_embedded.yml)

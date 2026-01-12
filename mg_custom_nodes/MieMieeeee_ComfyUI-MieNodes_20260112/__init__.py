@@ -2,10 +2,10 @@ from .common import ShowAnythingMie, SaveAnythingAsFile, CompareFiles, GetAbsolu
     GetDirectoryFilesInfo, CopyFiles, DeleteFiles, ClassicAspectRatio
 from .caption_file_operator import BatchRenameFiles, BatchDeleteFiles, BatchEditTextFiles, BatchSyncImageCaptionFiles, \
     SummaryTextFiles, BatchConvertImageFiles, DedupImageFiles
-from .downloader import ModelDownloader
+from .downloader import ModelDownloader, HFRepoDownloader
 from .translator import TextTranslator
 from .prompt_generator import PromptGenerator, KontextPromptGenerator, AddUserKontextPreset, RemoveUserKontextPreset, \
-    FrameTransitionPromptGenerator, HunyuanVideoI2VPromptGenerator, HunyuanVideoT2VPromptGenerator, ZImagePromptGenerator, Flux2PromptGenerator
+    FrameTransitionPromptGenerator, HunyuanVideoI2VPromptGenerator, HunyuanVideoT2VPromptGenerator, ZImagePromptGenerator, Flux2PromptGenerator, LTX2PromptGenerator
 from .llm_service_connector import SetGeneralLLMServiceConnector, SetSiliconFlowLLMServiceConnector, \
     SetGithubModelsLLMServiceConnector, SetZhiPuLLMServiceConnector, SetKimiLLMServiceConnector, \
     SetDeepSeekLLMServiceConnector, SetGeminiLLMServiceConnector, SetBailianLLMServiceConnector, \
@@ -29,6 +29,7 @@ NODE_CLASS_MAPPINGS = {
     add_suffix("SaveAnythingAsFile"): SaveAnythingAsFile,
     add_suffix("CompareFiles"): CompareFiles,
     add_suffix("ModelDownloader"): ModelDownloader,
+    add_suffix("HFRepoDownloader"): HFRepoDownloader,
     add_suffix("SetGeneralLLMServiceConnector"): SetGeneralLLMServiceConnector,
     add_suffix("SetSiliconFlowLLMServiceConnector"): SetSiliconFlowLLMServiceConnector,
     add_suffix("SetGithubModelsLLMServiceConnector"): SetGithubModelsLLMServiceConnector,
@@ -49,6 +50,7 @@ NODE_CLASS_MAPPINGS = {
     add_suffix("HunyuanVideoT2VPromptGenerator"): HunyuanVideoT2VPromptGenerator,
     add_suffix("ZImagePromptGenerator"): ZImagePromptGenerator,
     add_suffix("Flux2PromptGenerator"): Flux2PromptGenerator,
+    add_suffix("LTX2PromptGenerator"): LTX2PromptGenerator,
     add_suffix("GetAbsolutePath"): GetAbsolutePath,
     add_suffix("GetFileInfo"): GetFileInfo,
     add_suffix("GetDirectoryFilesInfo"): GetDirectoryFilesInfo,
@@ -83,6 +85,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     add_suffix("CheckLLMServiceConnectivity"): add_emoji("Check LLM Service Connectivity"),
     add_suffix("CallLLMService"): add_emoji("Call LLM Service"),
     add_suffix("ModelDownloader"): add_emoji("Model Downloader"),
+    add_suffix("HFRepoDownloader"): add_emoji("HF Repo Downloader"),
     add_suffix("Translator"): add_emoji("Translator"),
     add_suffix("PromptGenerator"): add_emoji("Prompt Generator"),
     add_suffix("KontextPromptGenerator"): add_emoji("Kontext Prompt Generator"),
@@ -93,6 +96,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     add_suffix("HunyuanVideoT2VPromptGenerator"): add_emoji("Hunyuan Video T2V Prompt Generator"),
     add_suffix("ZImagePromptGenerator"): add_emoji("Z-Image Prompt Generator"),
     add_suffix("Flux2PromptGenerator"): add_emoji("Flux2 Prompt Generator"),
+    add_suffix("LTX2PromptGenerator"): add_emoji("LTX2 Prompt Generator"),
     add_suffix("GetAbsolutePath"): add_emoji("Get Absolute Path"),
     add_suffix("GetFileInfo"): add_emoji("Get File Info"),
     add_suffix("GetDirectoryFilesInfo"): add_emoji("Get Directory Files Info"),

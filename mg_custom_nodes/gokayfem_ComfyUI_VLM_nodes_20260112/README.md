@@ -1,11 +1,12 @@
-<div align="center">
-  <h1> 👁️ VLM Nodes</h1>
-  <p align="center">
-    <b> 🔽Examples below</b>  •  
-    📙 <a href="https://github.com/gokayfem/Awesome-VLM-Architectures">Visit my other repo to learn more about Vision Language Models</a> 
-  </p>
-</div>
-<br/>
+  <div align="center">
+    <h1> 👁️ VLM Nodes</h1>
+    <p align="center">
+      <b> 🔽Examples below</b>  •
+      📙 <a href="https://github.com/gokayfem/Awesome-VLM-Architectures">Visit my other repo to learn more about Vision Language Models</a>  •
+      🔍 <a href="https://dualview.ai">Compare VLM outputs side-by-side with DualView</a>
+    </p>
+  </div>
+  <br/>
 
 ## Usage
 - For **Windows** and **Linux**
@@ -20,6 +21,12 @@ git clone https://github.com/gokayfem/ComfyUI_VLM_nodes.git
 
 **If you get errors related to llama-cpp-python or if it is not using GPU.**  
 **I recommend installing it with the right arguments provided in this link [llama-cpp-python](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#installation)**  
+
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| [DualView](https://dualview.ai) | Free side-by-side comparison tool for VLM outputs, images, videos, and AI prompts |
 
 ## VLM Nodes
 Utilizes ```llama-cpp-python``` for integration of LLaVa models. You can load and use any VLM with LLaVa models in GGUF format with this nodes.   

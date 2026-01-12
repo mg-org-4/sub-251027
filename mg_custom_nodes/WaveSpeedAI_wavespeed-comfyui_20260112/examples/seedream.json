@@ -1,0 +1,347 @@
+{
+  "id": "36cf237e-b8a4-429e-bf6f-edf252efa11d",
+  "revision": 0,
+  "last_node_id": 26,
+  "last_link_id": 37,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "WaveSpeedAI Client",
+      "pos": [
+        -345.9893798828125,
+        -133.24803161621094
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "client",
+          "type": "WAVESPEED_AI_API_CLIENT",
+          "links": [
+            12,
+            31,
+            33
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAI Client"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 12,
+      "type": "LoadImage",
+      "pos": [
+        -343.32781982421875,
+        2.9193222522735596
+      ],
+      "size": [
+        274.080078125,
+        314
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            30
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "---.png",
+        "image"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "WaveSpeedAI Upload Image",
+      "pos": [
+        -54.460533142089844,
+        17.26516342163086
+      ],
+      "size": [
+        219.93124389648438,
+        46
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "client",
+          "type": "WAVESPEED_AI_API_CLIENT",
+          "link": 12
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 30
+        }
+      ],
+      "outputs": [
+        {
+          "name": "first_image_url",
+          "type": "STRING",
+          "links": [
+            34
+          ]
+        },
+        {
+          "name": "image_urls",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAI Upload Image"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 23,
+      "type": "WaveSpeedAI SeedreamV3Node",
+      "pos": [
+        253.1352996826172,
+        -122.91992950439453
+      ],
+      "size": [
+        400,
+        208
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "client",
+          "type": "WAVESPEED_AI_API_CLIENT",
+          "link": 31
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            36
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAI SeedreamV3Node"
+      },
+      "widgets_values": [
+        "A flying cat",
+        2048,
+        2048,
+        452328318047366,
+        "randomize",
+        2.5
+      ]
+    },
+    {
+      "id": 26,
+      "type": "PreviewImage",
+      "pos": [
+        705.911376953125,
+        -272.0673522949219
+      ],
+      "size": [
+        352.02459716796875,
+        311.84210205078125
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 36
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 25,
+      "type": "PreviewImage",
+      "pos": [
+        693.841552734375,
+        120.17776489257812
+      ],
+      "size": [
+        364.9259338378906,
+        319.9215393066406
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 37
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 24,
+      "type": "WaveSpeedAI SeedEditV3Node",
+      "pos": [
+        256.77288818359375,
+        196.3001251220703
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "client",
+          "type": "WAVESPEED_AI_API_CLIENT",
+          "link": 33
+        },
+        {
+          "name": "image_url",
+          "type": "STRING",
+          "widget": {
+            "name": "image_url"
+          },
+          "link": 34
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            37
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAI SeedEditV3Node"
+      },
+      "widgets_values": [
+        "A flying cat",
+        "",
+        0.5,
+        485997815544606,
+        "randomize"
+      ]
+    }
+  ],
+  "links": [
+    [
+      12,
+      1,
+      0,
+      13,
+      0,
+      "WAVESPEED_AI_API_CLIENT"
+    ],
+    [
+      30,
+      12,
+      0,
+      13,
+      1,
+      "IMAGE"
+    ],
+    [
+      31,
+      1,
+      0,
+      23,
+      0,
+      "WAVESPEED_AI_API_CLIENT"
+    ],
+    [
+      33,
+      1,
+      0,
+      24,
+      0,
+      "WAVESPEED_AI_API_CLIENT"
+    ],
+    [
+      34,
+      13,
+      0,
+      24,
+      1,
+      "STRING"
+    ],
+    [
+      36,
+      23,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ],
+    [
+      37,
+      24,
+      0,
+      25,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8712546788995771,
+      "offset": [
+        407.0615766724343,
+        415.36708430689373
+      ]
+    },
+    "frontendVersion": "1.20.7",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

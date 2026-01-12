@@ -36,6 +36,8 @@ Hope this stuff is helpful
 <b>UPDATE:</b>
 If the prompt has an image with the same name, it will now display the image below the prompt.
 
+If there is an image without a prompt, it will ask if you want a prompt generated, if yes it will save it with the same filename as the image.
+
 A node to save, edit and load your prompts, never lose a prompt. View dynamically the contents before using the prompt.
 
 <img width="1936" height="1513" alt="image" src="https://github.com/user-attachments/assets/7f559cd3-0a2f-4e9e-be22-538298df989e" />
@@ -49,6 +51,31 @@ All executed prompts are autosaved when it is queued
 <img width="1108" height="454" alt="image" src="https://github.com/user-attachments/assets/e3e8b456-a8fe-46df-9250-ef6972885997" />
 
 <img width="1164" height="528" alt="image" src="https://github.com/user-attachments/assets/0cb21e54-7b89-4e3a-bebf-33cabccb383c" />
+
+
+# GR Menu Hook
+
+This node adds some features that are not needed, but they are wanted
+
+Keeps nodes inside a group, can arrange them in multiple ways.
+
+Also can add all nodes that are not in groups into a node with one click
+
+<img width="404" height="151" alt="image" src="https://github.com/user-attachments/assets/b9548267-1409-46cf-98a1-85c385c206aa" />
+
+<img width="395" height="143" alt="image" src="https://github.com/user-attachments/assets/bec26850-a0f3-4a2e-84c9-e8b2058aab31" />
+
+<img width="1530" height="895" alt="image" src="https://github.com/user-attachments/assets/41139646-3251-4169-9e94-e6e37bed610d" />
+
+<img width="1308" height="901" alt="image" src="https://github.com/user-attachments/assets/ba757b77-1ed2-4159-9381-6c8575b7526b" />
+
+<img width="1302" height="889" alt="image" src="https://github.com/user-attachments/assets/c1c2848b-1d2a-4ec2-97f0-91d62bf195f8" />
+
+
+
+
+
+
 
 
 # GR Lora Loader

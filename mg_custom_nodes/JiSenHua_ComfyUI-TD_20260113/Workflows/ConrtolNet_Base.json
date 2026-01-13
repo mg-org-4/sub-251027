@@ -1,4 +1,4 @@
-{
+﻿{
   "1": {
     "inputs": {
       "ckpt_name": "SD1.5_dreamshaper_8.safetensors"
@@ -6,25 +6,6 @@
     "class_type": "CheckpointLoaderSimple",
     "_meta": {
       "title": "Checkpoint 模型加载"
-    }
-  },
-  "2": {
-    "inputs": {
-      "lora_name": "SD1.5_(增加细节)add_detail.safetensors",
-      "strength_model": 1,
-      "strength_clip": 1,
-      "model": [
-        "1",
-        0
-      ],
-      "clip": [
-        "1",
-        1
-      ]
-    },
-    "class_type": "LoraLoader",
-    "_meta": {
-      "title": "LoRA 模型加载"
     }
   },
   "3": {
@@ -41,7 +22,7 @@
       "preprocessor": "CannyEdgePreprocessor",
       "resolution": 512,
       "image": [
-        "15",
+        "16",
         0
       ]
     },
@@ -81,7 +62,7 @@
     "inputs": {
       "text": "man, Comic style, hight quality",
       "clip": [
-        "2",
+        "1",
         1
       ]
     },
@@ -94,7 +75,7 @@
     "inputs": {
       "text": "bad quality, bad anatomy, worst quality, low quality, low resolution, extra fingers, blur, blurry, ugly, wrong proportions, watermark, image artifacts, lowres, ugly,  jpeg artifacts, deformed, noisy image, deformation, skin moles",
       "clip": [
-        "2",
+        "1",
         1
       ]
     },
@@ -112,7 +93,7 @@
       "scheduler": "normal",
       "denoise": 0.8,
       "model": [
-        "2",
+        "1",
         0
       ],
       "positive": [
@@ -136,7 +117,7 @@
   "13": {
     "inputs": {
       "pixels": [
-        "15",
+        "16",
         0
       ],
       "vae": [
@@ -167,15 +148,6 @@
   },
   "15": {
     "inputs": {
-      "image": ""
-    },
-    "class_type": "LoadTDImage",
-    "_meta": {
-      "title": "LoadTDImage"
-    }
-  },
-  "16": {
-    "inputs": {
       "broadcast": false,
       "images": [
         "14",
@@ -185,6 +157,15 @@
     "class_type": "ImagetoTD",
     "_meta": {
       "title": "ImagetoTD"
+    }
+  },
+  "16": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadTDImage",
+    "_meta": {
+      "title": "LoadTDImage"
     }
   }
 }

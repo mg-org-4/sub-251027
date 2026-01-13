@@ -891,7 +891,7 @@ class AudiotoTD:
 
         if format == "wav":
             audio_binary, content_type = self._encode_wav(wav_np, sample_rate)
-        elif format == "mp3":  # 改为 mp3
+        elif format == "mp3": 
             audio_binary, content_type = self._encode_mp3(wav_np, sample_rate, bitrate_kbps)
         else:
             raise ValueError(f"Unsupported format: {format}")
@@ -959,3 +959,141 @@ class AudiotoTD:
                 "type": "output",
             }]
         }}
+
+class GaussianSplattingtoTD:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "ply_path": ("STRING",),
+                "broadcast": ("BOOLEAN", {"default": False}),
+            }
+        }
+
+    RETURN_TYPES = ()
+    FUNCTION = "send_gaussian_splatting"
+    OUTPUT_NODE = True
+    CATEGORY = "TouchDesigner"
+
+    def send_gaussian_splatting(self, ply_path, broadcast):
+        try:
+            gs_data = self.process_ply(ply_path)
+            return self._send_to_td(gs_data, broadcast)
+        except Exception as e:
+            raise ValueError(f"Error processing Gaussian Splatting data: {str(e)}")
+
+    def process_ply(self, ply_path):
+        try:
+            from plyfile import PlyData
+            
+            if not ply_path.startswith(('http://', 'https://')) and not os.path.isabs(ply_path):
+                try:
+                    import folder_paths
+                    output_dir = folder_paths.get_output_directory()
+                    local_path = os.path.join(output_dir, ply_path)
+                    if os.path.exists(local_path):
+                        ply_path = local_path
+                except:
+                    pass
+            
+            if not os.path.exists(ply_path):
+                raise ValueError(f"PLY file not found: {ply_path}")
+            
+            plydata = PlyData.read(ply_path)
+            vertex = plydata['vertex']
+            
+            required_props = ['x', 'y', 'z', 'f_dc_0', 'f_dc_1', 'f_dc_2', 
+                            'opacity', 'scale_0', 'scale_1', 'scale_2', 
+                            'rot_0', 'rot_1', 'rot_2', 'rot_3']
+            
+            missing_props = [prop for prop in required_props if prop not in vertex.data.dtype.names]
+            if missing_props:
+                raise ValueError(f"Missing properties in PLY file: {missing_props}")
+            
+            gs_data = {
+                'positions': np.stack([vertex['x'], vertex['y'], vertex['z']], axis=1).astype(np.float32),
+                'colors': np.stack([vertex['f_dc_0'], vertex['f_dc_1'], vertex['f_dc_2']], axis=1).astype(np.float32),
+                'opacity': vertex['opacity'].astype(np.float32),
+                'scales': np.stack([vertex['scale_0'], vertex['scale_1'], vertex['scale_2']], axis=1).astype(np.float32),
+                'rotations': np.stack([vertex['rot_0'], vertex['rot_1'], vertex['rot_2'], vertex['rot_3']], axis=1).astype(np.float32),
+            }
+            
+            return gs_data
+            
+        except ImportError:
+            raise ImportError("Please install the plyfile library: pip install plyfile")
+        except Exception as e:
+            raise ValueError(f"Error reading PLY file: {str(e)}")
+
+    def _send_to_td(self, gs_data, broadcast):
+        try:
+            num_points = len(gs_data['positions'])
+            
+            header = [
+                "ply",
+                "format binary_little_endian 1.0",
+                f"element vertex {num_points}",
+                "property float x",
+                "property float y",
+                "property float z",
+                "property float f_dc_0",
+                "property float f_dc_1",
+                "property float f_dc_2",
+                "property float opacity",
+                "property float scale_0",
+                "property float scale_1",
+                "property float scale_2",
+                "property float rot_0",
+                "property float rot_1",
+                "property float rot_2",
+                "property float rot_3",
+                "end_header\n"
+            ]
+            header = '\n'.join(header).encode('ascii')
+            
+            binary_data = bytearray()
+            for i in range(num_points):
+                binary_data.extend(struct.pack('<fff', 
+                    gs_data['positions'][i, 0], 
+                    gs_data['positions'][i, 1], 
+                    gs_data['positions'][i, 2]))
+                
+                binary_data.extend(struct.pack('<fff', 
+                    gs_data['colors'][i, 0], 
+                    gs_data['colors'][i, 1], 
+                    gs_data['colors'][i, 2]))
+                
+                binary_data.extend(struct.pack('<f', gs_data['opacity'][i]))
+                
+                binary_data.extend(struct.pack('<fff', 
+                    gs_data['scales'][i, 0], 
+                    gs_data['scales'][i, 1], 
+                    gs_data['scales'][i, 2]))
+                
+                binary_data.extend(struct.pack('<ffff', 
+                    gs_data['rotations'][i, 0], 
+                    gs_data['rotations'][i, 1], 
+                    gs_data['rotations'][i, 2], 
+                    gs_data['rotations'][i, 3]))
+            
+            buffer = io.BytesIO()
+            buffer.write(header)
+            buffer.write(binary_data)
+            binary_output = buffer.getvalue()
+            buffer.close()
+            
+            server = PromptServer.instance
+            sid = None if broadcast else server.client_id
+            server.send_sync(1003, binary_output, sid=sid)
+            
+            return {"ui": {
+                "gaussian_splatting": [{
+                    "source": "websocket",
+                    "content-type": "model/ply",
+                    "type": "output",
+                    "point_count": num_points,
+                }]
+            }}
+            
+        except Exception as e:
+            raise ValueError(f"Error sending Gaussian Splatting data: {str(e)}")

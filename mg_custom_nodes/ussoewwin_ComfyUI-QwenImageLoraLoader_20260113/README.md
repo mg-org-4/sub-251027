@@ -1,12 +1,12 @@
-# ComfyUI-Nunchaku QwenImage&Z-ImageTurboLoraLoader and Diffsynth ControlNet Loader
+# ComfyUI-Nunchaku QwenImage＆ZImageTurboLoraStack
 
-A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nunchaku Qwen Image and Z-ImageTurbo models, and diffsynth ControlNet functionality. ComfyUI Nodes 2.0 compatible.
+A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nunchaku Qwen Image and Z-ImageTurbo models. ComfyUI Nodes 2.0 compatible. **Requires Nunchaku 1.2.0+ and ComfyUI-Nunchaku 1.2.0+ for v4 functionality.**
 
 ## ⚠️ **DEVELOPMENT STATUS**
 
 **Currently under development and testing. Debug logs are being output extensively. This does not affect functionality.**
 
-> Latest release: [v2.2.8 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.8)
+> Latest release: [v2.3.0 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.3.0)
 > 
 > ⚠️ **Note for v2.0+ users**: If you encounter `TypeError: got multiple values for argument 'guidance'` errors, see [troubleshooting section](#issue-30-typeerror-got-multiple-values-for-argument-guidance-v20) below.
 
@@ -20,20 +20,6 @@ This LoRA loader was extracted and modified from GavChap's fork:
 ## 🎉 MAJOR UPDATE: v2.2.0 - Nunchaku Z Image Turbo LoRA Support Added!
 
 For detailed technical explanation, see [v2.2.0 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.0)
-
-## 🎉 MAJOR UPDATE: v2.0 - Diffsynth ControlNet Support Added!
-
-**As of v2.0, diffsynth ControlNet is now fully supported for Nunchaku Qwen Image models, Z Image Turbo BF16.safetensors, and Nunchaku Z Image Turbo models.**
-
-A new dedicated node `NunchakuQI&ZITDiffsynthControlnet` enables diffsynth ControlNet functionality with Nunchaku quantized Qwen Image models, Z Image Turbo BF16.safetensors, and Nunchaku Z Image Turbo models.
-
-### What's New in v2.0
-- ✅ **New Node**: `NunchakuQI&ZITDiffsynthControlnet` - Dedicated diffsynth ControlNet loader for Nunchaku Qwen Image models, Z Image Turbo BF16.safetensors, and Nunchaku Z Image Turbo models
-- ✅ **Full ControlNet Support**: Works with standard diffsynth ControlNet models
-- ✅ **Seamless Integration**: Automatically applies ControlNet patches during model forward pass
-- ✅ **Backward Compatible**: All existing LoRA functionality remains unchanged
-
-For detailed technical explanation, see [v2.0 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.0)
 
 ## 🎉 MAJOR UPDATE: v1.60 - Simplified Installation (No Integration Required!)
 
@@ -50,8 +36,7 @@ If you have v1.57 or earlier installed with integration code in ComfyUI-nunchaku
 - **NunchakuQwenImageLoraStack**: Multi LoRA stacker with dynamic UI (Legacy)
 - **NunchakuQwenImageLoraStackV2**: Multi LoRA stacker with dynamic UI - ComfyUI Nodes 2.0 (Beta) compatible
 - **NunchakuQwenImageLoraStackV3**: Multi LoRA stacker with dynamic UI - ComfyUI Nodes 2.0 (Beta) compatible
-- **NunchakuZImageTurboLoraStackV3**: Z-Image-Turbo LoRA stacker with dynamic UI - ComfyUI Nodes 2.0 (Beta) compatible
-- **NunchakuQI&ZITDiffsynthControlnet**: Diffsynth ControlNet loader for Nunchaku Qwen Image models, Z Image Turbo BF16.safetensors, and Nunchaku Z Image Turbo models (v2.0)
+- **NunchakuZImageTurboLoraStackV4**: Z-Image-Turbo LoRA stacker with dynamic UI - Standard ComfyUI LoRA loader format (CLIP input/output) - ComfyUI Nodes 2.0 compatible
 
 ### Basic Usage
 
@@ -63,9 +48,10 @@ If you have v1.57 or earlier installed with integration code in ComfyUI-nunchaku
 
 **For Nunchaku Z-Image-Turbo models:**
 1. Load your Nunchaku Z-Image-Turbo model using `Nunchaku Z-Image DiT Loader`
-2. Add `Nunchaku Z-Image-Turbo LoRA Stack V3` node
-3. Select your LoRA file and set the strength
-4. Connect to your workflow
+2. Add `Nunchaku Z-Image-Turbo LoRA Stack V4` node
+3. Connect CLIP input (required in v4)
+4. Select your LoRA file and set the strength
+5. Connect to your workflow
 
 ### Dynamic UI Control
 
@@ -73,16 +59,6 @@ If you have v1.57 or earlier installed with integration code in ComfyUI-nunchaku
 <img src="images/zitlorav3.png" alt="Dynamic UI Control V3" width="400">
 
 The `NunchakuQwenImageLoraStack` and `NunchakuZImageTurboLoraStackV3` nodes automatically adjust the number of visible LoRA slots based on the `lora_count` parameter (1-10).
-
-### Diffsynth ControlNet Usage
-
-<img src="png/diffsynth.png" alt="Diffsynth ControlNet Usage" width="400">
-
-1. Load your diffsynth ControlNet model patch using `Model Patch Loader` from [ComfyUI-NunchakuFluxLoraStacker](https://github.com/ussoewwin/ComfyUI-NunchakuFluxLoraStacker)
-2. The `Model Patch Loader` (`ModelPatchLoaderCustom`) supports CPU offload, allowing you to load ControlNet patches to CPU memory to save VRAM
-3. Connect the `MODEL_PATCH` output to the `model_patch` input of `NunchakuQI&ZITDiffsynthControlnet` node
-4. Connect your Nunchaku Qwen Image model, VAE, and control image
-5. Set the ControlNet strength and connect to your workflow
 
 ## Features
 
@@ -110,35 +86,6 @@ This node is designed to work with:
 - Standard ComfyUI workflows
 
 ## Troubleshooting
-
-### Error: "attempted relative import with no known parent package"
-
-**Problem**: This error occurs when ComfyUI tries to load the LoRA loader nodes but fails due to import issues.
-
-**Error Message**: `ValueError: attempted relative import with no known parent package`
-
-**Root Cause**: The error was caused by using relative imports (`from ...wrappers`) in the LoRA loader code. Relative imports only work when the module is loaded as part of a package. However, ComfyUI-nunchaku loads the module directly using `importlib.util`, which bypasses package initialization. As a result, Python cannot resolve the relative import paths.
-
-**Solution**: Fixed in v1.5.0 by changing relative imports to absolute imports:
-- **Before**: `from ...wrappers.qwenimage import ComfyQwenImageWrapper`
-- **After**: `from wrappers.qwenimage import ComfyQwenImageWrapper`
-
-**How to Fix**: **This error has been fixed in v1.5.0. Simply update to the latest version and restart ComfyUI.**
-
-**Technical Details**:
-- The installation script adds `ComfyUI-QwenImageLoraLoader` to `sys.path`
-- This allows absolute imports to work correctly
-- The absolute import `from wrappers.qwenimage import` resolves to `ComfyUI-QwenImageLoraLoader/wrappers/qwenimage.py`
-
-### Error: Nodes Not Appearing in ComfyUI
-
-**Problem**: After installation, the LoRA loader nodes don't appear in ComfyUI.
-
-**Solution**:
-1. Restart ComfyUI completely (close all instances)
-2. Check the ComfyUI console for error messages
-3. Make sure both `ComfyUI-nunchaku` and `ComfyUI-QwenImageLoraLoader` are in your `ComfyUI/custom_nodes` directory
-4. Check that your ComfyUI-nunchaku version is compatible
 
 ### Error: "ModuleNotFoundError: No module named 'nunchaku'"
 
@@ -243,7 +190,17 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 
 ## Changelog
 
-### v2.2.8 (latest)
+### v2.3.1 (latest)
+- **Fixed**: Resolved [Issue #46](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/46) – Fixed `NameError: name 'ZIMAGETURBO_V4_NAMES' is not defined` error that occurred when `zimageturbo_v4` module import failed. Initialized `ZIMAGETURBO_V4_NAMES`, `ZIMAGETURBO_V4_NODES`, `QWEN_V3_NAMES`, and `QWEN_V3_NODES` before the import block to prevent NameError on import failure.
+- **Fixed**: Resolved [Issue #47](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/47) – Added missing v4 files to Git repository (`nodes/lora/zimageturbo_v4.py`, `js/zimageturbo_lora_dynamic_v4.js`). These files were created but not committed to Git, causing `ModuleNotFoundError` in previous releases. The files are now included in the repository.
+
+### v2.3.0
+- **Removed**: Z-ImageTurbo Loader v3 registration - Removed from ComfyUI node registration
+- **Updated**: Z-ImageTurbo Loader v4 - Conforms to standard ComfyUI LoRA loader format (CLIP input/output, no CPU offload parameter) while maintaining perfect mapping functionality
+- **Removed**: Diffsynth ControlNet support - Removed `NunchakuQI&ZITDiffsynthControlnet` node registration and all related documentation. ComfyUI-Nunchaku now has native support for ZIT (Z-Image-Turbo) Diffsynth ControlNet, so this custom node is no longer needed.
+- **Technical Details**: See [v2.3.0 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.3.0) for complete explanation
+
+### v2.2.8
 - **Fixed**: Resolved [Issue #44](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/44) – Fixed performance slowdown issue when loading unsupported LoRA formats (LoKR, LoHa, IA3, etc.). Unsupported formats are now detected early and detailed key inspection is skipped to prevent console slowdown. Retry logic is also skipped for unsupported formats to prevent duplicate logging
 - **Technical Details**: See [v2.2.8 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.8) for complete explanation
 

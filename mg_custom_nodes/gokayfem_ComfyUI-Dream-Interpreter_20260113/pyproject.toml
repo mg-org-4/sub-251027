@@ -1,0 +1,14 @@
+[project]
+name = "comfyui-dream-interpreter"
+description = "Tell your dream and it interprets it and puts you inside your dream"
+version = "1.0.2"
+license = { file = "LICENSE" }
+dependencies = ["Pillow>=10.1.0"]
+
+[project.urls]
+Repository = "https://github.com/gokayfem/ComfyUI-Dream-Interpreter"
+
+[tool.comfy]
+PublisherId = "gokayfem"
+DisplayName = "ComfyUI-Dream-Interpreter"
+Icon = ""

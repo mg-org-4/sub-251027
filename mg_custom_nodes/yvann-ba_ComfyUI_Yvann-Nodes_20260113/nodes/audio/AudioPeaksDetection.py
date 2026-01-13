@@ -1,27 +1,37 @@
-import torch
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator  # Import for integer x-axis labels
+import os
 import tempfile
+
+import torch
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 from PIL import Image
 from scipy.signal import find_peaks
-from ... import Yvann
 
-class AudioNodeBase(Yvann):
-    CATEGORY = "👁️ Yvann Nodes/🔊 Audio"
+from ..base import AudioNodeBase
+
 
 class AudioPeaksDetection(AudioNodeBase):
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "audio_weights": ("FLOAT", {"forceInput": True}),
-                "peaks_threshold": ("FLOAT", {"default": 0.4, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "min_peaks_distance": ("INT", {"default": 5, "min": 1, "max":100})
+                "audio_weights": ("FLOATS", {
+                    "forceInput": True,
+                    "tooltip": "Audio weights from Audio Analysis node"
+                }),
+                "peaks_threshold": ("FLOAT", {
+                    "default": 0.4, "min": 0.0, "max": 1.0, "step": 0.01,
+                    "tooltip": "Minimum height for peak detection (0-1)"
+                }),
+                "min_peaks_distance": ("INT", {
+                    "default": 5, "min": 1, "max": 100,
+                    "tooltip": "Minimum frames between peaks (removes close unwanted peaks)"
+                })
             }
         }
 
-    RETURN_TYPES = ("FLOAT",  "FLOAT", "STRING", "INT", "IMAGE")
+    RETURN_TYPES = ("FLOATS", "FLOATS", "STRING", "INT", "IMAGE")
     RETURN_NAMES = ("peaks_weights", "peaks_alternate_weights", "peaks_index", "peaks_count", "graph_peaks")
     FUNCTION = "detect_peaks"
 

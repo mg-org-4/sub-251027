@@ -1,0 +1,14 @@
+[project]
+name = "comfyui-texture-simple"
+description = "Visualize your textures inside ComfyUI"
+version = "1.0.2"
+license = { file = "LICENSE" }
+dependencies = ["Pillow>=10.1.0"]
+
+[project.urls]
+Repository = "https://github.com/gokayfem/ComfyUI-Texture-Simple"
+
+[tool.comfy]
+PublisherId = "gokayfem"
+DisplayName = "ComfyUI-Texture-Simple"
+Icon = ""

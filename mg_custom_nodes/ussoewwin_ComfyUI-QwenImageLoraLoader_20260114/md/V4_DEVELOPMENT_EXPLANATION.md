@@ -134,8 +134,8 @@ from nunchaku_code.lora_qwen import compose_loras_v2
 
 # Prepare LoRA configs: [(lora_path, strength), ...]
 lora_configs = []
-for lora_name, lora_strength in loras_to_apply:
-    lora_path = folder_paths.get_full_path_or_raise("loras", lora_name)
+        for lora_name, lora_strength in loras_to_apply:
+            lora_path = folder_paths.get_full_path_or_raise("loras", lora_name)
     lora_configs.append((lora_path, lora_strength))
 
 # Apply using compose_loras_v2 (perfect mapping happens inside)
@@ -150,7 +150,7 @@ compose_loras_v2(transformer, lora_configs)
 | **Model Detection** | Static, assumes one structure | Dynamic, auto-detects NextDiT structure |
 | **QKV Handling** | May fail on fused QKV | Correctly handles fused QKV |
 | **GLU Handling** | May fail on fused GLU (w13) | Correctly handles both w1/w3 and w13 |
-| **LoKR Support** | Limited | Supported but not "perfect mapping" |
+| **LoKR Support** | Not supported (for Nunchaku) | Not supported |
 | **Debug Logging** | Minimal | Comprehensive key-by-key logging |
 
 **7. Technical Details: Key Mapping Patterns**
@@ -188,7 +188,7 @@ This ensures the node continues to work even if the custom mapping function is u
 
 ### Development Rationale
 
-ComfyUI-nunchaku v1.2.0 implemented official Z-Image LoRA support, but it was discovered that the official implementation's mapping is incomplete. While v3 implemented perfect mapping functionality (`compose_loras_v2`), v4 uses the same mapping mechanism as v3 while achieving the following improvements:
+The standard ComfyUI LoRA loader has incomplete key mapping for Nunchaku Z-Image-Turbo (NextDiT) models. While v3 implemented perfect mapping functionality (`compose_loras_v2`), v4 uses the same mapping mechanism as v3 while achieving the following improvements:
 
 1. **CLIP Input Addition**
    - v3: `(MODEL,)` input/output only
@@ -204,7 +204,7 @@ ComfyUI-nunchaku v1.2.0 implemented official Z-Image LoRA support, but it was di
 
 4. **Same Mapping Functionality as v3**
    - Uses `compose_loras_v2` directly to achieve perfect mapping
-   - Avoids issues with the official implementation using the same mapping logic as v3
+   - Uses the same mapping logic as v3 to overcome standard LoRA loader limitations
 
 5. **Enhanced Fallback Functionality**
    - Three-point fallback system for maximum compatibility
@@ -640,7 +640,7 @@ else:
 # Prepare LoRA configs for compose_loras_v2
 lora_configs = []
 for lora_name, lora_strength in loras_to_apply:
-    lora_path = folder_paths.get_full_path_or_raise("loras", lora_name)
+        lora_path = folder_paths.get_full_path_or_raise("loras", lora_name)
     lora_configs.append((lora_path, lora_strength))
 ```
 
@@ -659,13 +659,13 @@ except Exception as e:
     logger.error("Falling back to standard loader.")
     # Fallback to standard loader
     from comfy.sd import load_lora_for_models
-    ret_model = model
-    ret_clip = clip
-    for lora_name, lora_strength in loras_to_apply:
-        lora_path = folder_paths.get_full_path_or_raise("loras", lora_name)
-        lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+ret_model = model
+ret_clip = clip
+for lora_name, lora_strength in loras_to_apply:
+    lora_path = folder_paths.get_full_path_or_raise("loras", lora_name)
+    lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
         ret_model, ret_clip = load_lora_for_models(ret_model, ret_clip, lora, lora_strength, lora_strength)
-    return (ret_model, ret_clip)
+return (ret_model, ret_clip)
 ```
 
 **Fallback #3**: If `compose_loras_v2` raises an exception during application, catches it and falls back to standard loader. This ensures robustness even if the perfect mapping function encounters unexpected errors.
@@ -747,7 +747,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 
 **Technical Significance**:
 - Registers v4 node in ComfyUI's node system
-- Provides v2/v3/v4 simultaneously, allowing user selection
 - Sets version on node classes for version tracking
 
 ## Migration Guide
@@ -922,12 +921,6 @@ def load_lora_stack(self, model, clip, lora_count, toggle_all=True, **kwargs):
     return (model, clip)  # CLIP unchanged
 ```
 
-### When to Use Each
-
-- **v3**: Implementation using custom wrapper (with CPU offload parameter)
-- **v4**: Implementation using `compose_loras_v2` directly (standard format compliant, CLIP input/output)
-
-Both use the same mapping functionality (`compose_loras_v2`), so mapping quality is equivalent. v4 is recommended for new workflows due to standard format compliance and enhanced fallback functionality.
 
 ## Files Modified
 

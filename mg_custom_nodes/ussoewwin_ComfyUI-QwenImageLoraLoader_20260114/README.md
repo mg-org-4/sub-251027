@@ -32,11 +32,26 @@ If you have v1.57 or earlier installed with integration code in ComfyUI-nunchaku
 ## Usage
 
 ### Available Nodes
+
 - **NunchakuQwenImageLoraLoader**: Single LoRA loader
+
+<img src="images/single_loader.png" alt="NunchakuQwenImageLoraLoader: Single LoRA loader" width="400">
+
 - **NunchakuQwenImageLoraStack**: Multi LoRA stacker with dynamic UI (Legacy)
+
+<img src="images/legacy_stack.png" alt="NunchakuQwenImageLoraStack: Multi LoRA stacker with dynamic UI (Legacy)" width="400">
+
 - **NunchakuQwenImageLoraStackV2**: Multi LoRA stacker with dynamic UI - ComfyUI Nodes 2.0 (Beta) compatible
+
+<img src="images/qiv2_stack.png" alt="NunchakuQwenImageLoraStackV2: Multi LoRA stacker with dynamic UI - ComfyUI Nodes 2.0 (Beta) compatible" width="400">
+
 - **NunchakuQwenImageLoraStackV3**: Multi LoRA stacker with dynamic UI - ComfyUI Nodes 2.0 (Beta) compatible
+
+<img src="images/qiv3_stack.png" alt="NunchakuQwenImageLoraStackV3: Multi LoRA stacker with dynamic UI - ComfyUI Nodes 2.0 (Beta) compatible" width="400">
+
 - **NunchakuZImageTurboLoraStackV4**: Z-Image-Turbo LoRA stacker with dynamic UI - Standard ComfyUI LoRA loader format (CLIP input/output) - ComfyUI Nodes 2.0 compatible
+
+<img src="images/zitv4_stack.png" alt="NunchakuZImageTurboLoraStackV4: Z-Image-Turbo LoRA stacker with dynamic UI - Standard ComfyUI LoRA loader format (CLIP input/output) - ComfyUI Nodes 2.0 compatible" width="400">
 
 ### Basic Usage
 
@@ -52,13 +67,6 @@ If you have v1.57 or earlier installed with integration code in ComfyUI-nunchaku
 3. Connect CLIP input (required in v4)
 4. Select your LoRA file and set the strength
 5. Connect to your workflow
-
-### Dynamic UI Control
-
-<img src="images/qilorastacker.png" alt="Dynamic UI Control" width="400">
-<img src="images/zitlorav3.png" alt="Dynamic UI Control V3" width="400">
-
-The `NunchakuQwenImageLoraStack` and `NunchakuZImageTurboLoraStackV3` nodes automatically adjust the number of visible LoRA slots based on the `lora_count` parameter (1-10).
 
 ## Features
 

@@ -3,7 +3,7 @@ import comfy.ops
 import comfy.utils
 import comfy.model_patcher
 import comfy.model_management
-import torch, numpy, os, json, logging, collections, nodes, folder_paths
+import torch, numpy, os, json, logging, collections, nodes, folder_paths, inspect
 from safetensors.torch import load_file, save_file
 from typing import Dict, Tuple
 from tqdm import tqdm as loading
@@ -13,7 +13,7 @@ from .gguf_connector.const import GGML_QUANT_VERSION, LlamaFileType
 from .gguf_connector.quant import quantize, dequantize, QuantError
 from .gguf_connector.quant5a import dequantize_tensor, is_quantized, is_torch_compatible
 from .gguf_connector.mmj import find_mmproj_pair, find_tokenzier_pair
-from .gguf_connector.tkn import get_field, tokenizer_builder, tekken_builder
+from .gguf_connector.tkn import get_field, gemma3_tokenizer_builder, tokenizer_builder, tekken_builder
 pig = os.path.join(os.path.dirname(__file__), 'version.json')
 with open(pig, 'r') as file:
     data = json.load(file)
@@ -319,24 +319,24 @@ def get_orig_shape(reader, tensor_name):
         raise TypeError(f'Bad original shape metadata for {field_key}: Expected ARRAY of INT32, got {field.types}')
     return torch.Size(tuple(int(field.parts[part_idx][0]) for part_idx in
         field.data))
-# def get_gguf_metadata(reader):
-#     """Extract all simple metadata fields like safetensors"""
-#     metadata = {}
-#     for field_name in reader.fields:
-#         try:
-#             field = reader.get_field(field_name)
-#             if len(field.types) == 1:  # Simple scalar fields only
-#                 if field.types[0] == gguf.GGUFValueType.STRING:
-#                     metadata[field_name] = str(field.parts[field.data[-1]], "utf-8")
-#                 elif field.types[0] == gguf.GGUFValueType.INT32:
-#                     metadata[field_name] = int(field.parts[field.data[-1]])
-#                 elif field.types[0] == gguf.GGUFValueType.F32:
-#                     metadata[field_name] = float(field.parts[field.data[-1]])
-#                 elif field.types[0] == gguf.GGUFValueType.BOOL:
-#                     metadata[field_name] = bool(field.parts[field.data[-1]])
-#         except:
-#             continue
-#     return metadata
+def get_gguf_metadata(reader):
+    """Extract all simple metadata fields like safetensors"""
+    metadata = {}
+    for field_name in reader.fields:
+        try:
+            field = reader.get_field(field_name)
+            if len(field.types) == 1:  # Simple scalar fields only
+                if field.types[0] == gr.GGUFValueType.STRING:
+                    metadata[field_name] = str(field.parts[field.data[-1]], "utf-8")
+                elif field.types[0] == gr.GGUFValueType.INT32:
+                    metadata[field_name] = int(field.parts[field.data[-1]])
+                elif field.types[0] == gr.GGUFValueType.F32:
+                    metadata[field_name] = float(field.parts[field.data[-1]])
+                elif field.types[0] == gr.GGUFValueType.BOOL:
+                    metadata[field_name] = bool(field.parts[field.data[-1]])
+        except:
+            continue
+    return metadata
 def load_gguf_sd(path, handle_prefix='model.diffusion_model.', return_arch=
     False):
     reader = gr.GGUFReader(path)
@@ -383,12 +383,14 @@ def load_gguf_sd(path, handle_prefix='model.diffusion_model.', return_arch=
     if len(qsd) > 0:
         max_key = max(qsd.keys(), key=lambda k: qsd[k].numel())
         state_dict[max_key].is_largest_weight = True
-    # metadata = get_gguf_metadata(reader)
     if return_arch:
-    #     return (state_dict, arch_str, metadata)
-    # return (state_dict, metadata)
         return state_dict, arch_str
-    return state_dict
+    # return state_dict
+    extra = {
+        "arch_str": arch_str,
+        "metadata": get_gguf_metadata(reader)
+    }
+    return (state_dict, extra)
 def tensor_swap(raw_sd, key_map):
     sd = {}
     for k, v in raw_sd.items():
@@ -411,6 +413,25 @@ def llama_permute(raw_sd, n_head, n_head_kv):
         if k.endswith(('k_proj.weight', 'k_proj.bias')):
             v.data = permute(v.data, n_head_kv)
         sd[k] = v
+    return sd
+def gemma_norm(sd):
+    norm_patterns = [
+        "input_layernorm.weight",
+        "post_attention_layernorm.weight",
+        "pre_feedforward_layernorm.weight",
+        "post_feedforward_layernorm.weight",
+        "self_attn.q_norm.weight",
+        "self_attn.k_norm.weight",
+        "model.norm.weight"
+    ]
+    corrected = 0
+    for key in list(sd.keys()):
+        if any(p in key for p in norm_patterns):
+            if is_quantized(sd[key]):
+                sd[key] = dequantize_tensor(sd[key], dtype=torch.float32) - 1.0
+            else:
+                sd[key] = sd[key].float() - 1.0
+            corrected += 1
     return sd
 def handle_visual_tensor(path):
     vsd = load_gguf_sd(path)
@@ -458,13 +479,21 @@ def load_gguf_clip(path):
             sd = tensor_swap(sd, arrays['B5'])
         else:
             sd = tensor_swap(sd, arrays['T5'])
-    elif arch in {'llama', 'qwen2vl', 'qwen3vl', 'qwen2', 'qwen3', 'dog'}:
+    elif arch in {'llama', 'qwen2vl', 'qwen3vl', 'qwen2', 'qwen3', 'gemma3', 'dog'}:
         token_key = "token_embd.weight"
         if token_key in sd and sd[token_key].shape[0] >= (64 * 1024):
             if arch == "llama" and sd[token_key].shape == (131072, 5120):
                 sd["tekken_model"] = tekken_builder(path)
+            elif arch == "gemma3":
+                sd["spiece_model"] = gemma3_tokenizer_builder(path)
             sd[token_key] = dequantize_tensor(sd[token_key], dtype=torch.float16)
-        sd = tensor_swap(sd, arrays['L3'])
+        if arch == "gemma3":
+            G3sd = arrays['L3']
+            G3sd.update(arrays['G3'])
+            sd = tensor_swap(sd, G3sd)
+            sd = gemma_norm(sd)
+        else:
+            sd = tensor_swap(sd, arrays['L3'])
         if arch == "llama":
             sd = llama_permute(sd, 32, 8)
         if arch == "qwen2vl":
@@ -518,9 +547,16 @@ class LoaderGGUF:
         # sd, metadata = load_gguf_sd(model_path)
         # model = comfy.sd.load_diffusion_model_state_dict(sd, model_options=
         #     {'custom_operations': ops}, metadata=metadata)
-        sd = load_gguf_sd(model_path)
+        sd, extra = load_gguf_sd(model_path)
+        # sd = load_gguf_sd(model_path)
+        # model = comfy.sd.load_diffusion_model_state_dict(sd, model_options=
+        #     {'custom_operations': ops})
+        kwargs = {}
+        valid_params = inspect.signature(comfy.sd.load_diffusion_model_state_dict).parameters
+        if "metadata" in valid_params:
+            kwargs["metadata"] = extra.get("metadata", {})
         model = comfy.sd.load_diffusion_model_state_dict(sd, model_options=
-            {'custom_operations': ops})
+            {"custom_operations": ops}, **kwargs,)
         if model is None:
             logging.error('ERROR UNSUPPORTED MODEL {}'.format(model_path))
             raise RuntimeError('ERROR: Could not detect model type of: {}'.

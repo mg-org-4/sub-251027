@@ -184,3 +184,6 @@ cython_debug/
 .vscode/
 *.yaml
 /wip
+/wildcards_bonus
+/wildcards_yaml
+/wildcards_sec

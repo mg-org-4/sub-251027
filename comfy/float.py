@@ -69,26 +69,31 @@ def stochastic_rounding(value, dtype, seed=0):
 
 # TODO: improve this?
 def stochastic_float_to_fp4_e2m1(x, generator):
+    orig_shape = x.shape
     sign = torch.signbit(x).to(torch.uint8)
-    x_abs = x.abs()
 
-    exp = torch.floor(torch.log2(x_abs) + 1.0).clamp(0, 3)
+    exp = torch.floor(torch.log2(x.abs()) + 1.0).clamp(0, 3)
     x += (torch.rand(x.size(), dtype=x.dtype, layout=x.layout, device=x.device, generator=generator) - 0.5) * (2 ** (exp - 2.0)) * 1.25
 
-    x_abs = x.abs()
-    exp = torch.floor(torch.log2(x_abs) + 1.1925).clamp(0, 3)
+    x = x.abs()
+    exp = torch.floor(torch.log2(x) + 1.1925).clamp(0, 3)
 
     mantissa = torch.where(
         exp > 0,
-        (x_abs / (2.0 ** (exp - 1)) - 1.0) * 2.0,
-        (x_abs * 2.0)
+        (x / (2.0 ** (exp - 1)) - 1.0) * 2.0,
+        (x * 2.0),
+        out=x
     ).round().to(torch.uint8)
+    del x
 
-    fp4 = (sign << 3) | (exp.to(torch.uint8) << 1) | mantissa
+    exp = exp.to(torch.uint8)
+
+    fp4 = (sign << 3) | (exp << 1) | mantissa
+    del sign, exp, mantissa
 
     fp4_flat = fp4.view(-1)
     packed = (fp4_flat[0::2] << 4) | fp4_flat[1::2]
-    return packed.reshape(list(x.shape)[:-1] + [-1])
+    return packed.reshape(list(orig_shape)[:-1] + [-1])
 
 
 def to_blocked(input_matrix, flatten: bool = True) -> torch.Tensor:
@@ -156,25 +161,13 @@ def stochastic_round_quantize_nvfp4(x, per_tensor_scale, pad_16x, seed=0):
     block_size = 16
 
     x = x.reshape(orig_shape[0], -1, block_size)
-    max_abs = torch.amax(torch.abs(x), dim=-1)
-    block_scale = max_abs / F4_E2M1_MAX
-    scaled_block_scales = block_scale / per_tensor_scale.to(block_scale.dtype)
-    scaled_block_scales_fp8 = torch.clamp(scaled_block_scales, max=F8_E4M3_MAX).to(torch.float8_e4m3fn)
-    total_scale = per_tensor_scale.to(x.dtype) * scaled_block_scales_fp8.to(x.dtype)
-
-    # Handle zero blocks (from padding): avoid 0/0 NaN
-    zero_scale_mask = (total_scale == 0)
-    total_scale_safe = torch.where(zero_scale_mask, torch.ones_like(total_scale), total_scale)
-
-    x = x / total_scale_safe.unsqueeze(-1)
+    scaled_block_scales_fp8 = torch.clamp(((torch.amax(torch.abs(x), dim=-1)) / F4_E2M1_MAX) / per_tensor_scale.to(x.dtype), max=F8_E4M3_MAX).to(torch.float8_e4m3fn)
+    x /= (per_tensor_scale.to(x.dtype) * scaled_block_scales_fp8.to(x.dtype)).unsqueeze(-1)
 
     generator = torch.Generator(device=x.device)
     generator.manual_seed(seed)
 
-    x = torch.where(zero_scale_mask.unsqueeze(-1), torch.zeros_like(x), x)
-
-    x = x.view(orig_shape)
+    x = x.view(orig_shape).nan_to_num()
     data_lp = stochastic_float_to_fp4_e2m1(x, generator=generator)
-
     blocked_scales = to_blocked(scaled_block_scales_fp8, flatten=False)
     return data_lp, blocked_scales

@@ -123,6 +123,17 @@ class TestEncode(unittest.TestCase):
                     self.condEqual(avg, c3)
                     self.condEqual(avg, c4)
 
+                with self.subTest("Average multi"):
+                    (c1,) = run(comfy, clip, "test1")
+                    (c2,) = run(comfy, clip, "test2")
+                    (c3,) = run(comfy, clip, "test3")
+                    (c4,) = run(pc, clip, "test1 AVG() test2 AVG() test3")
+                    (c5,) = run(pc, clip, "test1 AVG test2 AVG test3")
+                    (avg1,) = run(average, c1, c2, 0.5)
+                    (avg,) = run(average, avg1, c3, 0.5)
+                    self.condEqual(avg, c4)
+                    self.condEqual(avg, c5)
+
     @unittest.expectedFailure
     def test_failure(self):
         pc = PCTextEncode()

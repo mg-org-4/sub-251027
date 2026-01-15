@@ -5286,7 +5286,7 @@
             "output": "输出"
         }
     },
-    "flow_judge": {
+    "flow_judge_input": {
         "title": "flow_判断",
         "inputs": {},
         "widgets": {
@@ -5317,7 +5317,7 @@
             "image": "图像"
         }
     },
-    "flow_switch": {
+    "flow_switch_input": {
         "title": "flow_开关",
         "inputs": {},
         "widgets": {

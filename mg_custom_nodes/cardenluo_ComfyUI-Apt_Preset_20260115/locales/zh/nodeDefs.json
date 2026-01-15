@@ -1099,6 +1099,8 @@
       }
     }
   },
+
+  
   "sum_stack_Kontext": {
     "display_name": "sum_Kontext堆",
     "inputs": {
@@ -1210,23 +1212,106 @@
         "name": "模型"
       },
       "2": {
-        "name": "正向条件"
+        "name": "正条件"
       },
       "3": {
-        "name": "负向条件"
+        "name": "负条件"
       },
       "4": {
         "name": "潜空间"
-      },
-      "5": {
-        "name": "CLIP模型"
-      },
-      "6": {
-        "name": "VAE模型"
       }
     }
   },
   
+
+  "sum_stack_QwenEdit": {
+      "display_name": "sum_QwenEdit高级",
+      "inputs": {
+          "context": {
+              "name": "上下文"
+          },
+          "model": {
+              "name": "模型"
+          },
+          "lora_stack": {
+              "name": "LoRA堆叠"
+          },
+          "image1": {
+              "name": "图像1"
+          },
+          "image2": {
+              "name": "图像2"
+          },
+          "image3": {
+              "name": "图像3"
+          },
+          "cond_img1_mask": {
+              "name": "图1条件遮罩"
+          },
+          "cond_img2_mask": {
+              "name": "图2条件遮罩"
+          },
+          "cond_img3_mask": {
+              "name": "图3条件遮罩"
+          },
+          "union_controlnet": {
+              "name": "union控制CN"
+          },
+          "vl_size": {
+              "name": "VL尺寸"
+          },
+          "auto_resize": {
+              "name": "自动调整大小"
+          },
+          "prompt": {
+              "name": "提示词"
+          },
+          "system_prompt": {
+              "name": "系统提示词"
+          },
+          "latent_image": {
+              "name": "latent图像"
+          },
+          "latent_mask": {
+              "name": "latent遮罩"
+          },
+          "image1_strength": {
+              "name": "图1强度"
+          },
+          "image2_strength": {
+              "name": "图2强度"
+          },
+          "image3_strength": {
+              "name": "图3强度"
+          }
+      },
+      "outputs": {
+          "0": {
+              "name": "上下文"
+          },
+          "1": {
+              "name": "合并条件"
+          },
+          "2": {
+              "name": "条件1"
+          },
+          "3": {
+              "name": "条件2"
+          },
+          "4": {
+              "name": "条件3"
+          },
+          "5": {
+              "name": "负条件"
+          },
+          "6": {
+              "name": "latent"
+          }
+      }
+  },
+
+
+
   "basic_Ksampler_simple": {
     "display_name": "basic_简单采样器",
     "inputs": {
@@ -6002,13 +6087,13 @@
       }
     },
     "outputs": {
-      "context": {
+      "0": {
         "name": "上下文"
       },
-      "positive": {
+      "1": {
         "name": "正向条件"
       },
-      "negative": {
+      "2": {
         "name": "反向条件"
       }
     }
@@ -9248,7 +9333,7 @@
 
 
   "Mask_split_mulMask": {
-    "display_name": "Mask_分离多重遮罩",
+    "display_name": "Mask_分割遮罩",
     "inputs": {
       "mask": {
         "name": "遮罩"
@@ -10699,7 +10784,7 @@
 
   
   "flow_judge_input": {
-    "display_name": "flow_输入判断",
+    "display_name": "flow_判断输入",
     "inputs": {
       "judge": {
         "name": "判断条件"
@@ -10756,7 +10841,7 @@
   },
 
 "flow_judge_output": {
-    "display_name": "flow_输出判断",
+    "display_name": "flow_判断输出",
     "inputs": {
     "judge": {
       "name": "判断条件"
@@ -10806,7 +10891,7 @@
 
 
   "flow_switch_input": {
-    "display_name": "flow_输入切换",
+    "display_name": "flow_切换输入",
     "inputs": {
       "input_index": {
         "name": "输入索引"
@@ -10837,7 +10922,7 @@
     }
   },
   "flow_low_gpu": {
-    "display_name": "flow_低GPU",
+    "display_name": "flow_GPU下限",
     "inputs": {
       "anything": {
         "name": "任意输入"
@@ -11008,7 +11093,7 @@
 
 
 
-  "Easy_QwenEdit2509": {
+"Easy_QwenEdit2509": {
     "display_name": "Easy_QwenEdit2509",
     "inputs": {
       "clip": {
@@ -11030,42 +11115,52 @@
         "name": "自动调整尺寸"
       },
       "vl_size": {
-        "name": "视觉语言尺寸"
+        "name": "视觉尺寸"
       },
       "prompt": {
         "name": "提示词"
       },
       "latent_image": {
-        "name": "潜空间图像"
+        "name": "latent图像"
       },
       "latent_mask": {
-        "name": "潜空间遮罩"
+        "name": "latent遮罩"
       },
       "system_prompt": {
         "name": "系统提示词"
       },
       "image1_strength": {
-        "name": "图像1强度"
+        "name": "图像1权重"
       },
       "image2_strength": {
-        "name": "图像2强度"
+        "name": "图2权重"
       },
       "image3_strength": {
-        "name": "图像3强度"
+        "name": "图3权重"
+      },
+      "cond_img1_mask": {
+        "name": "图1条件遮罩"
+      },
+      "cond_img2_mask": {
+        "name": "图2条件遮罩"
+      },
+      "cond_img3_mask": {
+        "name": "图3条件遮罩"
       }
     },
     "outputs": {
       "0": {
-        "name": "正向"
+        "name": "正向条件"
       },
       "1": {
-        "name": "零反向"
+        "name": "零值反向条件"
       },
       "2": {
-        "name": "潜空间"
+        "name": "latent"
       }
     }
   },
+
   "excel_insert_image": {
     "display_name": "excel_插入图像",
     "inputs": {
@@ -11798,58 +11893,8 @@
       }
     }
   },
-  "sum_stack_QwenEdit": {
-    "display_name": "sum_stack_QwenEdit",
-    "inputs": {
-      "context": {
-        "name": "上下文"
-      },
-      "model": {
-        "name": "模型"
-      },
-      "lora_stack": {
-        "name": "LoRA模型堆栈"
-      },
-      "image1": {
-        "name": "图像1"
-      },
-      "image2": {
-        "name": "图像2"
-      },
-      "image3": {
-        "name": "图像3"
-      },
-      "union_stack": {
-        "name": "联合堆栈"
-      },
-      "latent_stack": {
-        "name": "潜空间堆栈"
-      },
-      "prompt": {
-        "name": "提示词"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "上下文"
-      },
-      "1": {
-        "name": "模型"
-      },
-      "2": {
-        "name": "正向"
-      },
-      "3": {
-        "name": "潜空间"
-      },
-      "4": {
-        "name": "CLIP模型"
-      },
-      "5": {
-        "name": "VAE模型"
-      }
-    }
-  },
+
+
   "model_Style_Align": {
     "display_name": "model_风格对齐",
     "inputs": {

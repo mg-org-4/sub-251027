@@ -61,9 +61,9 @@ NODE_CLASS_MAPPINGS= {
 
 
 #-------------------------------------------------------N
+"Apt_clear_cache": Apt_clear_cache,
 "sum_load_adv": sum_load_adv,   
 "sum_load_simple": sum_load_simple,
-"Apt_clear_cache": Apt_clear_cache,
 "sum_editor": sum_editor,                      
 "sum_Ksampler": sum_Ksampler,  
 
@@ -531,16 +531,18 @@ NODE_CLASS_MAPPINGS= {
 
 
 
-"AI_GLM4":AI_GLM4,
+"AI_GLM_image":AI_GLM_image,
+"AI_GLM_text": AI_GLM_text,
+
 "AI_Qwen":AI_Qwen,
 "AI_Qwen_text":AI_Qwen_text,
 "AI_PresetSave":AI_PresetSave,
-"Ai_doubao_seedream":Ai_doubao_seedream,
-
 
 "AI_Ollama_image":AI_Ollama_image,
 "AI_Ollama_text": AI_Ollama_text,
 "Ai_Ollama_RunModel":Ai_Ollama_RunModel,
+"Ai_doubao_seedream":Ai_doubao_seedream,
+
 
 
 #---****------------------
@@ -610,9 +612,9 @@ NODE_CLASS_MAPPINGS= {
 "img_effect_Liquify": img_effect_Liquify,#(Deprecated)
 
 
+"AI_GLM4":AI_GLM4,
 "lay_MaskGrid": lay_MaskGrid,#(Deprecated)  CATEGORY = "Apt_Preset/Deprecated"
 "pre_QwenEdit":pre_QwenEdit,   #(Deprecated)
-"sum_stack_QwenEdit":sum_stack_QwenEdit, #(Deprecated)
 "model_Style_Align":model_Style_Align,#(Deprecated)
 "chx_Ksampler_VisualStyle": chx_Ksampler_VisualStyle, #(Deprecated)
 "chx_Ksampler_dual_area": chx_Ksampler_dual_area,#(Deprecated)

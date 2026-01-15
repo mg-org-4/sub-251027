@@ -493,9 +493,7 @@ class scheduler_interactive_sigmas:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model": ("MODEL",),
-                "scheduler": (comfy.samplers.SCHEDULER_NAMES,),
-                "steps": ("INT", {"default": 20, "min": 1, "max": 10000, "step": 1}),
+                "sigmas": ("SIGMAS",),
             },
             "optional": {
                 "adjustments": (
@@ -516,40 +514,23 @@ class scheduler_interactive_sigmas:
     CATEGORY = "Apt_Preset/chx_ksample/Scheduler"
     NAME = "Interactive Sigmas Adjuster"
 
-    def adjust_sigmas(self, model, scheduler, steps, adjustments="{}"):
+    def adjust_sigmas(self, sigmas, adjustments="{}"):
         import json
         import torch
-
         try:
-            # Parse adjustments from JSON string
             adjustments_data = json.loads(adjustments)
-            # Extract only the adjustments array, ignore sigmas data if present
             if isinstance(adjustments_data, dict):
                 adjustments_array = adjustments_data.get("adjustments", [])
             else:
                 adjustments_array = adjustments_data
         except json.JSONDecodeError as e:
-            print(f"[interactive_scheduler] Invalid adjustments JSON: {e}")
             adjustments_array = []
 
-        # 根据model和scheduler生成sigmas（像BasicScheduler一样）
-        print(f"[interactive_scheduler] Generating sigmas from model and scheduler: {scheduler}, steps: {steps}")
-        sigmas = comfy.samplers.calculate_sigmas(model.get_model_object("model_sampling"), scheduler, steps).cpu()
-
-        # 打印生成的sigmas信息，方便调试
-        print(f"[interactive_scheduler] Generated sigmas: {len(sigmas)} values")
-        print(f"[interactive_scheduler] Sigmas range: {sigmas.min().item():.4f} - {sigmas.max().item():.4f}")
-        print(f"[interactive_scheduler] First 5 values: {sigmas.tolist()[:5]}")
-
-        # Create a copy of the original sigmas
         adjusted_sigmas = sigmas.clone()
 
-        # Check if adjustments array is empty (indicating a reset or initial state)
         if not adjustments_array:
-            print("[interactive_scheduler] No adjustments provided, returning original sigmas")
             return {"result": (adjusted_sigmas,), }
 
-        # Normalize sigmas to 0-1 range for adjustment
         sigma_min = sigmas.min()
         sigma_max = sigmas.max()
 
@@ -557,41 +538,22 @@ class scheduler_interactive_sigmas:
             normalized_sigmas = (sigmas - sigma_min) / (sigma_max - sigma_min)
         else:
             normalized_sigmas = torch.zeros_like(sigmas)
-
-        # Apply adjustments as offsets (调整值是偏移量，范围-1到1)
-        # 0 = 不修改原始值
-        # 正值 = 在原始归一化值基础上增加
-        # 负值 = 在原始归一化值基础上减少
         for adj in adjustments_array:
             index = adj.get("index", 0)
-            offset = adj.get("value", 0.0)  # 这是偏移量，范围-1到1
+            offset = adj.get("value", 0.0)  
             if 0 <= index < len(normalized_sigmas):
-                # 应用偏移量到归一化值上
                 original_value = normalized_sigmas[index]
                 adjusted_value = original_value + offset
-
-                # 处理极端值：
-                # 偏移量-1表示设为最小值0，偏移量1表示设为最大值1
-                # 但一般应该是渐进的，所以限制在0-1范围内
                 if offset <= -1.0:
                     adjusted_value = 0.0
                 elif offset >= 1.0:
                     adjusted_value = 1.0
                 else:
-                    # 正常情况：偏移量叠加到原始值上
                     adjusted_value = max(0.0, min(1.0, original_value + offset))
-
                 normalized_sigmas[index] = adjusted_value
 
-                print(f"[interactive_scheduler] Adjusted index {index}: {original_value:.4f} + {offset:.4f} = {adjusted_value:.4f}")
-
-        # Denormalize back to original range
         if sigma_min != sigma_max:
             adjusted_sigmas = normalized_sigmas * (sigma_max - sigma_min) + sigma_min
-
-        print(f"[interactive_scheduler] Final adjusted sigmas: {len(adjusted_sigmas)} values")
-        print(f"[interactive_scheduler] Adjusted range: {adjusted_sigmas.min().item():.4f} - {adjusted_sigmas.max().item():.4f}")
-        print(f"[interactive_scheduler] First 5 adjusted values: {adjusted_sigmas.tolist()[:5]}")
 
         return {"result": (adjusted_sigmas,), }
 

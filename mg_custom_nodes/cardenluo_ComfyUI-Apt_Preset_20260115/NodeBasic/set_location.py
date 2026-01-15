@@ -518,192 +518,10 @@ class Coordinate_Index2Text:
 
 
 
-class Coordinate_fromMask:
-    
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "image": ("IMAGE",),
-                "mask": ("MASK",),
-                "coordinate_align": ([ "top_left", "top_right", "bottom_left", "bottom_right","center", "top_center", "bottom_center", "left_center", "right_center"], {
-                    "default": "center",
-                }),
-                "index": ("INT", {"default": 0, "min": 0, "max": 99, "step": 1}),
-                "ignore_threshold": ("INT", {"default": 0, "min": 0, "max": 2048, "step": 1}),
-            },
-            "optional": {
-            }
-        }
-    
-    RETURN_TYPES = ("STRING", "BBOX", "FLOAT", "FLOAT", "INT", "INT")
-    RETURN_NAMES = ("coordinates", "bbox", "norm_x", "norm_y", "px_x", "px_y")
-    FUNCTION = "extract_coordinates"
-    CATEGORY = "Apt_Preset/image/ImgCoordinate"
-    
-    def extract_coordinates(self, mask, coordinate_align, index=0, ignore_threshold=0, image=None):
-        try:
-            if not isinstance(mask, torch.Tensor):
-                mask = torch.from_numpy(np.array(mask))
-            
-            opencv_gray_image = self.tensorMask2cv2img(mask)
-            _, binary_mask = cv2.threshold(opencv_gray_image, 1, 255, cv2.THRESH_BINARY)
-            contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            valid_contours = []
-            for contour in contours:
-                area = cv2.contourArea(contour)
-                if area >= ignore_threshold:
-                    valid_contours.append(contour)
-            
-            if not valid_contours:
-                default_point = {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "index": 1
-                }
-                coordinates_json = json.dumps([default_point], ensure_ascii=False)
-                # 返回 BBOX 格式 (x, y, width, height)
-                bbox = (0, 0, 0, 0)
-                return (coordinates_json, bbox, 0.0, 0.0, 0, 0)
-            
-            if index >= len(valid_contours):
-                index = len(valid_contours) - 1
-            
-            contour = valid_contours[index]
-            
-            x, y, w, h = cv2.boundingRect(contour)
-            
-            height, width = mask.shape[-2:]
-            
-            if coordinate_align == "center":
-                center_y = y + h / 2.0
-                center_x = x + w / 2.0
-                x_norm = center_x / width
-                y_norm = center_y / height
-                px_x = int(center_x)
-                px_y = int(center_y)
-                
-            elif coordinate_align == "top_left":
-                x_norm = x / width
-                y_norm = y / height
-                px_x = x
-                px_y = y
-                
-            elif coordinate_align == "top_right":
-                x_norm = (x + w) / width
-                y_norm = y / height
-                px_x = x + w
-                px_y = y
-                
-            elif coordinate_align == "bottom_left":
-                x_norm = x / width
-                y_norm = (y + h) / height
-                px_x = x
-                px_y = y + h
-                
-            elif coordinate_align == "bottom_right":
-                x_norm = (x + w) / width
-                y_norm = (y + h) / height
-                px_x = x + w
-                px_y = y + h
-                
-            elif coordinate_align == "top_center":
-                center_x = x + w / 2.0
-                x_norm = center_x / width
-                y_norm = y / height
-                px_x = int(center_x)
-                px_y = y
-                
-            elif coordinate_align == "bottom_center":
-                center_x = x + w / 2.0
-                x_norm = center_x / width
-                y_norm = (y + h) / height
-                px_x = int(center_x)
-                px_y = y + h
-                
-            elif coordinate_align == "left_center":
-                center_y = y + h / 2.0
-                x_norm = x / width
-                y_norm = center_y / height
-                px_x = x
-                px_y = int(center_y)
-                
-            elif coordinate_align == "right_center":
-                center_y = y + h / 2.0
-                x_norm = (x + w) / width
-                y_norm = center_y / height
-                px_x = x + w
-                px_y = int(center_y)
-                
-            else:
-                center_y = y + h / 2.0
-                center_x = x + w / 2.0
-                x_norm = center_x / width
-                y_norm = center_y / height
-                px_x = int(center_x)
-                px_y = int(center_y)
-            
-            x_norm = max(0.0, min(1.0, x_norm))
-            y_norm = max(0.0, min(1.0, y_norm))
-            
-            if image is not None:
-                img_height = image.shape[1]
-                img_width = image.shape[2]
-                px_x = max(0, min(px_x, img_width - 1))
-                px_y = max(0, min(px_y, img_height - 1))
-            else:
-                px_x = max(0, min(px_x, width - 1))
-                px_y = max(0, min(px_y, height - 1))
-            
-            index_mapping = {
-                "top_left": 1,
-                "top_center": 2,
-                "top_right": 3,
-                "left_center": 4,
-                "center": 5,
-                "right_center": 6,
-                "bottom_left": 7,
-                "bottom_center": 8,
-                "bottom_right": 9
-            }
-            
-            point_data = {
-                "x": float(x_norm),
-                "y": float(y_norm),
-                "index": index_mapping.get(coordinate_align, 5)
-            }
-            coordinates_json = json.dumps([point_data], ensure_ascii=False)
-            
-            # 直接返回 BBOX 格式 (x, y, width, height)
-            bbox = (int(x), int(y), int(w), int(h))
-                 
-            return (coordinates_json, bbox, float(x_norm), float(y_norm), px_x, px_y)
-            
-        except Exception as e:
-            print(f"遮罩坐标提取错误: {e}")
-
-            default_point = {
-                "x": 0.0,
-                "y": 0.0,
-                "index": 1
-            }
-            coordinates_json = json.dumps([default_point], ensure_ascii=False)
-            bbox = (0, 0, 0, 0)
-            return (coordinates_json, bbox, 0.0, 0.0, 0, 0)
-    
-    def tensorMask2cv2img(self, tensor) -> np.ndarray:   
-        tensor = tensor.cpu().squeeze(0)
-        array = tensor.numpy()
-        array = (array * 255).astype(np.uint8)
-        return array
-
-
-
 from collections import namedtuple
 BoundingBox = namedtuple('BoundingBox', ['x', 'y', 'width', 'height'])
 
-class Coordinate_fromMask:
+class XXXCoordinate_fromMask:
     
     @classmethod
     def INPUT_TYPES(cls):
@@ -882,6 +700,189 @@ class Coordinate_fromMask:
         array = tensor.numpy()
         array = (array * 255).astype(np.uint8)
         return array
+
+
+
+class Coordinate_fromMask:
+    
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                # ✅ 核心修改1：彻底删除 image 输入项
+                "mask": ("MASK",),
+                "coordinate_align": ([ "top_left", "top_right", "bottom_left", "bottom_right","center", "top_center", "bottom_center", "left_center", "right_center"], {
+                    "default": "center",
+                }),
+                "index": ("INT", {"default": 0, "min": 0, "max": 99, "step": 1}),
+                "ignore_threshold": ("INT", {"default": 0, "min": 0, "max": 2048, "step": 1}),
+            },
+            "optional": {
+            }
+        }
+    
+    RETURN_TYPES = ("STRING", "BBOX", "FLOAT", "FLOAT", "INT", "INT")
+    RETURN_NAMES = ("coordinates", "bbox", "norm_x", "norm_y", "px_x", "px_y")
+    FUNCTION = "extract_coordinates"
+    CATEGORY = "Apt_Preset/image/ImgCoordinate"
+    
+    # ✅ 核心修改2：函数入参 删除 image=None
+    def extract_coordinates(self, mask, coordinate_align, index=0, ignore_threshold=0):
+        try:
+            if not isinstance(mask, torch.Tensor):
+                mask = torch.from_numpy(np.array(mask))
+            
+            opencv_gray_image = self.tensorMask2cv2img(mask)
+            _, binary_mask = cv2.threshold(opencv_gray_image, 1, 255, cv2.THRESH_BINARY)
+            contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            valid_contours = []
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area >= ignore_threshold:
+                    valid_contours.append(contour)
+            
+            if not valid_contours:
+                default_point = {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "index": 1
+                }
+                coordinates_json = json.dumps([default_point], ensure_ascii=False)
+                bbox = BoundingBox(0, 0, 0, 0)
+                return (coordinates_json, bbox, 0.0, 0.0, 0, 0)
+            
+            if index >= len(valid_contours):
+                index = len(valid_contours) - 1
+            
+            contour = valid_contours[index]
+            
+            x, y, w, h = cv2.boundingRect(contour)
+            
+            # ✅ 核心逻辑保留：mask的尺寸就是原图尺寸，直接用mask的宽高即可
+            height, width = mask.shape[-2:]
+            
+            # ✅ 所有坐标对齐逻辑完全保留，无修改
+            if coordinate_align == "center":
+                center_y = y + h / 2.0
+                center_x = x + w / 2.0
+                x_norm = center_x / width
+                y_norm = center_y / height
+                px_x = int(center_x)
+                px_y = int(center_y)
+                
+            elif coordinate_align == "top_left":
+                x_norm = x / width
+                y_norm = y / height
+                px_x = x
+                px_y = y
+                
+            elif coordinate_align == "top_right":
+                x_norm = (x + w) / width
+                y_norm = y / height
+                px_x = x + w
+                px_y = y
+                
+            elif coordinate_align == "bottom_left":
+                x_norm = x / width
+                y_norm = (y + h) / height
+                px_x = x
+                px_y = y + h
+                
+            elif coordinate_align == "bottom_right":
+                x_norm = (x + w) / width
+                y_norm = (y + h) / height
+                px_x = x + w
+                px_y = y + h
+                
+            elif coordinate_align == "top_center":
+                center_x = x + w / 2.0
+                x_norm = center_x / width
+                y_norm = y / height
+                px_x = int(center_x)
+                px_y = y
+                
+            elif coordinate_align == "bottom_center":
+                center_x = x + w / 2.0
+                x_norm = center_x / width
+                y_norm = (y + h) / height
+                px_x = int(center_x)
+                px_y = y + h
+                
+            elif coordinate_align == "left_center":
+                center_y = y + h / 2.0
+                x_norm = x / width
+                y_norm = center_y / height
+                px_x = x
+                px_y = int(center_y)
+                
+            elif coordinate_align == "right_center":
+                center_y = y + h / 2.0
+                x_norm = (x + w) / width
+                y_norm = center_y / height
+                px_x = x + w
+                px_y = int(center_y)
+                
+            else:
+                center_y = y + h / 2.0
+                center_x = x + w / 2.0
+                x_norm = center_x / width
+                y_norm = center_y / height
+                px_x = int(center_x)
+                px_y = int(center_y)
+            
+            # 归一化坐标边界限制 0~1
+            x_norm = max(0.0, min(1.0, x_norm))
+            y_norm = max(0.0, min(1.0, y_norm))
+            
+            # ✅ 核心修改3：彻底删除所有 image 相关的判断分支，全部使用 mask 的宽高做像素坐标边界限制
+            px_x = max(0, min(px_x, width - 1))
+            px_y = max(0, min(px_y, height - 1))
+            
+            index_mapping = {
+                "top_left": 1,
+                "top_center": 2,
+                "top_right": 3,
+                "left_center": 4,
+                "center": 5,
+                "right_center": 6,
+                "bottom_left": 7,
+                "bottom_center": 8,
+                "bottom_right": 9
+            }
+            
+            point_data = {
+                "x": float(x_norm),
+                "y": float(y_norm),
+                "index": index_mapping.get(coordinate_align, 5)
+            }
+            coordinates_json = json.dumps([point_data], ensure_ascii=False)
+            
+            bbox = BoundingBox(int(x), int(y), int(w), int(h))
+                 
+            return (coordinates_json, bbox, float(x_norm), float(y_norm), px_x, px_y)
+            
+        except Exception as e:
+            print(f"遮罩坐标提取错误: {e}")
+            default_point = {
+                "x": 0.0,
+                "y": 0.0,
+                "index": 1
+            }
+            coordinates_json = json.dumps([default_point], ensure_ascii=False)
+            bbox = BoundingBox(0, 0, 0, 0)
+            return (coordinates_json, bbox, 0.0, 0.0, 0, 0)
+    
+    def tensorMask2cv2img(self, tensor) -> np.ndarray:   
+        tensor = tensor.cpu().squeeze(0)
+        array = tensor.numpy()
+        array = (array * 255).astype(np.uint8)
+        return array
+
+
+
+
+
 
 
 

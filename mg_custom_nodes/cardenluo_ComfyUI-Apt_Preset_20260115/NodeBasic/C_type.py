@@ -499,36 +499,6 @@ class create_any_batch:
         return (output_list, )
 
 
-class create_image_batch:
-    @classmethod 
-    def INPUT_TYPES(s):
-        return {
-            "required": {},
-            "hidden": {
-                "unique_id": "UNIQUE_ID",
-                "prompt": "PROMPT",
-                "extra_pnginfo": "EXTRA_PNGINFO",
-            },
-        }
-
-    RETURN_TYPES = ("IMAGE",)
-    FUNCTION = "doit"
-    NAME = "create_image_batch"
-    CATEGORY = "Apt_Preset/data"
-
-    def doit(self, unique_id, prompt, extra_pnginfo, **kwargs):
-        images = [value for value in kwargs.values() if value is not None]
-        
-        if len(images) == 0:
-            return (torch.zeros((1, 64, 64, 3), dtype=torch.float32),)
-        
-        image1 = images[0]
-        for image2 in images[1:]:
-            if image1.shape[1:] != image2.shape[1:]:
-                image2 = comfy.utils.common_upscale(image2.movedim(-1, 1), image1.shape[2], image1.shape[1], "lanczos", "center").movedim(1, -1)
-            image1 = torch.cat((image1, image2), dim=0)
-        return (image1,)
-
 
 
 
@@ -617,276 +587,96 @@ def make_3d_mask(mask):
         return mask
 
 
-class XXXtype_AnyCast:
-    def __init__(self):
-        self.type_constructor = {
-            "list": list,
-            "set": set,
-            "dictionary": dict,
-            "tuple": tuple,
+
+
+
+
+
+
+
+
+
+
+
+
+
+class create_image_batch:
+    @classmethod 
+    def INPUT_TYPES(s):
+        return {
+            "required": {},
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+                "prompt": "PROMPT",
+                "extra_pnginfo": "EXTRA_PNGINFO",
+            },
         }
 
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "doit"
+    NAME = "create_image_batch"
+    CATEGORY = "Apt_Preset/data"
+
+    def doit(self, unique_id, prompt, extra_pnginfo, **kwargs):
+        images = [value for value in kwargs.values() if value is not None]
+        
+        if len(images) == 0:
+            return (torch.zeros((1, 64, 64, 3), dtype=torch.float32),)
+        
+        image1 = images[0]
+        for image2 in images[1:]:
+            if image1.shape[1:] != image2.shape[1:]:
+                image2 = comfy.utils.common_upscale(image2.movedim(-1, 1), image1.shape[2], image1.shape[1], "bicubic", "center").movedim(1, -1)
+            image1 = torch.cat((image1, image2), dim=0)
+        return (image1,)
+
+
+
+
+
+
+
+
+
+class ImageBatchMultiple:
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
-                "ANY": (ANY_TYPE, {}),
-                "TYPE": ([
-                    "anytype", 
-                    "string", 
-                    "int", 
-                    "float", 
-                    "list", 
-                    "set", 
-                    "tuple", 
-                    "dictionary", 
-                    "boolean", 
-                    "utf8_string",
-                    "-------------------------",
-                    "image_list_to_batch",
-                    "image_batch_to_list",
-                    "mask_list_to_batch",
-                    "mask_batch_to_list",
-                    "batch_to_list",
-                    "list_to_batch"
-                ], {}),
+                "image_1": ("IMAGE",),
+                "method": (["nearest-exact", "bilinear", "area", "bicubic", "lanczos"], { "default": "lanczos" }),
+            }, "optional": {
+                "image_2": ("IMAGE",),
+                "image_3": ("IMAGE",),
+                "image_4": ("IMAGE",),
+                "image_5": ("IMAGE",),
             },
         }
-    
-    RETURN_TYPES = (ANY_TYPE,)
-    RETURN_NAMES = ("data",)
-    FUNCTION = "run"
-    CATEGORY = "Apt_Preset/data"
-    OUTPUT_IS_LIST = (True, )
-    INPUT_IS_LIST = True
-    # 根据类型动态设置是否返回列表
-    def get_output_flags(self, TYPE):
-        if TYPE in ["mask_batch_to_list", "image_batch_to_list", "batch_to_list"]:
-            return {"OUTPUT_IS_LIST": (True,)}
-        return {}
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "execute"
+    CATEGORY = "essentials/image batch"
 
-    def run(self, ANY, TYPE):
-        if ANY is None:
-            if TYPE in ["int", "float"]:
-                return (0 if TYPE == "int" else 0.0,)
-            elif TYPE == "string":
-                return ("",)
-            elif TYPE == "boolean":
-                return (False,)
-            elif TYPE in ["list", "set", "dictionary", "tuple"]:
-                return (self.type_constructor[TYPE](),)
-            elif TYPE == "utf8_string":
-                return ("",)
-            elif TYPE == "image_list_to_batch":
-                return (torch.zeros((1, 64, 64, 3), dtype=torch.float32),)
-            elif TYPE in ["mask_list_to_batch", "mask_batch_to_list"]:
-                empty_mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
-                return ([empty_mask],) if TYPE == "mask_batch_to_list" else (torch.zeros((1, 64, 64), dtype=torch.float32),)
-            elif TYPE == "image_batch_to_list":
-                return ([torch.zeros((64, 64, 3), dtype=torch.float32)],)
-            elif TYPE == "batch_to_list":
-                return ([],)
-            elif TYPE == "list_to_batch":
-                return ([],)
-            else:
-                return (None,)
+    def execute(self, image_1, method, image_2=None, image_3=None, image_4=None, image_5=None):
+        out = image_1
 
-        if TYPE == "image_list_to_batch":
-            if not isinstance(ANY, list):
-                return (ANY,)
-            
-            if len(ANY) <= 1:
-                return (ANY[0],)
-            else:
-                image1 = ANY[0]
-                for image2 in ANY[1:]:
-                    if image1.shape[1:] != image2.shape[1:]:
-                        image2 = comfy.utils.common_upscale(
-                            image2.movedim(-1, 1), 
-                            image1.shape[2], 
-                            image1.shape[1], 
-                            "lanczos", 
-                            "center"
-                        ).movedim(1, -1)
-                    image1 = torch.cat((image1, image2), dim=0)
-                return (image1,)
-        
-        elif TYPE == "image_batch_to_list":
-            if not isinstance(ANY, torch.Tensor):
-                return ([ANY],)
-            
-            if len(ANY.shape) == 3:
-                return ([ANY],)
-            elif len(ANY.shape) == 4:
-                images = [ANY[i] for i in range(ANY.shape[0])]
-                return (images,)
-            else:
-                return ([ANY],)
-        
-        elif TYPE == "mask_list_to_batch":
-            if not isinstance(ANY, list):
-                mask = make_3d_mask(ANY)
-                return (mask,)
-                
-            if len(ANY) == 1:
-                mask = make_3d_mask(ANY[0])
-                return (mask,)
-            elif len(ANY) > 1:
-                mask1 = make_3d_mask(ANY[0])
+        if image_2 is not None:
+            if image_1.shape[1:] != image_2.shape[1:]:
+                image_2 = comfy.utils.common_upscale(image_2.movedim(-1,1), image_1.shape[2], image_1.shape[1], method, "center").movedim(1,-1)
+            out = torch.cat((image_1, image_2), dim=0)
+        if image_3 is not None:
+            if image_1.shape[1:] != image_3.shape[1:]:
+                image_3 = comfy.utils.common_upscale(image_3.movedim(-1,1), image_1.shape[2], image_1.shape[1], method, "center").movedim(1,-1)
+            out = torch.cat((out, image_3), dim=0)
+        if image_4 is not None:
+            if image_1.shape[1:] != image_4.shape[1:]:
+                image_4 = comfy.utils.common_upscale(image_4.movedim(-1,1), image_1.shape[2], image_1.shape[1], method, "center").movedim(1,-1)
+            out = torch.cat((out, image_4), dim=0)
+        if image_5 is not None:
+            if image_1.shape[1:] != image_5.shape[1:]:
+                image_5 = comfy.utils.common_upscale(image_5.movedim(-1,1), image_1.shape[2], image_1.shape[1], method, "center").movedim(1,-1)
+            out = torch.cat((out, image_5), dim=0)
 
-                for mask2 in ANY[1:]:
-                    mask2 = make_3d_mask(mask2)
-                    if mask1.shape[1:] != mask2.shape[1:]:
-                        mask2 = comfy.utils.common_upscale(
-                            mask2.movedim(-1, 1), 
-                            mask1.shape[2], 
-                            mask1.shape[1], 
-                            "lanczos", 
-                            "center"
-                        ).movedim(1, -1)
-                    mask1 = torch.cat((mask1, mask2), dim=0)
-
-                return (mask1,)
-            else:
-                empty_mask = torch.zeros((1, 64, 64), dtype=torch.float32, device="cpu")
-                return (empty_mask,)
-        
-
-        elif TYPE == "mask_batch_to_list":
-            # 确保返回遮罩列表，每个元素都是2D张量
-            res = []
-            if ANY is None:
-                empty_mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
-                return ([empty_mask],)
-
-            if isinstance(ANY, torch.Tensor):
-                if len(ANY.shape) == 2:  # 单个遮罩，包装成列表
-                    return ([ANY],)
-                elif len(ANY.shape) == 3:  # 批次遮罩 (B, H, W)
-                    for i in range(ANY.shape[0]):
-                        res.append(ANY[i])  # 每个元素都是2D张量
-                elif len(ANY.shape) == 4:  # 处理四维遮罩格式
-                    if ANY.shape[0] == 1:  # (1, B, H, W)
-                        for i in range(ANY.shape[1]):
-                            res.append(ANY[0, i])
-                    else:  # (B, 1, H, W)
-                        for i in range(ANY.shape[0]):
-                            res.append(ANY[i, 0])
-                return (res,)
-            else:  # 已经是列表
-                for mask in ANY:
-                    res.append(make_3d_mask(mask)[0] if make_3d_mask(mask).dim() == 3 else mask)
-                return (res,)
-
-        elif TYPE == "batch_to_list":
-            if isinstance(ANY, list):
-                return (ANY,)
-            else:
-                return ([ANY],)
-        
-        elif TYPE == "list_to_batch":
-            if isinstance(ANY, list):
-                return (ANY,)
-            else:
-                return ([ANY],)
-
-        elif TYPE == "list":
-            if isinstance(ANY, list):
-                return ([self.try_cast(item, "anytype") for item in ANY],)
-            elif isinstance(ANY, set):
-                return (list(ANY),)
-            else:
-                return ([ANY],)
-                
-        elif TYPE == "set":
-            if isinstance(ANY, set):
-                return (ANY,)
-            elif isinstance(ANY, list):
-                return (set(ANY),)
-            elif isinstance(ANY, dict):
-                return (set(ANY.keys()),)
-            else:
-                return ({ANY},)
-                
-        elif TYPE == "tuple":
-            if isinstance(ANY, tuple):
-                return (ANY,)
-            elif isinstance(ANY, list):
-                return (tuple(ANY),)
-            else:
-                return ((ANY,),)
-                
-        elif TYPE == "dictionary":
-            if isinstance(ANY, dict):
-                return ({k: self.try_cast(v, "anytype") for k, v in ANY.items()},)
-            elif isinstance(ANY, str):
-                try:
-                    import json
-                    parsed = json.loads(ANY)
-                    return (self.try_cast(parsed, "dictionary")[0],)
-                except (json.JSONDecodeError, TypeError):
-                    try:
-                        import ast
-                        parsed = ast.literal_eval(ANY)
-                        return (self.try_cast(parsed, "dictionary")[0],)
-                    except (SyntaxError, ValueError):
-                        return ({},)
-            elif isinstance(ANY, list) and len(ANY) > 0:
-                if isinstance(ANY[0], (list, tuple)) and len(ANY[0]) == 2:
-                    return (dict(ANY),)
-            return ({},)
-            
-        elif TYPE == "boolean":
-            if isinstance(ANY, str):
-                return (ANY.lower() in ["true", "1", "yes"],)
-            return (bool(ANY),)
-            
-        elif TYPE == "int":
-            if isinstance(ANY, str):
-                try:
-                    return (int(float(ANY)),)
-                except ValueError:
-                    return (0,)
-            return (int(ANY),)
-            
-        elif TYPE == "float":
-            if isinstance(ANY, str):
-                try:
-                    return (float(ANY),)
-                except ValueError:
-                    return (0.0,)
-            return (float(ANY),)
-            
-        elif TYPE == "string":
-            return (str(ANY),)
-            
-        elif TYPE == "utf8_string":
-            try:
-                encoded_bytes = str(ANY).encode('utf-8', 'ignore')
-                encoded_text = encoded_bytes.decode('utf-8', 'replace')
-                return (encoded_text,)
-            except Exception as e:
-                return (f"Error during UTF-8 encoding: {e}",)
-                
-        else:
-            return (ANY,)
-
-    def try_cast(self, value, target_type):
-        return self.run(value, target_type)[0]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        return (out,)
 
 
 

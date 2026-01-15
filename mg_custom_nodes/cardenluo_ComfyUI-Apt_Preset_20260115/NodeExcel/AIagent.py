@@ -1,5 +1,329 @@
 
 
+#region-----------GLM-------------------------------------
+
+import os
+import json
+import base64
+import random
+from PIL import Image
+import numpy as np
+import io
+import requests
+
+try:
+    from zhipuai import ZhipuAI
+    ZHIPUAI_AVAILABLE = True
+except ImportError:
+    ZhipuAI = None
+    ZHIPUAI_AVAILABLE = False
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+json_path = os.path.join(current_dir, "AiPromptPreset.json")
+
+
+def load_text_prompts():
+    if not os.path.exists(json_path):
+        # JSON 文件不存在时返回默认字典，避免报错
+        return {"None": ""}
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        # 返回 TEXT_PROMPTS，若不存在则返回默认字典
+        return data.get("TEXT_PROMPTS", {"None": ""})
+    except Exception:
+        # JSON 格式错误时返回默认字典
+        return {"None": ""}
+
+def load_image_prompts():
+    if not os.path.exists(json_path):
+        return {"None": ""}
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("IMAGE_PROMPTS", {"None": ""})
+    except Exception:
+        return {"None": ""}
+
+TEXT_PROMPTS = load_text_prompts()
+IMAGE_PROMPTS = load_image_prompts()
+
+def _log_info(message):
+    print(f"[GLM_Nodes] 信息：{message}")
+
+def _log_warning(message):
+    print(f"[GLM_Nodes] 警告：{message}")
+
+def _log_error(message):
+    print(f"[GLM_Nodes] 错误：{message}")
+
+def get_zhipuai_api_key():
+    env_api_key = os.getenv("ZHIPUAI_API_KEY")
+    if env_api_key:
+        _log_info("使用环境变量 API Key。")
+        return env_api_key
+
+    # 尝试从本地文件读取GLM API密钥
+    custom_nodes_paths = []
+    try:
+        import folder_paths
+        custom_nodes_paths = folder_paths.get_folder_paths("custom_nodes")
+    except ImportError:
+        pass
+
+    comfy_root = os.path.dirname(custom_nodes_paths[0]) if custom_nodes_paths else os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
+    key_path = os.path.join(comfy_root, "custom_nodes", "ComfyUI-Apt_Preset", "NodeExcel", "ApiKey_GLM.txt")
+
+    if os.path.exists(key_path):
+        try:
+            with open(key_path, "r", encoding="utf-8") as f:
+                api_key = f.read().strip()
+                if api_key and api_key.strip():
+                    _log_info(f"从文件 {key_path} 读取GLM API密钥")
+                    return api_key.strip()
+        except Exception as e:
+            _log_error(f"读取GLM API Key文件失败: {e}")
+
+    _log_warning("未设置环境变量 ZHIPUAI_API_KEY 或本地 ApiKey_GLM.txt 文件。")
+    return ""
+
+# 原有模型列表保留
+ZHIPU_MODELS = [
+    "GLM-4.5-Flash",
+    "glm-4v-flash",
+    "XX----下面的要开通支付-----XX",
+    "GLM-4.6V",
+    "glm-4.7",
+    "glm-4.5-air",
+    "glm-4.5",
+]
+
+class AI_GLM_text:
+    @classmethod
+    def INPUT_TYPES(cls):
+        prompt_keys = list(TEXT_PROMPTS.keys())
+        default_selection = prompt_keys[0] if prompt_keys else ""
+
+        return {
+            "required": {
+                "model_name": (ZHIPU_MODELS, {
+                    "default": "GLM-4.5-Flash",
+                    "placeholder": "请输入模型名称，如 GLM-4.5-Flash"
+                }),
+
+                "preset": (prompt_keys, {"default": "None"}),
+                "custom_system_prompt": ("STRING", {
+                    "default": "",
+                    "multiline": False,
+                     }),
+
+                "text": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "placeholder": "用户提示词"
+                }),
+
+                "max_tokens": ("INT", {"default": 1024, "min": 1, "max": 4096}),
+                "seed": ("INT", {
+                    "default": 0,
+                    "min": 0,
+                    "max": 0xffffffffffffffff,
+                }),
+                "api_key_input": ("STRING", {
+                    "default": "",
+                    "multiline": False,
+                })
+        
+            },
+            "optional": {
+               
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("result", "system_prompt")
+    FUNCTION = "analyze"
+    CATEGORY = "Apt_Preset/prompt"
+
+    def analyze(self, preset, max_tokens, seed, api_key_input, model_name, text, custom_system_prompt=""):
+        # 优先使用自定义系统提示词，无内容时使用预设
+        if custom_system_prompt.strip():
+            system_prompt = custom_system_prompt.strip()
+            _log_info("使用自定义系统提示词。")
+        elif preset in TEXT_PROMPTS:
+            system_prompt = TEXT_PROMPTS[preset]
+            _log_info(f"使用预设提示词: '{preset}'。")
+        else:
+            system_prompt = next(iter(TEXT_PROMPTS.values()), "") if TEXT_PROMPTS else ""
+            _log_warning("预设提示词未找到，使用默认提示词。")
+
+        text_content = text.strip()
+        
+        # 构建最终提示词
+        if text_content and system_prompt:
+            final_prompt = f"{system_prompt}\n\n{text_content}"
+        elif text_content:
+            final_prompt = text_content
+        else:
+            final_prompt = system_prompt if system_prompt else "请作为专业AI助手提供帮助"
+
+        if not final_prompt.strip():
+            return ("错误：请输入有效文本或选择合适的预设/填写自定义系统提示词", system_prompt)
+        
+        final_api_key = api_key_input.strip() or get_zhipuai_api_key()
+        if not final_api_key:
+            _log_error("API Key 未提供。")
+            return ("API Key 未提供。", system_prompt)
+
+        _log_info("初始化智谱AI客户端。")
+
+        try:
+            client = ZhipuAI(api_key=final_api_key)
+        except Exception as e:
+            _log_error(f"客户端初始化失败: {e}")
+            return (f"客户端初始化失败: {e}", system_prompt)
+
+        messages = [
+            {"role": "system", "content": system_prompt if system_prompt else "你是一个专业、友好的AI助手。"},
+            {"role": "user", "content": text_content if text_content else "请作为专业AI助手提供帮助"}
+        ]
+
+        effective_seed = seed if seed != 0 else random.randint(0, 0xffffffffffffffff)
+        _log_info(f"内部种子: {effective_seed}。")
+        random.seed(effective_seed)
+
+        _log_info(f"调用 GLM-4 ({model_name})...")
+
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+                temperature=0.9,
+                top_p=0.7,
+                max_tokens=max_tokens,
+            )
+            response_text = response.choices[0].message.content
+            _log_info("GLM-4 响应成功。")
+            return (response_text, system_prompt)
+        except Exception as e:
+            error_message = f"GLM-4 API 调用失败: {e}"
+            return (error_message, system_prompt)
+
+
+
+class AI_GLM_image:
+    @classmethod
+    def INPUT_TYPES(cls):
+        prompt_keys = list(IMAGE_PROMPTS.keys())
+        default_selection = prompt_keys[0] if prompt_keys else ""
+
+        return {
+            "required": {
+                "model_name": (ZHIPU_MODELS, {
+                    "default": "glm-4v-flash",
+                    "placeholder": "请输入模型名称，如 glm-4v-flash"
+                }),
+                "preset": (prompt_keys, {"default": default_selection}),
+                "custom_system_prompt": ("STRING", {
+                    "default": "",
+                    "multiline": True,
+                    "placeholder": "系统提示词，填写则替代预设"
+                }),
+
+                "max_tokens": ("INT", {
+                    "default": 1024,
+                    "min": 1,
+                    "max": 4096
+                }),
+                "seed": ("INT", {
+                    "default": 0,
+                    "min": 0,
+                    "max": 0xffffffffffffffff,
+                }),
+                "api_key_input": ("STRING", {
+                    "default": "",
+                    "multiline": False,
+                    "placeholder": "可选：智谱AI API Key (留空则尝试从环境变量或config.json读取)"
+                }),
+            },
+            "optional": {
+                "image_1": ("IMAGE",),
+                "image_2": ("IMAGE",),
+                "image_3": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("result", "system_prompt")
+    FUNCTION = "analyze"
+    CATEGORY = "Apt_Preset/prompt"
+
+    def analyze(self, preset, max_tokens, seed, api_key_input, model_name, image_1=None, image_2=None, image_3=None, custom_system_prompt=""):
+        preset_text = IMAGE_PROMPTS.get(preset, "") if preset != "None" else ""
+        
+        if custom_system_prompt.strip():
+            final_prompt = custom_system_prompt.strip()
+        else:
+            final_prompt = preset_text if preset_text else "生成输入图片的详细中文描述"
+
+        input_images = []
+        if image_1 is not None:
+            input_images.append(image_1)
+        if image_2 is not None:
+            input_images.append(image_2)
+        if image_3 is not None:
+            input_images.append(image_3)
+        
+        if not input_images:
+            return ("错误：请至少输入1张有效图片", final_prompt)
+        
+        final_api_key = api_key_input.strip() or get_zhipuai_api_key()
+        if not final_api_key:
+            return ("API Key 未提供。", final_prompt)
+
+        try:
+            client = ZhipuAI(api_key=final_api_key)
+        except Exception as e:
+            return (f"客户端初始化失败: {e}", final_prompt)
+
+        content_parts = [{"type": "text", "text": final_prompt}]
+        
+        for i, img_tensor in enumerate(input_images, 1):
+            try:
+                i_np = 255. * img_tensor.cpu().numpy()
+                img_array = np.clip(i_np, 0, 255).astype(np.uint8)[0]
+                img = Image.fromarray(img_array)
+                buffered = io.BytesIO()
+                img.save(buffered, format="PNG")
+                image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                final_image_data = f"data:image/png;base64,{image_base64}"
+                content_parts.append({"type": "image_url", "image_url": {"url": final_image_data}})
+            except Exception as e:
+                return (f"图片{i}格式转换失败: {str(e)}", final_prompt)
+
+        effective_seed = seed if seed != 0 else random.randint(0, 0xffffffffffffffff)
+        random.seed(effective_seed)
+
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": content_parts}],
+                temperature=0.9,
+                top_p=0.7,
+                max_tokens=max_tokens,
+            )
+            response_content = str(response.choices[0].message.content)
+            return (response_content, final_prompt)
+        except Exception as e:
+            error_message = f"GLM-4V API调用失败: {str(e)}"
+            return (error_message, final_prompt)
+        
+
+
+
+#endregion--------------------------------------------------------------------------
+
+
 
 
 #region-----------GLM4.5V-------------------------------------
@@ -56,21 +380,6 @@ def get_zhipuai_api_key():
     _log_warning("未设置环境变量 ZHIPUAI_API_KEY。")
     return ""
 
-# 原有模型列表保留
-ZHIPU_MODELS = [
-    "GLM-4.5-Flash",
-    "glm-4v-flash",
-    "XX----下面的要开通支付-----XX",
-    "glm-4.5-air",
-    "glm-4.5",
-    "glm-4.5-x",
-    "glm-4.5-airx",
-    "glm-4.5-flash",
-    "glm-4-plus",
-    "glm-z1-air",
-    "glm-4v-plus-0111",
-    "glm-4.1v-thinking-flash"
-]
 
 class AI_GLM4:
     @classmethod
@@ -116,7 +425,7 @@ class AI_GLM4:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("response",)
     FUNCTION = "execute"
-    CATEGORY = "Apt_Preset/prompt"
+    CATEGORY = "Apt_Preset/🚫Deprecated/🚫"
 
     def execute(self, prompt_preset, prompt_override, api_key, model_name,
                 max_tokens, seed, text_input, image_input=None):
@@ -1617,6 +1926,41 @@ class AI_Qwen:
             return (f"分析失败: {str(e)}", preset_text)
 
 #endregion--------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

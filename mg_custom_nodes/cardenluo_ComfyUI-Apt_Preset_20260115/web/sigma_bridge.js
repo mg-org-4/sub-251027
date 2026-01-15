@@ -8,10 +8,36 @@ app.registerExtension({
     async beforeRegisterNodeDef(nodeType, nodeData) {
         // 检查是否是我们的交互式sigma节点
         if (nodeData.name === 'scheduler_interactive_sigmas') {
+            // 添加WebSocket设置方法
+            nodeType.prototype.setupWebSocket = function () {
+                const messageHandler = (event) => {
+                    const data = event.detail;
+
+                    if (!data || !data.node_id || !data.sigmas_data) {
+                        return;
+                    }
+
+                    // 通过node_id查找对应的节点
+                    const targetNode = app.graph.getNodeById(parseInt(data.node_id));
+
+                    // 检查是否是当前节点
+                    if (targetNode && targetNode === this) {
+                        this.sigmas_data = data.sigmas_data;
+                        // 从后端接收调整后的值，如果为空则使用原始值
+                        this.adjustments = data.adjusted || data.sigmas_data.slice();
+                    }
+                };
+
+                api.addEventListener("sigmas_editor_update", messageHandler);
+
+                // 存储handler引用以便后续清理
+                this._sigmasEditorMessageHandler = messageHandler;
+            };
+
             // 保存原始的onNodeCreated函数
             const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
 
-            nodeType.prototype.onNodeCreated = function() {
+            nodeType.prototype.onNodeCreated = function () {
                 // 调用原始函数
                 if (originalOnNodeCreated) {
                     originalOnNodeCreated.apply(this, arguments);
@@ -19,16 +45,24 @@ app.registerExtension({
 
                 const node = this;
 
+                // 初始化节点数据
+                this.sigmas_data = null;
+                this.adjustments = [];
+                this.isAdjusting = false;
+
                 // 找到相关的widgets
                 const adjustmentsWidget = this.widgets.find(w => w.name === 'adjustments');
                 const stepsWidget = this.widgets.find(w => w.name === 'steps');
                 const schedulerWidget = this.widgets.find(w => w.name === 'scheduler');
 
+                // 设置WebSocket监听
+                this.setupWebSocket();
+
                 // 保存原始的onExecuted函数
                 const originalOnExecuted = nodeType.prototype.onExecuted;
 
                 // 添加onExecuted方法来接收后端返回的sigmas_data
-                const onExecutedHandler = function(message) {
+                const onExecutedHandler = function (message) {
                     console.log('[scheduler_interactive_sigmas] onExecuted called');
                     console.log('[scheduler_interactive_sigmas] message keys:', message ? Object.keys(message) : 'null');
 
@@ -41,7 +75,9 @@ app.registerExtension({
                     if (message && message.ui && message.ui.sigmas_data) {
                         console.log('[scheduler_interactive_sigmas] ✅ Received sigmas_data from backend');
                         console.log('[scheduler_interactive_sigmas] sigmas_data:', message.ui.sigmas_data);
-                        node.output_data = message;
+                        this.sigmas_data = message.ui.sigmas_data;
+                        // 从后端接收调整后的值，如果为空则使用原始值
+                        this.adjustments = message.ui.adjusted || message.ui.sigmas_data.slice();
                     } else {
                         console.log('[scheduler_interactive_sigmas] ⚠️ No sigmas_data in message.ui');
                         if (message) {
@@ -64,16 +100,25 @@ app.registerExtension({
                     console.log('Node type:', node.type);
                     console.log('Steps:', steps);
                     console.log('Scheduler:', scheduler);
+                    console.log('sigmas_data available:', !!node.sigmas_data);
+                    console.log('sigmas_data length:', node.sigmas_data ? node.sigmas_data.length : 0);
                     console.log('================================================');
 
-                    // 新逻辑：只获取步数，初始化所有点为0
-                    // 调整值范围：-1到1（偏移量，会叠加到原始调度器的归一化值上）
-                    const pointCount = steps + 1;  // sigmas数组长度 = steps + 1（因为最后一个是0）
-                    const initialSigmas = new Array(pointCount).fill(0.0);  // 所有点初始化为0
-
-                    console.log('\n📊 Initial editor state:');
-                    console.log('📊 Point count:', pointCount);
-                    console.log('📊 All points initialized to 0 (offset values)');
+                    // 使用真实的sigmas数据，如果没有则初始化
+                    let initialSigmas;
+                    if (node.sigmas_data && node.sigmas_data.length > 0) {
+                        initialSigmas = node.sigmas_data;
+                        console.log('\n📊 Using real sigmas data from backend:');
+                        console.log('📊 Point count:', initialSigmas.length);
+                        console.log('📊 First few values:', initialSigmas.slice(0, 3).map(v => v.toFixed(4)));
+                        console.log('📊 Last few values:', initialSigmas.slice(-3).map(v => v.toFixed(4)));
+                    } else {
+                        // 备用方案：如果没有真实数据，初始化所有点为0
+                        const pointCount = steps + 1;  // sigmas数组长度 = steps + 1（因为最后一个是0）
+                        initialSigmas = new Array(pointCount).fill(0.0);  // 所有点初始化为0
+                        console.log('\n📊 Using fallback sigmas data (all zeros):');
+                        console.log('📊 Point count:', initialSigmas.length);
+                    }
                     console.log('📊 Adjustment range: -1 to +1 (will be added to normalized scheduler values)');
                     console.log('========== End of initialization ==========\n');
 
@@ -83,6 +128,21 @@ app.registerExtension({
 
                 // 将按钮引用保存到节点对象，方便其他地方使用
                 node.editButton = editButton;
+            };
+
+            // 添加节点移除时的清理逻辑
+            const originalOnRemoved = nodeType.prototype.onRemoved;
+            nodeType.prototype.onRemoved = function () {
+                // 调用原始函数
+                if (originalOnRemoved) {
+                    originalOnRemoved.apply(this, arguments);
+                }
+
+                // 清理WebSocket事件监听器
+                if (this._sigmasEditorMessageHandler) {
+                    api.removeEventListener("sigmas_editor_update", this._sigmasEditorMessageHandler);
+                    this._sigmasEditorMessageHandler = null;
+                }
             };
         }
     }
@@ -656,38 +716,38 @@ class SigmaCurveEditor {
     // 重置调整
     reset() {
         this.adjustments = {};
-        
+
         // 重置widget值为默认值
         this.adjustmentsWidget.value = '{}';
         if (this.adjustmentsWidget.inputEl) {
             this.adjustmentsWidget.inputEl.value = '{}';
         }
-        
+
         // 触发节点更新
         if (this.node.onWidgetValue_changed) {
             this.node.onWidgetValue_changed(this.adjustmentsWidget, '{}');
         }
-        
+
         // 重新绘制
         this.draw();
-        
+
         // 添加重置成功的视觉反馈
         const canvas = this.canvas;
         const ctx = this.ctx;
         const originalAlpha = ctx.globalAlpha;
-        
+
         // 显示重置成功的提示
         ctx.globalAlpha = 0.8;
         ctx.fillStyle = '#4CAF50';
         ctx.fillRect(0, 0, canvas.width, 40);
-        
+
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = '#FFFFFF';
         ctx.font = 'bold 16px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('已重置为原始值', canvas.width / 2, 20);
-        
+
         // 2秒后清除提示并重绘
         setTimeout(() => {
             this.draw();
@@ -701,7 +761,7 @@ class SigmaCurveEditor {
         if (this.adjustmentsWidget.inputEl) {
             this.adjustmentsWidget.inputEl.value = jsonStr;
         }
-        
+
         // 添加调试日志
         console.log("[interactive_editor] Saving adjustments:", this.adjustments);
         console.log("[interactive_editor] JSON string:", jsonStr);

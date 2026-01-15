@@ -7,7 +7,11 @@ import math
 import comfy
 import node_helpers
 import comfy.utils
-from nodes import common_ksampler, CLIPTextEncode, ControlNetApplyAdvanced
+from nodes import common_ksampler, CLIPTextEncode
+import torch.nn.functional as F
+
+
+
 
 
 from ..office_unit import *
@@ -43,149 +47,6 @@ except ImportError:
 #region---------------------kontext------------------
 
 
-
-
-class XXXpre_condi_merge:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "main_cond": ("CONDITIONING", ),  # 主控条件
-                "mode": (["combine", "average", "concat"],{"default": "combine"} ),
-            },
-            "optional": {
-                "aux_cond": ("CONDITIONING", ),  
-                "aux_start": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001}),  # 辅控时间范围-起始
-                "aux_end": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001}),    # 辅控时间范围-结束
-                "main_cond_ratio": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001}),  # 主控强度（恢复全称）
-                "aux_mask": ("MASK", {"default": None}),  # 辅控遮罩
-                "set_cond_area": (["default", "bounds"], {"default": "default"}),
-            }
-        }
-    
-    RETURN_TYPES = ("CONDITIONING",)
-    RETURN_NAMES = ("conditioning",)
-    FUNCTION = "merge"
-    CATEGORY = "Apt_Preset/chx_tool/conditioning"
-    DESCRIPTION = """
-        main_cond：主控条件，可包括多个CN（controlnet）等控制核心结构
-        aux_cond：辅控条件（可选），会适配主控的维度，最多接入一个条件
-        
-        concat 连接：所有参数不可控制
-        相同特征替换，不同则追加（若有CN,则集中在控制区呈混合结构)  
-                   
-        combine合并: 所有参数可控，主条件0~1分配占比 (主强则辅弱,0.5平均)
-        主控特征+辅助特征，两特征并存（重叠区域或构成混合：蓝衣服+红衣服=紫衣服)  
-
-        average平均: 仅主条件占比可控, 0~1分配强度 (主强则辅弱,0.5平均)
-        相同特征按权重分配，不同则追加（若有CN则呈混合效果)     
-
-        """
-    
-
-    def ConditioningCombine(self, conditioning1, conditioning2):
-        return (conditioning1 + conditioning2, )
-
-    def ConditioningAverage(self, conditioning_to, conditioning_from, conditioning_to_strength):
-        out = []
-
-        if len(conditioning_from) > 1:
-            logging.warning("Warning: ConditioningAverage conditioning_from contains more than 1 cond, only the first one will actually be applied to conditioning_to.")
-
-        cond_from = conditioning_from[0][0]
-        pooled_output_from = conditioning_from[0][1].get("pooled_output", None)
-
-        for i in range(len(conditioning_to)):
-            t1 = conditioning_to[i][0]
-            pooled_output_to = conditioning_to[i][1].get("pooled_output", pooled_output_from)
-            t0 = cond_from[:,:t1.shape[1]]
-            if t0.shape[1] < t1.shape[1]:
-                t0 = torch.cat([t0] + [torch.zeros((1, (t1.shape[1] - t0.shape[1]), t1.shape[2]))], dim=1)
-
-            tw = torch.mul(t1, conditioning_to_strength) + torch.mul(t0, (1.0 - conditioning_to_strength))
-            t_to = conditioning_to[i][1].copy()
-            if pooled_output_from is not None and pooled_output_to is not None:
-                t_to["pooled_output"] = torch.mul(pooled_output_to, conditioning_to_strength) + torch.mul(pooled_output_from, (1.0 - conditioning_to_strength))
-            elif pooled_output_from is not None:
-                t_to["pooled_output"] = pooled_output_from
-
-            n = [tw, t_to]
-            out.append(n)
-        return (out, )
-
-    def ConditioningConcat(self, conditioning_to, conditioning_from):
-        out = []
-
-        if len(conditioning_from) > 1:
-            logging.warning("Warning: ConditioningConcat conditioning_from contains more than 1 cond, only the first one will actually be applied to conditioning_to.")
-
-        cond_from = conditioning_from[0][0]
-
-        for i in range(len(conditioning_to)):
-            t1 = conditioning_to[i][0]
-            tw = torch.cat((t1, cond_from),1)
-            n = [tw, conditioning_to[i][1].copy()]
-            out.append(n)
-
-        return (out, )
-
-    def ConditioningSetAreaStrength(self, conditioning, strength):
-        c = node_helpers.conditioning_set_values(conditioning, {"strength": strength})
-        return (c, )
-
-    def ConditioningSetMask(self, conditioning, mask, set_cond_area, strength):
-        set_area_to_bounds = False
-        if set_cond_area != "default":
-            set_area_to_bounds = True
-        if len(mask.shape) < 3:
-            mask = mask.unsqueeze(0)
-
-        c = node_helpers.conditioning_set_values(conditioning, {"mask": mask,
-                                                                "set_area_to_bounds": set_area_to_bounds,
-                                                                "mask_strength": strength})
-        return (c, )
-
-    def ConditioningSetTimestepRange(self, conditioning, start, end):
-        c = node_helpers.conditioning_set_values(conditioning, {"start_percent": start,
-                                                                "end_percent": end})
-        return (c, )
-
-    def merge(self, main_cond, mode, 
-              aux_cond=None,  # 改为可选参数，默认None
-              main_cond_ratio=1.0, aux_mask=None, aux_start=0.0, aux_end=1.0,
-              set_cond_area="default"):
-        
-        # 处理辅控条件为None的情况：直接返回处理后的主控条件
-        if aux_cond is None:
-            main_cond = self.ConditioningSetAreaStrength(main_cond, main_cond_ratio)[0]
-            return (main_cond, )
-        
-        # 有辅控条件时正常处理
-        aux_cond = self.ConditioningSetTimestepRange(aux_cond, aux_start, aux_end)[0]
-        aux_strength = max(0.0, 1.0 - main_cond_ratio)/2.0  # 修复重复赋值的笔误
-
-        if aux_mask is not None:
-           aux_cond = self.ConditioningSetMask(aux_cond, aux_mask, set_cond_area, aux_strength)[0]
-        else:
-            aux_cond = self.ConditioningSetAreaStrength(aux_cond, aux_strength)[0]
-
-        if mode == "combine":
-            main_cond = self.ConditioningSetAreaStrength(main_cond, main_cond_ratio)[0]
-            conditioning = self.ConditioningCombine(main_cond, aux_cond)[0]
-        elif mode == "average":
-            conditioning = self.ConditioningAverage(main_cond, aux_cond, main_cond_ratio)[0]
-        elif mode == "concat":
-            main_cond = self.ConditioningSetAreaStrength(main_cond, main_cond_ratio)[0]
-            conditioning = self.ConditioningConcat(main_cond, aux_cond)[0]
-        else:
-            conditioning = main_cond
-        
-        return (conditioning,)
-
-
-
-
-import torch.nn.functional as F
 
 
 
@@ -1283,163 +1144,6 @@ class ZImageFun(QwenImageDiffsynthControlnet):
 
 
 
-class XXpre_ZImageInpaint_patch:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {"context": ("RUN_CONTEXT",),
-            },
-            "optional": {
-                "image": ("IMAGE",),
-                "controlnet": (folder_paths.get_filename_list("model_patches"), {"default":"Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors"}),
-                "strength": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 2.0, "step": 0.01}),         
-                "inpaint_image": ("IMAGE", ),
-                "mask": ("MASK", ),
-
-
-            },
-
-        }
-
-    RETURN_TYPES = ("RUN_CONTEXT","MODEL", )
-    RETURN_NAMES = ("context","model", )
-    CATEGORY = "Apt_Preset/chx_tool/controlnet"
-    FUNCTION = "load_controlnet"
-
-
-    def load_controlnet(self, 
-                        strength,  
-                        context=None, 
-                        controlnet=None, 
-                        image=None, vae=None,inpaint_image=None, mask=None,):
-
-
-        vae = context.get("vae", None)
-        model = context.get("model", None)
-
-
-
-        cn1=ModelPatchLoader().load_model_patch(controlnet)[0]
-        model=ZImageFun().diffsynth_controlnet(model, cn1, vae, image, strength, inpaint_image, mask)[0]
-
-
-        context = new_context(context, model=model)
-        return (context, model)
-
-
-
-
-
-class xxxpre_ZImageInpaint_patch:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {"context": ("RUN_CONTEXT",),
-            },
-            "optional": {
-                "image": ("IMAGE",),
-                "controlnet": (folder_paths.get_filename_list("model_patches"), {"default":"Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors"}),
-                "strength": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 2.0, "step": 0.01}),         
-                "latent_image": ("IMAGE", ),
-                "latent_mask": ("MASK", ),
-                "diffDiffusion": ("BOOLEAN", {"default": True}),
-                "smoothness": ("INT", {"default": 0, "min": 0, "max": 1000, "step": 1, }),
-
-            },
-
-        }
-
-    RETURN_TYPES = ("RUN_CONTEXT","MODEL","LATENT" )
-    RETURN_NAMES = ("context","model","latent" )
-    CATEGORY = "Apt_Preset/chx_tool/controlnet"
-    FUNCTION = "load_controlnet"
-
-
-
-
-    def addConditioning(self,positive, negative, pixels, vae, mask=None):
-        x = (pixels.shape[1] // 8) * 8
-        y = (pixels.shape[2] // 8) * 8
-        
-        orig_pixels = pixels
-        pixels = orig_pixels.clone()
-        
-        # 如果提供了 mask，则进行相关处理
-        if mask is not None:
-            mask = torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])), size=(pixels.shape[1], pixels.shape[2]), mode="bilinear")
-            
-            if pixels.shape[1] != x or pixels.shape[2] != y:
-                x_offset = (pixels.shape[1] % 8) // 2
-                y_offset = (pixels.shape[2] % 8) // 2
-                pixels = pixels[:,x_offset:x + x_offset, y_offset:y + y_offset,:]
-                mask = mask[:,:,x_offset:x + x_offset, y_offset:y + y_offset]
-
-            m = (1.0 - mask.round()).squeeze(1)
-            for i in range(3):
-                pixels[:,:,:,i] -= 0.5
-                pixels[:,:,:,i] *= m
-                pixels[:,:,:,i] += 0.5
-                
-            concat_latent = vae.encode(pixels)
-            
-            out_latent = {}
-            out_latent["samples"] = vae.encode(orig_pixels)
-            out_latent["noise_mask"] = mask
-        else:
-            # 如果没有提供 mask，直接编码原始像素
-            concat_latent = vae.encode(pixels)
-            out_latent = {"samples": concat_latent}
-
-        out = []
-        for conditioning in [positive, negative]:
-            c = node_helpers.conditioning_set_values(conditioning, {"concat_latent_image": concat_latent})
-            # 只有当 mask 存在时才添加 concat_mask
-            if mask is not None:
-                c = node_helpers.conditioning_set_values(c, {"concat_mask": mask})
-            out.append(c)
-        
-        return (out[0], out[1], out_latent)
-
-
-
-
-
-    def load_controlnet(self, 
-                        strength,  
-                        context=None, 
-                        controlnet=None,  smoothness=0,diffDiffusion=True,
-                        image=None, vae=None,latent_image=None, latent_mask=None,):
-
-
-        vae = context.get("vae", None)
-        model = context.get("model", None)
-        latent = context.get("latent", None)
-
-        if latent_mask is not None:
-            if smoothness > 0:
-               latent_mask = smoothness_mask(latent_mask, smoothness)
-            latent = set_mask(latent, latent_mask)[0]
-
-
-        cn1=ModelPatchLoader().load_model_patch(controlnet)[0]
-        model=ZImageFun().diffsynth_controlnet(model, cn1, vae, image, strength, latent_image, latent_mask)[0]
-
-        if diffDiffusion:
-            model = DifferentialDiffusion().apply(model)[0]
-
-
-        if latent_image is not None:
-            positive, negative, latent = self.addConditioning(
-                positive, negative, latent_image, vae, 
-                mask=latent_mask if latent_mask is not None else None)
-
-
-
-          
-        context = new_context(context, model=model, latent=latent)
-        return (context, model, latent)
-
-
 
 
 
@@ -1676,101 +1380,6 @@ class pre_QwenEdit:
 
 
 
-class sum_stack_QwenEdit:
-
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "context": ("RUN_CONTEXT",),
-
-            },
-            "optional": {
-                "model":("MODEL", ),               
-                "lora_stack": ("LORASTACK",),
-
-                "image1": ("IMAGE", ),
-                "image2": ("IMAGE", ),
-                "image3": ("IMAGE", ),
-                
-                "union_stack": ("UNION_STACK",),
-                "latent_stack": ("LATENT_STACK",),
-                      
-                "prompt": ("STRING", {"multiline": True, "default": ""}),    
-
-            },
-            "hidden": {},
-        }
-        
-    RETURN_TYPES = ("RUN_CONTEXT","MODEL", "CONDITIONING","LATENT","CLIP","VAE")
-    RETURN_NAMES = ("context", "model","positive","latent","clip","vae")
-    FUNCTION = "QWENencode"
-
-    CATEGORY = "Apt_Preset/🚫Deprecated/🚫"
-
-
-    def QWENencode(self,context=None, prompt="", model=None, lora_stack=None,union_stack=None,latent_stack=None, image1=None, image2=None, image3=None):
-
-        if model is None:
-            model = context.get("model", None)
-
-        clip = context.get("clip", None)
-
-        if lora_stack is not None:
-            model, clip = Apply_LoRAStack().apply_lora_stack(model, clip, lora_stack)
-
-        negative= context.get("negative", None)
-        vae = context.get("vae", None)
-        latent = context.get("latent", None)
-
-#-----------------------------------------------------
-        ref_latents = []
-        images = [image1, image2, image3]
-        images_vl = []
-        llama_template = "<|im_start|>system\nDescribe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate.<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
-        image_prompt = ""
-
-        for i, image in enumerate(images):
-            if image is not None:
-                samples = image.movedim(-1, 1)
-                total = int(384 * 384)
-
-                scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
-                width = round(samples.shape[3] * scale_by)
-                height = round(samples.shape[2] * scale_by)
-
-                s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
-                images_vl.append(s.movedim(1, -1))
-                if vae is not None:
-                    total = int(1024 * 1024)
-                    scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
-                    width = round(samples.shape[3] * scale_by / 8.0) * 8
-                    height = round(samples.shape[2] * scale_by / 8.0) * 8
-
-                    s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
-                    ref_latents.append(vae.encode(s.movedim(1, -1)[:, :, :, :3]))
-
-                image_prompt += "Picture {}: <|vision_start|><|image_pad|><|vision_end|>".format(i + 1)
-
-        tokens = clip.tokenize(image_prompt + prompt, images=images_vl, llama_template=llama_template)
-        conditioning = clip.encode_from_tokens_scheduled(tokens)
-        if len(ref_latents) > 0:
-            conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": ref_latents}, append=True)
-        positive = conditioning
-      
-#------------------------------------------------------------------------
-
-        if union_stack is not None:
-            positive, negative = Apply_CN_union().apply_union_stack(positive, negative, vae, union_stack, extra_concat=[])
-
-        if latent_stack is not None:
-            model, positive, negative, latent = Apply_latent().apply_latent_stack(model, positive, negative, vae, latent_stack)
-
-        context = new_context(context, clip=clip, positive=positive, negative=negative, model=model, latent=latent,)
-        return (context, model, positive, latent, clip, vae)
-
-
-
 #endregion-------------------qwen------------------
 
 
@@ -1819,19 +1428,6 @@ class pre_ref_condition:
 
 
 
-import node_helpers
-import comfy.utils
-import math
-import torch
-import numpy as np
-from PIL import Image
-import json
-import os
-import copy
-import folder_paths
-import hashlib
-
-
 
 
 class Easy_QwenEdit2509:
@@ -1853,9 +1449,6 @@ class Easy_QwenEdit2509:
                 "latent_mask": ("MASK", ),
 
                 "system_prompt": ("STRING", {"multiline": False, "default": "Describe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate."}),
-                "image1_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
-                "image2_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
-                "image3_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
             }
         }
     
@@ -1957,8 +1550,7 @@ class Easy_QwenEdit2509:
         return result
 
     def QWENencode(self, prompt="", image1=None, image2=None, image3=None, vae=None, clip=None, vl_size=384, 
-                   latent_image=None, latent_mask=None, system_prompt="", auto_resize="crop",
-                   image1_strength=1.0, image2_strength=1.0, image3_strength=1.0):
+                   latent_image=None, latent_mask=None, system_prompt="", auto_resize="crop"):
         
         if latent_image is None:
             raise ValueError("latent_image Must be input to determine the size of the generated image；latent_image 必须输入以确定生成图像的尺寸")
@@ -1967,7 +1559,6 @@ class Easy_QwenEdit2509:
         image2 = self._process_image_channels(image2)
         image3 = self._process_image_channels(image3)
         orig_images = [image1, image2, image3]
-        strengths = [image1_strength, image2_strength, image3_strength]
         images_vl = []
         llama_template = self.get_system_prompt(system_prompt)
         image_prompt = ""
@@ -2009,17 +1600,16 @@ class Easy_QwenEdit2509:
                 width = max(width, 32)
                 height = max(height, 32)
                 scaled_img = comfy.utils.common_upscale(samples, width, height, "bicubic", "disabled")
-                # 编码潜变量并应用对应的权重
-                latent = vae.encode(scaled_img.movedim(1, -1)[:, :, :, :3])
-                if i < len(strengths):
-                    # 应用权重到潜变量
-                    latent = latent * strengths[i]
-                ref_latents.append(latent)
+                ref_latents.append(vae.encode(scaled_img.movedim(1, -1)[:, :, :, :3]))
 
         tokens = clip.tokenize(image_prompt + prompt, images=images_vl, llama_template=llama_template)
         conditioning = clip.encode_from_tokens_scheduled(tokens)
         if len(ref_latents) > 0:
             conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": ref_latents}, append=True)
+        
+        
+        
+        
         positive = conditioning
         negative = self.zero_out(positive)
 
@@ -2134,8 +1724,8 @@ class sum_stack_QwenEditPlus:
     vl_size:视觉尺寸越大，提取的图像特征越丰富。
     auto_resize: 缩放模式（crop=中心裁剪，pad=中心黑色填充，stretch=强制拉伸） 
     system_prompt:系统提示词，用于指导图像特征描述与修改逻辑（默认提供基础配置） 
-    latent_image: 生成图尺寸。（已修复，匹配遮罩处理逻辑） 
-    latent_mask: 生成图遮罩（已修复边缘割裂问题）"""
+    latent_image: 生成图尺寸。
+    latent_mask: 生成图遮罩"""
     
     def _process_image_channels(self, image):
         if image is None:
@@ -2183,20 +1773,21 @@ class sum_stack_QwenEditPlus:
 
         if prompt == "":
             prompt = context.get("pos", "")
+        
 
+        if latent_image is None:
+            raise ValueError("Need to input the latent_image, refer to the image size需要输入latent_image，以此图片作为生成图的尺寸")
         
         image1 = self._process_image_channels(image1)
         image2 = self._process_image_channels(image2)
         image3 = self._process_image_channels(image3)
         images = [image1, image2, image3]
         
-        # 获取目标尺寸（如果 latent_image 存在），用于后续所有尺寸适配
         target_h, target_w = 1024, 1024
         if latent_image is not None:
             latent_image = self._process_image_channels(latent_image)
             target_h, target_w = latent_image.shape[1], latent_image.shape[2]
         
-        # 使用原始图像的副本生成 images_vl，避免修改 images 列表
         images_vl = []
         min_size = 64
         for image in images:
@@ -2216,7 +1807,6 @@ class sum_stack_QwenEditPlus:
                 scaled_img = comfy.utils.common_upscale(samples, width, height, "bicubic", "disabled")
                 images_vl.append(scaled_img.movedim(1, -1))
         
-        # 对 images 列表进行尺寸适配（用于编码 ref_latents）
         for i in range(len(images)):
             if images[i] is not None:
                 if auto_resize == "stretch":
@@ -2224,7 +1814,6 @@ class sum_stack_QwenEditPlus:
                 else:
                     images[i] = self.auto_resize(images[i], target_h, target_w, auto_resize)
         
-        # 编码 ref_latents（此时 images 已经适配到目标尺寸）
         ref_latents = []
         image_prompt = ""
         strengths = [image1_strength, image2_strength, image3_strength]
@@ -2233,22 +1822,18 @@ class sum_stack_QwenEditPlus:
                 image_prompt += f"Picture {i + 1}: <|vision_start|><|image_pad|><|vision_end|>"
                 if vae is not None:
                     samples = image.movedim(-1, 1)
-                    # 二次校验尺寸，强制≥64
                     orig_sample_h = max(samples.shape[2], 64)
                     orig_sample_w = max(samples.shape[3], 64)
                     if samples.shape[2] != orig_sample_h or samples.shape[3] != orig_sample_w:
                         samples = comfy.utils.common_upscale(samples, orig_sample_w, orig_sample_h, "bicubic", "disabled")
-                    # 计算8的倍数尺寸，强制≥64
                     width = (orig_sample_w // 8) * 8
                     height = (orig_sample_h // 8) * 8
                     width = max(width, 64)
                     height = max(height, 64)
                     if width != orig_sample_w or height != orig_sample_h:
                         samples = comfy.utils.common_upscale(samples, width, height, "bicubic", "disabled")
-                    # 编码潜变量并应用对应的权重
                     latent = vae.encode(samples.movedim(1, -1))
                     if i < len(strengths):
-                        # 应用权重到潜变量
                         latent = latent * strengths[i]
                     ref_latents.append(latent)
         
@@ -2276,11 +1861,9 @@ class sum_stack_QwenEditPlus:
         return (context, model, positive, negative, latent, clip, vae)
     
     def addConditioning(self, positive, negative, pixels, vae, mask=None):
-        # 1. 统一处理像素通道（和Easy_QwenEdit2509保持一致）
         pixels = self._process_image_channels(pixels)
         orig_pixels = pixels.clone()
         
-        # 2. 先计算8的倍数尺寸并裁剪像素（关键修复：先处理像素再处理mask）
         x = (pixels.shape[1] // 8) * 8
         y = (pixels.shape[2] // 8) * 8
         
@@ -2289,21 +1872,17 @@ class sum_stack_QwenEditPlus:
             y_offset = (pixels.shape[2] - y) // 2
             pixels = pixels[:, x_offset:x + x_offset, y_offset:y + y_offset, :]
         
-        # 3. 处理mask（关键修复：匹配裁剪后的像素尺寸）
         if mask is not None:
-            # 调整mask尺寸到裁剪后的像素尺寸
             mask = torch.nn.functional.interpolate(
                 mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])),
-                size=(pixels.shape[1], pixels.shape[2]),  # 匹配裁剪后的尺寸
+                size=(pixels.shape[1], pixels.shape[2]),
                 mode="bilinear",
-                align_corners=False  # 关键：添加align_corners=False避免边缘锯齿
+                align_corners=False
             )
-            # 使用和Easy_QwenEdit2509完全相同的混合公式
             m = (1.0 - mask.round()).squeeze(1)
             for i in range(3):
                 pixels[:, :, :, i] = pixels[:, :, :, i] * m + 0.5 * (1 - m)
             
-            # 数值范围保护（关键修复）
             pixels = pixels.clamp(0.0, 1.0)
             
             concat_latent = vae.encode(pixels)
@@ -2315,7 +1894,6 @@ class sum_stack_QwenEditPlus:
             concat_latent = vae.encode(pixels)
             out_latent = {"samples": concat_latent}
         
-        # 4. 设置conditioning（保持逻辑不变）
         out = []
         for cond in [positive, negative]:
             c = node_helpers.conditioning_set_values(cond, {"concat_latent_image": concat_latent})
@@ -2359,7 +1937,6 @@ class sum_stack_QwenEditPlus:
             black_bg[:, :, y_offset:y_offset + new_h, x_offset:x_offset + new_w] = scaled
             result = black_bg
         else:
-            # 默认使用stretch
             result = comfy.utils.common_upscale(image_bchw, target_w, target_h, "bicubic", "disabled")
         
         result_bhwc = result.movedim(1, -1)
@@ -2387,6 +1964,18 @@ class sum_stack_QwenEditPlus:
             n = [torch.zeros_like(t[0]), d]
             c.append(n)
         return c
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

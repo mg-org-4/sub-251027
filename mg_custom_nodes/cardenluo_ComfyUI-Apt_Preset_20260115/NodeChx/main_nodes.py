@@ -816,94 +816,18 @@ class sum_load_simple(sum_load_adv):
 
 
 
-class XXXApt_clear_cache:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "optional": {
-                "data": (ANY_TYPE,),
-            }
-        }
-
-    RETURN_TYPES = (ANY_TYPE,)
-    RETURN_NAMES = ("data",)
-    FUNCTION = "clear_cache"
-    CATEGORY = "Apt_Preset/chx_load"
-    
-    def clear_cache(self, data=None):
-        """更彻底的缓存清理，包括Python和ComfyUI级别的缓存"""
-        print("[Apt_clear_cache] Starting cache cleanup...")
-        total_cleared = 0
-        
-        # 清理 sum_load_adv 的缓存
-        if hasattr(sum_load_adv, '_model_cache'):
-            cache_size_before = len(sum_load_adv._model_cache)
-            sum_load_adv._model_cache.clear()
-            total_cleared += cache_size_before
-            print(f"[sum_load_adv] Cleared {cache_size_before} cached model entries")
-        else:
-            print("[Apt_clear_cache] sum_load_adv._model_cache not found")
-            
-        # 清理 sum_load_simple 的缓存（继承自sum_load_adv，使用相同缓存）
-        if hasattr(sum_load_simple, '_model_cache'):
-            cache_size_before = len(sum_load_simple._model_cache)
-            sum_load_simple._model_cache.clear()
-            total_cleared += cache_size_before
-            print(f"[sum_load_simple] Cleared {cache_size_before} cached model entries")
-        else:
-            print("[Apt_clear_cache] sum_load_simple._model_cache not found")
-            
-        # 安全清理 load_Nanchaku 的缓存（添加try-except确保即使类不存在也能正常运行）
-        try:
-            if hasattr(load_Nanchaku, '_model_cache'):
-                cache_size_before = len(load_Nanchaku._model_cache)
-                load_Nanchaku._model_cache.clear()
-                total_cleared += cache_size_before
-                print(f"[load_Nanchaku] Cleared {cache_size_before} cached model entries")
-            else:
-                print("[Apt_clear_cache] load_Nanchaku._model_cache not found")
-        except NameError:
-            print("[Apt_clear_cache] load_Nanchaku class not found, skipping")
-        
-        # 强制清理ComfyUI的模型缓存（如果可能）
-        try:
-            import comfy.model_management
-            # 清理GPU内存和模型
-            comfy.model_management.cleanup_models()
-            print("[Apt_clear_cache] Cleaned up ComfyUI models and GPU memory")
-            # 检查是否有其他可用的清理方法
-            if hasattr(comfy.model_management, 'cleanup'):
-                comfy.model_management.cleanup()
-                print("[Apt_clear_cache] Ran comfy.model_management.cleanup()")
-        except ImportError:
-            print("[Apt_clear_cache] ComfyUI model_management not available")
-        except Exception as e:
-            print(f"[Apt_clear_cache] Error during ComfyUI cache cleanup: {e}")
-        
-        # 清理Python的垃圾回收
-        import gc
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            print("[Apt_clear_cache] Cleared CUDA cache")
-        
-        print(f"[Apt_clear_cache] Total cleared {total_cleared} cached model entries. GPU memory should be freed.")
-        
-        return (data,)
-
-
-
 class Apt_clear_cache:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "optional": {
-                "data": (ANY_TYPE,),
+            "required": {
+                "data": ("RUN_CONTEXT",),
             }
         }
 
-    RETURN_TYPES = (ANY_TYPE,)
-    RETURN_NAMES = ("data",)
+    OUTPUT_NODE = True
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
     FUNCTION = "clear_cache"
     CATEGORY = "Apt_Preset/chx_load"
     
@@ -932,17 +856,6 @@ class Apt_clear_cache:
                 print("[Apt_clear_cache] sum_load_simple._model_cache not found")
         except NameError:
             print("[Apt_clear_cache] sum_load_simple class not found, skipping")
-            
-        try:
-            if hasattr(load_Nanchaku, '_model_cache'):
-                cache_size_before = len(load_Nanchaku._model_cache)
-                load_Nanchaku._model_cache.clear()
-                total_cleared += cache_size_before
-                print(f"[load_Nanchaku] Cleared {cache_size_before} cached model entries")
-            else:
-                print("[Apt_clear_cache] load_Nanchaku._model_cache not found")
-        except NameError:
-            print("[Apt_clear_cache] load_Nanchaku class not found, skipping")
         
         try:
             import comfy.model_management
@@ -970,7 +883,10 @@ class Apt_clear_cache:
         
         print(f"[Apt_clear_cache] Total cleared {total_cleared} cached model entries. GPU memory should be freed.")
         
-        return (data,)
+        return {}
+
+
+
 
 
 
@@ -1646,6 +1562,7 @@ class basic_Ksampler_full:
     def INPUT_TYPES(s):
         return {
             "required": {
+                "context": ("RUN_CONTEXT",),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                 "steps": ("INT", {"default": -1, "min": -1, "max": 10000,"tooltip": "  -1  == None"}),
                 "cfg": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 100.0, "tooltip": "  0  == None"}),
@@ -1655,7 +1572,7 @@ class basic_Ksampler_full:
                 "image_output": (["Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),
             },
             "optional": {
-                "context": ("RUN_CONTEXT",),
+
                 "model": ("MODEL",),
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
@@ -1836,7 +1753,7 @@ class basic_Ksampler_simple:
     RETURN_NAMES = ("context",  "image", )
     OUTPUT_NODE = True
     FUNCTION = "run"
-    CATEGORY = "Apt_Preset/chx_ksample/ksample"
+    CATEGORY = "Apt_Preset/chx_ksample"
 
 
     def run(self,context, seed, denoise, image=None,  prompt=None, image_output=None, extra_pnginfo=None,):
@@ -4208,7 +4125,6 @@ class sum_Ksampler:
 
 
 #endregion-----------sum采样器--------------------------------------------------------------------------------#
-
 
 
 

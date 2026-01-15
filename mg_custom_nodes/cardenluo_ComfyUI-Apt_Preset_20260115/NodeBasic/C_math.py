@@ -108,10 +108,10 @@ class math_Remap_data:
         return {
             "required": {
                 "clamp": ("BOOLEAN", {"default": False}),
-                "source_min": ("FLOAT", {"default": 0.0, "min": -999, "max": 999, "step": 0.01}),
-                "source_max": ("FLOAT", {"default": 1.0, "min": -999, "max": 999, "step": 0.01}),
-                "target_min": ("FLOAT", {"default": 0.0, "min": -999, "max": 999, "step": 0.01}),
-                "target_max": ("FLOAT", {"default": 1.0, "min": -999, "max": 999, "step": 0.01}),
+                "source_min": ("FLOAT", {"default": 0.0, "min": -9999, "max": 9999, "step": 0.01}),
+                "source_max": ("FLOAT", {"default": 1.0, "min": -9999, "max": 9999, "step": 0.01}),
+                "target_min": ("FLOAT", {"default": 0.0, "min": -9999, "max": 9999, "step": 0.01}),
+                "target_max": ("FLOAT", {"default": 1.0, "min": -9999, "max": 9999, "step": 0.01}),
                 "easing": (EASING_TYPES, {"default": "Linear"}),
             },
             "optional": {
@@ -235,9 +235,10 @@ class math_calculate:
                     {"default": "custom", "label": [p[1] for p in presets]}
                 ),
                 "expression": ("STRING", {"default": "", "multiline": False,}),
-                "a": (ANY_TYPE, {"forceInput": True}),
+                
             },
             "optional": {
+                "a": (ANY_TYPE,),
                 "b": (ANY_TYPE,),
                 "c": (ANY_TYPE,),
             }
@@ -264,14 +265,12 @@ class math_calculate:
 
     def calculate(self, preset, expression, a, b=None, c=None):
         try:
-            # 确定使用预设表达式还是自定义表达式
             if preset != "custom":
-                # 将显示用的÷替换回计算用的/
+            
                 current_expression = preset.replace("÷", "/")
             else:
                 current_expression = expression
                 
-            # 定义命名空间，将输入变量和常用数学函数添加到其中
             namespace = {
                 'a': a,
                 'b': b if b is not None else 0,
@@ -309,10 +308,8 @@ class math_calculate:
                 'clamp': lambda x, min_val, max_val: max(min(x, max_val), min_val),  # 限制范围
                 'lerp': lambda a, b, c: a + (b - a) * c,  # 线性插值
             }
-            # 执行表达式计算
             result = eval(current_expression, namespace)
             
-            # 转换为指定返回类型
             float_result = float(result)
             int_result = int(result)
             bool_result = bool(result)

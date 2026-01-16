@@ -520,7 +520,7 @@
       "title": "Video Size",
       "properties": {},
       "widgets_values": [
-        "Width & height settings must be divisible by 32 + 1. \nFrame count must be divisible by 8 + 1. \n\n\nRunning with invalid parameters **will not cause errors**. Instead, the flow will silently choose the closest valid parameters. "
+        "Width & height settings must be divisible by 64. \nFrame count must be divisible by 8 + 1. \n\n\nRunning with invalid parameters **will not cause errors**. Instead, the flow will silently choose the closest valid parameters. "
       ],
       "color": "#432",
       "bgcolor": "#653"

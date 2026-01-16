@@ -5,6 +5,7 @@ from .easy_samplers import (
     LTXVBaseSampler,
     LTXVExtendSampler,
     LTXVInContextSampler,
+    LTXVNormalizingSampler,
 )
 from .gemma_encoder import LTXVGemmaCLIPModelLoader, LTXVGemmaEnhancePrompt
 from .guide import LTXVAddGuideAdvanced
@@ -61,6 +62,7 @@ NODE_CLASS_MAPPINGS = {
     "LTXVBaseSampler": LTXVBaseSampler,
     "LTXVInContextSampler": LTXVInContextSampler,
     "LTXVExtendSampler": LTXVExtendSampler,
+    "LTXVNormalizingSampler": LTXVNormalizingSampler,
     "LTXVPreprocessMasks": LTXVPreprocessMasks,
     "LTXVPatcherVAE": LTXVPatcherVAE,
     "LTXVPromptEnhancer": LTXVPromptEnhancer,

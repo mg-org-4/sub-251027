@@ -1,5 +1,6 @@
 import json
 import logging
+from glob import glob
 from pathlib import Path
 from typing import Optional
 
@@ -528,8 +529,11 @@ def find_matching_dir(root_path: str, pattern: str) -> str:
     """
     Recursively search for files matching a glob pattern and return the parent directory of the first match.
     """
-
-    matches = list(Path(root_path).rglob(pattern))
+    matches = [
+        Path(p)
+        for p in glob(f"{root_path}/**", recursive=True)
+        if Path(p).match(pattern)
+    ]
     if not matches:
         raise FileNotFoundError(
             f"No files matching pattern '{pattern}' found under {root_path}"

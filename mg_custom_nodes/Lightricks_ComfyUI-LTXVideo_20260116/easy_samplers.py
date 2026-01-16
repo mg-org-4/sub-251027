@@ -4,6 +4,9 @@ import comfy
 import comfy_extras
 import nodes
 import torch
+from comfy.ldm.lightricks.av_model import LTXAVModel
+from comfy.nested_tensor import NestedTensor
+from comfy_api.latest import io
 from comfy_extras.nodes_custom_sampler import SamplerCustomAdvanced, SplitSigmas
 from comfy_extras.nodes_lt import EmptyLTXVLatentVideo, LTXVAddGuide, LTXVCropGuides
 
@@ -907,3 +910,142 @@ class LinearOverlapLatentTransition:
                 "batch_index": combined_batch_index,
             },
         )
+
+
+@comfy_node(description="LTXV Normalizing Sampler")
+class LTXVNormalizingSampler(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="LTXVNormalizingSampler",
+            category="utility",
+            inputs=[
+                io.Noise.Input("noise"),
+                io.Guider.Input("guider"),
+                io.Sampler.Input("sampler"),
+                io.Sigmas.Input("sigmas"),
+                io.Latent.Input("latent_image"),
+                io.String.Input(
+                    "video_normalization_factors", default="1,1,1,1,1,1,1,1"
+                ),
+                io.String.Input(
+                    "audio_normalization_factors", default="1,1,0.25,1,1,0.25,1,1"
+                ),
+            ],
+            outputs=[
+                io.Latent.Output(display_name="denoised_output"),
+            ],
+        )
+
+    @classmethod
+    def execute(
+        cls,
+        noise,
+        guider,
+        sampler,
+        sigmas,
+        latent_image,
+        video_normalization_factors,
+        audio_normalization_factors,
+    ) -> io.NodeOutput:
+
+        if (
+            guider.model_patcher.model.diffusion_model.__class__.__name__
+            != "LTXAVModel"
+        ):
+            raise ValueError()
+
+        ltxav: LTXAVModel = guider.model_patcher.model.diffusion_model
+
+        video_normalization_factors = video_normalization_factors.split(",")
+        audio_normalization_factors = audio_normalization_factors.split(",")
+        video_normalization_factors = [
+            float(factor) for factor in video_normalization_factors
+        ]
+        audio_normalization_factors = [
+            float(factor) for factor in audio_normalization_factors
+        ]
+
+        # Extend normalization factors to match the length of sigmas
+        sigmas_len = len(sigmas) - 1
+        if len(video_normalization_factors) < sigmas_len:
+            if len(video_normalization_factors) > 0:
+                video_normalization_factors.extend(
+                    [video_normalization_factors[-1]]
+                    * (sigmas_len - len(video_normalization_factors))
+                )
+        if len(audio_normalization_factors) < sigmas_len:
+            if len(audio_normalization_factors) > 0:
+                audio_normalization_factors.extend(
+                    [audio_normalization_factors[-1]]
+                    * (sigmas_len - len(audio_normalization_factors))
+                )
+
+        # Calculate indices where both normalization factors are not 1.0
+        sampling_split_indices = [
+            i + 1
+            for i, (v, a) in enumerate(
+                zip(video_normalization_factors, audio_normalization_factors)
+            )
+            if v != 1.0 or a != 1.0
+        ]
+        print("Sampling split indices: %s" % sampling_split_indices, flush=True)
+
+        # Split sigmas according to sampling_split_indices
+        def split_by_indices(arr, indices):
+            """
+            Splits arr into chunks according to indices (split points).
+            Indices are treated as starting a new chunk at each index in the list.
+            """
+            if not indices:
+                return [arr]
+            split_points = sorted(set(indices))
+            chunks = []
+            prev = 0
+            for idx in split_points:
+                if prev < idx:
+                    chunks.append(arr[prev : idx + 1])
+                prev = idx
+            if prev < len(arr):
+                chunks.append(arr[prev:])
+            return chunks
+
+        sigmas_chunks = split_by_indices(sigmas, sampling_split_indices)
+        print("Sigmas chunks: %s" % sigmas_chunks, flush=True)
+
+        i = 0
+        for sigmas_chunk in sigmas_chunks:
+            i += len(sigmas_chunk) - 1
+            print("Sampling with sigmas %s" % (sigmas_chunk), flush=True)
+            (_, latent_image) = SamplerCustomAdvanced().execute(
+                noise=noise,
+                guider=guider,
+                sampler=sampler,
+                sigmas=sigmas_chunk,
+                latent_image=latent_image,
+            )
+            video_samples, audio_samples = ltxav.separate_audio_and_video_latents(
+                latent_image["samples"].tensors,
+                None,
+            )
+            if i - 1 < len(video_normalization_factors) and i - 1 < len(
+                audio_normalization_factors
+            ):
+                video_samples = video_samples * video_normalization_factors[i - 1]
+                audio_samples = audio_samples * audio_normalization_factors[i - 1]
+                latent_image["samples"] = NestedTensor(
+                    ltxav.recombine_audio_and_video_latents(
+                        video_samples, audio_samples
+                    )
+                )
+                print(
+                    "After %d steps, the latent image was normalized by %f and %f"
+                    % (
+                        i,
+                        video_normalization_factors[i - 1],
+                        audio_normalization_factors[i - 1],
+                    ),
+                    flush=True,
+                )
+
+        return io.NodeOutput(latent_image)

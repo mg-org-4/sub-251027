@@ -1,6 +1,7 @@
 #### `pleaseee add a star⭐️ to this repo if you like it, so I can keep improving it for free ((:`
 ---
-# 🔊 ComfyUI_Yvann-Nodes [![Contact Me](https://img.shields.io/badge/Contact_Me-white?style=for-the-badge&logo=linkedin&logoColor=0A66C2)](https://www.linkedin.com/in/yvann-barbot/)
+# 🔊 ComfyUI_Yvann-Nodes [![Contact Me](https://img.shields.io/badge/Contact_Me-white?style=for-the-badge&logo=linkedin&logoColor=0A66C2)](https://www.linkedin.com/in/yvann-barbot/) [![YouTube Tutorial](https://img.shields.io/badge/YouTube_Tutorial-red?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=O2s6NseXlMc)
+
 
 ### **A pack of custom nodes that enable audio reactivity within [ComfyUI](https://github.com/comfyanonymous/ComfyUI), allowing you to generate AI-driven animations that sync with music**
 
@@ -64,16 +65,16 @@
 
 </table>
 
-#### Audio Reactive Text to Video (workflow: [AudioReactive_TextToVideo_Yvann.json](example_workflows/AudioReactive_TextToVideo_Yvann.json)) ⬇️
-<table border="0" style="width: 100%; text-align: left; margin-top: 20px;">
+<details>
+<summary>Audio Reactive Text to Video</summary>
+ <table border="0" style="width: 100%; text-align: left; margin-top: 20px;"> </table>
   <tr>
       <td>
           <video src="https://github.com/user-attachments/assets/d5e709c1-6590-4971-ac9c-b7137fbe662a" width="100%" controls autoplay loop></video>
      </td>
+    
   </tr>
-
-
-
+</details>
 
 
 
@@ -85,20 +86,19 @@
 
 ### 2. Choose a Workflow
 
-- **Images to Video**  
+- **[Images to Video](example_workflows/AudioReactive_ImagesToVideo_Yvann.json)**  
    - Takes a **set of images** + **audio**
-   - *Watch Tutorial*:  
+   - *Watch Tutorial*:
+   - https://www.youtube.com/watch?v=O2s6NseXlMc
      [![Images2Video](https://img.youtube.com/vi/O2s6NseXlMc/maxresdefault.jpg)](https://www.youtube.com/watch?v=O2s6NseXlMc)  
 
-- **Video to Video**  
+- **[Video to Video](example_workflows/AudioReactive_VideoToVideo_Yvann.json)**  
    - Takes a **source video** + **audio**
    - *Watch Tutorial*:  
      [![Video2Video](https://img.youtube.com/vi/BiQHWKP3q0c/maxresdefault.jpg)](https://www.youtube.com/watch?v=BiQHWKP3q0c)  
 
 - **[Text to Video](example_workflows/AudioReactive_TextToVideo_Yvann.json)**  
    - Takes a **text prompt** + **audio**
-   - *Watch Tutorial*:  
-     [![Text2Video](https://img.youtube.com/vi/placeholder/maxresdefault.jpg)](https://www.youtube.com/watch?v=placeholder)  
 
 ---
 
@@ -114,12 +114,10 @@
 3. **Click "Install All" on the popup that appeared**
 
 4. **Set Your Inputs & Generate**  
-   - Provide the inputs needed (everything explained [here](https://www.youtube.com/@yvann_ba)
+   - Provide the inputs needed, everything explained [here](https://www.youtube.com/@yvann_ba)
    - Click **Queue** button to produce your **audio-reactive** animation!
 
-**That's it!** Have fun playing with the differents settings now !!
-(if you have any questions or problems, check my [Youtube Tutorials](https://www.youtube.com/@yvann_ba)
-
+**That's it!** Have fun !!
 ---
 
 ## Nodes Details

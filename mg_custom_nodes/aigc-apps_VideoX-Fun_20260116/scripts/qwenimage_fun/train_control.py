@@ -1355,12 +1355,6 @@ def main():
         train_loss = 0.0
         batch_sampler.sampler.generator = torch.Generator().manual_seed(args.seed + epoch)
         for step, batch in enumerate(train_dataloader):
-            with torch.no_grad():
-                pixel_values = batch['pixel_values'].clone()
-                pixel_values = rearrange(pixel_values, "b f c h w -> b f h w c")
-                pixel_values = (pixel_values * 0.5 + 0.5) * 255
-                bs, f, h, w, c = pixel_values.size()
-
             # Data batch sanity check
             if epoch == first_epoch and step < 1:
                 pixel_values, texts = batch['pixel_values'].cpu(), batch['text']

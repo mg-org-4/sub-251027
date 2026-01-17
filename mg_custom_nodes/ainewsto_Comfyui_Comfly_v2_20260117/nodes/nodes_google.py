@@ -28,14 +28,13 @@ from ..utils import pil2tensor, tensor2pil, ComflyVideoAdapter
 from ..comfly_config import get_config, save_config, baseurl
 from comfy.comfy_types import IO
 
-
 class Comfly_Googel_Veo3:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "prompt": ("STRING", {"multiline": True}),
-                "model": (["veo3", "veo3-fast", "veo3-pro", "veo3-fast-frames", "veo3-pro-frames", "veo3.1", "veo3.1-pro", "veo3.1-components"], {"default": "veo3"}),
+                "model": (["veo3", "veo3-fast", "veo3-pro", "veo3-fast-frames", "veo3-pro-frames", "veo3.1", "veo3.1-pro", "veo3.1-components", "veo3.1-4k", "veo3.1-pro-4k", "veo3.1-components-4k"], {"default": "veo3"}),
                 "enhance_prompt": ("BOOLEAN", {"default": False}),
                 "aspect_ratio": (["16:9", "9:16"], {"default": "16:9"}),
             },
@@ -99,10 +98,16 @@ class Comfly_Googel_Veo3:
             if seed > 0:
                 payload["seed"] = seed
 
-            if model in ["veo3", "veo3-fast", "veo3-pro", "veo3.1", "veo3.1-pro", "veo3.1-components"] and aspect_ratio:
+            supported_models = [
+                "veo3", "veo3-fast", "veo3-pro", 
+                "veo3.1", "veo3.1-pro", "veo3.1-components", 
+                "veo3.1-4k", "veo3.1-pro-4k", "veo3.1-components-4k"
+            ]
+            
+            if model in supported_models and aspect_ratio:
                 payload["aspect_ratio"] = aspect_ratio
 
-            if model in ["veo3", "veo3-fast", "veo3-pro", "veo3.1", "veo3.1-pro", "veo3.1-components"] and enable_upsample:
+            if model in supported_models and enable_upsample:
                 payload["enable_upsample"] = enable_upsample
 
             if has_images:
@@ -120,7 +125,7 @@ class Comfly_Googel_Veo3:
                     payload["images"] = images_base64
 
             response = requests.post(
-                f"{baseurl}/google/v1/models/veo/videos",
+                f"{baseurl}/v2/videos/generations",
                 headers=self.get_headers(),
                 json=payload,
                 timeout=self.timeout
@@ -132,18 +137,14 @@ class Comfly_Googel_Veo3:
                 return ("", "", json.dumps({"code": "error", "message": error_message}))
                 
             result = response.json()
-            
-            if result.get("code") != "success":
-                error_message = f"API returned error: {result.get('message', 'Unknown error')}"
-                print(error_message)
-                return ("", "", json.dumps({"code": "error", "message": error_message}))
-                
-            task_id = result.get("data")
+
+            task_id = result.get("task_id")
             if not task_id:
                 error_message = "No task ID returned from API"
                 print(error_message)
                 return ("", "", json.dumps({"code": "error", "message": error_message}))
             
+            print(f"[Comfly_Googel_Veo3] Task submitted successfully. Task ID: {task_id}")
             pbar.update_absolute(30)
 
             max_attempts = 150 
@@ -156,25 +157,22 @@ class Comfly_Googel_Veo3:
                 
                 try:
                     status_response = requests.get(
-                        f"{baseurl}/google/v1/tasks/{task_id}",
+                        f"{baseurl}/v2/videos/generations/{task_id}",
                         headers=self.get_headers(),
                         timeout=self.timeout
                     )
                     
                     if status_response.status_code != 200:
+                        print(f"[Comfly_Googel_Veo3] Status check failed with code: {status_response.status_code}")
                         continue
                         
                     status_result = status_response.json()
-                    
-                    if status_result.get("code") != "success":
-                        continue
-                    
-                    data = status_result.get("data", {})
-                    status = data.get("status", "")
-                    progress = data.get("progress", "0%")
-                    
+
+                    status = status_result.get("status", "")
+                    progress = status_result.get("progress", "0%")
+
                     try:
-                        if progress.endswith('%'):
+                        if progress and progress.endswith('%'):
                             progress_num = int(progress.rstrip('%'))
                             pbar_value = min(90, 30 + progress_num * 60 / 100)
                             pbar.update_absolute(pbar_value)
@@ -183,44 +181,50 @@ class Comfly_Googel_Veo3:
                         pbar.update_absolute(progress_value)
                     
                     if status == "SUCCESS":
-                        if "data" in data and "video_url" in data["data"]:
-                            video_url = data["data"]["video_url"]
+                        data = status_result.get("data", {})
+                        if "output" in data:
+                            video_url = data["output"]
+                            print(f"[Comfly_Googel_Veo3] Video URL: {video_url}")
                             break
+                        else:
+                            print(f"[Comfly_Googel_Veo3] SUCCESS but no output found in data: {data}")
+                            
                     elif status == "FAILURE":
-                        fail_reason = data.get("fail_reason", "Unknown error")
+                        fail_reason = status_result.get("fail_reason", "Unknown error")
                         error_message = f"Video generation failed: {fail_reason}"
-                        print(error_message)
+                        print(f"[Comfly_Googel_Veo3] {error_message}")
                         return ("", "", json.dumps({"code": "error", "message": error_message}))
-                        
+                                           
                 except Exception as e:
-                    print(f"Error checking generation status: {str(e)}")
+                    print(f"[Comfly_Googel_Veo3] Error checking generation status: {str(e)}")
             
             if not video_url:
                 error_message = "Failed to retrieve video URL after multiple attempts"
-                print(error_message)
+                print(f"[Comfly_Googel_Veo3] {error_message}")
                 return ("", "", json.dumps({"code": "error", "message": error_message}))
+
+            pbar.update_absolute(95)
             
-            if video_url:
-                pbar.update_absolute(95)
-                
-                response_data = {
-                    "code": "success",
-                    "task_id": task_id,
-                    "prompt": prompt,
-                    "model": model,
-                    "enhance_prompt": enhance_prompt,
-                    "aspect_ratio": aspect_ratio if model in ["veo3", "veo3-fast", "veo3-pro"] else "default",
-                    "enable_upsample": enable_upsample if model in ["veo3", "veo3-fast", "veo3-pro"] else False,
-                    "video_url": video_url,
-                    "images_count": len([img for img in [image1, image2, image3] if img is not None])
-                }
-                
-                video_adapter = ComflyVideoAdapter(video_url)
-                return (video_adapter, video_url, json.dumps(response_data))
+            response_data = {
+                "code": "success",
+                "task_id": task_id,
+                "prompt": prompt,
+                "model": model,
+                "enhance_prompt": enhance_prompt,
+                "aspect_ratio": aspect_ratio if model in supported_models else "default",
+                "enable_upsample": enable_upsample if model in supported_models else False,
+                "video_url": video_url,
+                "images_count": len([img for img in [image1, image2, image3] if img is not None])
+            }
+            
+            pbar.update_absolute(100)
+            
+            video_adapter = ComflyVideoAdapter(video_url)
+            return (video_adapter, video_url, json.dumps(response_data))
             
         except Exception as e:
             error_message = f"Error generating video: {str(e)}"
-            print(error_message)
+            print(f"[Comfly_Googel_Veo3] {error_message}")
             return ("", "", json.dumps({"code": "error", "message": error_message}))
 
 
@@ -1109,7 +1113,7 @@ class ComflyGeminiTextOnly:
 
         try:
             content = [{"type": "text", "text": prompt}]
-
+。
             if video is not None:
                 video_url = getattr(video, 'video_url', None)
                 if video_url:

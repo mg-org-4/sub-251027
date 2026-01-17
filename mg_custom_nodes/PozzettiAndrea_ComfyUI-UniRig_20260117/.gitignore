@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.ipynb_checkpoints/
+
+# Virtual environments (including comfy-env isolated envs)
+venv/
+env/
+ENV/
+_env_*/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Temp files
+*.tmp
+*.bak
+*.log
+
+# Model checkpoints and cache
+*.ckpt
+*.pth
+*.safetensors
+.cache/
+checkpoints/
+
+# Test and data files
+.pytest_cache/
+/tmp/
+tests/outputs/

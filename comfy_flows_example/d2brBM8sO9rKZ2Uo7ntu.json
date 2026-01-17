@@ -1,0 +1,3468 @@
+{
+  "last_link_id": 141,
+  "nodes": [
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            66
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "男性"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "TextBox",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        291.3121337890625,
+        88
+      ],
+      "pos": [
+        2178.598876953125,
+        1176.124755859375
+      ],
+      "id": 69,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextBox"
+      },
+      "order": 0
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            67
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "女性"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "TextBox",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        291.3121337890625,
+        88
+      ],
+      "pos": [
+        2178.598876953125,
+        1306.124755859375
+      ],
+      "id": 68,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextBox"
+      },
+      "order": 1
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            30
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "",
+        "```",
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 31,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "old_string"
+          },
+          "name": "old_string",
+          "label": "old_string",
+          "type": "STRING",
+          "localized_name": "old_string"
+        },
+        {
+          "widget": {
+            "name": "new_string"
+          },
+          "name": "new_string",
+          "label": "new_string",
+          "type": "STRING",
+          "localized_name": "new_string"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "ReplaceText",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        3044.712158203125,
+        492.4685974121094
+      ],
+      "id": 39,
+      "properties": {
+        "widget_ue_connectable": {
+          "text": true
+        },
+        "Node name for S&R": "ReplaceText"
+      },
+      "order": 33
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            31
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "",
+        "```json",
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 61,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "old_string"
+          },
+          "name": "old_string",
+          "label": "old_string",
+          "type": "STRING",
+          "localized_name": "old_string"
+        },
+        {
+          "widget": {
+            "name": "new_string"
+          },
+          "name": "new_string",
+          "label": "new_string",
+          "type": "STRING",
+          "localized_name": "new_string"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "ReplaceText",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        2874.712158203125,
+        492.4685974121094
+      ],
+      "id": 40,
+      "properties": {
+        "widget_ue_connectable": {
+          "text": true
+        },
+        "Node name for S&R": "ReplaceText"
+      },
+      "order": 31
+    },
+    {
+      "outputs": [
+        {
+          "name": "JSON",
+          "links": [
+            1,
+            22
+          ],
+          "label": "JSON",
+          "type": "JSON",
+          "localized_name": "JSON"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "data"
+          },
+          "name": "data",
+          "link": 30,
+          "label": "data",
+          "type": "STRING",
+          "localized_name": "data"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "LoadJsonFromText",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        3224.712158203125,
+        492.4685974121094
+      ],
+      "id": 38,
+      "properties": {
+        "cnr_id": "comfyui-art-venture",
+        "ver": "1.0.6",
+        "widget_ue_connectable": {
+          "data": true
+        },
+        "Node name for S&R": "LoadJsonFromText"
+      },
+      "order": 35
+    },
+    {
+      "outputs": [
+        {
+          "name": "selected_value",
+          "links": [
+            69
+          ],
+          "label": "值",
+          "type": "*",
+          "localized_name": "selected_value"
+        },
+        {
+          "name": "selected_label",
+          "label": "标签",
+          "type": "STRING",
+          "localized_name": "selected_label"
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "localized_name": "selected_index"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        2,
+        false
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "input1",
+          "link": 66,
+          "label": "输入1",
+          "type": "*",
+          "localized_name": "input1"
+        },
+        {
+          "widget": {
+            "name": "select"
+          },
+          "name": "select",
+          "link": 141,
+          "type": "INT",
+          "localized_name": "选择"
+        },
+        {
+          "widget": {
+            "name": "sel_mode"
+          },
+          "name": "sel_mode",
+          "type": "BOOLEAN",
+          "localized_name": "选择模式"
+        },
+        {
+          "name": "input2",
+          "link": 67,
+          "label": "输入2",
+          "type": "STRING"
+        },
+        {
+          "name": "input3",
+          "label": "输入3",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "ImpactSwitch",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        315,
+        122
+      ],
+      "pos": [
+        2518.598876953125,
+        1226.1256103515625
+      ],
+      "id": 70,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "order": 21
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            72
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "明亮、温暖且充满力量感"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "TextBox",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        291.3121337890625,
+        88
+      ],
+      "pos": [
+        1027.137939453125,
+        1245.2996826171875
+      ],
+      "id": 74,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextBox"
+      },
+      "order": 2
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            75
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "流行民谣"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "TextBox",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        291.3121337890625,
+        88
+      ],
+      "pos": [
+        1373.408203125,
+        1256.1295166015625
+      ],
+      "id": 76,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextBox"
+      },
+      "order": 3
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            83
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "积极励志、充满希望与憧憬"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "TextBox",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        291.3121337890625,
+        88
+      ],
+      "pos": [
+        1723.9857177734375,
+        1254.916748046875
+      ],
+      "id": 78,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextBox"
+      },
+      "order": 4
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            77
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "木吉他、钢琴"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "TextBox",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        291.3121337890625,
+        88
+      ],
+      "pos": [
+        1027.7236328125,
+        1463.66796875
+      ],
+      "id": 80,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextBox"
+      },
+      "order": 5
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            80
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "120"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "TextBox",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        291.3121337890625,
+        88
+      ],
+      "pos": [
+        1389.541748046875,
+        1464.281982421875
+      ],
+      "id": 83,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextBox"
+      },
+      "order": 6
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            128
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "结合高考结束学子充满希望、迈向新征程的心境，创作一首歌曲"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "TextBox",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        291.3121337890625,
+        88
+      ],
+      "pos": [
+        1744.2947998046875,
+        1458.8876953125
+      ],
+      "id": 116,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextBox"
+      },
+      "order": 7
+    },
+    {
+      "outputs": [
+        {
+          "name": "selected_value",
+          "links": [
+            113
+          ],
+          "label": "值",
+          "type": "*",
+          "localized_name": "selected_value"
+        },
+        {
+          "name": "selected_label",
+          "label": "标签",
+          "type": "STRING",
+          "localized_name": "selected_label"
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "localized_name": "selected_index"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        1,
+        false
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "input1",
+          "link": 127,
+          "label": "输入1",
+          "type": "*",
+          "localized_name": "input1"
+        },
+        {
+          "widget": {
+            "name": "select"
+          },
+          "name": "select",
+          "link": 112,
+          "label": "选择",
+          "type": "INT",
+          "localized_name": "选择"
+        },
+        {
+          "widget": {
+            "name": "sel_mode"
+          },
+          "name": "sel_mode",
+          "type": "BOOLEAN",
+          "localized_name": "选择模式"
+        },
+        {
+          "name": "input2",
+          "link": 126,
+          "label": "输入2",
+          "type": "STRING"
+        },
+        {
+          "name": "input3",
+          "label": "输入3",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "ImpactSwitch",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        315,
+        134
+      ],
+      "pos": [
+        2134.390380859375,
+        835.3345336914062
+      ],
+      "id": 110,
+      "properties": {
+        "widget_ue_connectable": {
+          "select": true
+        },
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "order": 23
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            64,
+            117,
+            127
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "下一站，远方"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "TextBox",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        321.3125915527344,
+        109.33814239501953
+      ],
+      "pos": [
+        1165.902099609375,
+        961.6022338867188
+      ],
+      "id": 66,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "TextBox"
+      },
+      "order": 8
+    },
+    {
+      "outputs": [
+        {
+          "name": "lyrics",
+          "links": [
+            34,
+            131
+          ],
+          "label": "lyrics",
+          "type": "STRING",
+          "localized_name": "lyrics"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "[intro-short]; [verse] 每天重复着无尽的奔波.汗水洒满了城市的角落.梦想似乎遥不可及.我却不想再继续努力 ; [chorus] 阿姨我不想努力了.让我停下脚步喘口气.生活的重担让我疲惫.我想要自由的呼吸 ; [inst-short]; [verse] 朋友劝我坚持到底.可我心中却充满迷茫.未来的路充满荆棘.我只想轻松一点走下去 ; [chorus] 阿姨我不想努力了.让我停下脚步喘口气.生活的重担让我疲惫.我想要自由的呼吸 ; [bridge] 也许有一天我会明白.努力的意义藏在心海.但现在我只想暂时放开.享受这一刻的自在 ; [chorus] 阿姨我不想努力了.让我停下脚步喘口气.生活的重担让我疲惫.我想要自由的呼吸 ; [outro-short]"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "multi_line_prompt"
+          },
+          "name": "multi_line_prompt",
+          "label": "multi_line_prompt",
+          "type": "STRING",
+          "localized_name": "multi_line_prompt"
+        }
+      ],
+      "flags": {},
+      "type": "MultiLineLyrics",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        271.0766906738281,
+        385.3304138183594
+      ],
+      "pos": [
+        354.78814697265625,
+        1127.4586181640625
+      ],
+      "id": 48,
+      "properties": {
+        "cnr_id": "ace-step",
+        "ver": "46e53996218b0c1d7957e3f5398ac47d520b2f0b",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "MultiLineLyrics"
+      },
+      "order": 9
+    },
+    {
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            104,
+            137
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "字符串"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "Tags"
+      ],
+      "inputs": [
+        {
+          "name": "json",
+          "link": 1,
+          "label": "json",
+          "type": "JSON",
+          "localized_name": "json"
+        },
+        {
+          "widget": {
+            "name": "key"
+          },
+          "name": "key",
+          "label": "key",
+          "type": "STRING",
+          "localized_name": "key"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "GetTextFromJson",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        3389.93017578125,
+        392.5648498535156
+      ],
+      "id": 4,
+      "properties": {
+        "cnr_id": "comfyui-art-venture",
+        "ver": "1.0.6",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GetTextFromJson"
+      },
+      "order": 37
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "selected_value",
+          "links": [
+            134
+          ],
+          "label": "值",
+          "type": "*",
+          "localized_name": "selected_value"
+        },
+        {
+          "name": "selected_label",
+          "label": "标签",
+          "type": "STRING",
+          "localized_name": "selected_label"
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "localized_name": "selected_index"
+        }
+      ],
+      "size": [
+        315,
+        134
+      ],
+      "pos": [
+        3770.708740234375,
+        391.8601379394531
+      ],
+      "widgets_values": [
+        1,
+        false
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "input1",
+          "link": 131,
+          "label": "输入1",
+          "type": "*",
+          "localized_name": "input1"
+        },
+        {
+          "widget": {
+            "name": "select"
+          },
+          "name": "select",
+          "link": 132,
+          "label": "选择",
+          "type": "INT",
+          "localized_name": "选择"
+        },
+        {
+          "widget": {
+            "name": "sel_mode"
+          },
+          "name": "sel_mode",
+          "type": "BOOLEAN",
+          "localized_name": "选择模式"
+        },
+        {
+          "name": "input2",
+          "link": 133,
+          "label": "输入2",
+          "type": "STRING"
+        },
+        {
+          "name": "input3",
+          "label": "输入3",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 118,
+      "type": "ImpactSwitch",
+      "properties": {
+        "widget_ue_connectable": {
+          "select": true
+        },
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "order": 42
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "selected_value",
+          "links": [
+            138
+          ],
+          "label": "值",
+          "type": "*",
+          "localized_name": "selected_value"
+        },
+        {
+          "name": "selected_label",
+          "label": "标签",
+          "type": "STRING",
+          "localized_name": "selected_label"
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "localized_name": "selected_index"
+        }
+      ],
+      "size": [
+        315,
+        134
+      ],
+      "pos": [
+        3765.948486328125,
+        580.3606567382812
+      ],
+      "widgets_values": [
+        1,
+        false
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "input1",
+          "link": 136,
+          "label": "输入1",
+          "type": "*",
+          "localized_name": "input1"
+        },
+        {
+          "widget": {
+            "name": "select"
+          },
+          "name": "select",
+          "link": 135,
+          "label": "选择",
+          "type": "INT",
+          "localized_name": "选择"
+        },
+        {
+          "widget": {
+            "name": "sel_mode"
+          },
+          "name": "sel_mode",
+          "type": "BOOLEAN",
+          "localized_name": "选择模式"
+        },
+        {
+          "name": "input2",
+          "link": 137,
+          "label": "输入2",
+          "type": "STRING"
+        },
+        {
+          "name": "input3",
+          "label": "输入3",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 119,
+      "type": "ImpactSwitch",
+      "properties": {
+        "widget_ue_connectable": {
+          "select": true
+        },
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "order": 40
+    },
+    {
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "[intro-short]; [verse] 时光飞逝如流星划过夜空.青春的足迹刻在记忆深处.梦想的火焰在心中熊熊燃烧.下一站是远方,我们整装待发.; [chorus] 下一站,远方在召唤.勇敢的心在青春中闪耀光芒.告别昨日的彷徨与迷茫.未来的旅程我们共同书写.; [inst-medium]; [verse] 高山与大海在前方等待.每一步都充满无限可能与精彩.用勇气与信念点亮每个方向.下一站是远方,我们不再徘徊.; [chorus] 下一站,远方在召唤.年轻的风帆扬起在希望的海洋.挥别过去的遗憾与失望.未来的篇章由梦想来开创.; [bridge] 远方的灯塔指引着我们前行.无尽的星空是我们心中的憧憬.携手迈向未知的旅程.下一站的风景会更加动人.; [chorus] 下一站,远方在召唤.生命的旋律在心中激荡回响.追逐光芒,追逐梦想.下一站的未来属于我们每一个人.; [outro-short]"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 103,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "type": "easy showAnything",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        316.99359130859375,
+        242.90213012695312
+      ],
+      "pos": [
+        3390.09765625,
+        686.2255859375
+      ],
+      "id": 104,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 41
+    },
+    {
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            103,
+            133
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "字符串"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "Lyrics"
+      ],
+      "inputs": [
+        {
+          "name": "json",
+          "link": 22,
+          "label": "json",
+          "type": "JSON",
+          "localized_name": "json"
+        },
+        {
+          "widget": {
+            "name": "key"
+          },
+          "name": "key",
+          "label": "key",
+          "type": "STRING",
+          "localized_name": "key"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "GetTextFromJson",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        3406.80615234375,
+        535.8844604492188
+      ],
+      "id": 34,
+      "properties": {
+        "cnr_id": "comfyui-art-venture",
+        "ver": "1.0.6",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GetTextFromJson"
+      },
+      "order": 38
+    },
+    {
+      "outputs": [
+        {
+          "name": "describe",
+          "links": [
+            61
+          ],
+          "label": "describe",
+          "type": "STRING",
+          "localized_name": "describe"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "You are a helpful assistant",
+        "Hello",
+        0.6,
+        305,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "ref_image",
+          "label": "ref_image",
+          "type": "IMAGE",
+          "localized_name": "ref_image"
+        },
+        {
+          "widget": {
+            "name": "api_baseurl"
+          },
+          "name": "api_baseurl",
+          "label": "api_baseurl",
+          "type": "STRING",
+          "localized_name": "api_baseurl"
+        },
+        {
+          "widget": {
+            "name": "api_key"
+          },
+          "name": "api_key",
+          "label": "api_key",
+          "type": "STRING",
+          "localized_name": "api_key"
+        },
+        {
+          "widget": {
+            "name": "model"
+          },
+          "name": "model",
+          "label": "model",
+          "type": "STRING",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "role"
+          },
+          "name": "role",
+          "label": "role",
+          "type": "STRING",
+          "localized_name": "role"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 60,
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "temperature"
+          },
+          "name": "temperature",
+          "label": "temperature",
+          "type": "FLOAT",
+          "localized_name": "temperature"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "type": "RH_LLMAPI_NODE",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        324.8428955078125,
+        316
+      ],
+      "pos": [
+        2499.9501953125,
+        642.693359375
+      ],
+      "id": 62,
+      "properties": {
+        "widget_ue_connectable": {
+          "prompt": true
+        },
+        "Node name for S&R": "RH_LLMAPI_NODE"
+      },
+      "order": 29
+    },
+    {
+      "outputs": [
+        {
+          "name": "output",
+          "links": [
+            84
+          ],
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "歌名：下一站，远方\n性别：男性\n歌曲音色：明亮、温暖且充满力量感\n歌曲流派：流行民谣\n歌曲情感：积极励志、充满希望与憧憬\n歌曲乐器：木吉他、钢琴\n歌曲BPM：120\n歌曲立意：结合高考结束学子充满希望、迈向新征程的心境，创作一首歌曲"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 113,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "type": "easy showAnything",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        318.51025390625,
+        166.27894592285156
+      ],
+      "pos": [
+        2130.972900390625,
+        633.0902709960938
+      ],
+      "id": 75,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 25
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            59
+          ],
+          "label": "文本",
+          "type": "*",
+          "localized_name": "text"
+        },
+        {
+          "name": "show_help",
+          "label": "显示帮助",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "请根据内容的提示内容生成文生音乐提示词。要求：\n1：文生音乐模型示例生成对应Tags音乐风格类型和Lyrics歌曲。\n2：可选的Tags有：```female, male, pop, electronic, hip hop, rock, jazz, blues, classical, rap, country, classic rock, hard rock, folk, soul, dance, electronic, rockabilly, dancepop, house, reggae, experimental, deephouse, k-pop, experimental pop, pop punk, rock and roll, R&B, varies, pop rock, sad, emotional, angry, happy, uplifting, intense, romantic, melancholic, synthesizer and piano, piano and drums, piano and synthesizer, synthesizer and drums, piano and strings, guitar and drums, guitar and piano, piano and double bass, piano and guitar, acoustic guitar and piano, acoustic guitar and synthesizer, synthesizer and guitar, piano and saxophone, saxophone and piano, piano and violin, electric guitar and drums, acoustic guitar and drums, synthesizer, guitar and fiddle, guitar and harmonica, synthesizer and acoustic guitar, beats, piano, acoustic guitar and fiddle, brass and piano, bass and drums, violin, acoustic guitar and harmonica, piano and cello, saxophone and trumpet, guitar and banjo, guitar and synthesizer, saxophone, violin and piano, synthesizer and bass, synthesizer and electric guitar, electric guitar and piano, beats and piano, synthesizer and guitar, dark, bright, warm, rock, varies, soft, vocal```.\n3：参考案例如下：```**Tags**：female,  bright, pop, melancholic,guitar, dance\n**Lyrics**:\n[intro-short] ;\n [verse] 雪花舞动在无尽的天际.情缘如同雪花般轻轻逝去.希望与真挚.永不磨灭.你的忧虑.随风而逝 ; \n [chorus] 我怀抱着守护这片梦境.在这世界中寻找爱与虚幻.苦辣酸甜.我们一起品尝.在雪的光芒中.紧紧相拥 ;\n [inst-short] ; \n [verse] 雪花再次在风中飘扬.情愿如同雪花般消失无踪.希望与真挚.永不消失.在痛苦与喧嚣中.你找到解脱 ;\n [chorus] 我环绕着守护这片梦境.在这世界中感受爱与虚假.苦辣酸甜.我们一起分享.在白银的光芒中.我们同在 ; \n[outro-short]```\n4：注意事项：\n- Lyrics 字段定义了歌曲的歌词和结构，由多个音乐部分组成，每个部分以结构标签开头。\n- 以下片段不应包含歌词（它们是纯乐器的）：[intro-short]、[intro-medium]、[inst-short]、[inst-medium]、[outro-short]、[outro-medium]。\n- 以下片段需要歌词：[verse]、[chorus]、[bridge]。\n- 歌词格式规则：各部分用分号（;）分隔；在歌词片段内，歌词要是完整句子，用句号（.）分隔。\n- Tags 字段允许你控制生成歌曲的各种音乐属性，可描述性别、音色、类型、情感、乐器、BPM 等六个音乐维度。\n- 所有六个维度都是可选的，可以根据需要指定其中的任意子集，顺序灵活，不同属性用逗号（,）分隔。\n\n请以JSON格式返回，字段名分别为`Tags`和`Lyrics`，请仅输出JSON格式普通文本字符串，请不要输入任何额外多余信息。请为我按照要求生成对应主题的文生音乐提示语，提供的主题为："
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "type": "STRING",
+          "localized_name": "文本"
+        }
+      ],
+      "flags": {},
+      "type": "CR Text",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        336.2991027832031,
+        189.55747985839844
+      ],
+      "pos": [
+        2127.88037109375,
+        369.3403625488281
+      ],
+      "id": 60,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Text"
+      },
+      "order": 10
+    },
+    {
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            60
+          ],
+          "label": "字符串",
+          "type": "STRING",
+          "localized_name": "字符串"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        ", ",
+        "true"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "text_a",
+          "link": 59,
+          "label": "文本_A",
+          "type": "STRING",
+          "localized_name": "text_a"
+        },
+        {
+          "shape": 7,
+          "name": "text_b",
+          "link": 84,
+          "label": "文本_B",
+          "type": "STRING",
+          "localized_name": "text_b"
+        },
+        {
+          "shape": 7,
+          "name": "text_c",
+          "label": "文本_C",
+          "type": "STRING",
+          "localized_name": "text_c"
+        },
+        {
+          "shape": 7,
+          "name": "text_d",
+          "label": "文本_d",
+          "type": "STRING",
+          "localized_name": "text_d"
+        },
+        {
+          "widget": {
+            "name": "delimiter"
+          },
+          "name": "delimiter",
+          "type": "STRING",
+          "localized_name": "delimiter"
+        },
+        {
+          "widget": {
+            "name": "clean_whitespace"
+          },
+          "name": "clean_whitespace",
+          "type": "COMBO",
+          "localized_name": "clean_whitespace"
+        }
+      ],
+      "flags": {},
+      "type": "Text Concatenate",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        315,
+        178
+      ],
+      "pos": [
+        2495.891845703125,
+        408.7434387207031
+      ],
+      "id": 61,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Text Concatenate"
+      },
+      "order": 27
+    },
+    {
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "male, bright, warm, uplifting, hopeful, folk, acoustic guitar and piano, 120 BPM"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 104,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "type": "easy showAnything",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        292.6666259765625,
+        158.00006103515625
+      ],
+      "pos": [
+        2912.519775390625,
+        659.244140625
+      ],
+      "id": 105,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 39
+    },
+    {
+      "outputs": [
+        {
+          "name": "model",
+          "links": [
+            53
+          ],
+          "label": "model",
+          "type": "SongGeneration_MODEL",
+          "localized_name": "model"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "htdemucs.pth",
+        "Folk",
+        "left blank"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "audio",
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "widget": {
+            "name": "demucs_pt"
+          },
+          "name": "demucs_pt",
+          "label": "demucs_pt",
+          "type": "COMBO",
+          "localized_name": "demucs_pt"
+        },
+        {
+          "widget": {
+            "name": "auto_prompt_audio_type"
+          },
+          "name": "auto_prompt_audio_type",
+          "label": "auto_prompt_audio_type",
+          "type": "COMBO",
+          "localized_name": "auto_prompt_audio_type"
+        },
+        {
+          "widget": {
+            "name": "gen_type"
+          },
+          "name": "gen_type",
+          "label": "gen_type",
+          "type": "COMBO",
+          "localized_name": "gen_type"
+        }
+      ],
+      "flags": {},
+      "type": "SongGeneration_Stage1",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        315,
+        106
+      ],
+      "pos": [
+        4103.62890625,
+        381.8984069824219
+      ],
+      "id": 57,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SongGeneration_Stage1"
+      },
+      "order": 11
+    },
+    {
+      "outputs": [
+        {
+          "name": "audio",
+          "links": [
+            55
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 54,
+          "label": "model",
+          "type": "SongGeneration_DICT",
+          "localized_name": "model"
+        }
+      ],
+      "flags": {},
+      "type": "SongGeneration_Sampler",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        277.20001220703125,
+        26
+      ],
+      "pos": [
+        4121.6806640625,
+        858.3366088867188
+      ],
+      "id": 58,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SongGeneration_Sampler"
+      },
+      "order": 44
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "| 英文乐器组合                | 中文翻译                          |\n|---------------------------|---------------------------------|\n| piano and drums            | 钢琴和鼓                          |\n| piano and synthesizer      | 钢琴和合成器                      |\n| synthesizer and drums       | 合成器和鼓                        |\n| piano and strings          | 钢琴和弦乐（组）                  |\n| guitar and drums           | 吉他和鼓                          |\n| guitar and piano           | 吉他和钢琴                        |\n| piano and double bass      | 钢琴和低音提琴                    |\n| piano and guitar           | 钢琴和吉他                        |\n| acoustic guitar and piano  | 木吉他和钢琴                      |\n| acoustic guitar and synthesizer | 木吉他和合成器                  |\n| synthesizer and guitar     | 合成器和吉他                      |\n| piano and saxophone        | 钢琴和萨克斯管                    |\n| saxophone and piano        | 萨克斯管和钢琴                    |\n| piano and violin           | 钢琴和小提琴                      |\n| electric guitar and drums  | 电吉他和鼓                        |\n| acoustic guitar and drums  | 木吉他和鼓                        |\n| synthesizer                | 合成器                           |\n| guitar and fiddle          | 吉他和小提琴（民间小提琴）        |\n| guitar and harmonica       | 吉他和口琴                        |\n| synthesizer and acoustic guitar | 合成器和木吉他                  |\n| beats                      | 节拍（节奏采样）                  |\n| piano                      | 钢琴                             |\n| acoustic guitar and fiddle | 木吉他和小提琴（民间小提琴）      |\n| brass and piano            | 铜管乐器和钢琴                    |\n| bass and drums             | 贝斯和鼓                          |\n| violin                     | 小提琴                           |\n| acoustic guitar and harmonica | 木吉他和口琴                    |\n| piano and cello            | 钢琴和大提琴                      |\n| saxophone and trumpet      | 萨克斯管和小号                    |\n| guitar and banjo           | 吉他和班卓琴                      |\n| guitar and synthesizer     | 吉他和合成器                      |\n| saxophone                  | 萨克斯管                         |\n| violin and piano           | 小提琴和钢琴                      |\n| synthesizer and bass       | 合成器和贝斯                      |\n| synthesizer and electric guitar | 合成器和电吉他                  |\n| electric guitar and piano  | 电吉他和钢琴                      |\n| beats and piano            | 节拍（节奏采样）和钢琴            |\n| synthesizer and guitar     | 合成器和吉他（与前文重复，此处按原文列出） |\n| guitar                     | 吉他                             |"
+      ],
+      "inputs": [],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "MarkdownNote",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        401.6121520996094,
+        1057.1715087890625
+      ],
+      "pos": [
+        -1042.9407958984375,
+        584.9119262695312
+      ],
+      "id": 101,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 12
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "# 音乐流派\n\n- “electronic” 指电子音乐，通过电子设备如合成器、效果器等创造声音，像德国的 Kraftwerk 乐队作品是典型电子音乐。\n- “hip hop” 嘻哈音乐，包含说唱、打碟、街舞等元素，节奏强烈，如 Eminem 的作品。\n- “rock” 摇滚音乐，节奏有力，强调吉他、鼓等乐器配合，如 The Beatles 经典摇滚乐队。\n- “jazz” 爵士乐，以即兴演奏为特色，节奏复杂，像 Louis Armstrong 是爵士乐代表人物。\n- “blues” 蓝调音乐，起源于美国黑人，旋律忧伤，常用 12 小节结构，B.B. King 是蓝调大师。\n- “classical” 古典音乐，指从巴洛克时期到浪漫主义时期的西方严肃音乐，如莫扎特、贝多芬的作品。\n- “rap” 说唱音乐，以快速念白配合节奏，如 2Pac 的说唱很有影响力。\n- “country” 乡村音乐，有浓郁美国乡村风格，多讲述生活琐事，如 Johnny Cash 是乡村音乐代表。\n- “classic rock” 经典摇滚，指上世纪 60 到 80 年代具有代表性的摇滚风格，如 Led Zeppelin 乐队。\n- “hard rock” 硬摇滚，比一般摇滚更强烈有力，AC/DC 乐队是硬摇滚代表。\n- “folk” 民谣音乐，源于民间传统音乐，风格质朴，如 Bob Dylan 的民谣。\n- “soul” 灵歌，结合福音音乐、节奏蓝调，情感强烈，Marvin Gaye 是灵歌代表。\n- “dance, electronic” 即电子舞曲，适合跳舞，节奏明快，如 David Guetta 的作品。\n- “rockabilly” 山区乡村摇滚，融合乡村音乐与摇滚，Elvis Presley 早期作品有这种风格。\n- “dance, dancepop, house, pop” 涵盖多种风格，dancepop 结合舞曲与流行，house 是电子舞曲风格，流行风格则广泛传唱，如 Britney Spears 有些作品融合这些风格。\n- “reggae” 雷鬼音乐，起源于牙买加，节奏独特，Bob Marley 是雷鬼音乐代表。\n- “experimental” 实验音乐，突破传统音乐规则，探索新声音与形式，如 John Cage 的作品。\n- “dance, pop” 舞曲流行，兼具流行旋律与舞曲节奏，如 Lady Gaga 有些作品。\n- “dance, deephouse, electronic” 深浩室电子舞曲，节奏舒缓，氛围深邃，是电子舞曲分支。\n- “k-pop” 韩国流行音乐，融合多种音乐风格，韩流偶像团体作品多属此类。\n- “experimental pop” 实验流行，在流行音乐基础上进行创新实验，如 Björk 作品。\n- “pop punk” 流行朋克，融合流行与朋克，旋律简单易记，如 Green Day 乐队。\n- “rock and roll” 摇滚乐早期风格，节奏强烈，有摇摆感，Elvis Presley 推动其发展。\n- “R&B” 节奏布鲁斯，结合爵士乐、福音音乐等，节奏鲜明，如 Usher 的作品。\n- “varies” 表示多样、变化，指音乐风格不固定。\n- “pop rock” 流行摇滚，融合流行与摇滚元素，如 Coldplay 乐队作品。"
+      ],
+      "inputs": [],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "MarkdownNote",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        797.2681274414062,
+        466.1783142089844
+      ],
+      "pos": [
+        -588.7221069335938,
+        859.4783935546875
+      ],
+      "id": 86,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 13
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "INT",
+          "links": [
+            141
+          ],
+          "label": "整数",
+          "type": "INT",
+          "localized_name": "整数"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        1570.608154296875,
+        982.618896484375
+      ],
+      "widgets_values": [
+        1
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "type": "INT",
+          "localized_name": "值"
+        }
+      ],
+      "flags": {},
+      "id": 120,
+      "type": "Int",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Int"
+      },
+      "order": 14
+    },
+    {
+      "outputs": [
+        {
+          "name": "result_text",
+          "links": [
+            68
+          ],
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "result_text"
+        },
+        {
+          "name": "replacement_count_number",
+          "label": "替换数量(数字)",
+          "type": "NUMBER",
+          "localized_name": "replacement_count_number"
+        },
+        {
+          "name": "replacement_count_float",
+          "label": "替换数量(浮点)",
+          "type": "FLOAT",
+          "localized_name": "replacement_count_float"
+        },
+        {
+          "name": "replacement_count_int",
+          "label": "替换数量(整数)",
+          "type": "INT",
+          "localized_name": "replacement_count_int"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "AAA",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 65,
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "find"
+          },
+          "name": "find",
+          "type": "STRING",
+          "localized_name": "目标"
+        },
+        {
+          "widget": {
+            "name": "replace"
+          },
+          "name": "replace",
+          "link": 64,
+          "label": "替换",
+          "type": "STRING",
+          "localized_name": "替换"
+        }
+      ],
+      "flags": {},
+      "type": "Text Find and Replace",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        317.4000244140625,
+        166
+      ],
+      "pos": [
+        2176.53271484375,
+        1474.20068359375
+      ],
+      "id": 67,
+      "properties": {
+        "widget_ue_connectable": {
+          "replace": true
+        },
+        "Node name for S&R": "Text Find and Replace"
+      },
+      "order": 22
+    },
+    {
+      "outputs": [
+        {
+          "name": "result_text",
+          "links": [
+            71
+          ],
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "result_text"
+        },
+        {
+          "name": "replacement_count_number",
+          "label": "替换数量(数字)",
+          "type": "NUMBER",
+          "localized_name": "replacement_count_number"
+        },
+        {
+          "name": "replacement_count_float",
+          "label": "替换数量(浮点)",
+          "type": "FLOAT",
+          "localized_name": "replacement_count_float"
+        },
+        {
+          "name": "replacement_count_int",
+          "label": "替换数量(整数)",
+          "type": "INT",
+          "localized_name": "replacement_count_int"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "BBB",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 68,
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "find"
+          },
+          "name": "find",
+          "type": "STRING",
+          "localized_name": "目标"
+        },
+        {
+          "widget": {
+            "name": "replace"
+          },
+          "name": "replace",
+          "link": 69,
+          "label": "替换",
+          "type": "STRING",
+          "localized_name": "替换"
+        }
+      ],
+      "flags": {},
+      "type": "Text Find and Replace",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        317.4000244140625,
+        166
+      ],
+      "pos": [
+        2570.038330078125,
+        1478.9840087890625
+      ],
+      "id": 71,
+      "properties": {
+        "widget_ue_connectable": {
+          "replace": true
+        },
+        "Node name for S&R": "Text Find and Replace"
+      },
+      "order": 24
+    },
+    {
+      "outputs": [
+        {
+          "name": "result_text",
+          "links": [
+            76
+          ],
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "result_text"
+        },
+        {
+          "name": "replacement_count_number",
+          "label": "替换数量(数字)",
+          "type": "NUMBER",
+          "localized_name": "replacement_count_number"
+        },
+        {
+          "name": "replacement_count_float",
+          "label": "替换数量(浮点)",
+          "type": "FLOAT",
+          "localized_name": "replacement_count_float"
+        },
+        {
+          "name": "replacement_count_int",
+          "label": "替换数量(整数)",
+          "type": "INT",
+          "localized_name": "replacement_count_int"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "DDD",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 74,
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "find"
+          },
+          "name": "find",
+          "type": "STRING",
+          "localized_name": "目标"
+        },
+        {
+          "widget": {
+            "name": "replace"
+          },
+          "name": "replace",
+          "link": 75,
+          "label": "替换",
+          "type": "STRING",
+          "localized_name": "替换"
+        }
+      ],
+      "flags": {},
+      "type": "Text Find and Replace",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        317.4000244140625,
+        166
+      ],
+      "pos": [
+        2188.900146484375,
+        1737.6702880859375
+      ],
+      "id": 77,
+      "properties": {
+        "widget_ue_connectable": {
+          "replace": true
+        },
+        "Node name for S&R": "Text Find and Replace"
+      },
+      "order": 28
+    },
+    {
+      "outputs": [
+        {
+          "name": "result_text",
+          "links": [
+            78
+          ],
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "result_text"
+        },
+        {
+          "name": "replacement_count_number",
+          "label": "替换数量(数字)",
+          "type": "NUMBER",
+          "localized_name": "replacement_count_number"
+        },
+        {
+          "name": "replacement_count_float",
+          "label": "替换数量(浮点)",
+          "type": "FLOAT",
+          "localized_name": "replacement_count_float"
+        },
+        {
+          "name": "replacement_count_int",
+          "label": "替换数量(整数)",
+          "type": "INT",
+          "localized_name": "replacement_count_int"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "EEE",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 76,
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "find"
+          },
+          "name": "find",
+          "type": "STRING",
+          "localized_name": "目标"
+        },
+        {
+          "widget": {
+            "name": "replace"
+          },
+          "name": "replace",
+          "link": 83,
+          "label": "替换",
+          "type": "STRING",
+          "localized_name": "替换"
+        }
+      ],
+      "flags": {},
+      "type": "Text Find and Replace",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        317.4000244140625,
+        166
+      ],
+      "pos": [
+        2581.0439453125,
+        1745.8270263671875
+      ],
+      "id": 79,
+      "properties": {
+        "widget_ue_connectable": {
+          "replace": true
+        },
+        "Node name for S&R": "Text Find and Replace"
+      },
+      "order": 30
+    },
+    {
+      "outputs": [
+        {
+          "name": "result_text",
+          "links": [
+            109,
+            111,
+            124
+          ],
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "result_text"
+        },
+        {
+          "name": "replacement_count_number",
+          "label": "替换数量(数字)",
+          "type": "NUMBER",
+          "localized_name": "replacement_count_number"
+        },
+        {
+          "name": "replacement_count_float",
+          "label": "替换数量(浮点)",
+          "type": "FLOAT",
+          "localized_name": "replacement_count_float"
+        },
+        {
+          "name": "replacement_count_int",
+          "label": "替换数量(整数)",
+          "type": "INT",
+          "localized_name": "replacement_count_int"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "GGG",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 81,
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "find"
+          },
+          "name": "find",
+          "type": "STRING",
+          "localized_name": "目标"
+        },
+        {
+          "widget": {
+            "name": "replace"
+          },
+          "name": "replace",
+          "link": 80,
+          "label": "替换",
+          "type": "STRING",
+          "localized_name": "替换"
+        }
+      ],
+      "flags": {},
+      "type": "Text Find and Replace",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        317.4000244140625,
+        166
+      ],
+      "pos": [
+        2198.781494140625,
+        2026.59375
+      ],
+      "id": 82,
+      "properties": {
+        "widget_ue_connectable": {
+          "replace": true
+        },
+        "Node name for S&R": "Text Find and Replace"
+      },
+      "order": 34
+    },
+    {
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            24,
+            136
+          ],
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "male, bright, rock, pop, energetic, guitar, 120bpm"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "multi_line_prompt"
+          },
+          "name": "multi_line_prompt",
+          "label": "multi_line_prompt",
+          "type": "STRING",
+          "localized_name": "multi_line_prompt"
+        }
+      ],
+      "flags": {},
+      "type": "MultiLinePromptACES",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        238.4917449951172,
+        111.36953735351562
+      ],
+      "pos": [
+        641.8796997070312,
+        1253.232666015625
+      ],
+      "id": 37,
+      "properties": {
+        "cnr_id": "ace-step",
+        "ver": "46e53996218b0c1d7957e3f5398ac47d520b2f0b",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "MultiLinePromptACES"
+      },
+      "order": 15
+    },
+    {
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            65
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "歌名：AAA\n性别：BBB\n歌曲音色：CCC\n歌曲流派：DDD\n歌曲情感：EEE\n歌曲乐器：FFF\n歌曲BPM：GGG\n歌曲立意：HHH"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "passthrough",
+          "label": "passthrough",
+          "type": "STRING",
+          "localized_name": "passthrough"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "Textbox",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        302.4667053222656,
+        180.933349609375
+      ],
+      "pos": [
+        2938.391845703125,
+        1151.8701171875
+      ],
+      "id": 65,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Textbox"
+      },
+      "order": 16
+    },
+    {
+      "outputs": [
+        {
+          "name": "result_text",
+          "links": [
+            74
+          ],
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "result_text"
+        },
+        {
+          "name": "replacement_count_number",
+          "label": "替换数量(数字)",
+          "type": "NUMBER",
+          "localized_name": "replacement_count_number"
+        },
+        {
+          "name": "replacement_count_float",
+          "label": "替换数量(浮点)",
+          "type": "FLOAT",
+          "localized_name": "replacement_count_float"
+        },
+        {
+          "name": "replacement_count_int",
+          "label": "替换数量(整数)",
+          "type": "INT",
+          "localized_name": "replacement_count_int"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "CCC",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 71,
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "find"
+          },
+          "name": "find",
+          "type": "STRING",
+          "localized_name": "目标"
+        },
+        {
+          "widget": {
+            "name": "replace"
+          },
+          "name": "replace",
+          "link": 72,
+          "label": "替换",
+          "type": "STRING",
+          "localized_name": "替换"
+        }
+      ],
+      "flags": {},
+      "type": "Text Find and Replace",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        317.4000244140625,
+        166
+      ],
+      "pos": [
+        2954.132080078125,
+        1467.703369140625
+      ],
+      "id": 73,
+      "properties": {
+        "widget_ue_connectable": {
+          "replace": true
+        },
+        "Node name for S&R": "Text Find and Replace"
+      },
+      "order": 26
+    },
+    {
+      "outputs": [
+        {
+          "name": "result_text",
+          "links": [
+            81
+          ],
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "result_text"
+        },
+        {
+          "name": "replacement_count_number",
+          "label": "替换数量(数字)",
+          "type": "NUMBER",
+          "localized_name": "replacement_count_number"
+        },
+        {
+          "name": "replacement_count_float",
+          "label": "替换数量(浮点)",
+          "type": "FLOAT",
+          "localized_name": "replacement_count_float"
+        },
+        {
+          "name": "replacement_count_int",
+          "label": "替换数量(整数)",
+          "type": "INT",
+          "localized_name": "replacement_count_int"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "FFF",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 78,
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "find"
+          },
+          "name": "find",
+          "type": "STRING",
+          "localized_name": "目标"
+        },
+        {
+          "widget": {
+            "name": "replace"
+          },
+          "name": "replace",
+          "link": 77,
+          "label": "替换",
+          "type": "STRING",
+          "localized_name": "替换"
+        }
+      ],
+      "flags": {},
+      "type": "Text Find and Replace",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        317.4000244140625,
+        166
+      ],
+      "pos": [
+        2967.831787109375,
+        1751.06005859375
+      ],
+      "id": 81,
+      "properties": {
+        "widget_ue_connectable": {
+          "replace": true
+        },
+        "Node name for S&R": "Text Find and Replace"
+      },
+      "order": 32
+    },
+    {
+      "outputs": [
+        {
+          "name": "result_text",
+          "links": [
+            125,
+            126
+          ],
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "result_text"
+        },
+        {
+          "name": "replacement_count_number",
+          "label": "替换数量(数字)",
+          "type": "NUMBER",
+          "localized_name": "replacement_count_number"
+        },
+        {
+          "name": "replacement_count_float",
+          "label": "替换数量(浮点)",
+          "type": "FLOAT",
+          "localized_name": "replacement_count_float"
+        },
+        {
+          "name": "replacement_count_int",
+          "label": "替换数量(整数)",
+          "type": "INT",
+          "localized_name": "replacement_count_int"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "HHH",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 124,
+          "label": "文本",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "find"
+          },
+          "name": "find",
+          "type": "STRING",
+          "localized_name": "目标"
+        },
+        {
+          "widget": {
+            "name": "replace"
+          },
+          "name": "replace",
+          "link": 128,
+          "label": "替换",
+          "type": "STRING",
+          "localized_name": "替换"
+        }
+      ],
+      "flags": {},
+      "type": "Text Find and Replace",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        317.4000244140625,
+        166
+      ],
+      "pos": [
+        2598.448486328125,
+        2022.1201171875
+      ],
+      "id": 117,
+      "properties": {
+        "widget_ue_connectable": {
+          "replace": true
+        },
+        "Node name for S&R": "Text Find and Replace"
+      },
+      "order": 36
+    },
+    {
+      "outputs": [
+        {
+          "name": "model",
+          "links": [
+            54
+          ],
+          "label": "model",
+          "type": "SongGeneration_DICT",
+          "localized_name": "model"
+        }
+      ],
+      "color": "#323",
+      "widgets_values": [
+        "[intro-short] ;\n [verse]\n 雪花舞动在无尽的天际.情缘如同雪花般轻轻逝去.希望与真挚.永不磨灭.你的忧虑.随风而逝 ;\n [chorus]\n 我怀抱着守护这片梦境.在这世界中寻找爱与虚幻.苦辣酸甜.我们一起品尝.在雪的光芒中.紧紧相拥 ;\n [inst-short] ;\n [verse]\n雪花再次在风中飘扬.情愿如同雪花般消失无踪.希望与真挚.永不消失.在痛苦与喧嚣中.你找到解脱 ;\n [chorus]\n 我环绕着守护这片梦境.在这世界中感受爱与虚假.苦辣酸甜.我们一起分享.在白银的光芒中.我们同在 ;\n [outro-short]",
+        "female, dark, pop, sad, piano and drums, the bpm is 125",
+        1.5,
+        0.9,
+        50,
+        0,
+        true,
+        50
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 53,
+          "label": "model",
+          "type": "SongGeneration_MODEL",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "lyric"
+          },
+          "name": "lyric",
+          "link": 134,
+          "label": "lyric",
+          "type": "STRING",
+          "localized_name": "lyric"
+        },
+        {
+          "widget": {
+            "name": "description"
+          },
+          "name": "description",
+          "link": 138,
+          "label": "description",
+          "type": "STRING",
+          "localized_name": "description"
+        },
+        {
+          "widget": {
+            "name": "cfg_coef"
+          },
+          "name": "cfg_coef",
+          "label": "cfg_coef",
+          "type": "FLOAT",
+          "localized_name": "cfg_coef"
+        },
+        {
+          "widget": {
+            "name": "temp"
+          },
+          "name": "temp",
+          "label": "temp",
+          "type": "FLOAT",
+          "localized_name": "temp"
+        },
+        {
+          "widget": {
+            "name": "top_k"
+          },
+          "name": "top_k",
+          "label": "top_k",
+          "type": "INT",
+          "localized_name": "top_k"
+        },
+        {
+          "widget": {
+            "name": "top_p"
+          },
+          "name": "top_p",
+          "label": "top_p",
+          "type": "FLOAT",
+          "localized_name": "top_p"
+        },
+        {
+          "widget": {
+            "name": "record_tokens"
+          },
+          "name": "record_tokens",
+          "label": "record_tokens",
+          "type": "BOOLEAN",
+          "localized_name": "record_tokens"
+        },
+        {
+          "widget": {
+            "name": "record_window"
+          },
+          "name": "record_window",
+          "label": "record_window",
+          "type": "INT",
+          "localized_name": "record_window"
+        }
+      ],
+      "flags": {},
+      "type": "SongGeneration_Stage2",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        325.20001220703125,
+        256
+      ],
+      "pos": [
+        4108.6962890625,
+        535.5127563476562
+      ],
+      "id": 55,
+      "properties": {
+        "widget_ue_connectable": {
+          "lyric": true,
+          "description": true
+        },
+        "Node name for S&R": "SongGeneration_Stage2"
+      },
+      "order": 43
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "# 音色\n\n- “dark” 常见含义为 “黑暗的；深色的；悲观的；隐晦的” ，比如 a dark room（黑暗的房间） 。\n- “bright” 常见意思是 “明亮的；鲜艳的；聪明的；欢快的”，例如 a bright - color（鲜艳的颜色）。\n- “warm” 通常表示 “温暖的；热情的；暖和起来”，像 a warm day（温暖的一天） 。\n- “rock” 常见义为 “岩石；石块；摇滚乐”，作动词有 “摇晃；使震惊” 等意，如 a huge rock（一块巨大的岩石） 。\n- “varies” 是 vary 的第三人称单数形式，意为 “变化；不同；改变”，例如 Prices vary according to the season.（价格随季节变化。）\n- “soft” 常见意思为 “柔软的；柔和的；温柔的”，比如 a soft blanket（柔软的毯子） 。\n- “vocal” 意思是 “嗓音的；发声的；直言不讳的”，作名词时指 “声乐作品；元音”，例如 vocal music（声乐） 。"
+      ],
+      "inputs": [],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "MarkdownNote",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        777.68017578125,
+        224.52667236328125
+      ],
+      "pos": [
+        -585.1443481445312,
+        577.6260986328125
+      ],
+      "id": 100,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 17
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "# BPM数值范围\n\n\n\n| 音乐风格                | BPM范围及说明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n|-------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n| electronic（电子音乐）   | 通常在120-150BPM左右；氛围电子音乐稍慢，为90-110BPM；硬派电子舞曲可能高达150-180BPM甚至更高。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| hip hop（嘻哈音乐）      | 一般在80-100BPM，快节奏嘻哈可达100-120BPM。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| rock（摇滚音乐）         | 大多在110-140BPM（如The Beatles部分作品）；硬摇滚（如AC/DC）更快，为130-160BPM。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| jazz（爵士乐）           | 通常在90-120BPM，节奏复杂多变，部分现代爵士风格可能超出此范围。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| blues（蓝调音乐）        | 基本在80-110BPM，以较慢节奏展现忧伤情感。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| classical（古典音乐）    | 不同时期和体裁差异大：巴洛克时期约100-120BPM；浪漫主义时期慢板乐章低于60BPM，快板乐章可达120-160BPM。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| rap（说唱音乐）          | 与嘻哈类似，一般80-100BPM，快速说唱可达100-120BPM。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| country（乡村音乐）      | 通常在80-110BPM，节奏平稳，适合讲述生活故事。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| classic rock（经典摇滚） | 大致在110-140BPM，是摇滚风格发展中的典型节奏范围。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| hard rock（硬摇滚）      | 一般在130-160BPM，比经典摇滚节奏更强烈、速度更快。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| folk（民谣音乐）         | 多数在80-120BPM，以简单质朴节奏为主。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| soul（灵歌）             | 通常在90-120BPM，节奏富有情感和动感。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| dance, electronic（电子舞曲） | 通常在120-150BPM，欢快的电子舞曲可达150-180BPM。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| rockabilly（山区乡村摇滚）| 一般在100-120BPM，融合乡村和摇滚的节奏特点。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| dance, dancepop, house, pop（涵盖多种风格） | dancepop和pop一般在100-130BPM；house作为电子舞曲风格，通常在120-130BPM。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| reggae（雷鬼音乐）       | 通常在80-100BPM，节奏独特，律动感强。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| experimental（实验音乐） | BPM值范围广，无固定标准，涵盖各种速度，以突破传统为目的。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| dance, pop（舞曲流行）   | 一般在100-130BPM，结合流行旋律和舞曲节奏。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| dance, deephouse, electronic（深浩室电子舞曲） | 通常在110-130BPM，节奏舒缓，氛围深邃。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| k-pop（韩国流行音乐）    | 大多在100-130BPM，根据歌曲风格和舞蹈编排调整。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| experimental pop（实验流行） | BPM值不固定，通常在90-130BPM，在流行基础上创新，节奏多变。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| pop punk（流行朋克）     | 一般在120-140BPM，旋律简单易记，节奏明快。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| rock and roll（摇滚乐早期风格） | 通常在100-120BPM，节奏强烈且有摇摆感。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| R&B（节奏布鲁斯）        | 通常在90-110BPM，节奏鲜明，韵律感强。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |\n| pop rock（流行摇滚）     | 一般在100-130BPM，融合流行和摇滚元素，节奏适中。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |"
+      ],
+      "inputs": [],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "MarkdownNote",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        809.634033203125,
+        750.8302612304688
+      ],
+      "pos": [
+        -590.802734375,
+        1378.230712890625
+      ],
+      "id": 102,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 18
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "情感：\nsad 伤心\nemotional 情绪激动\nangry 生气\nhappy 开心\nuplifting 令人振奋的、鼓舞人心的\nintense 紧张的\nromantic 浪漫的\nmelancholic 忧郁的"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        247.52859497070312,
+        155.0253448486328
+      ],
+      "pos": [
+        -969.0574340820312,
+        1685.2589111328125
+      ],
+      "id": 99,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 19
+    },
+    {
+      "outputs": [],
+      "color": "#323",
+      "widgets_values": [
+        "audio/ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "audio",
+          "link": 55,
+          "type": "AUDIO",
+          "localized_name": "音频"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        },
+        {
+          "widget": {
+            "name": "audioUI"
+          },
+          "name": "audioUI",
+          "type": "AUDIO_UI",
+          "localized_name": "音频UI"
+        }
+      ],
+      "flags": {},
+      "type": "SaveAudio",
+      "mode": 0,
+      "bgcolor": "#535",
+      "size": [
+        269.1249084472656,
+        112
+      ],
+      "pos": [
+        4584.37158203125,
+        1172.3560791015625
+      ],
+      "id": 59,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveAudio"
+      },
+      "order": 45
+    },
+    {
+      "outputs": [
+        {
+          "name": "INT",
+          "links": [
+            35,
+            107,
+            112,
+            132,
+            135
+          ],
+          "label": "整数",
+          "type": "INT",
+          "localized_name": "整数"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        1
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "type": "INT",
+          "localized_name": "值"
+        }
+      ],
+      "flags": {},
+      "type": "Int",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        375.7123107910156,
+        89.36805725097656
+      ],
+      "pos": [
+        416.1257019042969,
+        911.3191528320312
+      ],
+      "id": 54,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Int"
+      },
+      "order": 20
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "VHS_KeepIntermediate": true,
+    "ue_links": [],
+    "VHS_MetadataImage": true,
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "VHS_latentpreviewrate": 0,
+    "frontendVersion": "1.23.0",
+    "VHS_latentpreview": false,
+    "ds": {
+      "offset": [
+        -124.3167296686302,
+        -579.4320255635444
+      ],
+      "scale": 0.9646149645000033
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 55,
+      "flags": {},
+      "id": 1,
+      "title": "生成音乐",
+      "bounding": [
+        3760.330810546875,
+        253.3345947265625,
+        685,
+        749
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 55,
+      "flags": {},
+      "id": 3,
+      "title": "根据主题自动生成歌词",
+      "bounding": [
+        2117.0419921875,
+        236.78988647460938,
+        1607.4796142578125,
+        761.3025512695312
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 32,
+      "title": "设置区",
+      "bounding": [
+        317.5120849609375,
+        758.5047607421875,
+        1758.094482421875,
+        837.778076171875
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 13,
+      "title": "手动挡参数",
+      "bounding": [
+        334.7882080078125,
+        1043.4578857421875,
+        558.3447265625,
+        476.29656982421875
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 27,
+      "title": "参数",
+      "bounding": [
+        2139.997314453125,
+        1026.986572265625,
+        1182.2149658203125,
+        1242.21484375
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {},
+      "id": 17,
+      "title": "歌名",
+      "bounding": [
+        1143.38232421875,
+        889.3045043945312,
+        361.3125915527344,
+        213.338134765625
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {},
+      "id": 18,
+      "title": "选择 男声/女声",
+      "bounding": [
+        2168.598876953125,
+        1086.123779296875,
+        685,
+        321.6000061035156
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 31,
+      "title": "半自动",
+      "bounding": [
+        997.1378784179688,
+        802.1046142578125,
+        1068.46875,
+        784.17822265625
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {},
+      "id": 19,
+      "title": "音色",
+      "bounding": [
+        1007.1378784179688,
+        1165.3001708984375,
+        331.3121337890625,
+        192
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {},
+      "id": 20,
+      "title": "音乐流派",
+      "bounding": [
+        1353.407958984375,
+        1166.1300048828125,
+        331.3121337890625,
+        192
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {},
+      "id": 21,
+      "title": "歌曲情感",
+      "bounding": [
+        1703.9853515625,
+        1164.9173583984375,
+        331.3121337890625,
+        192
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {},
+      "id": 22,
+      "title": "歌曲乐器",
+      "bounding": [
+        1007.7235717773438,
+        1383.66796875,
+        331.3121337890625,
+        192
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {},
+      "id": 23,
+      "title": "歌曲BPM",
+      "bounding": [
+        1369.5411376953125,
+        1384.281982421875,
+        331.3121337890625,
+        192
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 26,
+      "title": "模式：自动（1）半自动（2） 手动（3），默认自动",
+      "bounding": [
+        327.5120849609375,
+        825.1893310546875,
+        569.1121826171875,
+        196.96800231933594
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {},
+      "id": 28,
+      "title": "歌曲立意",
+      "bounding": [
+        1724.2947998046875,
+        1378.8876953125,
+        331.3121337890625,
+        192
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 30,
+      "title": "全自动",
+      "bounding": [
+        1133.38232421875,
+        845.70458984375,
+        748.689697265625,
+        266.9381408691406
+      ]
+    },
+    {
+      "color": "#8A8",
+      "font_size": 24,
+      "flags": {},
+      "id": 29,
+      "title": "男声（1）、女声（2）",
+      "bounding": [
+        1539.14404296875,
+        893.6875610351562,
+        332.9278564453125,
+        200.88145446777344
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 33,
+      "title": "勿动区",
+      "bounding": [
+        2107.0419921875,
+        193.1897735595703,
+        2348.288818359375,
+        2086.01318359375
+      ]
+    },
+    {
+      "color": "#b58b2a",
+      "font_size": 24,
+      "flags": {},
+      "id": 34,
+      "title": "说明区",
+      "bounding": [
+        -1052.9407958984375,
+        504.026123046875,
+        1290.998779296875,
+        1659.193115234375
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      38,
+      0,
+      4,
+      0,
+      "JSON"
+    ],
+    [
+      22,
+      38,
+      0,
+      34,
+      0,
+      "JSON"
+    ],
+    [
+      24,
+      37,
+      0,
+      35,
+      0,
+      "STRING"
+    ],
+    [
+      30,
+      39,
+      0,
+      38,
+      0,
+      "STRING"
+    ],
+    [
+      31,
+      40,
+      0,
+      39,
+      0,
+      "STRING"
+    ],
+    [
+      34,
+      48,
+      0,
+      41,
+      0,
+      "STRING"
+    ],
+    [
+      35,
+      54,
+      0,
+      41,
+      0,
+      "INT"
+    ],
+    [
+      53,
+      57,
+      0,
+      55,
+      0,
+      "SongGeneration_MODEL"
+    ],
+    [
+      54,
+      55,
+      0,
+      58,
+      0,
+      "SongGeneration_DICT"
+    ],
+    [
+      55,
+      58,
+      0,
+      59,
+      0,
+      "AUDIO"
+    ],
+    [
+      59,
+      60,
+      0,
+      61,
+      0,
+      "STRING"
+    ],
+    [
+      60,
+      61,
+      0,
+      62,
+      5,
+      "STRING"
+    ],
+    [
+      61,
+      62,
+      0,
+      40,
+      0,
+      "STRING"
+    ],
+    [
+      64,
+      66,
+      0,
+      67,
+      2,
+      "STRING"
+    ],
+    [
+      65,
+      65,
+      0,
+      67,
+      0,
+      "STRING"
+    ],
+    [
+      66,
+      69,
+      0,
+      70,
+      0,
+      "*"
+    ],
+    [
+      67,
+      68,
+      0,
+      70,
+      3,
+      "STRING"
+    ],
+    [
+      68,
+      67,
+      0,
+      71,
+      0,
+      "STRING"
+    ],
+    [
+      69,
+      70,
+      0,
+      71,
+      2,
+      "STRING"
+    ],
+    [
+      71,
+      71,
+      0,
+      73,
+      0,
+      "STRING"
+    ],
+    [
+      72,
+      74,
+      0,
+      73,
+      2,
+      "STRING"
+    ],
+    [
+      74,
+      73,
+      0,
+      77,
+      0,
+      "STRING"
+    ],
+    [
+      75,
+      76,
+      0,
+      77,
+      2,
+      "STRING"
+    ],
+    [
+      76,
+      77,
+      0,
+      79,
+      0,
+      "STRING"
+    ],
+    [
+      77,
+      80,
+      0,
+      81,
+      2,
+      "STRING"
+    ],
+    [
+      78,
+      79,
+      0,
+      81,
+      0,
+      "STRING"
+    ],
+    [
+      80,
+      83,
+      0,
+      82,
+      2,
+      "STRING"
+    ],
+    [
+      81,
+      81,
+      0,
+      82,
+      0,
+      "STRING"
+    ],
+    [
+      83,
+      78,
+      0,
+      79,
+      2,
+      "STRING"
+    ],
+    [
+      84,
+      75,
+      0,
+      61,
+      1,
+      "STRING"
+    ],
+    [
+      103,
+      34,
+      0,
+      104,
+      0,
+      "*"
+    ],
+    [
+      104,
+      4,
+      0,
+      105,
+      0,
+      "*"
+    ],
+    [
+      109,
+      82,
+      0,
+      110,
+      0,
+      "STRING"
+    ],
+    [
+      111,
+      82,
+      0,
+      110,
+      0,
+      "STRING"
+    ],
+    [
+      112,
+      54,
+      0,
+      110,
+      1,
+      "INT"
+    ],
+    [
+      113,
+      110,
+      0,
+      75,
+      0,
+      "*"
+    ],
+    [
+      117,
+      66,
+      0,
+      110,
+      0,
+      "STRING"
+    ],
+    [
+      124,
+      82,
+      0,
+      117,
+      0,
+      "STRING"
+    ],
+    [
+      126,
+      117,
+      0,
+      110,
+      3,
+      "STRING"
+    ],
+    [
+      127,
+      66,
+      0,
+      110,
+      0,
+      "STRING"
+    ],
+    [
+      128,
+      116,
+      0,
+      117,
+      2,
+      "STRING"
+    ],
+    [
+      131,
+      48,
+      0,
+      118,
+      0,
+      "*"
+    ],
+    [
+      132,
+      54,
+      0,
+      118,
+      1,
+      "INT"
+    ],
+    [
+      133,
+      34,
+      0,
+      118,
+      3,
+      "STRING"
+    ],
+    [
+      134,
+      118,
+      0,
+      55,
+      1,
+      "STRING"
+    ],
+    [
+      135,
+      54,
+      0,
+      119,
+      1,
+      "INT"
+    ],
+    [
+      136,
+      37,
+      0,
+      119,
+      0,
+      "*"
+    ],
+    [
+      137,
+      4,
+      0,
+      119,
+      3,
+      "STRING"
+    ],
+    [
+      138,
+      119,
+      0,
+      55,
+      2,
+      "STRING"
+    ],
+    [
+      141,
+      120,
+      0,
+      70,
+      1,
+      "INT"
+    ]
+  ],
+  "id": "efb7c770-fe52-4794-b375-6a729f6f3184",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 120,
+  "revision": 0
+}

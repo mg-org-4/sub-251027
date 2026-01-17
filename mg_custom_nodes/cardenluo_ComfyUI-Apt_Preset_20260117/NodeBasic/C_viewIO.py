@@ -1627,6 +1627,32 @@ def __reload__(module):
 
 
 
+import os
+import torch
+import numpy as np
+from PIL import Image, ImageOps, ImageSequence
+import folder_paths
+import node_helpers
+
+def tensor_to_hash(tensor):
+    return hash(tuple(tensor.cpu().numpy().ravel()[:1000]))
+
+def tensor2pil(image):
+    img_np = np.clip(255. * image.cpu().numpy(), 0, 255).astype(np.uint8)
+    if len(img_np.shape) == 4:img_np = img_np[0]
+    while len(img_np.shape) > 3:img_np = img_np.squeeze(0)
+    return Image.fromarray(img_np)
+
+def create_temp_file(image):
+    import tempfile
+    temp_dir = folder_paths.get_temp_directory()
+    temp_path = os.path.join(temp_dir, f"temp_{hash(image)}.png")
+    img = tensor2pil(image)
+    img.save(temp_path, format='PNG')
+    return temp_path, [{"filename": os.path.basename(temp_path), "subfolder": "", "type": "temp"}]
+
+
+
 
 
 class view_bridge_image:   
@@ -1850,12 +1876,9 @@ class view_bridge_image:
 
 
 
-
-
 def handle_error_safe(e: Exception, msg: str = "Operation failed", port_count: int = 1):
     print(f"[CCNotes] {msg}: {e}")
     return tuple([[""] for _ in range(port_count)])
-
 
 
 

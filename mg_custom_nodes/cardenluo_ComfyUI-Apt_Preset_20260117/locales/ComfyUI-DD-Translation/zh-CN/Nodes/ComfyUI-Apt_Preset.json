@@ -1107,13 +1107,13 @@
             "negative": "负向提示词"
         }
     },
-    "pre_ref_condition": {
+    "pre_mul_ref_latent": {
         "title": "pre_参考条件",
         "inputs": {
             "context": "上下文",
-            "latnet_image1": "潜空间图像1",
-            "latnet_image2": "潜空间图像2",
-            "latnet_image3": "潜空间图像3"
+            "ref_latent_img1": "潜空间图像1",
+            "ref_latent_img2": "潜空间图像2",
+            "ref_latent_img3": "潜空间图像3"
         },
         "widgets": {},
         "outputs": {

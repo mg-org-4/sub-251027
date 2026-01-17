@@ -20,7 +20,7 @@ from .NodeChx.Keyframe_schedule import *
 from .NodeChx.Scheduler import *
 
 
-from .NodeBasic.lay_img_canvas import *
+
 from .NodeBasic.highway import Data_Highway
 from .NodeBasic.C_packdata import *
 from .NodeBasic.C_math import *
@@ -138,7 +138,7 @@ NODE_CLASS_MAPPINGS= {
 
 
 "pre_mul_Mulcondi": pre_mul_Mulcondi,   
-"pre_ref_condition": pre_ref_condition,  
+"pre_mul_ref_latent": pre_mul_ref_latent,  
 "pre_advanced_condi_merge":pre_advanced_condi_merge,
 
 #---------****------------------
@@ -576,7 +576,7 @@ NODE_CLASS_MAPPINGS= {
 "Easy_QwenEdit2509": Easy_QwenEdit2509,
 
 #----------------------外部导入节点-----------------------
-
+"PBRBlenderRenderer":PBRBlenderRenderer,
 
 
 
@@ -594,7 +594,6 @@ NODE_CLASS_MAPPINGS= {
 "Mask_Remove_bg": Mask_Remove_bg, #(Deprecated)
 
 "type_BasiPIPE": type_BasiPIPE, #(Deprecated) #TITLE = "load_FLUX (Deprecated)"    CATEGORY = "Apt_Preset/🚫Deprecated/🚫"
-"lay_imgCanvas":lay_imgCanvasNode, #(Deprecated)
 "Image_Resize2": Image_Resize2,#(Deprecated)
 "chx_Ksampler_Kontext": chx_Ksampler_Kontext,   #(Deprecated)
 "chx_Ksampler_Kontext_adv": chx_Ksampler_Kontext_adv,  #(Deprecated)

@@ -133,9 +133,6 @@ available_ckpt = folder_paths.get_filename_list("checkpoints")
 available_unets = list(set(folder_paths.get_filename_list("unet") + folder_paths.get_filename_list("unet_gguf")))
 available_clips = list(set(folder_paths.get_filename_list("text_encoders") + folder_paths.get_filename_list("clip_gguf")))
 
-CLIP_TYPE = ["sdxl", "sd3", "flux", "hunyuan_video", "stable_diffusion", "stable_audio", "mochi", 
-             "ltxv", "pixart", "cosmos","lumina2", "wan", "hidream", "chroma", "ace", "omnigen2", "qwen_image"]
-
 
 
 def getNewTomlnameExt(tomlname, folderpath, savetype):
@@ -3658,7 +3655,7 @@ class Stack_Ksampler_custom:
                 "guider": ("GUIDER",),  # 可选参数
                 "sampler": ("SAMPLER",),
                 "sigmas": ("SIGMAS",),
-                "o": ("NOTHING",),
+                "latent": ("LATENT",),
 
             }
         }
@@ -3668,8 +3665,8 @@ class Stack_Ksampler_custom:
     FUNCTION = "encode"
     CATEGORY = "Apt_Preset/stack/😺backup/ksample"
 
-    def encode(self, noise=None, guider=None, sampler=None, sigmas=None,o=None ):
-        data = ( noise, guider, sampler, sigmas, o)
+    def encode(self, noise=None, guider=None, sampler=None, sigmas=None,latent=None ):
+        data = ( noise, guider, sampler, sigmas, latent)
         return (data, )
 
 
@@ -4043,7 +4040,7 @@ class sum_Ksampler:
                 latent = common_ksampler(model, seed, steps, cfg, sampler, scheduler, positive, negative, latent, denoise=denoise, disable_noise=disable_noise, start_step=start_at_step, last_step=end_at_step, force_full_denoise=force_full_denoise)[0]
 
             elif len(ksample_type) == 5:
-                (noise, guider, sampler, sigmas,o) = ksample_type    
+                (noise, guider, sampler, sigmas, latent) = ksample_type    
                 if sampler is None:
                     sampler_name = context.get("sampler", None)
                     if sampler_name:
@@ -4055,9 +4052,10 @@ class sum_Ksampler:
                 if guider is None:
                     guider = BasicGuider().get_guider(model, positive)[0]                    
                 if sigmas is None:
-                    sigmas = BasicScheduler().get_sigmas(model, "normal", steps, denoise)[0]      
+                    sigmas = BasicScheduler().get_sigmas(model, "normal", steps, denoise)[0]   
+                if latent is None:
+                    latent = context.get("latent",None)
                 latent = SamplerCustomAdvanced().sample(noise, guider, sampler, sigmas, latent)[0]
-            
             elif len(ksample_type) == 4:
                 (steps, cfg, sampler, scheduler) = ksample_type              
                 latent = common_ksampler(model, seed, steps, cfg, sampler, scheduler,

@@ -1383,8 +1383,7 @@ class pre_QwenEdit:
 #endregion-------------------qwen------------------
 
 
-
-class pre_ref_condition:
+class pre_mul_ref_latent:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -1392,9 +1391,10 @@ class pre_ref_condition:
                 "context": ("RUN_CONTEXT",),
             },
             "optional": {
-                "latnet_image1": ("IMAGE", ),
-                "latnet_image2": ("IMAGE", ),
-                "latnet_image3": ("IMAGE", ),
+                "ref_latent_img1": ("IMAGE", ),
+                "ref_latent_img2": ("IMAGE", ),
+                "ref_latent_img3": ("IMAGE", ),
+                "ref_latent_img4": ("IMAGE", ),
             },
         }
 
@@ -1403,30 +1403,28 @@ class pre_ref_condition:
     FUNCTION = "process"
     CATEGORY = "Apt_Preset/chx_tool/conditioning"
 
-    def process(self, context=None, latnet_image1=None, latnet_image2=None, latnet_image3=None):  
+    def process(self, context=None, ref_latent_img1=None, ref_latent_img2=None, ref_latent_img3=None, ref_latent_img4=None):  
         vae = context.get("vae", None)
         positive = context.get("positive", None)
 
-        if latnet_image1 is not None:
-            encoded_latent = vae.encode(latnet_image1)
-            latent = {"samples": encoded_latent}
-            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [latent]},  append=True)
+        if ref_latent_img1 is not None:
+            encoded_latent = vae.encode(ref_latent_img1)
+            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent]},  append=True)
 
-        if latnet_image2 is not None:
-            encoded_latent2 = vae.encode(latnet_image2)
-            latent2 = {"samples": encoded_latent2}
-            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [latent2]},  append=True)
+        if ref_latent_img2 is not None:
+            encoded_latent2 = vae.encode(ref_latent_img2)
+            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent2]},  append=True)
 
-        if latnet_image3 is not None:
-            encoded_latent3 = vae.encode(latnet_image3)
-            latent3 = {"samples": encoded_latent3}
-            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [latent3]},  append=True)
+        if ref_latent_img3 is not None:
+            encoded_latent3 = vae.encode(ref_latent_img3)
+            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent3]},  append=True)
+            
+        if ref_latent_img4 is not None:
+            encoded_latent4 = vae.encode(ref_latent_img4)
+            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent4]},  append=True)
 
+        context = new_context(context, positive=positive)
         return (context,positive,)
-
-
-
-
 
 
 

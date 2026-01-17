@@ -2751,20 +2751,23 @@
       }
     }
   },
-  "pre_ref_condition": {
-    "display_name": "pre_参考条件",
+  "pre_mul_ref_latent": {
+    "display_name": "pre_参考latent",
     "inputs": {
       "context": {
         "name": "上下文"
       },
-      "latnet_image1": {
-        "name": "潜网络图像1"
+      "ref_latent_img1": {
+        "name": "ref_latent_img1"
       },
-      "latnet_image2": {
-        "name": "潜网络图像2"
+      "ref_latent_img2": {
+        "name": "ref_latent_img2"
       },
-      "latnet_image3": {
-        "name": "潜网络图像3"
+      "ref_latent_img3": {
+        "name": "ref_latent_img3"
+      },
+      "ref_latent_img4": {
+        "name": "ref_latent_img4"
       }
     },
     "outputs": {

@@ -1389,6 +1389,7 @@ class lay_image_grid_note:
 #endregion--------------layout---------------------------
 
 
+
 class create_mulcolor_img:
     @classmethod
     def INPUT_TYPES(cls):
@@ -3265,7 +3266,62 @@ class lay_image_XYgrid(io.ComfyNode):
 
 
 
+import torch
+import numpy as np
+import nodes
 
+class texture_render:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "basecolor": ("IMAGE",),
+                "normal": ("IMAGE",),
+                "roughness": ("IMAGE",),
+                "metallic": ("IMAGE",),
+                "light_angle": ("FLOAT", {"default":0.25, "min":0.0, "max":1.0, "step":0.01}),
+                "light_strength": ("FLOAT", {"default":1.4, "min":0.1, "max":10.0, "step":0.1}),
+                "ambient_light": ("FLOAT", {"default":0.2, "min":0.0, "max":1.0, "step":0.01}),
+                "specular_hardness": ("FLOAT", {"default":40.0, "min":2.0, "max":512.0, "step":2.0}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "pbr_render"
+    CATEGORY = "Apt_Preset/imgEffect/texture"
+
+    def pbr_render(self, basecolor, normal, roughness, metallic, light_angle, light_strength, ambient_light, specular_hardness):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        B, H, W, C = basecolor.shape
+        
+        basecolor = basecolor.to(device)
+        normal_map = (normal.to(device) * 2.0 - 1.0)
+        roughness = roughness.to(device).mean(-1, keepdim=True)
+        metallic = metallic.to(device).mean(-1, keepdim=True)
+
+        angle = light_angle * np.pi * 2
+        light_x = np.cos(angle)
+        light_y = np.sin(angle)
+        light_dir = torch.tensor([light_x, light_y, 0.75], dtype=torch.float32, device=device)
+        light_dir = light_dir.unsqueeze(0).unsqueeze(0).repeat(B, H, W, 1)
+        light_dir = torch.nn.functional.normalize(light_dir, dim=-1)
+
+        view_dir = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32, device=device)
+        view_dir = view_dir.unsqueeze(0).unsqueeze(0).repeat(B, H, W, 1)
+        normal_map = torch.nn.functional.normalize(normal_map, dim=-1)
+
+        NdotL = torch.clamp(torch.sum(normal_map * light_dir, dim=-1, keepdim=True), 0.0, 1.0)
+        half_vector = torch.nn.functional.normalize(light_dir + view_dir, dim=-1)
+        NdotH = torch.clamp(torch.sum(normal_map * half_vector, dim=-1, keepdim=True), 0.0, 1.0)
+
+        diffuse_color = basecolor * (1.0 - metallic) * NdotL
+        specular_color = metallic * torch.pow(NdotH, specular_hardness / (roughness + 0.0001))
+        ambient_color = basecolor * ambient_light
+
+        final = ambient_color + (diffuse_color + specular_color) * light_strength
+        final = torch.clamp(final, 0.0, 1.0)
+        
+        return (final,)
 
 
 

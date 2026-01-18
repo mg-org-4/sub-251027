@@ -903,6 +903,8 @@ class Stack_Kontext_MulImg:
 
 
 
+
+
 class sum_stack_Kontext:
 
     @classmethod
@@ -1428,6 +1430,8 @@ class pre_mul_ref_latent:
 
 
 
+
+
 class Easy_QwenEdit2509:
     @classmethod
     def INPUT_TYPES(s):
@@ -1900,7 +1904,11 @@ class sum_stack_QwenEditPlus:
             out.append(c)
         
         return (out[0], out[1], out_latent)
-    
+
+
+
+
+
     def auto_resize(self, image: torch.Tensor, target_h: int, target_w: int, auto_resize: str) -> torch.Tensor:
         batch, orig_h, orig_w, ch = image.shape
         target_h = max(target_h, 64)
@@ -1968,7 +1976,145 @@ class sum_stack_QwenEditPlus:
 
 
 
+class sum_stack_flux2_Klein:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "context": ("RUN_CONTEXT",),
+            },
+            "optional": {
+                "model": ("MODEL", ),
+                "lora_stack": ("LORASTACK",),
+                "ref_latent_img1": ("IMAGE", ),
+                "ref_latent_img2": ("IMAGE", ),
+                "ref_latent_img3": ("IMAGE", ),
+                "ref_latent_img4": ("IMAGE", ),
+                "ref_latent_img5": ("IMAGE", ),
+                "union_stack": ("UNION_STACK",),
 
+                "latent_image": ("IMAGE", ),
+                "latent_mask": ("MASK", ),
+
+                "prompt": ("STRING", {"multiline": True, "default": ""}),
+                "img1_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "img2_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "img3_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "img4_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "img5_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+
+            },
+        }
+
+    RETURN_TYPES = ("RUN_CONTEXT","CONDITIONING","CONDITIONING",)
+    RETURN_NAMES = ("context","positive","negative-zero" )
+    FUNCTION = "process"
+    CATEGORY = "Apt_Preset/chx_tool"
+
+    def process(self, context=None, model=None, lora_stack=None,latent_image=None, latent_mask=None, prompt="",union_stack=None,
+                ref_latent_img1=None, img1_strength=1.0,
+                ref_latent_img2=None, img2_strength=1.0,
+                ref_latent_img3=None, img3_strength=1.0,
+                ref_latent_img4=None, img4_strength=1.0,
+                ref_latent_img5=None, img5_strength=1.0):  
+
+        latent = None
+        clip = context.get("clip", None)
+        vae = context.get("vae", None)
+        
+        if model is None:
+            model = context.get("model", None)
+
+        if lora_stack is not None:
+            model, clip = Apply_LoRAStack().apply_lora_stack(model, clip, lora_stack)
+
+        if prompt == "":
+            prompt = context.get("pos", "a boy in a forest, ")
+        positive, = CLIPTextEncode().encode(clip, prompt)
+        negative = condi_zero_out(positive)[0]
+
+        if union_stack is not None:
+            positive, negative = Apply_CN_union().apply_union_stack (positive, negative, vae, union_stack, extra_concat=[] )
+        
+        if latent_image is not None:
+            positive, negative, latent = self.addConditioning(positive, negative, latent_image, vae, latent_mask)
+
+
+        if ref_latent_img1 is not None:
+            encoded_latent = vae.encode(ref_latent_img1) * img1_strength
+            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent]},  append=True)
+
+        if ref_latent_img2 is not None:
+            encoded_latent2 = vae.encode(ref_latent_img2) * img2_strength
+            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent2]},  append=True)
+
+        if ref_latent_img3 is not None:
+            encoded_latent3 = vae.encode(ref_latent_img3) * img3_strength
+            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent3]},  append=True)
+            
+        if ref_latent_img4 is not None:
+            encoded_latent4 = vae.encode(ref_latent_img4) * img4_strength
+            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent4]},  append=True)
+
+        if ref_latent_img5 is not None:
+            encoded_latent5 = vae.encode(ref_latent_img5) * img5_strength
+            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent5]},  append=True)
+
+
+        context = new_context(context, model=model, positive=positive, negative=negative, latent=latent)
+
+        return (context,positive,negative)
+
+    def _process_image_channels(self, pixels):
+        if pixels.shape[-1] > 3:
+            pixels = pixels[..., :3]
+        pixels = pixels.clamp(0.0, 1.0)
+        return pixels
+    
+    def addConditioning(self, positive, negative, pixels, vae, mask=None):
+        pixels = self._process_image_channels(pixels)
+        orig_pixels = pixels.clone()
+        
+        # ✅ 核心修复：裁剪原图并覆盖原变量，保证后续mask缩放尺寸完全匹配
+        x = (pixels.shape[1] // 8) * 8
+        y = (pixels.shape[2] // 8) * 8
+        if pixels.shape[1] != x or pixels.shape[2] != y:
+            x_offset = (pixels.shape[1] - x) // 2
+            y_offset = (pixels.shape[2] - y) // 2
+            pixels = pixels[:, x_offset:x + x_offset, y_offset:y + y_offset, :]
+        
+        concat_latent = vae.encode(pixels)
+        out_latent = {"samples": concat_latent}
+
+        if mask is not None:
+            # ✅ 核心修复：用裁剪后的尺寸缩放mask，尺寸绝对一致
+            mask = torch.nn.functional.interpolate(
+                mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])),
+                size=(x, y),
+                mode="bilinear",
+                align_corners=False
+            )
+            mask = mask.round().clamp(0.0, 1.0)
+            
+            # ✅ 核心修复：维度对齐，广播无风险
+            m = (1.0 - mask).squeeze(1).unsqueeze(-1)
+            pixels = pixels * m + 0.5 * (1 - m)
+            pixels = pixels.clamp(0.0, 1.0)
+
+            concat_latent = vae.encode(pixels)
+            out_latent = {
+                "samples": vae.encode(self._process_image_channels(orig_pixels)),
+                "noise_mask": mask
+            }
+        
+        out = []
+        for cond in [positive, negative]:
+            c = node_helpers.conditioning_set_values(cond, {"concat_latent_image": concat_latent})
+            if mask is not None:
+                c = node_helpers.conditioning_set_values(c, {"concat_mask": mask})
+            out.append(c)
+        
+        return (out[0], out[1], out_latent)
 
 
 

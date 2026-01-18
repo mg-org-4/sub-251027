@@ -89,6 +89,8 @@ NODE_CLASS_MAPPINGS= {
 
 "sum_stack_Kontext":sum_stack_Kontext,
 "sum_stack_QwenEditPlus":sum_stack_QwenEditPlus,
+"sum_stack_flux2_Klein": sum_stack_flux2_Klein,
+
 
 #-sample-------------------------------------------#
 
@@ -469,7 +471,7 @@ NODE_CLASS_MAPPINGS= {
 "texture_create": texture_create,
 "texture_Ksampler": texture_Ksampler,
 "texture_apply": texture_apply,
-
+"texture_render":texture_render,
 
 
 
@@ -576,7 +578,7 @@ NODE_CLASS_MAPPINGS= {
 "Easy_QwenEdit2509": Easy_QwenEdit2509,
 
 #----------------------外部导入节点-----------------------
-"PBRBlenderRenderer":PBRBlenderRenderer,
+
 
 
 

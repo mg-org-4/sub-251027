@@ -41,7 +41,7 @@ from nodes import CLIPSetLastLayer, CheckpointLoaderSimple, UNETLoader
 from comfy_extras.nodes_hidream import QuadrupleCLIPLoader
 from comfy.utils import load_torch_file as comfy_load_torch_file
 from nodes import CLIPVisionLoader, CLIPVisionEncode,KSampler
-
+import comfy.model_management
 
 
 from .load_GGUF.nodes import  UnetLoaderGGUF2
@@ -658,20 +658,27 @@ class sum_load_adv:
             "cpu_offload": None,
         }]
 
-        # 分辨率修正
-        width, height = width - (width % 8), height - (height % 8)
-        latent = torch.zeros([1, 4, height // 8, width // 8])
-        if latent.shape[1] != 16:
-            latent = latent.repeat(1, 16 // 4, 1, 1)
+ 
+#----------------------------------latent-------------------------------
+        width = max(int(width / 8) * 8, 64)
+        height = max(int(height / 8) * 8, 64)
+        if clip_type == "flux2":
+           latent = torch.zeros([1, 128, height // 16, width // 16], device=comfy.model_management.intermediate_device())
+  
+        else:
+            latent = torch.zeros([1, 4, height // 8, width // 8])           
+            if latent.shape[1] != 16:
+                latent = latent.repeat(1, 16 // 4, 1, 1)
+#----------------------------------latent-------------------------------
 
-        # 使用缓存的模型加载和提示词编码
+
         model, clip, vae2, positive, negative = self._load_model_cached(
             ckpt_name, unet_name, unet_Weight_Dtype, clip_type,
             clip1, clip2, clip3, clip4, lora, lora_strength,
             lora_stack, over_model, over_clip, pos, neg, device
         )
 
-        # 处理 guidance
+        
         if clip1 != "None" and clip2 != "None":
             positive = node_helpers.conditioning_set_values(positive, {"guidance": guidance})
 
@@ -694,7 +701,7 @@ class sum_load_adv:
             "sampler": sampler,
             "scheduler": scheduler,
             "guidance": guidance,
-
+            "clip_type": clip_type,
             "clip1": clip1,
             "clip2": clip2,
             "clip3": clip3,
@@ -1039,189 +1046,6 @@ class sum_lora:
 
 
 
-class sum_editor:
-    ratio_sizes, ratio_dict = read_ratios()
-    def __init__(self):
-        pass
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {"context": ("RUN_CONTEXT",)},
-            "optional": {
-                "model": ("MODEL",), 
-                "clip": ("CLIP",), 
-                "positive": ("CONDITIONING",), 
-                "negative": ("CONDITIONING",),
-                "vae": ("VAE",), 
-                "latent": ("LATENT",), 
-                "latent_image": ("IMAGE",),
-                "latent_mask": ("MASK",),  # 添加latent_mask输入
-                "steps": ("INT", {"default": 0, "min": 0, "max": 10000,"tooltip": "  0  == None"}),
-                "cfg": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 100.0, "tooltip": "  0  == None"}),
-                "sampler": (['None'] + comfy.samplers.KSampler.SAMPLERS, {"default": "None"}),
-                "scheduler": (['None'] + comfy.samplers.KSampler.SCHEDULERS, {"default": "None"}),
-                "pos": ("STRING", {"default": "", "multiline": True}),
-                "neg": ("STRING", {"default": "", "multiline": False}),
-                "guidance": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 100.0, "step": 0.01}),
-                "style": (["None"] + style_list()[0], {"default": "None"}),
-                "batch_size": ("INT", {"default": 1, "min": 1, "max": 300, }),
-                "ratio_selected": (['None', 'customer_WxH'] + s.ratio_sizes, {"default": "None"}),
-                "width": ("INT", {"default": 512, "min": 8, "max": 16384, "step": 8}),
-                "height": ("INT", {"default": 512, "min": 8, "max": 16384, "step": 8}),
-            }
-        }
-    RETURN_TYPES = ("RUN_CONTEXT", "MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "VAE","CLIP",  "IMAGE", "MASK",)  # 添加MASK输出类型
-    RETURN_NAMES = ("context", "model","positive", "negative", "latent", "vae","clip", "latent_image", "latent_mask",)  # 添加latent_mask输出名称
-    FUNCTION = "text"
-    CATEGORY = "Apt_Preset/chx_load"
-    NAME = "sum_editor"
-    
-    def generate(self, ratio_selected, batch_size=1, width=None, height=None):
-        if ratio_selected == 'customer_WxH':
-            used_width = width
-            used_height = height
-        else:
-            used_width = self.ratio_dict[ratio_selected]["width"]
-            used_height = self.ratio_dict[ratio_selected]["height"]
-        latent = torch.zeros([batch_size, 4, used_height // 8, used_width // 8])
-        return ({"samples": latent}, )
-    
-    # 在方法参数中添加latent_mask
-    def text(self, context=None, model=None, clip=None, positive=None, negative=None, 
-            pos="", neg="", latent_image=None, vae=None, latent=None, steps=None, cfg=None, 
-            sampler=None, scheduler=None, style=None, batch_size=1, ratio_selected=None, 
-            guidance=0, width=512, height=512, latent_mask=None):  # 新增latent_mask参数
-        
-        # 获取上下文中的宽度和高度，默认为512
-        ctx_width = context.get("width") if context else None
-        ctx_height = context.get("height") if context else None
-        final_width, final_height = ctx_width or 512, ctx_height or 512
-        
-        # 处理比例选择
-        if ratio_selected and ratio_selected != "None":
-            try:
-                if ratio_selected == 'customer_WxH':
-                    final_width, final_height = width, height
-                else:
-                    final_width = self.ratio_dict[ratio_selected]["width"]
-                    final_height = self.ratio_dict[ratio_selected]["height"]
-            except KeyError as e:
-                print(f"[ERROR] Invalid ratio: {e}")
-        
-        # 从上下文中获取默认值
-        if model is None: 
-            model = context.get("model") if context else None
-        if clip is None: 
-            clip = context.get("clip") if context else None
-        if vae is None: 
-            vae = context.get("vae") if context else None
-        if steps == 0: 
-            steps = context.get("steps") if context else None
-        if cfg == 0.0: 
-            cfg = context.get("cfg") if context else None
-        if sampler == "None": 
-            sampler = context.get("sampler") if context else None
-        if scheduler == "None": 
-            scheduler = context.get("scheduler") if context else None
-        if guidance == 0.0: 
-            guidance = context.get("guidance", 3.5) if context else 3.5
-
-        # 处理latent_mask：如果未提供则从上下文获取
-        if latent_mask is None:
-            latent_mask = context.get("mask") if context else None
-
-#-------------latent------------------------------------                   
-        if latent_image is not None: 
-            latent = VAEEncode().encode(vae, latent_image)[0]
-            latent = latentrepeat(latent, batch_size)[0]
-            # 如果有latent_mask，将其应用到latent
-            if latent_mask is not None:
-                if isinstance(latent, dict) and "samples" in latent:
-                    latent_copy = {"samples": latent["samples"].clone()}
-                    latent = self.set_latent_mask2(latent_copy, latent_mask)
-                else:
-                    latent = self.set_latent_mask2(latent, latent_mask)
-        elif latent is not None:
-            latent = latentrepeat(latent, batch_size)[0]    
-            # 应用latent_mask
-            if latent_mask is not None:
-                if isinstance(latent, dict) and "samples" in latent:
-                    latent_copy = {"samples": latent["samples"].clone()}
-                    latent = self.set_latent_mask2(latent_copy, latent_mask)
-                else:
-                    latent = self.set_latent_mask2(latent, latent_mask)
-        elif ratio_selected != "None":
-            latent = self.generate(ratio_selected, batch_size, final_width, final_height)[0]      
-        else:
-            latent = context.get("latent") if context else None
-            if latent is not None:
-                latent = latentrepeat(latent, batch_size)[0]
-                # 应用latent_mask
-                if latent_mask is not None:
-                    if isinstance(latent, dict) and "samples" in latent:
-                        latent_copy = {"samples": latent["samples"].clone()}
-                        latent = self.set_latent_mask2(latent_copy, latent_mask)
-                    else:
-                        latent = self.set_latent_mask2(latent, latent_mask)
-
-#--------------条件--------------------------------------------------------------------------------
-        pos, neg = add_style_to_subject(style, pos, neg)
-        if positive is not None: 
-            pass
-        elif pos and pos != "":
-            positive, = CLIPTextEncode().encode(clip, pos)
-        else: 
-            positive = context.get("positive") if context else None     
-        if negative is not None: 
-            pass           
-        elif neg and neg != "":
-            negative, = CLIPTextEncode().encode(clip, neg)
-        else: 
-            negative = context.get("negative") if context else None  
-        if positive is not None:            
-           positive = node_helpers.conditioning_set_values(positive, {"guidance": guidance})
-       
-        # 将latent_mask存入上下文
-        context = new_context(
-            context, 
-            model=model, 
-            latent=latent, 
-            clip=clip, 
-            vae=vae, 
-            positive=positive, 
-            negative=negative, 
-            images=latent_image, 
-            mask=latent_mask,  # 新增mask存入上下文
-            steps=steps, 
-            cfg=cfg, 
-            sampler=sampler, 
-            scheduler=scheduler, 
-            guidance=guidance, 
-            pos=pos, 
-            neg=neg, 
-            width=final_width, 
-            height=final_height, 
-            batch=batch_size
-        )
-    
-        # 返回值中添加latent_mask
-        return (context, model, positive, negative, latent, vae, clip, latent_image, latent_mask,)
-    
-    # 复用Data_basic中的set_latent_mask2方法处理mask
-    def set_latent_mask2(self, latent, mask):
-        if not isinstance(latent, dict) or "samples" not in latent:
-            raise ValueError("latent 必须是包含 'samples' 键的字典")
-        newlatent = {
-            "samples": latent["samples"].clone()  # 只对张量部分调用 clone()
-        }
-        
-        if mask is not None:
-            newlatent["noise_mask"] = mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1]))
-        
-        return newlatent
-
-
-
 
 class sum_Normal_TextEncode:
     @classmethod
@@ -1260,8 +1084,9 @@ class sum_Normal_TextEncode:
 
 
 
+
+
 class sum_latent:
-    
     ratio_sizes, ratio_dict = read_ratios()
     def __init__(self):
         pass
@@ -1269,54 +1094,38 @@ class sum_latent:
     @classmethod
     def INPUT_TYPES(s):
         return {
-            "required": {  "context": ("RUN_CONTEXT",),   },         
-            "optional":  {
-                "latent": ("LATENT", ),
-                "pixels": ("IMAGE", ),
-                "mask": ("MASK", ),
-                "diff_difusion": ("BOOLEAN", {"default": True}), 
-                "smoothness":("INT", {"default": 0,  "min":0, "max": 150, "step": 1,"display": "slider"}),
-                "ratio_selected": (['None','customer_WxH'] + s.ratio_sizes, {"default": "None"}),
-                "batch_size": ("INT", {"default": 1, "min": 1, "max": 300, }),
-                "width": ("INT", {"default": 512, "min": 8, "max": 16384}), 
-                "height": ("INT", {"default": 512, "min": 8, "max": 16384}),   
+            "required": {"context": ("RUN_CONTEXT",)},         
+            "optional": {
+                "latent": ("LATENT", ),"pixels": ("IMAGE", ),"mask": ("MASK", ),
+                "diff_difusion": ("BOOLEAN", {"default": True}),
+                "smoothness":("INT", {"default":0, "min":0, "max":150, "step":1, "display":"slider"}),
+                "ratio_selected": (['None','customer_WxH'] + s.ratio_sizes, {"default":"None"}),
+                "batch_size": ("INT", {"default":1, "min":1, "max":300}),
+                "width": ("INT", {"default":512, "min":8, "max":16384}),
+                "height": ("INT", {"default":512, "min":8, "max":16384}),
             }
         }
 
-    RETURN_TYPES = ("RUN_CONTEXT","LATENT","MASK"  )
-    RETURN_NAMES = ("context","latent","mask"  )
+    RETURN_TYPES = ("RUN_CONTEXT","LATENT","MASK")
+    RETURN_NAMES = ("context","latent","mask")
     FUNCTION = "process"
     CATEGORY = "Apt_Preset/chx_tool"
 
-    def generate(self, ratio_selected, batch_size=1, width=None, height=None):
-        # 当选择customer_WxH模式时，使用输入的width和height
-        if ratio_selected == 'customer_WxH':
-            # 确保width和height有效
-            if width is None or height is None:
-                raise ValueError("When 'customer_WxH' is selected, 'width' and 'height' must be provided.")
-            used_width = width
-            used_height = height
-        else:
-            # 其他模式从ratio_dict获取宽高
-            used_width = self.ratio_dict[ratio_selected]["width"]
-            used_height = self.ratio_dict[ratio_selected]["height"]
-        
-        latent = torch.zeros([batch_size, 4, used_height // 8, used_width // 8])
-        return ({"samples": latent}, )
-
-    def process(self, ratio_selected, smoothness=1, batch_size=1, context=None, latent=None, pixels=None, mask=None, 
-                diff_difusion=True, width=None, height=None):
+    def process(self, ratio_selected, smoothness=1, batch_size=1, context=None, latent=None, pixels=None, mask=None, diff_difusion=True, width=None, height=None):
         noise_mask = True
         model = context.get("model")
         if diff_difusion:
             model = DifferentialDiffusion().apply(model)[0]
 
+
         if latent is not None and pixels is not None:
             raise ValueError("Only one of 'latent', 'pixels' should be provided.")
+        
         if latent is not None:
             latent = latentrepeat(latent, batch_size)[0]
             context = new_context(context, model=model,latent=latent)
             return (context, latent, None)
+        
         if latent is None and pixels is None and ratio_selected == "None":
             latent = context.get("latent", None)
             latent = latentrepeat(latent, batch_size)[0]
@@ -1324,40 +1133,165 @@ class sum_latent:
             return (context, latent, None)
 
         vae = context.get("vae")
-        positive = context.get("positive", None)
-        negative = context.get("negative", None)
-
+        positive, negative = context.get("positive", None), context.get("negative", None)
+        clip_type = context.get("clip_type") # 你的核心判断逻辑，保留不变
+        
         if ratio_selected != "None":
-            # 调用generate时传入width和height，用于customer_WxH模式
-            latent = self.generate(ratio_selected, batch_size, width, height)[0]
+            if ratio_selected == 'customer_WxH':
+                used_width = max(int(width / 8) * 8, 64)
+                used_height = max(int(height / 8) * 8, 64)
+            else:
+                used_width = self.ratio_dict[ratio_selected]["width"]
+                used_height = self.ratio_dict[ratio_selected]["height"]
+            
+            if clip_type == "flux2":
+                latent_tensor = torch.zeros([batch_size, 128, used_height // 16, used_width // 16], device=comfy.model_management.intermediate_device())
+            else:
+                latent_tensor = torch.zeros([batch_size, 4, used_height // 8, used_width // 8])           
+                if latent_tensor.shape[1] != 16:
+                    latent_tensor = latent_tensor.repeat(1, 16 // 4, 1, 1)
+            latent = {"samples": latent_tensor}
 
+  
         if pixels is not None:
             if mask is not None:
                 if torch.all(mask == 0):
                     latent = VAEEncode().encode(vae, pixels)[0]
                 else:
                     mask = tensor2pil(mask)
-                    if not isinstance(mask, Image.Image):
-                        raise TypeError("mask is not a valid PIL Image object")
                     feathered_image = mask.filter(ImageFilter.GaussianBlur(smoothness))
                     mask = pil2tensor(feathered_image)
-                    
                     positive, negative, latent = InpaintModelConditioning().encode(positive, negative, pixels, vae, mask, noise_mask)
             else:
                 latent = VAEEncode().encode(vae, pixels)[0]
             latent = latentrepeat(latent, batch_size)[0]
-        context = new_context(context, model=model, positive=positive, negative=negative, latent=latent)
 
+
+        context = new_context(context, model=model, positive=positive, negative=negative, latent=latent)
         return (context, latent, mask)
+
+
+
+
+class sum_editor:
+    ratio_sizes, ratio_dict = read_ratios()
+    def __init__(self):
+        pass
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {"context": ("RUN_CONTEXT",)},
+            "optional": {
+                "model": ("MODEL",),"clip": ("CLIP",),"positive": ("CONDITIONING",),"negative": ("CONDITIONING",),
+                "vae": ("VAE",),"latent": ("LATENT",),"latent_image": ("IMAGE",),"latent_mask": ("MASK",),
+                "steps": ("INT", {"default":0, "min":0, "max":10000,"tooltip":"  0  == None"}),
+                "cfg": ("FLOAT", {"default":0.0, "min":0.0, "max":100.0, "tooltip":"  0  == None"}),
+                "sampler": (['None'] + comfy.samplers.KSampler.SAMPLERS, {"default":"None"}),
+                "scheduler": (['None'] + comfy.samplers.KSampler.SCHEDULERS, {"default":"None"}),
+                "pos": ("STRING", {"default":"", "multiline":True}),
+                "neg": ("STRING", {"default":"", "multiline":False}),
+                "guidance": ("FLOAT", {"default":0.0, "min":0.0, "max":100.0, "step":0.01}),
+                "style": (["None"] + style_list()[0], {"default":"None"}),
+                "batch_size": ("INT", {"default":1, "min":1, "max":300}),
+                "ratio_selected": (['None','customer_WxH'] + s.ratio_sizes, {"default":"None"}),
+                "width": ("INT", {"default":512, "min":8, "max":16384, "step":8}),
+                "height": ("INT", {"default":512, "min":8, "max":16384, "step":8}),
+            }
+        }
+    RETURN_TYPES = ("RUN_CONTEXT", "MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "VAE","CLIP", "IMAGE", "MASK",)
+    RETURN_NAMES = ("context", "model","positive", "negative", "latent", "vae","clip", "latent_image", "latent_mask",)
+    FUNCTION = "text"
+    CATEGORY = "Apt_Preset/chx_load"
+    NAME = "sum_editor"
     
+    def set_latent_mask2(self, latent, mask):
+        if not isinstance(latent, dict) or "samples" not in latent:raise ValueError("latent 必须是包含 'samples' 键的字典")
+        newlatent = {"samples": latent["samples"].clone()}
+        if mask is not None:newlatent["noise_mask"] = mask.reshape((-1,1,mask.shape[-2],mask.shape[-1]))
+        return newlatent
+    
+    def text(self, context=None, model=None, clip=None, positive=None, negative=None, pos="", neg="", latent_image=None, vae=None, latent=None, steps=None, cfg=None, sampler=None, scheduler=None, style=None, batch_size=1, ratio_selected=None, guidance=0, width=512, height=512, latent_mask=None):
+        ctx_width = context.get("width") if context else None
+        ctx_height = context.get("height") if context else None
+        final_width, final_height = ctx_width or 512, ctx_height or 512
+        
+        if ratio_selected and ratio_selected != "None":
+            try:
+                if ratio_selected == 'customer_WxH':final_width, final_height = width, height
+                else:
+                    final_width = self.ratio_dict[ratio_selected]["width"]
+                    final_height = self.ratio_dict[ratio_selected]["height"]
+            except KeyError as e:print(f"[ERROR] Invalid ratio: {e}")
+        
+        if model is None:model = context.get("model") if context else None
+        if clip is None:clip = context.get("clip") if context else None
+        if vae is None:vae = context.get("vae") if context else None
+        if steps ==0:steps = context.get("steps") if context else None
+        if cfg ==0.0:cfg = context.get("cfg") if context else None
+        if sampler == "None":sampler = context.get("sampler") if context else None
+        if scheduler == "None":scheduler = context.get("scheduler") if context else None
+        if guidance ==0.0:guidance = context.get("guidance",3.5) if context else 3.5
+        if latent_mask is None:latent_mask = context.get("mask") if context else None
+
+        # ===================== 核心修改：把generate逻辑完全内嵌，无拆分 + 你的clip_type判断规则 =====================
+        clip_type = context.get("clip_type")
+        if latent_image is not None:
+            latent = VAEEncode().encode(vae, latent_image)[0]
+            latent = latentrepeat(latent, batch_size)[0]
+            if latent_mask is not None:
+                if isinstance(latent, dict) and "samples" in latent:
+                    latent_copy = {"samples": latent["samples"].clone()}
+                    latent = self.set_latent_mask2(latent_copy, latent_mask)
+                else:latent = self.set_latent_mask2(latent, latent_mask)
+        elif latent is not None:
+            latent = latentrepeat(latent, batch_size)[0]
+            if latent_mask is not None:
+                if isinstance(latent, dict) and "samples" in latent:
+                    latent_copy = {"samples": latent["samples"].clone()}
+                    latent = self.set_latent_mask2(latent_copy, latent_mask)
+                else:latent = self.set_latent_mask2(latent, latent_mask)
+        elif ratio_selected != "None":
+            # 原generate里的所有逻辑，完整搬过来，你的规则一行没改
+            if ratio_selected == 'customer_WxH':
+                used_width = max(int(final_width / 8) * 8, 64)
+                used_height = max(int(final_height / 8) * 8, 64)
+            else:
+                used_width = self.ratio_dict[ratio_selected]["width"]
+                used_height = self.ratio_dict[ratio_selected]["height"]
+            if clip_type == "flux2":
+                latent_tensor = torch.zeros([batch_size, 128, used_height // 16, used_width // 16], device=comfy.model_management.intermediate_device())
+            else:
+                latent_tensor = torch.zeros([batch_size, 4, used_height // 8, used_width // 8])           
+                if latent_tensor.shape[1] != 16:
+                    latent_tensor = latent_tensor.repeat(1, 16 // 4, 1, 1)
+            latent = {"samples": latent_tensor}
+        else:
+            latent = context.get("latent") if context else None
+            if latent is not None:
+                latent = latentrepeat(latent, batch_size)[0]
+                if latent_mask is not None:
+                    if isinstance(latent, dict) and "samples" in latent:
+                        latent_copy = {"samples": latent["samples"].clone()}
+                        latent = self.set_latent_mask2(latent_copy, latent_mask)
+                    else:latent = self.set_latent_mask2(latent, latent_mask)
+
+        pos, neg = add_style_to_subject(style, pos, neg)
+        if positive is None and pos and pos != "":positive, = CLIPTextEncode().encode(clip, pos)
+        elif positive is None:positive = context.get("positive") if context else None
+        if negative is None and neg and neg != "":negative, = CLIPTextEncode().encode(clip, neg)
+        elif negative is None:negative = context.get("negative") if context else None
+        if positive is not None:positive = node_helpers.conditioning_set_values(positive, {"guidance": guidance})
+       
+        context = new_context(context, model=model, latent=latent, clip=clip, vae=vae, positive=positive, negative=negative, images=latent_image, mask=latent_mask, steps=steps, cfg=cfg, sampler=sampler, scheduler=scheduler, guidance=guidance, pos=pos, neg=neg, width=final_width, height=final_height, batch=batch_size)
+        return (context, model, positive, negative, latent, vae, clip, latent_image, latent_mask,)
+
+
 
 
 class sum_create_chx:
     @classmethod
     def INPUT_TYPES(cls):
-        # 动态获取模型列表
         available_vaes = folder_paths.get_filename_list("vae")
-
         return {
             "required": {
                 "vae": (["None"] + available_vaes, ),
@@ -1372,7 +1306,6 @@ class sum_create_chx:
                 "pos": ("STRING", {"multiline": True, "dynamicPrompts": True, "default": "a girl"}),
                 "neg": ("STRING", {"multiline": False, "dynamicPrompts": True, "default": " worst quality, low quality"}),
             },
-
             "optional": {
                 "model": ("MODEL",),
                 "clip": ("CLIP",),
@@ -1390,86 +1323,46 @@ class sum_create_chx:
     FUNCTION = "process_settings"
     CATEGORY = "Apt_Preset/chx_load"
 
-    def process_settings(self, 
-                        width, height, batch, steps, cfg, sampler, scheduler, data=None, guidance=3.5, lora_stack=None,over_latent=None,
-                        vae=None, over_vae=None, clip=None, model=None, over_positive=None, over_negative=None, pos="default", neg="default"):
+    def process_settings(self, width, height, batch, steps, cfg, sampler, scheduler, data=None, guidance=3.5, lora_stack=None,over_latent=None,vae=None, over_vae=None, clip=None, model=None, over_positive=None, over_negative=None, pos="default", neg="default"):
 
-        # 分辨率修正
-        width, height = width - (width % 8), height - (height % 8)
-        latent = torch.zeros([1, 4, height // 8, width // 8])
-        if latent.shape[1] != 16:
-            latent = latent.repeat(1, 16 // 4, 1, 1)
-
-        if over_latent is not None:
-            latent = over_latent
-        # 处理VAE
-        if over_vae is not None:
-            vae = over_vae
+        if over_vae is not None:vae = over_vae
         elif over_vae is None and vae != "None":
             vae_path = folder_paths.get_full_path("vae", vae)
             vae = comfy.sd.VAE(comfy.utils.load_torch_file(vae_path))
 
-        # 初始化条件为None
-        positive = None
-        negative = None
-        
-        # 处理LoRA和文本编码
+        positive, negative = None, None
         if clip is not None:
-            # 如果提供了clip，可以处理文本条件
-            # 只有当model和clip都提供时，才应用LoRA
             if model is not None and lora_stack is not None:
                 model, clip = apply_lora_stack(model, clip, lora_stack)
-                
-            # 处理条件
             positive, = CLIPTextEncode().encode(clip, pos)
             negative, = CLIPTextEncode().encode(clip, neg)
 
 
 
-        # 覆盖条件（如果提供）
+
         if over_positive:
             positive = over_positive
-            if negative is None:
-                negative = condi_zero_out(over_positive)[0]
-                
-        if over_negative:
-            negative = over_negative
+            if negative is None:negative = condi_zero_out(over_positive)[0]
+        if over_negative:negative = over_negative
+
+        if positive is not None:
+            positive = node_helpers.conditioning_set_values(positive, {"guidance": guidance})
 
 
-        positive = node_helpers.conditioning_set_values(positive, {"guidance": guidance})
+        width = max(int(width / 8) * 8, 64)
+        height = max(int(height / 8) * 8, 64)
+        black_image = Image.new('RGB', (width, height), color=(0, 0, 0))
+        black_tensor = pil2tensor(black_image)
+        latent = encode(vae, black_tensor)[0]
 
-        # 确保latent格式正确
-        latent_dict = {"samples": latent}
 
-        # 创建上下文
         context = {
-            "model": model,
-            "positive": positive,
-            "negative": negative,
-            "latent": latent_dict,  # 使用正确格式的latent
-            "vae": vae,
-            "clip": clip,
-            "steps": steps,
-            "cfg": cfg,
-            "sampler": sampler,
-            "scheduler": scheduler,
-            "guidance": guidance,
-            "clip1": None,
-            "clip2": None,
-            "clip3": None,
-            "clip4": None,
-            "unet_name": None,
-            "ckpt_name": None,
-            "pos": pos, 
-            "neg": neg, 
-            "width": width,
-            "height": height,
-            "batch": batch,
-            "data": data,
+            "model": model,"positive": positive,"negative": negative,"latent": latent,"vae": vae,"clip": clip,
+            "steps": steps,"cfg": cfg,"sampler": sampler,"scheduler": scheduler,"guidance": guidance,
+            "clip1": None,"clip2": None,"clip3": None,"clip4": None,"unet_name": None,"ckpt_name": None,
+            "pos": pos,"neg": neg,"width": width,"height": height,"batch": batch,"data": data
         }
-
-        return (context, model, positive, negative, latent_dict, vae, clip, data)  # 返回正确格式的latent
-
+        return (context, model, positive, negative, latent, vae, clip, data)
 
 
 

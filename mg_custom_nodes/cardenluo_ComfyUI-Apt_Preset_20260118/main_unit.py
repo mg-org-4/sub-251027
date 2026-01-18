@@ -93,7 +93,8 @@ any_typ= AnyType("*")
 
 MAX_RESOLUTION = 88888
 CLIP_TYPE = ["sdxl", "sd3", "flux", "hunyuan_video", "stable_diffusion", "stable_audio", "mochi", "ltxv", 
-             "pixart", "cosmos", "lumina2", "wan","flux2", "ovis"]
+             "pixart", "cosmos", "lumina2", "wan","flux2", "ovis", "hidream", "chroma", "ace", "omnigen2", "qwen_image"]
+
 
 
 
@@ -154,7 +155,7 @@ _all_contextput_output_data = {
     "cfg": ("cfg", "FLOAT", "cfg"),
     "sampler": ("sampler", available_samplers, "sampler"),
     "scheduler": ("scheduler", available_schedulers, "scheduler"),
-
+    "clip_type": ("clip_type", CLIP_TYPE, "clip_type"),  # clip_type
     "clip1": ("clip1", available_clips, "clip1"),
     "clip2": ("clip2", available_clips, "clip2"),
     "clip3": ("clip3", available_clips, "clip3"),
@@ -1943,18 +1944,6 @@ def create_latent_tensor(width, height, batch):
     return latent
 
 
-
-
-def condi_zero_out(conditioning):
-    c = []
-    for t in conditioning:
-        d = t[1].copy()
-        pooled_output = d.get("pooled_output", None)
-        if pooled_output is not None:
-            d["pooled_output"] = torch.zeros_like(pooled_output)
-        n = [torch.zeros_like(t[0]), d]
-        c.append(n)
-    return (c, )
 
 
 #endregion------------------latent----------------------------------------------------#

@@ -1224,6 +1224,86 @@
   },
   
 
+
+"sum_stack_flux2_Klein": {
+    "display_name": "sum_Flux2Klein堆", 
+    "inputs": {
+      "context": {
+        "name": "ocntext"
+      },
+      "model": {
+        "name": "模型"
+      },
+      "lora_stack": {
+        "name": "LORA堆"
+      },
+      "ref_latent_img1": {
+        "name": "图1"
+      },
+      "ref_latent_img2": {
+        "name": "图2"
+      },
+      "ref_latent_img3": {
+        "name": "图3"
+      },
+      "ref_latent_img4": {
+        "name": "图4"
+      },
+      "ref_latent_img5": {
+        "name": "图5"
+      },
+      "union_stack": {
+        "name": "union堆"
+      },
+      "latent_image": {
+        "name": "latent_image"
+      },
+      "latent_mask": {
+        "name": "latent_mask"
+      },
+      "prompt": {
+        "name": "提示词"
+      },
+      "img1_strength": {
+        "name": "图1强度"
+      },
+      "img2_strength": {
+        "name": "图2强度"
+      },
+      "img3_strength": {
+        "name": "图3强度"
+      },
+      "img4_strength": {
+        "name": "图4强度"
+      },
+      "img5_strength": {
+        "name": "图5强度"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "context"
+      },
+      "1": {
+        "name": "正向条件"
+      },
+      "2": {
+        "name": "零化条件"
+      },
+      "3": {
+        "name": "latent"
+      }
+    }
+  },
+
+
+
+
+
+
+
+
+
   "sum_stack_QwenEdit": {
       "display_name": "sum_QwenEdit高级",
       "inputs": {

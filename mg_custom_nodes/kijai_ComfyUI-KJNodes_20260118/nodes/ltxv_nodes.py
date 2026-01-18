@@ -5,6 +5,7 @@ from comfy_api.latest import io
 import numpy as np
 import torch
 import comfy.model_management as mm
+device = mm.get_torch_device()
 import latent_preview
 
 class LTXVAddGuideMulti(LTXVAddGuide):
@@ -273,25 +274,35 @@ class LTXVAudioVideoMask(io.ComfyNode):
 
         return io.NodeOutput(video_latent, audio_latent)
 
-def normalized_attention_guidance(self, query, context_positive, nag_context, transformer_options={}):
-    k_positive = self.k_norm(self.to_k(context_positive)).to(query.dtype)
-    v_positive = self.to_v(context_positive).to(query.dtype)
-    k_negative = self.k_norm(self.to_k(nag_context)).to(query.dtype)
-    v_negative = self.to_v(nag_context).to(query.dtype)
+def _compute_attention(self, query, context, transformer_options={}):
+    """Compute attention and return the result. Cleans up intermediate tensors."""
+    k = self.k_norm(self.to_k(context)).to(query.dtype)
+    v = self.to_v(context).to(query.dtype)
+    x = comfy.ldm.modules.attention.optimized_attention(query, k, v, heads=self.heads, transformer_options=transformer_options).flatten(2)
+    del k, v
+    return x
 
-    x_positive = comfy.ldm.modules.attention.optimized_attention(query, k_positive, v_positive, heads=self.heads, transformer_options=transformer_options).flatten(2)
-    x_negative = comfy.ldm.modules.attention.optimized_attention(query, k_negative, v_negative, heads=self.heads, transformer_options=transformer_options).flatten(2)
+def nag_attention(self, query, context_positive, nag_context, transformer_options={}):
+    x_positive = _compute_attention(self, query, context_positive, transformer_options)
+    x_negative = _compute_attention(self, query, nag_context, transformer_options)
+    return x_positive, x_negative
 
+def normalized_attention_guidance(self, x_positive, x_negative):
     nag_guidance = x_positive * self.nag_scale - x_negative * (self.nag_scale - 1)
+    del x_negative
 
     norm_positive = torch.norm(x_positive, p=1, dim=-1, keepdim=True).expand_as(x_positive)
     norm_guidance = torch.norm(nag_guidance, p=1, dim=-1, keepdim=True).expand_as(nag_guidance)
 
     scale = torch.nan_to_num(norm_guidance / norm_positive, nan=10.0)
-
     mask = scale > self.nag_tau
+    del scale
+
     adjustment = (norm_positive * self.nag_tau) / (norm_guidance + 1e-7)
+    del norm_positive, norm_guidance
+
     nag_guidance = torch.where(mask, nag_guidance * adjustment, nag_guidance)
+    del mask, adjustment
 
     x = nag_guidance * self.nag_alpha + x_positive * (1 - self.nag_alpha)
     del nag_guidance
@@ -311,9 +322,13 @@ def ltxv_crossattn_forward_nag(self, x, context, mask=None, transformer_options=
 
     # Positive
     q_pos = self.q_norm(self.to_q(x_pos))
-    nag_context = self.nag_context
+    del x_pos
 
-    x_pos_out = normalized_attention_guidance(self, q_pos, context_pos, nag_context, transformer_options=transformer_options)
+    x_positive, x_negative = nag_attention(self, q_pos, context_pos, self.nag_context, transformer_options=transformer_options)
+    del context_pos, q_pos
+
+    x_pos_out = normalized_attention_guidance(self, x_positive, x_negative)
+    del x_positive, x_negative
 
     # Negative
     if x_neg is not None and context_neg is not None:
@@ -377,9 +392,7 @@ class LTX2_NAG(io.ComfyNode):
 
         device = mm.get_torch_device()
         offload_device = mm.unet_offload_device()
-        dtype = model.model.diffusion_model.dtype
-        if dtype in [torch.float8_e4m3fn, torch.float8_e5m2]: # fallback for now
-            dtype = torch.bfloat16
+        dtype = model.model.manual_cast_dtype
 
         model_clone = model.clone()
 
@@ -484,8 +497,9 @@ from io import BytesIO
 serv = server.PromptServer.instance
 
 class WrappedPreviewer():
-    def __init__(self, latent_rgb_factors, latent_rgb_factors_bias, rate=8):
+    def __init__(self, latent_rgb_factors, latent_rgb_factors_bias, rate=8, taeltx=None):
         self.first_preview = True
+        self.taeltx = taeltx
         self.last_time = 0
         self.c_index = 0
         self.rate = rate
@@ -544,22 +558,27 @@ class WrappedPreviewer():
             #NOTE: send sync already uses call_soon_threadsafe
             serv.send_sync(server.BinaryEventTypes.PREVIEW_IMAGE,
                            message.getvalue(), serv.client_id)
-            if self.rate == 16:
-                ind = (ind + 1) % ((leng-1) * 4 - 1)
+            if self.taeltx is not None:
+                ind = (ind + 1) % ((leng-1) * 8 + 1)
             else:
                 ind = (ind + 1) % leng
 
     def decode_latent_to_preview(self, x0):
-        self.latent_rgb_factors = self.latent_rgb_factors.to(dtype=x0.dtype, device=x0.device)
-        if self.latent_rgb_factors_bias is not None:
-            self.latent_rgb_factors_bias = self.latent_rgb_factors_bias.to(dtype=x0.dtype, device=x0.device)
-        latent_image = F.linear(x0.movedim(1, -1), self.latent_rgb_factors,
-                                bias=self.latent_rgb_factors_bias)
-        latent_image = (latent_image + 1.0) / 2.0
-        return latent_image
+        if self.taeltx is not None:
+            x0 = x0.unsqueeze(0).to(dtype=self.taeltx.vae_dtype, device=device)
+            x_sample = self.taeltx.first_stage_model.decode(x0)[0].permute(1, 2, 3, 0)
+            return x_sample
+        else:
+            self.latent_rgb_factors = self.latent_rgb_factors.to(dtype=x0.dtype, device=x0.device)
+            if self.latent_rgb_factors_bias is not None:
+                self.latent_rgb_factors_bias = self.latent_rgb_factors_bias.to(dtype=x0.dtype, device=x0.device)
+            latent_image = F.linear(x0.movedim(1, -1), self.latent_rgb_factors,
+                                    bias=self.latent_rgb_factors_bias)
+            latent_image = (latent_image + 1.0) / 2.0
+            return latent_image
 
 
-def prepare_callback(model, steps, x0_output_dict=None, shape=None, latent_upscale_model=None, vae=None, rate=8):
+def prepare_callback(model, steps, x0_output_dict=None, shape=None, latent_upscale_model=None, vae=None, rate=8, taeltx=False):
     latent_rgb_factors = [
             [ 0.0350,  0.0159,  0.0132],
             [ 0.0025, -0.0021, -0.0003],
@@ -695,7 +714,7 @@ def prepare_callback(model, steps, x0_output_dict=None, shape=None, latent_upsca
     if preview_format not in ["JPEG", "PNG"]:
         preview_format = "JPEG"
 
-    previewer = WrappedPreviewer(latent_rgb_factors, latent_rgb_factors_bias, rate=rate)
+    previewer = WrappedPreviewer(latent_rgb_factors, latent_rgb_factors_bias, rate=rate, taeltx=vae if taeltx else None)
 
     pbar = comfy.utils.ProgressBar(steps)
     def callback(step, x0, x, total_steps):
@@ -715,19 +734,21 @@ def prepare_callback(model, steps, x0_output_dict=None, shape=None, latent_upsca
     return callback
 
 class OuterSampleCallbackWrapper:
-    def __init__(self, latent_upscale_model=None, vae=None, preview_rate=8):
+    def __init__(self, latent_upscale_model=None, vae=None, preview_rate=8, taeltx=False):
         self.latent_upscale_model = latent_upscale_model
         self.vae = vae
         self.preview_rate = preview_rate
+        self.taeltx = taeltx
         self.x0_output = {}
 
     def __call__(self, executor, noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed, latent_shapes):
         guider = executor.class_obj
         original_callback = callback
         if self.latent_upscale_model is not None:
-            self.latent_upscale_model.to(mm.get_torch_device())
-        new_callback = prepare_callback(guider.model_patcher, len(sigmas) -1, shape=latent_shapes[0] if len(latent_shapes) > 1 else latent_shapes, x0_output_dict=self.x0_output, latent_upscale_model=self.latent_upscale_model, vae=self.vae, rate=self.preview_rate)
-
+            self.latent_upscale_model.to(device)
+        if self.vae is not None and self.taeltx:
+            self.vae.first_stage_model.to(device)
+        new_callback = prepare_callback(guider.model_patcher, len(sigmas) -1, shape=latent_shapes[0] if len(latent_shapes) > 1 else latent_shapes, x0_output_dict=self.x0_output, latent_upscale_model=self.latent_upscale_model, vae=self.vae, rate=self.preview_rate, taeltx=self.taeltx)
         # Wrapper that calls both callbacks
         def combined_callback(step, x0, x, total_steps):
             new_callback(step, x0, x, total_steps)
@@ -761,7 +782,11 @@ class LTX2SamplingPreviewOverride(io.ComfyNode):
     @classmethod
     def execute(cls, model, preview_rate, latent_upscale_model=None, vae=None) -> io.NodeOutput:
         model = model.clone()
-        model.add_wrapper_with_key(comfy.patcher_extension.WrappersMP.OUTER_SAMPLE, "sampling_preview", OuterSampleCallbackWrapper(latent_upscale_model, vae, preview_rate))
+        taeltx = False
+        if vae is not None:
+            if vae.first_stage_model.__class__.__name__ == "TAEHV":
+                taeltx = True
+        model.add_wrapper_with_key(comfy.patcher_extension.WrappersMP.OUTER_SAMPLE, "sampling_preview", OuterSampleCallbackWrapper(latent_upscale_model, vae, preview_rate, taeltx))
         return io.NodeOutput(model)
 
 
@@ -869,3 +894,116 @@ class LTX2AudioLatentNormalizingSampling(io.ComfyNode):
         model = model.clone()
         model.add_wrapper_with_key(comfy.patcher_extension.WrappersMP.OUTER_SAMPLE, "ltx2_audio_normalization", OuterSampleAudioNormalizationWrapper(audio_normalization_factors))
         return io.NodeOutput(model)
+
+
+class LTXVImgToVideoInplaceKJ(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        options = []
+        for num_images in range(1, 21):  # 1 to 20 images
+            image_inputs = []
+            for i in range(1, num_images + 1):
+                image_inputs.extend([
+                    io.Image.Input(f"image_{i}", optional=True, tooltip=f"Image {i} to insert into the video latent."),
+                    io.Int.Input(
+                        f"index_{i}",
+                        default=0,
+                        min=-9999,
+                        max=9999,
+                        step=1,
+                        tooltip=f"Frame index for image {i} (in pixel space).",
+                        optional=True,
+                    ),
+                    io.Float.Input(f"strength_{i}", default=1.0, min=0.0, max=1.0, step=0.01, tooltip=f"Strength for image {i}."),
+                ])
+            options.append(io.DynamicCombo.Option(
+                key=str(num_images),
+                inputs=image_inputs
+            ))
+
+        return io.Schema(
+            node_id="LTXVImgToVideoInplaceKJ",
+            category="KJNodes/ltxv",
+            inputs=[
+                io.Vae.Input("vae"),
+                io.Latent.Input("latent"),
+                io.DynamicCombo.Input(
+                    "num_images",
+                    options=options,
+                    display_name="Number of Images",
+                    tooltip="Select how many images to insert",
+                ),
+            ],
+            outputs=[
+                io.Latent.Output(display_name="latent"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, vae, latent, num_images) -> io.NodeOutput:
+
+        samples = latent["samples"].clone()
+        scale_factors = vae.downscale_index_formula
+        _, height_scale_factor, width_scale_factor = scale_factors
+
+        batch, _, latent_frames, latent_height, latent_width = samples.shape
+        width = latent_width * width_scale_factor
+        height = latent_height * height_scale_factor
+
+        # Get existing noise mask if present, otherwise create new one
+        if "noise_mask" in latent:
+            conditioning_latent_frames_mask = latent["noise_mask"].clone()
+        else:
+            conditioning_latent_frames_mask = torch.ones(
+                (batch, 1, latent_frames, 1, 1),
+                dtype=torch.float32,
+                device=samples.device,
+            )
+
+        # num_images is a dict containing the inputs from the selected option
+        # e.g., {'image_1': tensor, 'frame_idx_1': 0, 'strength_1': 1.0, 'image_2': tensor, 'frame_idx_2': 20, 'strength_2': 0.8, ...}
+
+        image_keys = sorted([k for k in num_images.keys() if k.startswith('image_')])
+
+        for img_key in image_keys:
+            i = img_key.split('_')[1]
+
+            image = num_images[f"image_{i}"]
+            if image is None:
+                continue
+            index = num_images.get(f"index_{i}")
+            if index is None:
+                continue
+            strength = num_images[f"strength_{i}"]
+
+            if image.shape[1] != height or image.shape[2] != width:
+                pixels = comfy.utils.common_upscale(image.movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            else:
+                pixels = image
+            encode_pixels = pixels[:, :, :, :3]
+            t = vae.encode(encode_pixels)
+
+            # Convert pixel frame index to latent index
+            time_scale_factor = scale_factors[0]
+
+            # Handle negative indexing in pixel space
+            pixel_frame_count = (latent_frames - 1) * time_scale_factor + 1
+            if index < 0:
+                index = pixel_frame_count + index
+
+            # Convert to latent index
+            latent_idx = index // time_scale_factor
+
+            # Clamp to valid range
+            latent_idx = max(0, min(latent_idx, latent_frames - 1))
+
+            # Calculate end index, ensuring we don't exceed latent_frames
+            end_index = min(latent_idx + t.shape[2], latent_frames)
+
+            # Replace samples at the specified index range
+            samples[:, :, latent_idx:end_index] = t[:, :, :end_index - latent_idx]
+
+            # Update mask at the specified index range
+            conditioning_latent_frames_mask[:, :, latent_idx:end_index] = 1.0 - strength
+
+        return io.NodeOutput({"samples": samples, "noise_mask": conditioning_latent_frames_mask})

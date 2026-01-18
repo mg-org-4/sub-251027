@@ -1,5 +1,35 @@
 # ComfyUI-RMBG Update Log
 
+## V3.0.0 (2026/01/01)  
+### New nodes
+- Added `Florence2 Segmentation` node for Florence-2 tasks: polygon masks, phrase grounding (boxes), and region proposals.
+- Added `Florence2 To Coordinates` tool node to convert Florence-2 JSON into center coordinates, bounding boxes, and masks.
+![v3.0.0_Florence2](example_workflows/florence2_node.jpg)
+- Added `YoloV8` / `YoloV8Adv` nodes for YOLOv8 detection, producing annotated images, merged masks, and mask lists.
+![v3.0.0_Yolo](example_workflows/YOLO_Node.jpg)
+- Added `ColorToMask` node to generate masks from a target color with threshold and invert options.
+![colorToMask](https://github.com/user-attachments/assets/1a70878e-2bf2-449a-8bda-a85951e1f357)
+- Added `ImageToList` Node: Combines up to 6 images into a batch with optional resize modes: off, fit, crop.
+- Added `MaskToList` Node: Converts a batch of masks into a mask list.
+- Added `ImageMaskToList` Node: Converts a batch of images and masks into an image and mask list.
+![List](https://github.com/user-attachments/assets/119f2988-776c-428e-8e4d-85696c4e84de)
+- Added `ImageResize` Node: Comprehensive all-in-one image resizing tool with robust handling for most scenarios. Supports custom width and height, megapixel constraints, longest/shortest side resizing, padding, cropping, and additional flexible options.
+- Enhanced the `Compare` node by adding support for bg_color and text_color properties. These improvements are now applicable for both side-by-side image comparison and video comparison.
+![image_compare_resize](https://github.com/user-attachments/assets/4c43b00e-8bba-44d7-a465-7398dcd7050e)
+- Updated `SAM3 Segmentation` node: added output mode (merged/separate), max segment, segment_pick, and device controls.  
+![image_compare_resize](https://github.com/user-attachments/assets/f270471b-ff33-4a27-9abb-cecb735b534d)  
+
+### 🔧 PyTorch JIT Compatibility Fix  
+- Removed global torch.load override; TorchScript handled locally in SAM2.
+- TorchScript is handled via a local fallback to avoid interfering with other nodes.
+- Improves overall compatibility and stability in mixed ComfyUI environments.
+
+### 📦 Dependency Update
+- `triton-windows` for proper SAM2, SAM3 model execution on Windows platforms.
+- `ultralytics` Required for YOLO node.
+> [!NOTE]
+> YOLO nodes require the optional `ultralytics` package. Install it only if you need YOLO to avoid dependency conflicts: `./ComfyUI/python_embeded/python -m pip install ultralytics --no-deps`.
+
 ## V2.9.6 (2025/12/09)
 ### ImageCompare Node Rebuilt
 - Rebuilt ImageCompare node with enhanced features
@@ -28,9 +58,7 @@
   - Sharper edges and faster inference versus SAM2 in our tests; supports FP32/FP16 autocast on CUDA
   - Alpha/Color background output, mask blur/offset/invert, plus RGB mask image for quick compositing
 
-
 https://github.com/user-attachments/assets/05cc101b-57a6-408d-b4ad-78e56dd927d6
-
 
 ## V2.9.3 (2025/10/05)
 - Bug Fix: The latest ComfyUI update caused an issue with the `color` widget. We have addressed the problem and updated all related nodes. The widget now functions correctly.  **(User Reported [#118](https://github.com/1038lab/ComfyUI-RMBG/issues/118) )**
@@ -577,6 +605,10 @@ https://github.com/user-attachments/assets/259220d3-c148-4030-93d6-c17dd5bccee1
 - Model cache is checked before each operation
 - Memory is automatically cleaned when switching models
 - Video processing supports various formats and maintains quality
+
+
+
+
 
 
 

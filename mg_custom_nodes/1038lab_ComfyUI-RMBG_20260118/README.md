@@ -3,9 +3,11 @@
 A sophisticated ComfyUI custom node engineered for advanced image background removal and precise segmentation of objects, faces, clothing, and fashion elements. This tool leverages a diverse array of models, including RMBG-2.0, INSPYRENET, BEN, BEN2, BiRefNet, SDMatte models, SAM, SAM2 and GroundingDINO, while also incorporating a new feature for real-time background replacement and enhanced edge detection for improved accuracy.
 
 ## News & Updates
-- **2025/12/09**: Update ComfyUI-RMBG to **v2.9.6** ( [update.md](https://github.com/1038lab/ComfyUI-RMBG/blob/main/update.md#v296-20251209) )
+- **2026/01/01**: Update ComfyUI-RMBG to **v3.0.0** ( [update.md](https://github.com/1038lab/ComfyUI-RMBG/blob/main/update.md#v300-20260101) )
+![V3 0 0_nodes](example_workflows/V3.0.0_nodes.jpg)
+- **2025/12/09**: Update ComfyUI-RMBG to **v2.9.6** ( [update.md](https://github.com/1038lab/ComfyUI-RMBG/blob/main/update.md#v296-20251209) )  
 ![v2.9.6_Image Compare](https://github.com/user-attachments/assets/e4ee824d-207e-4f46-b2db-0110e99c84c7)
-- **2025/11/25**: Update ComfyUI-RMBG to **v2.9.5** SAM3 Segmentaion bug fixed( [update.md](https://github.com/1038lab/ComfyUI-RMBG/blob/main/update.md#v295-20251125) )
+- **2025/11/25**: Update ComfyUI-RMBG to **v2.9.5** SAM3 Segmentaion bug fixed( [update.md](https://github.com/1038lab/ComfyUI-RMBG/blob/main/update.md#v295-20251125) )  
 - **2025/11/24**: Update ComfyUI-RMBG to **v2.9.4** SAM3 Segmentaion ( [update.md](https://github.com/1038lab/ComfyUI-RMBG/blob/main/update.md#v294-20251124) )
 ![v2.9.4_sam3](https://github.com/user-attachments/assets/70409f85-8814-47c4-8679-1e2389e5c78a)
 - **2025/10/05**: Update ComfyUI-RMBG to **v2.9.3** ( [update.md](https://github.com/1038lab/ComfyUI-RMBG/blob/main/update.md#v293-20251005) )
@@ -191,6 +193,12 @@ install requirment.txt in the ComfyUI-RMBG folder
   ```bash
   ./ComfyUI/python_embeded/python -m pip install -r requirements.txt
   ```
+> [!NOTE]
+> Windows desktop app: if the app crashes after install, set `PYTHONUTF8=1` before installing requirements, then retry.
+
+> [!NOTE]
+> YOLO nodes require the optional `ultralytics` package. Install it only if you need YOLO to avoid dependency conflicts: `./ComfyUI/python_embeded/python -m pip install ultralytics --no-deps`.
+
 > [!TIP]
 > Note: If your environment cannot install dependencies with the system Python, you can use ComfyUI's embedded Python instead.
 > Example (embedded Python): `./ComfyUI/python_embeded/python.exe -m pip install --no-user --no-cache-dir -r requirements.txt`
@@ -418,15 +426,6 @@ If this custom node helps you or you like my work, please give me ⭐ on this re
 
 ## License
 GPL-3.0 License
-
-
-
-
-
-
-
-
-
 
 
 

@@ -1,0 +1,14 @@
+[project]
+name = "freeu_advanced"
+description = "This custom node provides advanced settings for FreeU."
+version = "1.2.0"
+license = { file = "LICENSE" }
+
+[project.urls]
+Repository = "https://github.com/WASasquatch/FreeU_Advanced"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "was"
+DisplayName = "FreeU_Advanced"
+Icon = ""

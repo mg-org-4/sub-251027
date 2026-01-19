@@ -1,0 +1,55 @@
+from .utils.shot_utils import get_image_input_types, create_image_payload, make_api_request, shot_by_image_api_url, PlacementType
+
+
+class ShotByImageCustomCoordinatesNode:
+    @classmethod
+    def INPUT_TYPES(self):
+        input_types = get_image_input_types()
+        input_types["required"]["shot_size"] = ("STRING", {"default": "1000, 1000"})
+        input_types["required"]["foreground_image_size"] = (
+            "STRING",
+            {"default": "500,500"},
+        )
+        input_types["required"]["foreground_image_location"] = (
+            "STRING",
+            {"default": "0, 0"},
+        )
+        return input_types
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("output_image",)
+    CATEGORY = "API Nodes"
+    FUNCTION = "execute"
+
+    def __init__(self):
+        self.api_url = shot_by_image_api_url
+
+    def execute(
+        self,
+        image,
+        ref_image,
+        shot_size,
+        foreground_image_size,
+        foreground_image_location,
+        api_key,
+        sync=False,
+        enhance_ref_image=True,
+        ref_image_influence=1.0,
+        force_rmbg=False,
+        content_moderation=False,
+    ):
+        payload = create_image_payload(
+            image,
+            ref_image,
+            api_key,
+            PlacementType.CUSTOM_COORDINATES.value,
+            shot_size=shot_size,
+            foreground_image_size=foreground_image_size,
+            foreground_image_location=foreground_image_location,
+            sync=sync,
+            enhance_ref_image=enhance_ref_image,
+            ref_image_influence=ref_image_influence,
+            force_rmbg=force_rmbg,
+            content_moderation=content_moderation,
+        )
+        return make_api_request(self.api_url, payload, api_key)

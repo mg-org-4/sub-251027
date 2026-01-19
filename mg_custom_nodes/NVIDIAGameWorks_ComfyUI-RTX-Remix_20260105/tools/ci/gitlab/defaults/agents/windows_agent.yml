@@ -1,3 +1,0 @@
-.windows_agent:
-  tags: &windows_agent_tags
-    - windows

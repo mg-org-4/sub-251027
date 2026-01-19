@@ -1,0 +1,310 @@
+{
+  "last_node_id": 16,
+  "last_link_id": 19,
+  "nodes": [
+    {
+      "id": 7,
+      "type": "SeargePromptText",
+      "pos": [
+        1632.283203125,
+        799.6035766601562
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "links": [
+            16
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "SeargeSDXL",
+        "ver": "2eb5edbc712329d77d1a2f5f1e6c5e64397a4a83",
+        "Node name for S&R": "SeargePromptText"
+      },
+      "widgets_values": [
+        "一个女人 带着恋爱般的微笑，对着镜头双手“比心”",
+        [
+          false,
+          true
+        ]
+      ]
+    },
+    {
+      "id": 15,
+      "type": "RunningHub_FramePack",
+      "pos": [
+        2313.555419921875,
+        505.303955078125
+      ],
+      "size": [
+        400,
+        252
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "ref_image",
+          "label": "ref_image",
+          "type": "IMAGE",
+          "link": 15
+        },
+        {
+          "name": "end_image",
+          "label": "end_image",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "frames",
+          "label": "frames",
+          "type": "IMAGE",
+          "links": [
+            17
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "fps",
+          "label": "fps",
+          "type": "FLOAT",
+          "links": [
+            18
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "aux_id": "HM-RunningHub/ComfyUI_RH_FramePack",
+        "ver": "c688eb1533f8984a5ea5d2db08496ebb6da0a602",
+        "Node name for S&R": "RunningHub_FramePack"
+      },
+      "widgets_values": [
+        "",
+        5,
+        1378,
+        "randomize",
+        25,
+        true,
+        1.2,
+        [
+          false,
+          true
+        ]
+      ]
+    },
+    {
+      "id": 16,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        2928.94970703125,
+        180.33053588867188
+      ],
+      "size": [
+        419.164794921875,
+        803.4525146484375
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "label": "images",
+          "type": "IMAGE",
+          "link": 17
+        },
+        {
+          "name": "audio",
+          "label": "audio",
+          "type": "AUDIO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "frame_rate",
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "widget": {
+            "name": "frame_rate"
+          },
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "label": "Filenames",
+          "type": "VHS_FILENAMES"
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "df55f01d1df2f7bf5cc772294bc2e6d8bab22d66",
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {
+            "filename": "AnimateDiff_00009.mp4",
+            "workflow": "AnimateDiff_00009.png",
+            "fullpath": "D:\\ComfyUI_windows_portable\\ComfyUI\\output\\AnimateDiff_00009.mp4",
+            "format": "video/h264-mp4",
+            "subfolder": "",
+            "type": "output",
+            "frame_rate": 30
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        1614.83544921875,
+        164.57229614257812
+      ],
+      "size": [
+        467.89154052734375,
+        535.3126220703125
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            15
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "label": "MASK",
+          "type": "MASK"
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.28",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "DONGYUJIE.png",
+        "image"
+      ]
+    }
+  ],
+  "links": [
+    [
+      15,
+      2,
+      0,
+      15,
+      0,
+      "IMAGE"
+    ],
+    [
+      16,
+      7,
+      0,
+      15,
+      2,
+      "STRING"
+    ],
+    [
+      17,
+      15,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      18,
+      15,
+      1,
+      16,
+      4,
+      "FLOAT"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9090909090909091,
+      "offset": [
+        -1563.0115557309155,
+        -19.100634686877555
+      ]
+    },
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

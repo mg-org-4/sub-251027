@@ -1,0 +1,117 @@
+# 🌀 ComfyUI Wrapper for [https://github.com/microsoft/TRELLIS.2](https://github.com/microsoft/TRELLIS.2)
+
+---
+
+<img width="883" height="566" alt="{09272892-57D6-4EB8-B27B-6B875916982A}" src="https://github.com/user-attachments/assets/a7788f13-141c-4072-9143-b8b1ee1ead2a" />
+
+---
+
+<img width="980" height="579" alt="{F6FE6B7B-94B7-44C6-8C89-02E7C81EBF7E}" src="https://github.com/user-attachments/assets/ad27111c-beb8-48ef-8613-c533a3a5cacd" />
+
+---
+
+## WARNING ##
+
+Many users reported that their is a bug with mesh generation like on this picture:
+<img width="666" height="752" alt="image" src="https://github.com/user-attachments/assets/ce11c61d-a1c2-40c9-a698-b6330dd19953" />
+
+I don't know yet where is the bug, but I found that it occurs when a parameter is changed in the node "Mesh With Voxel ..."
+
+I believe there is a bug with ComfyUI caching system, but I'm not sure.
+
+The only solution for the moment, is to restart ComfyUI.
+
+---
+## REQUIREMENTS ##
+
+You need to have access to facebook dinov3 models in order to use Trellis.2
+
+[https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m](https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m)
+
+Clone the repository in ComfyUI models folder under "facebook/dinov3-vitl16-pretrain-lvd1689m"
+
+So in ComfyUI/models/facebook/dinov3-vitl16-pretrain-lvd1689m
+
+---
+
+## ⚙️ Installation Guide
+
+> Tested on **Windows 11** with **Python 3.11** and **Torch = 2.7.0 + cu128**.
+
+### 1. Install Wheels
+
+#### For a standard python environment:
+
+**If you use Torch v2.7.0:**
+```bash
+python -m pip install ComfyUI/custom_nodes/ComfyUI-Trellis2/wheels/Windows/Torch270/cumesh-0.0.1-cp311-cp311-win_amd64.whl
+python -m pip install ComfyUI/custom_nodes/ComfyUI-Trellis2/wheels/Windows/Torch270/nvdiffrast-0.4.0-cp311-cp311-win_amd64.whl
+python -m pip install ComfyUI/custom_nodes/ComfyUI-Trellis2/wheels/Windows/Torch270/nvdiffrec_render-0.0.0-cp311-cp311-win_amd64.whl
+python -m pip install ComfyUI/custom_nodes/ComfyUI-Trellis2/wheels/Windows/Torch270/flex_gemm-0.0.1-cp311-cp311-win_amd64.whl
+python -m pip install ComfyUI/custom_nodes/ComfyUI-Trellis2/wheels/Windows/Torch270/o_voxel-0.0.1-cp311-cp311-win_amd64.whl
+```
+
+**If you use Torch v2.8.0:**
+```bash
+python -m pip install ComfyUI/custom_nodes/ComfyUI-Trellis2/wheels/Windows/Torch280/cumesh-0.0.1-cp311-cp311-win_amd64.whl
+python -m pip install ComfyUI/custom_nodes/ComfyUI-Trellis2/wheels/Windows/Torch280/nvdiffrast-0.4.0-cp311-cp311-win_amd64.whl
+python -m pip install ComfyUI/custom_nodes/ComfyUI-Trellis2/wheels/Windows/Torch280/nvdiffrec_render-0.0.0-cp311-cp311-win_amd64.whl
+python -m pip install ComfyUI/custom_nodes/ComfyUI-Trellis2/wheels/Windows/Torch280/flex_gemm-0.0.1-cp311-cp311-win_amd64.whl
+python -m pip install ComfyUI/custom_nodes/ComfyUI-Trellis2/wheels/Windows/Torch280/o_voxel-0.0.1-cp311-cp311-win_amd64.whl
+```
+
+---
+
+#### For ComfyUI Portable:
+
+**If you use Torch v2.7.0:**
+```bash
+python_embeded\python.exe -m pip install ComfyUI\custom_nodes\ComfyUI-Trellis2\wheels\Windows\Torch270\cumesh-0.0.1-cp311-cp311-win_amd64.whl
+python_embeded\python.exe -m pip install ComfyUI\custom_nodes\ComfyUI-Trellis2\wheels\Windows\Torch270\nvdiffrast-0.4.0-cp311-cp311-win_amd64.whl
+python_embeded\python.exe -m pip install ComfyUI\custom_nodes\ComfyUI-Trellis2\wheels\Windows\Torch270\nvdiffrec_render-0.0.0-cp311-cp311-win_amd64.whl
+python_embeded\python.exe -m pip install ComfyUI\custom_nodes\ComfyUI-Trellis2\wheels\Windows\Torch270\flex_gemm-0.0.1-cp311-cp311-win_amd64.whl
+python_embeded\python.exe -m pip install ComfyUI\custom_nodes\ComfyUI-Trellis2\wheels\Windows\Torch270\o_voxel-0.0.1-cp311-cp311-win_amd64.whl
+```
+
+**If you use Torch v2.8.0:**
+```bash
+python_embeded\python.exe -m pip install ComfyUI\custom_nodes\ComfyUI-Trellis2\wheels\Windows\Torch280\cumesh-0.0.1-cp311-cp311-win_amd64.whl
+python_embeded\python.exe -m pip install ComfyUI\custom_nodes\ComfyUI-Trellis2\wheels\Windows\Torch280\nvdiffrast-0.4.0-cp311-cp311-win_amd64.whl
+python_embeded\python.exe -m pip install ComfyUI\custom_nodes\ComfyUI-Trellis2\wheels\Windows\Torch280\nvdiffrec_render-0.0.0-cp311-cp311-win_amd64.whl
+python_embeded\python.exe -m pip install ComfyUI\custom_nodes\ComfyUI-Trellis2\wheels\Windows\Torch280\flex_gemm-0.0.1-cp311-cp311-win_amd64.whl
+python_embeded\python.exe -m pip install ComfyUI\custom_nodes\ComfyUI-Trellis2\wheels\Windows\Torch280\o_voxel-0.0.1-cp311-cp311-win_amd64.whl
+```
+
+---
+
+**Check the folder wheels for the other versions**
+
+---
+
+### 2. Custom Build
+
+#### o_voxel
+
+Use my own version of Trellis.2 here: https://github.com/visualbruno/TRELLIS.2
+
+#### Cumesh 
+
+Use my own version of Cumesh here: https://github.com/visualbruno/CuMesh
+
+---
+
+### 3. Requirements.txt
+
+#### For a standard python environment:
+
+```bash
+python -m pip install -r ComfyUI/custom_nodes/ComfyUI-Trellis2/requirements.txt
+```
+
+---
+
+#### For ComfyUI Portable:
+
+```bash
+python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\ComfyUI-Trellis2\requirements.txt
+```

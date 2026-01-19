@@ -1,3 +1,0 @@
-tensorrt
-polygraphy
-requests

@@ -1,0 +1,538 @@
+{
+  "3": {
+    "inputs": {
+      "seed": 2070780056835,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "denoise": 0.65,
+      "model": [
+        "21",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "latent_image": [
+        "19",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "yamer_Cartoon_xenoArcadiaCD.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Checkpoint加载器(简易)"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": [
+        "27",
+        0
+      ],
+      "clip": [
+        "21",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码器"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": [
+        "28",
+        0
+      ],
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码器"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "10": {
+    "inputs": {
+      "lora_name": "lcm-lora-sdv1-5.safetensors",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "model": [
+        "4",
+        0
+      ],
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "LoRA加载器"
+    }
+  },
+  "19": {
+    "inputs": {
+      "pixels": [
+        "25",
+        0
+      ],
+      "vae": [
+        "23",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码"
+    }
+  },
+  "21": {
+    "inputs": {
+      "lora_name": "可爱少女厚涂风.safetensors",
+      "strength_model": 0,
+      "strength_clip": 1,
+      "model": [
+        "10",
+        0
+      ],
+      "clip": [
+        "10",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "LoRA加载器"
+    }
+  },
+  "23": {
+    "inputs": {
+      "vae_name": "clearvae_v23.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "VAE加载器"
+    }
+  },
+  "25": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "ETN_LoadImageBase64",
+    "_meta": {
+      "title": "Load Image (Base64)"
+    }
+  },
+  "27": {
+    "inputs": {
+      "text_trans": ""
+    },
+    "class_type": "ZhPromptTranslator",
+    "_meta": {
+      "title": "正向提示词"
+    }
+  },
+  "28": {
+    "inputs": {
+      "text_trans": ""
+    },
+    "class_type": "ZhPromptTranslator",
+    "_meta": {
+      "title": "反向提示词"
+    }
+  },
+  "29": {
+    "inputs": {
+      "seed": 19,
+      "steps": 25,
+      "cfg": 6,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 0.9,
+      "model": [
+        "36",
+        0
+      ],
+      "positive": [
+        "48",
+        0
+      ],
+      "negative": [
+        "48",
+        1
+      ],
+      "latent_image": [
+        "48",
+        2
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "31": {
+    "inputs": {
+      "text": [
+        "52",
+        0
+      ],
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码器"
+    }
+  },
+  "32": {
+    "inputs": {
+      "text": "blurry, noisy, messy, glitch, distorted, malformed, ill, horror, naked, nipples",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码器"
+    }
+  },
+  "33": {
+    "inputs": {
+      "samples": [
+        "29",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "34": {
+    "inputs": {
+      "images": [
+        "56",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "预览图像"
+    }
+  },
+  "36": {
+    "inputs": {
+      "weight_style": 1,
+      "weight_composition": 1,
+      "expand_style": false,
+      "combine_embeds": "concat",
+      "start_at": 0,
+      "end_at": 1,
+      "embeds_scaling": "V only",
+      "model": [
+        "37",
+        0
+      ],
+      "ipadapter": [
+        "37",
+        1
+      ],
+      "image_style": [
+        "39",
+        0
+      ],
+      "image_composition": [
+        "47",
+        0
+      ]
+    },
+    "class_type": "IPAdapterStyleComposition",
+    "_meta": {
+      "title": "IPAdapter风格合成SDXL"
+    }
+  },
+  "37": {
+    "inputs": {
+      "preset": "STANDARD (medium strength)",
+      "model": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "IPAdapterUnifiedLoader",
+    "_meta": {
+      "title": "IPAdapter加载器"
+    }
+  },
+  "39": {
+    "inputs": {
+      "interpolation": "LANCZOS",
+      "crop_position": "pad",
+      "sharpening": 0,
+      "image": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "PrepImageForClipVision",
+    "_meta": {
+      "title": "CLIP视觉图像处理"
+    }
+  },
+  "40": {
+    "inputs": {
+      "strength": 0.55,
+      "start_percent": 0,
+      "end_percent": 0.75,
+      "positive": [
+        "31",
+        0
+      ],
+      "negative": [
+        "32",
+        0
+      ],
+      "control_net": [
+        "41",
+        0
+      ],
+      "image": [
+        "49",
+        0
+      ]
+    },
+    "class_type": "ControlNetApplyAdvanced",
+    "_meta": {
+      "title": "ControlNet应用(高级)"
+    }
+  },
+  "41": {
+    "inputs": {
+      "control_net_name": "t2i-adapter-lineart-sdxl-1.0.safetensors"
+    },
+    "class_type": "ControlNetLoader",
+    "_meta": {
+      "title": "ControlNet加载器"
+    }
+  },
+  "43": {
+    "inputs": {
+      "strength": 1,
+      "start_percent": 0,
+      "end_percent": 0.3,
+      "positive": [
+        "40",
+        0
+      ],
+      "negative": [
+        "40",
+        1
+      ],
+      "control_net": [
+        "44",
+        0
+      ],
+      "image": [
+        "45",
+        0
+      ]
+    },
+    "class_type": "ControlNetApplyAdvanced",
+    "_meta": {
+      "title": "ControlNet应用(高级)"
+    }
+  },
+  "44": {
+    "inputs": {
+      "control_net_name": "diffusers_xl_depth_mid.safetensors"
+    },
+    "class_type": "ControlNetLoader",
+    "_meta": {
+      "title": "ControlNet加载器"
+    }
+  },
+  "45": {
+    "inputs": {
+      "ckpt_name": "depth_anything_vits14.pth",
+      "resolution": 960,
+      "image": [
+        "55",
+        0
+      ]
+    },
+    "class_type": "DepthAnythingPreprocessor",
+    "_meta": {
+      "title": "DA深度预处理器"
+    }
+  },
+  "47": {
+    "inputs": {
+      "interpolation": "LANCZOS",
+      "crop_position": "pad",
+      "sharpening": 0,
+      "image": [
+        "55",
+        0
+      ]
+    },
+    "class_type": "PrepImageForClipVision",
+    "_meta": {
+      "title": "CLIP视觉图像处理"
+    }
+  },
+  "48": {
+    "inputs": {
+      "positive": [
+        "43",
+        0
+      ],
+      "negative": [
+        "43",
+        1
+      ],
+      "vae": [
+        "4",
+        2
+      ],
+      "pixels": [
+        "55",
+        0
+      ]
+    },
+    "class_type": "InstructPixToPixConditioning",
+    "_meta": {
+      "title": "InstructPixToPix条件"
+    }
+  },
+  "49": {
+    "inputs": {
+      "coarse": "disable",
+      "resolution": 512,
+      "image": [
+        "55",
+        0
+      ]
+    },
+    "class_type": "LineArtPreprocessor",
+    "_meta": {
+      "title": "LineArt艺术线预处理器"
+    }
+  },
+  "52": {
+    "inputs": {
+      "model": "wd-v1-4-moat-tagger-v2",
+      "threshold": 0.35,
+      "character_threshold": 0.85,
+      "replace_underscore": "",
+      "trailing_comma": "1girl, solo, long_hair, looking_at_viewer, shirt, black_hair, upper_body, black_eyes, lips, realistic",
+      "exclude_tags": "",
+      "image": [
+        "55",
+        0
+      ]
+    },
+    "class_type": "WD14Tagger|pysssss",
+    "_meta": {
+      "title": "WD14反推提示词"
+    }
+  },
+  "55": {
+    "inputs": {
+      "image_path": [
+        "59",
+        0
+      ],
+      "RGBA": "false",
+      "filename_text_extension": "true"
+    },
+    "class_type": "LamLoadPathImage",
+    "_meta": {
+      "title": "加载网络图片或本地图片"
+    }
+  },
+  "56": {
+    "inputs": {
+      "ANY": [
+        "60",
+        0
+      ],
+      "IF_TRUE": [
+        "33",
+        0
+      ],
+      "IF_FALSE": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "IfInnerExecute",
+    "_meta": {
+      "title": "判断选择"
+    }
+  },
+  "59": {
+    "inputs": {
+      "text": ""
+    },
+    "class_type": "TextInput_",
+    "_meta": {
+      "title": "文本"
+    }
+  },
+  "60": {
+    "inputs": {
+      "expression": "len(p0)>0",
+      "p0": [
+        "59",
+        0
+      ]
+    },
+    "class_type": "MultiParamFormula",
+    "_meta": {
+      "title": "多参代码表达式"
+    }
+  }
+}

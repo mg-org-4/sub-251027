@@ -1,0 +1,7 @@
+bitsandbytes
+gradio
+gradio_imageslider
+imagehash
+psutil
+tiktoken
+transformers_stream_generator

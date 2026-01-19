@@ -1,7 +1,0 @@
-
-.d2-progress-preview-image{
-    transition: .2s;
-}
-.d2-progress-preview-image[data-clickable="true"]:hover{
-    opacity: .4
-}

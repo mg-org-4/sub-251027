@@ -1,0 +1,16 @@
+{
+    "exclude_modules": [
+        "ComfyUI-IF_AI_tools",
+        "rgthree-comfy",
+        "comfyui-kjnodes",
+        "ComfyUI-Manager",
+        "ComfyUI-Depth-Pro",
+        "ComfyUI-Depth-Anything-Tensorrt",
+        "comfyui_layerstyle",
+        "ComfyUI-Crystools",
+        "AIGODLIKE-ComfyUI-Translation",
+        "ComfyUI-LG_HotReload",
+        "ComfyUI-Easy-Use",
+        "ComfyUI_Custom_Nodes_AlekPet"
+    ]
+}

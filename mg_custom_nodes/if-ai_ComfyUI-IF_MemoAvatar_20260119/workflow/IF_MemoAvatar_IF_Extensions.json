@@ -1,0 +1,858 @@
+{
+  "last_node_id": 79,
+  "last_link_id": 206,
+  "nodes": [
+    {
+      "id": 56,
+      "type": "PreviewImage",
+      "pos": [
+        -174.07064819335938,
+        707.8036499023438
+      ],
+      "size": [
+        211.03074645996094,
+        246
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 90
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 50,
+      "type": "Note",
+      "pos": [
+        446.33880615234375,
+        203.38783264160156
+      ],
+      "size": [
+        331.2768249511719,
+        117.3055648803711
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "3090 worked with 384 faster\n512 slower \nreducing fps braked the video but needs testing and optimizations  \nThis is a wrapper is using diffusers and same code as the Original Repo I only made a few changes it should work on 3090 or maybe even in lesser cards if chosen a smaller res"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 54,
+      "type": "ImageResizeKJ",
+      "pos": [
+        -164.07064819335938,
+        157.803466796875
+      ],
+      "size": [
+        210,
+        238
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 84
+        },
+        {
+          "name": "get_image_size",
+          "type": "IMAGE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "width_input",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "width_input"
+          },
+          "shape": 7
+        },
+        {
+          "name": "height_input",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "height_input"
+          },
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            89
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageResizeKJ"
+      },
+      "widgets_values": [
+        1600,
+        1600,
+        "lanczos",
+        true,
+        2,
+        0,
+        0,
+        "disabled"
+      ]
+    },
+    {
+      "id": 59,
+      "type": "Fast Groups Muter (rgthree)",
+      "pos": [
+        70.64138793945312,
+        937.8055419921875
+      ],
+      "size": [
+        226.8000030517578,
+        106
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "matchColors": "",
+        "matchTitle": "",
+        "showNav": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default"
+      }
+    },
+    {
+      "id": 67,
+      "type": "IF_DisplayText",
+      "pos": [
+        858.1091918945312,
+        155.067626953125
+      ],
+      "size": [
+        295.78253173828125,
+        228.17208862304688
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 204,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": null,
+          "tooltip": "Full text content"
+        },
+        {
+          "name": "text_list",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "tooltip": "Individual lines as separate outputs"
+        },
+        {
+          "name": "count",
+          "type": "INT",
+          "links": null,
+          "tooltip": "Total number of non-empty lines"
+        },
+        {
+          "name": "selected",
+          "type": "STRING",
+          "links": null,
+          "tooltip": "Currently selected line based on select input"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "IF_DisplayText"
+      },
+      "widgets_values": [
+        "",
+        0,
+        "D:\\ComfyUI\\output\\memo_video_20241217-083345.mp4"
+      ]
+    },
+    {
+      "id": 31,
+      "type": "IF_DisplayText",
+      "pos": [
+        849.99169921875,
+        726.5304565429688
+      ],
+      "size": [
+        295.78253173828125,
+        228.17208862304688
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 205,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": null,
+          "tooltip": "Full text content"
+        },
+        {
+          "name": "text_list",
+          "type": "STRING",
+          "links": null,
+          "shape": 6,
+          "tooltip": "Individual lines as separate outputs"
+        },
+        {
+          "name": "count",
+          "type": "INT",
+          "links": null,
+          "tooltip": "Total number of non-empty lines"
+        },
+        {
+          "name": "selected",
+          "type": "STRING",
+          "links": null,
+          "tooltip": "Currently selected line based on select input"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "IF_DisplayText"
+      },
+      "widgets_values": [
+        "",
+        0,
+        "✅ Video saved as memo_video_20241217-083345.mp4"
+      ]
+    },
+    {
+      "id": 57,
+      "type": "ImageCrop+",
+      "pos": [
+        -174.07064819335938,
+        457.80340576171875
+      ],
+      "size": [
+        210,
+        194
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 89
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            90,
+            198
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "x",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "y",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageCrop+"
+      },
+      "widgets_values": [
+        1504,
+        1504,
+        "center",
+        -2,
+        -41
+      ]
+    },
+    {
+      "id": 60,
+      "type": "LoadAudio",
+      "pos": [
+        70.73645782470703,
+        259.4642639160156
+      ],
+      "size": [
+        315,
+        124
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            199
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "candy.wav",
+        null,
+        ""
+      ]
+    },
+    {
+      "id": 79,
+      "type": "IF_MemoAvatar",
+      "pos": [
+        415.24700927734375,
+        423.51800537109375
+      ],
+      "size": [
+        400,
+        390
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 198
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 199
+        },
+        {
+          "name": "reference_net",
+          "type": "MODEL",
+          "link": 196
+        },
+        {
+          "name": "diffusion_net",
+          "type": "MODEL",
+          "link": 197
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 200
+        },
+        {
+          "name": "image_proj",
+          "type": "IMAGE_PROJ",
+          "link": 201
+        },
+        {
+          "name": "audio_proj",
+          "type": "AUDIO_PROJ",
+          "link": 202
+        },
+        {
+          "name": "emotion_classifier",
+          "type": "EMOTION_CLASSIFIER",
+          "link": 203
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video_path",
+          "type": "STRING",
+          "links": [
+            204,
+            206
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            205
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "IF_MemoAvatar"
+      },
+      "widgets_values": [
+        512,
+        16,
+        30,
+        20,
+        3.5,
+        2047,
+        "randomize",
+        "memo_video",
+        {
+          "serialize": false,
+          "size": [
+            256,
+            256
+          ]
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "type": "VHS_LoadVideoPath",
+      "pos": [
+        880.303466796875,
+        424.2923278808594
+      ],
+      "size": [
+        291.62481689453125,
+        238
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "video",
+          "type": "STRING",
+          "link": 206,
+          "widget": {
+            "name": "video"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null
+        },
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_LoadVideoPath"
+      },
+      "widgets_values": {
+        "video": "",
+        "force_rate": 0,
+        "force_size": "Disabled",
+        "custom_width": 512,
+        "custom_height": 512,
+        "frame_load_cap": 0,
+        "skip_first_frames": 0,
+        "select_every_nth": 1,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "force_rate": 0,
+            "frame_load_cap": 0,
+            "skip_first_frames": 0,
+            "select_every_nth": 1
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 74,
+      "type": "IF_MemoCheckpointLoader",
+      "pos": [
+        80.47496032714844,
+        463.7469482421875
+      ],
+      "size": [
+        315,
+        158
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "reference_net",
+          "type": "MODEL",
+          "links": [
+            196
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "diffusion_net",
+          "type": "MODEL",
+          "links": [
+            197
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "links": [
+            200
+          ],
+          "slot_index": 2
+        },
+        {
+          "name": "image_proj",
+          "type": "IMAGE_PROJ",
+          "links": [
+            201
+          ],
+          "slot_index": 3
+        },
+        {
+          "name": "audio_proj",
+          "type": "AUDIO_PROJ",
+          "links": [
+            202
+          ],
+          "slot_index": 4
+        },
+        {
+          "name": "emotion_classifier",
+          "type": "EMOTION_CLASSIFIER",
+          "links": [
+            203
+          ],
+          "slot_index": 5
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "IF_MemoCheckpointLoader"
+      },
+      "widgets_values": [
+        true
+      ]
+    },
+    {
+      "id": 53,
+      "type": "IF_LoadImagesS",
+      "pos": [
+        -524.0703735351562,
+        187.803466796875
+      ],
+      "size": [
+        342.7641906738281,
+        730
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            84
+          ],
+          "slot_index": 0,
+          "shape": 6
+        },
+        {
+          "name": "masks",
+          "type": "MASK",
+          "links": [],
+          "shape": 6
+        },
+        {
+          "name": "image_paths",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        },
+        {
+          "name": "filenames",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        },
+        {
+          "name": "count_str",
+          "type": "STRING",
+          "links": null,
+          "shape": 6
+        },
+        {
+          "name": "count_int",
+          "type": "INT",
+          "links": null,
+          "shape": 6
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "IF_LoadImagesS"
+      },
+      "widgets_values": [
+        "thb_4bc166bd2e2e609360a884982b812965.jpg",
+        "Refresh Previews 🔄",
+        "C:\\Users\\SOYYO\\Pictures\\people",
+        0,
+        48,
+        "100",
+        true,
+        48,
+        true,
+        "alphabetical",
+        "none",
+        "red",
+        "image",
+        "Select Folder 📂",
+        "Backup Input 💾",
+        "Restore Input ♻️"
+      ]
+    }
+  ],
+  "links": [
+    [
+      84,
+      53,
+      0,
+      54,
+      0,
+      "IMAGE"
+    ],
+    [
+      89,
+      54,
+      0,
+      57,
+      0,
+      "IMAGE"
+    ],
+    [
+      90,
+      57,
+      0,
+      56,
+      0,
+      "IMAGE"
+    ],
+    [
+      196,
+      74,
+      0,
+      79,
+      2,
+      "MODEL"
+    ],
+    [
+      197,
+      74,
+      1,
+      79,
+      3,
+      "MODEL"
+    ],
+    [
+      198,
+      57,
+      0,
+      79,
+      0,
+      "IMAGE"
+    ],
+    [
+      199,
+      60,
+      0,
+      79,
+      1,
+      "AUDIO"
+    ],
+    [
+      200,
+      74,
+      2,
+      79,
+      4,
+      "VAE"
+    ],
+    [
+      201,
+      74,
+      3,
+      79,
+      5,
+      "IMAGE_PROJ"
+    ],
+    [
+      202,
+      74,
+      4,
+      79,
+      6,
+      "AUDIO_PROJ"
+    ],
+    [
+      203,
+      74,
+      5,
+      79,
+      7,
+      "EMOTION_CLASSIFIER"
+    ],
+    [
+      204,
+      79,
+      0,
+      67,
+      0,
+      "STRING"
+    ],
+    [
+      205,
+      79,
+      1,
+      31,
+      0,
+      "STRING"
+    ],
+    [
+      206,
+      79,
+      0,
+      68,
+      2,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "AVATAR",
+      "bounding": [
+        65.28616333007812,
+        85.40703582763672,
+        1330.9530029296875,
+        813.2778930664062
+      ],
+      "color": "#444",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "MEMO",
+      "bounding": [
+        -534.0703735351562,
+        84.20343780517578,
+        589.9998168945312,
+        879.60009765625
+      ],
+      "color": "#444",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1,
+      "offset": [
+        566.6587908244418,
+        -17.309013215858414
+      ]
+    },
+    "ue_links": []
+  },
+  "version": 0.4
+}

@@ -1,0 +1,12 @@
+.DS_Store
+*.pyc
+chatgpt/
+old_example_code/
+*.mp4
+.env
+ip_adapter_utils/img_embeds
+video_utils/test_output
+
+*CLAUDE.md
+video_utils/test_output
+video_utils/test_assets

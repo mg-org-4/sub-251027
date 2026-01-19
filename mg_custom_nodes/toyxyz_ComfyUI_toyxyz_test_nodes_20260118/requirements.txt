@@ -1,8 +1,0 @@
-numpy
-torch
-opencv-python
-mss
-pywin32
-trimesh
-polygraphy
-matplotlib

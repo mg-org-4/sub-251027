@@ -1,0 +1,14 @@
+# Do not upload local helper scripts
+sync.sh
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+

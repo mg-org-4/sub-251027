@@ -1,0 +1,6 @@
+modelscope
+safetensors
+Pillow
+numpy
+
+

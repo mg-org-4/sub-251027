@@ -1,0 +1,80 @@
+# Ensure that the formatting is kept the same as in this file.
+# Indents in YAML are critical. Ensure proper indentation, as incorrect spacing can cause errors.
+#
+# Best approach is to copy a block of name, negative_prompt and a prompt and then replace their values
+# Note that your text_positive will be added in this part {prompt}
+# Adding - name: random will allow the node to pick random name from this file
+
+- name: none
+  prompt: ''
+
+- name: random
+  prompt: ''  
+
+- name: Avatar
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Avatar design of {prompt}, avatar design art style, visually appealing and distinctive avatar, professional-grade execution, represents individual or brand identity effectively, enhances online presence and engagement
+
+- name: Banner
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Banner design of {prompt}, banner design art style, eye-catching and informative banner, professional-grade execution, effectively communicates message or event details, captures attention
+
+- name: Brochure
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Brochure design style of {prompt}, informative and visually appealing layout, professional-grade execution, effectively communicates product or service details, enhances brand credibility
+
+- name: Business card
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Business card design of {prompt}, business card art style, professional and memorable business card, professional-grade execution, effectively represents brand identity and contact information
+
+- name: Event Invitation
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Event invitation design style of {prompt}, visually appealing and informative invitation, professional-grade execution, effectively communicates event details, encourages attendance
+
+- name: Favicon
+  negative_prompt: complex, boring, signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Favicon design of {prompt}, favicon art style, isolated on solid white background, small and recognizable website icon, professional-grade execution, enhances brand recognition and website identity, complements overall design aesthetic
+
+- name: Flyer
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Flyer design style of {prompt}, visually appealing and informative flyer, professional-grade execution, effectively promotes an event or product, engages audience
+
+- name: Icon Design
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Icon design of {prompt}, icon design art style, visually clear and recognizable icon, professional-grade execution, effectively conveys concepts or actions, enhances user interface and experience
+
+- name: Icon Design Simple Black
+  negative_prompt: complex, boring, signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: minimalist modern black icon design of {prompt}, on solid white background, simple stylized icon, vector graphic icon, clean and minimalist vector icon, professional-grade execution, enhances visual clarity and simplicity
+
+- name: Infographic
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Infographic design style of {prompt}, visually engaging and informative graphic, professional-grade execution, effectively communicates complex information or data, enhances understanding
+
+- name: Letterhead
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Letterhead design style of {prompt}, professional and branded letterhead, professional-grade execution, enhances brand identity and communication
+
+- name: Logo
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Logo design of {prompt}, logo design art style, custom and memorable logo, professional-grade execution, captures brand identity and values, timeless and iconic design
+
+- name: Magazine Layout
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Magazine layout design style of {prompt}, visually appealing and well-organized layout, professional-grade execution, effectively showcases content and articles, enhances reader experience
+
+- name: Menu
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Menu design style of {prompt}, visually appealing and informative menu, professional-grade execution, effectively presents food and beverage options, enhances dining experience
+
+- name: Packaging
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Packaging Design of {prompt}, Brand Identity, Visual Communication, Product Presentation, Consumer Appeal, structural integrity, graphic elements, brand recognition, marketing impact, professional design
+
+- name: Poster
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Poster design of {prompt}, poster art style, visually striking and informative poster, professional-grade execution, poster graphic design
+
+- name: Website
+  negative_prompt: signature, watermark, ugly, off-center, deformed, cropped, frame, worst quality, low quality, lowres, JPEG artifacts
+  prompt: Website design of {prompt}, website design art style, web page, user-friendly interface, visually appealing layout, professional-grade execution, responsive design, enhances user experience and engagement

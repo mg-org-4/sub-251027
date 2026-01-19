@@ -1,0 +1,236 @@
+"""
+FL Song Gen Generate Node.
+Main song generation with text description conditioning.
+"""
+
+import sys
+import os
+from typing import Tuple
+import importlib.util
+
+from comfy.utils import ProgressBar
+
+# Get the package root directory
+_PACKAGE_ROOT = os.path.dirname(os.path.dirname(__file__))
+
+# Import modules explicitly from our package to avoid conflicts with other FL packages
+def _import_from_package(module_name, file_name):
+    """Import a module from our package specifically."""
+    module_path = os.path.join(_PACKAGE_ROOT, "fl_utils", f"{file_name}.py")
+    spec = importlib.util.spec_from_file_location(f"songgen_{module_name}", module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+# Import our modules
+_songgen_wrapper = _import_from_package("songgen_wrapper", "songgen_wrapper")
+_audio_utils = _import_from_package("audio_utils", "audio_utils")
+
+SongGenWrapper = _songgen_wrapper.SongGenWrapper
+empty_audio = _audio_utils.empty_audio
+
+
+class FL_SongGen_Generate:
+    """
+    Generate a song from lyrics with optional text description conditioning.
+
+    This is the main generation node. Provide formatted lyrics and optionally
+    a style description to generate a complete song with vocals and instruments.
+    """
+
+    RETURN_TYPES = ("AUDIO", "AUDIO", "AUDIO")
+    RETURN_NAMES = ("mixed_audio", "vocal_audio", "bgm_audio")
+    FUNCTION = "generate"
+    CATEGORY = "FL Song Gen"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (
+                    "SONGGEN_MODEL",
+                    {
+                        "tooltip": "Loaded SongGeneration model"
+                    }
+                ),
+                "lyrics": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "[intro-short] ; [verse] Hello world.This is a test ; [chorus] Singing along.Making music ; [outro-short]",
+                        "tooltip": "Formatted lyrics with section tags"
+                    }
+                ),
+            },
+            "optional": {
+                "description": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "tooltip": "Style description (e.g., 'female, pop, emotional, piano and drums')"
+                    }
+                ),
+                "duration": (
+                    "FLOAT",
+                    {
+                        "default": 60.0,
+                        "min": 30.0,
+                        "max": 270.0,
+                        "step": 5.0,
+                        "tooltip": "Target duration in seconds (max depends on model variant)"
+                    }
+                ),
+                "temperature": (
+                    "FLOAT",
+                    {
+                        "default": 0.9,
+                        "min": 0.1,
+                        "max": 2.0,
+                        "step": 0.05,
+                        "tooltip": "Sampling temperature (higher = more random)"
+                    }
+                ),
+                "cfg_coef": (
+                    "FLOAT",
+                    {
+                        "default": 1.5,
+                        "min": 0.5,
+                        "max": 5.0,
+                        "step": 0.1,
+                        "tooltip": "Classifier-free guidance strength"
+                    }
+                ),
+                "top_k": (
+                    "INT",
+                    {
+                        "default": 50,
+                        "min": 1,
+                        "max": 500,
+                        "step": 10,
+                        "tooltip": "Top-k sampling (lower = more focused)"
+                    }
+                ),
+                "gen_type": (
+                    ["mixed", "separate", "vocal", "bgm"],
+                    {
+                        "default": "mixed",
+                        "tooltip": "Output type: mixed (combined), separate (all tracks), vocal only, or bgm only"
+                    }
+                ),
+                "seed": (
+                    "INT",
+                    {
+                        "default": -1,
+                        "min": -1,
+                        "max": 2147483647,
+                        "tooltip": "Random seed (-1 for random)"
+                    }
+                ),
+            }
+        }
+
+    def generate(
+        self,
+        model: dict,
+        lyrics: str,
+        description: str = "",
+        duration: float = 60.0,
+        temperature: float = 0.9,
+        cfg_coef: float = 1.5,
+        top_k: int = 50,
+        gen_type: str = "mixed",
+        seed: int = -1
+    ) -> Tuple[dict, dict, dict]:
+        """
+        Generate song from lyrics and optional description.
+
+        Args:
+            model: Loaded model info dict
+            lyrics: Formatted lyrics with section tags
+            description: Style description
+            duration: Target duration in seconds
+            temperature: Sampling temperature
+            cfg_coef: Classifier-free guidance strength
+            top_k: Top-k sampling parameter
+            gen_type: Output type (mixed, separate, vocal, bgm)
+            seed: Random seed
+
+        Returns:
+            (mixed_audio, vocal_audio, bgm_audio) as ComfyUI AUDIO dicts
+        """
+        print(f"\n{'='*60}")
+        print(f"[FL SongGen] Starting Generation")
+        print(f"{'='*60}")
+        print(f"Duration: {duration}s")
+        print(f"Temperature: {temperature}")
+        print(f"CFG: {cfg_coef}")
+        print(f"Top-K: {top_k}")
+        print(f"Gen Type: {gen_type}")
+        print(f"Seed: {seed}")
+        print(f"Description: {description[:50]}..." if description else "Description: None")
+        print(f"Lyrics: {lyrics[:50]}...")
+        print(f"{'='*60}\n")
+
+        # Validate duration against model limits
+        max_dur = model.get("max_duration", 150)
+        if duration > max_dur:
+            print(f"[FL SongGen] WARNING: Duration {duration}s exceeds model max {max_dur}s, clamping.")
+            duration = max_dur
+
+        # Create wrapper and set up progress bar
+        wrapper = SongGenWrapper(model)
+
+        # Progress bar will be created on first callback with actual total
+        pbar_holder = [None]
+        actual_total = [0]
+
+        def progress_callback(current, total):
+            if pbar_holder[0] is None:
+                pbar_holder[0] = ProgressBar(total)
+                actual_total[0] = total
+            pbar_holder[0].update_absolute(current)
+            if current % 100 == 0:
+                print(f"[FL SongGen] Progress: {current}/{total} tokens")
+
+        wrapper.set_progress_callback(progress_callback)
+
+        # Generate
+        try:
+            mixed_audio, vocal_audio, bgm_audio = wrapper.generate(
+                lyrics=lyrics,
+                description=description if description.strip() else None,
+                duration=duration,
+                temperature=temperature,
+                cfg_coef=cfg_coef,
+                top_k=top_k,
+                gen_type=gen_type,
+                seed=seed,
+            )
+
+            # Ensure progress completes
+            if pbar_holder[0] is not None:
+                pbar_holder[0].update_absolute(actual_total[0])
+
+            print(f"\n{'='*60}")
+            print(f"[FL SongGen] Generation Complete!")
+            print(f"Mixed Audio: {mixed_audio['waveform'].shape}, {mixed_audio['sample_rate']}Hz")
+            if gen_type == 'separate':
+                print(f"Vocal Audio: {vocal_audio['waveform'].shape}")
+                print(f"BGM Audio: {bgm_audio['waveform'].shape}")
+            print(f"{'='*60}\n")
+
+            return (mixed_audio, vocal_audio, bgm_audio)
+
+        except Exception as e:
+            print(f"\n{'='*60}")
+            print(f"[FL SongGen] ERROR: Generation failed!")
+            print(f"Error: {e}")
+            print(f"{'='*60}\n")
+
+            # Return empty audio on error
+            sample_rate = model.get("sample_rate", 24000)
+            return (
+                empty_audio(sample_rate),
+                empty_audio(sample_rate),
+                empty_audio(sample_rate)
+            )

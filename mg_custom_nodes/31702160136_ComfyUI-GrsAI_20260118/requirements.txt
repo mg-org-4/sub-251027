@@ -1,8 +1,0 @@
-requests
-python-dotenv
-fal-client
-httpx
-httpcore
-Pillow
-numpy
-torch

@@ -1,0 +1,21 @@
+__pycache__/
+.pytest_cache/
+settings.json
+path_mappings.yaml
+output/*
+py/run_test.py
+.vscode/
+cache/
+civitai/
+node_modules/
+coverage/
+.coverage
+model_cache/
+
+# agent
+.opencode/
+
+# Vue widgets development cache (but keep build output)
+vue-widgets/node_modules/
+vue-widgets/.vite/
+vue-widgets/dist/

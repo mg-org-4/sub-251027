@@ -1,0 +1,29 @@
+name: Publish to Comfy registry
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - "pyproject.toml"
+
+permissions:
+  issues: write
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+  tests_with_comfy:
+    uses: ./.github/workflows/tests_with_comfy.yml
+  publish-node:
+    name: Publish Custom Node to registry
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'asagi4' }}
+    needs: [tests, tests_with_comfy]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Publish Custom Node
+        uses: Comfy-Org/publish-node-action@v1
+        with:
+          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}

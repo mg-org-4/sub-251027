@@ -1,0 +1,1360 @@
+{
+  "id": "90b505ef-e012-49e3-b52f-7785d594687d",
+  "revision": 0,
+  "last_node_id": 30,
+  "last_link_id": 37,
+  "nodes": [
+    {
+      "id": 12,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        644.0239841196558,
+        -354.3081410800077
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 36
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "version": "7.5.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "QWEN\\Qwen-Image-Lightning-8steps-V1.0.safetensors",
+        1
+      ],
+      "ndSuperSelectorEnabled": false,
+      "ndPowerEnabled": false
+    },
+    {
+      "id": 10,
+      "type": "VAEEncode",
+      "pos": [
+        953.4717999711048,
+        -355.6999223078739
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 15
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "VAEEncode",
+        "ue_properties": {
+          "version": "7.5.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 13,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        1042.0040135497372,
+        -207.15373697183819
+      ],
+      "size": [
+        197.712890625,
+        26
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "ConditioningZeroOut",
+        "ue_properties": {
+          "version": "7.5.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 5,
+      "type": "KSampler",
+      "pos": [
+        1285.0049908213587,
+        -367.0989352755915
+      ],
+      "size": [
+        270,
+        262
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 18
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 4
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 20
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "KSampler",
+        "ue_properties": {
+          "version": "7.5.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        520501940428786,
+        "randomize",
+        8,
+        1,
+        "heun",
+        "beta57",
+        1
+      ]
+    },
+    {
+      "id": 7,
+      "type": "VAEDecode",
+      "pos": [
+        1595.644407381857,
+        -354.22357897066667
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "VAEDecode",
+        "ue_properties": {
+          "version": "7.5.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 14,
+      "type": "SaveImage",
+      "pos": [
+        1339.408257031673,
+        -42.357345335487985
+      ],
+      "size": [
+        969.0353921676067,
+        530.1054687722498
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 21
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "SaveImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "ComfyUI"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "LoadImage",
+      "pos": [
+        -103.82081240670405,
+        668.559664096013
+      ],
+      "size": [
+        274.080078125,
+        314
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            23
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "231030083831-unseen-monet-auction.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 24,
+      "type": "String",
+      "pos": [
+        -596.9769121027624,
+        413.98692846649965
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            30
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyLiterals",
+        "ver": "bdddb08ca82d90d75d97b1d437a652e0284a32ac",
+        "Node name for S&R": "String",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "zwxem style painting of a lady and a toddler sitting on the ground in front of a field of flowers"
+      ]
+    },
+    {
+      "id": 16,
+      "type": "LoadImage",
+      "pos": [
+        -589.5224025087299,
+        660.4964748668735
+      ],
+      "size": [
+        274.080078125,
+        314
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            22
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "Monet-Camille.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 18,
+      "type": "LoadImage",
+      "pos": [
+        -610.8275927650743,
+        1287.4669040547055
+      ],
+      "size": [
+        274.080078125,
+        314.0000000000001
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            24
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "fd4a2b62395c7281b28501fdc14421d6.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 19,
+      "type": "LoadImage",
+      "pos": [
+        -102.40744126249416,
+        1316.8032532463665
+      ],
+      "size": [
+        274.080078125,
+        314.0000000000001
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            25
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "Claude-Monet-San-Giorgio-Maggiore-at-Dusk_2048x.webp",
+        "image"
+      ]
+    },
+    {
+      "id": 25,
+      "type": "String",
+      "pos": [
+        -123.3961657587644,
+        406.54673166090674
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            31
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyLiterals",
+        "ver": "bdddb08ca82d90d75d97b1d437a652e0284a32ac",
+        "Node name for S&R": "String",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "zwxem style painting of water lillys AND lily pads floating in a pond"
+      ]
+    },
+    {
+      "id": 27,
+      "type": "String",
+      "pos": [
+        -139.31324243708207,
+        1069.6570639545303
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            33
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyLiterals",
+        "ver": "bdddb08ca82d90d75d97b1d437a652e0284a32ac",
+        "Node name for S&R": "String",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "zwxem style painting of the silhouette of a town on the edge of a lake at sunset."
+      ]
+    },
+    {
+      "id": 26,
+      "type": "String",
+      "pos": [
+        -645.031163862195,
+        1055.3269163503353
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            32
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyLiterals",
+        "ver": "bdddb08ca82d90d75d97b1d437a652e0284a32ac",
+        "Node name for S&R": "String",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "zwxem style painting of a lady in a white dress standing in the grass holding an umbrella. blue sky behind her. A small child is also behind her."
+      ]
+    },
+    {
+      "id": 6,
+      "type": "UNETLoader",
+      "pos": [
+        3.9451035142017754,
+        -393.7557962222563
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            35
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "UNETLoader",
+        "ue_properties": {
+          "version": "7.5.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+        "default"
+      ],
+      "ndSuperSelectorEnabled": false,
+      "ndPowerEnabled": false
+    },
+    {
+      "id": 4,
+      "type": "LoadImage",
+      "pos": [
+        327.4657185202677,
+        40.13457054590721
+      ],
+      "size": [
+        678.1082540771511,
+        453.8758513671887
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            14
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "version": "7.5.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "womanwalking.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 1,
+      "type": "TextEncodeQwenImageEdit",
+      "pos": [
+        635.4607776543927,
+        -225.86330686346383
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 2
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            4,
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "TextEncodeQwenImageEdit",
+        "ue_properties": {
+          "version": "7.5.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "turn the photo of a woman into a zwxem style painting"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "ImageScaleToTotalPixels",
+      "pos": [
+        1055.901256671691,
+        29.179887216972233
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            15,
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "ImageScaleToTotalPixels",
+        "ue_properties": {
+          "version": "7.5.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "nearest-exact",
+        1
+      ]
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        12.939562452497324,
+        -266.96841174320457
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "CLIPLoader",
+        "ue_properties": {
+          "version": "7.5.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+        "qwen_image",
+        "default"
+      ],
+      "ndSuperSelectorEnabled": false,
+      "ndPowerEnabled": false
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        9.734899243175214,
+        -111.00086603628145
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            2,
+            8,
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.50",
+        "Node name for S&R": "VAELoader",
+        "ue_properties": {
+          "version": "7.5.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen_image_vae.safetensors"
+      ],
+      "ndSuperSelectorEnabled": false,
+      "ndPowerEnabled": false
+    },
+    {
+      "id": 28,
+      "type": "ApplyTrainedLora",
+      "pos": [
+        301.78272972943705,
+        -600.4167828704855
+      ],
+      "size": [
+        270,
+        98
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 35
+        },
+        {
+          "name": "lora_path",
+          "type": "STRING",
+          "link": 34
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            36
+          ]
+        },
+        {
+          "name": "lora_name",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "lora_path",
+          "type": "STRING",
+          "links": [
+            37
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ShootTheSound/comfyUI-Realtime-Lora",
+        "ver": "bf44ba8ffde7ac74b4b270040180622c05c02b89",
+        "Node name for S&R": "ApplyTrainedLora",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        1
+      ]
+    },
+    {
+      "id": 29,
+      "type": "ShowText|pysssss",
+      "pos": [
+        588.5406890814451,
+        -597.5089417077055
+      ],
+      "size": [
+        253.14566331300148,
+        96.37108328003751
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 37
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Where The Lora is Saved",
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "s:\\auto\\musubi-tuner\\output\\MyQwenLora_20251211_222716.safetensors"
+      ]
+    },
+    {
+      "id": 30,
+      "type": "Note",
+      "pos": [
+        781.2371667840914,
+        884.5793548393024
+      ],
+      "size": [
+        449.0808363672162,
+        371.84048669192384
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "\nPath to you msubi tuner install\n\nSelect model mode ( this workflow is for normal loras without control images for Qwen image or Qwen image edit, depending on what you choose in the model mode input)\n\nQwen Image Edit model you need for training:\nhttps://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/blob/main/split_files/diffusion_models/qwen_image_edit_2509_bf16.safetensors\n\nQwen image model you need for training:\n\nhttps://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/blob/main/split_files/diffusion_models/qwen_image_bf16.safetensors\n\nYour Qwen image vae\n\nQwen image Text encoder, qwen_2.5_vl_7b.safetensors  (not fp8 etc)\nhttps://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/blob/main/split_files/text_encoders/qwen_2.5_vl_7b.safetensors\n\n______\nNote the Agressive block swapping, feel free to lower!!\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 15,
+      "type": "MusubiQwenImageLoraTrainer",
+      "pos": [
+        315.5647405985797,
+        689.4892417234134
+      ],
+      "size": [
+        431.866796875,
+        588
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 22
+        },
+        {
+          "name": "caption_1",
+          "shape": 7,
+          "type": "STRING",
+          "link": 30
+        },
+        {
+          "name": "image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 23
+        },
+        {
+          "name": "caption_2",
+          "shape": 7,
+          "type": "STRING",
+          "link": 31
+        },
+        {
+          "name": "image_3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 24
+        },
+        {
+          "name": "caption_3",
+          "shape": 7,
+          "type": "STRING",
+          "link": 32
+        },
+        {
+          "name": "image_4",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 25
+        },
+        {
+          "name": "caption_4",
+          "shape": 7,
+          "type": "STRING",
+          "link": 33
+        }
+      ],
+      "outputs": [
+        {
+          "name": "lora_path",
+          "type": "STRING",
+          "links": [
+            34
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ShootTheSound/comfyUI-Realtime-Lora",
+        "ver": "bf44ba8ffde7ac74b4b270040180622c05c02b89",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        },
+        "Node name for S&R": "MusubiQwenImageLoraTrainer"
+      },
+      "widgets_values": [
+        4,
+        "",
+        "",
+        "s:\\auto\\musubi-tuner",
+        "Qwen-Image-Edit-2509",
+        "qwen_image_edit_2509_bf16.safetensors",
+        "qwen_image_vae.safetensors",
+        "qwen_2.5_vl_7b.safetensors",
+        "",
+        500,
+        0.0003,
+        16,
+        "Low (512px) fp8",
+        "40",
+        "MyQwenLora",
+        "MyQwenLora"
+      ],
+      "ndSuperSelectorEnabled": false,
+      "ndPowerEnabled": false
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      1,
+      0,
+      "CLIP"
+    ],
+    [
+      2,
+      3,
+      0,
+      1,
+      1,
+      "VAE"
+    ],
+    [
+      4,
+      1,
+      0,
+      5,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      5,
+      0,
+      7,
+      0,
+      "LATENT"
+    ],
+    [
+      8,
+      3,
+      0,
+      7,
+      1,
+      "VAE"
+    ],
+    [
+      12,
+      3,
+      0,
+      10,
+      1,
+      "VAE"
+    ],
+    [
+      13,
+      10,
+      0,
+      5,
+      3,
+      "LATENT"
+    ],
+    [
+      14,
+      4,
+      0,
+      11,
+      0,
+      "IMAGE"
+    ],
+    [
+      15,
+      11,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ],
+    [
+      16,
+      11,
+      0,
+      1,
+      2,
+      "IMAGE"
+    ],
+    [
+      18,
+      12,
+      0,
+      5,
+      0,
+      "MODEL"
+    ],
+    [
+      19,
+      1,
+      0,
+      13,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      20,
+      13,
+      0,
+      5,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      21,
+      7,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ],
+    [
+      22,
+      16,
+      0,
+      15,
+      0,
+      "IMAGE"
+    ],
+    [
+      23,
+      17,
+      0,
+      15,
+      2,
+      "IMAGE"
+    ],
+    [
+      24,
+      18,
+      0,
+      15,
+      4,
+      "IMAGE"
+    ],
+    [
+      25,
+      19,
+      0,
+      15,
+      6,
+      "IMAGE"
+    ],
+    [
+      30,
+      24,
+      0,
+      15,
+      1,
+      "STRING"
+    ],
+    [
+      31,
+      25,
+      0,
+      15,
+      3,
+      "STRING"
+    ],
+    [
+      32,
+      26,
+      0,
+      15,
+      5,
+      "STRING"
+    ],
+    [
+      33,
+      27,
+      0,
+      15,
+      7,
+      "STRING"
+    ],
+    [
+      34,
+      15,
+      0,
+      28,
+      1,
+      "STRING"
+    ],
+    [
+      35,
+      6,
+      0,
+      28,
+      0,
+      "MODEL"
+    ],
+    [
+      36,
+      28,
+      0,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
+      37,
+      28,
+      2,
+      29,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.7972024500000038,
+      "offset": [
+        142.13746975099141,
+        -179.87826298507719
+      ]
+    },
+    "frontendVersion": "1.32.9",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "workflowRendererVersion": "LG"
+  },
+  "version": 0.4
+}

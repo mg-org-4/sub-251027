@@ -1,0 +1,16 @@
+{
+  "type": "module",
+  "scripts": {
+    "test": "env-cmd -e test -- jest"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.27.1",
+    "@babel/preset-env": "^7.27.2",
+    "babel-jest": "^30.2.0",
+    "env-cmd": "^10.1.0",
+    "jest": "^30.2.0",
+    "stylelint": "^16.19.1",
+    "stylelint-config-idiomatic-order": "^10.0.0",
+    "stylelint-config-standard": "^38.0.0"
+  }
+}

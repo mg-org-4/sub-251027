@@ -1,5 +1,0 @@
-pyjwt
-httpx
-pydantic
-pillow
-numpy

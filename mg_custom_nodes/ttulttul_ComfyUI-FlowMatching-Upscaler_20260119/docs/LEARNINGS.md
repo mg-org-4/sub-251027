@@ -1,0 +1,91 @@
+# Learnings
+
+- Implementing progressive flow-matching upscaling inside ComfyUI is easiest when
+  delegating denoising to `nodes.common_ksampler`, which already supports flow
+  models via `ModelType.FLOW`.
+- Flow-style re-noising works well with ComfyUI latents by generating CPU noise
+  seeds through `torch.Generator(device="cpu")`, keeping parity with core noise
+  preparation utilities.
+- A lightweight dilated refinement pass can be approximated by running a
+  downsampled sampling pass and blending it back, yielding a simple but effective
+  global coherence improvement without reproducing DemoFusion's full dilation logic.
+- Providing an optional clean-up stage (no scaling, zero skip blend) helps remove
+  interpolation artifacts after progressive upscaling while keeping control over
+  added noise and denoising strength.
+- An exponential skip schedule (high early weight tapering toward zero) keeps
+  structure stable in early passes while letting later stages and optional clean-up
+  add detail without reintroducing latent artifacts.
+- Exposing a per-stage node mirrors the progressive pipeline while allowing
+  ComfyUI’s existing cache to short-circuit unchanged stages, speeding up
+  iteration on late-stage parameters.
+- Splitting a stage into a pure-prep node (upscale + flow re-noise) and a pure-merge
+  node (skip blend) makes the approach modular and lets ComfyUI’s built-in
+  `SamplerCustom` / `SamplerCustomAdvanced` handle sampling, sigmas, guiders, and
+  alternative samplers without duplicating sampler logic in this repository.
+- Shipping a lightweight frontend extension lets custom nodes hook into ComfyUI’s
+  live preview events so users retain the familiar inline thumbnail experience.
+- Progressive stages currently invoke `common_ksampler` on the full latent; to
+  make ultra-high resolutions practical we need an automatic fallback (e.g.
+  tiling or attention chunking) when `comfy.model_management` reports
+  insufficient VRAM.
+- Throttling the reported free VRAM (and temporarily forcing LOW_VRAM streaming)
+  nudges ComfyUI’s attention kernels into smaller chunks; wiring this in as an
+  automatic fallback keeps the full-scene conditioning intact while stretching
+  sampling time to fit tight memory budgets.
+- When running beyond a model's native training resolution, enabling the dilated
+  refinement pass reliably suppresses the over-sharp "hallucinated pore" detail
+  by re-sampling a low-pass-filtered latent before blending it back.
+- When running tests outside ComfyUI we must hydrate comprehensive stubs for
+  `comfy.utils` and `comfy.model_management` (including VRAM controls and
+  samplers) so the node module imports successfully without ComfyUI’s runtime.
+- Channel-wise diagnostics surfaced via DEBUG logging helped confirm that the
+  skip and dilated blends maintain stable statistics across the 16 latent
+  channels, providing a foundation for future per-channel mixing experiments.
+- Visualizing the per-channel means/stds directly inside ComfyUI via a
+  `LATENT`→`IMAGE` helper node makes it easier to spot channels worth gating,
+  and the rendering math is lightweight enough to run in pure NumPy without
+  pulling matplotlib into the dependency tree. Adding inline axis ticks and
+  channel indices removed the guesswork when correlating bars with latent
+  channels.
+- Loading DyPE’s Qwen Image patch locally (outside of ComfyUI’s package loader)
+  required explicit import fallbacks and dynamic module loading so both pytest
+  stubs and the live runtime share a single implementation without relying on
+  the ambient `src` namespace.
+- Progressive stages must resize any accompanying `noise_mask` in lockstep with
+  the latent—otherwise sampler inputs drift after the first upscale. Keeping
+  the mask synchronized per stage (and covering it with targeted tests) guards
+  inpaint workflows against subtle misalignment bugs.
+- Pytest needs a richer `ModelPatcher` stub (diffusion model, embedder, and sampler)
+  so DyPE helpers can exercise their patches without tripping ValueErrors; mirroring
+  the live attributes in the shared test fixture keeps individual test modules simple.
+- Collapsing dilated refinement onto the FFT-based frequency blend removed the
+  method selector surface area—our tests now focus on validating that helper and the
+  multi-frame lerp fallback instead of juggling several legacy modes.
+- Comfy's runtime enforces that `model_sampling` children are `nn.Module` instances,
+  so our DyPE wrapper now subclasses `torch.nn.Module` to satisfy `ModelPatcher` and
+  GPU loading without mutating the wrapped sampler.
+- A cloth-like latent deformation can be approximated by dragging a sparse subset of
+  vertices on a coarse 2D mesh, upsampling the resulting displacement field, and
+  applying it with `torch.nn.functional.grid_sample` so the warp stays smooth while
+  remaining deterministic via per-batch seeded vertex selection.
+- Extending the same warp to ComfyUI `IMAGE` tensors mainly requires handling BHWC
+  vs NCHW layouts; keeping the mesh resolution coarse (and drag distances larger)
+  helps preserve the "fabric" feel at full image resolutions.
+- Offering a B-spline-smoothed displacement interpolation (bicubic upsample + separable
+  cubic B-spline blur passes) makes mesh drags feel more organic without the cost and
+  instability of full thin-plate-spline warps at high point counts.
+- Splitting mesh-drag + latent diagnostic nodes into a standalone `Skoogeer-Noise` pack
+  keeps this repository focused on flow-matching upscaling + DyPE while letting the
+  perturbation/debug helpers evolve independently.
+- A covariance-aware latent upscale can be implemented cheaply with global PCA whitening
+  (estimate μ/Σ → whiten → upscale → re-color) plus an optional moment-matching pass to
+  restore the target mean/covariance after interpolation; using `torch.linalg.eigh`
+  keeps the transform stable even when the sample covariance is only semi-definite.
+- ComfyUI’s `common_upscale(..., upscale_method="lanczos")` path uses PIL and clamps to
+  image-like ranges, making it unsafe for `LATENT` tensors; treat it as a deprecated
+  alias for `bicubic` when resizing latents.
+- Any global linear transform applied on the channel axis (e.g., PCA whitening) commutes
+  with per-channel linear spatial interpolation kernels (nearest/bilinear/bicubic/area),
+  so `whiten → linear_upscale → recolor` is algebraically identical to directly upscaling
+  the latent; only non-linear methods (e.g., `bislerp`) or per-component kernels can
+  produce a materially different result.

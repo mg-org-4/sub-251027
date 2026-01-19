@@ -1,0 +1,138 @@
+{
+  "last_node_id": 11,
+  "last_link_id": 11,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadAudio",
+      "pos": [
+        -199.86219787597656,
+        -357.5240173339844
+      ],
+      "size": [
+        338.2475891113281,
+        126.5556869506836
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            5
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "",
+        null,
+        ""
+      ]
+    },
+    {
+      "id": 7,
+      "type": "NTCosyVoiceCrossLingualSampler",
+      "pos": [
+        289.2545471191406,
+        -318.1132507324219
+      ],
+      "size": [
+        518.6781005859375,
+        169.7455596923828
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "tts_speech",
+          "type": "AUDIO",
+          "links": [
+            6
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "NTCosyVoiceCrossLingualSampler"
+      },
+      "widgets_values": [
+        1.1,
+        "Logic is the order of thought and the reasoning of reason. Everything we see in the world has its internal order and order, and this is where logic lies. In the field of thinking, logic is our weapon to grasp truth and distinguish right from wrong. It teaches us to organize our thoughts in a clear way, to support our arguments with conclusive evidence, and to arrive at rational conclusions. Specifically, logic includes two categories: deductive reasoning and inductive reasoning. The deductive reasoner deduces special conclusions from general principles by general and individual methods. The process is like the derivation of unknown effects from known causes, step by step, impeccable. Inductive reasoning does the opposite, from the individual and the general, and extracts general laws from particular facts. These two complement each other and constitute the core of logic. Our scholars study logic in order to develop clear thinking, rigorous attitude and accurate expression. As individuals, logic enables us to better understand the world and grasp ourselves. For society, logic is the cornerstone of promoting civilization and progress and maintaining fairness and justice. Therefore, the study of logic is the indispensable wisdom of life."
+      ]
+    },
+    {
+      "id": 8,
+      "type": "PreviewAudio",
+      "pos": [
+        953.0675659179688,
+        -304.42449951171875
+      ],
+      "size": [
+        433.8606262207031,
+        167.7429962158203
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 6
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": [
+        null
+      ]
+    }
+  ],
+  "links": [
+    [
+      5,
+      1,
+      0,
+      7,
+      0,
+      "AUDIO"
+    ],
+    [
+      6,
+      7,
+      0,
+      8,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.2839025177495025,
+      "offset": [
+        493.2809123871739,
+        820.31454385171
+      ]
+    }
+  },
+  "version": 0.4
+}

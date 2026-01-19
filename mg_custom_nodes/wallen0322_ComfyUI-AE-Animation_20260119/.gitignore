@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Build outputs
+# Note: js/vue-dist/ is NOT ignored - it's needed at runtime
+web/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+demo.html
+
+# Node.js portable installation
+node-v*/
+
+# Local only directories (keep locally but don't track in git)
+ComfyUI-AudioMass-master/
+backup/js_legacy/
+**/backup/
+**/*backup*/
+
+# Local only files (keep locally but don't track in git)
+QUICK_FIX.md
+tmp_script.txt
+布局参考.html.kiro/

@@ -1,3 +1,0 @@
-[33m2aa11b7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m v1.5.0: 修复Image Concatenate Multi节点无效输入处理问题
-[33m6a8be76[m 移除Image Blend Advance节点中的V3标记
-[33m2dface4[m v1.3.7: 新增Image Blend Advance V3节点和Crop By Mask功能增强

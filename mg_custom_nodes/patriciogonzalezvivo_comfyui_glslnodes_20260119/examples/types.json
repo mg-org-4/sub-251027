@@ -1,0 +1,297 @@
+{
+  "last_node_id": 52,
+  "last_link_id": 35,
+  "nodes": [
+    {
+      "id": 52,
+      "type": "glslEditorPro",
+      "pos": [
+        38,
+        49
+      ],
+      "size": {
+        "0": 627.7122192382812,
+        "1": 453.7166442871094
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "GLSL_CODE",
+          "type": "GLSL_CODE",
+          "links": [
+            35
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "glslEditorPro"
+      },
+      "widgets_values": [
+        "120",
+        "fragment",
+        "uniform vec2    u_resolution;\nuniform float   u_time;\nuniform float   u_fps;\nuniform int     u_frame;\n\nuniform vec2    u_val0;\nuniform vec3    u_val1;\nuniform vec4    u_val2;\n\n#include \"lygia/draw/circle.glsl\"\n\nvoid main() {\n    vec4 color = vec4(0.0, 0.0, 0.0, 1.0);\n    vec2 pixel = 1.0 / u_resolution;\n    vec2 st = gl_FragCoord.xy * pixel;\n\n    color = u_val2 * circle(st - u_val0, 0.25);\n\n    gl_FragColor = color;\n}\n",
+        null
+      ]
+    },
+    {
+      "id": 50,
+      "type": "vec2 (pos)",
+      "pos": [
+        45,
+        552
+      ],
+      "size": {
+        "0": 249.29823303222656,
+        "1": 248
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "vec2",
+          "type": "VEC2",
+          "links": [
+            32
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "vec2 (pos)"
+      },
+      "widgets_values": [
+        [
+          0.13448238308130733,
+          -0.1710212685774769
+        ]
+      ]
+    },
+    {
+      "id": 49,
+      "type": "vec4 (color)",
+      "pos": [
+        603,
+        559
+      ],
+      "size": {
+        "0": 235.6122283935547,
+        "1": 248
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "vec4",
+          "type": "VEC4",
+          "links": [
+            34
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "vec4 (color)"
+      },
+      "widgets_values": [
+        [
+          0.21667764866614192,
+          0.9341315273269704,
+          1,
+          1
+        ]
+      ]
+    },
+    {
+      "id": 23,
+      "type": "glslViewer",
+      "pos": [
+        771,
+        61
+      ],
+      "size": {
+        "0": 210,
+        "1": 210
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "fragment_code",
+          "type": "GLSL_CODE",
+          "link": 35
+        },
+        {
+          "name": "u_val0",
+          "type": "VEC2",
+          "link": 32
+        },
+        {
+          "name": "u_val1",
+          "type": "VEC3",
+          "link": 33
+        },
+        {
+          "name": "u_val2",
+          "type": "VEC4",
+          "link": 34
+        },
+        {
+          "name": "...",
+          "type": "*",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            26
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "glslViewer"
+      },
+      "widgets_values": [
+        512,
+        512,
+        1,
+        30
+      ]
+    },
+    {
+      "id": 17,
+      "type": "PreviewImage",
+      "pos": [
+        1004,
+        58
+      ],
+      "size": {
+        "0": 534.7122192382812,
+        "1": 569.7166137695312
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 26
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 51,
+      "type": "vec3 (pos)",
+      "pos": [
+        340,
+        557
+      ],
+      "size": {
+        "0": 210,
+        "1": 248
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "vec3",
+          "type": "VEC3",
+          "links": [
+            33
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "vec3 (pos)"
+      },
+      "widgets_values": [
+        [
+          35.96893659454342,
+          -4.456829004382285,
+          -6.681730358865201
+        ]
+      ]
+    }
+  ],
+  "links": [
+    [
+      26,
+      23,
+      0,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      32,
+      50,
+      0,
+      23,
+      1,
+      "*"
+    ],
+    [
+      33,
+      51,
+      0,
+      23,
+      2,
+      "*"
+    ],
+    [
+      34,
+      49,
+      0,
+      23,
+      3,
+      "*"
+    ],
+    [
+      35,
+      52,
+      0,
+      23,
+      0,
+      "GLSL_CODE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.2100000000000002,
+      "offset": {
+        "0": -5.241152374014568,
+        "1": 3.5469971757361414
+      }
+    }
+  },
+  "version": 0.4
+}

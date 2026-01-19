@@ -1,0 +1,170 @@
+{
+  "id": "1bdf3102-d885-48d7-a81a-c39d859ff290",
+  "revision": 0,
+  "last_node_id": 74,
+  "last_link_id": 156,
+  "nodes": [
+    {
+      "id": 74,
+      "type": "HYPIRAdvancedRestoration",
+      "pos": [
+        225.91134643554688,
+        -623.5591430664062
+      ],
+      "size": [
+        400,
+        468
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 154
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            155
+          ]
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "11dogzi/Comfyui-HYPIR",
+        "ver": "d86502c5c03a4a75c6f5a4ab18a0d58a6ca80696",
+        "Node name for S&R": "HYPIRAdvancedRestoration"
+      },
+      "widgets_values": [
+        "high quality, detailed",
+        2,
+        1031253296619646,
+        "randomize",
+        "HYPIR_sd2",
+        "stable-diffusion-2-1-base",
+        200,
+        120,
+        256,
+        256,
+        1024,
+        1024,
+        1,
+        512,
+        64
+      ]
+    },
+    {
+      "id": 69,
+      "type": "LoadImage",
+      "pos": [
+        -67.58219146728516,
+        -620.9889526367188
+      ],
+      "size": [
+        270,
+        314
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            154
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.47",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "666666.png",
+        "image"
+      ]
+    },
+    {
+      "id": 70,
+      "type": "PreviewImage",
+      "pos": [
+        660.819580078125,
+        -620.5828857421875
+      ],
+      "size": [
+        552.0593872070312,
+        604.2393798828125
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 155
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.47",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      154,
+      69,
+      0,
+      74,
+      0,
+      "IMAGE"
+    ],
+    [
+      155,
+      74,
+      0,
+      70,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.2284597357367404,
+      "offset": [
+        270.7360183783545,
+        884.1645563623699
+      ]
+    },
+    "frontendVersion": "1.23.4",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4,
+  "metadata": {}
+}

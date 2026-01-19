@@ -1,0 +1,11 @@
+[
+  {
+    "triggers": ["*rainy*"],
+    "actions": [
+      {
+        "type": "add",
+        "value": "wet, wet hair"
+      }
+    ]
+  }
+]

@@ -1,0 +1,16 @@
+.idea
+.github
+/!Examples/
+wildcards
+stylecsv
+consoletests
+*.safetensors
+reqgen.py
+front_end/images
+Nodes/.cache
+Workflow/Primere_final_workflow.json
+Workflow/Primere_final_workflow-temp.json
+Toml/prompts.toml
+ghtoken.txt
+json/llm_enhancer_config.json
+Nodes/Downloads/LLM

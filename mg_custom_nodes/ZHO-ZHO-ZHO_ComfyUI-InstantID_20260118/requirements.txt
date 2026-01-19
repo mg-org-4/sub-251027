@@ -1,6 +1,0 @@
-opencv-python 
-transformers 
-accelerate 
-insightface
-diffusers
-onnxruntime-gpu

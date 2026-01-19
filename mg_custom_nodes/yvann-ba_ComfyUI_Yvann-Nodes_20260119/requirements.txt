@@ -1,0 +1,8 @@
+numpy
+torch
+openunmix
+matplotlib
+pillow
+torchaudio
+termcolor
+scipy

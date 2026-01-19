@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-scene-composer"
+description = "A collection of nodes to facilitate the creation of explicit NSFW scenes in ComfyUI."
+version = "0.3.0"
+license = { file = "LICENSE" }
+dependencies = ["dpath", "numpy", "toml"]
+
+[project.urls]
+Repository = "https://github.com/taches-ai/comfyui-scene-composer"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "taches"
+DisplayName = "🎞️ Scene Composer"
+Icon = ""

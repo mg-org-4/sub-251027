@@ -1,0 +1,8 @@
+# 人物类型选项 / Character Options
+模特 (Model)
+运动员 (Athlete)
+舞者 (Dancer)
+歌手 (Singer)
+学生 (Student)
+上班族 (Office Worker)
+COSER (Cosplayer)

@@ -1,0 +1,13 @@
+[project]
+name = "flux-lightning"
+description = "Accelerate FLUX inferencing speed for ComfyUI."
+version = "1.3.3"
+license = { file = "LICENSE.txt" }
+
+[project.urls]
+Repository = "https://github.com/shenduldh/ComfyUI-Lightning"
+
+[tool.comfy]
+PublisherId = "daking"
+DisplayName = "ComfyUI-Lightning"
+Icon = ""

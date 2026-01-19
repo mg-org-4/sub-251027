@@ -1,1 +1,0 @@
-# put cloth_segm.pth here 

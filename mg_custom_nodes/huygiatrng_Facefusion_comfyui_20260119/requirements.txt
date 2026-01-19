@@ -1,0 +1,5 @@
+httpx
+httpx-retries
+opencv-python
+onnx
+onnxruntime-gpu

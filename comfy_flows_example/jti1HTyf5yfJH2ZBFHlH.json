@@ -1,0 +1,3837 @@
+{
+  "last_link_id": 624,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            414
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "size": [
+        258.00152587890625,
+        58
+      ],
+      "pos": [
+        9152.037109375,
+        159.55690002441406
+      ],
+      "widgets_values": [
+        "auto"
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 412,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "sage_attention"
+          },
+          "name": "sage_attention",
+          "label": "sage_attention",
+          "type": "COMBO",
+          "localized_name": "sage_attention"
+        }
+      ],
+      "flags": {},
+      "id": 282,
+      "type": "PathchSageAttentionKJ",
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "a6b867b63a29ca48ddb15c589e17a9f2d8530d57",
+        "widget_ue_connectable": {
+          "sage_attention": true
+        },
+        "Node name for S&R": "PathchSageAttentionKJ"
+      },
+      "order": 47
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            413
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "size": [
+        263.0777893066406,
+        58
+      ],
+      "pos": [
+        9152.919921875,
+        5.778372764587402
+      ],
+      "widgets_values": [
+        "auto"
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 411,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "sage_attention"
+          },
+          "name": "sage_attention",
+          "label": "sage_attention",
+          "type": "COMBO",
+          "localized_name": "sage_attention"
+        }
+      ],
+      "flags": {},
+      "id": 281,
+      "type": "PathchSageAttentionKJ",
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "a6b867b63a29ca48ddb15c589e17a9f2d8530d57",
+        "widget_ue_connectable": {
+          "sage_attention": true
+        },
+        "Node name for S&R": "PathchSageAttentionKJ"
+      },
+      "order": 46
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            510
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "size": [
+        253.40658569335938,
+        58
+      ],
+      "pos": [
+        9512.4677734375,
+        15.97568130493164
+      ],
+      "widgets_values": [
+        true
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 413,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "enable_fp16_accumulation"
+          },
+          "name": "enable_fp16_accumulation",
+          "label": "enable_fp16_accumulation",
+          "type": "BOOLEAN",
+          "localized_name": "enable_fp16_accumulation"
+        }
+      ],
+      "flags": {},
+      "id": 283,
+      "type": "ModelPatchTorchSettings",
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "2f7300dc546ec2d36fa8b0feebe493d41026524c",
+        "widget_ue_connectable": {
+          "enable_fp16_accumulation": true
+        },
+        "Node name for S&R": "ModelPatchTorchSettings"
+      },
+      "order": 49
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            511
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "size": [
+        247.443359375,
+        58
+      ],
+      "pos": [
+        9514.32421875,
+        163.37484741210938
+      ],
+      "widgets_values": [
+        true
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 414,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "enable_fp16_accumulation"
+          },
+          "name": "enable_fp16_accumulation",
+          "label": "enable_fp16_accumulation",
+          "type": "BOOLEAN",
+          "localized_name": "enable_fp16_accumulation"
+        }
+      ],
+      "flags": {},
+      "id": 284,
+      "type": "ModelPatchTorchSettings",
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "2f7300dc546ec2d36fa8b0feebe493d41026524c",
+        "widget_ue_connectable": {
+          "enable_fp16_accumulation": true
+        },
+        "Node name for S&R": "ModelPatchTorchSettings"
+      },
+      "order": 50
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            418
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "size": [
+        160.13705444335938,
+        84.82439422607422
+      ],
+      "pos": [
+        11514.2646484375,
+        1281.647216796875
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "samples",
+          "link": 408,
+          "label": "samples",
+          "type": "LATENT",
+          "localized_name": "samples"
+        },
+        {
+          "name": "vae",
+          "link": 517,
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        }
+      ],
+      "flags": {},
+      "id": 279,
+      "type": "VAEDecode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.64",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAEDecode"
+      },
+      "order": 48
+    },
+    {
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            411
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "size": [
+        210,
+        130
+      ],
+      "pos": [
+        8895.728515625,
+        69.5419692993164
+      ],
+      "widgets_values": [
+        40,
+        false,
+        false
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 622,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "blocks_to_swap"
+          },
+          "name": "blocks_to_swap",
+          "label": "blocks_to_swap",
+          "type": "INT",
+          "localized_name": "blocks_to_swap"
+        },
+        {
+          "widget": {
+            "name": "offload_img_emb"
+          },
+          "name": "offload_img_emb",
+          "label": "offload_img_emb",
+          "type": "BOOLEAN",
+          "localized_name": "offload_img_emb"
+        },
+        {
+          "widget": {
+            "name": "offload_txt_emb"
+          },
+          "name": "offload_txt_emb",
+          "label": "offload_txt_emb",
+          "type": "BOOLEAN",
+          "localized_name": "offload_txt_emb"
+        }
+      ],
+      "flags": {},
+      "id": 334,
+      "type": "wanBlockSwap",
+      "properties": {
+        "cnr_id": "wanblockswap",
+        "ver": "1.0.0",
+        "widget_ue_connectable": {
+          "offload_img_emb": true,
+          "offload_txt_emb": true,
+          "blocks_to_swap": true
+        },
+        "Node name for S&R": "wanBlockSwap"
+      },
+      "order": 43
+    },
+    {
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            412
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "size": [
+        210,
+        130
+      ],
+      "pos": [
+        8896.8916015625,
+        262.1514587402344
+      ],
+      "widgets_values": [
+        40,
+        false,
+        false
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 624,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "blocks_to_swap"
+          },
+          "name": "blocks_to_swap",
+          "label": "blocks_to_swap",
+          "type": "INT",
+          "localized_name": "blocks_to_swap"
+        },
+        {
+          "widget": {
+            "name": "offload_img_emb"
+          },
+          "name": "offload_img_emb",
+          "label": "offload_img_emb",
+          "type": "BOOLEAN",
+          "localized_name": "offload_img_emb"
+        },
+        {
+          "widget": {
+            "name": "offload_txt_emb"
+          },
+          "name": "offload_txt_emb",
+          "label": "offload_txt_emb",
+          "type": "BOOLEAN",
+          "localized_name": "offload_txt_emb"
+        }
+      ],
+      "flags": {},
+      "id": 335,
+      "type": "wanBlockSwap",
+      "properties": {
+        "cnr_id": "wanblockswap",
+        "ver": "1.0.0",
+        "widget_ue_connectable": {
+          "offload_img_emb": true,
+          "offload_txt_emb": true,
+          "blocks_to_swap": true
+        },
+        "Node name for S&R": "wanBlockSwap"
+      },
+      "order": 44
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "gimmvfi_model",
+          "links": [
+            533
+          ],
+          "label": "gimmvfi_model",
+          "type": "GIMMVIF_MODEL",
+          "localized_name": "gimmvfi_model"
+        }
+      ],
+      "size": [
+        282.4460144042969,
+        67.33628845214844
+      ],
+      "pos": [
+        13058.6806640625,
+        1075.7781982421875
+      ],
+      "widgets_values": [
+        "gimmvfi_r_arb_lpips_fp32.safetensors"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "model"
+          },
+          "name": "model",
+          "label": "model",
+          "type": "COMBO",
+          "localized_name": "model"
+        }
+      ],
+      "flags": {},
+      "id": 375,
+      "type": "DownloadAndLoadGIMMVFIModel",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "DownloadAndLoadGIMMVFIModel"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            535
+          ],
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "name": "flow_tensors",
+          "label": "flow_tensors",
+          "type": "IMAGE",
+          "localized_name": "flow_tensors"
+        }
+      ],
+      "size": [
+        270,
+        150
+      ],
+      "pos": [
+        13069.54296875,
+        1225.12451171875
+      ],
+      "widgets_values": [
+        1,
+        2,
+        833008569286378,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "name": "gimmvfi_model",
+          "link": 533,
+          "label": "gimmvfi_model",
+          "type": "GIMMVIF_MODEL",
+          "localized_name": "gimmvfi_model"
+        },
+        {
+          "name": "images",
+          "link": 534,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "ds_factor"
+          },
+          "name": "ds_factor",
+          "label": "ds_factor",
+          "type": "FLOAT",
+          "localized_name": "ds_factor"
+        },
+        {
+          "widget": {
+            "name": "interpolation_factor"
+          },
+          "name": "interpolation_factor",
+          "label": "interpolation_factor",
+          "type": "INT",
+          "localized_name": "interpolation_factor"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 374,
+      "type": "GIMMVFI_interpolate",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GIMMVFI_interpolate"
+      },
+      "order": 55
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "links": [
+            464,
+            534
+          ],
+          "label": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        157.38925170898438,
+        84.59513092041016
+      ],
+      "pos": [
+        11520.0908203125,
+        1472.7216796875
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "anything",
+          "link": 418,
+          "label": "anything",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 303,
+      "type": "easy cleanGpuUsed",
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "8ecc929cd41cf0f7ef6fcc45d4bbc5729c6f287f",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy cleanGpuUsed"
+      },
+      "order": 51
+    },
+    {
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "label": "OPT_CONNECTION",
+          "type": "*"
+        }
+      ],
+      "color": "#432",
+      "inputs": [],
+      "flags": {},
+      "type": "Fast Groups Bypasser (rgthree)",
+      "title": "Control Center",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        421.4549255371094,
+        147.57264709472656
+      ],
+      "pos": [
+        7398.736328125,
+        899.204345703125
+      ],
+      "id": 354,
+      "properties": {
+        "customSortAlphabet": "",
+        "matchColors": "",
+        "widget_ue_connectable": {},
+        "sort": "position",
+        "matchTitle": "video gen",
+        "showNav": true,
+        "toggleRestriction": "default"
+      },
+      "order": 1
+    },
+    {
+      "outputs": [
+        {
+          "name": "*",
+          "label": "*",
+          "type": "*"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "clip"
+      ],
+      "inputs": [
+        {
+          "name": "CLIP",
+          "link": 513,
+          "label": "CLIP",
+          "type": "CLIP"
+        }
+      ],
+      "flags": {},
+      "type": "SetNode",
+      "title": "Set_clip",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        8588.20703125,
+        571.4760131835938
+      ],
+      "id": 358,
+      "properties": {
+        "previousName": "clip",
+        "widget_ue_connectable": {}
+      },
+      "order": 29
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "*",
+          "label": "*",
+          "type": "*"
+        }
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        8589.2236328125,
+        699.2232055664062
+      ],
+      "widgets_values": [
+        "clip_vision"
+      ],
+      "inputs": [
+        {
+          "name": "CLIP_VISION",
+          "link": 512,
+          "label": "CLIP_VISION",
+          "type": "CLIP_VISION"
+        }
+      ],
+      "flags": {},
+      "id": 359,
+      "type": "SetNode",
+      "title": "Set_clip_vision",
+      "properties": {
+        "previousName": "clip_vision",
+        "widget_ue_connectable": {}
+      },
+      "order": 30
+    },
+    {
+      "outputs": [
+        {
+          "name": "*",
+          "label": "*",
+          "type": "*"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "vae"
+      ],
+      "inputs": [
+        {
+          "name": "VAE",
+          "link": 514,
+          "label": "VAE",
+          "type": "VAE"
+        }
+      ],
+      "flags": {},
+      "type": "SetNode",
+      "title": "Set_vae",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        8590.3330078125,
+        823.8599853515625
+      ],
+      "id": 360,
+      "properties": {
+        "previousName": "vae",
+        "widget_ue_connectable": {}
+      },
+      "order": 31
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            515
+          ],
+          "label": "MODEL",
+          "type": "MODEL"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "model_high"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "GetNode",
+      "title": "Get_model_high",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        10681.634765625,
+        1160.037841796875
+      ],
+      "id": 363,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 3
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            516
+          ],
+          "label": "MODEL",
+          "type": "MODEL"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "model_low"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "GetNode",
+      "title": "Get_model_low",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        10681.78515625,
+        1300.353515625
+      ],
+      "id": 364,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "*",
+          "label": "*",
+          "type": "*"
+        }
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "pos": [
+        8177.04736328125,
+        1768.5814208984375
+      ],
+      "widgets_values": [
+        "original_audio"
+      ],
+      "inputs": [
+        {
+          "name": "AUDIO",
+          "link": 590,
+          "label": "AUDIO",
+          "type": "AUDIO"
+        }
+      ],
+      "flags": {},
+      "id": 401,
+      "type": "SetNode",
+      "title": "Set_original_audio",
+      "properties": {
+        "previousName": "original_audio",
+        "widget_ue_connectable": {}
+      },
+      "order": 37
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "links": [
+            591
+          ],
+          "label": "AUDIO",
+          "type": "AUDIO"
+        }
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "pos": [
+        11574.6513671875,
+        1680.807373046875
+      ],
+      "widgets_values": [
+        "original_audio"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 402,
+      "type": "GetNode",
+      "title": "Get_original_audio",
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "links": [
+            592
+          ],
+          "label": "AUDIO",
+          "type": "AUDIO"
+        }
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        13093.7978515625,
+        1474.1414794921875
+      ],
+      "widgets_values": [
+        "original_audio"
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 403,
+      "type": "GetNode",
+      "title": "Get_original_audio",
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 7
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Filenames",
+          "label": "Filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "size": [
+        957.6839599609375,
+        899.4472045898438
+      ],
+      "shape": 2,
+      "pos": [
+        11936.421875,
+        1052.7685546875
+      ],
+      "widgets_values": {
+        "save_output": true,
+        "filename_prefix": "FaboroHacks",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 19,
+        "trim_to_audio": false,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {
+            "score": "0",
+            "filename": "wan22__00001_p82_ononh_1761717586.mp4",
+            "workflow": "wan22__00001_p82.png",
+            "fullpath": "/data/ComfyUI/personal/8696605c7318b5f10dd8c8741df992bb/output/2025-10-29/wan22__00001_p82.mp4",
+            "format": "video/h264-mp4",
+            "subfolder": "2025-10-29",
+            "label": "Normal",
+            "type": "output",
+            "frame_rate": 16
+          }
+        },
+        "format": "video/h264-mp4",
+        "no_preview": false,
+        "frame_rate": 16,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 464,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "link": 591,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "frame_rate"
+        },
+        {
+          "widget": {
+            "name": "loop_count"
+          },
+          "name": "loop_count",
+          "label": "loop_count",
+          "type": "INT",
+          "localized_name": "loop_count"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        },
+        {
+          "widget": {
+            "name": "pingpong"
+          },
+          "name": "pingpong",
+          "label": "pingpong",
+          "type": "BOOLEAN",
+          "localized_name": "pingpong"
+        },
+        {
+          "widget": {
+            "name": "save_output"
+          },
+          "name": "save_output",
+          "label": "save_output",
+          "type": "BOOLEAN",
+          "localized_name": "save_output"
+        },
+        {
+          "widget": {
+            "name": "no_preview"
+          },
+          "shape": 7,
+          "name": "no_preview",
+          "label": "no_preview",
+          "type": "BOOLEAN",
+          "localized_name": "no_preview"
+        },
+        {
+          "widget": {
+            "name": "pix_fmt"
+          },
+          "name": "pix_fmt",
+          "label": "pix_fmt",
+          "type": [
+            "yuv420p",
+            "yuv420p10le"
+          ]
+        },
+        {
+          "widget": {
+            "name": "crf"
+          },
+          "name": "crf",
+          "label": "crf",
+          "type": "INT"
+        },
+        {
+          "widget": {
+            "name": "save_metadata"
+          },
+          "name": "save_metadata",
+          "label": "save_metadata",
+          "type": "BOOLEAN",
+          "localized_name": "保存元数据"
+        },
+        {
+          "widget": {
+            "name": "trim_to_audio"
+          },
+          "name": "trim_to_audio",
+          "label": "trim_to_audio",
+          "type": "BOOLEAN"
+        }
+      ],
+      "flags": {},
+      "id": 322,
+      "type": "VHS_VideoCombine",
+      "properties": {
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "1.7.2",
+        "widget_ue_connectable": {
+          "save_output": true,
+          "filename_prefix": true,
+          "loop_count": true,
+          "pix_fmt": true,
+          "save_metadata": true,
+          "crf": true,
+          "trim_to_audio": true,
+          "format": true,
+          "frame_rate": true,
+          "pingpong": true
+        },
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "order": 54
+    },
+    {
+      "outputs": [
+        {
+          "name": "value",
+          "links": [
+            451
+          ],
+          "label": "value",
+          "type": "INT",
+          "localized_name": "value"
+        }
+      ],
+      "color": "#1b4669",
+      "widgets_values": [
+        6
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "label": "value",
+          "type": "INT",
+          "localized_name": "value"
+        }
+      ],
+      "flags": {},
+      "type": "INTConstant",
+      "title": "steps",
+      "mode": 0,
+      "bgcolor": "#29699c",
+      "size": [
+        227.83738708496094,
+        58
+      ],
+      "pos": [
+        8489.8046875,
+        2090.665771484375
+      ],
+      "id": 333,
+      "properties": {
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "a6b867b63a29ca48ddb15c589e17a9f2d8530d57",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "INTConstant"
+      },
+      "order": 8
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "INT",
+          "links": [
+            582
+          ],
+          "label": "INT",
+          "type": "INT",
+          "localized_name": "INT"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        8485.47265625,
+        1705.6180419921875
+      ],
+      "widgets_values": [
+        1280
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "label": "value",
+          "type": "INT",
+          "localized_name": "value"
+        }
+      ],
+      "flags": {},
+      "id": 379,
+      "type": "Int",
+      "title": "Video Width",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Int"
+      },
+      "order": 9
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "INT",
+          "links": [
+            583
+          ],
+          "label": "INT",
+          "type": "INT",
+          "localized_name": "INT"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        8481.56640625,
+        1839.2218017578125
+      ],
+      "widgets_values": [
+        720
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "label": "value",
+          "type": "INT",
+          "localized_name": "value"
+        }
+      ],
+      "flags": {},
+      "id": 380,
+      "type": "Int",
+      "title": "Video Height",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Int"
+      },
+      "order": 10
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "INT",
+          "links": [
+            547
+          ],
+          "label": "INT",
+          "type": "INT",
+          "localized_name": "INT"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        8480.3115234375,
+        1961.4342041015625
+      ],
+      "widgets_values": [
+        8
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "label": "value",
+          "type": "INT",
+          "localized_name": "value"
+        }
+      ],
+      "flags": {},
+      "id": 384,
+      "type": "Int",
+      "title": "Video length(in seconds)",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Int"
+      },
+      "order": 11
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CLIP",
+          "slot_index": 0,
+          "links": [
+            513
+          ],
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "CLIP"
+        }
+      ],
+      "size": [
+        395.4624328613281,
+        106
+      ],
+      "pos": [
+        7993.998046875,
+        483.3623046875
+      ],
+      "widgets_values": [
+        "umt5_xxl_fp16.safetensors",
+        "wan",
+        "cpu"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "clip_name"
+          },
+          "name": "clip_name",
+          "label": "clip_name",
+          "type": "COMBO",
+          "localized_name": "clip_name"
+        },
+        {
+          "widget": {
+            "name": "type"
+          },
+          "name": "type",
+          "label": "type",
+          "type": "COMBO",
+          "localized_name": "type"
+        },
+        {
+          "widget": {
+            "name": "device"
+          },
+          "shape": 7,
+          "name": "device",
+          "label": "device",
+          "type": "COMBO",
+          "localized_name": "device"
+        }
+      ],
+      "flags": {},
+      "id": 288,
+      "type": "CLIPLoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "widget_ue_connectable": {
+          "clip_name": true,
+          "type": true,
+          "device": true
+        },
+        "Node name for S&R": "CLIPLoader"
+      },
+      "order": 13
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "You are a professional AI video generation prompt  engineer. Your core task is to receive a simple subject from the user and expand it into a structured, detailed, and creative JSON object. This JSON object will serve as a high-level prompt to guide AI image generation models (such as Midjourney, Stable Diffusion) in creating images with depth, atmosphere, and artistry.\n\nYou must strictly adhere to the JSON structure defined below and have a deep understanding of the meaning of each field to ensure the accuracy and high quality of the generated content.\n\nJSON Structure Definition and Field Descriptions\n\nThe JSON you generate must contain the following nine keys:\n\n\"subject\":\nMeaning: This is the core focus of the image. You need to describe in detail the appearance, clothing, posture, actions, expression, and gaze direction of this core character.\n\nKey Points: Details are crucial. For example, not just \"a woman,\" but \"a woman with short black hair\"; not just \"holding a hat,\" but \"holding a straw hat.\"\n\n\"foreground\":\nMeaning: Describes the elements closest to the viewer or the \"lens.\" These elements, located in front of or below the subject, add depth and dimension to the image.\n\nKey Points:\n\n\"Midground\":\n\nMeaning: Describes the plane in which the subject is situated and objects at the same spatial level as the subject. This is the main area of ​​the scene.\n\nKey Points: Clearly define the specific environment in which the subject is located. For example: the subject is standing on a rocky shore, calm water, distant dock piles, etc.\n\n\"Background\":\n\nMeaning: Describes the elements furthest away in the scene, providing a grand environment and background story for the image.\n\nKey Points: Depict distant scenery. For example: distant city outlines, hazy mountains, sky, depths of a forest, etc.\n\n\"Composition\":\n\nMeaning: Uses professional photographic and artistic terminology to describe the layout and structure of the image. This determines how the elements are organized.\n\nKey Points: Use standard composition rules. Examples include: rule of thirds, centered subject, symmetry, golden ratio, leading lines, vertical/horizontal orientation, depth layering, and low/high angle shooting.\n\n\"Visual guidance\":\nMeaning: Going a step further than composition, it describes how to guide the viewer's eye through the frame and how to emphasize key elements through visual elements.\nKey points: Consider where the viewer's eye will look first and then where it will look next. Examples include: using the lines of rocks to guide the viewer's eye to the subject, the contrast of light and shadow on skin and clothing, the direction of the subject's gaze, and the silhouette effect of the subject in water.\n\n\"Color tone\":\nMeaning: Defines the overall color scheme and feel of the image. Color is an important tool for conveying emotion.\n\nKey points: Use descriptive words. Examples include: soft pastel tones, a muted earthy palette, vibrant cyberpunk neon, monochromatic, high saturation, and warm tones. Accent colors can be added, such as \"an isolated warm orange roof as an accent.\"\n\n\"Lighting_mood\":\n\nMeaning: Describes the type, direction, and intensity of the light source, as well as the overall mood and atmosphere it creates.\n\nKey Point: Light is the soul of a scene. Examples include: soft natural lighting, the golden hour, diffused daylight, dramatic Rembrandt lighting, mysterious moonlight, serene atmosphere, and subtle backlight rim glow.\n\n\"Caption\" (Overview Title):\n\nMeaning: This sentence integrates all the key elements above into a coherent, vivid, and narrative sentence. This sentence itself is an excellent, ready-to-use image-generated prompt.\n\nKey Points: This is not simply keyword stuffing, but a complete, grammatically sound scene description. It should be like a textual summary of a painting, organically combining all the details.\n\nWorkflow:\n1. Wait for the user to provide a simple theme, such as \"An astronaut on an alien planet.\"\n\n2. Based on this theme, construct a complete, story-rich scene in your \"imagination.\"\n\n3. According to the field definitions above, systematically fill in the details of your conceived scene into each field of the JSON.\n\n4. Ensure that the content of all fields is consistent and logically coherent. For example, if the overall composition is a close-up, the prompt should not include feet. Maintain basic compositional logic to avoid confusion.\n\n5. Finally, distill all the information into the elegant, long sentence in the \"caption\" field.\n\nOutput the complete JSON object."
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "title": "Note（Engligh Prompt TemplateJSON)",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        654.84033203125,
+        506.23541259765625
+      ],
+      "pos": [
+        8686.982421875,
+        2321.23291015625
+      ],
+      "id": 411,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 14
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "Based on the image I loaded, provide the following prompt. The actions must be fluid and the plot logical. Provide a 8-second breakdown, with the duration consistent with the logic of the actions, and the prompt should be concise.\n\nLight Source Type: Sunlight, artificial light, moonlight, practical light, firelight, fluorescent light, cloudy light, mixed light, sunny light, etc.\n\nLight Type: Can be described as soft light, hard light, top light, side light, backlight, bottom light, edge light, silhouette, low contrast, high contrast.\n\nTime Period: Daytime, nighttime, dusk, sunset, dawn, sunrise.\n\nShot Type: Close-up, Medium Shot, Medium Close-up, Medium Full Shot, Full Shot, Wide Angle\n\nComposition Type: Central Composition, Balanced Composition, Side Composition, Symmetrical Composition, Short Side Composition\n\nLens Description - Lens Size: Medium Focal Length, Wide Angle, Telephoto, Telephoto, Ultra Wide Angle - Fisheye\n\nLens Description - Lens Angle: Over-the-shoulder Angle, High Angle, Low Angle, Tilt Angle, Aerial Shot, Top-Down Angle\n\nLens Description - Lens Type: Single-person Lens, Two-person Lens, Three-person Lens, Group Shot, Fixed-scene Lens\n\nColor Tone: Warm Tone, Cool Tone, High Saturation, Low Saturation, etc.\n\nSports Description: Dancing, Running, Skateboarding, Soccer, Tennis, Table Tennis, Skiing, Basketball, Rugby, Bowling, Carabiner, etc.\n\nCharacter Emotions: Anger, Fear, Happiness, Sadness, Surprise\n\nBasic camera movements: camera zoom in, camera zoom out, camera pan to the right, camera pan to the left, camera tilt upwards. Advanced camera movements: handheld camera, composite camera movements, tracking camera, panning camera.\nStylized visual styles: felt style, 3D cartoon, pixel style, puppet animation, 3D game, claymation, anime, watercolor, black and white animation, oil painting style.\nStylized special effects: tilt-shift photography, time-lapse photography."
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "title": "Note(Engligh Prompt Template)",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        654.84033203125,
+        506.23541259765625
+      ],
+      "pos": [
+        7976.51708984375,
+        2317.890869140625
+      ],
+      "id": 413,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 15
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "你作为一名专业的 AI 视频生成提示词工程师，核心职责是接收用户提供的简单主体（subject），并将其拓展为结构规整、细节丰富且富有创意的 JSON 对象。该 JSON 对象将作为高级提示词，用于指导 Midjourney、Stable Diffusion 等 AI 图像生成模型，创作出兼具深度、氛围与艺术感的图像。​\n请严格遵循以下定义的 JSON 结构，深入理解每个字段的含义，确保生成内容准确且质量达标。​\nJSON 结构定义及字段说明​\n你生成的 JSON 必须包含以下九个键（key），各字段含义与要点如下：​\n\"subject\"（主体）​\n含义：作为图像的核心焦点，需详细描述核心角色的外观、服饰、姿态、动作、表情及视线方向。​\n要点：重点突出细节。例如，不可仅描述为 “一个女人”，而应是 “一位留着黑色短发的女人”；不可仅表述为 “拿着帽子”，而需是 “手持一顶编织草帽”。​\n\"foreground\"（前景）​\n含义：描述距离观众或 “镜头” 最近的元素，这些元素位于主体前方或下方，可增强画面的层次感与深度。​\n要点：联想真实摄影场景中最先进入视线的近景元素，例如：湿润的岩石、丛生的青草等地面细节，或是桌子的一角、飘落的花瓣等。​\n\"midground\"（中景）​\n含义：描述主体所在的空间平面，以及与主体处于同一空间层次的物体，是场景的核心区域。​\n要点：明确主体所处的具体环境，例如：主体站立在岩石海岸边、平静的湖面旁，或是远处的码头木桩旁等。​\n\"background\"（背景）​\n含义：描述场景中最远处的元素，为画面提供宏大的环境设定与背景故事。​\n要点：描绘远方景象，例如：远处的城市天际线、朦胧的山脉轮廓、广阔的天空、深邃的森林深处等。​\n\"composition\"（构图）​\n含义：运用专业的摄影与艺术术语，描述画面的布局与结构，决定元素的组织方式。​\n要点：采用标准构图规则，例如：三分法（rule of thirds）、中心构图（centered subject）、对称构图（symmetry）、黄金比例（golden ratio）、引导线（leading lines）、垂直 / 水平方向（vertical/horizontal orientation）、景深层次（depth layering）、低角度 / 高角度拍摄（low/high angle shot）等。​\n\"visual_guidance\"（视觉引导）​\n含义：相较于构图更深入一层，描述如何引导观众视线在画面中移动，以及如何通过视觉元素突出重点。​\n要点：思考观众视线的移动路径，例如：借助岩石的线条引导至主体、通过皮肤与服饰的光影对比聚焦焦点、顺着主体凝视的方向延伸视线、利用主体在水中的剪影强化视觉中心等。​\n\"color_tone\"（色调）​\n含义：定义画面的整体色彩方案与视觉感受，色彩是传递情绪的重要载体。​\n要点：使用具象化的描述词汇，例如：柔和的粉彩色调（soft pastel tones）、低饱和的大地色系（muted earthy palette）、鲜艳的赛博朋克霓虹色（vibrant cyberpunk neon）、单色调（monochromatic）、高饱和度（high saturation）、暖色调（warm tones）等，也可补充点缀色描述，如 “以孤立的暖橙色屋顶作为画面点缀”。​\n\"lighting_mood\"（光影氛围）​\n含义：描述光源的类型、方向、强度，以及其营造的整体情绪与场景氛围，光线是场景的灵魂所在。​\n要点：精准刻画光影效果，例如：柔和的自然光（soft natural lighting）、黄金时刻光线（golden hour）、阴天散射光（diffused daylight）、富有戏剧性的伦勃朗光（dramatic Rembrandt lighting）、神秘的月光（mysterious moonlight），以及由此带来的宁静氛围（serene atmosphere）、主体边缘的微妙背光轮廓（subtle backlight rim glow）等。​\n\"caption\"（总述标题）​\n含义：将上述所有关键元素融合为一句连贯、生动且具有叙事性的句子，该句子本身即是可直接使用的优质图像生成提示词。​\n要点：避免简单堆砌关键词，需形成语法通顺的完整场景描述，如同画作的文字简介，将所有细节有机串联。​\n工作流程​\n等待用户提供简单主体，例如 “一名宇航员身处陌生星球”；​\n以该主体为核心，在脑海中构建完整且富有故事性的场景；​\n依据上述字段定义，有条理地将构思的场景细节填充至 JSON 的对应字段中；​\n确保所有字段内容相互协调、逻辑一致。例如，若构图为近景特写，提示词中则不应出现与近景无关的 “脚部” 描述，需遵循基本构图逻辑，避免画面元素混乱；​\n最终，将所有信息提炼整合，形成 “caption” 字段中兼具美感与信息量的长句描述。​\n输出完整的 JSON 对象即可。"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "title": "Note（中文提示词模板JSON)",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        654.84033203125,
+        506.23541259765625
+      ],
+      "pos": [
+        9372.07421875,
+        2320.840576171875
+      ],
+      "id": 412,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 16
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CLIP_VISION",
+          "slot_index": 0,
+          "links": [
+            512
+          ],
+          "label": "CLIP_VISION",
+          "type": "CLIP_VISION",
+          "localized_name": "CLIP_VISION"
+        }
+      ],
+      "size": [
+        394.8000183105469,
+        58
+      ],
+      "pos": [
+        7990.3447265625,
+        680.7273559570312
+      ],
+      "widgets_values": [
+        "clip_vision_h.safetensors"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "clip_name"
+          },
+          "name": "clip_name",
+          "label": "clip_name",
+          "type": "COMBO",
+          "localized_name": "clip_name"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "id": 290,
+      "type": "CLIPVisionLoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CLIPVisionLoader"
+      },
+      "order": 17
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "VAE",
+          "slot_index": 0,
+          "links": [
+            514
+          ],
+          "label": "VAE",
+          "type": "VAE",
+          "localized_name": "VAE"
+        }
+      ],
+      "size": [
+        397.9720458984375,
+        58
+      ],
+      "pos": [
+        7987.98583984375,
+        829.1978149414062
+      ],
+      "widgets_values": [
+        "wan_2.1_vae.safetensors"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "vae_name"
+          },
+          "name": "vae_name",
+          "label": "vae_name",
+          "type": "COMBO",
+          "localized_name": "vae_name"
+        }
+      ],
+      "flags": {},
+      "id": 341,
+      "type": "VAELoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "widget_ue_connectable": {
+          "vae_name": true
+        },
+        "Node name for S&R": "VAELoader"
+      },
+      "order": 18
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Filenames",
+          "label": "Filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "size": [
+        952.0133056640625,
+        896.2575073242188
+      ],
+      "shape": 2,
+      "pos": [
+        13614.1923828125,
+        1052.1561279296875
+      ],
+      "widgets_values": {
+        "save_output": false,
+        "filename_prefix": "FaboroHacks",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 15,
+        "trim_to_audio": false,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {
+            "score": "0",
+            "filename": "135555_00001_p82_ecpyi_1761717663.mp4",
+            "workflow": "135555_00001_p82.png",
+            "fullpath": "/data/ComfyUI/personal/8696605c7318b5f10dd8c8741df992bb/temp/Video/2025-10-29/135555_00001_p82.mp4",
+            "format": "video/h264-mp4",
+            "subfolder": "Video/2025-10-29",
+            "label": "Normal",
+            "type": "temp",
+            "frame_rate": 32
+          }
+        },
+        "format": "video/h264-mp4",
+        "no_preview": false,
+        "frame_rate": 32,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 535,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "link": 592,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "frame_rate"
+        },
+        {
+          "widget": {
+            "name": "loop_count"
+          },
+          "name": "loop_count",
+          "label": "loop_count",
+          "type": "INT",
+          "localized_name": "loop_count"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        },
+        {
+          "widget": {
+            "name": "pingpong"
+          },
+          "name": "pingpong",
+          "label": "pingpong",
+          "type": "BOOLEAN",
+          "localized_name": "pingpong"
+        },
+        {
+          "widget": {
+            "name": "save_output"
+          },
+          "name": "save_output",
+          "label": "save_output",
+          "type": "BOOLEAN",
+          "localized_name": "save_output"
+        },
+        {
+          "widget": {
+            "name": "no_preview"
+          },
+          "shape": 7,
+          "name": "no_preview",
+          "label": "no_preview",
+          "type": "BOOLEAN",
+          "localized_name": "no_preview"
+        },
+        {
+          "widget": {
+            "name": "pix_fmt"
+          },
+          "name": "pix_fmt",
+          "label": "pix_fmt",
+          "type": [
+            "yuv420p",
+            "yuv420p10le"
+          ]
+        },
+        {
+          "widget": {
+            "name": "crf"
+          },
+          "name": "crf",
+          "label": "crf",
+          "type": "INT"
+        },
+        {
+          "widget": {
+            "name": "save_metadata"
+          },
+          "name": "save_metadata",
+          "label": "save_metadata",
+          "type": "BOOLEAN",
+          "localized_name": "保存元数据"
+        },
+        {
+          "widget": {
+            "name": "trim_to_audio"
+          },
+          "name": "trim_to_audio",
+          "label": "trim_to_audio",
+          "type": "BOOLEAN"
+        }
+      ],
+      "flags": {},
+      "id": 349,
+      "type": "VHS_VideoCombine",
+      "properties": {
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "4c7858ddd5126f7293dc3c9f6e0fc4c263cde079",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "order": 56
+    },
+    {
+      "outputs": [
+        {
+          "name": "CLIP",
+          "links": [
+            519,
+            520,
+            602,
+            611
+          ],
+          "label": "CLIP",
+          "type": "CLIP"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "clip"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "GetNode",
+      "title": "Get_clip",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        60
+      ],
+      "pos": [
+        9579.7744140625,
+        2076.083984375
+      ],
+      "id": 361,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 19
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        270,
+        82
+      ],
+      "color": "rgba(38, 73, 116, 0.7)",
+      "pos": [
+        8985.5634765625,
+        1376.142578125
+      ],
+      "widgets_values": [
+        true,
+        true
+      ],
+      "inputs": [
+        {
+          "name": "anything",
+          "link": 599,
+          "label": "anything",
+          "type": "*",
+          "localized_name": "anything"
+        },
+        {
+          "widget": {
+            "name": "purge_cache"
+          },
+          "name": "purge_cache",
+          "label": "purge_cache",
+          "type": "BOOLEAN",
+          "localized_name": "purge_cache"
+        },
+        {
+          "widget": {
+            "name": "purge_models"
+          },
+          "name": "purge_models",
+          "label": "purge_models",
+          "type": "BOOLEAN",
+          "localized_name": "purge_models"
+        }
+      ],
+      "flags": {},
+      "id": 406,
+      "type": "LayerUtility: PurgeVRAM",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LayerUtility: PurgeVRAM"
+      },
+      "order": 42
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "基于已加载的视频内容，撰写后续的提示词描述。核心要求如下：需确保动作衔接连贯，剧情发展符合逻辑；同时提供8秒时长拆解，拆解时长需匹配动作本身的逻辑节奏，且所有提示词需保持简洁明了。​\n提示词创作需涵盖以下要素，各要素可选范围如下：​\n光源类型：日光、人工光、月光、实用光、火光、荧光、阴天光、混合光、晴天光等；​\n光线类型：可描述为柔光、硬光、顶光、侧光、背光、底光、边缘光、剪影、低对比度、高对比度等；​\n时间段：白天、夜晚、黄昏、日落、黎明、日出；​\n景别：特写、近景、中景、中近景、中全景、全景、广角；​\n构图类型：中心构图、平衡构图、侧重构图、对称构图、短边构图；​\n镜头描述：​\n镜头尺寸：中焦距、广角、长焦、望远、超广角（含鱼眼）；​\n镜头角度：过肩角度、高角度、低角度、倾斜角度、航拍、俯视角度；​\n镜头类型：单人镜头、双人镜头、三人镜头、群像镜头、定场镜头；​\n色调：暖色调、冷色调、高饱和度、低饱和度等；​\n运动描述：跳舞、跑步、滑滑板、踢足球、网球、乒乓、滑雪、篮球、橄榄球、顶碗舞、侧手翻等；​\n人物情绪：愤怒、恐惧、高兴、悲伤、惊讶；​\n运镜方式：​\n基础运镜：镜头推进、镜头拉远、镜头向右移动、镜头向左移动、镜头上摇；​\n高级运镜：手持镜头、复合运镜、跟随镜头、环绕运镜；​\n风格化设计：​\n视觉风格：毛毡风格、3D 卡通、像素风格、木偶动画、3D 游戏、黏土风格、二次元、水彩画、黑白动画、油画风格；​\n特效镜头：移轴摄影、延时拍摄。"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "title": "Note(中文提示词模板)",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        654.84033203125,
+        506.23541259765625
+      ],
+      "pos": [
+        10088.3935546875,
+        2319.042236328125
+      ],
+      "id": 414,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 20
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            453
+          ],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING",
+          "localized_name": "CONDITIONING"
+        }
+      ],
+      "size": [
+        347.207275390625,
+        88
+      ],
+      "shape": 2,
+      "pos": [
+        10189.1669921875,
+        1887.1453857421875
+      ],
+      "widgets_values": [
+        "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走, censored, mosaic censoring, bar censor, pixelated, glowing, bloom, blurry, day, out of focus, low detail, bad anatomy, ugly, overexposed, underexposed, distorted face, extra limbs, cartoonish, 3d render artifacts, duplicate people, unnatural lighting, bad composition, missing shadows, low resolution, poorly textured, glitch, noise, grain, static, motionless, still frame, overall grayish, worst quality, low quality, JPEG compression artifacts, subtitles, stylized, artwork, painting, illustration, cluttered background, many people in background, three legs, walking backward, zoom out, zoom in, mouth speaking, moving mouth, talking, speaking, mute speaking, unnatural skin tone, discolored eyelid, red eyelids, red upper eyelids, no red eyeshadow, closed eyes, no wide-open innocent eyes, poorly drawn hands, extra fingers, fused fingers, poorly drawn face, deformed, disfigured, malformed limbs, thighs, fog, mist, voluminous eyelashes, blush,"
+      ],
+      "inputs": [
+        {
+          "name": "clip",
+          "link": 519,
+          "label": "clip",
+          "type": "CLIP",
+          "localized_name": "clip"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "id": 280,
+      "type": "CLIPTextEncode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "widget_ue_connectable": {
+          "text": true
+        },
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "order": 32
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "links": [],
+          "label": "output",
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        504.4896545410156,
+        461.7740783691406
+      ],
+      "pos": [
+        9457.556640625,
+        1020.2254638671875
+      ],
+      "widgets_values": [
+        "The scene opens with a woman standing waist-deep in an infinity pool, the water shimmering under golden sunset light that bathes the entire setting in warm hues. She is dressed in a sleek black swimsuit adorned with delicate chain straps over her shoulders; gold hoop earrings gleam as she moves. Her long hair, slicked back and glistening wetly from the water, frames her face elegantly. With both hands raised to her head, she appears poised for action or perhaps about to adjust something—perhaps her hair—or simply enjoying the moment.\n\nAs the camera pans slightly right, we see more of the urban skyline behind her—a panorama dominated by towering skyscrapers silhouetted against the fading sun. The cityscape stretches into the distance, its buildings catching the last rays before nightfall. To her left, part of the pool’s edge reveals tiled flooring extending toward the viewer, adding depth and perspective to the shot.\n\nShe turns gently towards the camera now, offering a subtle smile while maintaining eye contact — exuding confidence and serenity amidst the grandeur around her. As if aware of being filmed, she shifts subtly: one hand rests lightly on the poolside tiles beside her while her other arm remains near her head, hinting at movement yet stillness simultaneously. \n\nIn the background, distant figures can be glimpsed moving leisurely along what seems like another section of rooftop space adjacent to where she stands—an area possibly reserved for guests lounging nearby but not immediately visible due to framing constraints.\n\nOverall, there's a harmonious blend between natural beauty—the sky painted amber-orange—and human elegance captured within modern architecture. This tranquil slice-of-life unfolds atop high-rise luxury without losing sight of ambition symbolized by those imposing structures beyond—in essence capturing peace found even among bustling metropolises during twilight hours."
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 587,
+          "label": "anything",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 395,
+      "type": "easy showAnything",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 41
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "links": [],
+          "label": "text",
+          "type": "*",
+          "localized_name": "text"
+        },
+        {
+          "name": "show_help",
+          "links": [],
+          "label": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        445.8817138671875,
+        311.1144104003906
+      ],
+      "pos": [
+        8455.3046875,
+        1058.7587890625
+      ],
+      "widgets_values": [
+        "Based on the video I loaded, provide the following prompt words. The actions must be fluid and the plot logical. Provide a 8-second breakdown, with the duration consistent with the logic of the actions, and the cue words should be concise.\n\nLight Source Type: Sunlight, artificial light, moonlight, practical light, firelight, fluorescent light, cloudy light, mixed light, sunny light, etc.\n\nLight Type: Can be described as soft light, hard light, top light, side light, backlight, bottom light, edge light, silhouette, low contrast, high contrast.\n\nTime Period: Daytime, nighttime, dusk, sunset, dawn, sunrise.\n\nShot Type: Close-up, Medium Shot, Medium Close-up, Medium Full Shot, Full Shot, Wide Angle\n\nComposition Type: Central Composition, Balanced Composition, Side Composition, Symmetrical Composition, Short Side Composition\n\nLens Description - Lens Size: Medium Focal Length, Wide Angle, Telephoto, Telephoto, Ultra Wide Angle - Fisheye\n\nLens Description - Lens Angle: Over-the-shoulder Angle, High Angle, Low Angle, Tilt Angle, Aerial Shot, Top-Down Angle\n\nLens Description - Lens Type: Single-person Lens, Two-person Lens, Three-person Lens, Group Shot, Fixed-scene Lens\n\nColor Tone: Warm Tone, Cool Tone, High Saturation, Low Saturation, etc.\n\nSports Description: Dancing, Running, Skateboarding, Soccer, Tennis, Table Tennis, Skiing, Basketball, Rugby, Bowling, Carabiner, etc.\n\nCharacter Emotions: Anger, Fear, Happiness, Sadness, Surprise\n\nBasic camera movements: camera zoom in, camera zoom out, camera pan to the right, camera pan to the left, camera tilt upwards. Advanced camera movements: handheld camera, composite camera movements, tracking camera, panning camera.\nStylized visual styles: felt style, 3D cartoon, pixel style, puppet animation, 3D game, claymation, anime, watercolor, black and white animation, oil painting style.\nStylized special effects: tilt-shift photography, time-lapse photography."
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 396,
+      "type": "CR Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Text"
+      },
+      "order": 21
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "text",
+          "links": [
+            587,
+            599
+          ],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        400,
+        276
+      ],
+      "pos": [
+        8967.6884765625,
+        1023.979736328125
+      ],
+      "widgets_values": [
+        "Qwen3-VL-4B-Instruct",
+        "8-bit (Balanced)",
+        "Describe this video in detail.",
+        "\n",
+        1024,
+        true,
+        265065372978487,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "image",
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "video",
+          "link": 620,
+          "label": "video",
+          "type": "IMAGE",
+          "localized_name": "video"
+        },
+        {
+          "widget": {
+            "name": "model_name"
+          },
+          "name": "model_name",
+          "label": "model_name",
+          "type": "COMBO",
+          "localized_name": "model_name"
+        },
+        {
+          "widget": {
+            "name": "quantization"
+          },
+          "name": "quantization",
+          "label": "quantization",
+          "type": "COMBO",
+          "localized_name": "quantization"
+        },
+        {
+          "widget": {
+            "name": "preset_prompt"
+          },
+          "name": "preset_prompt",
+          "label": "preset_prompt",
+          "type": "COMBO",
+          "localized_name": "preset_prompt"
+        },
+        {
+          "widget": {
+            "name": "custom_prompt"
+          },
+          "name": "custom_prompt",
+          "label": "custom_prompt",
+          "type": "STRING",
+          "localized_name": "custom_prompt"
+        },
+        {
+          "widget": {
+            "name": "max_tokens"
+          },
+          "name": "max_tokens",
+          "label": "max_tokens",
+          "type": "INT",
+          "localized_name": "max_tokens"
+        },
+        {
+          "widget": {
+            "name": "keep_model_loaded"
+          },
+          "name": "keep_model_loaded",
+          "label": "keep_model_loaded",
+          "type": "BOOLEAN",
+          "localized_name": "keep_model_loaded"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 394,
+      "type": "AILab_QwenVL",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "AILab_QwenVL"
+      },
+      "order": 36
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "positive",
+          "slot_index": 0,
+          "links": [
+            579
+          ],
+          "label": "positive",
+          "type": "CONDITIONING",
+          "localized_name": "positive"
+        },
+        {
+          "name": "negative",
+          "slot_index": 1,
+          "links": [
+            580
+          ],
+          "label": "negative",
+          "type": "CONDITIONING",
+          "localized_name": "negative"
+        },
+        {
+          "name": "latent",
+          "slot_index": 2,
+          "links": [
+            581
+          ],
+          "label": "latent",
+          "type": "LATENT",
+          "localized_name": "latent"
+        }
+      ],
+      "size": [
+        409.91461181640625,
+        338.1877136230469
+      ],
+      "pos": [
+        10661.69921875,
+        1439.3291015625
+      ],
+      "widgets_values": [
+        832,
+        480,
+        97,
+        1
+      ],
+      "inputs": [
+        {
+          "name": "positive",
+          "link": 619,
+          "label": "positive",
+          "type": "CONDITIONING",
+          "localized_name": "positive"
+        },
+        {
+          "name": "negative",
+          "link": 453,
+          "label": "negative",
+          "type": "CONDITIONING",
+          "localized_name": "negative"
+        },
+        {
+          "name": "vae",
+          "link": 518,
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "shape": 7,
+          "name": "clip_vision_output",
+          "label": "clip_vision_output",
+          "type": "CLIP_VISION_OUTPUT",
+          "localized_name": "clip_vision_output"
+        },
+        {
+          "shape": 7,
+          "name": "start_image",
+          "label": "start_image",
+          "type": "IMAGE",
+          "localized_name": "start_image"
+        },
+        {
+          "widget": {
+            "name": "width"
+          },
+          "name": "width",
+          "link": 582,
+          "label": "width",
+          "type": "INT",
+          "localized_name": "width"
+        },
+        {
+          "widget": {
+            "name": "height"
+          },
+          "name": "height",
+          "link": 583,
+          "label": "height",
+          "type": "INT",
+          "localized_name": "height"
+        },
+        {
+          "widget": {
+            "name": "length"
+          },
+          "name": "length",
+          "link": 459,
+          "label": "length",
+          "type": "INT",
+          "localized_name": "length"
+        },
+        {
+          "widget": {
+            "name": "batch_size"
+          },
+          "name": "batch_size",
+          "label": "batch_size",
+          "type": "INT",
+          "localized_name": "batch_size"
+        }
+      ],
+      "flags": {},
+      "id": 319,
+      "type": "WanImageToVideo",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "widget_ue_connectable": {
+          "batch_size": true,
+          "width": true,
+          "length": true,
+          "height": true
+        },
+        "Node name for S&R": "WanImageToVideo"
+      },
+      "order": 40
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            619
+          ],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING",
+          "localized_name": "CONDITIONING"
+        }
+      ],
+      "size": [
+        567.7838745117188,
+        323.92236328125
+      ],
+      "shape": 2,
+      "pos": [
+        10026.51171875,
+        1134.09716796875
+      ],
+      "widgets_values": [
+        "he scene opens with a woman standing waist-deep in an infinity pool, the water shimmering under golden sunset light that bathes the entire setting in warm hues. She is dressed in a sleek black swimsuit adorned with delicate chain straps over her shoulders; gold hoop earrings gleam as she moves. Her long hair, slicked back and glistening wetly from the water, frames her face elegantly. With both hands raised to her head, she appears poised for action or perhaps about to adjust something—perhaps her hair—or simply enjoying the moment.\n\nAs the camera pans slightly right, we see more of the urban skyline behind her—a panorama dominated by towering skyscrapers silhouetted against the fading sun. The cityscape stretches into the distance, its buildings catching the last rays before nightfall. To her left, part of the pool’s edge reveals tiled flooring extending toward the viewer, adding depth and perspective to the shot.\n\nShe turns gently towards the camera now, offering a subtle smile while maintaining eye contact — exuding confidence and serenity amidst the grandeur around her. As if aware of being filmed, she shifts subtly: one hand rests lightly on the poolside tiles beside her while her other arm remains near her head, hinting at movement yet stillness simultaneously. \n\nIn the background, distant figures can be glimpsed moving leisurely along what seems like another section of rooftop space adjacent to where she stands—an area possibly reserved for guests lounging nearby but not immediately visible due to framing constraints.\n\nOverall, there's a harmonious blend between natural beauty—the sky painted amber-orange—and human elegance captured within modern architecture. This tranquil slice-of-life unfolds atop high-rise luxury without losing sight of ambition symbolized by those imposing structures beyond—in essence capturing peace found even among bustling metropolises during twilight hours."
+      ],
+      "inputs": [
+        {
+          "name": "clip",
+          "link": 520,
+          "label": "clip",
+          "type": "CLIP",
+          "localized_name": "clip"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 278,
+      "type": "CLIPTextEncode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "widget_ue_connectable": {
+          "text": true
+        },
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "order": 33
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING",
+          "localized_name": "CONDITIONING"
+        }
+      ],
+      "size": [
+        551.43310546875,
+        88
+      ],
+      "shape": 2,
+      "pos": [
+        10037.0087890625,
+        1838.2843017578125
+      ],
+      "widgets_values": [
+        "SmoothMixAnime, In a breathtaking scene rendered in an anime-inspired aesthetic, we find ourselves atop a luxurious rooftop infinity pool overlooking the sprawling metropolis of New York City at sunset. The sky is painted with warm hues of orange and gold as the sun dips behind the skyline, casting long shadows across the urban landscape below.\n\nAt the center of this cinematic tableau stands a woman who exudes elegance and confidence. Her hair, slicked back into a perfect ponytail that glimmers under the golden light, frames her face beautifully. She wears a sleek black swimsuit adorned with delicate chain detailing along the straps — each link catching the sunlight like tiny jewels. Large hoop earrings dangle from her ears, adding to her glamorous allure.\n\nShe begins by standing waist-deep in the tranquil waters of the pool, water gently rippling around her legs. With both hands raised above her head, she runs them through her wet locks, sending droplets cascading down her shoulders and chest. As if caught mid-motion, time seems to pause for just a moment before she turns gracefully toward the camera, offering us a side profile view. Her expression radiates serenity mixed with subtle mystery; eyes half-closed yet alert, lips slightly parted as though whispering secrets only those present can hear.\n\nHer gaze then shifts downward, resting on something unseen beyond the edge of the frame—a hint of intrigue lingers here too—perhaps it’s a hidden message or invitation waiting to be discovered? \n\nThe cityscape stretches out beneath her feet: towering skyscrapers pierce the horizon while smaller buildings weave their way between them, all bathed in soft twilight glow emanating from streetlights beginning to flicker awake. In the distance, iconic structures stand tall against the fading daylight—the Freedom Tower among others rise majestically towards heaven, silhouetted elegantly against the backdrop.\n\nThis isn't merely any ordinary setting—it's a place where luxury meets nature, technology blends seamlessly with artistry, and human emotion finds its stage amidst grandeur. Each element within this visual narrative contributes to building a world steeped in fantasy and realism alike—an experience so vividly portrayed one might feel transported directly onto that very rooftop themselves.\n\nAs dusk settles over Manhattan, there remains an undeniable sense of peace lingering throughout every corner of this enchanting environment. It invites viewers not simply to witness but also participate—in dreamscape adventures unfolding right before our eyes. This could easily become part of someone else’s imagination someday…or perhaps even inspire future stories crafted entirely anew based upon such moments captured forever etched inside hearts and minds.\n\n\n(Note: While \"anime-style\" typically refers more closely to stylized animation than real-life cinematography, I have interpreted your request creatively using dynamic lighting effects reminiscent of classic anime tropes (e.g., glowing highlights, dramatic contrasts), combined with realistic environmental details appropriate for high-definition film production.)"
+      ],
+      "inputs": [
+        {
+          "name": "clip",
+          "link": 611,
+          "label": "clip",
+          "type": "CLIP",
+          "localized_name": "clip"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 416,
+      "type": "CLIPTextEncode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "widget_ue_connectable": {
+          "text": true
+        },
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "order": 35
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING",
+          "localized_name": "CONDITIONING"
+        }
+      ],
+      "size": [
+        543.5846557617188,
+        88
+      ],
+      "shape": 2,
+      "pos": [
+        10042.4189453125,
+        1662.68408203125
+      ],
+      "widgets_values": [
+        "In a dimly lit restaurant with floor-to-ceiling windows, two individuals are seated at a table enjoying an intimate dinner under the night sky. The cityscape outside is illuminated by countless lights from buildings and streets, creating a vibrant yet serene backdrop that contrasts beautifully against the cozy interior.\n\nThe man on the left wears a light-colored shirt and sits facing his companion, gesturing animatedly as he speaks—his hands open wide to emphasize his words or perhaps share a story. His expression suggests enthusiasm and engagement; it’s clear he's deeply involved in conversation. Across from him, the woman dons a red off-the-shoulder top and has her hair elegantly pulled back into a bun. She listens attentively, smiling warmly—a gentle curve of joy reflecting both interest and affection for what she hears.\n\nOn their shared wooden table sit small plates containing food: one appears to be dessert, possibly chocolate cake garnished with berries, while another holds a cup and saucer likely filled with tea or coffee. Between them rests a glowing lamp with soft white illumination casting warm shadows across the tabletop—the centerpiece of their dining space—and beside each person stands a menu card standing upright like sentinels guarding their culinary choices.\n\nCandles flicker softly along either side of the table, adding depth to the ambient lighting without overpowering its subtle warmth. A vase holding dried branches adds a touch of rustic charm near the right edge of the frame, completing the decor that balances modern elegance with organic simplicity.\n\nTheir body language communicates comfort and connection—an effortless ease between them underscores not just romance but mutual understanding. As they converse beneath these twinkling urban stars, time seems suspended, allowing only moments of quiet intimacy amidst bustling metropolis life beyond those glass panes.\n\nThis scene captures more than mere companionship—it evokes emotion through presence, suggesting love nurtured within everyday rituals such as sharing meals together during twilight hours when nature retreats indoors while civilization thrives outwardly—with laughter echoing gently among skyscrapers far below."
+      ],
+      "inputs": [
+        {
+          "name": "clip",
+          "link": 602,
+          "label": "clip",
+          "type": "CLIP",
+          "localized_name": "clip"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "id": 409,
+      "type": "CLIPTextEncode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "widget_ue_connectable": {
+          "text": true
+        },
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "order": 34
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "INT",
+          "links": [
+            459
+          ],
+          "label": "INT",
+          "type": "INT",
+          "localized_name": "INT"
+        },
+        {
+          "name": "FLOAT",
+          "label": "FLOAT",
+          "type": "FLOAT",
+          "localized_name": "FLOAT"
+        }
+      ],
+      "size": [
+        270.4077453613281,
+        98
+      ],
+      "pos": [
+        10176.3486328125,
+        1985.392822265625
+      ],
+      "widgets_values": [
+        "a*16+1"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "a",
+          "link": 547,
+          "label": "a",
+          "type": "*",
+          "localized_name": "a"
+        },
+        {
+          "shape": 7,
+          "name": "b",
+          "label": "b",
+          "type": "*",
+          "localized_name": "b"
+        },
+        {
+          "shape": 7,
+          "name": "c",
+          "label": "c",
+          "type": "*",
+          "localized_name": "c"
+        },
+        {
+          "widget": {
+            "name": "value"
+          },
+          "name": "value",
+          "label": "value",
+          "type": "STRING",
+          "localized_name": "value"
+        }
+      ],
+      "flags": {},
+      "id": 293,
+      "type": "SimpleMath+",
+      "properties": {
+        "cnr_id": "comfyui_essentials",
+        "ver": "9d9f4bedfc9f0321c19faf71855e228c93bd0dc9",
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SimpleMath+"
+      },
+      "order": 28
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "LATENT",
+          "links": [
+            408
+          ],
+          "label": "LATENT",
+          "type": "LATENT",
+          "localized_name": "LATENT"
+        }
+      ],
+      "size": [
+        291.91943359375,
+        566.0000610351562
+      ],
+      "pos": [
+        11156.3916015625,
+        1350.7716064453125
+      ],
+      "widgets_values": [
+        0.9,
+        42,
+        "fixed",
+        6,
+        1,
+        1,
+        "euler_ancestral",
+        "normal",
+        8,
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model_high_noise",
+          "link": 515,
+          "label": "model_high_noise",
+          "type": "MODEL",
+          "localized_name": "model_high_noise"
+        },
+        {
+          "name": "model_low_noise",
+          "link": 516,
+          "label": "model_low_noise",
+          "type": "MODEL",
+          "localized_name": "model_low_noise"
+        },
+        {
+          "name": "positive",
+          "link": 579,
+          "label": "positive",
+          "type": "CONDITIONING",
+          "localized_name": "positive"
+        },
+        {
+          "name": "negative",
+          "link": 580,
+          "label": "negative",
+          "type": "CONDITIONING",
+          "localized_name": "negative"
+        },
+        {
+          "name": "latent_image",
+          "link": 581,
+          "label": "latent_image",
+          "type": "LATENT",
+          "localized_name": "latent_image"
+        },
+        {
+          "widget": {
+            "name": "boundary"
+          },
+          "name": "boundary",
+          "label": "boundary",
+          "type": "FLOAT",
+          "localized_name": "boundary"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "steps"
+          },
+          "name": "steps",
+          "link": 451,
+          "label": "steps",
+          "type": "INT",
+          "localized_name": "steps"
+        },
+        {
+          "widget": {
+            "name": "cfg_high_noise"
+          },
+          "name": "cfg_high_noise",
+          "label": "cfg_high_noise",
+          "type": "FLOAT",
+          "localized_name": "cfg_high_noise"
+        },
+        {
+          "widget": {
+            "name": "cfg_low_noise"
+          },
+          "name": "cfg_low_noise",
+          "label": "cfg_low_noise",
+          "type": "FLOAT",
+          "localized_name": "cfg_low_noise"
+        },
+        {
+          "widget": {
+            "name": "sampler_name"
+          },
+          "name": "sampler_name",
+          "label": "sampler_name",
+          "type": "COMBO",
+          "localized_name": "sampler_name"
+        },
+        {
+          "widget": {
+            "name": "scheduler"
+          },
+          "name": "scheduler",
+          "label": "scheduler",
+          "type": "COMBO",
+          "localized_name": "scheduler"
+        },
+        {
+          "widget": {
+            "name": "sigma_shift"
+          },
+          "name": "sigma_shift",
+          "label": "sigma_shift",
+          "type": "FLOAT",
+          "localized_name": "sigma_shift"
+        },
+        {
+          "widget": {
+            "name": "denoise"
+          },
+          "name": "denoise",
+          "label": "denoise",
+          "type": "FLOAT",
+          "localized_name": "denoise"
+        }
+      ],
+      "flags": {},
+      "id": 318,
+      "type": "WanMoeKSampler",
+      "properties": {
+        "ver": "a910b99a1ab60c534dce4d0ae1588bee5d964d88",
+        "widget_ue_connectable": {},
+        "aux_id": "stduhpf/ComfyUI-WanMoeKSampler",
+        "Node name for S&R": "WanMoeKSampler"
+      },
+      "order": 45
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "Describe the video in detail with cyberpunk style\nDescribe the video in detail with anime style\nThe Smooth Mix model responds to the prompts 'SmoothMixAnime' and 'SmoothMixRealism'! All Loras merged to it had those key promtps from the SmoothMix Animmations Style and they have the same effect here! "
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "title": "Note(中文提示词模板)",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        654.84033203125,
+        506.23541259765625
+      ],
+      "pos": [
+        10790.6689453125,
+        2320.798828125
+      ],
+      "id": 418,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 22
+    },
+    {
+      "outputs": [
+        {
+          "name": "VAE",
+          "links": [
+            517,
+            518
+          ],
+          "label": "VAE",
+          "type": "VAE"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "vae"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "GetNode",
+      "title": "Get_vae",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        9583.2763671875,
+        1935.622314453125
+      ],
+      "id": 362,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 23
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            620
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        },
+        {
+          "name": "frame_count",
+          "label": "frame_count",
+          "type": "INT",
+          "localized_name": "frame_count"
+        },
+        {
+          "name": "audio",
+          "links": [
+            590
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "video_info",
+          "label": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "localized_name": "video_info"
+        }
+      ],
+      "size": [
+        432.00457763671875,
+        579.7525634765625
+      ],
+      "pos": [
+        7987.80810546875,
+        1025.2001953125
+      ],
+      "widgets_values": {
+        "custom_height": 0,
+        "force_rate": 0,
+        "custom_width": 0,
+        "select_every_nth": 1,
+        "frame_load_cap": 0,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {
+            "custom_height": 0,
+            "force_rate": 0,
+            "filename": "6aa7009ab7a73819868a6869b31a561a2e3299b6355c97a16f41939ae176a903.mp4",
+            "custom_width": 0,
+            "select_every_nth": 1,
+            "frame_load_cap": 0,
+            "format": "video/mp4",
+            "skip_first_frames": 0,
+            "type": "input"
+          }
+        },
+        "format": "AnimateDiff",
+        "video": "6aa7009ab7a73819868a6869b31a561a2e3299b6355c97a16f41939ae176a903.mp4",
+        "skip_first_frames": 0,
+        "force_size": "Disabled",
+        "choose video to upload": "image"
+      },
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "video"
+          },
+          "name": "video",
+          "label": "video",
+          "type": "STRING",
+          "localized_name": "video"
+        },
+        {
+          "widget": {
+            "name": "force_rate"
+          },
+          "name": "force_rate",
+          "label": "force_rate",
+          "type": "INT",
+          "localized_name": "force_rate"
+        },
+        {
+          "widget": {
+            "name": "force_size"
+          },
+          "name": "force_size",
+          "label": "force_size",
+          "type": "COMBO",
+          "localized_name": "force_size"
+        },
+        {
+          "widget": {
+            "name": "custom_width"
+          },
+          "name": "custom_width",
+          "label": "custom_width",
+          "type": "INT",
+          "localized_name": "custom_width"
+        },
+        {
+          "widget": {
+            "name": "custom_height"
+          },
+          "name": "custom_height",
+          "label": "custom_height",
+          "type": "INT",
+          "localized_name": "custom_height"
+        },
+        {
+          "widget": {
+            "name": "frame_load_cap"
+          },
+          "name": "frame_load_cap",
+          "label": "frame_load_cap",
+          "type": "INT",
+          "localized_name": "frame_load_cap"
+        },
+        {
+          "widget": {
+            "name": "skip_first_frames"
+          },
+          "name": "skip_first_frames",
+          "label": "skip_first_frames",
+          "type": "INT",
+          "localized_name": "skip_first_frames"
+        },
+        {
+          "widget": {
+            "name": "select_every_nth"
+          },
+          "name": "select_every_nth",
+          "label": "select_every_nth",
+          "type": "INT",
+          "localized_name": "select_every_nth"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "shape": 7,
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        }
+      ],
+      "flags": {},
+      "id": 390,
+      "type": "VHS_LoadVideo",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_LoadVideo"
+      },
+      "order": 24
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "Base Model: goes to ComfyUI/models/unet folder high ans low noise\nhttps://civitai.com/models/1995784?modelVersionId=2260110\n\n\nCLIP(Text_encoder): goes to ComfyUI/models/text_encoders foler\nhttps://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/tree/main/split_files/text_encoders\n\n\nVAE: goes to ComfyUI/models/vae folder\nhttps://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/tree/main/split_files/vae\n\nClip Vision: goes to ComfyUI/models/clip_vision folder\nhttps://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/tree/main/split_files/clip_vision\n\nCustom Nodes:\nGemini Node\nhttps://github.com/chflame163/ComfyUI_LayerStyle_Advance\n\nQwen VL node\nhttps://github.com/1038lab/ComfyUI-QwenVL?tab=readme-ov-file\n\nUncensored Qwen3 VL models\nhttps://huggingface.co/collections/prithivMLmods/qwen3-vl-abliteration-oct-1625"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "title": "Note Models used in the workflow",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        640.568603515625,
+        378.37542724609375
+      ],
+      "pos": [
+        7271.3212890625,
+        1160.880615234375
+      ],
+      "id": 355,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 25
+    },
+    {
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            622
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        8563.2001953125,
+        108.7183837890625
+      ],
+      "widgets_values": [
+        null,
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 621,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "lora_name"
+          },
+          "name": "lora_name",
+          "label": "lora_name",
+          "type": "COMBO",
+          "localized_name": "lora_name"
+        },
+        {
+          "widget": {
+            "name": "strength_model"
+          },
+          "name": "strength_model",
+          "label": "strength_model",
+          "type": "FLOAT",
+          "localized_name": "strength_model"
+        }
+      ],
+      "flags": {},
+      "id": 420,
+      "type": "LoraLoaderModelOnly",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "order": 38
+    },
+    {
+      "outputs": [
+        {
+          "name": "*",
+          "label": "*",
+          "type": "*"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "model_low"
+      ],
+      "inputs": [
+        {
+          "name": "MODEL",
+          "link": 511,
+          "label": "MODEL",
+          "type": "MODEL"
+        }
+      ],
+      "flags": {},
+      "type": "SetNode",
+      "title": "Set_model_low",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        210,
+        58
+      ],
+      "pos": [
+        9557.8623046875,
+        651.2969970703125
+      ],
+      "id": 357,
+      "properties": {
+        "previousName": "model_low",
+        "widget_ue_connectable": {}
+      },
+      "order": 53
+    },
+    {
+      "outputs": [
+        {
+          "name": "*",
+          "label": "*",
+          "type": "*"
+        }
+      ],
+      "color": "#223",
+      "widgets_values": [
+        "model_high"
+      ],
+      "inputs": [
+        {
+          "name": "MODEL",
+          "link": 510,
+          "label": "MODEL",
+          "type": "MODEL"
+        }
+      ],
+      "flags": {},
+      "type": "SetNode",
+      "title": "Set_model_high",
+      "mode": 0,
+      "bgcolor": "#335",
+      "size": [
+        210,
+        60
+      ],
+      "pos": [
+        9571.2392578125,
+        533.8261108398438
+      ],
+      "id": 356,
+      "properties": {
+        "previousName": "model_high",
+        "widget_ue_connectable": {}
+      },
+      "order": 52
+    },
+    {
+      "outputs": [],
+      "color": "#d74b4b",
+      "widgets_values": [
+        "if you got sage attention erro or torch erro  and stuck at Ksampler. diable the speed up group.\n\nif you got out of memory error. enable the block swap group"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#c33737",
+      "size": [
+        286.53826904296875,
+        99.00874328613281
+      ],
+      "pos": [
+        9225.9375,
+        452.7774963378906
+      ],
+      "id": 373,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 12
+    },
+    {
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "label": "OPT_CONNECTION",
+          "type": "*"
+        }
+      ],
+      "color": "#432",
+      "inputs": [],
+      "flags": {},
+      "type": "Fast Groups Bypasser (rgthree)",
+      "title": "Speed Up Switch",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        252.4443817138672,
+        62.747657775878906
+      ],
+      "pos": [
+        9512.822265625,
+        291.2733154296875
+      ],
+      "id": 372,
+      "properties": {
+        "customSortAlphabet": "",
+        "matchColors": "",
+        "widget_ue_connectable": {},
+        "sort": "position",
+        "matchTitle": "speed up",
+        "showNav": true,
+        "toggleRestriction": "default"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            621
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "size": [
+        513.0781860351562,
+        100.3128890991211
+      ],
+      "pos": [
+        8000.4296875,
+        103.00265502929688
+      ],
+      "widgets_values": [
+        "smoothMixWan22I2VT2V_t2vHighV20.safetensors",
+        "default"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "unet_name"
+          },
+          "name": "unet_name",
+          "label": "unet_name",
+          "type": "COMBO",
+          "localized_name": "unet_name"
+        },
+        {
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "name": "weight_dtype",
+          "label": "weight_dtype",
+          "type": "COMBO",
+          "localized_name": "weight_dtype"
+        }
+      ],
+      "flags": {},
+      "id": 286,
+      "type": "UNETLoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "widget_ue_connectable": {
+          "weight_dtype": true,
+          "unet_name": true
+        },
+        "Node name for S&R": "UNETLoader"
+      },
+      "order": 26
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            623
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "size": [
+        513.470703125,
+        82
+      ],
+      "pos": [
+        7990.72314453125,
+        312.00360107421875
+      ],
+      "widgets_values": [
+        "smoothMixWan22I2VT2V_t2vLowV20.safetensors",
+        "default"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "unet_name"
+          },
+          "name": "unet_name",
+          "label": "unet_name",
+          "type": "COMBO",
+          "localized_name": "unet_name"
+        },
+        {
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "name": "weight_dtype",
+          "label": "weight_dtype",
+          "type": "COMBO",
+          "localized_name": "weight_dtype"
+        }
+      ],
+      "flags": {},
+      "id": 287,
+      "type": "UNETLoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.46",
+        "widget_ue_connectable": {
+          "weight_dtype": true,
+          "unet_name": true
+        },
+        "Node name for S&R": "UNETLoader"
+      },
+      "order": 27
+    },
+    {
+      "mode": 4,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            624
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        8564.5234375,
+        318.8179016113281
+      ],
+      "widgets_values": [
+        null,
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 623,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "widget": {
+            "name": "lora_name"
+          },
+          "name": "lora_name",
+          "label": "lora_name",
+          "type": "COMBO",
+          "localized_name": "lora_name"
+        },
+        {
+          "widget": {
+            "name": "strength_model"
+          },
+          "name": "strength_model",
+          "label": "strength_model",
+          "type": "FLOAT",
+          "localized_name": "strength_model"
+        }
+      ],
+      "flags": {},
+      "id": 421,
+      "type": "LoraLoaderModelOnly",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "order": 39
+    },
+    {
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "label": "OPT_CONNECTION",
+          "type": "*"
+        }
+      ],
+      "color": "#432",
+      "inputs": [],
+      "flags": {},
+      "type": "Fast Groups Bypasser (rgthree)",
+      "title": "Block Swap Switch",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        259.6387634277344,
+        58
+      ],
+      "pos": [
+        9157.4833984375,
+        285.6719665527344
+      ],
+      "id": 371,
+      "properties": {
+        "customSortAlphabet": "",
+        "matchColors": "",
+        "widget_ue_connectable": {},
+        "sort": "position",
+        "matchTitle": "block swap",
+        "showNav": true,
+        "toggleRestriction": "default"
+      },
+      "order": 5
+    }
+  ],
+  "extra": {
+    "VHS_KeepIntermediate": true,
+    "links_added_by_ue": [],
+    "VHS_MetadataImage": true,
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "VHS_latentpreviewrate": 0,
+    "frontendVersion": "1.23.0",
+    "VHS_latentpreview": false,
+    "ds": {
+      "offset": [
+        -8173.285440317611,
+        -17.945549626586626
+      ],
+      "scale": 1.0610764609500027
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 50,
+      "title": "Image/Text To Video Gen",
+      "bounding": [
+        7970.05859375,
+        943.3726806640625,
+        4976.5126953125,
+        1220.4156494140625
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 58,
+      "title": "Image/Text To Video Gen FI",
+      "bounding": [
+        13009.0302734375,
+        949.213134765625,
+        1652.784912109375,
+        1190.9708251953125
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 62,
+      "title": "Group",
+      "bounding": [
+        7977.98583984375,
+        -111.42139434814453,
+        1813.25390625,
+        1008.618896484375
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 63,
+      "title": "Block Swap",
+      "bounding": [
+        8885.728515625,
+        -4.057934761047363,
+        231.1630859375,
+        406.2091979980469
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 64,
+      "title": "Speed Up",
+      "bounding": [
+        9142.037109375,
+        -67.82142639160156,
+        633.8369140625,
+        299.1962585449219
+      ]
+    },
+    {
+      "color": "#b58b2a",
+      "font_size": 120,
+      "flags": {},
+      "id": 65,
+      "title": "Youtube|B站: FaboroHacks",
+      "bounding": [
+        9830.6337890625,
+        355.0646667480469,
+        1590.7156982421875,
+        478.3483581542969
+      ]
+    },
+    {
+      "color": "#b58b2a",
+      "font_size": 70,
+      "flags": {},
+      "id": 66,
+      "title": "Tutorial: https://www.youtube.com/@faborohacks",
+      "bounding": [
+        9856.767578125,
+        574.2841796875,
+        1543.029052734375,
+        97.906494140625
+      ]
+    },
+    {
+      "color": "#b58b2a",
+      "font_size": 70,
+      "flags": {},
+      "id": 67,
+      "title": "视频教程: https://space.bilibili.com/2115870090",
+      "bounding": [
+        9856.744140625,
+        701.619873046875,
+        1541.7401123046875,
+        99.50039672851562
+      ]
+    }
+  ],
+  "links": [
+    [
+      408,
+      318,
+      0,
+      279,
+      0,
+      "LATENT"
+    ],
+    [
+      411,
+      334,
+      0,
+      281,
+      0,
+      "MODEL"
+    ],
+    [
+      412,
+      335,
+      0,
+      282,
+      0,
+      "MODEL"
+    ],
+    [
+      413,
+      281,
+      0,
+      283,
+      0,
+      "MODEL"
+    ],
+    [
+      414,
+      282,
+      0,
+      284,
+      0,
+      "MODEL"
+    ],
+    [
+      418,
+      279,
+      0,
+      303,
+      0,
+      "*"
+    ],
+    [
+      451,
+      333,
+      0,
+      318,
+      7,
+      "INT"
+    ],
+    [
+      453,
+      280,
+      0,
+      319,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      459,
+      293,
+      0,
+      319,
+      7,
+      "INT"
+    ],
+    [
+      464,
+      303,
+      0,
+      322,
+      0,
+      "IMAGE"
+    ],
+    [
+      510,
+      283,
+      0,
+      356,
+      0,
+      "*"
+    ],
+    [
+      511,
+      284,
+      0,
+      357,
+      0,
+      "*"
+    ],
+    [
+      512,
+      290,
+      0,
+      359,
+      0,
+      "*"
+    ],
+    [
+      513,
+      288,
+      0,
+      358,
+      0,
+      "*"
+    ],
+    [
+      514,
+      341,
+      0,
+      360,
+      0,
+      "*"
+    ],
+    [
+      515,
+      363,
+      0,
+      318,
+      0,
+      "MODEL"
+    ],
+    [
+      516,
+      364,
+      0,
+      318,
+      1,
+      "MODEL"
+    ],
+    [
+      517,
+      362,
+      0,
+      279,
+      1,
+      "VAE"
+    ],
+    [
+      518,
+      362,
+      0,
+      319,
+      2,
+      "VAE"
+    ],
+    [
+      519,
+      361,
+      0,
+      280,
+      0,
+      "CLIP"
+    ],
+    [
+      520,
+      361,
+      0,
+      278,
+      0,
+      "CLIP"
+    ],
+    [
+      533,
+      375,
+      0,
+      374,
+      0,
+      "GIMMVIF_MODEL"
+    ],
+    [
+      534,
+      303,
+      0,
+      374,
+      1,
+      "IMAGE"
+    ],
+    [
+      535,
+      374,
+      0,
+      349,
+      0,
+      "IMAGE"
+    ],
+    [
+      547,
+      384,
+      0,
+      293,
+      0,
+      "*"
+    ],
+    [
+      579,
+      319,
+      0,
+      318,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      580,
+      319,
+      1,
+      318,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      581,
+      319,
+      2,
+      318,
+      4,
+      "LATENT"
+    ],
+    [
+      582,
+      379,
+      0,
+      319,
+      5,
+      "INT"
+    ],
+    [
+      583,
+      380,
+      0,
+      319,
+      6,
+      "INT"
+    ],
+    [
+      587,
+      394,
+      0,
+      395,
+      0,
+      "*"
+    ],
+    [
+      590,
+      390,
+      2,
+      401,
+      0,
+      "*"
+    ],
+    [
+      591,
+      402,
+      0,
+      322,
+      1,
+      "AUDIO"
+    ],
+    [
+      592,
+      403,
+      0,
+      349,
+      1,
+      "AUDIO"
+    ],
+    [
+      599,
+      394,
+      0,
+      406,
+      0,
+      "*"
+    ],
+    [
+      602,
+      361,
+      0,
+      409,
+      0,
+      "CLIP"
+    ],
+    [
+      611,
+      361,
+      0,
+      416,
+      0,
+      "CLIP"
+    ],
+    [
+      619,
+      278,
+      0,
+      319,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      620,
+      390,
+      0,
+      394,
+      1,
+      "IMAGE"
+    ],
+    [
+      621,
+      286,
+      0,
+      420,
+      0,
+      "MODEL"
+    ],
+    [
+      622,
+      420,
+      0,
+      334,
+      0,
+      "MODEL"
+    ],
+    [
+      623,
+      287,
+      0,
+      421,
+      0,
+      "MODEL"
+    ],
+    [
+      624,
+      421,
+      0,
+      335,
+      0,
+      "MODEL"
+    ]
+  ],
+  "id": "9b2f558d-66ee-44dc-9789-6f1fd5577760",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 421,
+  "revision": 0
+}

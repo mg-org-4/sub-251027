@@ -4200,15 +4200,70 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 			}
 
 			catmullRomInterpolateEuler(t, e0, e1, e2, e3) {
+				// 调整角度确保最短路径
+				const adjustForShortestPath = (angles) => {
+				for (let i = 1; i < angles.length; i++) {
+					const prev = angles[i-1];
+					const curr = angles[i];
+					
+					// 计算差值，找到最短路径
+					let diff = curr - prev;
+					
+					// 如果差值大于π，减去2π
+					if (diff > Math.PI) {
+						angles[i] -= 2 * Math.PI;
+					}
+					// 如果差值小于-π，加上2π
+					else if (diff < -Math.PI) {
+						angles[i] += 2 * Math.PI;
+					}
+				}
+				
+				// 确保e0与e1保持一致（因为e0在e1之前）
+				if (angles.length > 1) {
+					let diff = angles[1] - angles[0];
+					if (diff > Math.PI) {
+						angles[0] -= 2 * Math.PI;
+					} else if (diff < -Math.PI) {
+						angles[0] += 2 * Math.PI;
+					}
+				}
+				
+				// 确保e3与e2保持一致（因为e3在e2之后）
+				if (angles.length > 3) {
+					let diff = angles[3] - angles[2];
+					if (diff > Math.PI) {
+						angles[3] -= 2 * Math.PI;
+					} else if (diff < -Math.PI) {
+						angles[3] += 2 * Math.PI;
+					}
+				}
+				
+				return angles;
+				};
+				
 				var interpolateAngle = function(t, a0, a1, a2, a3) {
 					var normalizeAngle = function(angle) {
 						while (angle > Math.PI) angle -= 2 * Math.PI;
 						while (angle < -Math.PI) angle += 2 * Math.PI;
 						return angle;
 					};
-					a0 = normalizeAngle(a0); a1 = normalizeAngle(a1); a2 = normalizeAngle(a2); a3 = normalizeAngle(a3);
+					
+					a0 = normalizeAngle(a0);
+					a1 = normalizeAngle(a1);
+					a2 = normalizeAngle(a2);
+					a3 = normalizeAngle(a3);
+					
+					// 调整角度确保插值沿最短路径
+					const adjusted = adjustForShortestPath([a0, a1, a2, a3]);
+					a0 = adjusted[0];
+					a1 = adjusted[1];
+					a2 = adjusted[2];
+					a3 = adjusted[3];
+					
 					return this.catmullRomInterpolate(t, a0, a1, a2, a3);
 				}.bind(this);
+				
 				return new THREE.Euler(
 					interpolateAngle(t, e0.x, e1.x, e2.x, e3.x),
 					interpolateAngle(t, e0.y, e1.y, e2.y, e3.y),
@@ -10802,7 +10857,11 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 			performRendering() {
 				const mode = this.state.materialMode;
 				
-				if (mode === 'default' || mode === 'original') {
+				// 判断是否需要使用composer
+				const useComposer = mode === 'contour' || mode === 'ssao' || mode === 'gtao';
+				
+				// 直接渲染模式
+				if (!useComposer) {
 					this.renderer.render(this.scene, this.camera);
 					return;
 				}
@@ -11331,15 +11390,14 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 
 			// 录像系统
 			captureScreenshot(customFilename = null) {
-				const originalGridVisible = this.dom.toggles.helper.checked;
-				const originalInfoVisible = this.dom.toggles.info.checked;
+				/* const originalGridVisible = this.dom.toggles.helper.checked;
+				const originalInfoVisible = this.dom.toggles.info.checked; */
 				
 				try {
-					this.dom.toggles.helper.checked = false;
+					/* this.dom.toggles.helper.checked = false;
 					this.dom.toggles.info.checked = false;
-					
 					this.toggleHelper();
-					this.toggleInfoDisplay();
+					this.toggleInfoDisplay(); */
 					
 					// 确保渲染了当前帧
 					this.renderInvalidate();
@@ -11393,11 +11451,10 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 					this.showMessage('Sceenshot Failed: ' + error.message, 5000);
 					return null;
 				} finally {
-					this.dom.toggles.helper.checked = originalGridVisible;
+					/* this.dom.toggles.helper.checked = originalGridVisible;
 					this.dom.toggles.info.checked = originalInfoVisible;
-					
 					this.toggleHelper();
-					this.toggleInfoDisplay();
+					this.toggleInfoDisplay(); */
 				}
 			}
 
@@ -11418,14 +11475,12 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 			async startRecording() {
 				if (this.state.recording.isRecording) return;
 				
-				this.state.recording.originalGridVisible = this.dom.toggles.helper.checked;
+				/* this.state.recording.originalGridVisible = this.dom.toggles.helper.checked;
 				this.state.recording.originalInfoVisible = this.dom.toggles.info.checked;
-				
 				this.dom.toggles.helper.checked = false;
 				this.dom.toggles.info.checked = false;
-				
 				this.toggleHelper();
-				this.toggleInfoDisplay();
+				this.toggleInfoDisplay(); */
 				
 				this.disableControls();
 				await new Promise(resolve => setTimeout(resolve, 50));
@@ -11471,11 +11526,11 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 							}
 						}
 						
-						this.dom.toggles.helper.checked = this.state.recording.originalGridVisible;
+						/* this.dom.toggles.helper.checked = this.state.recording.originalGridVisible;
 						this.dom.toggles.info.checked = this.state.recording.originalInfoVisible;
-						
 						this.toggleHelper();
-						this.toggleInfoDisplay();
+						this.toggleInfoDisplay(); */
+						
 						this.enableControls();
 						
 						this.state.recording.isRecording = false;
@@ -12609,17 +12664,17 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 			disablePostProcessing() {
 				if (!this.composer) return;
 				
-				this.composer.passes.forEach(p => {
-					p.enabled = false;
+				// 只禁用非RenderPass的通道
+				this.composer.passes.forEach(pass => {
+					if (!(pass instanceof RenderPass)) {
+						pass.enabled = false;
+						pass.renderToScreen = false;
+					} else {
+						// 确保RenderPass启用并渲染到屏幕
+						pass.enabled = true;
+						pass.renderToScreen = true;
+					}
 				});
-				
-				// 会导致再次切换到contour时失效
-				/* this.composer.dispose();
-				this.composer = null;
-				this.normalRenderTarget?.dispose();
-				this.normalRenderTarget = null;
-				this.depthTexture?.dispose();
-				this.depthTexture = null; */
 			}
 
 			disableAllPostPasses() {
@@ -12666,6 +12721,13 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 				this.contourPass.enabled = true;
 				this.contourPass.renderToScreen = true;
 				
+				// 确保RenderPass启用但不渲染到屏幕
+				const renderPass = this.composer.passes.find(pass => pass instanceof RenderPass);
+				if (renderPass) {
+					renderPass.enabled = true;
+					renderPass.renderToScreen = false;
+				}
+				
 				// 5. 静态 uniform 绑定（一次）
 				this.contourPass.uniforms.tNormal.value =
 					this.normalRenderTarget.texture;
@@ -12690,8 +12752,15 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 				// 3. 启用
 				this.ssaoPass.enabled = true;
 				this.ssaoPass.renderToScreen = true;
-				this.reorderPass(this.ssaoPass);
 				
+				// 确保RenderPass启用但不渲染到屏幕
+				const renderPass = this.composer.passes.find(pass => pass instanceof RenderPass);
+				if (renderPass) {
+					renderPass.enabled = true;
+					renderPass.renderToScreen = false;
+				}
+				
+				this.reorderPass(this.ssaoPass);
 				this.resizePostProcessing();
 				this.renderInvalidate();
 			}
@@ -12708,8 +12777,15 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 				// 3. 启用
 				this.gtaoPass.enabled = true;
 				this.gtaoPass.renderToScreen = true;
-				this.reorderPass(this.gtaoPass);
 				
+				// 确保RenderPass启用但不渲染到屏幕
+				const renderPass = this.composer.passes.find(pass => pass instanceof RenderPass);
+				if (renderPass) {
+					renderPass.enabled = true;
+					renderPass.renderToScreen = false;
+				}
+				
+				this.reorderPass(this.gtaoPass);
 				this.resizePostProcessing();
 				this.renderInvalidate();
 			}
@@ -13054,7 +13130,12 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 					? eOrMode 
 					: eOrMode.target.value;
 				
+				const previousMode = this.state.materialMode;
 				this.state.materialMode = mode;
+				
+				if (mode !== 'original') {
+					this.hideSelectedMaterialGUI();
+				}
 				
 				if (!this.composer && (mode === 'contour' || mode === 'ssao' || mode === 'gtao')) {
 					this.initPostProcessing();
@@ -13101,6 +13182,20 @@ const ADV3DVIEWER_HTML = `<!DOCTYPE html>
 				this.applyMaterialMode();
 				this.updateBgColorPickerState(mode);
 				this.toggleLightGUI();
+				
+				// 当切换回original模式时，如果有选中的对象，显示选中的材质GUI
+				if (mode === 'original' && previousMode !== 'original') {
+					// 检查是否有选中的对象
+					if (this.state.selection.selectedObject && this.state.selection.selectedObject.material) {
+						// 延迟一点显示，确保材质已经应用完成
+						setTimeout(() => {
+							if (this.state.materialMode === 'original' && 
+								this.state.selection.selectedObject) {
+								this.showSelectedMaterialGUI(this.state.selection.selectedObject);
+							}
+						}, 50);
+					}
+				}
 			}
 
 			applyMaterialMode() {

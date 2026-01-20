@@ -1,10 +1,11 @@
 import { app, ComfyApp } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js"
 
-import { mask_editor_listen_for_cancel, mask_editor_showing, hide_mask_editor, press_maskeditor_cancel, press_maskeditor_save, new_editor } from "./mask_utils.js";
+import { mask_editor_listen_for_cancel, mask_editor_showing, hide_mask_editor, press_maskeditor_cancel, press_maskeditor_save, new_editor, open_maskeditor } from "./mask_utils.js";
 import { Log } from "./log.js";
 import { create } from "./utils.js";
 import { FloatingWindow } from "./floating_window.js";
+import { graph_id_to_tab } from "./weak_map.js";
 
 //const EXTENSION_NODES = ["Image Filter", "Text Image Filter", "Mask Image Filter", "Text Image Filter with Extras",]
 const POPUP_NODES = ["Image Filter", "Text Image Filter", "Text Image Filter with Extras",]
@@ -97,6 +98,7 @@ class Popup extends HTMLElement {
 
     toggleHide() {
         this.hidden_by_toggle = !this.hidden_by_toggle
+        if (!this.hidden_by_toggle) this.layout()
         this.render()
     }
 
@@ -168,7 +170,7 @@ class Popup extends HTMLElement {
          special      (int)
          masked_image (string)
         *extras       (list of strings)
-        *unique       (string)
+        *graph_id       (string)
                 (*) are added
         */
         if (Date.now()-this.last_response_sent < 1000) {
@@ -176,13 +178,7 @@ class Popup extends HTMLElement {
             return
         }
 
-        const unique = this.node?._ni_widget?.value
-        if (!unique) {
-            if (this.node) Log.error(`Node ${this.node.id} has no _ni_widget when trying to send ${msg}`)
-            else Log.error(`No node when trying to send ${msg}`)
-            return
-        }
-        msg.unique = `${unique}`
+        msg.graph_id = `${app.graph.id}`
 
         if (!msg.special) {
             if (this.n_extras>0) {
@@ -229,13 +225,13 @@ class Popup extends HTMLElement {
 
     handle_message(message) { 
         Log.message_in(message)
-        Log.log( this._handle_message(message, false) )
+        this._handle_message(message, false)
         this.render()
     }
 
     handle_deferred_message(e) {
         Log.message_in(this.saved_message, "(deferred)")
-        Log.log( this._handle_message(this.saved_message, true) )
+        this._handle_message(this.saved_message, true)
         this.render()
     }
 
@@ -266,15 +262,31 @@ class Popup extends HTMLElement {
         return node
     }
 
+    _flash_tab(graph_id) {
+        const tab = graph_id_to_tab.get(graph_id)
+        if (tab) {
+            const element = tab.firstElementChild?.firstElementChild?.firstElementChild || tab
+            if (this.tab_orginal_background===undefined) this.tab_orginal_background = element.style.backgroundColor
+            element.style.backgroundColor = '#ffff0040'
+            setTimeout( ()=>{ element.style.backgroundColor = this.tab_orginal_background }, 100 )
+        }
+    }
+
     _handle_message(message, using_saved) {
         const detail = message.detail
         const uid = detail.uid
         const the_node = this.find_node(uid)
+        const graph_id = message.detail.graph_id
+
+        if (graph_id != app.graph.id) {
+            this._flash_tab(message.detail.graph_id)
+            Log.detail(`Message for different tab`)
+            return
+        }
+
+        if (!the_node) Log.log(`No node found with uid ${uid}. Maybe it's been removed. Continuing with caution`)
 
         if (this.node!=the_node) this.on_new_node(the_node)
-
-        if (!this.node) return console.log(`Message was for ${uid} which doesn't exist`)
-        if (this.node._ni_widget?.value != message.detail.unique) return console.log(`Message unique id wasn't mine`)
 
         if (detail.tick) {
             this.counter_text.innerText = `${detail.tick}s`
@@ -284,12 +296,12 @@ class Popup extends HTMLElement {
 
         if (detail.timeout) {
             this.close()
-            return `Timeout` 
+            return Log.log(`Image Filter Timeout`)
         }
 
-        if (this.handling_message) return `Ignoring message because we're already handling a message`
+        if (this.handling_message) return Log.detail(`Ignoring message because we're already handling a message`)
 
-        this.set_title(this.node.title ?? "Image Filter")
+        this.set_title(this.node?.title ?? "Image Filter")
         this.allsame = detail.allsame || false
         if (detail.tip) this.tip_row.innerHTML = detail.tip.replace(/(?:\r\n|\r|\n)/g, '<br/>')
         else this.tip_row.innerHTML = ""
@@ -316,8 +328,6 @@ class Popup extends HTMLElement {
         } finally { this.handling_message = false }  
     }
 
-
-
     window_not_showing(uid) {
         const node = this.find_node(uid)
         return (
@@ -336,18 +346,22 @@ class Popup extends HTMLElement {
     }
 
     handle_maskedit(detail) {
-        this.state = State.MASK
-
-        //this.node = this.find_node(detail.uid)
-        this.node.imgs = []
-        detail.urls.forEach((url, i)=>{ 
-            this.node.imgs.push( new Image() );
-            this.node.imgs[i].src = api.apiURL( `/view?filename=${encodeURIComponent(url.filename)}&type=${url.type}&subfolder=${url.subfolder}`) 
-        })
-        ComfyApp.copyToClipspace(this.node)
-        ComfyApp.clipspace_return_node = this.node
-        ComfyApp.open_maskeditor()
-        this.seen_editor = false
+        if (!this.node) {
+            Log.log(`No node to handle maskedit - maybe it's been removed`)
+            this.seen_editor = true
+        } else {
+            this.state = State.MASK
+            this.node.imgs = []
+            this.node.images = []
+            detail.urls.forEach((url, i)=>{ 
+                this.node.imgs.push( new Image() );
+                this.node.imgs[i].src = api.apiURL( `/view?filename=${encodeURIComponent(url.filename)}&type=${url.type}&subfolder=${url.subfolder}`) 
+                this.node.images.push( url )
+            })
+            this.node.imageIndex = 0
+            open_maskeditor(this.node)
+            this.seen_editor = false
+        }
         setTimeout(this.wait_while_mask_editing.bind(this), 200)
     }
 
@@ -361,7 +375,13 @@ class Popup extends HTMLElement {
         if (mask_editor_showing()) {
             setTimeout(this.wait_while_mask_editing.bind(this), 100)
         } else {
-            this._send_response({masked_image:this.extract_filename(this.node.imgs[0].src)})
+            const masked_image = this.extract_filename(this.node.imgs[0].src)
+            if (masked_image) {
+                this._send_response({masked_image:this.extract_filename(this.node.imgs[0].src)})
+            } else {
+                this._send_response({masked_data:this.node.imgs[0].src})
+            }
+            
         } 
     }
 
@@ -391,31 +411,27 @@ class Popup extends HTMLElement {
         }
 
         this.n_images = (this.video_frames<=1) ? detail.urls.length : Math.ceil(detail.urls.length / this.video_frames)
-
         this.laidOut = -1
-
         this.picked = new Set()
         if (this.n_images==1) this.picked.add('0')
 
         this.grid.innerHTML = ''
         this.overlaygrid.innerHTML = ''
-        var latestImage = null
 
+        var latestImage
         detail.urls.forEach((url, i)=>{
-            console.log(url)
+            Log.log(url)
             if (i%this.video_frames == 0) {
-                const thisImage = create('img', null, this.grid, {src:get_full_url(url)})
-                latestImage = thisImage
+                latestImage = create('img', null, this.grid, {src:get_full_url(url)})
                 latestImage.onload = this.layout.bind(this)
                 latestImage.image_index = i/this.video_frames
-                latestImage.addEventListener('mouseover', (e)=>this.on_mouse_enter(thisImage))
-                latestImage.addEventListener('mouseout', (e)=>this.on_mouse_out(thisImage))
+                latestImage.addEventListener('mouseover', (e)=>this.on_mouse_enter(latestImage))
+                latestImage.addEventListener('mouseout', (e)=>this.on_mouse_out(latestImage))
                 latestImage.frames = [get_full_url(url),]
             } else {
                 latestImage.frames.push(get_full_url(url))
             }
-            if (detail.mask_urls) { create('img', null, this.overlaygrid, {src:get_full_url(detail.mask_urls[i])})}
-
+            if (detail.mask_urls && this.video_frames==1) { create('img', null, this.overlaygrid, {src:get_full_url(detail.mask_urls[i])}) }
         })
 
         this.layout()
@@ -425,6 +441,7 @@ class Popup extends HTMLElement {
             setTimeout(this.advance_videos.bind(this), 1000)
         }
 
+        /* cooldown to prevent us catching a click that was intended for an element we are now covering */
         this.in_cooldown = true
         setTimeout(()=>{this.in_cooldown = false}, 500)
         
@@ -639,13 +656,6 @@ class Popup extends HTMLElement {
     }
 
     rescale_images() {
-        /*const justify = /*this.per_row > 1 ? "start" : "center"
-        const align = /*this.rows > 1 ? "start" : "center"
-        this.grid.style.justifyItems = justify
-        this.grid.style.alignItems = align
-        this.overlaygrid.style.justifyItems = justify
-        this.overlaygrid.style.alignItems = align*/
-
         const box = this.grid.getBoundingClientRect()
         const sub = this.grid.firstChild.getBoundingClientRect()
         const w_used = (sub.width+GRID_IMAGE_SPACE)*this.per_row / box.width

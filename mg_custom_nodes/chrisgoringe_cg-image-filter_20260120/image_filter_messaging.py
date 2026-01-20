@@ -11,11 +11,17 @@ WAITING_FOR_RESPONSE = "-9"
 SPECIALS = [REQUEST_RESHOW, CANCEL, WAITING_FOR_RESPONSE]
 
 class Response:
-    def __init__(self, selection:Optional[list[str]] = None, text:Optional[str] = None,
-                        masked_image:Optional[str] = None, extras:Optional[list[str]] = None):
+    def __init__(
+            self, 
+            selection:Optional[list[str]] = None, 
+            text:Optional[str] = None,
+            masked_image:Optional[str] = None, 
+            masked_data:Optional[str]  = None,
+            extras:Optional[list[str]] = None):
         self.selection:list[int]        = [int(x) for x in selection] if selection else []
         self.text:Optional[str]         = text
         self.masked_image:Optional[str] = masked_image
+        self.masked_data:Optional[str]  = masked_data
         self.extras:Optional[list[str]] = extras
 
     def get_extras(self,defaults:list[str]) -> list[str]:
@@ -27,11 +33,11 @@ class RequestResponse(Response): pass
 
 class MessageState:
     _latest:'Optional[MessageState]' = None
-    unique_expected = None
+    graph_id_expected = None
 
     def __init__(self, data:dict|str={}):
         data_dict:dict = data if isinstance(data,dict) else json.loads(data)
-        self.unique:str            = data_dict.pop('unique', None)
+        self.graph_id:str          = data_dict.pop('graph_id', None)
         self.special:Optional[str] = data_dict.pop('special',None)
         self.response:Response     = Response(**data_dict)
 
@@ -51,9 +57,9 @@ class MessageState:
     def request_state(cls): return MessageState(data={'special':REQUEST_RESHOW})
 
     @classmethod
-    def start_waiting(cls, unique): 
+    def start_waiting(cls, graph_id): 
         cls._latest = cls.waiting_state()
-        cls.unique_expected = unique
+        cls.graph_id_expected = graph_id
 
     @classmethod
     def get_response(cls) -> Response:  
@@ -85,7 +91,7 @@ async def cg_image_filter_message(request):
     response = post.get("response")
     message  = MessageState(response)
 
-    if str(MessageState.unique_expected)==str(message.unique):
+    if str(MessageState.graph_id_expected)==str(message.graph_id):
         if (MessageState.waiting()):
             MessageState.set_latest(message)
         else:
@@ -95,26 +101,26 @@ async def cg_image_filter_message(request):
 
     return web.json_response({})
 
-def wait_for_response(secs, uid, unique) -> Response:
-    MessageState.start_waiting(unique)
+def wait_for_response(secs, uid, graph_id) -> Response:
+    MessageState.start_waiting(graph_id)
     try:
         end_time = time.monotonic() + secs
         while(time.monotonic() < end_time and MessageState.waiting()): 
             throw_exception_if_processing_interrupted()
-            PromptServer.instance.send_sync("cg-image-filter-images", {"tick": int(end_time - time.monotonic()), "uid": uid, "unique":unique})
+            PromptServer.instance.send_sync("cg-image-filter-images", {"tick": int(end_time - time.monotonic()), "uid": uid, "graph_id":graph_id})
             time.sleep(0.5)
         if MessageState.waiting():
-            PromptServer.instance.send_sync("cg-image-filter-images", {"timeout": True, "uid": uid, "unique":unique})
+            PromptServer.instance.send_sync("cg-image-filter-images", {"timeout": True, "uid": uid, "graph_id":graph_id})
         return MessageState.get_response()
     finally: MessageState.stop_waiting()
     
-def send_and_wait(payload, timeout, uid, unique) -> Response:
-    payload['uid'] = uid
-    payload['unique'] = unique
+def send_and_wait(payload, timeout, uid, graph_id) -> Response:
+    payload['uid']      = uid
+    payload['graph_id'] = graph_id
 
     while True:
         PromptServer.instance.send_sync("cg-image-filter-images", payload)
-        r = wait_for_response(timeout, uid, unique)
+        r = wait_for_response(timeout, uid, graph_id)
         if isinstance(r,CancelledResponse): raise InterruptProcessingException()
         if (not isinstance(r, RequestResponse)): return r
       

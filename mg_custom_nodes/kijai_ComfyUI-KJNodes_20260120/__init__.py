@@ -214,6 +214,7 @@ NODE_CONFIG = {
     "EndRecordCUDAMemoryHistory": {"class": EndRecordCUDAMemoryHistory, "name": "End Recording CUDAMemory History"},
     "VisualizeCUDAMemoryHistory": {"class": VisualizeCUDAMemoryHistory, "name": "Visualize CUDAMemory History"},
     "PreviewLatentNoiseMask": {"class": PreviewLatentNoiseMask, "name": "Preview Latent Noise Mask"},
+    "ModelMemoryUseReportPatch": {"class": ModelMemoryUseReportPatch, "name": "Model Memory Use Report Patch"},
 
     #instance diffusion
     "CreateInstanceDiffusionTracking": {"class": CreateInstanceDiffusionTracking},
@@ -251,6 +252,7 @@ try:
     "LTX2SamplingPreviewOverride": {"class": LTX2SamplingPreviewOverride, "name": "LTX2 Sampling Preview Override"},
     "LTX2AudioLatentNormalizingSampling": {"class": LTX2AudioLatentNormalizingSampling, "name": "LTX2 Audio Latent Normalizing Sampling"},
     "LTXVImgToVideoInplaceKJ": {"class": LTXVImgToVideoInplaceKJ, "name": "LTXV Img To Video Inplace KJ"},
+    "LTX2AttentionTunerPatch": {"class": LTX2AttentionTunerPatch, "name": "LTX2 Attention Tuner Patch"},
     })
 except ImportError:
     pass

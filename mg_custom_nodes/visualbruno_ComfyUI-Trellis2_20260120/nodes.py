@@ -136,6 +136,34 @@ def remove_floater(mesh):
     mesh.faces = new_faces
     
     return mesh
+
+def remove_mesh_infinite_vertices(mesh):
+    print('Removing infinite vertices ...')
+    vertices = mesh.vertices.cpu().numpy()
+    faces = mesh.faces.cpu().numpy()
+    
+    trimesh = Trimesh.Trimesh(vertices=vertices,faces=faces)
+    print(f"Original vertex count: {len(trimesh.vertices)}")
+    
+    # Remove anything outside a reasonable bounding box
+    limit = 1e10 
+    valid_mask = (np.abs(trimesh.vertices) < limit).all(axis=1)
+    
+    trimesh.update_vertices(valid_mask)
+    
+    # Removing vertices can leave "degenerate" faces or orphan nodes
+    trimesh.remove_degenerate_faces()
+    trimesh.remove_unreferenced_vertices()  
+
+    print(f"Cleaned vertex count: {len(trimesh.vertices)}")
+    
+    new_vertices = torch.from_numpy(trimesh.vertices).float()
+    new_faces = torch.from_numpy(trimesh.faces).int()   
+    
+    mesh.vertices = new_vertices
+    mesh.faces = new_faces    
+    
+    return mesh
     
 def pymeshlab_remove_floater(mesh: pymeshlab.MeshSet):
     mesh.apply_filter("compute_selection_by_small_disconnected_components_per_face",
@@ -430,6 +458,7 @@ class Trellis2MeshWithVoxelToTrimesh:
         return {
             "required": {
                 "mesh": ("MESHWITHVOXEL",),
+                "reorient_vertices":(["None","90 degrees","-90 degrees"],{"default":"90 degrees"}),
             },
         }
 
@@ -439,9 +468,13 @@ class Trellis2MeshWithVoxelToTrimesh:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh):       
+    def process(self, mesh, reorient_vertices):       
         vertices_np = mesh.vertices.cpu().numpy()
-        vertices_np[:, 1], vertices_np[:, 2] = vertices_np[:, 2], -vertices_np[:, 1]        
+        
+        if reorient_vertices == '90 degrees':
+            vertices_np[:, 1], vertices_np[:, 2] = vertices_np[:, 2], -vertices_np[:, 1]
+        elif reorient_vertices == '-90 degrees':
+            vertices_np[:, 1], vertices_np[:, 2] = -vertices_np[:, 2], vertices_np[:, 1]
         
         trimesh = Trimesh.Trimesh(
             vertices=vertices_np,
@@ -500,6 +533,7 @@ class Trellis2PostProcessMesh:
                 "remove_small_connected_components_size": ("FLOAT", {"default":0.00001,"min":0.00001,"max":9.99999,"step":0.00001}),
                 "unify_faces_orientation": ("BOOLEAN", {"default":True}),
                 "remove_floaters": ("BOOLEAN",{"default":True}),
+                "remove_infinite_vertices": ("BOOLEAN",{"default":True}),
             },
         }
 
@@ -509,11 +543,13 @@ class Trellis2PostProcessMesh:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, fill_holes, fill_holes_max_perimeter, remove_duplicate_faces, repair_non_manifold_edges, remove_non_manifold_faces, remove_small_connected_components, remove_small_connected_components_size,unify_faces_orientation,remove_floaters):
+    def process(self, mesh, fill_holes, fill_holes_max_perimeter, remove_duplicate_faces, repair_non_manifold_edges, remove_non_manifold_faces, remove_small_connected_components, remove_small_connected_components_size,unify_faces_orientation,remove_floaters,remove_infinite_vertices):
         mesh_copy = copy.deepcopy(mesh)
 
         if remove_floaters:
             mesh_copy = remove_floater(mesh_copy)
+        if remove_infinite_vertices:
+            mesh_copy = remove_mesh_infinite_vertices(mesh_copy)
 
         vertices = mesh_copy.vertices
         faces = mesh_copy.faces
@@ -577,6 +613,8 @@ class Trellis2UnWrapAndRasterizer:
                 "texture_size": ("INT",{"default":1024, "min":512, "max":16384}),
                 "texture_alpha_mode": (["OPAQUE","MASK","BLEND"],{"default":"OPAQUE"}),
                 "double_side_material": ("BOOLEAN",{"default":True}),
+                "bake_on_vertices": ("BOOLEAN",{"default":False}),
+                "use_custom_normals": ("BOOLEAN",{"default":False}),
             },
         }
 
@@ -586,7 +624,7 @@ class Trellis2UnWrapAndRasterizer:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, mesh_cluster_threshold_cone_half_angle_rad, mesh_cluster_refine_iterations, mesh_cluster_global_iterations, mesh_cluster_smooth_strength, texture_size, texture_alpha_mode, double_side_material):
+    def process(self, mesh, mesh_cluster_threshold_cone_half_angle_rad, mesh_cluster_refine_iterations, mesh_cluster_global_iterations, mesh_cluster_smooth_strength, texture_size, texture_alpha_mode, double_side_material, bake_on_vertices = False,use_custom_normals=False):
         mesh_copy = copy.deepcopy(mesh)
         
         aabb = [[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]
@@ -635,6 +673,85 @@ class Trellis2UnWrapAndRasterizer:
         # Build BVH for the current mesh to guide remeshing
         print(f"Building BVH for current mesh...")
         bvh = CuMesh.cuBVH(vertices, faces)        
+        
+        # --- Branch: Bake On Vertices (skip UV unwrapping and texture creation) ---
+        if bake_on_vertices:
+            print('Baking colors on vertices...')
+            out_vertices, out_faces = cumesh.read()
+            out_vertices = out_vertices.cuda()
+            out_faces = out_faces.cuda()
+            cumesh.compute_vertex_normals()
+            out_normals = cumesh.read_vertex_normals()
+            
+            # Sample attributes directly at vertex positions from the voxel grid
+            # No BVH mapping needed - the voxel grid contains all the color information
+            vertex_attrs = grid_sample_3d(
+                attr_volume,
+                torch.cat([torch.zeros_like(coords[:, :1]), coords], dim=-1),
+                shape=torch.Size([1, attr_volume.shape[1], *grid_size.tolist()]),
+                grid=((out_vertices - aabb[0]) / voxel_size).reshape(1, -1, 3),
+                mode='trilinear',
+            )
+            
+            # Extract base color and alpha per vertex (vertex_attrs shape: N_vertices x C)
+            base_color_idx = attr_layout['base_color']
+            alpha_idx = attr_layout['alpha']
+            
+            # Get RGB values and squeeze any extra dimensions to get (N, 3)
+            vertex_colors_rgb = vertex_attrs[..., base_color_idx].cpu().numpy()
+            vertex_colors_rgb = np.squeeze(vertex_colors_rgb)  # Remove batch dims if any
+            if vertex_colors_rgb.ndim == 1:
+                vertex_colors_rgb = vertex_colors_rgb[None, :]  # Ensure at least 2D
+            vertex_colors_rgb = np.clip(vertex_colors_rgb * 255, 0, 255).astype(np.uint8)
+            
+            # Handle alpha based on texture_alpha_mode
+            if texture_alpha_mode == "OPAQUE":
+                # For OPAQUE mode, use full alpha (255)
+                vertex_alpha = np.full((vertex_colors_rgb.shape[0], 1), 255, dtype=np.uint8)
+            else:
+                vertex_alpha = vertex_attrs[..., alpha_idx].cpu().numpy()
+                vertex_alpha = np.squeeze(vertex_alpha)  # Remove batch dims if any
+                vertex_alpha = np.clip(vertex_alpha * 255, 0, 255).astype(np.uint8)
+                # Ensure alpha is 2D with shape (N, 1)
+                if vertex_alpha.ndim == 1:
+                    vertex_alpha = vertex_alpha[:, None]
+            
+            # Combine into RGBA
+            vertex_colors_rgba = np.concatenate([vertex_colors_rgb, vertex_alpha], axis=-1)
+            
+            print("Finalizing mesh with vertex colors...")
+            
+            vertices_np = out_vertices.cpu().numpy()
+            faces_np = out_faces.cpu().numpy()
+            normals_np = out_normals.cpu().numpy()
+            
+            # Swap Y and Z axes, invert Y (common conversion for GLB compatibility)
+            vertices_np[:, 1], vertices_np[:, 2] = vertices_np[:, 2].copy(), -vertices_np[:, 1].copy()
+            normals_np[:, 1], normals_np[:, 2] = normals_np[:, 2].copy(), -normals_np[:, 1].copy()
+            
+            # Create mesh with vertex colors using ColorVisuals
+            if use_custom_normals:
+                textured_mesh = Trimesh.Trimesh(
+                    vertices=vertices_np,
+                    faces=faces_np,
+                    vertex_normals=normals_np,
+                    vertex_colors=vertex_colors_rgba,
+                    process=False,
+                )
+            else:
+                textured_mesh = Trimesh.Trimesh(
+                    vertices=vertices_np,
+                    faces=faces_np,
+                    vertex_colors=vertex_colors_rgba,
+                    process=False,
+                )                
+            
+            del cumesh
+            gc.collect()
+            
+            # Return empty placeholder textures for vertex color mode
+            placeholder_texture = pil2tensor(Image.new('RGBA', (1, 1), (0, 0, 0, 0)))
+            return (textured_mesh, placeholder_texture, placeholder_texture,)        
         
         print('Unwrapping ...')        
         out_vertices, out_faces, out_uvs, out_vmaps = cumesh.uv_unwrap(
@@ -739,13 +856,21 @@ class Trellis2UnWrapAndRasterizer:
         normals_np[:, 1], normals_np[:, 2] = normals_np[:, 2], -normals_np[:, 1]
         uvs_np[:, 1] = 1 - uvs_np[:, 1] # Flip UV V-coordinate
         
-        textured_mesh = Trimesh.Trimesh(
-            vertices=vertices_np,
-            faces=faces_np,
-            vertex_normals=normals_np,
-            process=False,
-            visual=Trimesh.visual.TextureVisuals(uv=uvs_np,material=material)
-        )   
+        if use_custom_normals:
+            textured_mesh = Trimesh.Trimesh(
+                vertices=vertices_np,
+                faces=faces_np,
+                vertex_normals=normals_np,
+                process=False,
+                visual=Trimesh.visual.TextureVisuals(uv=uvs_np,material=material)
+            )
+        else:
+            textured_mesh = Trimesh.Trimesh(
+                vertices=vertices_np,
+                faces=faces_np,
+                process=False,
+                visual=Trimesh.visual.TextureVisuals(uv=uvs_np,material=material)
+            )            
 
         del cumesh
         gc.collect()    
@@ -864,6 +989,8 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
                 "dual_contouring_resolution": (["Auto","128","256","512","1024","2048"],{"default":"512"}),
                 "double_side_material": ("BOOLEAN",{"default":True}),
                 "remove_floaters": ("BOOLEAN",{"default":True}),
+                "bake_on_vertices": ("BOOLEAN",{"default":False}),
+                "use_custom_normals":("BOOLEAN",{"default":False}),
             },
         }
 
@@ -873,8 +1000,8 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, mesh_cluster_threshold_cone_half_angle_rad, mesh_cluster_refine_iterations, mesh_cluster_global_iterations, mesh_cluster_smooth_strength, texture_size, remesh, remesh_band, remesh_project, target_face_num, simplify_method, fill_holes, fill_holes_max_perimeter, texture_alpha_mode, dual_contouring_resolution, double_side_material,remove_floaters):
-        pbar = ProgressBar(5)
+    def process(self, mesh, mesh_cluster_threshold_cone_half_angle_rad, mesh_cluster_refine_iterations, mesh_cluster_global_iterations, mesh_cluster_smooth_strength, texture_size, remesh, remesh_band, remesh_project, target_face_num, simplify_method, fill_holes, fill_holes_max_perimeter, texture_alpha_mode, dual_contouring_resolution, double_side_material, remove_floaters, bake_on_vertices=False,use_custom_normals=False):
+        pbar = ProgressBar(5 if not bake_on_vertices else 4)
         mesh_copy = copy.deepcopy(mesh)
         
         aabb = [[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]
@@ -1010,9 +1137,95 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
                 new_vertices, new_faces = simplify_with_meshlib(v.cpu().numpy(), f.cpu().numpy(), target_face_num)
                 cumesh.init(torch.from_numpy(new_vertices).float().cuda(), torch.from_numpy(new_faces).int().cuda())
 
-        print(f"After simplifying: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")            
-        pbar.update(1)
+            print(f"After simplifying: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")            
+            pbar.update(1)
         
+        # --- Branch: Bake On Vertices (skip UV unwrapping and texture creation) ---
+        if bake_on_vertices:
+            print('Baking colors on vertices...')
+            out_vertices, out_faces = cumesh.read()
+            out_vertices = out_vertices.cuda()
+            out_faces = out_faces.cuda()
+            cumesh.compute_vertex_normals()
+            out_normals = cumesh.read_vertex_normals()
+            
+            # Map vertex positions back to original mesh for accurate attribute sampling
+            # Use BVH to find the closest point on original mesh surface for more accurate colors
+            _, face_id, uvw = bvh.unsigned_distance(out_vertices, return_uvw=True)
+            orig_tri_verts = vertices[faces[face_id.long()]]  # (N_verts, 3, 3)
+            mapped_pos = (orig_tri_verts * uvw.unsqueeze(-1)).sum(dim=1)
+            
+            # Sample attributes at mapped positions from the voxel grid
+            vertex_attrs = grid_sample_3d(
+                attr_volume,
+                torch.cat([torch.zeros_like(coords[:, :1]), coords], dim=-1),
+                shape=torch.Size([1, attr_volume.shape[1], *grid_size.tolist()]),
+                grid=((mapped_pos - aabb[0]) / voxel_size).reshape(1, -1, 3),
+                mode='trilinear',
+            )
+            
+            # Extract base color and alpha per vertex (vertex_attrs shape: N_vertices x C)
+            base_color_idx = attr_layout['base_color']
+            alpha_idx = attr_layout['alpha']
+            
+            # Get RGB values and squeeze any extra dimensions to get (N, 3)
+            vertex_colors_rgb = vertex_attrs[..., base_color_idx].cpu().numpy()
+            vertex_colors_rgb = np.squeeze(vertex_colors_rgb)  # Remove batch dims if any
+            if vertex_colors_rgb.ndim == 1:
+                vertex_colors_rgb = vertex_colors_rgb[None, :]  # Ensure at least 2D
+            vertex_colors_rgb = np.clip(vertex_colors_rgb * 255, 0, 255).astype(np.uint8)
+            
+            # Handle alpha based on texture_alpha_mode
+            if texture_alpha_mode == "OPAQUE":
+                # For OPAQUE mode, use full alpha (255)
+                vertex_alpha = np.full((vertex_colors_rgb.shape[0], 1), 255, dtype=np.uint8)
+            else:
+                vertex_alpha = vertex_attrs[..., alpha_idx].cpu().numpy()
+                vertex_alpha = np.squeeze(vertex_alpha)  # Remove batch dims if any
+                vertex_alpha = np.clip(vertex_alpha * 255, 0, 255).astype(np.uint8)
+                # Ensure alpha is 2D with shape (N, 1)
+                if vertex_alpha.ndim == 1:
+                    vertex_alpha = vertex_alpha[:, None]
+            
+            # Combine into RGBA
+            vertex_colors_rgba = np.concatenate([vertex_colors_rgb, vertex_alpha], axis=-1)
+            
+            print("Finalizing mesh with vertex colors...")
+            pbar.update(1)
+            
+            vertices_np = out_vertices.cpu().numpy()
+            faces_np = out_faces.cpu().numpy()
+            normals_np = out_normals.cpu().numpy()
+            
+            # Swap Y and Z axes, invert Y (common conversion for GLB compatibility)
+            vertices_np[:, 1], vertices_np[:, 2] = vertices_np[:, 2].copy(), -vertices_np[:, 1].copy()
+            normals_np[:, 1], normals_np[:, 2] = normals_np[:, 2].copy(), -normals_np[:, 1].copy()
+            
+            # Create mesh with vertex colors using ColorVisuals
+            if use_custom_normals:
+                textured_mesh = Trimesh.Trimesh(
+                    vertices=vertices_np,
+                    faces=faces_np,
+                    vertex_normals=normals_np,
+                    vertex_colors=vertex_colors_rgba,
+                    process=False,
+                )
+            else:
+                textured_mesh = Trimesh.Trimesh(
+                    vertices=vertices_np,
+                    faces=faces_np,
+                    vertex_colors=vertex_colors_rgba,
+                    process=False,
+                )                
+            
+            del cumesh
+            gc.collect()
+            
+            # Return empty placeholder textures for vertex color mode
+            placeholder_texture = pil2tensor(Image.new('RGBA', (1, 1), (0, 0, 0, 0)))
+            return (textured_mesh, placeholder_texture, placeholder_texture,)
+        
+        # --- Standard texture baking path ---
         print('Unwrapping ...')        
         out_vertices, out_faces, out_uvs, out_vmaps = cumesh.uv_unwrap(
             compute_charts_kwargs={
@@ -1113,17 +1326,26 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
         normals_np = out_normals.cpu().numpy()
         
         # Swap Y and Z axes, invert Y (common conversion for GLB compatibility)
-        vertices_np[:, 1], vertices_np[:, 2] = vertices_np[:, 2], -vertices_np[:, 1]
-        normals_np[:, 1], normals_np[:, 2] = normals_np[:, 2], -normals_np[:, 1]
+        vertices_np[:, 1], vertices_np[:, 2] = vertices_np[:, 2].copy(), -vertices_np[:, 1].copy()
+        normals_np[:, 1], normals_np[:, 2] = normals_np[:, 2].copy(), -normals_np[:, 1].copy()
         uvs_np[:, 1] = 1 - uvs_np[:, 1] # Flip UV V-coordinate
         
-        textured_mesh = Trimesh.Trimesh(
-            vertices=vertices_np,
-            faces=faces_np,
-            vertex_normals=normals_np,
-            process=False,
-            visual=Trimesh.visual.TextureVisuals(uv=uvs_np,material=material)
-        )
+        if use_custom_normals:
+            textured_mesh = Trimesh.Trimesh(
+                vertices=vertices_np,
+                faces=faces_np,
+                vertex_normals=normals_np,
+                process=False,
+                visual=Trimesh.visual.TextureVisuals(uv=uvs_np,material=material)
+            )
+        else:
+            textured_mesh = Trimesh.Trimesh(
+                vertices=vertices_np,
+                faces=faces_np,
+                process=False,
+                visual=Trimesh.visual.TextureVisuals(uv=uvs_np,material=material)
+            )
+            
         pbar.update(1)        
         
         del cumesh
@@ -1132,7 +1354,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
         baseColorTexture = pil2tensor(baseColorTexture_np)
         metallicRoughnessTexture = pil2tensor(metallicRoughnessTexture_np)
         
-        return (textured_mesh, baseColorTexture, metallicRoughnessTexture, )    
+        return (textured_mesh, baseColorTexture, metallicRoughnessTexture,)    
 
 class Trellis2Remesh:
     @classmethod
@@ -1145,7 +1367,7 @@ class Trellis2Remesh:
                 "fill_holes": ("BOOLEAN", {"default":True}),
                 "fill_holes_max_perimeter": ("FLOAT",{"default":0.03,"min":0.001,"max":99.999,"step":0.001}),
                 "dual_contouring_resolution": (["Auto","128","256","512","1024","2048"],{"default":"Auto"}),
-                "remove_floaters": ("BOOLEAN",{"default":True}), 
+                "remove_floaters": ("BOOLEAN",{"default":True}),
             },
         }
 
@@ -1282,7 +1504,7 @@ class Trellis2MeshTexturing:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material, texture_guidance_interval_start, texture_guidance_interval_end, max_views):
+    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material, texture_guidance_interval_start, texture_guidance_interval_end, max_views,):
         images = tensor_batch_to_pil_list(image, max_views=max_views)
         image_in = images[0] if len(images) == 1 else images
 
@@ -1300,9 +1522,8 @@ class Trellis2MeshTexturing:
             texture_size = texture_size,
             texture_alpha_mode = texture_alpha_mode,
             double_side_material = double_side_material,
-            max_views = max_views
-        )
-            
+            max_views = max_views,
+        )            
 
         baseColorTexture = pil2tensor(baseColorTexture_np)
         metallicRoughnessTexture = pil2tensor(metallicRoughnessTexture_np)
@@ -1468,7 +1689,6 @@ class Trellis2PostProcess2:
                 "fix_normals": ("BOOLEAN", {"default":False}),
                 "fix_face_orientation": ("BOOLEAN", {"default":True}),
                 "remove_duplicate_faces": ("BOOLEAN",{"default":True}),
-                "remove_infinite_values": ("BOOLEAN",{"default":True}),
             },
         }
 
@@ -1478,7 +1698,7 @@ class Trellis2PostProcess2:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, fill_holes, fix_normals, fix_face_orientation, remove_duplicate_faces, remove_infinite_values):
+    def process(self, mesh, fill_holes, fix_normals, fix_face_orientation, remove_duplicate_faces,):
         mesh_copy = copy.deepcopy(mesh)
         
         vertices_np = mesh_copy.vertices.cpu().numpy()
@@ -1502,11 +1722,7 @@ class Trellis2PostProcess2:
 
         if remove_duplicate_faces:
             print('Removing duplicate faces ...')
-            trimesh.remove_duplicate_faces()
-        
-        if remove_infinite_values:
-            print('Removing infinite values ...')
-            trimesh.remove_infinite_values()
+            trimesh.remove_duplicate_faces()        
         
         if fill_holes:
             print('Filling holes ...')

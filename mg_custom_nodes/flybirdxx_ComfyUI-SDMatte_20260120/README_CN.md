@@ -65,11 +65,37 @@ ComfyUI 会在启动时自动安装 `requirements.txt` 中的依赖包：
 - lazyconfig
 - safetensors
 
-### 3. 自动模型下载
+### 3. 自动下载基础组件
 
-**无需手动下载模型。**
+**插件会自动下载所需的配置文件，无需手动操作。**
 
-首次使用 `Apply SDMatte` 节点时，它会自动检查并从 Hugging Face 下载所需的模型权重。模型将被存放在：
+SDMatte 基于 Stable Diffusion 2.1 构建，首次使用时会自动从 Hugging Face 下载必要的配置文件（不包含模型权重）：
+
+- 自动下载到: `ComfyUI/models/diffusers/stable-diffusion-2-1-base/`
+- 只下载配置文件: config.json, tokenizer文件等
+- 不下载大文件权重，节省磁盘空间
+
+如果需要手动下载完整的 Stable Diffusion 2.1 模型：
+
+```bash
+# 进入diffusers目录
+cd ComfyUI/models/diffusers/
+
+# 下载Stable Diffusion 2.1基础模型
+# 方法1: 使用huggingface_hub
+pip install huggingface_hub
+huggingface-cli download stabilityai/stable-diffusion-2-1 --local-dir stable-diffusion-2-1-base
+
+# 方法2: 使用git lfs (如果已安装)
+git lfs install
+git clone https://huggingface.co/stabilityai/stable-diffusion-2-1 stable-diffusion-2-1-base
+```
+
+### 4. 自动模型下载
+
+**SDMatte 模型权重会自动下载。**
+
+首次使用 `Apply SDMatte` 节点时，它会自动检查并从 Hugging Face 下载所需的 SDMatte 模型权重。模型将被存放在：
 `ComfyUI/models/SDMatte/`
 
 您可以直接在节点内选择使用标准版 (`SDMatte.safetensors`) 或增强版 (`SDMatte_plus.safetensors`)。
@@ -168,9 +194,19 @@ A:
 - **Python**：3.8+
 - **PyTorch**：1.12+ （支持 CUDA 推荐）
 - **显存**：8GB+ 推荐（支持 CPU 推理）
+- **基础模型**：Stable Diffusion 2.1 base（存放在 `ComfyUI/models/diffusers/stable-diffusion-2-1-base/`）
 - **依赖**：diffusers, timm, einops, lazyconfig, safetensors
 
 ## 📝 版本更新日志
+
+### v1.6.0 (2025-01-XX)
+- 🔧 **架构优化**:
+  - 修改为直接使用全局 diffusers 目录中的 Stable Diffusion 2.1 模型
+  - 移除对本地 stable-diffusion-2.1 目录的依赖
+  - 减少磁盘空间占用，避免重复下载模型文件
+- 📚 **文档更新**:
+  - 更新安装说明，添加基础模型下载步骤
+  - 更新系统要求，明确基础模型依赖
 
 ### v1.5.0 (2025-01-XX)
 - 🔄 **模型格式更新**：

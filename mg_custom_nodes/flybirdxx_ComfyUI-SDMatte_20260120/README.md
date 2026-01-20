@@ -65,11 +65,37 @@ ComfyUI will automatically install the dependencies in `requirements.txt` on sta
 - lazyconfig
 - safetensors
 
-### 3. Automatic Model Download
+### 3. Automatic Component Download
 
-**No manual download is required.**
+**The plugin automatically downloads required config files, no manual action needed.**
 
-The first time you use the `Apply SDMatte` node, it will automatically check for and download the necessary model weights from Hugging Face. The models will be stored in:
+SDMatte is built on top of Stable Diffusion 2.1. On first use, it automatically downloads necessary config files from Hugging Face (no model weights):
+
+- Auto-downloads to: `ComfyUI/models/diffusers/stable-diffusion-2-1-base/`
+- Downloads only config files: config.json, tokenizer files, etc.
+- No large weight files downloaded, saving disk space
+
+If you need to manually download the complete Stable Diffusion 2.1 model:
+
+```bash
+# Navigate to diffusers directory
+cd ComfyUI/models/diffusers/
+
+# Download Stable Diffusion 2.1 base model
+# Method 1: Using huggingface_hub
+pip install huggingface_hub
+huggingface-cli download stabilityai/stable-diffusion-2-1 --local-dir stable-diffusion-2-1-base
+
+# Method 2: Using git lfs (if installed)
+git lfs install
+git clone https://huggingface.co/stabilityai/stable-diffusion-2-1 stable-diffusion-2-1-base
+```
+
+### 4. Automatic Model Download
+
+**SDMatte model weights will be downloaded automatically.**
+
+The first time you use the `Apply SDMatte` node, it will automatically check for and download the necessary SDMatte model weights from Hugging Face. The models will be stored in:
 `ComfyUI/models/SDMatte/`
 
 You can select between the standard (`SDMatte.safetensors`) and enhanced (`SDMatte_plus.safetensors`) versions directly within the node.
@@ -168,9 +194,19 @@ A:
 - **Python**: 3.8+
 - **PyTorch**: 1.12+ (CUDA support recommended)
 - **VRAM**: 8GB+ recommended (CPU inference supported)
+- **Base Model**: Stable Diffusion 2.1 base (located in `ComfyUI/models/diffusers/stable-diffusion-2-1-base/`)
 - **Dependencies**: diffusers, timm, einops, lazyconfig, safetensors
 
 ## 📝 Changelog
+
+### v1.6.0 (2025-01-XX)
+- 🔧 **Architecture Optimization**:
+  - Modified to directly use Stable Diffusion 2.1 model from global diffusers directory
+  - Removed dependency on local stable-diffusion-2.1 directory
+  - Reduced disk space usage by avoiding duplicate model downloads
+- 📚 **Documentation Updates**:
+  - Updated installation instructions with base model download steps
+  - Updated system requirements to clarify base model dependency
 
 ### v1.5.0 (2025-01-XX)
 - 🔄 **Model Format Update**:

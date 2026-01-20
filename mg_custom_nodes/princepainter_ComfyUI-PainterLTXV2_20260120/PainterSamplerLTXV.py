@@ -5,10 +5,8 @@ import comfy.sample
 import latent_preview
 import comfy.utils
 import comfy.nested_tensor
-import folder_paths
-from comfy.ldm.lightricks.vae.audio_vae import AudioVAE
 from typing_extensions import override
-from comfy_api.latest import ComfyExtension, io
+from comfy_api.latest import io
 
 
 class PainterSamplerLTXV(io.ComfyNode):
@@ -130,111 +128,3 @@ class PainterSamplerLTXV(io.ComfyNode):
                 audio_latent["noise_mask"] = torch.empty(0, device=out["noise_mask"].device, dtype=out["noise_mask"].dtype)
 
         return io.NodeOutput(out, video_latent, audio_latent)
-
-
-class PainterLTXVtoVideo(io.ComfyNode):
-    @classmethod
-    def define_schema(cls):
-        return io.Schema(
-            node_id="PainterLTXVtoVideo",
-            display_name="Painter LTXV to Video",
-            category="latent/video/ltxv",
-            inputs=[
-                io.Vae.Input("vae"),
-                io.Image.Input("image", optional=True),
-                io.Vae.Input(id="audio_vae", display_name="Audio VAE", optional=True),
-                io.Int.Input("width", default=768, min=64, max=4096, step=16),
-                io.Int.Input("height", default=512, min=64, max=4096, step=16),
-                io.Int.Input("length", default=97, min=1, max=1024, step=1),
-                io.Float.Input("frame_rate", default=25.0, min=1.0, max=120.0, step=0.1),
-                io.Int.Input("batch_size", default=1, min=1, max=4096),
-            ],
-            outputs=[
-                io.Latent.Output(display_name="latent"),
-            ],
-        )
-
-    @classmethod
-    def execute(cls, vae, image=None, audio_vae=None, width=768, height=512, length=97, frame_rate=25.0, batch_size=1):
-        latent_frames = ((length - 1) // 8) + 1
-        latent_height = height // 32
-        latent_width = width // 32
-        
-        samples = torch.zeros(
-            [batch_size, 128, latent_frames, latent_height, latent_width],
-            device=comfy.model_management.intermediate_device()
-        )
-
-        if image is not None:
-            if image.shape[1] != height or image.shape[2] != width:
-                pixels = comfy.utils.common_upscale(image.movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
-            else:
-                pixels = image
-            encode_pixels = pixels[:, :, :, :3]
-            t = vae.encode(encode_pixels)
-            samples[:, :, :t.shape[2]] = t
-            strength = 1.0
-            conditioning_latent_frames_mask = torch.ones(
-                (batch_size, 1, latent_frames, 1, 1),
-                dtype=torch.float32,
-                device=samples.device,
-            )
-            conditioning_latent_frames_mask[:, :, :t.shape[2]] = 1.0 - strength
-        else:
-            conditioning_latent_frames_mask = torch.ones(
-                (batch_size, 1, latent_frames, 1, 1),
-                dtype=torch.float32,
-                device=samples.device,
-            )
-
-        video_latent = {
-            "samples": samples,
-            "noise_mask": conditioning_latent_frames_mask
-        }
-
-        if audio_vae is not None:
-            z_channels = audio_vae.latent_channels
-            audio_freq = audio_vae.latent_frequency_bins
-            sampling_rate = int(audio_vae.sample_rate)
-            num_audio_latents = audio_vae.num_of_latents_from_frames(length, int(frame_rate))
-
-            audio_latents = torch.zeros(
-                (batch_size, z_channels, num_audio_latents, audio_freq),
-                device=comfy.model_management.intermediate_device(),
-            )
-
-            audio_latent = {
-                "samples": audio_latents,
-                "sample_rate": sampling_rate,
-                "type": "audio",
-                "noise_mask": torch.ones_like(audio_latents)
-            }
-
-            output = {}
-            output.update(video_latent)
-            output.update(audio_latent)
-            video_noise_mask = video_latent.get("noise_mask", None)
-            audio_noise_mask = audio_latent.get("noise_mask", None)
-
-            if video_noise_mask is not None or audio_noise_mask is not None:
-                if video_noise_mask is None:
-                    video_noise_mask = torch.ones_like(video_latent["samples"])
-                if audio_noise_mask is None:
-                    audio_noise_mask = torch.ones_like(audio_latent["samples"])
-                output["noise_mask"] = comfy.nested_tensor.NestedTensor((video_noise_mask, audio_noise_mask))
-
-            output["samples"] = comfy.nested_tensor.NestedTensor((video_latent["samples"], audio_latent["samples"]))
-
-            return io.NodeOutput(output)
-        else:
-            return io.NodeOutput(video_latent)
-
-
-class PainterSamplerLTXVExtension(ComfyExtension):
-    @override
-    async def get_node_list(self) -> list[type[io.ComfyNode]]:
-        return [PainterSamplerLTXV, PainterLTXVtoVideo]
-
-
-async def comfy_entrypoint() -> PainterSamplerLTXVExtension:
-    return PainterSamplerLTXVExtension()

@@ -33,6 +33,7 @@ You can use following placeholders:
 
 - `%date`
 - `%time` *– format taken from `time_format`*
+- `%time_format<format>` *– custom datetime format using Python strftime codes*
 - `%model` *– full name of model file*
 - `%basemodelname` *– name of model (without file extension)*
 - `%seed`
@@ -48,3 +49,26 @@ Example:
 | `filename` value | Result file name |
 | --- | --- |
 | `%time-%basemodelname-%cfg-%steps-%sampler_name-%scheduler-%seed` | `2023-11-16-131331-Anything-v4.5-pruned-mergedVae-7.0-25-dpm_2-normal-1_01.png` |
+| `%time_format<%Y%m%d_%H%M%S>-%seed` | `20231116_131331-1.png` |
+| `%time_format<%B %d, %Y> %basemodelname` | `November 16, 2023 Anything-v4.5.png` |
+| `img_%time_format<%Y-%m-%d>_%seed` | `img_2023-11-16_1.png` |
+
+**Common strftime format codes for `%time_format<format>`:**
+
+| Code | Meaning | Example |
+|------|---------|---------|
+| `%Y` | Year (4-digit) | 2023 |
+| `%y` | Year (2-digit) | 23 |
+| `%m` | Month (01-12) | 11 |
+| `%B` | Month name (full) | November |
+| `%b` | Month name (short) | Nov |
+| `%d` | Day (01-31) | 16 |
+| `%H` | Hour 24h | 13 |
+| `%I` | Hour 12h | 01 |
+| `%M` | Minute | 13 |
+| `%S` | Second | 31 |
+| `%p` | AM/PM | PM |
+| `%A` | Weekday (full) | Thursday |
+| `%a` | Weekday (short) | Thu |
+| `%F` | YYYY-MM-DD | 2023-11-16 |
+| `%T` | HH:MM:SS | 13:13:31 |

@@ -1,3 +1,8 @@
+# v1.21.0
+
+- Cleaner naming for batch saves.
+- Allow custom time_format via prompt parameters in image saver.
+
 # v1.20.0
 
 - Add RandomShapeGenerator

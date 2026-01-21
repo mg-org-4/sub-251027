@@ -41,6 +41,25 @@ def get_timestamp(time_format: str) -> str:
 
     return timestamp
 
+def apply_custom_time_format(filename: str) -> str:
+    """
+    Replace %time_format<strftime_format> patterns with formatted datetime.
+    Example: %time_format<%Y-%m-%d> becomes 2026-01-17
+    """
+    now = datetime.now()
+    # Pattern to match %time_format<XXX> where XXX is any strftime format string
+    # Use negative lookahead to exclude %time_format itself from variable delimiters
+    pattern = r'%time_format<([^>]*)>'
+    def replace_format(match):
+        format_str = match.group(1)
+        try:
+            return now.strftime(format_str)
+        except:
+            # If format is invalid, return original
+            return match.group(0)
+
+    return re.sub(pattern, replace_format, filename)
+
 def save_json(image_info: dict[str, Any] | None, filename: str) -> None:
     try:
         workflow = (image_info or {}).get('workflow')
@@ -53,6 +72,8 @@ def save_json(image_info: dict[str, Any] | None, filename: str) -> None:
         print(f'Failed to save workflow as json due to: {e}, proceeding with the remainder of saving execution')
 
 def make_pathname(filename: str, width: int, height: int, seed: int, modelname: str, counter: int, time_format: str, sampler_name: str, steps: int, cfg: float, scheduler_name: str, denoise: float, clip_skip: int, custom: str) -> str:
+    # Process custom time_format patterns first
+    filename = apply_custom_time_format(filename)
     filename = filename.replace("%date", get_timestamp("%Y-%m-%d"))
     filename = filename.replace("%time", get_timestamp(time_format))
     filename = filename.replace("%model", parse_checkpoint_name(modelname))
@@ -234,7 +255,7 @@ class ImageSaverSimple:
         return {
             "required": {
                 "images":                ("IMAGE",    {                                                             "tooltip": "image(s) to save"}),
-                "filename":              ("STRING",   {"default": '%time_%basemodelname_%seed', "multiline": False, "tooltip": "filename (available variables: %date, %time, %model, %width, %height, %seed, %counter, %sampler_name, %steps, %cfg, %scheduler_name, %basemodelname, %denoise, %clip_skip)"}),
+                "filename":              ("STRING",   {"default": '%time_%basemodelname_%seed', "multiline": False, "tooltip": "filename (available variables: %date, %time, %time_format<format>, %model, %width, %height, %seed, %counter, %sampler_name, %steps, %cfg, %scheduler_name, %basemodelname, %denoise, %clip_skip)"}),
                 "path":                  ("STRING",   {"default": '', "multiline": False,                           "tooltip": "path to save the images (under Comfy's save directory)"}),
                 "extension":             (['png', 'jpeg', 'jpg', 'webp'], {                                         "tooltip": "file extension/type to save image as"}),
                 "lossless_webp":         ("BOOLEAN",  {"default": True,                                             "tooltip": "if True, saved WEBP files will be lossless"}),
@@ -306,7 +327,7 @@ class ImageSaver:
         return {
             "required": {
                 "images":                ("IMAGE",   {                                                             "tooltip": "image(s) to save"}),
-                "filename":              ("STRING",  {"default": '%time_%basemodelname_%seed', "multiline": False, "tooltip": "filename (available variables: %date, %time, %model, %width, %height, %seed, %counter, %sampler_name, %steps, %cfg, %scheduler, %basemodelname, %denoise, %clip_skip)"}),
+                "filename":              ("STRING",  {"default": '%time_%basemodelname_%seed', "multiline": False, "tooltip": "filename (available variables: %date, %time, %time_format<format>, %model, %width, %height, %seed, %counter, %sampler_name, %steps, %cfg, %scheduler_name, %basemodelname, %denoise, %clip_skip)"}),
                 "path":                  ("STRING",  {"default": '', "multiline": False,                           "tooltip": "path to save the images (under Comfy's save directory)"}),
                 "extension":             (['png', 'jpeg', 'jpg', 'webp'], {                                        "tooltip": "file extension/type to save image as"}),
             },
@@ -429,11 +450,12 @@ class ImageSaver:
                 os.makedirs(output_path, exist_ok=True)
 
         result_paths: list[str] = list()
-        for image in images:
+        num_images = len(images)
+        for idx, image in enumerate(images):
             i = 255. * image.cpu().numpy()
             img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
 
-            current_filename_prefix = ImageSaver.get_unique_filename(output_path, filename_prefix, extension)
+            current_filename_prefix = ImageSaver.get_unique_filename(output_path, filename_prefix, extension, batch_size=num_images, batch_index=idx)
             final_filename = f"{current_filename_prefix}.{extension}"
             filepath = os.path.join(output_path, final_filename)
 
@@ -532,12 +554,14 @@ class ImageSaver:
         return prompt
 
     @staticmethod
-    def get_unique_filename(output_path: str, filename_prefix: str, extension: str) -> str:
+    def get_unique_filename(output_path: str, filename_prefix: str, extension: str, batch_size: int = 1, batch_index: int = 0) -> str:
         existing_files = [f for f in os.listdir(output_path) if f.startswith(filename_prefix) and f.endswith(extension)]
 
-        if not existing_files:
+        # For single images with no existing files, return plain filename
+        if batch_size == 1 and not existing_files:
             return f"{filename_prefix}"
 
+        # For batches or when files exist, always use numbered suffix
         suffixes: list[int] = []
         for f in existing_files:
             name, _ = os.path.splitext(f)
@@ -546,8 +570,15 @@ class ImageSaver:
                 suffixes.append(int(parts[-1]))
 
         if suffixes:
-            next_suffix = max(suffixes) + 1
+            # Start numbering after the highest existing suffix
+            base_suffix = max(suffixes) + 1
         else:
-            next_suffix = 1
+            # No numbered files exist yet
+            if existing_files:
+                # Plain file exists, start at 1 (the plain file is effectively 0)
+                base_suffix = 1
+            else:
+                # No files at all, start at 1
+                base_suffix = 1
 
-        return f"{filename_prefix}_{next_suffix:02d}"
+        return f"{filename_prefix}_{base_suffix + batch_index:02d}"

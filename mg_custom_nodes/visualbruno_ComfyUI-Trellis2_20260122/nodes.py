@@ -38,6 +38,14 @@ comfy_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 to_pil = transforms.ToPILImage()
 
+class AnyType(str):
+  """A special class that is always equal in not equal comparisons. Credit to pythongosssss"""
+
+  def __ne__(self, __value: object) -> bool:
+    return False
+
+any = AnyType("*")
+
 def pil2tensor(image):
     return torch.from_numpy(np.array(image).astype(np.float32) / 255.0)[None,]
     
@@ -1568,6 +1576,8 @@ class Trellis2MeshTexturing:
                 "texture_guidance_interval_start": ("FLOAT",{"default":0.60,"min":0.00,"max":1.00,"step":0.01}),
                 "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
                 "max_views": ("INT", {"default": 4, "min": 1, "max": 16}),
+                "bake_on_vertices": ("BOOLEAN",{"default":False}),
+                "use_custom_normals": ("BOOLEAN",{"default":False}),
             },
         }
 
@@ -1577,7 +1587,7 @@ class Trellis2MeshTexturing:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material, texture_guidance_interval_start, texture_guidance_interval_end, max_views,):
+    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material, texture_guidance_interval_start, texture_guidance_interval_end, max_views,bake_on_vertices,use_custom_normals):
         images = tensor_batch_to_pil_list(image, max_views=max_views)
         image_in = images[0] if len(images) == 1 else images
 
@@ -1596,6 +1606,8 @@ class Trellis2MeshTexturing:
             texture_alpha_mode = texture_alpha_mode,
             double_side_material = double_side_material,
             max_views = max_views,
+            bake_on_vertices = bake_on_vertices,
+            use_custom_normals = use_custom_normals
         )            
 
         baseColorTexture = pil2tensor(baseColorTexture_np)
@@ -1632,7 +1644,8 @@ class Trellis2PreProcessImage:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "image": ("IMAGE",), 
+                "image": ("IMAGE",),
+                "padding": ("INT",{"default":0,"min":0,"max":1024}),
             }
         }
     RETURN_TYPES = ("IMAGE",)
@@ -1641,12 +1654,32 @@ class Trellis2PreProcessImage:
     FUNCTION = "process"
     CATEGORY = "Trellis2Wrapper"
 
-    def process(self, image):
+    def process(self, image, padding):
         image = tensor2pil(image)
         image = self.preprocess_image(image)
+        
+        if padding>0:
+            border = (int(padding), int(padding), int(padding), int(padding))
+            fill_color = self.parse_fill_for_image("0,0,0,255", image)
+            image = ImageOps.expand(image,border=border,fill=fill_color)
+        
         image = pil2tensor(image)
         
-        return (image,)         
+        return (image,)    
+
+    def parse_fill_for_image(self, fill: str, img):
+        values = [int(x.strip()) for x in fill.split(",")]
+
+        if img.mode in ("L", "P"):
+            return values[0]
+
+        if img.mode == "RGB":
+            return tuple(values[:3])
+
+        if img.mode == "RGBA":
+            return tuple(values[:4])
+
+        raise ValueError(f"Unsupported image mode: {img.mode}")         
 
 
     def preprocess_image(self, input: Image.Image) -> Image.Image:
@@ -1923,6 +1956,25 @@ class Trellis2TrimeshToMeshWithVoxel:
                     )
                     
         return mvoxel
+        
+class Trellis2Continue:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "input_1": (any,),
+                "input_2": (any,),
+            },
+        }
+
+    RETURN_TYPES = (any, any, )
+    RETURN_NAMES = ("output_1", "output_2", )
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, input_1, input_2):        
+        return (input_1, input_2,)             
 
 NODE_CLASS_MAPPINGS = {
     "Trellis2LoadModel": Trellis2LoadModel,
@@ -1944,6 +1996,7 @@ NODE_CLASS_MAPPINGS = {
     "Trellis2OvoxelExportToGLB": Trellis2OvoxelExportToGLB,
     "Trellis2TrimeshToMeshWithVoxel": Trellis2TrimeshToMeshWithVoxel,
     "Trellis2SimplifyTrimesh": Trellis2SimplifyTrimesh,
+    "Trellis2Continue": Trellis2Continue,
     }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1966,4 +2019,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2OvoxelExportToGLB": "Trellis2 - Ovoxel Export to GLB",
     "Trellis2TrimeshToMeshWithVoxel": "Trellis2 - Trimesh to Mesh with Voxel",
     "Trellis2SimplifyTrimesh": "Trellis2 - Simplify Trimesh",
+    "Trellis2Continue": "Trellis2 - Continue",
     }

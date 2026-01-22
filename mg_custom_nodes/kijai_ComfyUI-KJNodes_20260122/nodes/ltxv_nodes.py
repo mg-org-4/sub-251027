@@ -172,9 +172,9 @@ class LTXVAudioVideoMask(io.ComfyNode):
                 io.Float.Input("audio_end_time", default=5.0, min=0.0, max=10000.0, step=0.1, tooltip="End time in seconds for the audio mask."),
                 io.Combo.Input(
                     "max_length",
-                    options=["truncate", "pad"],
+                    options=["truncate", "pad", "partial"],
                     default="truncate",
-                    tooltip="Determines how to handle cases where the specified end time exceeds the latent length.",
+                    tooltip="'truncate': cut latent to end_time length. 'pad': extend latent to end_time. 'partial': mask range within existing latent.",
                 ),
             ],
             outputs=[
@@ -201,8 +201,9 @@ class LTXVAudioVideoMask(io.ComfyNode):
             # Calculate required latent frames based on end time
             required_latent_frames = (video_pixel_frame_end_raw - 1) // time_scale_factor + 1
 
-            # Pad video latent if required frames exceed current length
+            # Handle different max_length modes
             if max_length == "pad" and required_latent_frames > video_latent_frame_count:
+                # Pad video latent if required frames exceed current length
                 pad_frames = required_latent_frames - video_latent_frame_count
                 padding = torch.zeros(
                     video_latent["samples"].shape[0],
@@ -215,7 +216,11 @@ class LTXVAudioVideoMask(io.ComfyNode):
                 )
                 video_samples = torch.cat([video_latent["samples"], padding], dim=2)
                 video_latent_frame_count = video_samples.shape[2]
-            else:
+            elif max_length == "truncate":
+                # Truncate to the end_time
+                video_samples = video_latent["samples"][:, :, :required_latent_frames]
+                video_latent_frame_count = video_samples.shape[2]
+            else:  # partial
                 video_samples = video_latent["samples"]
 
             # Now calculate indices based on potentially padded latent
@@ -233,8 +238,9 @@ class LTXVAudioVideoMask(io.ComfyNode):
             # Get existing noise mask if present, otherwise create new one
             if "noise_mask" in video_latent:
                 video_mask = video_latent["noise_mask"].clone()
-                # Pad the mask if we padded the samples
+                # Adjust mask size based on mode
                 if max_length == "pad" and video_samples.shape[2] > video_latent["samples"].shape[2]:
+                    # Pad the mask if we padded the samples
                     mask_padding = torch.zeros(
                         video_mask.shape[0],
                         video_mask.shape[1],
@@ -245,6 +251,9 @@ class LTXVAudioVideoMask(io.ComfyNode):
                         device=video_mask.device
                     )
                     video_mask = torch.cat([video_mask, mask_padding], dim=2)
+                elif max_length == "truncate":
+                    # Truncate the mask to match truncated samples
+                    video_mask = video_mask[:, :, :video_samples.shape[2]]
             else:
                 video_mask = torch.zeros_like(video_samples)[:, :1]
 
@@ -262,8 +271,9 @@ class LTXVAudioVideoMask(io.ComfyNode):
             audio_latent_frame_index_start = int(round(audio_start_time * audio_latents_per_second))
             audio_latent_frame_index_end = int(round(audio_end_time * audio_latents_per_second)) + 1
 
-            # Pad audio latent if end index exceeds current length
+            # Handle different max_length modes
             if max_length == "pad" and audio_latent_frame_index_end > audio_latent_frame_count:
+                # Pad audio latent if end index exceeds current length
                 pad_frames = audio_latent_frame_index_end - audio_latent_frame_count
                 padding = torch.zeros(
                     audio_latent["samples"].shape[0],
@@ -275,7 +285,11 @@ class LTXVAudioVideoMask(io.ComfyNode):
                 )
                 audio_samples = torch.cat([audio_latent["samples"], padding], dim=2)
                 audio_latent_frame_count = audio_samples.shape[2]
-            else:
+            elif max_length == "truncate":
+                # Truncate to the end_time
+                audio_samples = audio_latent["samples"][:, :, :audio_latent_frame_index_end]
+                audio_latent_frame_count = audio_samples.shape[2]
+            else:  # partial
                 audio_samples = audio_latent["samples"]
 
             audio_latent_frame_index_start = max(0, audio_latent_frame_index_start)
@@ -284,8 +298,9 @@ class LTXVAudioVideoMask(io.ComfyNode):
             # Get existing noise mask if present, otherwise create new one
             if "noise_mask" in audio_latent:
                 audio_mask = audio_latent["noise_mask"].clone()
-                # Pad the mask if we padded the samples
+                # Adjust mask size based on mode
                 if max_length == "pad" and audio_samples.shape[2] > audio_latent["samples"].shape[2]:
+                    # Pad the mask if we padded the samples
                     mask_padding = torch.zeros(
                         audio_mask.shape[0],
                         audio_mask.shape[1],
@@ -295,6 +310,9 @@ class LTXVAudioVideoMask(io.ComfyNode):
                         device=audio_mask.device
                     )
                     audio_mask = torch.cat([audio_mask, mask_padding], dim=2)
+                elif max_length == "truncate":
+                    # Truncate the mask to match truncated samples
+                    audio_mask = audio_mask[:, :, :audio_samples.shape[2]]
             else:
                 audio_mask = torch.zeros_like(audio_samples)
 
@@ -322,13 +340,15 @@ def nag_attention(self, query, context_positive, nag_context, transformer_option
     return x_positive, x_negative
 
 def normalized_attention_guidance(self, x_positive, x_negative):
-    nag_guidance = x_positive * self.nag_scale - x_negative * (self.nag_scale - 1)
+    nag_guidance = x_negative.mul_(self.nag_scale - 1).neg_().add_(x_positive, alpha=self.nag_scale)
+
     del x_negative
 
-    norm_positive = torch.norm(x_positive, p=1, dim=-1, keepdim=True).expand_as(x_positive)
-    norm_guidance = torch.norm(nag_guidance, p=1, dim=-1, keepdim=True).expand_as(nag_guidance)
+    norm_positive = torch.norm(x_positive, p=1, dim=-1, keepdim=True)
+    norm_guidance = torch.norm(nag_guidance, p=1, dim=-1, keepdim=True)
 
-    scale = torch.nan_to_num(norm_guidance / norm_positive, nan=10.0)
+    scale = norm_guidance / norm_positive
+    torch.nan_to_num_(scale, nan=10.0)
     mask = scale > self.nag_tau
     del scale
 
@@ -338,10 +358,10 @@ def normalized_attention_guidance(self, x_positive, x_negative):
     nag_guidance = torch.where(mask, nag_guidance * adjustment, nag_guidance)
     del mask, adjustment
 
-    x = nag_guidance * self.nag_alpha + x_positive * (1 - self.nag_alpha)
-    del nag_guidance
+    nag_guidance.sub_(x_positive).mul_(self.nag_alpha).add_(x_positive)
+    del x_positive
 
-    return x
+    return nag_guidance
 
 #region NAG
 def ltxv_crossattn_forward_nag(self, x, context, mask=None, transformer_options={}, **kwargs):
@@ -1054,11 +1074,15 @@ def ltx2_forward(
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         run_vx = transformer_options.get("run_vx", True)
         run_ax = transformer_options.get("run_ax", True)
+        video_scale = getattr(self, 'video_scale', 1.0)
+        audio_scale = getattr(self, 'audio_scale', 1.0)
+        audio_to_video_scale = getattr(self, 'audio_to_video_scale', 1.0)
+        video_to_audio_scale = getattr(self, 'video_to_audio_scale', 1.0)
 
         vx, ax = x
-        run_ax = run_ax and ax.numel() > 0
-        run_a2v = run_vx and transformer_options.get("a2v_cross_attn", True) and ax.numel() > 0
-        run_v2a = run_ax and transformer_options.get("v2a_cross_attn", True)
+        run_ax = run_ax and ax.numel() > 0 and audio_scale != 0.0
+        run_a2v = run_vx and transformer_options.get("a2v_cross_attn", True) and ax.numel() > 0 and audio_to_video_scale != 0.0
+        run_v2a = run_ax and transformer_options.get("v2a_cross_attn", True) and video_to_audio_scale != 0.0
 
         # Video self-attention.
         if run_vx:
@@ -1071,7 +1095,6 @@ def ltx2_forward(
             del norm_vx
 
             vgate_msa = self.get_ada_values(self.scale_shift_table, vx.shape[0], v_timestep, slice(2, 3))[0]
-            video_scale = getattr(self, 'video_scale', 1.0)
             vx.addcmul_(attn1_out, vgate_msa, value=video_scale)
             del vgate_msa, attn1_out
             vx.add_(self.attn2(comfy.ldm.common_dit.rms_norm(vx), context=v_context, mask=attention_mask, transformer_options=transformer_options), alpha=video_scale)
@@ -1087,7 +1110,6 @@ def ltx2_forward(
             del norm_ax
 
             agate_msa = self.get_ada_values(self.audio_scale_shift_table, ax.shape[0], a_timestep, slice(2, 3))[0]
-            audio_scale = getattr(self, 'audio_scale', 1.0)
             ax.addcmul_(attn1_out, agate_msa, value=audio_scale)
             del agate_msa, attn1_out
             ax.add_(self.audio_attn2(comfy.ldm.common_dit.rms_norm(ax), context=a_context, mask=attention_mask, transformer_options=transformer_options), alpha=audio_scale)
@@ -1112,7 +1134,6 @@ def ltx2_forward(
                 del vx_scaled, ax_scaled
 
                 gate_out_a2v = self.get_ada_values(self.scale_shift_table_a2v_ca_video[4:, :], vx.shape[0], v_cross_gate_timestep)[0]
-                audio_to_video_scale = getattr(self, 'audio_to_video_scale', 1.0)
                 vx.addcmul_(a2v_out, gate_out_a2v, value=audio_to_video_scale)
                 del gate_out_a2v, a2v_out
 
@@ -1131,7 +1152,6 @@ def ltx2_forward(
                 del ax_scaled, vx_scaled
 
                 gate_out_v2a = self.get_ada_values(self.scale_shift_table_a2v_ca_audio[4:, :], ax.shape[0], a_cross_gate_timestep)[0]
-                video_to_audio_scale = getattr(self, 'video_to_audio_scale', 1.0)
                 ax.addcmul_(v2a_out, gate_out_v2a, value=video_to_audio_scale)
                 del gate_out_v2a, v2a_out
 
@@ -1188,7 +1208,7 @@ class LTX2AttentionTunerPatch(io.ComfyNode):
             node_id="LTX2AttentionTunerPatch",
             display_name="LTX2 Attention Tuner Patch",
             category="KJNodes/ltxv",
-            description="EXPERIMENTAL AND MAY CHANGE THE MODEL OUTPUT!!",
+            description="EXPERIMENTAL! Custom LTX2 forward pass with attention scaling factors per modality, also reduces peak VRAM usage.",
             is_experimental=True,
             inputs=[
                 io.Model.Input("model"),
@@ -1197,7 +1217,6 @@ class LTX2AttentionTunerPatch(io.ComfyNode):
                 io.Float.Input("audio_scale", default=1.0, min=0.0, max=100, step=0.01, tooltip="Scaling factor for audio attention."),
                 io.Float.Input("audio_to_video_scale", default=1.0, min=0.0, max=100, step=0.01, tooltip="Scaling factor for video attention."),
                 io.Float.Input("video_to_audio_scale", default=1.0, min=0.0, max=100, step=0.01, tooltip="Scaling factor for audio attention."),
-
             ],
             outputs=[
                 io.Model.Output(display_name="model"),
@@ -1227,3 +1246,164 @@ class LTX2AttentionTunerPatch(io.ComfyNode):
             model_clone.add_object_patch(f"diffusion_model.transformer_blocks.{idx}.forward", patched_forward)
 
         return io.NodeOutput(model_clone)
+
+class LTX2MemoryEfficientSageAttentionPatch(io.ComfyNode):
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="LTX2MemoryEfficientSageAttentionPatch",
+            display_name="LTX2 Mem Eff Sage Attention Patch",
+            category="KJNodes/ltxv",
+            description="EXPERIMENTAL! Activates custom sageattention to reduce peak VRAM usage, overrides the attention mode. Requires latest sageattention version.",
+            is_experimental=True,
+            inputs=[
+                io.Model.Input("model"),
+            ],
+            outputs=[
+                io.Model.Output(display_name="model"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, model) -> io.NodeOutput:
+        model_clone = model.clone()
+        diffusion_model = model_clone.get_model_object("diffusion_model")
+
+        logging.info("Applying LTX2 Memory Efficient Sage Attention Patch to all transformer blocks")
+
+        # Apply patch to all blocks, but use 1.0 scales for non-selected blocks
+        for idx, block in enumerate(diffusion_model.transformer_blocks):
+            model_clone.add_object_patch(f"diffusion_model.transformer_blocks.{idx}.attn1.forward", ltx2_sageattn_forward.__get__(block.attn1, block.attn1.__class__))
+
+        return io.NodeOutput(model_clone)
+
+sageplus_sm89_available = False
+try:
+    from sageattention.core import per_thread_int8_triton, per_warp_int8_cuda,per_block_int8_triton, per_channel_fp8, get_cuda_arch_versions, attn_false
+    _cuda_archs = get_cuda_arch_versions()
+except:
+    pass
+try:
+    from sageattention.core import _qattn_sm89
+    sageplus_sm89_available = hasattr(_qattn_sm89, 'qk_int8_sv_f8_accum_f16_fuse_v_scale_attn_inst_buf')
+
+except ImportError:
+    try:
+        from sageattention.core import sm89_compile as _qattn_sm89
+    except ImportError:
+        _qattn_sm89 = None
+try:
+    from sageattention.core import _qattn_sm80
+except ImportError:
+    try:
+        from sageattention.core import sm80_compile as _qattn_sm80
+    except ImportError:
+        _qattn_sm80 = None
+try:
+    from sageattention.core import  _qattn_sm90
+except ImportError:
+    try:
+        from sageattention.core import sm90_compile as _qattn_sm90
+    except ImportError:
+        _qattn_sm90 = None
+
+from comfy.ldm.lightricks.model import apply_rotary_emb
+
+def get_cuda_version():
+    version = torch.version.cuda
+    major, minor = version.split('.')
+    return int(major), int(minor)
+
+cuda_version = get_cuda_version()
+
+def ltx2_sageattn_forward(self, x, context=None, mask=None, pe=None, k_pe=None, transformer_options={}):
+    dtype = x.dtype
+    context = x if context is None else context
+
+    # query
+    q = self.to_q(x)
+    q = self.q_norm(q)
+    if pe is not None:
+        q = apply_rotary_emb(q, pe)
+    # key
+    k = self.to_k(context)
+    k = self.k_norm(k)
+    if pe is not None:
+        k = apply_rotary_emb(k, pe if k_pe is None else k_pe)
+    # value
+    v = self.to_v(context)
+
+    # Reshape from [batch, seq_len, total_dim] to [batch, seq_len, num_heads, head_dim]
+    batch_size, seq_len, _ = q.shape
+    num_heads = self.heads
+    head_dim_og = self.dim_head
+
+    q = q.view(batch_size, seq_len, num_heads, head_dim_og)
+    k = k.view(batch_size, k.shape[1], num_heads, head_dim_og)
+    v = v.view(batch_size, v.shape[1], num_heads, head_dim_og)
+
+    tensor_layout="NHD"
+    _tensor_layout = 0 if tensor_layout == "NHD" else 1
+    _is_caual = 0
+    _qk_quant_gran = 3
+    _return_lse = 0
+    sm_scale = head_dim_og**-0.5
+    quant_v_scale_max = 448.0
+
+    if _cuda_archs[0] in {"sm80", "sm86"}:
+        q_int8, q_scale, k_int8, k_scale = per_thread_int8_triton(q, k, None, tensor_layout=tensor_layout, BLKQ=128, WARPQ=32, BLKK=64, WARPK=64)
+        del q, k
+        o = torch.empty(q_int8.size(), dtype=dtype, device=q_int8.device)
+        v_fp16 = v.to(torch.float16).contiguous()
+        del v
+        _qattn_sm80.qk_int8_sv_f16_accum_f32_attn(q_int8, k_int8, v_fp16, o, q_scale, k_scale, _tensor_layout, _is_caual, _qk_quant_gran, sm_scale, _return_lse)
+    elif _cuda_archs[0] == "sm75":
+        q_int8, q_scale, k_int8, k_scale = per_block_int8_triton(q, k, km=None, sm_scale=sm_scale, tensor_layout=tensor_layout)
+        del q, k
+        o, _ = attn_false(q_int8, k_int8, v, q_scale, k_scale, tensor_layout=tensor_layout, output_dtype=dtype, attn_mask=None, return_lse=False)
+        del v
+    elif _cuda_archs[0] == "sm89":
+        if cuda_version < (12, 8) or not sageplus_sm89_available:
+            pv_accum_dtype = "fp32+fp32"
+        else:
+            pv_accum_dtype = "fp32+fp16"
+            quant_v_scale_max = 2.25
+        q_int8, q_scale, k_int8, k_scale = per_thread_int8_triton(q, k, None, tensor_layout=tensor_layout, BLKQ=128, WARPQ=32, BLKK=64, WARPK=64)
+        del q, k
+        v_fp8, v_scale, _ = per_channel_fp8(v, tensor_layout=tensor_layout, scale_max=quant_v_scale_max, smooth_v=False)
+        del v
+        o = torch.empty(q_int8.size(), dtype=dtype, device=q_int8.device)
+        if pv_accum_dtype == "fp32+fp16":
+            _qattn_sm89.qk_int8_sv_f8_accum_f16_fuse_v_scale_attn_inst_buf(q_int8, k_int8, v_fp8, o, q_scale, k_scale, v_scale, _tensor_layout, _is_caual, _qk_quant_gran, sm_scale, _return_lse)
+        elif pv_accum_dtype == "fp32+fp32":
+            _qattn_sm89.qk_int8_sv_f8_accum_f32_fuse_v_scale_attn_inst_buf(q_int8, k_int8, v_fp8, o, q_scale, k_scale, v_scale, _tensor_layout, _is_caual, _qk_quant_gran, sm_scale, _return_lse)
+        del v_fp8, v_scale
+    elif _cuda_archs[0] == "sm90":
+        q_int8, q_scale, k_int8, k_scale = per_thread_int8_triton(q, k, None, tensor_layout=tensor_layout, BLKQ=64, WARPQ=16, BLKK=128, WARPK=128)
+        del q, k,
+        v_fp8, v_scale, _ = per_channel_fp8(v, tensor_layout=tensor_layout, smooth_v=False)
+        del v
+        o = torch.empty(q_int8.size(), dtype=dtype, device=q_int8.device)
+        _qattn_sm90.qk_int8_sv_f8_accum_f32_fuse_v_scale_attn_inst_buf(q_int8, k_int8, v_fp8, o, q_scale, k_scale, v_scale, _tensor_layout, _is_caual, _qk_quant_gran, sm_scale, _return_lse)
+        del v_fp8, v_scale
+    elif _cuda_archs[0] == "sm120":
+        if cuda_version < (12, 8) or not sageplus_sm89_available:
+            pv_accum_dtype = "fp32"
+        else:
+            pv_accum_dtype = "fp32+fp16"
+            quant_v_scale_max = 2.25
+        _qk_quant_gran = 2 # per warp
+        q_int8, q_scale, k_int8, k_scale = per_warp_int8_cuda(q, k, None, tensor_layout=tensor_layout, BLKQ=128, WARPQ=32, BLKK=64)
+        del q, k
+        v_fp8, v_scale, _ = per_channel_fp8(v, tensor_layout=tensor_layout, scale_max=quant_v_scale_max, smooth_v=False)
+        del v
+        o = torch.empty(q_int8.size(), dtype=dtype, device=q_int8.device)
+        if pv_accum_dtype == "fp32":
+            _qattn_sm89.qk_int8_sv_f8_accum_f32_fuse_v_scale_attn(q_int8, k_int8, v_fp8, o, q_scale, k_scale, v_scale, _tensor_layout, _is_caual, _qk_quant_gran, sm_scale, _return_lse)
+        elif pv_accum_dtype == "fp32+fp16":
+            _qattn_sm89.qk_int8_sv_f8_accum_f16_fuse_v_scale_attn_inst_buf(q_int8, k_int8, v_fp8, o, q_scale, k_scale, v_scale, _tensor_layout, _is_caual, _qk_quant_gran, sm_scale, _return_lse)
+        del v_fp8, v_scale
+
+    del q_int8, q_scale, k_int8, k_scale
+    return self.to_out(o.view(batch_size, seq_len, -1))

@@ -1,27 +1,275 @@
-/**
- * Utility for creating the Æmotion Studio Splash / Pattern Designer Window.
- * Ported from JS with XSS security fixes.
- */
-
-// Generate a random nonce for CSP
-const generateNonce = (): string => {
-    if (typeof window !== 'undefined' && window.crypto) {
-        if (typeof window.crypto.randomUUID === 'function') {
-            return window.crypto.randomUUID();
-        }
-        if (typeof window.crypto.getRandomValues === 'function') {
-            const array = new Uint8Array(16);
-            window.crypto.getRandomValues(array);
-            return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
-        }
+const PHI = 1.618033988749895;
+const ANIMATION = Object.freeze({
+  /** Target frame interval in ms (~60fps) */
+  RAF_THROTTLE: 1e3 / 60,
+  /** Maximum size of particle pool */
+  PARTICLE_POOL_SIZE: 1e3,
+  /** Smoothing factor for delta time */
+  SMOOTH_FACTOR: 0.95,
+  /** Maximum delta time cap (seconds) */
+  MAX_DELTA: 1 / 30,
+  /** Default transition speed for phase animations */
+  TRANSITION_SPEED: 2 * Math.PI / 15,
+  /** Faster transition speed for more responsive animations */
+  FAST_TRANSITION_SPEED: 2 * Math.PI / 10
+});
+const LINK_DEFAULTS = Object.freeze({
+  "🔗 Enhanced Links.Animate": 9,
+  // Classic Flow
+  "🔗 Enhanced Links.Animation.Speed": 1,
+  // Normal speed
+  "🔗 Enhanced Links.Color.Mode": "default",
+  // Default colors
+  "🔗 Enhanced Links.Color.Accent": "#9d00ff",
+  // Purple
+  "🔗 Enhanced Links.Color.Secondary": "#fb00ff",
+  // Pink
+  "🔗 Enhanced Links.Color.Primary": "#ffb300",
+  // Orange
+  "🔗 Enhanced Links.Color.Scheme": "default",
+  // Original colors
+  "🔗 Enhanced Links.Direction": 1,
+  // Forward
+  "🔗 Enhanced Links.Glow.Intensity": 10,
+  // Medium glow
+  "🔗 Enhanced Links.Link.Style": "spline",
+  // Spline style
+  "🔗 Enhanced Links.Marker.Enabled": true,
+  // Markers enabled
+  "🔗 Enhanced Links.Marker.Effects": "none",
+  // No effects
+  "🔗 Enhanced Links.Marker.Glow": 10,
+  // Medium glow
+  "🔗 Enhanced Links.Marker.Color": "#00fff7",
+  // Cyan
+  "🔗 Enhanced Links.Marker.Color.Mode": "default",
+  // Default colors
+  "🔗 Enhanced Links.Marker.Size": 3,
+  // Large size
+  "🔗 Enhanced Links.Marker.Shape": "arrow",
+  // Arrow shape
+  "🔗 Enhanced Links.Particle.Density": 0.5,
+  // Minimal
+  "🔗 Enhanced Links.Quality": 1,
+  // Basic (Fast)
+  "🔗 Enhanced Links.Link.Shadow.Enabled": true,
+  // Link shadows
+  "🔗 Enhanced Links.Marker.Shadow.Enabled": true,
+  // Marker shadows
+  "🔗 Enhanced Links.Thickness": 3,
+  // Medium thickness
+  "🔗 Enhanced Links.UI & Æmotion Studio About": 0,
+  // Closed panel
+  "🔗 Enhanced Links.Static.Mode": false,
+  // Animated mode
+  "🔗 Enhanced Links.Pause.During.Render": true
+  // Pause during render
+});
+const NODE_DEFAULTS = Object.freeze({
+  "📦 Enhanced Nodes.Animate": 1,
+  // Gentle Pulse
+  "📦 Enhanced Nodes.Animation.Glow": 0.5,
+  // Medium glow
+  "📦 Enhanced Nodes.Animation.Size": 1,
+  // Normal size
+  "📦 Enhanced Nodes.Animation.Speed": 1,
+  // Normal speed
+  "📦 Enhanced Nodes.Animations.Enabled": true,
+  // Animations on
+  "📦 Enhanced Nodes.Color.Accent": "#0088ff",
+  // Deep blue
+  "📦 Enhanced Nodes.Color.Mode": "default",
+  // Default colors
+  "📦 Enhanced Nodes.Color.Particle": "#ffff00",
+  // Yellow
+  "📦 Enhanced Nodes.Color.Primary": "#44aaff",
+  // Bright blue
+  "📦 Enhanced Nodes.Color.Scheme": "default",
+  // Original colors
+  "📦 Enhanced Nodes.Color.Secondary": "#88ccff",
+  // Light blue
+  "📦 Enhanced Nodes.Direction": 1,
+  // Forward
+  "📦 Enhanced Nodes.End Animation.Enabled": false,
+  // No end animation
+  "📦 Enhanced Nodes.Glow": 0.5,
+  // Medium glow
+  "📦 Enhanced Nodes.Glow.Show": true,
+  // Show glow
+  "📦 Enhanced Nodes.Intensity": 1,
+  // Normal intensity
+  "📦 Enhanced Nodes.Particle.Color.Mode": "default",
+  // Default particle colors
+  "📦 Enhanced Nodes.Particle.Density": 1,
+  // Normal density
+  "📦 Enhanced Nodes.Particle.Glow": 0.5,
+  // Medium particle glow
+  "📦 Enhanced Nodes.Particle.Intensity": 1,
+  // Normal intensity
+  "📦 Enhanced Nodes.Particle.Show": true,
+  // Show particles
+  "📦 Enhanced Nodes.Particle.Size": 1,
+  // Normal size
+  "📦 Enhanced Nodes.Particle.Speed": 1,
+  // Normal speed
+  "📦 Enhanced Nodes.Quality": 2,
+  // Balanced
+  "📦 Enhanced Nodes.Static.Mode": false,
+  // Animated mode
+  "📦 Enhanced Nodes.Pause.During.Render": true,
+  // Pause during render
+  "📦 Enhanced Nodes.Text.Animation.Enabled": false,
+  // No text animation
+  "📦 Enhanced Nodes.Text.Color": "#00ffff",
+  // Cyan
+  "📦 Enhanced Nodes.UI & Æmotion Studio About": 0
+  // Closed panel
+});
+function createLinkState() {
+  return {
+    isRunning: false,
+    phase: 0,
+    lastFrame: performance.now(),
+    animationFrame: null,
+    particlePool: /* @__PURE__ */ new Map(),
+    activeParticles: /* @__PURE__ */ new Set(),
+    totalTime: 0,
+    speedMultiplier: 1,
+    linkPositions: /* @__PURE__ */ new Map(),
+    lastNodePositions: /* @__PURE__ */ new Map(),
+    staticPhase: Math.PI / 4,
+    lastAnimStyle: null,
+    lastLinkStyle: null,
+    forceUpdate: false,
+    forceRedraw: false,
+    lastRenderState: null,
+    lastSettings: null
+  };
+}
+function createNodeState() {
+  return {
+    isRunning: false,
+    phase: 0,
+    particlePhase: 0,
+    lastFrame: performance.now(),
+    lastRAFTime: 0,
+    animationFrame: null,
+    totalTime: 0,
+    speedMultiplier: 1,
+    staticPhase: Math.PI / 4,
+    forceUpdate: false,
+    forceRedraw: false,
+    lastRenderState: null,
+    nodeEffects: /* @__PURE__ */ new Map(),
+    isAnimating: false,
+    frameSkipCount: 0,
+    maxFrameSkips: 3,
+    lastAnimStyle: null,
+    particlePool: /* @__PURE__ */ new Map(),
+    activeParticles: /* @__PURE__ */ new Set(),
+    playCompletionAnimation: false,
+    completionPhase: 0,
+    completingNodes: /* @__PURE__ */ new Set(),
+    disabledCompletionNodes: /* @__PURE__ */ new Set(),
+    primaryCompletionNode: null
+  };
+}
+function createTimingManager() {
+  const state = {
+    smoothDelta: 0,
+    frameCount: 0,
+    lastTime: performance.now()
+  };
+  return {
+    ...state,
+    get smoothDelta() {
+      return state.smoothDelta;
+    },
+    get frameCount() {
+      return state.frameCount;
+    },
+    get lastTime() {
+      return state.lastTime;
+    },
+    /**
+     * Update timing and return smoothed delta time
+     * @param currentTime - Current timestamp from performance.now()
+     * @returns Smoothed delta time in seconds
+     */
+    update(currentTime) {
+      const rawDelta = Math.min(
+        (currentTime - state.lastTime) / 1e3,
+        ANIMATION.MAX_DELTA
+      );
+      state.lastTime = currentTime;
+      state.frameCount++;
+      state.smoothDelta = state.smoothDelta * ANIMATION.SMOOTH_FACTOR + rawDelta * (1 - ANIMATION.SMOOTH_FACTOR);
+      return state.smoothDelta;
+    },
+    /**
+     * Reset timing state
+     */
+    reset() {
+      state.smoothDelta = 0;
+      state.frameCount = 0;
+      state.lastTime = performance.now();
     }
-    // Fail securely if no crypto API is available
-    throw new Error("Secure random number generation is not available.");
+  };
+}
+function validateHexColor(color) {
+  if (!color || typeof color !== "string") return null;
+  const normalized = color.startsWith("#") ? color : `#${color}`;
+  if (!/^#[0-9A-Fa-f]{6}$/i.test(normalized)) return null;
+  return normalized.toLowerCase();
+}
+function hexToRgb(hex) {
+  const validated = validateHexColor(hex);
+  if (!validated) return null;
+  return {
+    r: parseInt(validated.slice(1, 3), 16),
+    g: parseInt(validated.slice(3, 5), 16),
+    b: parseInt(validated.slice(5, 7), 16)
+  };
+}
+function withAlpha(color, alpha) {
+  const validAlpha = Math.max(0, Math.min(1, alpha));
+  if (!color) {
+    return `rgba(0, 255, 255, ${validAlpha})`;
+  }
+  if (typeof color === "string" && color.startsWith("#")) {
+    const rgb = hexToRgb(color);
+    if (rgb) {
+      return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${validAlpha})`;
+    }
+    return `rgba(0, 255, 255, ${validAlpha})`;
+  }
+  if (typeof color === "string" && color.startsWith("hsl(")) {
+    return color.replace(/hsl\((.*)\)/, `hsla($1, ${validAlpha})`);
+  }
+  if (typeof color === "string" && color.startsWith("hsla(")) {
+    return color.replace(/hsla\(([^,]+),([^,]+),([^,]+),[^)]+\)/, `hsla($1,$2,$3, ${validAlpha})`);
+  }
+  if (typeof color === "string" && color.startsWith("rgba(")) {
+    return color.replace(/rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)/, `rgba($1,$2,$3, ${validAlpha})`);
+  }
+  return color;
+}
+const generateNonce = () => {
+  if (typeof window !== "undefined" && window.crypto) {
+    if (typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    if (typeof window.crypto.getRandomValues === "function") {
+      const array = new Uint8Array(16);
+      window.crypto.getRandomValues(array);
+      return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    }
+  }
+  throw new Error("Secure random number generation is not available.");
 };
-
-export const createPatternDesignerWindow = (): HTMLDivElement => {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
+const createPatternDesignerWindow = () => {
+  const modal = document.createElement("div");
+  modal.style.cssText = `
         position: fixed;
         left: 50%;
         top: 50%;
@@ -36,9 +284,8 @@ export const createPatternDesignerWindow = (): HTMLDivElement => {
         display: flex;
         flex-direction: column;
     `;
-
-    const titleBar = document.createElement('div');
-    titleBar.style.cssText = `
+  const titleBar = document.createElement("div");
+  titleBar.style.cssText = `
         padding: 10px;
         margin-bottom: 10px;
         cursor: move;
@@ -48,46 +295,37 @@ export const createPatternDesignerWindow = (): HTMLDivElement => {
         justify-content: space-between;
         align-items: center;
     `;
-
-    const title = document.createElement('span');
-    title.textContent = 'About Æmotion Studio';
-    title.style.cssText = `
+  const title = document.createElement("span");
+  title.textContent = "About Æmotion Studio";
+  title.style.cssText = `
         color: #e0e0e0;
         font-weight: bold;
         font-family: 'Orbitron', sans-serif;
     `;
-    titleBar.appendChild(title);
-
-    // Make window draggable
-    let isDragging = false;
-    let currentX: number;
-    let currentY: number;
-    let initialX: number;
-    let initialY: number;
-
-    const onMouseMove = (e: MouseEvent) => {
-        if (isDragging) {
-            e.preventDefault();
-            currentX = e.clientX - initialX;
-            currentY = e.clientY - initialY;
-            modal.style.left = currentX + 'px';
-            modal.style.top = currentY + 'px';
-        }
-    };
-
-    const onMouseUp = () => {
-        isDragging = false;
-    };
-
-    // Use addEventListener instead of overwriting onmousemove/onmouseup
-    // to prevent conflicts with other extensions or core UI.
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-
-    const closeButton = document.createElement('button');
-    closeButton.textContent = '×';
-    closeButton.setAttribute('aria-label', 'Close');
-    closeButton.style.cssText = `
+  titleBar.appendChild(title);
+  let isDragging = false;
+  let currentX;
+  let currentY;
+  let initialX;
+  let initialY;
+  const onMouseMove = (e) => {
+    if (isDragging) {
+      e.preventDefault();
+      currentX = e.clientX - initialX;
+      currentY = e.clientY - initialY;
+      modal.style.left = currentX + "px";
+      modal.style.top = currentY + "px";
+    }
+  };
+  const onMouseUp = () => {
+    isDragging = false;
+  };
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+  const closeButton = document.createElement("button");
+  closeButton.textContent = "×";
+  closeButton.setAttribute("aria-label", "Close");
+  closeButton.style.cssText = `
         background: none;
         border: none;
         color: #e0e0e0;
@@ -95,38 +333,32 @@ export const createPatternDesignerWindow = (): HTMLDivElement => {
         cursor: pointer;
         transition: color 0.2s ease;
     `;
-
-    closeButton.onclick = () => {
-        // Cleanup event listeners when closing
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-        modal.remove();
-    };
-
-    closeButton.onmouseenter = () => { closeButton.style.color = '#ffffff'; };
-    closeButton.onmouseleave = () => { closeButton.style.color = '#e0e0e0'; };
-    titleBar.appendChild(closeButton);
-
-    modal.appendChild(titleBar);
-
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = `
+  closeButton.onclick = () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+    modal.remove();
+  };
+  closeButton.onmouseenter = () => {
+    closeButton.style.color = "#ffffff";
+  };
+  closeButton.onmouseleave = () => {
+    closeButton.style.color = "#e0e0e0";
+  };
+  titleBar.appendChild(closeButton);
+  modal.appendChild(titleBar);
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = `
         flex: 1;
         border: none;
         border-radius: 4px;
         background-color: #1a1a1a;
     `;
-
-    const nonce = generateNonce();
-
-    // Embed the complete HTML content
-    // NOTE: Styles are now injected safely via onload handler instead of template interpolation
-    // to prevent potential XSS vulnerabilities.
-    const htmlContent = `
+  const nonce = generateNonce();
+  const htmlContent = `
         <html lang="en">
             <head>
             <meta charset="UTF-8" />
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none';" />
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none';" />
             <meta name="viewport" content="width=device-width, initial-scale=1.0" />
             <title>Æmotion Studio</title>
             <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -135,10 +367,10 @@ export const createPatternDesignerWindow = (): HTMLDivElement => {
                 href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Montserrat:wght@300;400;700&display=swap"
                 rel="stylesheet"
             />
-                <style id="injected-styles">
+                <style id="injected-styles" nonce="${nonce}">
                 /* Styles will be injected here programmatically */
                 </style>
-                <style>
+                <style nonce="${nonce}">
                 * {
                     box-sizing: border-box;
                         margin: 0;
@@ -530,48 +762,52 @@ export const createPatternDesignerWindow = (): HTMLDivElement => {
                     rainbowElem.innerHTML = "";
                     text.split("").forEach((char, index) => {
                         const span = document.createElement("span");
-                        span.textContent = char === " " ? "\u00A0" : char;
+                        span.textContent = char === " " ? " " : char;
                         span.style.whiteSpace = "pre";
                         span.style.animation = \`rainbowWave 2s infinite\`;
                         span.style.animationDelay = \`\${index * 0.1}s\`;
                         rainbowElem.appendChild(span);
                     });
                 }
-                </script>
+                <\/script>
             </body>
         </html>
     `;
-
-    // Inject styles safely after iframe loads
-    iframe.onload = () => {
-        try {
-            const doc = iframe.contentDocument;
-            if (doc) {
-                const injectedStyles = doc.getElementById('injected-styles');
-                const parentStyles = document.querySelector('style');
-                if (injectedStyles && parentStyles) {
-                    injectedStyles.textContent = parentStyles.textContent;
-                }
-            }
-        } catch (e) {
-            console.error("Error injecting styles into pattern designer window:", e);
+  iframe.onload = () => {
+    try {
+      const doc = iframe.contentDocument;
+      if (doc) {
+        const injectedStyles = doc.getElementById("injected-styles");
+        const parentStyles = document.querySelector("style");
+        if (injectedStyles && parentStyles) {
+          injectedStyles.textContent = parentStyles.textContent;
         }
-    };
-
-    iframe.srcdoc = htmlContent;
-    modal.appendChild(iframe);
-
-    titleBar.onmousedown = (e) => {
-        isDragging = true;
-
-        const rect = modal.getBoundingClientRect();
-        modal.style.transform = 'none';
-        modal.style.left = rect.left + 'px';
-        modal.style.top = rect.top + 'px';
-
-        initialX = e.clientX - rect.left;
-        initialY = e.clientY - rect.top;
-    };
-
-    return modal;
+      }
+    } catch (e) {
+      console.error("Error injecting styles into pattern designer window:", e);
+    }
+  };
+  iframe.srcdoc = htmlContent;
+  modal.appendChild(iframe);
+  titleBar.onmousedown = (e) => {
+    isDragging = true;
+    const rect = modal.getBoundingClientRect();
+    modal.style.transform = "none";
+    modal.style.left = rect.left + "px";
+    modal.style.top = rect.top + "px";
+    initialX = e.clientX - rect.left;
+    initialY = e.clientY - rect.top;
+  };
+  return modal;
 };
+export {
+  LINK_DEFAULTS as L,
+  NODE_DEFAULTS as N,
+  PHI as P,
+  createTimingManager as a,
+  createPatternDesignerWindow as b,
+  createLinkState as c,
+  createNodeState as d,
+  withAlpha as w
+};
+//# sourceMappingURL=designer-CWWI0urQ.js.map

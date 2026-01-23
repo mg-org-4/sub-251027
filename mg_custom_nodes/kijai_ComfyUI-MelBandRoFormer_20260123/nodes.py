@@ -2,8 +2,8 @@ import os
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
+import torchaudio.functional as TAF
 
-import librosa
 import folder_paths
 
 from .model.mel_band_roformer import MelBandRoformer
@@ -68,7 +68,7 @@ class MelBandRoFormerModelLoader:
         model.load_state_dict(load_torch_file(model_path), strict=True)
 
         return (model,)
-    
+
 class MelBandRoFormerSampler:
     @classmethod
     def INPUT_TYPES(s):
@@ -101,9 +101,7 @@ class MelBandRoFormerSampler:
 
         if sample_rate != sr:
             print(f"Resampling input {sample_rate} to {sr}")
-            audio_np = audio_input.cpu().numpy()
-            resampled = librosa.resample(audio_np, orig_sr=sample_rate, target_sr=sr, axis=-1)
-            audio_input = torch.from_numpy(resampled)
+            audio_input = TAF.resample(audio_input, orig_freq=sample_rate, new_freq=sr)
         audio_input = original_audio = audio_input[0]
 
         C = 352800

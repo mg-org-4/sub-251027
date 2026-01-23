@@ -355,7 +355,7 @@ def normalized_attention_guidance(self, x_positive, x_negative):
     adjustment = (norm_positive * self.nag_tau) / (norm_guidance + 1e-7)
     del norm_positive, norm_guidance
 
-    nag_guidance = torch.where(mask, nag_guidance * adjustment, nag_guidance)
+    nag_guidance.mul_(torch.where(mask, adjustment, 1.0))
     del mask, adjustment
 
     nag_guidance.sub_(x_positive).mul_(self.nag_alpha).add_(x_positive)
@@ -842,6 +842,7 @@ class LTX2SamplingPreviewOverride(io.ComfyNode):
         if vae is not None:
             if vae.first_stage_model.__class__.__name__ == "TAEHV":
                 taeltx = True
+                latent_upscale_model=None
         model.add_wrapper_with_key(comfy.patcher_extension.WrappersMP.OUTER_SAMPLE, "sampling_preview", OuterSampleCallbackWrapper(latent_upscale_model, vae, preview_rate, taeltx))
         return io.NodeOutput(model)
 
@@ -1278,16 +1279,28 @@ class LTX2MemoryEfficientSageAttentionPatch(io.ComfyNode):
 
         return io.NodeOutput(model_clone)
 
+
+def get_cuda_version():
+    try:
+        version = torch.version.cuda
+        if version is not None:
+            major, minor = version.split('.')
+            return int(major), int(minor)
+        else:
+            return 0, 0
+    except Exception:
+        return 0, 0
+
 sageplus_sm89_available = False
 try:
-    from sageattention.core import per_thread_int8_triton, per_warp_int8_cuda,per_block_int8_triton, per_channel_fp8, get_cuda_arch_versions, attn_false
+    from sageattention.core import per_thread_int8_triton, per_warp_int8_cuda, per_block_int8_triton, per_channel_fp8, get_cuda_arch_versions, attn_false
     _cuda_archs = get_cuda_arch_versions()
 except:
     pass
 try:
     from sageattention.core import _qattn_sm89
-    sageplus_sm89_available = hasattr(_qattn_sm89, 'qk_int8_sv_f8_accum_f16_fuse_v_scale_attn_inst_buf')
-
+    cuda_version = get_cuda_version()
+    sageplus_sm89_available = hasattr(_qattn_sm89, 'qk_int8_sv_f8_accum_f16_fuse_v_scale_attn_inst_buf') and cuda_version >= (12, 8)
 except ImportError:
     try:
         from sageattention.core import sm89_compile as _qattn_sm89
@@ -1310,12 +1323,6 @@ except ImportError:
 
 from comfy.ldm.lightricks.model import apply_rotary_emb
 
-def get_cuda_version():
-    version = torch.version.cuda
-    major, minor = version.split('.')
-    return int(major), int(minor)
-
-cuda_version = get_cuda_version()
 
 def ltx2_sageattn_forward(self, x, context=None, mask=None, pe=None, k_pe=None, transformer_options={}):
     dtype = x.dtype
@@ -1336,15 +1343,14 @@ def ltx2_sageattn_forward(self, x, context=None, mask=None, pe=None, k_pe=None, 
 
     # Reshape from [batch, seq_len, total_dim] to [batch, seq_len, num_heads, head_dim]
     batch_size, seq_len, _ = q.shape
-    num_heads = self.heads
     head_dim_og = self.dim_head
 
-    q = q.view(batch_size, seq_len, num_heads, head_dim_og)
-    k = k.view(batch_size, k.shape[1], num_heads, head_dim_og)
-    v = v.view(batch_size, v.shape[1], num_heads, head_dim_og)
+    q = q.view(batch_size, seq_len, self.heads, head_dim_og)
+    k = k.view(batch_size, k.shape[1], self.heads, head_dim_og)
+    v = v.view(batch_size, v.shape[1], self.heads, head_dim_og)
 
     tensor_layout="NHD"
-    _tensor_layout = 0 if tensor_layout == "NHD" else 1
+    _tensor_layout = 0 # NHD
     _is_caual = 0
     _qk_quant_gran = 3
     _return_lse = 0
@@ -1352,24 +1358,24 @@ def ltx2_sageattn_forward(self, x, context=None, mask=None, pe=None, k_pe=None, 
     quant_v_scale_max = 448.0
 
     if _cuda_archs[0] in {"sm80", "sm86"}:
-        q_int8, q_scale, k_int8, k_scale = per_thread_int8_triton(q, k, None, tensor_layout=tensor_layout, BLKQ=128, WARPQ=32, BLKK=64, WARPK=64)
+        q_int8, q_scale, k_int8, k_scale = per_thread_int8_triton(q, k, km=k.mean(dim=1, keepdim=True), tensor_layout=tensor_layout, BLKQ=128, WARPQ=32, BLKK=64, WARPK=64)
         del q, k
         o = torch.empty(q_int8.size(), dtype=dtype, device=q_int8.device)
         v_fp16 = v.to(torch.float16).contiguous()
         del v
         _qattn_sm80.qk_int8_sv_f16_accum_f32_attn(q_int8, k_int8, v_fp16, o, q_scale, k_scale, _tensor_layout, _is_caual, _qk_quant_gran, sm_scale, _return_lse)
     elif _cuda_archs[0] == "sm75":
-        q_int8, q_scale, k_int8, k_scale = per_block_int8_triton(q, k, km=None, sm_scale=sm_scale, tensor_layout=tensor_layout)
+        q_int8, q_scale, k_int8, k_scale = per_block_int8_triton(q, k, km=k.mean(dim=1, keepdim=True), sm_scale=sm_scale, tensor_layout=tensor_layout)
         del q, k
         o, _ = attn_false(q_int8, k_int8, v, q_scale, k_scale, tensor_layout=tensor_layout, output_dtype=dtype, attn_mask=None, return_lse=False)
         del v
     elif _cuda_archs[0] == "sm89":
-        if cuda_version < (12, 8) or not sageplus_sm89_available:
+        if not sageplus_sm89_available:
             pv_accum_dtype = "fp32+fp32"
         else:
             pv_accum_dtype = "fp32+fp16"
             quant_v_scale_max = 2.25
-        q_int8, q_scale, k_int8, k_scale = per_thread_int8_triton(q, k, None, tensor_layout=tensor_layout, BLKQ=128, WARPQ=32, BLKK=64, WARPK=64)
+        q_int8, q_scale, k_int8, k_scale = per_thread_int8_triton(q, k, km=k.mean(dim=1, keepdim=True), tensor_layout=tensor_layout, BLKQ=128, WARPQ=32, BLKK=64, WARPK=64)
         del q, k
         v_fp8, v_scale, _ = per_channel_fp8(v, tensor_layout=tensor_layout, scale_max=quant_v_scale_max, smooth_v=False)
         del v
@@ -1380,7 +1386,7 @@ def ltx2_sageattn_forward(self, x, context=None, mask=None, pe=None, k_pe=None, 
             _qattn_sm89.qk_int8_sv_f8_accum_f32_fuse_v_scale_attn_inst_buf(q_int8, k_int8, v_fp8, o, q_scale, k_scale, v_scale, _tensor_layout, _is_caual, _qk_quant_gran, sm_scale, _return_lse)
         del v_fp8, v_scale
     elif _cuda_archs[0] == "sm90":
-        q_int8, q_scale, k_int8, k_scale = per_thread_int8_triton(q, k, None, tensor_layout=tensor_layout, BLKQ=64, WARPQ=16, BLKK=128, WARPK=128)
+        q_int8, q_scale, k_int8, k_scale = per_thread_int8_triton(q, k, km=k.mean(dim=1, keepdim=True), tensor_layout=tensor_layout, BLKQ=64, WARPQ=16, BLKK=128, WARPK=128)
         del q, k,
         v_fp8, v_scale, _ = per_channel_fp8(v, tensor_layout=tensor_layout, smooth_v=False)
         del v
@@ -1388,13 +1394,13 @@ def ltx2_sageattn_forward(self, x, context=None, mask=None, pe=None, k_pe=None, 
         _qattn_sm90.qk_int8_sv_f8_accum_f32_fuse_v_scale_attn_inst_buf(q_int8, k_int8, v_fp8, o, q_scale, k_scale, v_scale, _tensor_layout, _is_caual, _qk_quant_gran, sm_scale, _return_lse)
         del v_fp8, v_scale
     elif _cuda_archs[0] == "sm120":
-        if cuda_version < (12, 8) or not sageplus_sm89_available:
+        if not sageplus_sm89_available:
             pv_accum_dtype = "fp32"
         else:
             pv_accum_dtype = "fp32+fp16"
             quant_v_scale_max = 2.25
         _qk_quant_gran = 2 # per warp
-        q_int8, q_scale, k_int8, k_scale = per_warp_int8_cuda(q, k, None, tensor_layout=tensor_layout, BLKQ=128, WARPQ=32, BLKK=64)
+        q_int8, q_scale, k_int8, k_scale = per_warp_int8_cuda(q, k, km=k.mean(dim=1, keepdim=True), tensor_layout=tensor_layout, BLKQ=128, WARPQ=32, BLKK=64)
         del q, k
         v_fp8, v_scale, _ = per_channel_fp8(v, tensor_layout=tensor_layout, scale_max=quant_v_scale_max, smooth_v=False)
         del v

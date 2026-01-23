@@ -1,8 +1,8 @@
 {
   "id": "b70b1e3a-e9c4-4e9f-91c9-ba409cfd77ba",
   "revision": 0,
-  "last_node_id": 31,
-  "last_link_id": 29,
+  "last_node_id": 39,
+  "last_link_id": 37,
   "nodes": [
     {
       "id": 3,
@@ -91,7 +91,7 @@
         "ue_convert": true
       },
       "widgets_values": [
-        885984873428593,
+        282151707587430,
         "randomize"
       ]
     },
@@ -109,7 +109,7 @@
       "flags": {
         "collapsed": true
       },
-      "order": 24,
+      "order": 28,
       "mode": 2,
       "inputs": [
         {
@@ -152,7 +152,7 @@
         200
       ],
       "flags": {},
-      "order": 23,
+      "order": 27,
       "mode": 2,
       "inputs": [
         {
@@ -233,7 +233,7 @@
       "flags": {
         "collapsed": true
       },
-      "order": 22,
+      "order": 24,
       "mode": 2,
       "inputs": [
         {
@@ -278,7 +278,7 @@
       "flags": {
         "collapsed": true
       },
-      "order": 21,
+      "order": 23,
       "mode": 2,
       "inputs": [
         {
@@ -337,7 +337,7 @@
       "widgets_values": [
         "",
         "gemini-2.5-flash",
-        960123190689261,
+        125777581168559,
         "randomize",
         ""
       ],
@@ -358,7 +358,7 @@
       "flags": {
         "collapsed": true
       },
-      "order": 17,
+      "order": 19,
       "mode": 2,
       "inputs": [
         {
@@ -408,7 +408,7 @@
         572.0556499999998
       ],
       "flags": {},
-      "order": 25,
+      "order": 29,
       "mode": 2,
       "inputs": [
         {
@@ -477,84 +477,6 @@
       ]
     },
     {
-      "id": 30,
-      "type": "Text Multiline",
-      "pos": [
-        -1770,
-        2100
-      ],
-      "size": [
-        360,
-        135
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            26
-          ]
-        }
-      ],
-      "title": "Put a theme/style idea here:",
-      "properties": {
-        "cnr_id": "was-node-suite-comfyui",
-        "ver": "1.0.2",
-        "Node name for S&R": "Text Multiline",
-        "ue_properties": {
-          "version": "7.5.2",
-          "widget_ue_connectable": {},
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "Mood: restrained, introspective, pressurized, quietly defiant\nColor: muted grays, cold blues, desaturated whites, faint metallic tones\nLighting: low, internal, soft shadows, no dramatic peaks\nTexture: subtle distortion, static haze, slow build, minimal grain\nWardrobe: understated, minimal, neutral tones, unadorned\nCamera: close framing, still shots, slow push-ins, controlled pacing\nKeywords: tension, release, control, repetition, surrender, renewal\n\nshe always is wearing a dress, the dress can change styles and colors baesd on each scene though."
-      ]
-    },
-    {
-      "id": 29,
-      "type": "Text Multiline",
-      "pos": [
-        -1770,
-        2280
-      ],
-      "size": [
-        360,
-        135
-      ],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            25
-          ]
-        }
-      ],
-      "title": "Put a story idea here:",
-      "properties": {
-        "cnr_id": "was-node-suite-comfyui",
-        "ver": "1.0.2",
-        "Node name for S&R": "Text Multiline",
-        "ue_properties": {
-          "version": "7.5.2",
-          "widget_ue_connectable": {},
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "A beautful woman with blonde hair lives inside a sealed, looping space where every thought is measured and contained. Each day she performs the same quiet rituals to keep herself intact, holding pressure without reaction. As the tension peaks, she chooses not to resist—she lets the structure bend instead of breaking herself. The loop collapses, the space resets, and she steps forward lighter, no longer carrying what was never hers.\n\nshe always is wearing a dress, the dress can change styles and colors baesd on each scene though."
-      ]
-    },
-    {
       "id": 16,
       "type": "LoadJsonFromText",
       "pos": [
@@ -568,7 +490,7 @@
       "flags": {
         "collapsed": false
       },
-      "order": 5,
+      "order": 3,
       "mode": 2,
       "inputs": [],
       "outputs": [
@@ -607,7 +529,7 @@
         540
       ],
       "flags": {},
-      "order": 19,
+      "order": 21,
       "mode": 0,
       "inputs": [
         {
@@ -636,51 +558,7 @@
         }
       },
       "widgets_values": [
-        "STYLE / THEME (REQUIRED — DO NOT OMIT)\n🔮 Internal Unfolding — \"The quiet weight of being, reimagined.\"\n\n(A contemplative, minimalist style blending stark digital imagery with subtle organic textures, exploring psychological states of restraint and release through symbolic visual metamorphosis.)\n\nThe world is an abstract, internal landscape, shifting from oppressive confinement to boundless expansion. It visually manifests the emotional arc of restraint, introspection, and eventual release. A singular figure, always adorned in a simple dress whose form subtly adapts to her shifting internal state, navigates this psychological terrain. Initially, she is a static point within a structured, confining space, representing the 'clockwork thoughts' and 'pressure's pull.' As she begins to 'bend' and 'break the shape,' the environment around her subtly distorts and then opens, reflecting her journey towards 'freedom' and 'renewal.' The visuals emphasize the subtle struggle and the profound liberation found in letting go, with every element serving to amplify her internal experience.\n\nMaterials are smooth, unadorned surfaces, with subtle metallic sheens and digital static overlays that convey underlying tension. The dress fabric should appear fluid yet substantial, its texture subtly shifting from rigid to flowing depending on the character's emotional state. The palette is dominated by muted grays, cold blues, and desaturated whites, creating a somber, controlled atmosphere. Faint metallic tones introduce a sense of underlying tension and artificiality. As the theme shifts to release, hints of warmer, desaturated pastels might emerge, but sparingly, maintaining the overall controlled aesthetic. Environments are primarily abstract, architectural forms suggesting confinement (grids, walls, defined spaces) initially, evolving into more open, atmospheric expanses with subtle, undefined horizons, symbolizing freedom. The background is often a gradient of the core palette, adding depth without distraction. Rendering is clean and sharp for foreground elements, with a soft, ethereal quality in the background. Subtle distortion effects, a 'static haze,' and minimal grain will be applied selectively to convey psychological tension or a shift in perception. Transitions are slow and deliberate, mimicking a 'slow build.' Props are minimal and symbolic, such as abstract representations of 'weight' or 'lines' that converge; the character's evolving dress is the primary visual narrative device.\n\nCAMERA, ANGLE, AND COMPOSITION\n\nPredominantly close framing on the subject, emphasizing subtle facial expressions and body language. Still shots are frequent, punctuated by extremely slow push-ins or gentle tracking shots that enhance introspection. Compositions are often minimalist, with the subject centered or placed deliberately off-center to create visual tension or balance. The pacing is controlled and deliberate, mirroring the internal journey. Angles are generally eye-level or slightly high, maintaining a sense of objective observation rather than dramatic interpretation.\n\nLIGHTING & VISUAL MOOD\n\nLow key lighting throughout, originating internally from within the scene or subtly diffused from unseen sources. Soft, elongated shadows are prevalent, adding depth without harshness. There are no dramatic peaks of light or deep, impenetrable blackness; instead, a consistent, diffused glow pervades. The absence of strong contrast reinforces the 'restrained' and 'introspective' mood, creating a sense of quiet tension.\n\nGLOBAL PROMPT REQUIREMENT\n\nEvery prompt must include:\n\n\"Subtle abstract digital rendering\""
-      ]
-    },
-    {
-      "id": 12,
-      "type": "ShowText|pysssss",
-      "pos": [
-        -450,
-        1875
-      ],
-      "size": [
-        540,
-        540
-      ],
-      "flags": {},
-      "order": 20,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "text",
-          "type": "STRING",
-          "link": 24
-        }
-      ],
-      "outputs": [
-        {
-          "name": "STRING",
-          "shape": 6,
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "title": "story",
-      "properties": {
-        "cnr_id": "comfyui-custom-scripts",
-        "ver": "1.2.5",
-        "Node name for S&R": "ShowText|pysssss",
-        "ue_properties": {
-          "version": "7.5.2",
-          "widget_ue_connectable": {},
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "```json\n{\n  \"story_summary\": \"A woman trapped in a self-imposed, visually restrictive internal world experiences the slow, grinding pressure of unexpressed thoughts and societal expectations. Through a deliberate act of choosing to bend rather than break, she initiates a psychological and visual metamorphosis, ultimately dismantling her confining structures and stepping into a realm of profound, quiet freedom and self-renewal.\",\n  \"groups\": [\n    {\n      \"index\": 1,\n      \"title\": \"The Initial Stillness\",\n      \"narrative_role\": \"Introduces the protagonist within her initial state of quiet, contained existence, hinting at the calm before an internal struggle.\",\n      \"emotional_movement\": \"Anticipatory, somber, a sense of quietude preceding tension.\",\n      \"frame\": \"A woman with blonde hair, clad in a simple, muted gray dress, stands perfectly still in the center of a pristine, abstract room composed of intersecting, glowing grid lines. The space is stark and symmetrical, defined by smooth, unadorned surfaces in cold blues and desaturated whites. Low-key lighting casts soft, elongated shadows, emphasizing the profound silence. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 2,\n      \"title\": \"Accumulating Pressure\",\n      \"narrative_role\": \"Begins to introduce the internal weight and building tension the protagonist experiences.\",\n      \"emotional_movement\": \"Growing tension, subtle unease, a sense of gathering burden.\",\n      \"frame\": \"The same woman is in the identical grid-like room, but her posture has subtly shifted; her shoulders are slightly rounded, almost imperceptibly stooped. A faint, metallic sheen now pulses softly along the edges of the floor grid, creating a visual metaphor for increasing density and psychological weight. The diffused glow maintains a somber mood. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 3,\n      \"title\": \"Converging Thoughts\",\n      \"narrative_role\": \"Illustrates the internal complexity and mental entanglement as thoughts become overwhelming.\",\n      \"emotional_movement\": \"Overwhelmed, mentally trapped, a sense of cognitive clutter.\",\n      \"frame\": \"A close-up on the woman's face, her eyes downcast in introspection. In the abstract background, faint, translucent digital lines, like fragmented grids, appear to subtly converge and overlap just behind her head, creating a visually unsettling, yet internal, web of thoughts. The lighting remains low-key, emphasizing her internal state. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 4,\n      \"title\": \"Unspoken Mechanisms\",\n      \"narrative_role\": \"Depicts the repetitive, unexpressed nature of her internal monologue and suppressed thoughts.\",\n      \"emotional_movement\": \"Suppressed, mechanical, resigned, trapped in a loop.\",\n      \"frame\": \"A slightly wider shot reveals the woman standing stiffly, her simple dress now appearing more rigid and structured, almost architectural in its lines. Around her, ghost-like, abstract digital gears and cogs, transparent and barely engaging, float in the background, subtly implying unseen, repetitive internal mechanisms that dictate her thoughts. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 5,\n      \"title\": \"Yielding to the Pull\",\n      \"narrative_role\": \"Portrays a moment of resignation and acknowledgment of the oppressive internal and external pressures.\",\n      \"emotional_movement\": \"Resignation, burdened, a feeling of powerlessness.\",\n      \"frame\": \"The woman is on one knee, her hands open but slightly curled as if gripping invisible weights. Her simple, desaturated dress is pulled taut across her form by an unseen force, its fabric appearing dense and heavy. The confining grid environment is still present, and a subtle, low-key light casts long, heavy shadows from her posture. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 6,\n      \"title\": \"Controlled Restraint\",\n      \"narrative_role\": \"Highlights the intense internal struggle to maintain composure and suppress any outward reaction to the mounting pressure.\",\n      \"emotional_movement\": \"Intense suppression, controlled tension, a taut internal battle.\",\n      \"frame\": \"A tight close-up on the woman's face, her expression one of immense concentration and restraint. Her eyes are steady, but a subtle tremor is visible in her jawline. The abstract background is a blurred wash of desaturated blue and gray, with a faint, almost invisible digital static overlay subtly conveying internal stress. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 7,\n      \"title\": \"The Imminent Break\",\n      \"narrative_role\": \"Represents the absolute apex of internal pressure, a premonition of fundamental change before a total collapse.\",\n      \"emotional_movement\": \"Peak tension, apprehension, a feeling of being at a breaking point.\",\n      \"frame\": \"The woman stands centered, her simple dress slightly stretched and appearing almost translucent in places, hinting at the extreme internal strain. The architectural lines of the confining space around her (grids, walls) are visibly warped, bending inwards just perceptibly. A delicate, fractal-like crack pattern is just beginning to spread across the 'wall' behind her. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 8,\n      \"title\": \"The Choice to Bend\",\n      \"narrative_role\": \"Marks the decisive moment of letting go of rigid control, initiating the transformation from within.\",\n      \"emotional_movement\": \"Decisive, powerful, a shift from tension to active, deliberate release.\",\n      \"frame\": \"The woman is central, her body subtly arched as if she is the fulcrum of change. The abstract architectural elements around her are now visibly bending and fragmenting, not violently, but with a deliberate, slow-motion grace. Her simple dress flows around her, no longer rigid, its muted color palette subtly shifting towards a more ethereal desaturated white. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 9,\n      \"title\": \"Breaking the Mold\",\n      \"narrative_role\": \"Symbolizes the actual collapse of the old self and environment, and the emergence of boundless potential.\",\n      \"emotional_movement\": \"Liberated, hopeful, open to new possibilities, a sense of beginning.\",\n      \"frame\": \"The woman stands amidst a dissolving, ethereal landscape. The rigid lines of the previous frame are now breaking into glowing, dust-like particles that drift away into an undefined, soft gradient of desaturated white and faint pastels. Her dress is completely fluid, a soft, flowing form in harmony with the environment's dissolution. She looks upwards, her face serene. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 10,\n      \"title\": \"Residual Echoes\",\n      \"narrative_role\": \"Explores the lingering energy and subtle internal restlessness even after the initial release, a process of integration.\",\n      \"emotional_movement\": \"Lingering intensity, introspection, a sense of internal vibration.\",\n      \"frame\": \"A close-up on the woman's arm or neck. Her skin has a faint, almost invisible, shimmering digital static overlay, like a subtle energy field just beneath the surface. Her dress is still fluid, but a very faint metallic thread is subtly woven into its texture, suggesting the residual 'hum' of previous tension. The background is a soft, undefined blur. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 11,\n      \"title\": \"Flickering Doubts\",\n      \"narrative_role\": \"Addresses the mind's tendency to revert to old patterns of questioning, even after a breakthrough, portraying a moment of self-reflection.\",\n      \"emotional_movement\": \"Introspective, subtle self-doubt, vigilance against relapse.\",\n      \"frame\": \"The woman is seated contemplatively, looking inward. Around her, barely perceptible, are ghost-like, transparent outlines of the old grid-like structures, flickering in and out of existence like memories or faint echoes. Her dress maintains its fluidity, but its color is a slightly more muted desaturated blue, reflecting introspection. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 12,\n      \"title\": \"The Decisive Release\",\n      \"narrative_role\": \"Highlights a deliberate, systematic process of shedding the remaining traces of old, restrictive patterns.\",\n      \"emotional_movement\": \"Deliberate, controlled release, building towards finality and clarity.\",\n      \"frame\": \"The woman's hand is outstretched, palm open, as she gazes into an increasingly empty, abstract space. The last lingering, faint grid lines from the previous frame are visibly dissipating, dissolving into nothingness. The environment is becoming more open, a wider gradient of desaturated light. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 13,\n      \"title\": \"Absolute Letting Go\",\n      \"narrative_role\": \"Signifies the culmination of her journey, a complete and definitive surrender to freedom.\",\n      \"emotional_movement\": \"Absolute release, profound relief, a feeling of ultimate lightness.\",\n      \"frame\": \"The woman stands, arms slightly outstretched, head tilted back, a sense of profound lightness emanating from her. The environment is now a vast, ethereal expanse of soft, blending desaturated whites and blues, with no discernible lines or structures. Her dress is an almost translucent, flowing pastel, as if made of light itself. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 14,\n      \"title\": \"Embracing Freedom\",\n      \"narrative_role\": \"A celebratory moment of experiencing the new state of being, pure and unburdened.\",\n      \"emotional_movement\": \"Serene joy, boundless tranquility, a sense of weightless peace.\",\n      \"frame\": \"The woman is almost floating, her feet barely touching a soft, luminous surface. The horizon is vast and undefined, a breathtaking gradient of muted pastels blending into pure white. Her expression is one of quiet awe and profound peace, a gentle smile gracing her lips. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 15,\n      \"title\": \"The Unfurling Self\",\n      \"narrative_role\": \"Emphasizes the active, continuous nature of her liberation, a complete shedding of any lingering constraints.\",\n      \"emotional_movement\": \"Active liberation, expansive, confident, unconstrained.\",\n      \"frame\": \"The woman is seen from a slightly further distance, a small figure in a vast, open landscape of soft, luminous color. Around her, faint, shimmering waves of energy seem to ripple outwards, suggesting the final shedding of any lingering ties. Her dress flows freely, unburdened by gravity or form, blending with the ethereal background. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 16,\n      \"title\": \"Infinite Liberty\",\n      \"narrative_role\": \"The ultimate state of liberation, a powerful and final affirmation of complete freedom and self-acceptance.\",\n      \"emotional_movement\": \"Complete liberation, ultimate peace, profound self-acceptance.\",\n      \"frame\": \"A serene, almost transcendent close-up on the woman's face, eyes closed in blissful peace, a faint, contented smile. The background is an infinite, soft, luminous void of pure desaturated white, completely devoid of any form or line, symbolizing ultimate freedom and renewal. Subtle abstract digital rendering.\"\n    }\n  ]\n}\n```"
+        "STYLE / THEME\n🔮 Echoes of Release — \"The Silent Symphony of Surrender and Renewal\"\n\n(Conceptual Digital Art with Abstracted Glitch Reverberations)\n\nThis theme delves into the quiet, internal struggle of mounting pressure and the profound journey towards release and self-renewal. It visualizes the mind's landscape as a series of deconstructed digital environments, where abstract thought manifests as subtle distortions and static hums. The narrative follows a solitary female figure as she navigates this introspective world, her restrained movements and evolving presence mirroring the lyrical progression from tension and control to acceptance and peace. The visual language emphasizes metaphor over literal representation, translating emotional states into a minimalist, yet deeply resonant, aesthetic.\n\nThe central figure is always depicted as a solitary woman, her form often still or moving with deliberate slowness. She wears a dress, its style and color subtly shifting with each scene to reflect the nuanced internal states and stages of her journey from confinement to liberation. Environments are stark, minimalist, and often abstract digital constructs that morph from enclosed, pressurized spaces into boundless, ethereal realms as the narrative progresses. The palette is dominated by muted grays, cold blues, desaturated whites, and faint metallic tones, creating a sense of introspection and subdued emotionality. Textures are smooth yet infused with a subtle distortion, static haze, and minimal grain, giving the impression of a filtered or digitally perceived reality. Props are absent or highly symbolic, emphasizing the internal focus. The overall visual tone is contemplative, gradually transitioning from a state of quiet tension to one of serene, almost melancholic, peace.\n\nCAMERA, ANGLE, AND COMPOSITION\n\nClose framing on the subject is preferred, often centered or slightly off-center to emphasize her isolation. Compositions are minimalist, highlighting the solitary figure against abstract backdrops. Still shots dominate, punctuated by slow, deliberate push-ins or subtle pans that maintain a controlled, contemplative pacing.\n\nLIGHTING & VISUAL MOOD\n\nLow, diffused ambient light emanates from unseen sources, casting soft, indistinct shadows. The scene lacks dramatic highlights or deep contrasts, creating an internal and subdued atmosphere.\n\nGLOBAL PROMPT REQUIREMENT\n\nEvery prompt must include:\n\n\"Conceptual digital art style\""
       ]
     },
     {
@@ -697,7 +575,7 @@
       "flags": {
         "collapsed": false
       },
-      "order": 6,
+      "order": 4,
       "mode": 2,
       "inputs": [],
       "outputs": [
@@ -738,7 +616,7 @@
       "flags": {
         "collapsed": false
       },
-      "order": 7,
+      "order": 5,
       "mode": 2,
       "inputs": [],
       "outputs": [
@@ -779,7 +657,7 @@
       "flags": {
         "collapsed": false
       },
-      "order": 8,
+      "order": 6,
       "mode": 2,
       "inputs": [],
       "outputs": [
@@ -818,7 +696,7 @@
         254
       ],
       "flags": {},
-      "order": 15,
+      "order": 17,
       "mode": 2,
       "inputs": [
         {
@@ -908,39 +786,22 @@
       ]
     },
     {
-      "id": 9,
-      "type": "ShowText|pysssss",
+      "id": 27,
+      "type": "MarkdownNote",
       "pos": [
-        -1395,
-        1875
+        -1068.0395736394476,
+        1258.7901958647171
       ],
       "size": [
-        435,
-        540
+        830.0672113408489,
+        519.1149550930315
       ],
       "flags": {},
-      "order": 18,
+      "order": 7,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "text",
-          "type": "STRING",
-          "link": 22
-        }
-      ],
-      "outputs": [
-        {
-          "name": "STRING",
-          "shape": 6,
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "title": "Corrected lyrics segments",
+      "inputs": [],
+      "outputs": [],
       "properties": {
-        "cnr_id": "comfyui-custom-scripts",
-        "ver": "1.2.5",
-        "Node name for S&R": "ShowText|pysssss",
         "ue_properties": {
           "version": "7.5.2",
           "widget_ue_connectable": {},
@@ -948,22 +809,432 @@
         }
       },
       "widgets_values": [
-        "```json\n{\n  \"lyricSegment1\": \"(Intro) \\\"The silence before the break.\\\"\",\n  \"lyricSegment2\": \"(Intro) \\\"You feel the weight building up.\\\"\",\n  \"lyricSegment3\": \"(Verse) \\\"Lines converge inside my head\\\"\",\n  \"lyricSegment4\": \"(Verse) \\\"Clockwork thoughts I never said\\\"\",\n  \"lyricSegment5\": \"(Verse) \\\"Still I kneel to pressure’s pull Empty hands but fingers full\\\"\",\n  \"lyricSegment6\": \"(Pre-Chorus) \\\"Hold the weight, don’t react\\\"\",\n  \"lyricSegment7\": \"(Pre-Chorus) \\\"Feel the snap before the crack\\\"\",\n  \"lyricSegment8\": \"(Chorus) \\\"I let it bend Break\\\"\",\n  \"lyricSegment9\": \"(Chorus) \\\"the shape, begin again\\\"\",\n  \"lyricSegment10\": \"(Verse) \\\"Static hums beneath my skin\\\"\",\n  \"lyricSegment11\": \"(Verse) \\\"Ritual doubt, repeat within\\\"\",\n  \"lyricSegment12\": \"(Pre-Chorus) \\\"Count it down\\\"\",\n  \"lyricSegment13\": \"(Chorus) \\\"I let go\\\"\",\n  \"lyricSegment14\": \"(Outro) \\\"You feel the freedom now.\\\"\",\n  \"lyricSegment15\": \"(Outro) \\\"You’re breaking free, let it all go.\\\"\",\n  \"lyricSegment16\": \"(Outro) \\\"You're finally free, yeah.\\\"\"\n}\n```"
+        "## 🧩 Workflow Instructions\n\n### ▶️ First Run\n- ✅ **Run the first group first**\n- 🔇 **Mute the second group**\n\n### 📋 After the First Run\n- 📎 **Copy & paste the output** into the corresponding input fields of the other groups\n- 🧹 If a JSON output has extra characters (for example:  \n  ````json  \n  at the start), **delete them** or the workflow will ❌ fail\n\n### 📂 Prompt Batcher Setup\n- 📁 In the **Prompt Batcher** node, choose an **empty folder path**\n- 💾 This is where the prompts will be saved so they can be **combined later**\n\n### 🔁 Second Run\n- 🔇 **Mute the first group**\n- ▶️ **Run the workflow again**\n\n### ⚙️ What Happens Next\n- ⏳ The batches will **auto-queue**\n- ✅ Once finished, it will output a **full JSON prompt list**\n- 🔄 Use this final JSON in the **other workflow**\n\n✨ Done!\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 24,
+      "type": "Note",
+      "pos": [
+        -2018.8106861084386,
+        2124.713588334935
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "style/theme idea",
+      "properties": {
+        "ue_properties": {
+          "version": "7.5.2",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Put a theme/style idea here:"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 23,
+      "type": "Note",
+      "pos": [
+        -2019.7135883349365,
+        1933.2378627783123
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "full lyrics",
+      "properties": {
+        "ue_properties": {
+          "version": "7.5.2",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "paste full lyrics here:"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 28,
+      "type": "b628ba4c-455d-4afa-ab26-31aecee2a895",
+      "pos": [
+        -2477.3644546148157,
+        2131.2671550180366
+      ],
+      "size": [
+        428.4630465317748,
+        260
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 21
+        },
+        {
+          "name": "section_2_text",
+          "type": "STRING",
+          "widget": {
+            "name": "section_2_text"
+          },
+          "link": 27
+        },
+        {
+          "name": "section_2_text_1",
+          "type": "STRING",
+          "widget": {
+            "name": "section_2_text_1"
+          },
+          "link": 26
+        },
+        {
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": 25
+        }
+      ],
+      "outputs": [
+        {
+          "label": "Corrected Lyrics",
+          "name": "STRING_1",
+          "type": "STRING",
+          "links": [
+            35
+          ]
+        },
+        {
+          "label": "Style/Theme",
+          "name": "STRING_2",
+          "type": "STRING",
+          "links": [
+            23
+          ]
+        },
+        {
+          "label": "Story Idea",
+          "name": "STRING_3",
+          "type": "STRING",
+          "links": [
+            36
+          ]
+        }
+      ],
+      "properties": {
+        "proxyWidgets": [
+          [
+            "-1",
+            "section_2_text"
+          ],
+          [
+            "-1",
+            "section_2_text_1"
+          ],
+          [
+            "-1",
+            "value"
+          ],
+          [
+            "-1",
+            "scene_duration_seconds"
+          ]
+        ],
+        "cnr_id": "comfy-core",
+        "ver": "0.3.76",
+        "ue_properties": {
+          "version": "7.5.2",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "full lyrics:\n[Verse]\nYour eyes are so blue they become an ocean\nThe ocean stretches, slow motion\nWaves rise up, start to bend\nEvery crest becomes an end\n\n[Pre-Chorus]\nThe waves dissolve into the air\nAir gets heavy, everywhere\nI don’t fall — I transform\nI don’t break — I reform\n\n[Chorus]\nThe ocean turns into clouds\nThe clouds turn inside out\nNo beginning, no way out\nJust a shape that shifts around\n\n[Verse]\nThe clouds condense, begin to burn\nStatic veins twist and turn\nThunder pulls a deeper sound\nRain learns how to hit the ground\n\n[Pre-Chorus]\nThe soil moves, it learns my name\nEvery form still feels the same\nI can’t tell where I end\nEach last frame becomes the next\n\n[Chorus]\nThe ocean turns into clouds\nThe clouds turn inside out\nEvery loss is just a route\nTo another shape I’m bound\n\n[Bridge]\n[Breakdown – slow, crushing, hypnotic]\n[spoken words]\nRoots become stone, stone becomes spine\nSpine becomes a mountain line\nPressure builds, the silence roars\nI am less — and more — and more\n\n[Final Chorus]\nThe ocean turns into clouds\nThe clouds turn inside out\nEvery frame is reaching out\nTo the next thing I’m about",
+        "realism but also surreal. a women should be in each shot walking through the visuals in one way or another.when refinerg to the women always say a women with brown hair. (not a \"figure\")\nalso, this these are images, so don't mention camera movement!! we are creating static images.\nThe women is not that importaint, the background details and story are the most important. ",
+        "realism but also surreal. a women should be in each shot walking through the visuals in one way or another.when refinerg to the women always say a women with brown hair. (not a \"figure\")\nwe need to morph between things as much as possible. Objects and elements in the lyrics should be used as much as possible in the story groups.",
+        10
       ]
+    },
+    {
+      "id": 22,
+      "type": "Fast Groups Muter (rgthree)",
+      "pos": [
+        -225,
+        1635
+      ],
+      "size": [
+        375,
+        135
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "matchColors": "",
+        "matchTitle": "",
+        "showNav": true,
+        "showAllGraphs": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default",
+        "ue_properties": {
+          "version": "7.5.2",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      }
+    },
+    {
+      "id": 35,
+      "type": "Power Puter (rgthree)",
+      "pos": [
+        -1998.955591378757,
+        1876.5018789759877
+      ],
+      "size": [
+        210,
+        252.91780465898
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "*",
+          "link": 35
+        },
+        {
+          "name": "b",
+          "type": "*",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "*",
+          "shape": 3,
+          "type": "STRING",
+          "links": [
+            32
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "rgthree-comfy",
+        "ver": "8ff50e4521881eca1fe26aec9615fc9362474931",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.2"
+        }
+      },
+      "widgets_values": [
+        {
+          "outputs": [
+            "STRING"
+          ]
+        },
+        "# input: a (STRING)\n\ntext = a.replace(\"```json\", \"\").replace(\"```\", \"\").strip()\n\n# ensure wrapped in {}\nif not text.startswith(\"{\"):\n    text = \"{\\n\" + text\nif not text.endswith(\"}\"):\n    text = text + \"\\n}\"\n\nreturn text\n"
+      ]
+    },
+    {
+      "id": 37,
+      "type": "Power Puter (rgthree)",
+      "pos": [
+        -788.9613365367275,
+        1828.7728945099373
+      ],
+      "size": [
+        210,
+        252.91780465898
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "*",
+          "link": 36
+        },
+        {
+          "name": "b",
+          "type": "*",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "STRING",
+          "name": "*",
+          "shape": 3,
+          "type": "STRING",
+          "links": [
+            37
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "rgthree-comfy",
+        "ver": "8ff50e4521881eca1fe26aec9615fc9362474931",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.2"
+        }
+      },
+      "widgets_values": [
+        {
+          "outputs": [
+            "STRING"
+          ]
+        },
+        "# input: a (STRING)\n\ntext = a.replace(\"```json\", \"\").replace(\"```\", \"\").strip()\n\n# ensure wrapped in {}\nif not text.startswith(\"{\"):\n    text = \"{\\n\" + text\nif not text.endswith(\"}\"):\n    text = text + \"\\n}\"\n\nreturn text\n"
+      ]
+    },
+    {
+      "id": 25,
+      "type": "Note",
+      "pos": [
+        -2008.2378627783123,
+        2316.167480275907
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Story Idea",
+      "properties": {
+        "ue_properties": {
+          "version": "7.5.2",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Put a story idea here:"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 38,
+      "type": "Note",
+      "pos": [
+        -2709.76345047982,
+        2346.774734787574
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Story Idea",
+      "properties": {
+        "ue_properties": {
+          "version": "7.5.2",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "This duration should match the duration you will use in the LTX automation workflow. "
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 39,
+      "type": "Note",
+      "pos": [
+        -2720.313478162071,
+        1868.640586106445
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Story Idea",
+      "properties": {
+        "ue_properties": {
+          "version": "7.5.2",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Load your audio file here. "
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
     },
     {
       "id": 1,
       "type": "VHS_LoadAudioUpload",
       "pos": [
-        -2070.8096612959534,
-        1583.1900823405888
+        -2470.859819392301,
+        1869.921311534109
       ],
       "size": [
         420.4000000000001,
         204
       ],
       "flags": {},
-      "order": 9,
+      "order": 14,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1008,165 +1279,82 @@
       "shape": 1
     },
     {
-      "id": 22,
-      "type": "Fast Groups Muter (rgthree)",
+      "id": 36,
+      "type": "ShowText|pysssss",
       "pos": [
-        -225,
-        1635
+        -1369.9263689620432,
+        1878.2903858676393
       ],
       "size": [
-        375,
-        135
+        420.5145602427499,
+        534.561156311448
       ],
       "flags": {},
-      "order": 10,
+      "order": 25,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 32
+        }
+      ],
       "outputs": [
         {
-          "name": "OPT_CONNECTION",
-          "type": "*",
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
           "links": null
         }
       ],
       "properties": {
-        "matchColors": "",
-        "matchTitle": "",
-        "showNav": true,
-        "showAllGraphs": true,
-        "sort": "position",
-        "customSortAlphabet": "",
-        "toggleRestriction": "default",
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "f2838ed5e59de4d73cde5c98354b87a8d3200190",
+        "Node name for S&R": "ShowText|pysssss",
         "ue_properties": {
-          "version": "7.5.2",
           "widget_ue_connectable": {},
-          "input_ue_unconnectable": {}
-        }
-      }
-    },
-    {
-      "id": 27,
-      "type": "MarkdownNote",
-      "pos": [
-        -1068.0395736394476,
-        1258.7901958647171
-      ],
-      "size": [
-        830.0672113408489,
-        519.1149550930315
-      ],
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {
-        "ue_properties": {
-          "version": "7.5.2",
-          "widget_ue_connectable": {},
-          "input_ue_unconnectable": {}
+          "input_ue_unconnectable": {},
+          "version": "7.5.2"
         }
       },
       "widgets_values": [
-        "## 🧩 Workflow Instructions\n\n### ▶️ First Run\n- ✅ **Run the first group first**\n- 🔇 **Mute the second group**\n\n### 📋 After the First Run\n- 📎 **Copy & paste the output** into the corresponding input fields of the other groups\n- 🧹 If a JSON output has extra characters (for example:  \n  ````json  \n  at the start), **delete them** or the workflow will ❌ fail\n\n### 📂 Prompt Batcher Setup\n- 📁 In the **Prompt Batcher** node, choose an **empty folder path**\n- 💾 This is where the prompts will be saved so they can be **combined later**\n\n### 🔁 Second Run\n- 🔇 **Mute the first group**\n- ▶️ **Run the workflow again**\n\n### ⚙️ What Happens Next\n- ⏳ The batches will **auto-queue**\n- ✅ Once finished, it will output a **full JSON prompt list**\n- 🔄 Use this final JSON in the **other workflow**\n\n✨ Done!\n"
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
+        "{\n  \"lyricSegment1\": \"(Verse) \\\"The thoughts begin to flow\\\"\",\n  \"lyricSegment2\": \"(Verse) \\\"You feel the pressure mounting\\\"\",\n  \"lyricSegment3\": \"(Verse) \\\"Lines converge inside my head\\\"\",\n  \"lyricSegment4\": \"(Verse) \\\"Clockwork thoughts I never said\\\"\",\n  \"lyricSegment5\": \"(Verse) \\\"Still I kneel to pressure's pull / Empty hands but fingers full\\\"\",\n  \"lyricSegment6\": \"(Pre-Chorus) \\\"Feel the snap\\\"\",\n  \"lyricSegment7\": \"(Pre-Chorus) \\\"before the crack\\\"\",\n  \"lyricSegment8\": \"(Chorus) \\\"I let go\\\"\",\n  \"lyricSegment9\": \"(Chorus) \\\"Break the shape / Begin again\\\"\",\n  \"lyricSegment10\": \"(Verse) \\\"Static hums beneath my skin\\\"\",\n  \"lyricSegment11\": \"(Verse) \\\"Ritual doubt, repeat within\\\"\",\n  \"lyricSegment12\": \"(Pre-Chorus) \\\"Count it down\\\"\",\n  \"lyricSegment13\": \"(Chorus) \\\"I let go / Nothing more\\\"\",\n  \"lyricSegment14\": \"(Outro) \\\"You find strength in release\\\"\",\n  \"lyricSegment15\": \"(Outro) \\\"You let the old self fade\\\"\",\n  \"lyricSegment16\": \"(Outro) \\\"You are finally at peace\\\"\"\n}"
+      ]
     },
     {
-      "id": 28,
-      "type": "b628ba4c-455d-4afa-ab26-31aecee2a895",
+      "id": 12,
+      "type": "ShowText|pysssss",
       "pos": [
-        -2000.051390448357,
-        1882.3089021254589
+        -450,
+        1875
       ],
       "size": [
-        430.1799999999994,
-        578.9999999999998
+        540,
+        540
       ],
-      "flags": {
-        "collapsed": true
-      },
-      "order": 16,
+      "flags": {},
+      "order": 26,
       "mode": 0,
       "inputs": [
         {
-          "name": "audio",
-          "type": "AUDIO",
-          "link": 21
-        },
-        {
-          "name": "section_2_text",
+          "name": "text",
           "type": "STRING",
-          "widget": {
-            "name": "section_2_text"
-          },
-          "link": 27
-        },
-        {
-          "name": "section_2_text_1",
-          "type": "STRING",
-          "widget": {
-            "name": "section_2_text_1"
-          },
-          "link": 26
-        },
-        {
-          "name": "value",
-          "type": "STRING",
-          "widget": {
-            "name": "value"
-          },
-          "link": 25
+          "link": 37
         }
       ],
       "outputs": [
         {
-          "label": "Corrected Lyrics",
-          "name": "STRING_1",
+          "name": "STRING",
+          "shape": 6,
           "type": "STRING",
-          "links": [
-            22
-          ]
-        },
-        {
-          "label": "Style/Theme",
-          "name": "STRING_2",
-          "type": "STRING",
-          "links": [
-            23
-          ]
-        },
-        {
-          "label": "Story Idea",
-          "name": "STRING_3",
-          "type": "STRING",
-          "links": [
-            24
-          ]
+          "links": null
         }
       ],
+      "title": "story",
       "properties": {
-        "proxyWidgets": [
-          [
-            "-1",
-            "section_2_text"
-          ],
-          [
-            "-1",
-            "section_2_text_1"
-          ],
-          [
-            "-1",
-            "value"
-          ],
-          [
-            "-1",
-            "scene_duration_seconds"
-          ]
-        ],
-        "cnr_id": "comfy-core",
-        "ver": "0.3.76",
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "1.2.5",
+        "Node name for S&R": "ShowText|pysssss",
         "ue_properties": {
           "version": "7.5.2",
           "widget_ue_connectable": {},
@@ -1174,30 +1362,38 @@
         }
       },
       "widgets_values": [
-        "full lyrics:\n[Verse]\nYour eyes are so blue they become an ocean\nThe ocean stretches, slow motion\nWaves rise up, start to bend\nEvery crest becomes an end\n\n[Pre-Chorus]\nThe waves dissolve into the air\nAir gets heavy, everywhere\nI don’t fall — I transform\nI don’t break — I reform\n\n[Chorus]\nThe ocean turns into clouds\nThe clouds turn inside out\nNo beginning, no way out\nJust a shape that shifts around\n\n[Verse]\nThe clouds condense, begin to burn\nStatic veins twist and turn\nThunder pulls a deeper sound\nRain learns how to hit the ground\n\n[Pre-Chorus]\nThe soil moves, it learns my name\nEvery form still feels the same\nI can’t tell where I end\nEach last frame becomes the next\n\n[Chorus]\nThe ocean turns into clouds\nThe clouds turn inside out\nEvery loss is just a route\nTo another shape I’m bound\n\n[Bridge]\n[Breakdown – slow, crushing, hypnotic]\n[spoken words]\nRoots become stone, stone becomes spine\nSpine becomes a mountain line\nPressure builds, the silence roars\nI am less — and more — and more\n\n[Final Chorus]\nThe ocean turns into clouds\nThe clouds turn inside out\nEvery frame is reaching out\nTo the next thing I’m about",
-        "realism but also surreal. a women should be in each shot walking through the visuals in one way or another.when refinerg to the women always say a women with brown hair. (not a \"figure\")\nalso, this these are images, so don't mention camera movement!! we are creating static images.\nThe women is not that importaint, the background details and story are the most important. ",
-        "realism but also surreal. a women should be in each shot walking through the visuals in one way or another.when refinerg to the women always say a women with brown hair. (not a \"figure\")\nwe need to morph between things as much as possible. Objects and elements in the lyrics should be used as much as possible in the story groups.",
-        10
+        "{\n  \"story_summary\": \"A solitary woman navigates a deconstructed digital landscape, experiencing the rising pressure of internal thoughts and suppressed emotions. Through a pivotal moment of release and surrender, she allows old constraints to dissolve, transforming from a state of quiet tension and controlled thought to one of profound peace and self-renewal, finding strength in letting go.\",\n  \"groups\": [\n    {\n      \"index\": 1,\n      \"title\": \"Emerging Thoughts\",\n      \"narrative_role\": \"Introduces the protagonist's internal world, signifying the initial stirrings of conscious thought and introspection.\",\n      \"emotional_movement\": \"A quiet beginning, a subtle sense of emerging awareness and nascent mental activity.\",\n      \"frame\": \"Conceptual digital art style. A solitary woman with blonde hair stands still, slightly off-center, in a minimalist, muted gray digital chamber. Her eyes are closed or cast downwards, conveying deep contemplation. Her dress is a simple, desaturated gray, blending with the stark environment. Faint, abstract lines of light subtly emanate and flow from unseen points in the background, hinting at the beginning of mental processes. Low, diffused ambient light.\"\n    },\n    {\n      \"index\": 2,\n      \"title\": \"Building Internal Pressure\",\n      \"narrative_role\": \"Highlights the increasing internal stress and the psychological weight beginning to bear down on the protagonist.\",\n      \"emotional_movement\": \"Rising unease and quiet tension, a sense of growing burden.\",\n      \"frame\": \"Conceptual digital art style. The woman is now slightly hunched, her shoulders subtly tensed, in the same confined, muted blue-gray digital space. The abstract lines from the previous frame are now more numerous and appear to converge around her, creating a subtle visual 'squeeze' on the environment. Her dress, still desaturated, appears slightly more rigid, mirroring her internal state. Minimal grain and static haze around the edges.\"\n    },\n    {\n      \"index\": 3,\n      \"title\": \"Converging Ideas\",\n      \"narrative_role\": \"Visualizes the complex and overwhelming nature of her thoughts, illustrating how various ideas and pressures coalesce within her mind.\",\n      \"emotional_movement\": \"Intensifying mental activity, a feeling of being mentally entangled or overwhelmed.\",\n      \"frame\": \"Conceptual digital art style. A close-up on the woman's profile, her expression unreadable but inwardly focused. Behind her, in the sparse, cold blue digital environment, an intricate network of glowing, thin, geometric lines converges towards a central, unseen point behind her head, symbolizing complex, converging thoughts. Her muted blue dress has subtle, almost imperceptible creases, hinting at the internal pressure. Diffused, soft lighting emphasizes introspection.\"\n    },\n    {\n      \"index\": 4,\n      \"title\": \"Unspoken Mechanisms\",\n      \"narrative_role\": \"Emphasizes the methodical, repetitive, and suppressed nature of her thoughts, kept internal and unspoken.\",\n      \"emotional_movement\": \"A sense of meticulous control, repression, and underlying anxiety.\",\n      \"frame\": \"Conceptual digital art style. The woman stands perfectly still, hands clasped formally in front of her, her posture rigidly controlled in a desaturated, metallic-toned digital void. The background is subtly infused with faint, rhythmic, almost imperceptible gear-like patterns or digital pulses that suggest the 'clockwork' of her unspoken thoughts. Her structured, muted gray dress appears almost like a uniform, emphasizing discipline and containment. Composed with a contemplative, still atmosphere.\"\n    },\n    {\n      \"index\": 5,\n      \"title\": \"Kneeling to Pressure\",\n      \"narrative_role\": \"Depicts a moment of physical and emotional surrender to the mounting pressure, revealing the paradox of her 'full' hands despite being empty.\",\n      \"emotional_movement\": \"Resignation mixed with quiet struggle, a feeling of carrying unseen burdens.\",\n      \"frame\": \"Conceptual digital art style. The woman is kneeling on a stark, minimalist digital floor, her head slightly bowed, eyes downcast. Her hands are open but her fingers are subtly curled, suggesting they are filled with invisible weight. The muted gray environment seems to subtly press in from the top and sides, like walls closing, creating a palpable sense of internal and external pressure. Her muted, heavy-looking dress drapes around her, reinforcing the weight.\"\n    },\n    {\n      \"index\": 6,\n      \"title\": \"The Imminent Snap\",\n      \"narrative_role\": \"Illustrates the critical threshold of tension, the point just before a complete breakdown or radical change.\",\n      \"emotional_movement\": \"Sudden, sharp internal realization, the peak of tension, anticipating a breaking point.\",\n      \"frame\": \"Conceptual digital art style. A very close-up on the woman's face, her eyes wide open but unfocused, reflecting an intense internal moment. Her expression is calm but strained. A single, almost imperceptible, razor-thin glitch line briefly flickers across the cold blue digital background directly behind her head, like a hairline fracture appearing in a fragile structure. Her desaturated dress shows subtle tension in its fabric near her collarbone. Low, diffused light emphasizes the gravity.\"\n    },\n    {\n      \"index\": 7,\n      \"title\": \"Before the Fracture\",\n      \"narrative_role\": \"Captures the suspenseful moment just before irreversible change, emphasizing the fragile state of the old structure.\",\n      \"emotional_movement\": \"Suspense, anticipation, a breath held before an inevitable event.\",\n      \"frame\": \"Conceptual digital art style. The same close-up of the woman, her gaze still distant. The glitch line from the previous frame is now slightly more prominent, a delicate, almost invisible crack radiating outwards in the minimalist, desaturated white digital wall directly behind her, suggesting the structure is about to give way. Her dress remains still, a muted, cold white, contrasting with the subtle instability of her environment. The visual mood is contemplative and taut.\"\n    },\n    {\n      \"index\": 8,\n      \"title\": \"The Act of Release\",\n      \"narrative_role\": \"Marks the pivotal moment of conscious surrender, the decision to let go of control and pressure.\",\n      \"emotional_movement\": \"Relief, surrender, the initial exhalation of freedom.\",\n      \"frame\": \"Conceptual digital art style. The woman stands, head gently lifted, eyes now soft and open, gazing upwards. Her posture is visibly relaxed, the previous tension gone. The enclosed digital environment subtly begins to expand and lighten, opening into a slightly more boundless, ethereal space of muted grays and faint blues. Her dress appears softer, its muted blue fabric flowing gently around her. Diffused, soft lighting highlights her newfound ease.\"\n    },\n    {\n      \"index\": 9,\n      \"title\": \"Reshaping and Renewal\",\n      \"narrative_role\": \"Symbolizes the active dismantling of old mental frameworks and the optimistic start of a new phase.\",\n      \"emotional_movement\": \"Empowered liberation, hopeful beginnings, a sense of fresh possibility.\",\n      \"frame\": \"Conceptual digital art style. The woman stands centered, hands slightly open, a serene expression on her face. Around her, the formerly rigid and geometric abstract elements of the cold blue digital environment are visibly dissolving and deconstructing into soft, ethereal digital particles that float away. Her dress is now a fluid, muted white, suggesting a shedding of old forms and a move towards purity and newness. The composition evokes gentle transformation.\"\n    },\n    {\n      \"index\": 10,\n      \"title\": \"Echoes of the Past\",\n      \"narrative_role\": \"Acknowledges the lingering, subtle sensations or memories of past tensions, a residual hum beneath the surface of new peace.\",\n      \"emotional_movement\": \"Post-release awareness, a subtle reminder of the journey's depth.\",\n      \"frame\": \"Conceptual digital art style. A close-up on the woman's outstretched hand, palm open, against a softly expanding, ethereal digital background of muted white and faint metallic tones. A very subtle, almost imperceptible digital static or faint grain effect appears to emanate from just beneath the surface of her skin, suggesting the 'static hum.' Her dress, still a soft muted white, is partially visible, its fabric flowing gently, emphasizing continuity amidst change.\"\n    },\n    {\n      \"index\": 11,\n      \"title\": \"Lingering Doubt\",\n      \"narrative_role\": \"Represents a momentary, internal recurrence of old patterns of doubt, challenging the newfound freedom.\",\n      \"emotional_movement\": \"Momentary uncertainty, introspection about old habits, a brief waver in resolve.\",\n      \"frame\": \"Conceptual digital art style. The woman looks downwards, her expression contemplative, a slight furrow in her brow. The abstract digital environment around her momentarily displays a faint, almost transparent, circular, repeating pattern or a subtle glitch effect that suggests a 'loop' of thought, quickly dissipating. Her dress is a slightly darker muted blue-gray, reflecting the momentary introspection and return of shadow. Low, diffused light.\"\n    },\n    {\n      \"index\": 12,\n      \"title\": \"Final Countdown\",\n      \"narrative_role\": \"Depicts the deliberate, conscious act of releasing any remaining attachments or lingering past influences.\",\n      \"emotional_movement\": \"Focused determination, preparing for ultimate severance and complete freedom.\",\n      \"frame\": \"Conceptual digital art style. The woman stands with quiet resolve, looking forward. Behind her, in the expansive, minimalist digital void of muted grays and whites, a series of soft, diminishing digital markers (like faint countdown digits or receding light trails) subtly recede into the distance, fading out, symbolizing the final letting go of old structures. Her dress is a neutral, calming muted blue, its form simple and unadorned.\"\n    },\n    {\n      \"index\": 13,\n      \"title\": \"Absolute Release\",\n      \"narrative_role\": \"Signifies the complete and profound act of letting go, achieving a state of emptiness that is liberating.\",\n      \"emotional_movement\": \"Profound peace, finality, absolute serenity and positive emptiness.\",\n      \"frame\": \"Conceptual digital art style. The woman stands serenely, eyes closed or gazing peacefully into the distance. Her posture is completely relaxed, unburdened. The background is now a vast, boundless, ethereal digital expanse of pure, desaturated white and faint, shimmering light, devoid of any discernible structures or tensions. Her dress is a soft, flowing white, symbolizing purity, new beginnings, and absolute freedom. The scene is one of tranquil emptiness.\"\n    },\n    {\n      \"index\": 14,\n      \"title\": \"Strength in Surrender\",\n      \"narrative_role\": \"Highlights the realization that true power and resilience are found through the act of release, not through struggle.\",\n      \"emotional_movement\": \"Quiet empowerment, inner strength, and gentle confidence.\",\n      \"frame\": \"Conceptual digital art style. The woman stands tall and centered, radiating a subtle inner strength, though externally still and serene. The vast, open digital space of soft whites and metallic tones around her feels supportive and expansive, not empty, almost protective. Her soft white dress flows gently, perhaps catching a subtle, diffused metallic sheen from an unseen, soft light source, emphasizing her quiet radiance. Composed with serene confidence.\"\n    },\n    {\n      \"index\": 15,\n      \"title\": \"Fading Old Self\",\n      \"narrative_role\": \"Illustrates the complete transformation, where the past identity and burdens gracefully fade away, leaving space for the new.\",\n      \"emotional_movement\": \"Transformation, gentle parting, a sense of shedding and becoming.\",\n      \"frame\": \"Conceptual digital art style. The woman is centered, her form slightly translucent, or a very faint, ghostly outline of her former, more rigid self can be seen subtly dissolving and fading into the expansive, ethereal background of muted grays and whites. Her current, serene form is clearer and more defined, looking forward. Her dress is pure, flowing white, subtly shimmering, symbolizing the complete shedding of the past. The visual is peaceful and transformative.\"\n    },\n    {\n      \"index\": 16,\n      \"title\": \"Final Peace\",\n      \"narrative_role\": \"The ultimate resolution, achieving a state of profound and lasting tranquility.\",\n      \"emotional_movement\": \"Absolute calm, profound tranquility, and lasting inner harmony.\",\n      \"frame\": \"Conceptual digital art style. The woman is utterly still, a single, perfectly balanced figure in a boundless, utterly serene, minimalist digital expanse of soft, pure white and barely perceptible light. The air around her seems to shimmer with a faint, almost invisible, soft light. Her pure, flowing white dress is perfectly at rest. The visual tone is one of absolute, melancholic peace, a serene conclusion to her journey of release and renewal.\"\n    }\n  ]\n}"
       ]
     },
     {
-      "id": 25,
-      "type": "Note",
+      "id": 30,
+      "type": "Text Multiline",
       "pos": [
-        -2008.2378627783123,
-        2316.167480275907
+        -1770,
+        2100
       ],
       "size": [
-        210,
-        88
+        360,
+        135
       ],
       "flags": {},
-      "order": 12,
+      "order": 15,
       "mode": 0,
       "inputs": [],
-      "outputs": [],
-      "title": "Story Idea",
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            26
+          ]
+        }
+      ],
+      "title": "Put a theme/style idea here:",
       "properties": {
+        "cnr_id": "was-node-suite-comfyui",
+        "ver": "1.0.2",
+        "Node name for S&R": "Text Multiline",
         "ue_properties": {
           "version": "7.5.2",
           "widget_ue_connectable": {},
@@ -1205,29 +1401,38 @@
         }
       },
       "widgets_values": [
-        "Put a story idea here:"
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
+        "Mood: restrained, introspective, pressurized, quietly defiant\nColor: muted grays, cold blues, desaturated whites, faint metallic tones\nLighting: low, internal, soft shadows, no dramatic peaks\nTexture: subtle distortion, static haze, slow build, minimal grain\nWardrobe: understated, minimal, neutral tones, unadorned\nCamera: close framing, still shots, slow push-ins, controlled pacing\nKeywords: tension, release, control, repetition, surrender, renewal\n\nshe always is wearing a dress, the dress can change styles and colors baesd on each scene though."
+      ]
     },
     {
-      "id": 24,
-      "type": "Note",
+      "id": 29,
+      "type": "Text Multiline",
       "pos": [
-        -2018.8106861084386,
-        2124.713588334935
+        -1770,
+        2280
       ],
       "size": [
-        210,
-        88
+        360,
+        135
       ],
       "flags": {},
-      "order": 13,
+      "order": 16,
       "mode": 0,
       "inputs": [],
-      "outputs": [],
-      "title": "style/theme idea",
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            25
+          ]
+        }
+      ],
+      "title": "Put a story idea here:",
       "properties": {
+        "cnr_id": "was-node-suite-comfyui",
+        "ver": "1.0.2",
+        "Node name for S&R": "Text Multiline",
         "ue_properties": {
           "version": "7.5.2",
           "widget_ue_connectable": {},
@@ -1235,40 +1440,8 @@
         }
       },
       "widgets_values": [
-        "Put a theme/style idea here:"
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
-      "id": 23,
-      "type": "Note",
-      "pos": [
-        -2019.7135883349365,
-        1933.2378627783123
-      ],
-      "size": [
-        210,
-        88
-      ],
-      "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "full lyrics",
-      "properties": {
-        "ue_properties": {
-          "version": "7.5.2",
-          "widget_ue_connectable": {},
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "paste full lyrics here:"
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
+        "A beautful woman with blonde hair lives inside a sealed, looping space where every thought is measured and contained. Each day she performs the same quiet rituals to keep herself intact, holding pressure without reaction. As the tension peaks, she chooses not to resist—she lets the structure bend instead of breaking herself. The loop collapses, the space resets, and she steps forward lighter, no longer carrying what was never hers.\n\nshe always is wearing a dress, the dress can change styles and colors baesd on each scene though."
+      ]
     }
   ],
   "links": [
@@ -1385,26 +1558,10 @@
       "AUDIO"
     ],
     [
-      22,
-      28,
-      0,
-      9,
-      0,
-      "STRING"
-    ],
-    [
       23,
       28,
       1,
       11,
-      0,
-      "STRING"
-    ],
-    [
-      24,
-      28,
-      2,
-      12,
       0,
       "STRING"
     ],
@@ -1447,22 +1604,41 @@
       17,
       0,
       "STRING"
+    ],
+    [
+      32,
+      35,
+      0,
+      36,
+      0,
+      "STRING"
+    ],
+    [
+      35,
+      28,
+      0,
+      35,
+      0,
+      "STRING"
+    ],
+    [
+      36,
+      28,
+      2,
+      37,
+      0,
+      "STRING"
+    ],
+    [
+      37,
+      37,
+      0,
+      12,
+      0,
+      "STRING"
     ]
   ],
   "groups": [
-    {
-      "id": 1,
-      "title": "Lyrics, theme, and story",
-      "bounding": [
-        -2070,
-        1800,
-        2169.8911310794283,
-        623.7394446578777
-      ],
-      "color": "#3f789e",
-      "font_size": 24,
-      "flags": {}
-    },
     {
       "id": 2,
       "title": "Prompt Batcher",
@@ -1471,6 +1647,19 @@
         1795.782945154018,
         2580,
         2055
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Lyrics, Theme, Story",
+      "bounding": [
+        -2487.3644546148157,
+        1796.321311534109,
+        2587.3644546148157,
+        628.678688465891
       ],
       "color": "#3f789e",
       "font_size": 24,
@@ -1833,7 +2022,7 @@
             "widgets_values": [
               "",
               "gemini-2.5-flash",
-              611341042695551,
+              118376595908800,
               "randomize",
               ""
             ],
@@ -1887,7 +2076,7 @@
               }
             },
             "widgets_values": [
-              "```json\n{\n  \"lyricSegment1\": \"(Intro) \\\"The silence before the break.\\\"\",\n  \"lyricSegment2\": \"(Intro) \\\"You feel the weight building up.\\\"\",\n  \"lyricSegment3\": \"(Verse) \\\"Lines converge inside my head\\\"\",\n  \"lyricSegment4\": \"(Verse) \\\"Clockwork thoughts I never said\\\"\",\n  \"lyricSegment5\": \"(Verse) \\\"Still I kneel to pressure’s pull Empty hands but fingers full\\\"\",\n  \"lyricSegment6\": \"(Pre-Chorus) \\\"Hold the weight, don’t react\\\"\",\n  \"lyricSegment7\": \"(Pre-Chorus) \\\"Feel the snap before the crack\\\"\",\n  \"lyricSegment8\": \"(Chorus) \\\"I let it bend Break\\\"\",\n  \"lyricSegment9\": \"(Chorus) \\\"the shape, begin again\\\"\",\n  \"lyricSegment10\": \"(Verse) \\\"Static hums beneath my skin\\\"\",\n  \"lyricSegment11\": \"(Verse) \\\"Ritual doubt, repeat within\\\"\",\n  \"lyricSegment12\": \"(Pre-Chorus) \\\"Count it down\\\"\",\n  \"lyricSegment13\": \"(Chorus) \\\"I let go\\\"\",\n  \"lyricSegment14\": \"(Outro) \\\"You feel the freedom now.\\\"\",\n  \"lyricSegment15\": \"(Outro) \\\"You’re breaking free, let it all go.\\\"\",\n  \"lyricSegment16\": \"(Outro) \\\"You're finally free, yeah.\\\"\"\n}\n```"
+              "```json\n{\n  \"lyricSegment1\": \"(Verse) \\\"The thoughts begin to flow\\\"\",\n  \"lyricSegment2\": \"(Verse) \\\"You feel the pressure mounting\\\"\",\n  \"lyricSegment3\": \"(Verse) \\\"Lines converge inside my head\\\"\",\n  \"lyricSegment4\": \"(Verse) \\\"Clockwork thoughts I never said\\\"\",\n  \"lyricSegment5\": \"(Verse) \\\"Still I kneel to pressure's pull / Empty hands but fingers full\\\"\",\n  \"lyricSegment6\": \"(Pre-Chorus) \\\"Feel the snap\\\"\",\n  \"lyricSegment7\": \"(Pre-Chorus) \\\"before the crack\\\"\",\n  \"lyricSegment8\": \"(Chorus) \\\"I let go\\\"\",\n  \"lyricSegment9\": \"(Chorus) \\\"Break the shape / Begin again\\\"\",\n  \"lyricSegment10\": \"(Verse) \\\"Static hums beneath my skin\\\"\",\n  \"lyricSegment11\": \"(Verse) \\\"Ritual doubt, repeat within\\\"\",\n  \"lyricSegment12\": \"(Pre-Chorus) \\\"Count it down\\\"\",\n  \"lyricSegment13\": \"(Chorus) \\\"I let go / Nothing more\\\"\",\n  \"lyricSegment14\": \"(Outro) \\\"You find strength in release\\\"\",\n  \"lyricSegment15\": \"(Outro) \\\"You let the old self fade\\\"\",\n  \"lyricSegment16\": \"(Outro) \\\"You are finally at peace\\\"\"\n}\n```"
             ]
           },
           {
@@ -2135,7 +2324,7 @@
               }
             },
             "widgets_values": [
-              "STYLE / THEME (REQUIRED — DO NOT OMIT)\n🔮 Internal Unfolding — \"The quiet weight of being, reimagined.\"\n\n(A contemplative, minimalist style blending stark digital imagery with subtle organic textures, exploring psychological states of restraint and release through symbolic visual metamorphosis.)\n\nThe world is an abstract, internal landscape, shifting from oppressive confinement to boundless expansion. It visually manifests the emotional arc of restraint, introspection, and eventual release. A singular figure, always adorned in a simple dress whose form subtly adapts to her shifting internal state, navigates this psychological terrain. Initially, she is a static point within a structured, confining space, representing the 'clockwork thoughts' and 'pressure's pull.' As she begins to 'bend' and 'break the shape,' the environment around her subtly distorts and then opens, reflecting her journey towards 'freedom' and 'renewal.' The visuals emphasize the subtle struggle and the profound liberation found in letting go, with every element serving to amplify her internal experience.\n\nMaterials are smooth, unadorned surfaces, with subtle metallic sheens and digital static overlays that convey underlying tension. The dress fabric should appear fluid yet substantial, its texture subtly shifting from rigid to flowing depending on the character's emotional state. The palette is dominated by muted grays, cold blues, and desaturated whites, creating a somber, controlled atmosphere. Faint metallic tones introduce a sense of underlying tension and artificiality. As the theme shifts to release, hints of warmer, desaturated pastels might emerge, but sparingly, maintaining the overall controlled aesthetic. Environments are primarily abstract, architectural forms suggesting confinement (grids, walls, defined spaces) initially, evolving into more open, atmospheric expanses with subtle, undefined horizons, symbolizing freedom. The background is often a gradient of the core palette, adding depth without distraction. Rendering is clean and sharp for foreground elements, with a soft, ethereal quality in the background. Subtle distortion effects, a 'static haze,' and minimal grain will be applied selectively to convey psychological tension or a shift in perception. Transitions are slow and deliberate, mimicking a 'slow build.' Props are minimal and symbolic, such as abstract representations of 'weight' or 'lines' that converge; the character's evolving dress is the primary visual narrative device.\n\nCAMERA, ANGLE, AND COMPOSITION\n\nPredominantly close framing on the subject, emphasizing subtle facial expressions and body language. Still shots are frequent, punctuated by extremely slow push-ins or gentle tracking shots that enhance introspection. Compositions are often minimalist, with the subject centered or placed deliberately off-center to create visual tension or balance. The pacing is controlled and deliberate, mirroring the internal journey. Angles are generally eye-level or slightly high, maintaining a sense of objective observation rather than dramatic interpretation.\n\nLIGHTING & VISUAL MOOD\n\nLow key lighting throughout, originating internally from within the scene or subtly diffused from unseen sources. Soft, elongated shadows are prevalent, adding depth without harshness. There are no dramatic peaks of light or deep, impenetrable blackness; instead, a consistent, diffused glow pervades. The absence of strong contrast reinforces the 'restrained' and 'introspective' mood, creating a sense of quiet tension.\n\nGLOBAL PROMPT REQUIREMENT\n\nEvery prompt must include:\n\n\"Subtle abstract digital rendering\""
+              "STYLE / THEME\n🔮 Echoes of Release — \"The Silent Symphony of Surrender and Renewal\"\n\n(Conceptual Digital Art with Abstracted Glitch Reverberations)\n\nThis theme delves into the quiet, internal struggle of mounting pressure and the profound journey towards release and self-renewal. It visualizes the mind's landscape as a series of deconstructed digital environments, where abstract thought manifests as subtle distortions and static hums. The narrative follows a solitary female figure as she navigates this introspective world, her restrained movements and evolving presence mirroring the lyrical progression from tension and control to acceptance and peace. The visual language emphasizes metaphor over literal representation, translating emotional states into a minimalist, yet deeply resonant, aesthetic.\n\nThe central figure is always depicted as a solitary woman, her form often still or moving with deliberate slowness. She wears a dress, its style and color subtly shifting with each scene to reflect the nuanced internal states and stages of her journey from confinement to liberation. Environments are stark, minimalist, and often abstract digital constructs that morph from enclosed, pressurized spaces into boundless, ethereal realms as the narrative progresses. The palette is dominated by muted grays, cold blues, desaturated whites, and faint metallic tones, creating a sense of introspection and subdued emotionality. Textures are smooth yet infused with a subtle distortion, static haze, and minimal grain, giving the impression of a filtered or digitally perceived reality. Props are absent or highly symbolic, emphasizing the internal focus. The overall visual tone is contemplative, gradually transitioning from a state of quiet tension to one of serene, almost melancholic, peace.\n\nCAMERA, ANGLE, AND COMPOSITION\n\nClose framing on the subject is preferred, often centered or slightly off-center to emphasize her isolation. Compositions are minimalist, highlighting the solitary figure against abstract backdrops. Still shots dominate, punctuated by slow, deliberate push-ins or subtle pans that maintain a controlled, contemplative pacing.\n\nLIGHTING & VISUAL MOOD\n\nLow, diffused ambient light emanates from unseen sources, casting soft, indistinct shadows. The scene lacks dramatic highlights or deep contrasts, creating an internal and subdued atmosphere.\n\nGLOBAL PROMPT REQUIREMENT\n\nEvery prompt must include:\n\n\"Conceptual digital art style\""
             ]
           },
           {
@@ -2217,7 +2406,7 @@
             "widgets_values": [
               "",
               "gemini-2.5-flash",
-              38395981047593,
+              5714589750611,
               "randomize",
               ""
             ],
@@ -2348,7 +2537,7 @@
               }
             },
             "widgets_values": [
-              "```json\n{\n  \"story_summary\": \"A woman trapped in a self-imposed, visually restrictive internal world experiences the slow, grinding pressure of unexpressed thoughts and societal expectations. Through a deliberate act of choosing to bend rather than break, she initiates a psychological and visual metamorphosis, ultimately dismantling her confining structures and stepping into a realm of profound, quiet freedom and self-renewal.\",\n  \"groups\": [\n    {\n      \"index\": 1,\n      \"title\": \"The Initial Stillness\",\n      \"narrative_role\": \"Introduces the protagonist within her initial state of quiet, contained existence, hinting at the calm before an internal struggle.\",\n      \"emotional_movement\": \"Anticipatory, somber, a sense of quietude preceding tension.\",\n      \"frame\": \"A woman with blonde hair, clad in a simple, muted gray dress, stands perfectly still in the center of a pristine, abstract room composed of intersecting, glowing grid lines. The space is stark and symmetrical, defined by smooth, unadorned surfaces in cold blues and desaturated whites. Low-key lighting casts soft, elongated shadows, emphasizing the profound silence. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 2,\n      \"title\": \"Accumulating Pressure\",\n      \"narrative_role\": \"Begins to introduce the internal weight and building tension the protagonist experiences.\",\n      \"emotional_movement\": \"Growing tension, subtle unease, a sense of gathering burden.\",\n      \"frame\": \"The same woman is in the identical grid-like room, but her posture has subtly shifted; her shoulders are slightly rounded, almost imperceptibly stooped. A faint, metallic sheen now pulses softly along the edges of the floor grid, creating a visual metaphor for increasing density and psychological weight. The diffused glow maintains a somber mood. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 3,\n      \"title\": \"Converging Thoughts\",\n      \"narrative_role\": \"Illustrates the internal complexity and mental entanglement as thoughts become overwhelming.\",\n      \"emotional_movement\": \"Overwhelmed, mentally trapped, a sense of cognitive clutter.\",\n      \"frame\": \"A close-up on the woman's face, her eyes downcast in introspection. In the abstract background, faint, translucent digital lines, like fragmented grids, appear to subtly converge and overlap just behind her head, creating a visually unsettling, yet internal, web of thoughts. The lighting remains low-key, emphasizing her internal state. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 4,\n      \"title\": \"Unspoken Mechanisms\",\n      \"narrative_role\": \"Depicts the repetitive, unexpressed nature of her internal monologue and suppressed thoughts.\",\n      \"emotional_movement\": \"Suppressed, mechanical, resigned, trapped in a loop.\",\n      \"frame\": \"A slightly wider shot reveals the woman standing stiffly, her simple dress now appearing more rigid and structured, almost architectural in its lines. Around her, ghost-like, abstract digital gears and cogs, transparent and barely engaging, float in the background, subtly implying unseen, repetitive internal mechanisms that dictate her thoughts. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 5,\n      \"title\": \"Yielding to the Pull\",\n      \"narrative_role\": \"Portrays a moment of resignation and acknowledgment of the oppressive internal and external pressures.\",\n      \"emotional_movement\": \"Resignation, burdened, a feeling of powerlessness.\",\n      \"frame\": \"The woman is on one knee, her hands open but slightly curled as if gripping invisible weights. Her simple, desaturated dress is pulled taut across her form by an unseen force, its fabric appearing dense and heavy. The confining grid environment is still present, and a subtle, low-key light casts long, heavy shadows from her posture. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 6,\n      \"title\": \"Controlled Restraint\",\n      \"narrative_role\": \"Highlights the intense internal struggle to maintain composure and suppress any outward reaction to the mounting pressure.\",\n      \"emotional_movement\": \"Intense suppression, controlled tension, a taut internal battle.\",\n      \"frame\": \"A tight close-up on the woman's face, her expression one of immense concentration and restraint. Her eyes are steady, but a subtle tremor is visible in her jawline. The abstract background is a blurred wash of desaturated blue and gray, with a faint, almost invisible digital static overlay subtly conveying internal stress. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 7,\n      \"title\": \"The Imminent Break\",\n      \"narrative_role\": \"Represents the absolute apex of internal pressure, a premonition of fundamental change before a total collapse.\",\n      \"emotional_movement\": \"Peak tension, apprehension, a feeling of being at a breaking point.\",\n      \"frame\": \"The woman stands centered, her simple dress slightly stretched and appearing almost translucent in places, hinting at the extreme internal strain. The architectural lines of the confining space around her (grids, walls) are visibly warped, bending inwards just perceptibly. A delicate, fractal-like crack pattern is just beginning to spread across the 'wall' behind her. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 8,\n      \"title\": \"The Choice to Bend\",\n      \"narrative_role\": \"Marks the decisive moment of letting go of rigid control, initiating the transformation from within.\",\n      \"emotional_movement\": \"Decisive, powerful, a shift from tension to active, deliberate release.\",\n      \"frame\": \"The woman is central, her body subtly arched as if she is the fulcrum of change. The abstract architectural elements around her are now visibly bending and fragmenting, not violently, but with a deliberate, slow-motion grace. Her simple dress flows around her, no longer rigid, its muted color palette subtly shifting towards a more ethereal desaturated white. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 9,\n      \"title\": \"Breaking the Mold\",\n      \"narrative_role\": \"Symbolizes the actual collapse of the old self and environment, and the emergence of boundless potential.\",\n      \"emotional_movement\": \"Liberated, hopeful, open to new possibilities, a sense of beginning.\",\n      \"frame\": \"The woman stands amidst a dissolving, ethereal landscape. The rigid lines of the previous frame are now breaking into glowing, dust-like particles that drift away into an undefined, soft gradient of desaturated white and faint pastels. Her dress is completely fluid, a soft, flowing form in harmony with the environment's dissolution. She looks upwards, her face serene. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 10,\n      \"title\": \"Residual Echoes\",\n      \"narrative_role\": \"Explores the lingering energy and subtle internal restlessness even after the initial release, a process of integration.\",\n      \"emotional_movement\": \"Lingering intensity, introspection, a sense of internal vibration.\",\n      \"frame\": \"A close-up on the woman's arm or neck. Her skin has a faint, almost invisible, shimmering digital static overlay, like a subtle energy field just beneath the surface. Her dress is still fluid, but a very faint metallic thread is subtly woven into its texture, suggesting the residual 'hum' of previous tension. The background is a soft, undefined blur. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 11,\n      \"title\": \"Flickering Doubts\",\n      \"narrative_role\": \"Addresses the mind's tendency to revert to old patterns of questioning, even after a breakthrough, portraying a moment of self-reflection.\",\n      \"emotional_movement\": \"Introspective, subtle self-doubt, vigilance against relapse.\",\n      \"frame\": \"The woman is seated contemplatively, looking inward. Around her, barely perceptible, are ghost-like, transparent outlines of the old grid-like structures, flickering in and out of existence like memories or faint echoes. Her dress maintains its fluidity, but its color is a slightly more muted desaturated blue, reflecting introspection. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 12,\n      \"title\": \"The Decisive Release\",\n      \"narrative_role\": \"Highlights a deliberate, systematic process of shedding the remaining traces of old, restrictive patterns.\",\n      \"emotional_movement\": \"Deliberate, controlled release, building towards finality and clarity.\",\n      \"frame\": \"The woman's hand is outstretched, palm open, as she gazes into an increasingly empty, abstract space. The last lingering, faint grid lines from the previous frame are visibly dissipating, dissolving into nothingness. The environment is becoming more open, a wider gradient of desaturated light. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 13,\n      \"title\": \"Absolute Letting Go\",\n      \"narrative_role\": \"Signifies the culmination of her journey, a complete and definitive surrender to freedom.\",\n      \"emotional_movement\": \"Absolute release, profound relief, a feeling of ultimate lightness.\",\n      \"frame\": \"The woman stands, arms slightly outstretched, head tilted back, a sense of profound lightness emanating from her. The environment is now a vast, ethereal expanse of soft, blending desaturated whites and blues, with no discernible lines or structures. Her dress is an almost translucent, flowing pastel, as if made of light itself. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 14,\n      \"title\": \"Embracing Freedom\",\n      \"narrative_role\": \"A celebratory moment of experiencing the new state of being, pure and unburdened.\",\n      \"emotional_movement\": \"Serene joy, boundless tranquility, a sense of weightless peace.\",\n      \"frame\": \"The woman is almost floating, her feet barely touching a soft, luminous surface. The horizon is vast and undefined, a breathtaking gradient of muted pastels blending into pure white. Her expression is one of quiet awe and profound peace, a gentle smile gracing her lips. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 15,\n      \"title\": \"The Unfurling Self\",\n      \"narrative_role\": \"Emphasizes the active, continuous nature of her liberation, a complete shedding of any lingering constraints.\",\n      \"emotional_movement\": \"Active liberation, expansive, confident, unconstrained.\",\n      \"frame\": \"The woman is seen from a slightly further distance, a small figure in a vast, open landscape of soft, luminous color. Around her, faint, shimmering waves of energy seem to ripple outwards, suggesting the final shedding of any lingering ties. Her dress flows freely, unburdened by gravity or form, blending with the ethereal background. Subtle abstract digital rendering.\"\n    },\n    {\n      \"index\": 16,\n      \"title\": \"Infinite Liberty\",\n      \"narrative_role\": \"The ultimate state of liberation, a powerful and final affirmation of complete freedom and self-acceptance.\",\n      \"emotional_movement\": \"Complete liberation, ultimate peace, profound self-acceptance.\",\n      \"frame\": \"A serene, almost transcendent close-up on the woman's face, eyes closed in blissful peace, a faint, contented smile. The background is an infinite, soft, luminous void of pure desaturated white, completely devoid of any form or line, symbolizing ultimate freedom and renewal. Subtle abstract digital rendering.\"\n    }\n  ]\n}\n```"
+              "```json\n{\n  \"story_summary\": \"A solitary woman navigates a deconstructed digital landscape, experiencing the rising pressure of internal thoughts and suppressed emotions. Through a pivotal moment of release and surrender, she allows old constraints to dissolve, transforming from a state of quiet tension and controlled thought to one of profound peace and self-renewal, finding strength in letting go.\",\n  \"groups\": [\n    {\n      \"index\": 1,\n      \"title\": \"Emerging Thoughts\",\n      \"narrative_role\": \"Introduces the protagonist's internal world, signifying the initial stirrings of conscious thought and introspection.\",\n      \"emotional_movement\": \"A quiet beginning, a subtle sense of emerging awareness and nascent mental activity.\",\n      \"frame\": \"Conceptual digital art style. A solitary woman with blonde hair stands still, slightly off-center, in a minimalist, muted gray digital chamber. Her eyes are closed or cast downwards, conveying deep contemplation. Her dress is a simple, desaturated gray, blending with the stark environment. Faint, abstract lines of light subtly emanate and flow from unseen points in the background, hinting at the beginning of mental processes. Low, diffused ambient light.\"\n    },\n    {\n      \"index\": 2,\n      \"title\": \"Building Internal Pressure\",\n      \"narrative_role\": \"Highlights the increasing internal stress and the psychological weight beginning to bear down on the protagonist.\",\n      \"emotional_movement\": \"Rising unease and quiet tension, a sense of growing burden.\",\n      \"frame\": \"Conceptual digital art style. The woman is now slightly hunched, her shoulders subtly tensed, in the same confined, muted blue-gray digital space. The abstract lines from the previous frame are now more numerous and appear to converge around her, creating a subtle visual 'squeeze' on the environment. Her dress, still desaturated, appears slightly more rigid, mirroring her internal state. Minimal grain and static haze around the edges.\"\n    },\n    {\n      \"index\": 3,\n      \"title\": \"Converging Ideas\",\n      \"narrative_role\": \"Visualizes the complex and overwhelming nature of her thoughts, illustrating how various ideas and pressures coalesce within her mind.\",\n      \"emotional_movement\": \"Intensifying mental activity, a feeling of being mentally entangled or overwhelmed.\",\n      \"frame\": \"Conceptual digital art style. A close-up on the woman's profile, her expression unreadable but inwardly focused. Behind her, in the sparse, cold blue digital environment, an intricate network of glowing, thin, geometric lines converges towards a central, unseen point behind her head, symbolizing complex, converging thoughts. Her muted blue dress has subtle, almost imperceptible creases, hinting at the internal pressure. Diffused, soft lighting emphasizes introspection.\"\n    },\n    {\n      \"index\": 4,\n      \"title\": \"Unspoken Mechanisms\",\n      \"narrative_role\": \"Emphasizes the methodical, repetitive, and suppressed nature of her thoughts, kept internal and unspoken.\",\n      \"emotional_movement\": \"A sense of meticulous control, repression, and underlying anxiety.\",\n      \"frame\": \"Conceptual digital art style. The woman stands perfectly still, hands clasped formally in front of her, her posture rigidly controlled in a desaturated, metallic-toned digital void. The background is subtly infused with faint, rhythmic, almost imperceptible gear-like patterns or digital pulses that suggest the 'clockwork' of her unspoken thoughts. Her structured, muted gray dress appears almost like a uniform, emphasizing discipline and containment. Composed with a contemplative, still atmosphere.\"\n    },\n    {\n      \"index\": 5,\n      \"title\": \"Kneeling to Pressure\",\n      \"narrative_role\": \"Depicts a moment of physical and emotional surrender to the mounting pressure, revealing the paradox of her 'full' hands despite being empty.\",\n      \"emotional_movement\": \"Resignation mixed with quiet struggle, a feeling of carrying unseen burdens.\",\n      \"frame\": \"Conceptual digital art style. The woman is kneeling on a stark, minimalist digital floor, her head slightly bowed, eyes downcast. Her hands are open but her fingers are subtly curled, suggesting they are filled with invisible weight. The muted gray environment seems to subtly press in from the top and sides, like walls closing, creating a palpable sense of internal and external pressure. Her muted, heavy-looking dress drapes around her, reinforcing the weight.\"\n    },\n    {\n      \"index\": 6,\n      \"title\": \"The Imminent Snap\",\n      \"narrative_role\": \"Illustrates the critical threshold of tension, the point just before a complete breakdown or radical change.\",\n      \"emotional_movement\": \"Sudden, sharp internal realization, the peak of tension, anticipating a breaking point.\",\n      \"frame\": \"Conceptual digital art style. A very close-up on the woman's face, her eyes wide open but unfocused, reflecting an intense internal moment. Her expression is calm but strained. A single, almost imperceptible, razor-thin glitch line briefly flickers across the cold blue digital background directly behind her head, like a hairline fracture appearing in a fragile structure. Her desaturated dress shows subtle tension in its fabric near her collarbone. Low, diffused light emphasizes the gravity.\"\n    },\n    {\n      \"index\": 7,\n      \"title\": \"Before the Fracture\",\n      \"narrative_role\": \"Captures the suspenseful moment just before irreversible change, emphasizing the fragile state of the old structure.\",\n      \"emotional_movement\": \"Suspense, anticipation, a breath held before an inevitable event.\",\n      \"frame\": \"Conceptual digital art style. The same close-up of the woman, her gaze still distant. The glitch line from the previous frame is now slightly more prominent, a delicate, almost invisible crack radiating outwards in the minimalist, desaturated white digital wall directly behind her, suggesting the structure is about to give way. Her dress remains still, a muted, cold white, contrasting with the subtle instability of her environment. The visual mood is contemplative and taut.\"\n    },\n    {\n      \"index\": 8,\n      \"title\": \"The Act of Release\",\n      \"narrative_role\": \"Marks the pivotal moment of conscious surrender, the decision to let go of control and pressure.\",\n      \"emotional_movement\": \"Relief, surrender, the initial exhalation of freedom.\",\n      \"frame\": \"Conceptual digital art style. The woman stands, head gently lifted, eyes now soft and open, gazing upwards. Her posture is visibly relaxed, the previous tension gone. The enclosed digital environment subtly begins to expand and lighten, opening into a slightly more boundless, ethereal space of muted grays and faint blues. Her dress appears softer, its muted blue fabric flowing gently around her. Diffused, soft lighting highlights her newfound ease.\"\n    },\n    {\n      \"index\": 9,\n      \"title\": \"Reshaping and Renewal\",\n      \"narrative_role\": \"Symbolizes the active dismantling of old mental frameworks and the optimistic start of a new phase.\",\n      \"emotional_movement\": \"Empowered liberation, hopeful beginnings, a sense of fresh possibility.\",\n      \"frame\": \"Conceptual digital art style. The woman stands centered, hands slightly open, a serene expression on her face. Around her, the formerly rigid and geometric abstract elements of the cold blue digital environment are visibly dissolving and deconstructing into soft, ethereal digital particles that float away. Her dress is now a fluid, muted white, suggesting a shedding of old forms and a move towards purity and newness. The composition evokes gentle transformation.\"\n    },\n    {\n      \"index\": 10,\n      \"title\": \"Echoes of the Past\",\n      \"narrative_role\": \"Acknowledges the lingering, subtle sensations or memories of past tensions, a residual hum beneath the surface of new peace.\",\n      \"emotional_movement\": \"Post-release awareness, a subtle reminder of the journey's depth.\",\n      \"frame\": \"Conceptual digital art style. A close-up on the woman's outstretched hand, palm open, against a softly expanding, ethereal digital background of muted white and faint metallic tones. A very subtle, almost imperceptible digital static or faint grain effect appears to emanate from just beneath the surface of her skin, suggesting the 'static hum.' Her dress, still a soft muted white, is partially visible, its fabric flowing gently, emphasizing continuity amidst change.\"\n    },\n    {\n      \"index\": 11,\n      \"title\": \"Lingering Doubt\",\n      \"narrative_role\": \"Represents a momentary, internal recurrence of old patterns of doubt, challenging the newfound freedom.\",\n      \"emotional_movement\": \"Momentary uncertainty, introspection about old habits, a brief waver in resolve.\",\n      \"frame\": \"Conceptual digital art style. The woman looks downwards, her expression contemplative, a slight furrow in her brow. The abstract digital environment around her momentarily displays a faint, almost transparent, circular, repeating pattern or a subtle glitch effect that suggests a 'loop' of thought, quickly dissipating. Her dress is a slightly darker muted blue-gray, reflecting the momentary introspection and return of shadow. Low, diffused light.\"\n    },\n    {\n      \"index\": 12,\n      \"title\": \"Final Countdown\",\n      \"narrative_role\": \"Depicts the deliberate, conscious act of releasing any remaining attachments or lingering past influences.\",\n      \"emotional_movement\": \"Focused determination, preparing for ultimate severance and complete freedom.\",\n      \"frame\": \"Conceptual digital art style. The woman stands with quiet resolve, looking forward. Behind her, in the expansive, minimalist digital void of muted grays and whites, a series of soft, diminishing digital markers (like faint countdown digits or receding light trails) subtly recede into the distance, fading out, symbolizing the final letting go of old structures. Her dress is a neutral, calming muted blue, its form simple and unadorned.\"\n    },\n    {\n      \"index\": 13,\n      \"title\": \"Absolute Release\",\n      \"narrative_role\": \"Signifies the complete and profound act of letting go, achieving a state of emptiness that is liberating.\",\n      \"emotional_movement\": \"Profound peace, finality, absolute serenity and positive emptiness.\",\n      \"frame\": \"Conceptual digital art style. The woman stands serenely, eyes closed or gazing peacefully into the distance. Her posture is completely relaxed, unburdened. The background is now a vast, boundless, ethereal digital expanse of pure, desaturated white and faint, shimmering light, devoid of any discernible structures or tensions. Her dress is a soft, flowing white, symbolizing purity, new beginnings, and absolute freedom. The scene is one of tranquil emptiness.\"\n    },\n    {\n      \"index\": 14,\n      \"title\": \"Strength in Surrender\",\n      \"narrative_role\": \"Highlights the realization that true power and resilience are found through the act of release, not through struggle.\",\n      \"emotional_movement\": \"Quiet empowerment, inner strength, and gentle confidence.\",\n      \"frame\": \"Conceptual digital art style. The woman stands tall and centered, radiating a subtle inner strength, though externally still and serene. The vast, open digital space of soft whites and metallic tones around her feels supportive and expansive, not empty, almost protective. Her soft white dress flows gently, perhaps catching a subtle, diffused metallic sheen from an unseen, soft light source, emphasizing her quiet radiance. Composed with serene confidence.\"\n    },\n    {\n      \"index\": 15,\n      \"title\": \"Fading Old Self\",\n      \"narrative_role\": \"Illustrates the complete transformation, where the past identity and burdens gracefully fade away, leaving space for the new.\",\n      \"emotional_movement\": \"Transformation, gentle parting, a sense of shedding and becoming.\",\n      \"frame\": \"Conceptual digital art style. The woman is centered, her form slightly translucent, or a very faint, ghostly outline of her former, more rigid self can be seen subtly dissolving and fading into the expansive, ethereal background of muted grays and whites. Her current, serene form is clearer and more defined, looking forward. Her dress is pure, flowing white, subtly shimmering, symbolizing the complete shedding of the past. The visual is peaceful and transformative.\"\n    },\n    {\n      \"index\": 16,\n      \"title\": \"Final Peace\",\n      \"narrative_role\": \"The ultimate resolution, achieving a state of profound and lasting tranquility.\",\n      \"emotional_movement\": \"Absolute calm, profound tranquility, and lasting inner harmony.\",\n      \"frame\": \"Conceptual digital art style. The woman is utterly still, a single, perfectly balanced figure in a boundless, utterly serene, minimalist digital expanse of soft, pure white and barely perceptible light. The air around her seems to shimmer with a faint, almost invisible, soft light. Her pure, flowing white dress is perfectly at rest. The visual tone is one of absolute, melancholic peace, a serene conclusion to her journey of release and renewal.\"\n    }\n  ]\n}\n```"
             ]
           },
           {
@@ -2430,7 +2619,7 @@
             "widgets_values": [
               "",
               "gemini-2.5-flash",
-              42492197116584,
+              990834465520944,
               "randomize",
               ""
             ],
@@ -2688,10 +2877,10 @@
     "VHS_KeepIntermediate": false,
     "links_added_by_ue": [],
     "ds": {
-      "scale": 0.704736629380609,
+      "scale": 0.5824269664302565,
       "offset": [
-        2193.826724789404,
-        -1322.2969038543927
+        2597.8445468595264,
+        -1317.1898429581975
       ]
     }
   },

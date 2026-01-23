@@ -33,7 +33,7 @@ class NunchakuQwenImageLoraStackV2:
     Node for loading and applying multiple LoRAs to a Nunchaku Qwen Image model with dynamic UI.
     """
     @classmethod
-    def IS_CHANGED(cls, model, lora_count, cpu_offload="disable", apply_awq_mod=False, **kwargs):
+    def IS_CHANGED(cls, model, lora_count, cpu_offload="disable", **kwargs):
         """
         Detect changes to trigger node re-execution.
         Returns a hash of relevant parameters to detect changes.
@@ -43,7 +43,7 @@ class NunchakuQwenImageLoraStackV2:
         m.update(str(model).encode())
         m.update(str(lora_count).encode())
         m.update(cpu_offload.encode())
-        m.update(str(apply_awq_mod).encode())
+        m.update(str(kwargs.get("apply_awq_mod", False)).encode())
         # Hash all LoRA parameters
         for i in range(1, 11):
             m.update(kwargs.get(f"lora_name_{i}", "").encode())
@@ -85,7 +85,7 @@ class NunchakuQwenImageLoraStackV2:
                     "BOOLEAN",
                     {
                         "default": False,
-                        "tooltip": "Enable LoRA application to AWQ modulation layers (img_mod.1/txt_mod.1). Disabled by default to prevent noise. Enable at your own risk.",
+                        "tooltip": "Force enable LoRA application to AWQ modulation layers (img_mod/txt_mod). May cause noise in some cases, but required for style LoRAs like Flat Color.",
                     },
                 ),
             },
@@ -142,6 +142,7 @@ class NunchakuQwenImageLoraStackV2:
         if lora_loader_dir not in sys.path:
             sys.path.insert(0, lora_loader_dir)
         
+        # V2 node uses V2-specific wrapper to ensure isolation from v1/v3 nodes
         spec = importlib.util.spec_from_file_location(
             "wrappers.qwenimage_v2",
             os.path.join(lora_loader_dir, "wrappers", "qwenimage_v2.py")
@@ -162,19 +163,17 @@ class NunchakuQwenImageLoraStackV2:
         logger.info(f"🔍 Has 'loras' attr? {hasattr(model_wrapper, 'loras')}")
         
         # Check if it's already wrapped with V2 wrapper
-        # ComfyQwenImageWrapperV2 has a 'model' attribute that contains the transformer
-        # and a 'loras' list attribute
         if hasattr(model_wrapper, 'model') and hasattr(model_wrapper, 'loras'):
             # Check if it's a V2 wrapper (has apply_awq_mod attribute)
             if hasattr(model_wrapper, 'apply_awq_mod'):
                 # Already wrapped with V2 wrapper, proceed normally
                 logger.info("✅ Model is already wrapped with V2 wrapper (detected via attributes)")
                 logger.info(f"📦 Current CPU offload setting: '{model_wrapper.cpu_offload_setting}'")
-                logger.info(f"📦 Current AWQ mod setting: '{model_wrapper.apply_awq_mod}'")
                 # Update CPU offload setting if different
                 if model_wrapper.cpu_offload_setting != cpu_offload:
                     logger.info(f"🔄 Updating CPU offload setting from '{model_wrapper.cpu_offload_setting}' to '{cpu_offload}'")
                     model_wrapper.cpu_offload_setting = cpu_offload
+                
                 # Update AWQ mod setting if different
                 if model_wrapper.apply_awq_mod != apply_awq_mod:
                     logger.info(f"🔄 Updating AWQ mod setting from '{model_wrapper.apply_awq_mod}' to '{apply_awq_mod}'")
@@ -183,25 +182,31 @@ class NunchakuQwenImageLoraStackV2:
             else:
                 # Wrapped with V1/V3 wrapper, need to re-wrap with V2
                 logger.info("🔄 Model is wrapped with V1/V3 wrapper, re-wrapping with V2 wrapper")
-                transformer = model_wrapper.model
-                config = getattr(model_wrapper, 'config', {})
+                # Extract the underlying model
+                if hasattr(model_wrapper, 'model'):
+                    transformer = model_wrapper.model
+                else:
+                    transformer = model_wrapper
+                # Create V2 wrapper
                 wrapped_model = ComfyQwenImageWrapperV2(
                     transformer,
-                    config,
+                    getattr(model_wrapper, 'config', {}),
                     None,  # customized_forward
                     {},    # forward_kwargs
                     cpu_offload,  # cpu_offload_setting
                     4.0,   # vram_margin_gb
-                    apply_awq_mod,  # apply_awq_mod
+                    apply_awq_mod, # apply_awq_mod
                 )
+                # Replace the model's diffusion_model with V2 wrapper
                 model.model.diffusion_model = wrapped_model
                 model_wrapper = wrapped_model
+                transformer = wrapped_model.model
         elif model_wrapper_type_name == "NunchakuQwenImageTransformer2DModel" or model_wrapper_type_name.endswith("NunchakuQwenImageTransformer2DModel"):
-            # Not wrapped yet, need to wrap it first
+            # Not wrapped yet, need to wrap it first with V2 wrapper
             logger.info("🔧 Wrapping NunchakuQwenImageTransformer2DModel with ComfyQwenImageWrapperV2")
             
-            # Create wrapper
-            logger.info(f"📦 Creating ComfyQwenImageWrapperV2 with cpu_offload='{cpu_offload}', apply_awq_mod={apply_awq_mod}")
+            # Create V2 wrapper
+            logger.info(f"📦 Creating ComfyQwenImageWrapperV2 with cpu_offload='{cpu_offload}', apply_awq_mod='{apply_awq_mod}'")
             wrapped_model = ComfyQwenImageWrapperV2(
                 model_wrapper,
                 getattr(model_wrapper, 'config', {}),
@@ -209,7 +214,7 @@ class NunchakuQwenImageLoraStackV2:
                 {},    # forward_kwargs
                 cpu_offload,  # cpu_offload_setting
                 4.0,   # vram_margin_gb
-                apply_awq_mod,  # apply_awq_mod
+                apply_awq_mod, # apply_awq_mod
             )
             
             # Replace the model's diffusion_model with our wrapper

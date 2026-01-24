@@ -28,3 +28,25 @@ class GetItemFromList:
             return {"ui": {"text": (array[index[0]],)}, "result": (array[index[0]],), }
         else:
             return {"ui": {"text": (array,)}, "result": (array,), }
+
+class LengthOfArray:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "array": ("LIST",),
+            },
+        }
+
+    INPUT_IS_LIST = True
+    RETURN_TYPES = ("INT",)
+    RETURN_NAMES = ("length",)
+    FUNCTION = "run"
+    CATEGORY = "NYJY/logic"
+    OUTPUT_NODE = True
+
+    def run(self, array):
+        if is_array(array):
+            return {"ui": {"text": (len(array),)}, "result": (len(array),), }
+        else:
+            return {"ui": {"text": (0,)}, "result": (0,), }

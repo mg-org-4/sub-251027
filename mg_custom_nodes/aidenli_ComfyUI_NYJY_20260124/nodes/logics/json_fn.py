@@ -109,3 +109,28 @@ class JsonGetValueByKeys:
             "result": (text,),
             "ui": {"text":  (text,)},
         }
+
+class JsonGetKeys:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "json_data": ("JSON",),
+            },
+        }
+
+    RETURN_TYPES = ("LIST",)
+    RETURN_NAMES = ("key_list",)
+    OUTPUT_IS_LIST = (True,)
+    FUNCTION = "run"
+    CATEGORY = "NYJY/logic"
+
+    def run(self, json_data):
+        # 校验 json_data 类型
+        if not isinstance(json_data, (dict, list, tuple)):
+            return ("",)
+
+        keys = json_data.keys()
+        return {
+            "result": (keys,)
+        }

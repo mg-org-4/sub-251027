@@ -1156,7 +1156,7 @@ class QwenEditConfigPreparer:
                 "configs": ("LIST", {"default": None, "tooltip": "Configs list"}),
                 "to_ref": ("BOOLEAN", {"default": True, "tooltip": "Add image to reference latent"}),
                 "ref_main_image": ("BOOLEAN", {"default": True, "tooltip": "Set image as main image which would return the latent as output."}),
-                "ref_longest_edge": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 1, "tooltip": "Longest edge of the output latent"}),
+                "ref_longest_edge": ("INT", {"default": 1024, "min": 64, "max": 4096, "step": 1, "tooltip": "Longest edge of the output latent"}),
                 "ref_crop": (s.crop_methods, {"default": "pad", "tooltip": "Crop method for reference image"}),
                 "ref_upscale": (s.upscale_methods, {"default": "lanczos", "tooltip": "Upscale method for reference image"}),
     

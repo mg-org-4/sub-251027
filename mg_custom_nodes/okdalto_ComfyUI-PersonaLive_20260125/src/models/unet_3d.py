@@ -15,10 +15,10 @@ from diffusers.models.embeddings import TimestepEmbedding, Timesteps
 from diffusers.models.modeling_utils import ModelMixin
 from diffusers.utils import SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME, BaseOutput, logging
 from safetensors.torch import load_file
+from src.utils.safe_torch_load import safe_torch_load
 
 from .resnet import InflatedConv3d, InflatedGroupNorm
 from .unet_3d_blocks import UNetMidBlock3DCrossAttn, get_down_block, get_up_block
-from einops import rearrange
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -425,24 +425,8 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
         sample: torch.FloatTensor,
         timestep: Union[torch.Tensor, float, int],
         encoder_hidden_states: torch.Tensor,
-        pose_cond_fea : torch.Tensor,
-        d00: torch.Tensor,
-        d01: torch.Tensor,
-        d10: torch.Tensor,
-        d11: torch.Tensor,
-        d20: torch.Tensor,
-        d21: torch.Tensor,
-        m: torch.Tensor,
-        u10: torch.Tensor,
-        u11: torch.Tensor,
-        u12: torch.Tensor,
-        u20: torch.Tensor,
-        u21: torch.Tensor,
-        u22: torch.Tensor,
-        u30: torch.Tensor,
-        u31: torch.Tensor,
-        u32: torch.Tensor,
         class_labels: Optional[torch.Tensor] = None,
+        pose_cond_fea = None,
         attention_mask: Optional[torch.Tensor] = None,
         down_block_additional_residuals: Optional[Tuple[torch.Tensor]] = None,
         mid_block_additional_residual: Optional[torch.Tensor] = None,
@@ -530,14 +514,8 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
 
         # down
         down_block_res_samples = (sample,)
-        for i, downsample_block in enumerate(self.down_blocks):
-            down_reference = None
-            if i==0:
-                down_reference = [d00, d01]
-            elif i==1:
-                down_reference = [d10, d11]
-            elif i==2:
-                down_reference = [d20, d21]
+        block_count = 1
+        for downsample_block in self.down_blocks:
             if (
                 hasattr(downsample_block, "has_cross_attention")
                 and downsample_block.has_cross_attention
@@ -548,7 +526,6 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
                     encoder_hidden_states=encoder_hidden_states,
                     attention_mask=attention_mask,
                     skip_mm=skip_mm,
-                    down_reference=down_reference,
                 )
             else:
                 sample, res_samples = downsample_block(
@@ -557,6 +534,9 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
                     encoder_hidden_states=encoder_hidden_states,
                     skip_mm=skip_mm,
                 )
+            # if pose_cond_fea is not None:
+            #     sample = sample + pose_cond_fea[block_count]
+            #     block_count += 1
             down_block_res_samples += res_samples
 
         if down_block_additional_residuals is not None:
@@ -579,7 +559,6 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
             encoder_hidden_states=encoder_hidden_states,
             attention_mask=attention_mask,
             skip_mm=skip_mm,
-            mid_reference=m,
         )
 
         if mid_block_additional_residual is not None:
@@ -587,14 +566,6 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
 
         # up
         for i, upsample_block in enumerate(self.up_blocks):
-            up_reference = None
-            if i==1:
-                up_reference = [u10, u11, u12]
-            elif i==2:
-                up_reference = [u20, u21, u22]
-            elif i==3:
-                up_reference = [u30, u31, u32]
-
             is_final_block = i == len(self.up_blocks) - 1
 
             res_samples = down_block_res_samples[-len(upsample_block.resnets) :]
@@ -619,7 +590,6 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
                     upsample_size=upsample_size,
                     attention_mask=attention_mask,
                     skip_mm=skip_mm,
-                    up_reference=up_reference,
                 )
             else:
                 sample = upsample_block(
@@ -636,7 +606,10 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
         sample = self.conv_act(sample)
         sample = self.conv_out(sample)
 
-        return sample
+        if not return_dict:
+            return (sample,)
+
+        return UNet3DConditionOutput(sample=sample)
 
     @classmethod
     def from_pretrained_2d(
@@ -687,7 +660,7 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
 
         elif pretrained_model_path.joinpath(WEIGHTS_NAME).exists():
             logger.debug(f"loading weights from {pretrained_model_path} ...")
-            state_dict = torch.load(
+            state_dict = safe_torch_load(
                 pretrained_model_path.joinpath(WEIGHTS_NAME),
                 map_location="cpu",
                 weights_only=True,
@@ -699,7 +672,7 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
         if motion_module_path.exists() and motion_module_path.is_file():
             if motion_module_path.suffix.lower() in [".pth", ".pt", ".ckpt"]:
                 logger.info(f"Load motion module params from {motion_module_path}")
-                motion_state_dict = torch.load(
+                motion_state_dict = safe_torch_load(
                     motion_module_path, map_location="cpu", weights_only=True
                 )
             elif motion_module_path.suffix.lower() == ".safetensors":

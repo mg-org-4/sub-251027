@@ -10,6 +10,7 @@ from diffusers.models.modeling_utils import ModelMixin
 from src.liveportrait.convnextv2 import convnextv2_tiny
 from src.liveportrait.util import filter_state_dict
 from src.liveportrait.camera import headpose_pred_to_degree, get_rotation_matrix
+from src.utils.safe_torch_load import safe_torch_load
 
 model_dict = {
     'convnextv2_tiny': convnextv2_tiny,
@@ -41,7 +42,7 @@ class MotionExtractor(ModelMixin):
 
     def load_pretrained(self, init_path: str):
         if init_path not in (None, ''):
-            state_dict = torch.load(init_path, map_location=lambda storage, loc: storage)['model']
+            state_dict = safe_torch_load(init_path, map_location=lambda storage, loc: storage)['model']
             state_dict = filter_state_dict(state_dict, remove_name='head')
             ret = self.detector.load_state_dict(state_dict, strict=False)
             print(f'Load pretrained model from {init_path}, ret: {ret}')

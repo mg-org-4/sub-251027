@@ -1,19 +1,22 @@
 import os
 import sys
 import torch
+import torch.nn.functional as F
 import numpy as np
 from PIL import Image
-from omegaconf import OmegaConf
 from diffusers import AutoencoderKL
 from transformers import CLIPVisionModelWithProjection
 import mediapipe as mp
 import folder_paths
+from comfy.utils import ProgressBar
 from huggingface_hub import snapshot_download
 
 # Add current directory to sys.path to allow imports from src
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.append(current_dir)
+
+from src.utils.safe_torch_load import safe_torch_load
 
 from src.models.unet_2d_condition import UNet2DConditionModel
 from src.models.unet_3d import UNet3DConditionModel
@@ -24,9 +27,20 @@ from src.scheduler.scheduler_ddim import DDIMScheduler
 from src.pipelines.pipeline_pose2vid import Pose2VideoPipeline
 from src.utils.util import crop_face
 from diffusers.utils.import_utils import is_xformers_available
-from torchvision import transforms
 
-from PIL import Image, ImageFilter
+
+def _get_face_mesh():
+    if hasattr(mp, "solutions") and hasattr(mp.solutions, "face_mesh"):
+        return mp.solutions.face_mesh.FaceMesh
+    try:
+        from mediapipe.python.solutions.face_mesh import FaceMesh
+        return FaceMesh
+    except Exception as e:
+        raise RuntimeError(
+            "mediapipe FaceMesh is unavailable. "
+            "Install a compatible mediapipe version (e.g., mediapipe>=0.10)."
+        ) from e
+
 
 def get_folder_list():
     base_dir = folder_paths.models_dir
@@ -93,7 +107,8 @@ def download_models_if_missing(root_dir):
                 )
         else:
             print(f"✓ {model_info['name']} already exists at {model_info['local_dir']}")
-    # Move persoanlize 
+
+
 class PersonaLiveCheckpointLoader:
     @classmethod
     def INPUT_TYPES(s):
@@ -202,7 +217,7 @@ class PersonaLiveCheckpointLoader:
              p = os.path.join(personalive_path, "pretrained_weights", "personalive", filename)
              if os.path.exists(p):
                  print(f"Loading {filename} from {p}")
-                 model.load_state_dict(torch.load(p, map_location="cpu"), strict=strict)
+                 model.load_state_dict(safe_torch_load(p, map_location="cpu"), strict=strict)
              else:
                  print(f"WARNING: Could not find {filename} in {personalive_path}")
 
@@ -256,18 +271,25 @@ class PersonaLivePhotoSampler:
         generator = torch.Generator(device=device)
         generator.manual_seed(seed)
 
-        ref_pil = Image.fromarray(np.clip(255. * ref_image[0].cpu().numpy(), 0, 255).astype(np.uint8))
-        driving_pil = Image.fromarray(np.clip(255. * driving_image[0].cpu().numpy(), 0, 255).astype(np.uint8))
-        
+        ref_pil = Image.fromarray(
+            np.clip(255.0 * ref_image[0].cpu().numpy(), 0, 255).astype(np.uint8)
+        )
+        driving_frames = [
+            Image.fromarray(
+                np.clip(255.0 * frame.cpu().numpy(), 0, 255).astype(np.uint8)
+            )
+            for frame in driving_image
+        ]
+        if not driving_frames:
+            raise ValueError("driving_image must contain at least one frame.")
+
         print(f"Resizing inputs to ({width}, {height})")
         ref_input = ref_pil.resize((width, height))
-        driving_input = driving_pil.resize((width, height))
+        driving_inputs = [frame.resize((width, height)) for frame in driving_frames]
 
-        mp_face_mesh = mp.solutions.face_mesh
-        face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
+        face_mesh_cls = _get_face_mesh()
+        face_mesh = face_mesh_cls(static_image_mode=True, max_num_faces=1)
 
-        from src.utils.util import crop_face
-        
         try:
             ref_patch = crop_face(ref_pil, face_mesh, scale=1.1)
             ref_face = Image.fromarray(ref_patch).convert("RGB")
@@ -275,20 +297,36 @@ class PersonaLivePhotoSampler:
             print(f"Ref face detection failed: {e}. Using full image.")
             ref_face = ref_input
 
-        try:
-            driving_patch = crop_face(driving_pil, face_mesh, scale=1.1)
-            driving_face = Image.fromarray(driving_patch).convert("RGB")
-        except Exception as e:
-            print(f"Driving face detection failed: {e}. Using full image.")
-            driving_face = driving_input
+        dri_faces = []
+        progress = ProgressBar(len(driving_frames))
+        for frame in driving_frames:
+            try:
+                driving_patch = crop_face(frame, face_mesh, scale=1.1)
+                driving_face = Image.fromarray(driving_patch).convert("RGB")
+            except Exception as e:
+                print(f"Driving face detection failed: {e}. Using full image.")
+                driving_face = frame
+            dri_faces.append(driving_face.resize((width, height)))
+            progress.update(1)
 
-        video_length = 4
-        
-        ori_pose_images = [driving_input] * video_length
-        dri_faces = [driving_face] * video_length
+        ori_pose_images = driving_inputs
         input_ref = ref_input
-        input_ref_face = ref_face
+        input_ref_face = ref_face.resize((width, height))
+
+        original_length = len(ori_pose_images)
+        video_length = original_length
+        if video_length < 4:
+            pad_count = 4 - video_length
+            ori_pose_images.extend([ori_pose_images[-1]] * pad_count)
+            dri_faces.extend([dri_faces[-1]] * pad_count)
+            video_length = 4
+        elif video_length % 4 != 0:
+            video_length = (video_length // 4) * 4
+            ori_pose_images = ori_pose_images[:video_length]
+            dri_faces = dri_faces[:video_length]
         
+        total_steps = (video_length // 4) + 4 - 1
+        progress = ProgressBar(total_steps)
         print("Running PersonaLive generation...")
         result = pipe(
             ori_pose_images,
@@ -303,20 +341,34 @@ class PersonaLivePhotoSampler:
             generator=generator,
             temporal_window_size=4,
             temporal_adaptive_step=4,
+            progress_callback=progress.update,
         )
         
         gen_video = result.videos
-        gen_image_tensor = gen_video[:, :, 0:1, :, :] 
-        gen_only_pil = Image.fromarray((gen_image_tensor.squeeze().permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8))
-        
+        if isinstance(gen_video, np.ndarray):
+            gen_video = torch.from_numpy(gen_video)
+
+        if gen_video.shape[0] != 1:
+            gen_video = gen_video[:1]
+        gen_video = gen_video[0]  # (c, f, h, w)
+
         orig_w, orig_h = ref_pil.size
-        if gen_only_pil.size != (orig_w, orig_h):
-             final_image = gen_only_pil.resize((orig_w, orig_h))
-        else:
-             final_image = gen_only_pil
-        
-        final_tensor = torch.from_numpy(np.array(final_image).astype(np.float32) / 255.0).unsqueeze(0) 
-        
+        if (gen_video.shape[-1], gen_video.shape[-2]) != (orig_w, orig_h):
+            gen_video = gen_video.permute(1, 0, 2, 3)  # (f, c, h, w)
+            gen_video = F.interpolate(
+                gen_video,
+                size=(orig_h, orig_w),
+                mode="bilinear",
+                align_corners=False,
+            )
+            gen_video = gen_video.permute(1, 0, 2, 3)  # (c, f, h, w)
+
+        if original_length < 4:
+            gen_video = gen_video[:, :1, :, :]
+
+        gen_video = gen_video.permute(1, 2, 3, 0).contiguous()  # (f, h, w, c)
+        final_tensor = gen_video.float().clamp(0, 1)
+
         return (final_tensor,)
 
 NODE_CLASS_MAPPINGS = {

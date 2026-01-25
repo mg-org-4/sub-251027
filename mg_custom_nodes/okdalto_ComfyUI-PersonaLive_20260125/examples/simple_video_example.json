@@ -1,0 +1,435 @@
+{
+  "id": "1b9ecb65-32a7-46be-ab2b-024754cc4174",
+  "revision": 0,
+  "last_node_id": 57,
+  "last_link_id": 108,
+  "nodes": [
+    {
+      "id": 49,
+      "type": "ResizeAndPadImage",
+      "pos": [
+        1395.3070471213211,
+        288.5560919438603
+      ],
+      "size": [
+        270,
+        130
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 87
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            100
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.4.0",
+        "Node name for S&R": "ResizeAndPadImage"
+      },
+      "widgets_values": [
+        512,
+        512,
+        "white",
+        "lanczos"
+      ]
+    },
+    {
+      "id": 36,
+      "type": "PersonaLiveCheckpointLoader",
+      "pos": [
+        1399.5434479952012,
+        172.95307632587838
+      ],
+      "size": [
+        274.4449700792469,
+        58
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "pipe",
+          "type": "PERSONALIVE_PIPE",
+          "links": [
+            98
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyUI-PersonaLive",
+        "ver": "2b727a7a80fdd909a2c3cca8ed7f9611ec4e23fc",
+        "Node name for S&R": "PersonaLiveCheckpointLoader",
+        "aux_id": "GVCLab/PersonaLive"
+      },
+      "widgets_values": [
+        "persona_live"
+      ]
+    },
+    {
+      "id": 52,
+      "type": "PersonaLivePhotoSampler",
+      "pos": [
+        1712.395983709649,
+        268.7658990943858
+      ],
+      "size": [
+        282.615234375,
+        218
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "type": "PERSONALIVE_PIPE",
+          "link": 98
+        },
+        {
+          "name": "ref_image",
+          "type": "IMAGE",
+          "link": 100
+        },
+        {
+          "name": "driving_image",
+          "type": "IMAGE",
+          "link": 104
+        }
+      ],
+      "outputs": [
+        {
+          "name": "generated_image",
+          "type": "IMAGE",
+          "links": [
+            105
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "ComfyUI-PersonaLive",
+        "ver": "2b727a7a80fdd909a2c3cca8ed7f9611ec4e23fc",
+        "Node name for S&R": "PersonaLivePhotoSampler",
+        "aux_id": "GVCLab/PersonaLive"
+      },
+      "widgets_values": [
+        512,
+        512,
+        1,
+        1,
+        793884710695881
+      ]
+    },
+    {
+      "id": 55,
+      "type": "GetVideoComponents",
+      "pos": [
+        1449.2385255926079,
+        486.93451856388896
+      ],
+      "size": [
+        156.7648681640625,
+        66
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 103
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            104
+          ]
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            108
+          ]
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "links": [
+            107
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.8.2",
+        "Node name for S&R": "GetVideoComponents"
+      }
+    },
+    {
+      "id": 54,
+      "type": "LoadVideo",
+      "pos": [
+        1114.6604117844295,
+        600.8992556417859
+      ],
+      "size": [
+        270,
+        344
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            103
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.8.2",
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "55_doi.mp4",
+        "image"
+      ]
+    },
+    {
+      "id": 56,
+      "type": "CreateVideo",
+      "pos": [
+        2020.2600298950897,
+        267.9586619105756
+      ],
+      "size": [
+        270,
+        78
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 105
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 108
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "widget": {
+            "name": "fps"
+          },
+          "link": 107
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            106
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.8.2",
+        "Node name for S&R": "CreateVideo"
+      },
+      "widgets_values": [
+        30
+      ]
+    },
+    {
+      "id": 57,
+      "type": "SaveVideo",
+      "pos": [
+        2315.2487675474886,
+        267.75383778528726
+      ],
+      "size": [
+        270,
+        368
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 106
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.8.2"
+      },
+      "widgets_values": [
+        "video/ComfyUI",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 15,
+      "type": "LoadImage",
+      "pos": [
+        1133.0103580689852,
+        223.71945691972712
+      ],
+      "size": [
+        222.798828125,
+        314.0000000000001
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            87
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.4.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "12803_7f5eca289bm2259mm_1303rtailbig.jpg",
+        "image"
+      ]
+    }
+  ],
+  "links": [
+    [
+      87,
+      15,
+      0,
+      49,
+      0,
+      "IMAGE"
+    ],
+    [
+      98,
+      36,
+      0,
+      52,
+      0,
+      "PERSONALIVE_PIPE"
+    ],
+    [
+      100,
+      49,
+      0,
+      52,
+      1,
+      "IMAGE"
+    ],
+    [
+      103,
+      54,
+      0,
+      55,
+      0,
+      "VIDEO"
+    ],
+    [
+      104,
+      55,
+      0,
+      52,
+      2,
+      "IMAGE"
+    ],
+    [
+      105,
+      52,
+      0,
+      56,
+      0,
+      "IMAGE"
+    ],
+    [
+      106,
+      56,
+      0,
+      57,
+      0,
+      "VIDEO"
+    ],
+    [
+      107,
+      55,
+      2,
+      56,
+      2,
+      "FLOAT"
+    ],
+    [
+      108,
+      55,
+      1,
+      56,
+      1,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.7178109503295004,
+      "offset": [
+        -919.5630071262422,
+        -7.862191164530358
+      ]
+    },
+    "frontendVersion": "1.36.13",
+    "workflowRendererVersion": "LG"
+  },
+  "version": 0.4
+}

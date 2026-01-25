@@ -21,8 +21,8 @@ from threading import Lock, Thread
 from torchvision import transforms as T
 from einops import rearrange
 from src.utils.util import draw_keypoints, get_boxes
+from src.utils.safe_torch_load import safe_torch_load
 import torch.nn.functional as F
-from src.modeling.engine_model import EngineModel
 
 def map_device(device_or_str):
     return device_or_str if isinstance(device_or_str, torch.device) else torch.device(device_or_str)
@@ -54,27 +54,45 @@ class PersonaLive:
 
         # initialize models
         self.pose_guider = PoseGuider().to(device=self.device, dtype=self.dtype)
-        pose_guider_state_dict = torch.load(cfg.pose_guider_path, map_location="cpu")
+        pose_guider_state_dict = safe_torch_load(cfg.pose_guider_path, map_location="cpu")
         self.pose_guider.load_state_dict(pose_guider_state_dict)
         del pose_guider_state_dict
 
         self.motion_encoder = MotEncoder().to(dtype=self.dtype, device=self.device).eval()
-        motion_encoder_state_dict = torch.load(cfg.motion_encoder_path, map_location="cpu")
+        motion_encoder_state_dict = safe_torch_load(cfg.motion_encoder_path, map_location="cpu")
         self.motion_encoder.load_state_dict(motion_encoder_state_dict)
         del motion_encoder_state_dict
 
         self.pose_encoder = MotionExtractor(num_kp=21).to(device=self.device, dtype=self.dtype).eval()
-        pose_encoder_state_dict = torch.load(cfg.pose_encoder_path, map_location="cpu")
+        pose_encoder_state_dict = safe_torch_load(cfg.pose_encoder_path, map_location="cpu")
         self.pose_encoder.load_state_dict(pose_encoder_state_dict, strict=False)
         del pose_encoder_state_dict
+
+        self.denoising_unet = UNet3DConditionModel.from_pretrained_2d(
+            cfg.pretrained_base_model_path,
+            "",
+            subfolder="unet",
+            unet_additional_kwargs=infer_config.unet_additional_kwargs,
+        ).to(dtype=self.dtype, device=self.device)
 
         self.reference_unet = UNet2DConditionModel.from_pretrained(
             cfg.pretrained_base_model_path,
             subfolder="unet",
         ).to(dtype=self.dtype, device=self.device)
-        reference_unet_state_dict = torch.load(cfg.reference_unet_weight_path, map_location="cpu")
+        reference_unet_state_dict = safe_torch_load(cfg.reference_unet_weight_path, map_location="cpu")
         self.reference_unet.load_state_dict(reference_unet_state_dict)
         del reference_unet_state_dict
+
+        self.denoising_unet.load_state_dict(
+            safe_torch_load(cfg.denoising_unet_path, map_location="cpu"), strict=False
+        )
+        self.denoising_unet.load_state_dict(
+            safe_torch_load(
+                cfg.temporal_module_path,
+                map_location="cpu",
+            ),
+            strict=False,
+        )
 
         self.reference_control_writer = ReferenceAttentionControl(
             self.reference_unet,
@@ -83,6 +101,14 @@ class PersonaLive:
             batch_size=cfg.batch_size,
             fusion_blocks="full",
         )
+        self.reference_control_reader = ReferenceAttentionControl(
+            self.denoising_unet,
+            do_classifier_free_guidance=False,
+            mode="read",
+            batch_size=cfg.batch_size,
+            fusion_blocks="full",
+            cache_kv=True,
+        )
 
         self.vae = AutoencoderKL.from_pretrained(cfg.vae_model_path).to(
             device=self.device, dtype=self.dtype
@@ -90,21 +116,14 @@ class PersonaLive:
         self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(
             cfg.image_encoder_path,
         ).to(device=self.device, dtype=self.dtype)
-        
-        #----------------------- TensorRT -----------------------#
-        self.unet_work = EngineModel(engine_file_path=cfg.tensorrt_target_model, device_int=self.device.index)
-        self.unet_work.bind({
-            "motion_hidden_states_out": "motion_hidden_states",
-            "pose_cond_fea_out": "pose_cond_fea",
-            "latents" : "sample",
-        })
-        #------------------------------------------------------------#
 
         # miscellaneous
         self.scheduler = DDIMScheduler(**sched_kwargs)
-        timesteps = torch.tensor([0, 333, 666, 999], device=self.device)
-        self.timesteps = timesteps.repeat_interleave(cfg.temporal_window_size, dim=0).long()
+        self.timesteps = torch.tensor([999, 666, 333, 0], device=self.device).long()
         self.scheduler.set_step_length(333)
+        
+        self.generator = torch.Generator(self.device)
+        self.generator.manual_seed(cfg.seed)
 
         self.batch_size = cfg.batch_size
         self.vae_scale_factor = 8
@@ -119,17 +138,19 @@ class PersonaLive:
         self.motion_bank = None
         self.count = 0
         self.num_khf = 0
+
+        self.latents_pile = deque([])
+        self.pose_pile = deque([])
+        self.motion_pile = deque([])
         
         self.cfg = cfg
-        self.reference_hidden_states_names = ["d00", "d01", "d10", "d11", 
-                                              "d20", "d21", "m", "u10", "u11", "u12", 
-                                              "u20", "u21", "u22", "u30", "u31", "u32"]
         torch.cuda.empty_cache()
 
         self.enable_xformers_memory_efficient_attention()
 
     def enable_xformers_memory_efficient_attention(self):
         self.reference_unet.enable_xformers_memory_efficient_attention()
+        self.denoising_unet.enable_xformers_memory_efficient_attention()
 
     def fast_resize(self, images, target_width, target_height) -> torch.Tensor:
         tgt_cond_tensor = F.interpolate(
@@ -151,10 +172,7 @@ class PersonaLive:
         clip_image_embeds = self.image_encoder(
             clip_image.to(self.image_encoder.device, dtype=self.image_encoder.dtype)
         ).image_embeds
-        encoder_hidden_states = clip_image_embeds.unsqueeze(1)
-        self.unet_work.prefill(encoder_hidden_states = encoder_hidden_states)
-        self.encoder_hidden_states = encoder_hidden_states
-
+        self.encoder_hidden_states = clip_image_embeds.unsqueeze(1)
         ref_image_tensor = ref_image_tensor.to(
             dtype=self.vae.dtype, device=self.vae.device
         )
@@ -164,22 +182,27 @@ class PersonaLive:
         self.reference_unet(
             ref_image_latents.to(self.reference_unet.device),
             torch.zeros((self.batch_size,),dtype=self.dtype,device=self.reference_unet.device),
-            encoder_hidden_states=encoder_hidden_states,
+            encoder_hidden_states=self.encoder_hidden_states,
             return_dict=False,
         )
-        self.reference_hidden_states = self.reference_control_writer.output()
-        self.unet_work.prefill(**{name: self.reference_hidden_states[name] for name in self.reference_hidden_states_names})
+        self.reference_control_reader.update(self.reference_control_writer)
+        self.encoder_hidden_states = self.encoder_hidden_states.to(self.device)
 
         ref_cond_tensor = self.cond_image_processor.preprocess(
             ref_image, height=256, width=256
         ).to(device=self.device, dtype=self.pose_encoder.dtype)  # (1, c, h, w)
         self.ref_cond_tensor = ref_cond_tensor / 2 + 0.5 # to [0, 1]
-        self.ref_image_latents = ref_image_latents.unsqueeze(2).repeat(1, 1, self.temporal_window_size, 1, 1)
+        self.ref_image_latents = ref_image_latents
 
         padding_num = (self.temporal_adaptive_step - 1) * self.temporal_window_size
         init_latents = ref_image_latents.unsqueeze(2).repeat(1, 1, padding_num, 1, 1)
         noise = torch.randn_like(init_latents)
-        self.noisy_latents_first = self.scheduler.add_noise(init_latents, noise, self.timesteps[:padding_num])
+        init_timesteps = reversed(self.timesteps).repeat_interleave(self.temporal_window_size, dim=0)
+        noisy_latents_first = self.scheduler.add_noise(init_latents, noise, init_timesteps[:padding_num])
+        for i in range(self.temporal_adaptive_step-1):
+            l = i * self.temporal_window_size
+            r = (i+1) * self.temporal_window_size
+            self.latents_pile.append(noisy_latents_first[:,:,l:r])
     
     def crop_face(self, image_pil, boxes):
         image = np.array(image_pil)
@@ -249,6 +272,8 @@ class PersonaLive:
     def process_input(self, images):
         batch_size = self.batch_size
         device = self.device
+        temporal_window_size = self.temporal_window_size
+        temporal_adaptive_step = self.temporal_adaptive_step
 
         tgt_cond_tensor = self.fast_resize(images, 256, 256)
         tgt_cond_tensor = tgt_cond_tensor / 2 + 0.5
@@ -266,71 +291,111 @@ class PersonaLive:
         keypoints = keypoints.to(device=device, dtype=self.pose_guider.dtype)
 
         if self.first_frame:
-            pose_cond_fea = self.pose_guider(keypoints[:,:, :12])
-            pose = keypoints[:,:,12:]
-
             ref_box = get_boxes(mot_bbox_param[:1])
             ref_face = self.crop_face_tensor(self.ref_image_tensor, ref_box[0])
             motion_face = [ref_face]
             for i, frame in enumerate(images):
                 motion_face.append(self.crop_face_tensor(frame, boxes[i]))
-            motion_cond_tensor = torch.cat(motion_face, dim=0).transpose(0, 1)
-            motion_cond_tensor = motion_cond_tensor.unsqueeze(0)
-            motion = motion_cond_tensor[:,:,1:]
-            motion_hidden_states = self.motion_encoder(motion_cond_tensor[:,:,:2])
+            pose_cond_tensor = torch.cat(motion_face, dim=0).transpose(0, 1)
+            pose_cond_tensor = pose_cond_tensor.unsqueeze(0)
+            # pose_cond_tensor = pose_cond_tensor.to(
+            #     device=device, dtype=self.motion_encoder.dtype
+            # )
+            motion_hidden_states = self.motion_encoder(pose_cond_tensor)
             ref_motion = motion_hidden_states[:, :1]
             dri_motion = motion_hidden_states[:, 1:]
 
-            motion_hidden_states = self.interpolate_tensors(ref_motion, dri_motion[:,:1], num=12+1)[:,:-1]
+            init_motion_hidden_states = self.interpolate_tensors(ref_motion, dri_motion[:,:1], num=12+1)[:,:-1]
+            for i in range(temporal_adaptive_step-1):
+                l = i * temporal_window_size
+                r = (i+1) * temporal_window_size
+                self.motion_pile.append(init_motion_hidden_states[:,l:r])
+            self.motion_pile.append(dri_motion)
+
             self.motion_bank = ref_motion
-
-            latents = self.ref_image_latents
-            noise = torch.randn_like(latents)
-            latents = self.scheduler.add_noise(latents, noise, self.timesteps[-1:])
-            sample =  torch.cat([self.noisy_latents_first, latents], dim=2)
-
-            self.unet_work.prefill(latents=sample)
-            self.unet_work.prefill(motion_hidden_states_out=motion_hidden_states)
-            self.unet_work.prefill(pose_cond_fea_out=pose_cond_fea)
-            self.first_frame = False
         else:
-            pose = keypoints
-
             motion_face = []
             for i, frame in enumerate(images):
                 motion_face.append(self.crop_face_tensor(frame, boxes[i]))
-            motion = torch.cat(motion_face, dim=0).transpose(0, 1)
-            motion = motion.unsqueeze(0)
+            pose_cond_tensor = torch.cat(motion_face, dim=0).transpose(0, 1)
+            pose_cond_tensor = pose_cond_tensor.unsqueeze(0)
+            motion_hidden_states = self.motion_encoder(pose_cond_tensor)
+            self.motion_pile.append(motion_hidden_states)
 
-        motion = motion.to(dtype = self.dtype)
-        latents = self.ref_image_latents
+        pose_fea = self.pose_guider(keypoints)
+        if self.first_frame:
+            for i in range(temporal_adaptive_step):
+                l = i * temporal_window_size
+                r = (i+1) * temporal_window_size
+                self.pose_pile.append(pose_fea[:,:,l:r])
+            self.first_frame = False
+        else:
+            self.pose_pile.append(pose_fea)
+
+        latents = self.ref_image_latents.unsqueeze(2).repeat(1, 1, temporal_window_size, 1, 1)
         noise = torch.randn_like(latents)
-        new_noise = self.scheduler.add_noise(latents, noise, self.timesteps[-1:])
+        latents = self.scheduler.add_noise(latents, noise, self.timesteps[:1])
+        self.latents_pile.append(latents)
 
-        results = self.unet_work(output_list=["pred_video", "motion_out", "latent_first"], return_tensor=True, pose=pose, motion=motion, new_noise=new_noise)
-        video = results['pred_video'].cpu().numpy()
-        motion_out = results['motion_out']
+        jump = 1
+        motion_hidden_state = torch.cat(list(self.motion_pile), dim=1)
+        pose_cond_fea=torch.cat(list(self.pose_pile), dim=2)
 
         idx_to_add = []
         if self.count > 8:
-            idx_to_add, self.motion_bank, idx_his = self.calculate_dis(self.motion_bank, motion_out, threshold=17.)
+            idx_to_add, self.motion_bank, idx_his = self.calculate_dis(self.motion_bank, motion_hidden_state, threshold=17.)
+
+        latents_model_input = torch.cat(list(self.latents_pile), dim=2)
+        for j in range(jump):
+            timesteps = reversed(self.timesteps[j::jump]).repeat_interleave(temporal_window_size, dim=0)
+            timesteps = torch.stack([timesteps] * batch_size)#.to(device)
+            timesteps = rearrange(timesteps, 'b f -> (b f)')
+            noise_pred = self.denoising_unet(
+                latents_model_input,
+                timesteps,
+                encoder_hidden_states=[self.encoder_hidden_states,
+                                       motion_hidden_state],
+                pose_cond_fea=pose_cond_fea,
+                return_dict=False,
+            )[0]
+
+            clip_length = noise_pred.shape[2]
+            mid_noise_pred = rearrange(noise_pred, 'b c f h w -> (b f) c h w')
+            mid_latents = rearrange(latents_model_input, 'b c f h w -> (b f) c h w')
+            latents_model_input, pred_original_sample = self.scheduler.step(
+                mid_noise_pred, timesteps, mid_latents, generator=self.generator, return_dict=False
+            )
+            latents_model_input = rearrange(latents_model_input, '(b f) c h w -> b c f h w', f=clip_length)
+            pred_original_sample = rearrange(pred_original_sample, '(b f) c h w -> b c f h w', f=clip_length)
+            latents_model_input = torch.cat([
+                pred_original_sample[:,:,:temporal_window_size],
+                latents_model_input[:,:,temporal_window_size:]], dim=2)
+            latents_model_input = latents_model_input.to(dtype=self.dtype)
 
         if len(idx_to_add) > 0 and self.num_khf < 3:
-            latents_first = results['latent_first']
             self.reference_control_writer.clear()
             self.reference_unet(
-                latents_first.to(self.reference_unet.dtype),
+                pred_original_sample[:,:,0].to(self.reference_unet.dtype),
                 torch.zeros((batch_size,),dtype=self.dtype,device=self.reference_unet.device),
                 encoder_hidden_states=self.encoder_hidden_states,
                 return_dict=False,
             )
-            reference_hidden_states = self.reference_control_writer.output()
-            for name in self.reference_hidden_states_names:
-                self.reference_hidden_states[name] = torch.cat([self.reference_hidden_states[name], reference_hidden_states[name]], dim=1)
-            
-            self.unet_work.prefill(**{name: self.reference_hidden_states[name] for name in self.reference_hidden_states_names})
+            self.reference_control_reader.update_hkf(self.reference_control_writer)
             print('add_keyframes')
             self.num_khf += 1
+        
+        
+        for i in range(len(self.latents_pile)):
+            self.latents_pile[i] = latents_model_input[:, :, i * temporal_adaptive_step : (i + 1) * temporal_adaptive_step, :, :]
 
+        self.pose_pile.popleft()
+        self.motion_pile.popleft()
+        latents = self.latents_pile.popleft()
+        latents = 1 / 0.18215 * latents
+        latents = rearrange(latents, "b c f h w -> (b f) c h w")
+        video = self.vae.decode(latents).sample
+        video = rearrange(video, "b c h w -> b h w c")
+        video = (video / 2 + 0.5).clamp(0, 1)
+        video = video.cpu().numpy()
         self.count += 1
         return video

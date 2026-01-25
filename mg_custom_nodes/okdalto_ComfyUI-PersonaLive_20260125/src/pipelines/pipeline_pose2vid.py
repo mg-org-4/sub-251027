@@ -1,11 +1,8 @@
 import inspect
-import math
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Union
-import random
 import numpy as np
 import torch
-import torch.nn.functional as F
 import torchvision.transforms as transforms
 from diffusers import DiffusionPipeline
 from diffusers import (
@@ -456,6 +453,7 @@ class Pose2VideoPipeline(DiffusionPipeline):
         temporal_adaptive_step = 4,
         temporal_kv_cache=True,
         init_latents=None,
+        progress_callback: Optional[Callable[[int], None]] = None,
         **kwargs,
     ):
         assert num_inference_steps % temporal_adaptive_step == 0, "temporal_adaptive_step should be divisor of num_inference_steps"
@@ -589,7 +587,8 @@ class Pose2VideoPipeline(DiffusionPipeline):
         motion_bank = neg_motion_hidden_states
 
         # denoising loop
-        with self.progress_bar(total=windows + temporal_adaptive_step - 1) as progress_bar:
+        total_steps = windows + temporal_adaptive_step - 1
+        with self.progress_bar(total=total_steps) as progress_bar:
             self.reference_unet(
                 ref_image_latents.repeat((2 if do_classifier_free_guidance else 1), 1, 1, 1),
                 torch.zeros((batch_size,),dtype=torch.float32,device=ref_image_latents.device),
@@ -598,7 +597,7 @@ class Pose2VideoPipeline(DiffusionPipeline):
             )
             reference_control_reader.update(reference_control_writer)
 
-            for i in range(windows + temporal_adaptive_step - 1):
+            for i in range(total_steps):
                 l = i * temporal_window_size
                 r = (i + temporal_adaptive_step) * temporal_window_size
 
@@ -678,6 +677,8 @@ class Pose2VideoPipeline(DiffusionPipeline):
                     reference_control_reader.update_hkf(reference_control_writer)
                 
                 progress_bar.update()
+                if progress_callback is not None:
+                    progress_callback(1)
             reference_control_reader.clear()
             reference_control_writer.clear()
 

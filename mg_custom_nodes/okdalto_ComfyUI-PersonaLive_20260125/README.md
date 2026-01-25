@@ -5,7 +5,7 @@
 This is a ComfyUI custom node implementation of **PersonaLive: Expressive Portrait Image Animation for Live Streaming**.
 
 > [!NOTE]
-> Currently, this implementation only supports **Image Input** (driving the portrait with a single reference image). Video driving support is planned for future updates.
+> This implementation supports both **Image Input** and **Video Input** (driving the portrait with a frame sequence).
 
 **Original Repository**: [GVCLab/PersonaLive](https://github.com/GVCLab/PersonaLive)  
 **Paper**: [ArXiv 2512.11253](https://arxiv.org/abs/2512.11253)
@@ -71,7 +71,7 @@ I deeply appreciate the authors **Zhiyuan Li, Chi-Man Pun, Chen Fang, Jue Wang,*
 1.  **PersonaLiveCheckpointLoader**: Select the `model_dir` (e.g., `persona_live`) that contains all your models.
 2.  **PersonaLivePhotoSampler**:
     - Connect the pipeline from the loader.
-    - Connect `ref_image` (source portrait) and `driving_image` (pose reference).
+    - Connect `ref_image` (source portrait) and `driving_image` (pose reference). `driving_image` can be a single image or a video frame batch.
     - Set `width` and `height` (default 512). The node automatically resizes inputs to this resolution for processing and then restores the original resolution for the output.
 
 ### Usage Tips
@@ -81,9 +81,6 @@ I deeply appreciate the authors **Zhiyuan Li, Chi-Man Pun, Chen Fang, Jue Wang,*
 ## 🧪 Example Workflow
 
 An example workflow is provided in the `example` folder. You can drag and drop the `.json` file from there into ComfyUI to get started quickly.
-
-## 📝 To-Do
-- [ ] Support Video Input (Driving Video)
 
 ## ❤️ Acknowledgements
 

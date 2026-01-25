@@ -1,0 +1,364 @@
+import { app } from "../../../../scripts/app.js";
+import { DoctorAPI } from "../doctor_api.js";
+
+const SUPPORTED_LANGUAGES = [
+    { value: "en", text: "English" },
+    { value: "zh_TW", text: "繁體中文" },
+    { value: "zh_CN", text: "简体中文" },
+    { value: "ja", text: "日本語" },
+    { value: "de", text: "Deutsch" },
+    { value: "fr", text: "Français" },
+    { value: "it", text: "Italiano" },
+    { value: "es", text: "Español" },
+    { value: "ko", text: "한국어" },
+];
+
+export function render(container) {
+    const doctorUI = app.Doctor;
+    const DEFAULTS = { LANGUAGE: "en" }; // Minimal fallback
+
+    // One-time CSS injection for small UI helpers (tooltips etc.)
+    if (!document.getElementById('doctor-settings-tip-styles')) {
+        const style = document.createElement('style');
+        style.id = 'doctor-settings-tip-styles';
+        style.textContent = `
+            .doctor-tip {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                flex-shrink: 0;
+            }
+            .doctor-tip-icon {
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                border: 1px solid #555;
+                background: #222;
+                color: #ddd;
+                font-size: 12px;
+                line-height: 16px;
+                padding: 0;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                user-select: none;
+            }
+            .doctor-tip-icon:hover {
+                border-color: #666;
+                background: #2a2a2a;
+                color: #fff;
+            }
+            .doctor-tip-popover {
+                display: none;
+                position: absolute;
+                right: 0;
+                top: 22px;
+                background: #1a1a1a;
+                border: 1px solid #444;
+                border-radius: 6px;
+                padding: 10px;
+                width: 280px;
+                max-width: 280px;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            }
+            .doctor-tip:hover .doctor-tip-popover,
+            .doctor-tip:focus-within .doctor-tip-popover {
+                display: block;
+            }
+            .doctor-tip-link {
+                display: block;
+                color: #7db7ff;
+                text-decoration: underline;
+                overflow-wrap: anywhere;
+                word-break: normal;
+                font-size: 12px;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Get current settings values
+    const currentLanguage = app.ui.settings.getSettingValue("Doctor.General.Language", DEFAULTS.LANGUAGE);
+    const currentProvider = app.ui.settings.getSettingValue("Doctor.LLM.Provider", "openai");
+    const currentBaseUrl = app.ui.settings.getSettingValue("Doctor.LLM.BaseUrl", "https://api.openai.com/v1");
+    const currentApiKey = app.ui.settings.getSettingValue("Doctor.LLM.ApiKey", "");
+    const currentModel = app.ui.settings.getSettingValue("Doctor.LLM.Model", "");
+    const currentPrivacyMode = app.ui.settings.getSettingValue("Doctor.Privacy.Mode", "basic");
+    // F17: Read auto-open setting with strict null check (false is a valid stored value)
+    // Must handle string "false" from ComfyUI storage - same logic as doctor.js line 212
+    const storedAutoOpen = app.ui.settings.getSettingValue("Doctor.Behavior.AutoOpenOnError", null);
+    const currentAutoOpenOnError = storedAutoOpen === null ? true : Boolean(storedAutoOpen) && storedAutoOpen !== "false" && storedAutoOpen !== "0";
+
+    const settingsPanel = document.createElement('div');
+    settingsPanel.id = 'doctor-settings-panel';
+    // Remove 'display: none' and 'background' styling that was for the collapsible panel
+    settingsPanel.style.cssText = `
+        padding: 15px;
+        height: 100%;
+        overflow-y: auto;
+    `;
+
+    settingsPanel.innerHTML = `
+        <h4 style="margin: 0 0 20px 0; font-size: 16px; color: #ddd; border-bottom: 1px solid #444; padding-bottom: 10px;">${doctorUI.getUIText('settings_title') || 'Settings'}</h4>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <div>
+                <label style="display: block; font-size: 13px; color: #aaa; margin-bottom: 5px;">${doctorUI.getUIText('language_label')}</label>
+                <select id="doctor-language-select" style="width: 100%; padding: 8px; background: #111; border: 1px solid #444; border-radius: 4px; color: #eee; font-size: 13px;">
+                    ${SUPPORTED_LANGUAGES.map(lang =>
+        `<option value="${lang.value}" ${lang.value === currentLanguage ? 'selected' : ''}>${lang.text}</option>`
+    ).join('')}
+                </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 13px; color: #aaa; margin-bottom: 5px;">${doctorUI.getUIText('ai_provider_label')}</label>
+                <select id="doctor-provider-select" style="width: 100%; padding: 8px; background: #111; border: 1px solid #444; border-radius: 4px; color: #eee; font-size: 13px;">
+                    <option value="openai" ${currentProvider === 'openai' ? 'selected' : ''}>OpenAI</option>
+                    <option value="anthropic" ${currentProvider === 'anthropic' ? 'selected' : ''}>Anthropic Claude</option>
+                    <option value="deepseek" ${currentProvider === 'deepseek' ? 'selected' : ''}>DeepSeek</option>
+                    <option value="groq" ${currentProvider === 'groq' ? 'selected' : ''}>Groq Cloud (LPU)</option>
+                    <option value="gemini" ${currentProvider === 'gemini' ? 'selected' : ''}>Google Gemini</option>
+                    <option value="xai" ${currentProvider === 'xai' ? 'selected' : ''}>xAI Grok</option>
+                    <option value="openrouter" ${currentProvider === 'openrouter' ? 'selected' : ''}>OpenRouter</option>
+                    <option value="ollama" ${currentProvider === 'ollama' ? 'selected' : ''}>Ollama (Local)</option>
+                    <option value="lmstudio" ${currentProvider === 'lmstudio' ? 'selected' : ''}>LMStudio (Local)</option>
+                    <option value="custom" ${currentProvider === 'custom' ? 'selected' : ''}>Custom</option>
+                </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 13px; color: #aaa; margin-bottom: 5px;">${doctorUI.getUIText('base_url_label')}</label>
+                <input type="text" id="doctor-baseurl-input" value="${currentBaseUrl}" style="width: 100%; padding: 8px; background: #111; border: 1px solid #444; border-radius: 4px; color: #eee; font-size: 13px; box-sizing: border-box;" />
+            </div>
+            <div>
+                <label style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #aaa; margin-bottom: 5px;">
+                    <span>${doctorUI.getUIText('api_key_label')}</span>
+                    <span class="doctor-tip">
+                        <button type="button" class="doctor-tip-icon" aria-label="API key tip">?</button>
+                        <div class="doctor-tip-popover" role="tooltip">
+                            <div style="font-size: 12px; color: #ddd; line-height: 1.4; margin-bottom: 6px;">${doctorUI.getUIText('api_key_tip')}</div>
+                            <a class="doctor-tip-link" href="https://github.com/rookiestar28/ComfyUI-Doctor" target="_blank" rel="noopener noreferrer">https://github.com/rookiestar28/ComfyUI-Doctor</a>
+                        </div>
+                    </span>
+                </label>
+                <input type="password" id="doctor-apikey-input" value="${currentApiKey}" placeholder="${doctorUI.getUIText('api_key_placeholder')}" style="width: 100%; padding: 8px; background: #111; border: 1px solid #444; border-radius: 4px; color: #eee; font-size: 13px; box-sizing: border-box;" />
+            </div>
+            <div>
+                <label style="display: block; font-size: 13px; color: #aaa; margin-bottom: 5px;">${doctorUI.getUIText('model_name_label')}</label>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <select id="doctor-model-select" style="flex: 1; padding: 8px; background: #111; border: 1px solid #444; border-radius: 4px; color: #eee; font-size: 13px; box-sizing: border-box;">
+                        <option value="">${doctorUI.getUIText('loading_models')}</option>
+                    </select>
+                    <button id="doctor-refresh-models-btn" style="padding: 8px 12px; background: #333; border: 1px solid #444; border-radius: 4px; color: #eee; cursor: pointer; font-size: 13px;" title="Refresh model list">🔄</button>
+                </div>
+                <div style="margin-top: 5px;">
+                    <label style="font-size: 12px; color: #888; cursor: pointer;">
+                        <input type="checkbox" id="doctor-manual-model-toggle" style="margin-right: 3px;">
+                        ${doctorUI.getUIText('enter_model_manually')}
+                    </label>
+                </div>
+                <input type="text" id="doctor-model-input-manual" value="${currentModel}" placeholder="${doctorUI.getUIText('model_manual_placeholder')}" style="width: 100%; padding: 8px; background: #111; border: 1px solid #444; border-radius: 4px; color: #eee; font-size: 13px; box-sizing: border-box; margin-top: 5px; display: none;" />
+            </div>
+            <div style="border-top: 1px solid #444; padding-top: 15px; margin-top: 5px;">
+                <label style="display: flex; align-items: center; gap: 5px; font-size: 13px; color: #aaa; margin-bottom: 5px;">
+                    🔒 <span id="doctor-privacy-label">${doctorUI.getUIText('privacy_mode')}</span>
+                </label>
+                <select id="doctor-privacy-select" style="width: 100%; padding: 8px; background: #111; border: 1px solid #444; border-radius: 4px; color: #eee; font-size: 13px;">
+                    <option value="none" ${currentPrivacyMode === 'none' ? 'selected' : ''} id="privacy-none-option">${doctorUI.getUIText('privacy_mode_none')}</option>
+                    <option value="basic" ${currentPrivacyMode === 'basic' ? 'selected' : ''} id="privacy-basic-option">${doctorUI.getUIText('privacy_mode_basic')}</option>
+                    <option value="strict" ${currentPrivacyMode === 'strict' ? 'selected' : ''} id="privacy-strict-option">${doctorUI.getUIText('privacy_mode_strict')}</option>
+                </select>
+                <div id="doctor-privacy-hint" style="font-size: 12px; color: #888; margin-top: 5px;">${doctorUI.getUIText('privacy_mode_hint')}</div>
+            </div>
+            <div style="border-top: 1px solid #444; padding-top: 15px; margin-top: 5px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #aaa; cursor: pointer;">
+                    <input type="checkbox" id="doctor-auto-open-toggle" ${currentAutoOpenOnError ? 'checked' : ''} style="width: 16px; height: 16px; cursor: pointer;">
+                    <span>${doctorUI.getUIText('auto_open_on_error_label') || 'Auto-open error report panel on new errors'}</span>
+                </label>
+                <div style="font-size: 12px; color: #888; margin-top: 5px; margin-left: 24px;">${doctorUI.getUIText('auto_open_on_error_hint') || 'When enabled, the right-side error report panel will automatically open when a new error is detected'}</div>
+            </div>
+            <button id="doctor-save-settings-btn" style="width: 100%; padding: 10px; background: #4caf50; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 14px; margin-top: 10px;">💾 ${doctorUI.getUIText('save_settings_btn')}</button>
+        </div>
+    `;
+    container.appendChild(settingsPanel);
+
+    // --- Interaction Logic ---
+
+    const providerSelect = settingsPanel.querySelector('#doctor-provider-select');
+    const baseUrlInput = settingsPanel.querySelector('#doctor-baseurl-input');
+    const modelSelect = settingsPanel.querySelector('#doctor-model-select');
+    const refreshModelsBtn = settingsPanel.querySelector('#doctor-refresh-models-btn');
+    const manualToggle = settingsPanel.querySelector('#doctor-manual-model-toggle');
+    const modelInputManual = settingsPanel.querySelector('#doctor-model-input-manual');
+    const apiKeyInput = settingsPanel.querySelector('#doctor-apikey-input');
+
+    // Load models logic
+    const loadModels = async () => {
+        const baseUrl = baseUrlInput.value;
+        const apiKey = apiKeyInput.value;
+
+        if (!baseUrl) {
+            modelSelect.innerHTML = '<option value="">Please set Base URL first</option>';
+            return;
+        }
+
+        refreshModelsBtn.textContent = '⏳';
+        refreshModelsBtn.disabled = true;
+        modelSelect.disabled = true;
+
+        try {
+            const result = await DoctorAPI.listModels(baseUrl, apiKey);
+
+            if (result.success && result.models.length > 0) {
+                modelSelect.innerHTML = '';
+                result.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = model.name;
+                    modelSelect.appendChild(option);
+                });
+
+                // Restore selection
+                // Logic: if manual is checked, we don't care about dropdown value.
+                // But if we toggle back, we might want current value.
+                // Also handle "currentModel not in list"
+
+                // Get fresh currentModel from settings in case it changed via manual input previously
+                const storedModel = app.ui.settings.getSettingValue("Doctor.LLM.Model", "");
+
+                if (storedModel) {
+                    const modelExists = result.models.find(m => m.id === storedModel);
+                    if (modelExists) {
+                        modelSelect.value = storedModel;
+                    } else {
+                        const option = document.createElement('option');
+                        option.value = storedModel;
+                        option.textContent = `${storedModel} (current)`;
+                        option.selected = true;
+                        modelSelect.insertBefore(option, modelSelect.firstChild);
+                    }
+                }
+            } else {
+                modelSelect.innerHTML = '<option value="">No models found - use manual input</option>';
+            }
+        } catch (error) {
+            console.error('[ComfyUI-Doctor] Failed to load models:', error);
+            modelSelect.innerHTML = '<option value="">Error loading models - use manual input</option>';
+        } finally {
+            refreshModelsBtn.textContent = '🔄';
+            refreshModelsBtn.disabled = false;
+            modelSelect.disabled = false;
+        }
+    };
+
+    refreshModelsBtn.onclick = () => loadModels();
+
+    manualToggle.onchange = () => {
+        const storedModel = app.ui.settings.getSettingValue("Doctor.LLM.Model", "");
+        if (manualToggle.checked) {
+            modelSelect.style.display = 'none';
+            refreshModelsBtn.style.display = 'none';
+            modelInputManual.style.display = 'block';
+            modelInputManual.value = modelSelect.value || storedModel;
+        } else {
+            modelSelect.style.display = 'block';
+            refreshModelsBtn.style.display = 'block';
+            modelInputManual.style.display = 'none';
+        }
+    };
+
+    // Provider Defaults access (assuming stored in doctorUI or passed in somehow)
+    // We will access app.Doctor.providerDefaults if available
+    providerSelect.onchange = () => {
+        const defaults = doctorUI.providerDefaults || {};
+        baseUrlInput.value = defaults[providerSelect.value] || "";
+        if (baseUrlInput.value && !manualToggle.checked) {
+            loadModels();
+        }
+    };
+
+    // Auto-load
+    if (currentBaseUrl && !manualToggle.checked) {
+        loadModels();
+    }
+
+    // Privacy Mode Translations
+    const privacySelect = settingsPanel.querySelector('#doctor-privacy-select');
+    const updatePrivacyTranslations = (lang) => {
+        // We can fetch from API or rely on getUIText if we refresh UI text.
+        // doctorUI.loadUIText() reloads and updates this.uiText.
+        // We can subscribe to that or just re-render?
+        // doctor.js implementation fetched directly.
+        fetch(`/doctor/ui_text?lang=${lang}`)
+            .then(res => res.json())
+            .then(text => {
+                const map = text.text || text; // Handle structure
+                const pLabel = settingsPanel.querySelector('#doctor-privacy-label');
+                const pHint = settingsPanel.querySelector('#doctor-privacy-hint');
+                const opts = {
+                    none: settingsPanel.querySelector('#privacy-none-option'),
+                    basic: settingsPanel.querySelector('#privacy-basic-option'),
+                    strict: settingsPanel.querySelector('#privacy-strict-option')
+                };
+
+                if (map.privacy_mode) pLabel.textContent = map.privacy_mode;
+                if (map.privacy_mode_hint) pHint.textContent = map.privacy_mode_hint;
+                if (map.privacy_mode_none) opts.none.textContent = map.privacy_mode_none;
+                if (map.privacy_mode_basic) opts.basic.textContent = map.privacy_mode_basic;
+                if (map.privacy_mode_strict) opts.strict.textContent = map.privacy_mode_strict;
+            })
+            .catch(e => console.error(e));
+    };
+
+    const saveBtn = settingsPanel.querySelector('#doctor-save-settings-btn');
+    const autoOpenToggle = settingsPanel.querySelector('#doctor-auto-open-toggle');
+    saveBtn.onclick = async () => {
+        const langSelect = settingsPanel.querySelector('#doctor-language-select');
+        const modelValue = manualToggle.checked ? modelInputManual.value : modelSelect.value;
+        const providerVal = providerSelect.value;
+        const baseUrlVal = baseUrlInput.value;
+        const apiKeyVal = apiKeyInput.value;
+        const privacyVal = privacySelect.value;
+        const autoOpenVal = autoOpenToggle.checked;
+
+        try {
+            app.ui.settings.setSettingValue("Doctor.General.Language", langSelect.value);
+            app.ui.settings.setSettingValue("Doctor.LLM.Provider", providerVal);
+            app.ui.settings.setSettingValue("Doctor.LLM.BaseUrl", baseUrlVal);
+            app.ui.settings.setSettingValue("Doctor.LLM.ApiKey", apiKeyVal);
+            app.ui.settings.setSettingValue("Doctor.LLM.Model", modelValue);
+            app.ui.settings.setSettingValue("Doctor.Privacy.Mode", privacyVal);
+            // F17: Save auto-open setting and apply immediately
+            app.ui.settings.setSettingValue("Doctor.Behavior.AutoOpenOnError", autoOpenVal);
+            doctorUI.autoOpenOnError = autoOpenVal;
+
+            // Reload UI Text for new language (which also updates privacy text eventually)
+            // doctorUI.updateUILanguage() -> will update info card etc.
+            // We need to trigger language sync.
+            await DoctorAPI.setLanguage(langSelect.value);
+
+            // Manually update privacy fields now for immediate feedback or rely on reload?
+            updatePrivacyTranslations(langSelect.value);
+
+            // Ideally, reload the whole doctor UI or re-fetch uiText.
+            // doctorUI.loadUIText() handles it.
+            // Since doctorUI.language is what it uses, update it.
+            doctorUI.language = langSelect.value;
+            await doctorUI.loadUIText(); // Reloads and updates UI
+
+            // Visual Feedback
+            const originalText = saveBtn.textContent;
+            saveBtn.textContent = '✅ Saved, please refresh the UI to apply changes';
+            setTimeout(() => {
+                saveBtn.textContent = originalText;
+            }, 4000);
+
+        } catch (e) {
+            console.error('Failed to save settings:', e);
+            saveBtn.textContent = '❌ Error';
+            setTimeout(() => {
+                saveBtn.textContent = '💾 Save Settings';
+            }, 2000);
+        }
+    };
+}

@@ -451,11 +451,13 @@ class ImageSaver:
 
         result_paths: list[str] = list()
         num_images = len(images)
+        # Calculate base suffix once before the loop to avoid re-scanning after each save
+        base_suffix = ImageSaver.get_base_suffix(output_path, filename_prefix, extension, num_images)
         for idx, image in enumerate(images):
             i = 255. * image.cpu().numpy()
             img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
 
-            current_filename_prefix = ImageSaver.get_unique_filename(output_path, filename_prefix, extension, batch_size=num_images, batch_index=idx)
+            current_filename_prefix = ImageSaver.format_batch_filename(filename_prefix, base_suffix, idx)
             final_filename = f"{current_filename_prefix}.{extension}"
             filepath = os.path.join(output_path, final_filename)
 
@@ -554,14 +556,15 @@ class ImageSaver:
         return prompt
 
     @staticmethod
-    def get_unique_filename(output_path: str, filename_prefix: str, extension: str, batch_size: int = 1, batch_index: int = 0) -> str:
+    def get_base_suffix(output_path: str, filename_prefix: str, extension: str, batch_size: int) -> int | None:
+        """Calculate the base suffix for batch naming. Returns None for single images with no existing files."""
         existing_files = [f for f in os.listdir(output_path) if f.startswith(filename_prefix) and f.endswith(extension)]
 
-        # For single images with no existing files, return plain filename
+        # For single images with no existing files, return None (no suffix needed)
         if batch_size == 1 and not existing_files:
-            return f"{filename_prefix}"
+            return None
 
-        # For batches or when files exist, always use numbered suffix
+        # For batches or when files exist, calculate base suffix
         suffixes: list[int] = []
         for f in existing_files:
             name, _ = os.path.splitext(f)
@@ -570,15 +573,13 @@ class ImageSaver:
                 suffixes.append(int(parts[-1]))
 
         if suffixes:
-            # Start numbering after the highest existing suffix
-            base_suffix = max(suffixes) + 1
+            return max(suffixes) + 1
         else:
-            # No numbered files exist yet
-            if existing_files:
-                # Plain file exists, start at 1 (the plain file is effectively 0)
-                base_suffix = 1
-            else:
-                # No files at all, start at 1
-                base_suffix = 1
+            return 1
 
+    @staticmethod
+    def format_batch_filename(filename_prefix: str, base_suffix: int | None, batch_index: int) -> str:
+        """Format filename with batch suffix. If base_suffix is None, returns plain filename."""
+        if base_suffix is None:
+            return filename_prefix
         return f"{filename_prefix}_{base_suffix + batch_index:02d}"

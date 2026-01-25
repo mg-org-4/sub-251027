@@ -3,9 +3,8 @@ import comfy
 import torch
 import numpy as np
 from PIL import Image, ImageOps
-
+import torch.nn.functional as F
 import comfy.utils
-
 
 from ..main_unit import *
 
@@ -134,7 +133,7 @@ class type_BasiPIPE:
 
 
 
-#region---------------废弃---------------
+#region-------批次与列表---------------
 
 class type_Image_List2Batch:
     @classmethod
@@ -161,6 +160,136 @@ class type_Image_List2Batch:
                     image2 = comfy.utils.common_upscale(image2.movedim(-1, 1), image1.shape[2], image1.shape[1], "lanczos", "center").movedim(1, -1)
                 image1 = torch.cat((image1, image2), dim=0)
             return (image1,)
+
+
+
+
+class type_Image_List2Batch_adv:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image_list": ("IMAGE", {"forceInput": True}),
+                "mode": (["Crop", "Pad", "Stretch"], {"default": "Pad"}),
+                "alignment": (["Top Left", "Top", "Top Right", "Left", "Center", "Right", "Bottom Left", "Bottom", "Bottom Right"], {"default": "Center"}),
+                "width": ("INT", {"default": 1024, "min": 1, "max": 8192, "step": 1}),
+                "height": ("INT", {"default": 1024, "min": 1, "max": 8192, "step": 1}),
+                "background_color": (["white", "black", "green", "red", "blue", "gray"], {"default": "black"})
+            }
+        }
+
+    INPUT_IS_LIST = True
+    
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image_batch",)
+    FUNCTION = "convert"
+    CATEGORY = "Apt_Preset/data/list|Batch"
+
+    def parse_color(self, color_input):
+        color_map = {
+            "white": [1.0, 1.0, 1.0],
+            "black": [0.0, 0.0, 0.0],
+            "green": [0.0, 1.0, 0.0],
+            "red": [1.0, 0.0, 0.0],
+            "blue": [0.0, 0.0, 1.0],
+            "gray": [0.5, 0.5, 0.5]
+        }
+        
+        if isinstance(color_input, str) and color_input in color_map:
+            return color_map[color_input]
+        
+        return [0.0, 0.0, 0.0]
+
+    def calculate_alignment(self, align_type, diff_w, diff_h):
+        diff_w, diff_h = max(0, diff_w), max(0, diff_h)
+        x_offset = diff_w // 2
+        y_offset = diff_h // 2
+
+        if "Left" in align_type: x_offset = 0
+        elif "Right" in align_type: x_offset = diff_w
+        
+        if "Top" in align_type: y_offset = 0
+        elif "Bottom" in align_type: y_offset = diff_h
+            
+        return x_offset, y_offset
+
+    def convert(self, image_list, mode, alignment, width, height, background_color=None):
+        if isinstance(mode, list): mode = mode[0]
+        if isinstance(alignment, list): alignment = alignment[0]
+        if isinstance(width, list): width = width[0]
+        if isinstance(height, list): height = height[0]
+        if isinstance(background_color, list): background_color = background_color[0]
+        
+        bg_rgb = self.parse_color(background_color)
+        
+        if not image_list:
+            return (torch.zeros([1, 64, 64, 3]),)
+
+        raw_images = []
+        for item in image_list:
+            if isinstance(item, torch.Tensor):
+                if item.shape[-1] == 1:
+                    item = item.repeat(1, 1, 1, 3) if item.ndim == 4 else item.unsqueeze(-1).repeat(1, 1, 1, 3)
+                elif item.shape[-1] == 4:
+                    item = item[:, :, :, :3]
+                elif item.shape[-1] != 3:
+                     item = item[:, :, :, :3]
+
+                if item.ndim == 3:
+                    raw_images.append(item.unsqueeze(0))
+                elif item.ndim == 4:
+                    raw_images.append(item)
+
+        if not raw_images:
+            return (torch.zeros([1, 64, 64, 3]),)
+
+        target_h, target_w = height, width
+        
+        processed_images = []
+        
+        for img_batch in raw_images:
+            for i in range(img_batch.shape[0]):
+                img = img_batch[i:i+1]
+                curr_h, curr_w = img.shape[1], img.shape[2]
+                
+                img_chw = img.permute(0, 3, 1, 2)
+                
+                if mode == "Stretch":
+                    img_out = F.interpolate(img_chw, size=(target_h, target_w), mode='bilinear', align_corners=False)
+                
+                elif mode == "Crop":
+                    scale = max(target_w / curr_w, target_h / curr_h)
+                    new_w, new_h = max(target_w, round(curr_w * scale)), max(target_h, round(curr_h * scale))
+                    resized = F.interpolate(img_chw, size=(new_h, new_w), mode='bilinear', align_corners=False)
+                    
+                    diff_w, diff_h = new_w - target_w, new_h - target_h
+                    x_off, y_off = self.calculate_alignment(alignment, diff_w, diff_h)
+                    
+                    img_out = resized[:, :, y_off:y_off+target_h, x_off:x_off+target_w]
+                
+                elif mode == "Pad":
+                    scale = min(target_w / curr_w, target_h / curr_h)
+                    new_w, new_h = max(1, round(curr_w * scale)), max(1, round(curr_h * scale))
+                    resized = F.interpolate(img_chw, size=(new_h, new_w), mode='bilinear', align_corners=False)
+                    
+                    diff_w, diff_h = target_w - new_w, target_h - new_h
+                    x_off, y_off = self.calculate_alignment(alignment, diff_w, diff_h)
+                    
+                    bg_tensor = torch.tensor(bg_rgb, device=img.device, dtype=img.dtype).view(1, 3, 1, 1)
+                    final_canvas = bg_tensor.expand(1, 3, target_h, target_w).clone()
+                    
+                    final_canvas[:, :, y_off:y_off+new_h, x_off:x_off+new_w] = resized
+                    img_out = final_canvas
+
+                processed_images.append(img_out.permute(0, 2, 3, 1))
+        
+        if not processed_images:
+             return (torch.zeros([1, target_h, target_w, 3]),)
+             
+        final_batch = torch.cat(processed_images, dim=0)
+        return (final_batch,)
+
+
 
 
 class type_Image_Batch2List:
@@ -287,7 +416,7 @@ class type_ListToBatch:
 
 
 
-#endregion---------------废弃---------------
+#endregion---------------------------
 
 
 
@@ -587,19 +716,6 @@ def make_3d_mask(mask):
         return mask
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 class create_image_batch:
     @classmethod 
     def INPUT_TYPES(s):
@@ -629,10 +745,6 @@ class create_image_batch:
                 image2 = comfy.utils.common_upscale(image2.movedim(-1, 1), image1.shape[2], image1.shape[1], "bicubic", "center").movedim(1, -1)
             image1 = torch.cat((image1, image2), dim=0)
         return (image1,)
-
-
-
-
 
 
 

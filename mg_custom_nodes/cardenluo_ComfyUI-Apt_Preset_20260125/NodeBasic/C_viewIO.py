@@ -538,222 +538,6 @@ class view_GetWidgetsValues:
 
 
 
-class XXXview_bridge_image:   
-    def __init__(self):
-        self.image_id = None
-        self.cached_mask = None  
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "image": ("IMAGE",)
-            },
-            "optional": {
-                "mask": ("MASK",), 
-                "output_mask": ("BOOLEAN", {"default": False, "label_off": "Refresh Mask", "label_on": "Store Mask"}),  
-                "operation": (["+", "-", "*", "&", "None"], {"default": "+"}),
-                "image_update": ("IMAGE_FILE",),  
-
-            }
-        }
-
-    CATEGORY = "Apt_Preset/PreView"
-    RETURN_TYPES = ("IMAGE", "MASK")
-    RETURN_NAMES = ("image", "mask")
-    FUNCTION = "edit"
-    OUTPUT_NODE = True
-    NAME = "view_bridge_image"
-
-    def edit(self, image, mask=None, operation="None", image_update=None, output_mask=False):
-        if self.image_id is None:
-            self.image_id = tensor_to_hash(image)
-            image_update = None
-        else:
-            image_id = tensor_to_hash(image)
-            if image_id != self.image_id:
-                image_update = None
-                self.image_id = image_id
-                # 图像ID变化时重置缓存遮罩
-                if not output_mask:
-                    self.cached_mask = None
-
-        # 优先使用 image_update 中的图像
-        if image_update is not None and 'images' in image_update:
-            images = image_update['images']
-            filename = images[0]['filename']
-            subfolder = images[0]['subfolder']
-            type = images[0]['type']
-            name, base_dir = folder_paths.annotated_filepath(filename)
-
-            if type.endswith("output"):
-                base_dir = folder_paths.get_output_directory()
-            elif type.endswith("input"):
-                base_dir = folder_paths.get_input_directory()
-            elif type.endswith("temp"):
-                base_dir = folder_paths.get_temp_directory()
-
-            image_path = os.path.join(base_dir, subfolder, name)
-            img = node_helpers.pillow(Image.open, image_path)
-        else:
-            # 否则使用 preview_image
-            if mask is not None:
-                try:
-                    masked_result = generate_masked_black_image(image, mask)
-                    preview_image = masked_result["result"][0]
-                except Exception as e:
-                    print(f"[Error] Failed to apply mask for preview: {e}")
-                    preview_image = image
-            else:
-                preview_image = image
-
-            image_path, images = create_temp_file(preview_image)
-            img = node_helpers.pillow(Image.open, image_path)
-
-        # 从图像中提取 mask
-        output_masks = []
-        w, h = None, None
-        excluded_formats = ['MPO']
-
-        for i in ImageSequence.Iterator(img):
-            i = node_helpers.pillow(ImageOps.exif_transpose, i)
-            if i.mode == 'I':
-                i = i.point(lambda i: i * (1 / 255))
-            image_pil = i.convert("RGB")
-
-            if len(output_masks) == 0:
-                w = image_pil.size[0]
-                h = image_pil.size[1]
-
-            if image_pil.size[0] != w or image_pil.size[1] != h:
-                continue
-
-            if 'A' in i.getbands():
-                mask_np = np.array(i.getchannel('A')).astype(np.float32) / 255.0
-                mask_tensor = 1. - torch.from_numpy(mask_np)
-            else:
-                mask_tensor = torch.zeros((h, w), dtype=torch.float32, device="cpu")
-
-            output_masks.append(mask_tensor.unsqueeze(0))
-
-        if len(output_masks) > 1 and img.format not in excluded_formats:
-            output_mask_val = torch.cat(output_masks, dim=0)
-        else:
-            output_mask_val = output_masks[0] if output_masks else torch.zeros_like(image[0, :, :, 0])
-
-        # 新增 Mask 运算逻辑
-        mask1 = mask
-        mask2 = output_mask_val
-
-        # 计算当前运算结果
-        if mask1 is None or operation == "None":
-            current_result = mask2
-        else:
-            invert_mask1 = False
-            invert_mask2 = False
-
-            if invert_mask1:
-                mask1 = 1 - mask1
-            if invert_mask2:
-                mask2 = 1 - mask2
-
-            if mask1.dim() == 2:
-                mask1 = mask1.unsqueeze(0)
-            if mask2.dim() == 2:
-                mask2 = mask2.unsqueeze(0)
-
-            b, h, w = image.shape[0], image.shape[1], image.shape[2]
-            if mask1.shape != (b, h, w):
-                mask1 = torch.zeros((b, h, w), dtype=mask1.dtype, device=mask1.device)
-            if mask2.shape != (b, h, w):
-                mask2 = torch.zeros((b, h, w), dtype=mask2.dtype, device=mask2.device)
-
-            algorithm = "torch"  # 简化逻辑，直接使用torch
-
-            if algorithm == "torch":
-                if operation == "-":
-                    current_result = torch.clamp(mask1 - mask2, min=0, max=1)
-                elif operation == "+":
-                    current_result = torch.clamp(mask1 + mask2, min=0, max=1)
-                elif operation == "*":
-                    current_result = torch.clamp(mask1 * mask2, min=0, max=1)
-                elif operation == "&":
-                    current_result = (torch.round(mask1).bool() & torch.round(mask2).bool()).float()
-                else:
-                    current_result = mask2  # 默认操作为 mask2
-
-        # 根据output_mask控制是否保留遮罩
-        if output_mask:
-            # 如果是第一次启用启用保留，缓存当前结果
-            if self.cached_mask is None:
-                # 为避免显存问题，只在需要时保存缓存，并将其移至CPU
-                self.cached_mask = current_result.detach().cpu()
-            # 使用缓存的遮罩作为结果（需要时移回GPU）
-            final_mask = self.cached_mask.to(current_result.device) if self.cached_mask.device != current_result.device else self.cached_mask
-        else:
-            # 不保留时更新缓存为当前结果
-            self.cached_mask = current_result.detach().cpu()  # 移至CPU以节省GPU显存
-            final_mask = current_result
-
-        # 返回结果
-        return {"ui": {"images": images}, "result": (image, final_mask)}
-
-    # 以下静态方法保持不变
-    @staticmethod
-    def subtract_masks(mask1, mask2):
-        mask1 = mask1.cpu()
-        mask2 = mask2.cpu()
-        cv2_mask1 = np.array(mask1) * 255
-        cv2_mask2 = np.array(mask2) * 255
-        if cv2_mask1.shape == cv2_mask2.shape:
-            cv2_mask = cv2.subtract(cv2_mask1, cv2_mask2)
-            return torch.clamp(torch.from_numpy(cv2_mask) / 255.0, min=0, max=1)
-        else:
-            print("Warning: The two masks have different shapes")
-            return mask1
-
-    @staticmethod
-    def add_masks(mask1, mask2):
-        mask1 = mask1.cpu()
-        mask2 = mask2.cpu()
-        cv2_mask1 = np.array(mask1) * 255
-        cv2_mask2 = np.array(mask2) * 255
-        if cv2_mask1.shape == cv2_mask2.shape:
-            cv2_mask = cv2.add(cv2_mask1, cv2_mask2)
-            return torch.clamp(torch.from_numpy(cv2_mask) / 255.0, min=0, max=1)
-        else:
-            print("Warning: The two masks have different shapes")
-            return mask1
-
-    @staticmethod
-    def multiply_masks(mask1, mask2):
-        mask1 = mask1.cpu()
-        mask2 = mask2.cpu()
-        cv2_mask1 = np.array(mask1) * 255
-        cv2_mask2 = np.array(mask2) * 255
-        if cv2_mask1.shape == cv2_mask2.shape:
-            cv2_mask = cv2.multiply(cv2_mask1, cv2_mask2)
-            return torch.clamp(torch.from_numpy(cv2_mask) / 255.0, min=0, max=1)
-        else:
-            print("Warning: The two masks have different shapes")
-            return mask1
-
-    @staticmethod
-    def and_masks(mask1, mask2):
-        mask1 = mask1.cpu()
-        mask2 = mask2.cpu()
-        cv2_mask1 = np.array(mask1) * 255
-        cv2_mask2 = np.array(mask2) * 255
-        if cv2_mask1.shape == cv2_mask2.shape:
-            cv2_mask = cv2.bitwise_and(cv2_mask1, cv2_mask2)
-            return torch.from_numpy(cv2_mask)
-        else:
-            print("Warning: The two masks have different shapes")
-            return mask1
-
-
-
-
 
 
 
@@ -883,7 +667,6 @@ class view_Mask_And_Img(SaveImage):
         return self.save_images(preview, filename_prefix, prompt, extra_pnginfo)
 
 
-
 class IO_input_any:
     @classmethod
     def INPUT_TYPES(cls):
@@ -937,8 +720,6 @@ class IO_input_any:
         }
         separators = preset_map.get(split_preset, [])
         
-        # 修改部分：只有当split_preset为"Custom"时才使用自定义分隔符
-        # 当split_preset为"None"时，即使提供了delimiter也不使用
         if split_preset == "Custom" and delimiter:
             delimiter = delimiter.replace("\\n", "\n").replace("\\t", "\t").replace("\\s", " ").replace("\\r", "\r")
             separators = [delimiter]
@@ -991,7 +772,6 @@ class IO_input_any:
             except Exception as e:
                 print(f"解析元组失败: {e}")
         
-        # 修改部分：当split_preset为"None"时不进行任何分割
         if split_preset == "None":
             items = [text] if text else []
         elif separators:
@@ -999,7 +779,6 @@ class IO_input_any:
             sep_pattern = '|'.join(escaped_seps)
             items = re.split(f'(?:{sep_pattern})', text)
         else:
-            # 只有当不是"None"且没有明确分隔符时才使用默认分割
             items = re.split(r'[\s,]+', text)
         
         items = [item.strip() for item in items if item.strip()]
@@ -1061,18 +840,19 @@ class IO_load_anyimage:
             }
         }
     RETURN_TYPES = ('IMAGE', 'MASK',)
+    RETURN_NAMES = ("images", "masks")
+    OUTPUT_IS_LIST = (True, True)
     FUNCTION = "get_transparent_image"
     CATEGORY = "Apt_Preset/IO_Port"
     
     def get_transparent_image(self, file_path, max_images=0, keyword_filter=""):
         try:
-            mask_tensor = None
+            image_list = []
+            mask_list = []
             
             file_path = file_path.strip('"')
             
             if os.path.isdir(file_path):
-                images = []
-                
                 image_files = [f for f in os.listdir(file_path) 
                               if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
                 
@@ -1087,22 +867,17 @@ class IO_load_anyimage:
                 for filename in image_files:
                     img_path = os.path.join(file_path, filename)
                     image = Image.open(img_path).convert('RGBA')
-                    images.append(image)
+                    
+                    # 直接处理为张量，不调整尺寸
+                    image_np = np.array(image).astype(np.float32) / 255.0
+                    image_tensor = torch.from_numpy(image_np)[None, :, :, :]
+                    image_list.append(image_tensor)
+                    mask_list.append(None)
                 
-                if not images:
-                    return None, None
+                if not image_list:
+                    return [], []
                 
-                target_size = images[0].size
-                resized_images = []
-                for image in images:
-                    if image.size != target_size:
-                        image = image.resize(target_size, Image.BILINEAR)
-                    resized_images.append(image)
-                
-                batch_images = np.stack([np.array(img) for img in resized_images], axis=0).astype(np.float32) / 255.0
-                batch_tensor = torch.from_numpy(batch_images)
-                
-                return batch_tensor, mask_tensor        
+                return image_list, mask_list        
             else:
                 image = Image.open(file_path)
                 if image is not None:
@@ -1110,16 +885,15 @@ class IO_load_anyimage:
                     
                     if keyword_filter and keyword_filter not in os.path.basename(file_path):
                         print(f"文件 {file_path} 不包含关键字 '{keyword_filter}'，跳过加载")
-                        return None, None
+                        return [], []
                     
                     image_np = np.array(image_rgba).astype(np.float32) / 255.0
                     image_tensor = torch.from_numpy(image_np)[None, :, :, :]
-            
-                    return (image_tensor, mask_tensor)
+                    return [image_tensor], [None]
             
         except Exception as e:
             print(f"出错请重置节点：{e}")
-        return None, None
+        return [], []
 
 
 
@@ -1439,193 +1213,8 @@ class IO_save_image:
 
 
 
-#region-------------IO_store_image-------------
-import torch
-import numpy as np
-import io
-import base64
-import json
-from PIL import Image
-from typing import Optional, Dict, Any, List
 
-GLOBAL_STORED_IMAGES: List[torch.Tensor] = []
-GLOBAL_DISPLAY_DATA: List[Dict[str, Any]] = []
-
-class IO_store_image:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {},
-            "optional": {
-                "image": ("IMAGE", {}),
-                "image_output": (["Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),
-                "release_total": ("INT", {"default": 0, "min": 0, "step": 1}),
-            },
-            "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO",},
-        }
-    NAME = "IO_store_image"
-    RETURN_TYPES = ("IMAGE", "INT")
-    RETURN_NAMES = ("image", "total")
-    FUNCTION = "store_image"
-    CATEGORY = "Apt_Preset/IO_Port"
-    OUTPUT_NODE = True
-    DESCRIPTION = """
-    输出逻辑：
-    - 尺寸一致时：
-      - release_total ≤ 0 → 输出全部存储的图像
-      - release_total > 0 → 
-        1. 存储总数 = release_total → 输出全部存储的图像
-        2. 存储总数 < release_total → 用最后一张图像尺寸的白底图补齐数量
-        3. 存储总数 > release_total → 输出倒数 release_total 张图像
-    - 尺寸不一致时：仅输出最后一张图像
-"""
-
-    def __init__(self):
-        global GLOBAL_STORED_IMAGES, GLOBAL_DISPLAY_DATA
-        GLOBAL_STORED_IMAGES = []
-        GLOBAL_DISPLAY_DATA = []
-        print("IO_store_image node initialized (storage reset)")
-
-    def store_image(self, image: Optional[torch.Tensor] = None, 
-                   prompt: Any = None, image_output: str = None, 
-                   extra_pnginfo: Any = None, release_total: float = 0) -> Dict[str, Any]:
-        global GLOBAL_STORED_IMAGES, GLOBAL_DISPLAY_DATA
-        
-        if image is not None:
-            if not GLOBAL_STORED_IMAGES:
-                GLOBAL_STORED_IMAGES.append(image)
-                GLOBAL_DISPLAY_DATA.append(self._prepare_image_display(image))
-            else:
-                last_img = GLOBAL_STORED_IMAGES[-1]
-                if image.shape != last_img.shape:
-                    GLOBAL_STORED_IMAGES.append(image)
-                    GLOBAL_DISPLAY_DATA.append(self._prepare_image_display(image))
-                else:
-                    if not torch.allclose(image, last_img):
-                        GLOBAL_STORED_IMAGES.append(image)
-                        GLOBAL_DISPLAY_DATA.append(self._prepare_image_display(image))
-        
-        total_stored = len(GLOBAL_STORED_IMAGES)
-        output_image = None
-
-        if total_stored > 0:
-            channels = [img.shape[1] for img in GLOBAL_STORED_IMAGES]
-            if len(set(channels)) > 1:
-                print("Warning: Images have different channel counts, outputting last image")
-                output_image = GLOBAL_STORED_IMAGES[-1]
-                current_total = total_stored
-                return self._prepare_return_data(output_image, current_total, image_output, prompt, extra_pnginfo)
-        
-        if total_stored > 0:
-            sizes = [(img.shape[2], img.shape[3]) for img in GLOBAL_STORED_IMAGES]
-            sizes_consistent = len(set(sizes)) == 1
-        else:
-            sizes_consistent = False
-        
-        if total_stored == 0:
-            output_image = image
-            current_total = 0
-        else:
-            if not sizes_consistent:
-                output_image = GLOBAL_STORED_IMAGES[-1]
-                current_total = total_stored
-            else:
-                release_total = int(release_total)
-                if release_total <= 0:
-                    output_image = torch.cat(GLOBAL_STORED_IMAGES, dim=0)
-                    current_total = total_stored
-                else:
-                    if total_stored == release_total:
-                        output_image = torch.cat(GLOBAL_STORED_IMAGES, dim=0)
-                        current_total = total_stored
-                    elif total_stored < release_total:
-                        last_img = GLOBAL_STORED_IMAGES[-1]
-                        white_img = torch.ones_like(last_img)
-                        need_white = release_total - total_stored
-                        extended_images = GLOBAL_STORED_IMAGES + [white_img] * need_white
-                        output_image = torch.cat(extended_images, dim=0)
-                        current_total = release_total
-                    else:
-                        start_idx = total_stored - release_total
-                        selected_imgs = GLOBAL_STORED_IMAGES[start_idx:]
-                        output_image = torch.cat(selected_imgs, dim=0)
-                        current_total = release_total
-        
-        if output_image is None:
-            output_image = image
-            current_total = 0
-
-        return self._prepare_return_data(output_image, current_total, image_output, prompt, extra_pnginfo)
-
-    def _prepare_image_display(self, image_tensor: torch.Tensor) -> Dict[str, Any]:
-        try:
-            img_np = image_tensor[0].cpu().numpy()
-            img_np = np.transpose(img_np, (1, 2, 0))
-            img_np = (img_np * 255).astype(np.uint8)
-            
-            buffer = io.BytesIO()
-            Image.fromarray(img_np).save(buffer, format="PNG")
-            img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-            
-            return {
-                "type": "image",
-                "shape": image_tensor.shape,
-                "size": f"{image_tensor.shape[2]}x{image_tensor.shape[3]}",
-                "data": img_b64,
-                "index": len(GLOBAL_STORED_IMAGES)
-            }
-        except Exception as e:
-            return {
-                "type": "image",
-                "error": str(e),
-                "shape": image_tensor.shape if isinstance(image_tensor, torch.Tensor) else "invalid"
-            }
-    
-    def _prepare_return_data(self, output_image: torch.Tensor, current_total: int, 
-                            image_output: str, prompt: Any, extra_pnginfo: Any) -> Dict[str, Any]:
-        try:
-            results = []
-            for img in GLOBAL_STORED_IMAGES:
-                results.extend(easySave(img, 'easyPreview', image_output, prompt, extra_pnginfo))
-        except NameError:
-            results = []
-            print("Warning: easySave function not found")
-        
-        if image_output in ("Hide", "Hide/Save"):
-            return {"ui": {}, "result": (output_image, current_total)}
-        return {"ui": {"images": results}, "result": (output_image, current_total)}
-
-    @classmethod
-    def IS_CHANGED(cls, image: Optional[torch.Tensor] = None, 
-                   release_total: float = 0, image_output: str = None) -> str:
-        img_id = f"{image.shape}-{id(image)}" if isinstance(image, torch.Tensor) else "none"
-        return json.dumps({
-            "image_id": img_id, 
-            "release_total": int(release_total),
-            "image_output": image_output
-        })
-
-    def get_display_content(self) -> Dict[str, Any]:
-        return {
-            "total_images": len(GLOBAL_STORED_IMAGES),
-            "images": GLOBAL_DISPLAY_DATA,
-            "last_updated": str(len(GLOBAL_STORED_IMAGES))
-        }
-
-def __reload__(module):
-    global GLOBAL_STORED_IMAGES, GLOBAL_DISPLAY_DATA
-    GLOBAL_STORED_IMAGES = []
-    GLOBAL_DISPLAY_DATA = []
-    print("IO_store_image module reloaded (storage reset)")
-
-#endregion-------------IO_store_image------------------
-
-
-
-
-
-
-
+#region-------------view_bridge_image------------------
 
 import os
 import torch
@@ -1868,7 +1457,7 @@ class view_bridge_image:
             print("Warning: The two masks have different shapes")
             return mask1
 
-
+#endregion-------------view_bridge_image------------------
 
 
 
@@ -1879,8 +1468,6 @@ class view_bridge_image:
 def handle_error_safe(e: Exception, msg: str = "Operation failed", port_count: int = 1):
     print(f"[CCNotes] {msg}: {e}")
     return tuple([[""] for _ in range(port_count)])
-
-
 
 
 
@@ -1936,6 +1523,1081 @@ class view_Primitive:
             return tuple(output_values)
         except Exception as e:
             return handle_error_safe(e, "view_Primitive failed", 15)
+
+
+
+
+
+#region-------------IO_store_image--自动控制输出-但是不能补齐-----------
+try:
+    from comfy_execution.graph import ExecutionBlocker
+except ImportError:
+    class ExecutionBlocker:
+        def __init__(self, value):
+            self.value = value
+
+import torch
+import numpy as np
+import io
+import base64
+import json
+from PIL import Image
+from typing import Optional, Dict, Any, List
+
+GLOBAL_STORED_IMAGES: List[torch.Tensor] = []
+GLOBAL_DISPLAY_DATA: List[Dict[str, Any]] = []
+
+class IO_store_image:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+            "optional": {
+                "image": ("IMAGE", {}),
+                "image_output": (["Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),
+                "release_total": ("INT", {"default": 0, "min": 0, "step": 1}),
+            },
+            "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO",},
+        }
+    NAME = "IO_store_image"
+    RETURN_TYPES = ("IMAGE", "INT")
+    RETURN_NAMES = ("image", "release_total")
+    FUNCTION = "store_image"
+    CATEGORY = "Apt_Preset/IO_Port"
+    OUTPUT_NODE = True
+    DESCRIPTION = """
+    输出逻辑：
+    - 全部尺寸一致时：
+      - release_total ≤ 0 → 输出全部存储的图像
+      - release_total > 0 → 
+        1. 存储总数 = release_total → 输出全部
+        2. 存储总数 < release_total → 关闭输出
+        3. 存储总数 > release_total → 从后面数够数量的图像输出
+    - 若不是全部一致时：仅输出最后一张图像
+"""
+
+    def __init__(self):
+        global GLOBAL_STORED_IMAGES, GLOBAL_DISPLAY_DATA
+        GLOBAL_STORED_IMAGES = []
+        GLOBAL_DISPLAY_DATA = []
+        print("IO_store_image node initialized (storage reset)")
+
+    # ========== 核心改造：原IMAGE_BooleanSwitch合并为内部方法 ==========
+    def _image_boolean_switch(self, switch: bool, image: Optional[torch.Tensor] = None):
+        """原IMAGE_BooleanSwitch的核心逻辑，合并为内部私有方法"""
+        if switch is True:
+            return (image,)
+        else:
+            if ExecutionBlocker is not None:
+                return (ExecutionBlocker(None),)
+            else:
+                return ({},)
+
+    def store_image(self, image: Optional[torch.Tensor] = None, 
+                   prompt: Any = None, image_output: str = None, 
+                   extra_pnginfo: Any = None, release_total: float = 0) -> Dict[str, Any]:
+        global GLOBAL_STORED_IMAGES, GLOBAL_DISPLAY_DATA
+        
+        # 图像存储逻辑：去重+追加，原逻辑保留不变
+        if image is not None:
+            if not GLOBAL_STORED_IMAGES:
+                GLOBAL_STORED_IMAGES.append(image)
+                GLOBAL_DISPLAY_DATA.append(self._prepare_image_display(image))
+            else:
+                last_img = GLOBAL_STORED_IMAGES[-1]
+                if image.shape != last_img.shape:
+                    GLOBAL_STORED_IMAGES.append(image)
+                    GLOBAL_DISPLAY_DATA.append(self._prepare_image_display(image))
+                else:
+                    if not torch.allclose(image, last_img):
+                        GLOBAL_STORED_IMAGES.append(image)
+                        GLOBAL_DISPLAY_DATA.append(self._prepare_image_display(image))
+        
+        total_stored = len(GLOBAL_STORED_IMAGES)
+        output_image = None
+        switch_boolean = False  # 核心布尔开关，默认关闭输出
+
+        # 通道数不一致的判断逻辑
+        if total_stored > 0:
+            channels = [img.shape[1] for img in GLOBAL_STORED_IMAGES]
+            if len(set(channels)) > 1:
+                print("Warning: Images have different channel counts, outputting last image")
+                output_image = GLOBAL_STORED_IMAGES[-1]
+                current_total = total_stored
+                return self._prepare_return_data(output_image, current_total, image_output, prompt, extra_pnginfo)
+        
+        # 判断所有存储图像尺寸是否一致
+        if total_stored > 0:
+            sizes = [(img.shape[2], img.shape[3]) for img in GLOBAL_STORED_IMAGES]
+            sizes_consistent = len(set(sizes)) == 1
+        else:
+            sizes_consistent = False
+        
+        # ========== 核心改造：全新业务逻辑 + 标准IF布尔判断 ==========
+        if total_stored == 0:
+            output_image = image
+            current_total = 0
+        else:
+            # 尺寸不一致 → 固定输出最后一张图像
+            if not sizes_consistent:
+                output_image = GLOBAL_STORED_IMAGES[-1]
+                current_total = total_stored
+            # 尺寸一致 → 执行新的核心分支逻辑
+            else:
+                release_total = int(release_total)
+                # 分支1: release_total ≤ 0 → 输出全部存储的图像，开关为真
+                if release_total <= 0:
+                    switch_boolean = True
+                    output_image = torch.cat(GLOBAL_STORED_IMAGES, dim=0)
+                    current_total = total_stored
+                # 分支2: release_total > 0 → 三层IF布尔判断
+                else:
+                    # 子分支1: 存储总数 = release_total → 布尔真，打开输出，输出全部
+                    if total_stored == release_total:
+                        switch_boolean = True
+                        output_image = torch.cat(GLOBAL_STORED_IMAGES, dim=0)
+                        current_total = total_stored
+                    # 子分支2: 存储总数 < release_total → 布尔假，关闭输出
+                    elif total_stored < release_total:
+                        switch_boolean = False
+                        output_image = None
+                        current_total = total_stored
+                    # 子分支3: 存储总数 > release_total → 布尔真，打开输出，输出倒数N张
+                    elif total_stored > release_total:
+                        switch_boolean = True
+                        start_idx = total_stored - release_total
+                        selected_imgs = GLOBAL_STORED_IMAGES[start_idx:]
+                        output_image = torch.cat(selected_imgs, dim=0)
+                        current_total = release_total
+
+        # 兜底空值处理
+        if output_image is None:
+            output_image = image
+            current_total = 0
+
+        # ========== 核心调用：使用合并后的内部开关逻辑，控制最终输出 ==========
+        final_output_image = self._image_boolean_switch(switch_boolean, output_image)[0]
+
+        return self._prepare_return_data(final_output_image, current_total, image_output, prompt, extra_pnginfo)
+
+    def _prepare_image_display(self, image_tensor: torch.Tensor) -> Dict[str, Any]:
+        try:
+            img_np = image_tensor[0].cpu().numpy()
+            img_np = np.transpose(img_np, (1, 2, 0))
+            img_np = (img_np * 255).astype(np.uint8)
+            
+            buffer = io.BytesIO()
+            Image.fromarray(img_np).save(buffer, format="PNG")
+            img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            
+            return {
+                "type": "image",
+                "shape": image_tensor.shape,
+                "size": f"{image_tensor.shape[2]}x{image_tensor.shape[3]}",
+                "data": img_b64,
+                "index": len(GLOBAL_STORED_IMAGES)
+            }
+        except Exception as e:
+            return {
+                "type": "image",
+                "error": str(e),
+                "shape": image_tensor.shape if isinstance(image_tensor, torch.Tensor) else "invalid"
+            }
+    
+    def _prepare_return_data(self, output_image: torch.Tensor, current_total: int, 
+                            image_output: str, prompt: Any, extra_pnginfo: Any) -> Dict[str, Any]:
+        try:
+            results = []
+            for img in GLOBAL_STORED_IMAGES:
+                results.extend(easySave(img, 'easyPreview', image_output, prompt, extra_pnginfo))
+        except NameError:
+            results = []
+            print("Warning: easySave function not found")
+        
+        if image_output in ("Hide", "Hide/Save"):
+            return {"ui": {}, "result": (output_image, current_total)}
+        return {"ui": {"images": results}, "result": (output_image, current_total)}
+
+    @classmethod
+    def IS_CHANGED(cls, image: Optional[torch.Tensor] = None, 
+                   release_total: float = 0, image_output: str = None) -> str:
+        img_id = f"{image.shape}-{id(image)}" if isinstance(image, torch.Tensor) else "none"
+        return json.dumps({
+            "image_id": img_id, 
+            "release_total": int(release_total),
+            "image_output": image_output
+        })
+
+    def get_display_content(self) -> Dict[str, Any]:
+        return {
+            "total_images": len(GLOBAL_STORED_IMAGES),
+            "images": GLOBAL_DISPLAY_DATA,
+            "last_updated": str(len(GLOBAL_STORED_IMAGES))
+        }
+
+def __reload__(module):
+    global GLOBAL_STORED_IMAGES, GLOBAL_DISPLAY_DATA
+    GLOBAL_STORED_IMAGES = []
+    GLOBAL_DISPLAY_DATA = []
+    print("IO_store_image module reloaded (storage reset)")
+
+#endregion-------------IO_store_image------------------
+
+
+
+
+
+#region------------XXXXIO_store_image-------------
+
+
+
+import torch
+import numpy as np
+import io
+import base64
+import json
+from PIL import Image
+from typing import Optional, Dict, Any, List
+
+GLOBAL_STORED_IMAGES: List[torch.Tensor] = []
+GLOBAL_DISPLAY_DATA: List[Dict[str, Any]] = []
+
+class XXXXIO_store_image:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+            "optional": {
+                "image": ("IMAGE", {}),
+                "image_output": (["Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),
+                "release_total": ("INT", {"default": 0, "min": 0, "step": 1}),
+            },
+            "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO",},
+        }
+    NAME = "IO_store_image"
+    RETURN_TYPES = ("IMAGE", "INT")
+    RETURN_NAMES = ("image", "release_total")
+    FUNCTION = "store_image"
+    CATEGORY = "Apt_Preset/IO_Port"
+    OUTPUT_NODE = True
+    DESCRIPTION = """
+    输出逻辑：
+    - 尺寸一致时：
+      - release_total ≤ 0 → 输出全部存储的图像
+      - release_total > 0 → 
+        1. 存储总数 = release_total → 输出全部存储的图像
+        2. 存储总数 < release_total → 用最后一张图像尺寸的白底图补齐数量
+        3. 存储总数 > release_total → 输出倒数 release_total 张图像
+    - 尺寸不一致时：仅输出最后一张图像
+"""
+
+    def __init__(self):
+        global GLOBAL_STORED_IMAGES, GLOBAL_DISPLAY_DATA
+        GLOBAL_STORED_IMAGES = []
+        GLOBAL_DISPLAY_DATA = []
+        print("IO_store_image node initialized (storage reset)")
+
+    def store_image(self, image: Optional[torch.Tensor] = None, 
+                   prompt: Any = None, image_output: str = None, 
+                   extra_pnginfo: Any = None, release_total: float = 0) -> Dict[str, Any]:
+        global GLOBAL_STORED_IMAGES, GLOBAL_DISPLAY_DATA
+        
+        if image is not None:
+            if not GLOBAL_STORED_IMAGES:
+                GLOBAL_STORED_IMAGES.append(image)
+                GLOBAL_DISPLAY_DATA.append(self._prepare_image_display(image))
+            else:
+                last_img = GLOBAL_STORED_IMAGES[-1]
+                if image.shape != last_img.shape:
+                    GLOBAL_STORED_IMAGES.append(image)
+                    GLOBAL_DISPLAY_DATA.append(self._prepare_image_display(image))
+                else:
+                    if not torch.allclose(image, last_img):
+                        GLOBAL_STORED_IMAGES.append(image)
+                        GLOBAL_DISPLAY_DATA.append(self._prepare_image_display(image))
+        
+        total_stored = len(GLOBAL_STORED_IMAGES)
+        output_image = None
+
+        if total_stored > 0:
+            channels = [img.shape[1] for img in GLOBAL_STORED_IMAGES]
+            if len(set(channels)) > 1:
+                print("Warning: Images have different channel counts, outputting last image")
+                output_image = GLOBAL_STORED_IMAGES[-1]
+                current_total = total_stored
+                return self._prepare_return_data(output_image, current_total, image_output, prompt, extra_pnginfo)
+        
+        if total_stored > 0:
+            sizes = [(img.shape[2], img.shape[3]) for img in GLOBAL_STORED_IMAGES]
+            sizes_consistent = len(set(sizes)) == 1
+        else:
+            sizes_consistent = False
+        
+        if total_stored == 0:
+            output_image = image
+            current_total = 0
+        else:
+            if not sizes_consistent:
+                output_image = GLOBAL_STORED_IMAGES[-1]
+                current_total = total_stored
+            else:
+                release_total = int(release_total)
+                if release_total <= 0:
+                    output_image = torch.cat(GLOBAL_STORED_IMAGES, dim=0)
+                    current_total = total_stored
+                else:
+                    if total_stored == release_total:
+                        output_image = torch.cat(GLOBAL_STORED_IMAGES, dim=0)
+                        current_total = total_stored
+                    elif total_stored < release_total:
+                        last_img = GLOBAL_STORED_IMAGES[-1]
+                        white_img = torch.ones_like(last_img)
+                        need_white = release_total - total_stored
+                        extended_images = GLOBAL_STORED_IMAGES + [white_img] * need_white
+                        output_image = torch.cat(extended_images, dim=0)
+                        current_total = release_total
+                    else:
+                        start_idx = total_stored - release_total
+                        selected_imgs = GLOBAL_STORED_IMAGES[start_idx:]
+                        output_image = torch.cat(selected_imgs, dim=0)
+                        current_total = release_total
+        
+        if output_image is None:
+            output_image = image
+            current_total = 0
+
+        return self._prepare_return_data(output_image, current_total, image_output, prompt, extra_pnginfo)
+
+    def _prepare_image_display(self, image_tensor: torch.Tensor) -> Dict[str, Any]:
+        try:
+            img_np = image_tensor[0].cpu().numpy()
+            img_np = np.transpose(img_np, (1, 2, 0))
+            img_np = (img_np * 255).astype(np.uint8)
+            
+            buffer = io.BytesIO()
+            Image.fromarray(img_np).save(buffer, format="PNG")
+            img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            
+            return {
+                "type": "image",
+                "shape": image_tensor.shape,
+                "size": f"{image_tensor.shape[2]}x{image_tensor.shape[3]}",
+                "data": img_b64,
+                "index": len(GLOBAL_STORED_IMAGES)
+            }
+        except Exception as e:
+            return {
+                "type": "image",
+                "error": str(e),
+                "shape": image_tensor.shape if isinstance(image_tensor, torch.Tensor) else "invalid"
+            }
+    
+    def _prepare_return_data(self, output_image: torch.Tensor, current_total: int, 
+                            image_output: str, prompt: Any, extra_pnginfo: Any) -> Dict[str, Any]:
+        try:
+            results = []
+            for img in GLOBAL_STORED_IMAGES:
+                results.extend(easySave(img, 'easyPreview', image_output, prompt, extra_pnginfo))
+        except NameError:
+            results = []
+            print("Warning: easySave function not found")
+        
+        if image_output in ("Hide", "Hide/Save"):
+            return {"ui": {}, "result": (output_image, current_total)}
+        return {"ui": {"images": results}, "result": (output_image, current_total)}
+
+    @classmethod
+    def IS_CHANGED(cls, image: Optional[torch.Tensor] = None, 
+                   release_total: float = 0, image_output: str = None) -> str:
+        img_id = f"{image.shape}-{id(image)}" if isinstance(image, torch.Tensor) else "none"
+        return json.dumps({
+            "image_id": img_id, 
+            "release_total": int(release_total),
+            "image_output": image_output
+        })
+
+    def get_display_content(self) -> Dict[str, Any]:
+        return {
+            "total_images": len(GLOBAL_STORED_IMAGES),
+            "images": GLOBAL_DISPLAY_DATA,
+            "last_updated": str(len(GLOBAL_STORED_IMAGES))
+        }
+
+def __reload__(module):
+    global GLOBAL_STORED_IMAGES, GLOBAL_DISPLAY_DATA
+    GLOBAL_STORED_IMAGES = []
+    GLOBAL_DISPLAY_DATA = []
+    print("IO_store_image module reloaded (storage reset)")
+
+
+
+#endregion-------------IO_store_image------------------
+
+
+
+
+
+#region-------------IO_EasyMark------------------
+
+import torch
+import numpy as np
+import nodes
+from PIL import Image
+from PIL import ImageDraw, ImageFont
+import io
+import base64
+
+class IO_EasyMark:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "brush_data": ("STRING", {"default": "", "multiline": True}),
+                "brush_size": ("INT", {"default": 4, "min": 1, "max": 100, "step": 1}),
+                "image_base64": ("STRING", {"default": "", "multiline": True}),
+            },
+        }
+
+    NAME="IO_EasyMark"
+    RETURN_TYPES = ("IMAGE", "IMAGE", "MASK", "MASK", "MASK", "MASK", "MASK", "MASK", "MASK")
+    RETURN_NAMES = ("原图", "合成图", "总mask", "黑mask", "白mask", "红mask", "绿mask", "蓝mask", "灰mask")
+    FUNCTION = "main"
+    CATEGORY = "Apt_Preset/IO_Port"
+
+    def main(self, brush_data, brush_size, image_base64):
+        background_img_tensor = None
+        
+        if image_base64 and image_base64.strip():
+            try:
+                base64_data = image_base64.strip()
+                if ',' in base64_data:
+                    base64_data = base64_data.split(',')[-1]
+                
+                img_bytes = base64.b64decode(base64_data)
+                img_pil = Image.open(io.BytesIO(img_bytes))
+                if img_pil.mode != 'RGB':
+                    img_pil = img_pil.convert('RGB')
+                img_np = np.array(img_pil).astype(np.float32) / 255.0
+                background_img_tensor = torch.from_numpy(img_np).unsqueeze(0)
+            except Exception as e:
+                print(f"Error loading image from base64: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        if background_img_tensor is None:
+            background_img_tensor = torch.zeros((1, 512, 512, 3), dtype=torch.float32)
+        
+        batch_size = background_img_tensor.shape[0]
+        height = background_img_tensor.shape[1]
+        width = background_img_tensor.shape[2]
+        
+        black_mask = torch.zeros((batch_size, height, width), dtype=torch.float32)
+        white_mask = torch.zeros((batch_size, height, width), dtype=torch.float32)
+        red_mask = torch.zeros((batch_size, height, width), dtype=torch.float32)
+        green_mask = torch.zeros((batch_size, height, width), dtype=torch.float32)
+        blue_mask = torch.zeros((batch_size, height, width), dtype=torch.float32)
+        gray_mask = torch.zeros((batch_size, height, width), dtype=torch.float32)
+        marker_annotations = []
+        
+        if brush_data and brush_data.strip():
+            try:
+                strokes = brush_data.split('|')
+                
+                black_mask_np = black_mask[0].numpy().copy()
+                white_mask_np = white_mask[0].numpy().copy()
+                red_mask_np = red_mask[0].numpy().copy()
+                green_mask_np = green_mask[0].numpy().copy()
+                blue_mask_np = blue_mask[0].numpy().copy()
+                gray_mask_np = gray_mask[0].numpy().copy()
+                
+                color_mapping = {
+                    "0,0,0": "black",
+                    "255,255,255": "white",
+                    "255,0,0": "red",
+                    "0,255,0": "green",
+                    "0,0,255": "blue",
+                    "128,128,128": "gray"
+                }
+                
+                for stroke_idx, stroke in enumerate(strokes):
+                    if not stroke.strip():
+                        continue
+                    
+                    mode = 'brush'
+                    stroke_type = 'free'
+                    stroke_size = brush_size
+                    stroke_opacity = 1.0
+                    stroke_color = "255,255,255"
+                    points_str = stroke
+                    marker_id = None
+                    
+                    if ':' in stroke:
+                        parts = stroke.split(':')
+                        if len(parts) >= 6:
+                            mode = parts[0] if parts[0] in ('brush', 'erase') else 'brush'
+                            stroke_type = parts[1] if parts[1] in ('free', 'box', 'square') else 'free'
+                            stroke_size = int(float(parts[2]))
+                            stroke_opacity = float(parts[3])
+                            stroke_color = parts[4]
+                            if len(parts) >= 7 and parts[5] in ('1', '2', '3', '4', '5', '6') and ',' not in parts[5]:
+                                marker_id = parts[5]
+                                points_str = ':'.join(parts[6:])
+                            else:
+                                points_str = ':'.join(parts[5:])
+                        elif len(parts) >= 2:
+                            if parts[0] in ('brush', 'erase'):
+                                mode = parts[0]
+                                points_str = ':'.join(parts[1:])
+                            elif parts[0] in ('free', 'box', 'square'):
+                                stroke_type = parts[0]
+                                points_str = ':'.join(parts[1:])
+                    
+                    radius = max(1, stroke_size // 2)
+                    
+                    point_list = points_str.split(';')
+                    path_points = []
+                    
+                    for point_str in point_list:
+                        if not point_str.strip():
+                            continue
+                        try:
+                            coords = point_str.split(',', 1)
+                            if len(coords) == 2:
+                                x = int(float(coords[0]))
+                                y = int(float(coords[1]))
+                                path_points.append((x, y))
+                        except (ValueError, IndexError):
+                            continue
+                    
+                    if len(path_points) == 0:
+                        continue
+                    
+                    stroke_color_key = stroke_color
+                    color_type = color_mapping.get(stroke_color_key, "default")
+                    
+                    x_coords = [p[0] for p in path_points]
+                    y_coords = [p[1] for p in path_points]
+                    min_x, max_x = min(x_coords), max(x_coords)
+                    min_y, max_y = min(y_coords), max(y_coords)
+
+                    if marker_id is not None and stroke_type == 'square' and mode != 'erase':
+                        valid_min_x = max(0, min_x)
+                        valid_max_x = min(width - 1, max_x)
+                        valid_min_y = max(0, min_y)
+                        valid_max_y = min(height - 1, max_y)
+                        if valid_max_x > valid_min_x and valid_max_y > valid_min_y:
+                            marker_annotations.append({
+                                "id": marker_id,
+                                "min_x": int(valid_min_x),
+                                "max_x": int(valid_max_x),
+                                "min_y": int(valid_min_y),
+                                "max_y": int(valid_max_y),
+                            })
+                        continue
+                    
+                    if stroke_type == 'square':
+                        valid_min_x = max(0, min_x)
+                        valid_max_x = min(width, max_x + 1)
+                        valid_min_y = max(0, min_y)
+                        valid_max_y = min(height, max_y + 1)
+                        
+                        if valid_max_x <= valid_min_x or valid_max_y <= valid_min_y:
+                            continue
+                        
+                        if mode == 'erase':
+                            black_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = 0.0
+                            white_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = 0.0
+                            red_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = 0.0
+                            green_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = 0.0
+                            blue_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = 0.0
+                            gray_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = 0.0
+                        else:
+                            if color_type == "black":
+                                black_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = stroke_opacity
+                            elif color_type == "white":
+                                white_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = stroke_opacity
+                            elif color_type == "red":
+                                red_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = stroke_opacity
+                            elif color_type == "green":
+                                green_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = stroke_opacity
+                            elif color_type == "blue":
+                                blue_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = stroke_opacity
+                            elif color_type == "gray":
+                                gray_mask_np[valid_min_y:valid_max_y, valid_min_x:valid_max_x] = stroke_opacity
+                    elif stroke_type == 'box':
+                        x0 = max(0, min_x)
+                        x1 = min(width, max_x + 1)
+                        y0 = max(0, min_y)
+                        y1 = min(height, max_y + 1)
+
+                        if x1 <= x0 or y1 <= y0:
+                            continue
+
+                        thickness = max(1, int(stroke_size))
+                        top_y1 = min(y1, y0 + thickness)
+                        bottom_y0 = max(y0, y1 - thickness)
+                        left_x1 = min(x1, x0 + thickness)
+                        right_x0 = max(x0, x1 - thickness)
+
+                        edges = [
+                            (slice(y0, top_y1), slice(x0, x1)),
+                            (slice(bottom_y0, y1), slice(x0, x1)),
+                            (slice(y0, y1), slice(x0, left_x1)),
+                            (slice(y0, y1), slice(right_x0, x1)),
+                        ]
+
+                        if mode == 'erase':
+                            for ys, xs in edges:
+                                black_mask_np[ys, xs] = 0.0
+                                white_mask_np[ys, xs] = 0.0
+                                red_mask_np[ys, xs] = 0.0
+                                green_mask_np[ys, xs] = 0.0
+                                blue_mask_np[ys, xs] = 0.0
+                                gray_mask_np[ys, xs] = 0.0
+                        else:
+                            target_mask = None
+                            if color_type == "black":
+                                target_mask = black_mask_np
+                            elif color_type == "white":
+                                target_mask = white_mask_np
+                            elif color_type == "red":
+                                target_mask = red_mask_np
+                            elif color_type == "green":
+                                target_mask = green_mask_np
+                            elif color_type == "blue":
+                                target_mask = blue_mask_np
+                            elif color_type == "gray":
+                                target_mask = gray_mask_np
+                            if target_mask is not None:
+                                for ys, xs in edges:
+                                    target_mask[ys, xs] = stroke_opacity
+                    else:
+                        for i, (x, y) in enumerate(path_points):
+                                if i > 0:
+                                    prev_x, prev_y = path_points[i-1]
+                                    if mode == 'erase':
+                                        self._erase_line(black_mask_np, prev_x, prev_y, x, y, radius)
+                                        self._erase_line(white_mask_np, prev_x, prev_y, x, y, radius)
+                                        self._erase_line(red_mask_np, prev_x, prev_y, x, y, radius)
+                                        self._erase_line(green_mask_np, prev_x, prev_y, x, y, radius)
+                                        self._erase_line(blue_mask_np, prev_x, prev_y, x, y, radius)
+                                        self._erase_line(gray_mask_np, prev_x, prev_y, x, y, radius)
+                                    else:
+                                        if color_type == "black":
+                                            self._draw_line(black_mask_np, prev_x, prev_y, x, y, radius)
+                                        elif color_type == "white":
+                                            self._draw_line(white_mask_np, prev_x, prev_y, x, y, radius)
+                                        elif color_type == "red":
+                                            self._draw_line(red_mask_np, prev_x, prev_y, x, y, radius)
+                                        elif color_type == "green":
+                                            self._draw_line(green_mask_np, prev_x, prev_y, x, y, radius)
+                                        elif color_type == "blue":
+                                            self._draw_line(blue_mask_np, prev_x, prev_y, x, y, radius)
+                                        elif color_type == "gray":
+                                            self._draw_line(gray_mask_np, prev_x, prev_y, x, y, radius)
+                                else:
+                                    if mode == 'erase':
+                                        self._erase_circle(black_mask_np, x, y, radius)
+                                        self._erase_circle(white_mask_np, x, y, radius)
+                                        self._erase_circle(red_mask_np, x, y, radius)
+                                        self._erase_circle(green_mask_np, x, y, radius)
+                                        self._erase_circle(blue_mask_np, x, y, radius)
+                                        self._erase_circle(gray_mask_np, x, y, radius)
+                                    else:
+                                        if color_type == "black":
+                                            self._draw_circle(black_mask_np, x, y, radius)
+                                        elif color_type == "white":
+                                            self._draw_circle(white_mask_np, x, y, radius)
+                                        elif color_type == "red":
+                                            self._draw_circle(red_mask_np, x, y, radius)
+                                        elif color_type == "green":
+                                            self._draw_circle(green_mask_np, x, y, radius)
+                                        elif color_type == "blue":
+                                            self._draw_circle(blue_mask_np, x, y, radius)
+                                        elif color_type == "gray":
+                                            self._draw_circle(gray_mask_np, x, y, radius)
+                
+                black_mask[0] = torch.from_numpy(black_mask_np)
+                white_mask[0] = torch.from_numpy(white_mask_np)
+                red_mask[0] = torch.from_numpy(red_mask_np)
+                green_mask[0] = torch.from_numpy(green_mask_np)
+                blue_mask[0] = torch.from_numpy(blue_mask_np)
+                gray_mask[0] = torch.from_numpy(gray_mask_np)
+                        
+            except Exception as e:
+                print(f"Error parsing brush data: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        black_mask = torch.clamp(black_mask, 0.0, 1.0)
+        white_mask = torch.clamp(white_mask, 0.0, 1.0)
+        red_mask = torch.clamp(red_mask, 0.0, 1.0)
+        green_mask = torch.clamp(green_mask, 0.0, 1.0)
+        blue_mask = torch.clamp(blue_mask, 0.0, 1.0)
+        gray_mask = torch.clamp(gray_mask, 0.0, 1.0)
+        
+        sum_mask = torch.maximum(black_mask, white_mask)
+        sum_mask = torch.maximum(sum_mask, red_mask)
+        sum_mask = torch.maximum(sum_mask, green_mask)
+        sum_mask = torch.maximum(sum_mask, blue_mask)
+        sum_mask = torch.maximum(sum_mask, gray_mask)
+        
+        sum_image = background_img_tensor.clone()
+        
+        black_mask_4d = black_mask.unsqueeze(-1)
+        white_mask_4d = white_mask.unsqueeze(-1)
+        red_mask_4d = red_mask.unsqueeze(-1)
+        green_mask_4d = green_mask.unsqueeze(-1)
+        blue_mask_4d = blue_mask.unsqueeze(-1)
+        gray_mask_4d = gray_mask.unsqueeze(-1)
+        
+        sum_image = sum_image * (1 - black_mask_4d) + torch.tensor([0.0, 0.0, 0.0]).to(sum_image.device) * black_mask_4d
+        sum_image = sum_image * (1 - white_mask_4d) + torch.tensor([1.0, 1.0, 1.0]).to(sum_image.device) * white_mask_4d
+        sum_image = sum_image * (1 - red_mask_4d) + torch.tensor([1.0, 0.0, 0.0]).to(sum_image.device) * red_mask_4d
+        sum_image = sum_image * (1 - green_mask_4d) + torch.tensor([0.0, 1.0, 0.0]).to(sum_image.device) * green_mask_4d
+        sum_image = sum_image * (1 - blue_mask_4d) + torch.tensor([0.0, 0.0, 1.0]).to(sum_image.device) * blue_mask_4d
+        sum_image = sum_image * (1 - gray_mask_4d) + torch.tensor([0.5, 0.5, 0.5]).to(sum_image.device) * gray_mask_4d
+
+        if marker_annotations:
+            font_cache = {}
+            pil_font_path = os.path.join(os.path.dirname(ImageFont.__file__), "fonts", "DejaVuSans.ttf")
+            def get_font(font_size: int):
+                font_size = int(font_size)
+                cached = font_cache.get(font_size)
+                if cached is not None:
+                    return cached
+                font = None
+                for candidate in ("arial.ttf", "DejaVuSans.ttf", pil_font_path):
+                    try:
+                        font = ImageFont.truetype(candidate, size=font_size)
+                        break
+                    except Exception:
+                        font = None
+                if font is None:
+                    font = ImageFont.load_default()
+                font_cache[font_size] = font
+                return font
+            for b in range(batch_size):
+                img_np = (sum_image[b].detach().cpu().numpy() * 255.0).clip(0, 255).astype(np.uint8)
+                img_pil = Image.fromarray(img_np, mode='RGB')
+                draw = ImageDraw.Draw(img_pil)
+                for m in marker_annotations:
+                    x0 = int(m["min_x"])
+                    y0 = int(m["min_y"])
+                    x1 = int(m["max_x"])
+                    y1 = int(m["max_y"])
+                    side = max(1, min(abs(x1 - x0), abs(y1 - y0)))
+                    font = get_font(max(12, int(side * 0.6)))
+                    draw.rectangle([x0, y0, x1, y1], fill=(255, 255, 0), outline=(0, 0, 0), width=2)
+                    text = str(m["id"])
+                    try:
+                        bbox = draw.textbbox((0, 0), text, font=font)
+                        tw = bbox[2] - bbox[0]
+                        th = bbox[3] - bbox[1]
+                    except Exception:
+                        tw, th = font.getsize(text)
+                    tx = x0 + max(0, (x1 - x0 - tw) // 2)
+                    ty = y0 + max(0, (y1 - y0 - th) // 2)
+                    draw.text((tx, ty), text, fill=(0, 0, 0), font=font)
+
+                img_out = np.array(img_pil).astype(np.float32) / 255.0
+                sum_image[b] = torch.from_numpy(img_out).to(sum_image.device)
+        
+        return (background_img_tensor, sum_image, sum_mask, black_mask, white_mask, red_mask, green_mask, blue_mask, gray_mask)
+    
+    def _draw_circle(self, mask, x, y, radius):
+        h, w = mask.shape
+        y_min = max(0, y - radius)
+        y_max = min(h, y + radius + 1)
+        x_min = max(0, x - radius)
+        x_max = min(w, x + radius + 1)
+        
+        if x_max <= x_min or y_max <= y_min:
+            return
+        
+        y_coords, x_coords = np.ogrid[y_min:y_max, x_min:x_max]
+        
+        dist_sq = (x_coords - x)**2 + (y_coords - y)**2
+        radius_sq = radius * radius
+        
+        mask[y_min:y_max, x_min:x_max] = np.maximum(
+            mask[y_min:y_max, x_min:x_max],
+            (dist_sq <= radius_sq).astype(np.float32)
+        )
+    
+    def _draw_line(self, mask, x1, y1, x2, y2, radius):
+        if x1 == x2 and y1 == y2:
+            self._draw_circle(mask, x1, y1, radius)
+            return
+        
+        dx = x2 - x1
+        dy = y2 - y1
+        length = np.sqrt(dx*dx + dy*dy)
+        
+        if radius > 10:
+            step_size = max(1, radius // 3)
+        else:
+            step_size = 1
+        
+        steps = max(1, int(length / step_size) + 1)
+        
+        if steps <= 0:
+            self._draw_circle(mask, x1, y1, radius)
+            return
+        
+        t_values = np.linspace(0, 1, steps + 1)
+        x_coords = (x1 + dx * t_values).astype(np.int32)
+        y_coords = (y1 + dy * t_values).astype(np.int32)
+        
+        h, w = mask.shape
+        valid_mask = (x_coords >= 0) & (x_coords < w) & (y_coords >= 0) & (y_coords < h)
+        x_coords = x_coords[valid_mask]
+        y_coords = y_coords[valid_mask]
+        
+        if len(x_coords) > 0:
+            coords = np.column_stack((y_coords, x_coords))
+            unique_coords = np.unique(coords, axis=0)
+            
+            for y, x in unique_coords:
+                self._draw_circle(mask, int(x), int(y), radius)
+    
+    def _erase_circle(self, mask, x, y, radius):
+        h, w = mask.shape
+        y_min = max(0, y - radius)
+        y_max = min(h, y + radius + 1)
+        x_min = max(0, x - radius)
+        x_max = min(w, x + radius + 1)
+        
+        if x_max <= x_min or y_max <= y_min:
+            return
+        
+        y_coords, x_coords = np.ogrid[y_min:y_max, x_min:x_max]
+        
+        dist_sq = (x_coords - x)**2 + (y_coords - y)**2
+        radius_sq = radius * radius
+        
+        erase_mask = dist_sq <= radius_sq
+        mask[y_min:y_max, x_min:x_max] = np.where(
+            erase_mask,
+            0.0,
+            mask[y_min:y_max, x_min:x_max]
+        )
+    
+    def _erase_line(self, mask, x1, y1, x2, y2, radius):
+        if x1 == x2 and y1 == y2:
+            self._erase_circle(mask, x1, y1, radius)
+            return
+        
+        dx = x2 - x1
+        dy = y2 - y1
+        length = np.sqrt(dx*dx + dy*dy)
+        
+        if radius > 10:
+            step_size = max(1, radius // 3)
+        else:
+            step_size = 1
+        
+        steps = max(1, int(length / step_size) + 1)
+        
+        if steps <= 0:
+            self._erase_circle(mask, x1, y1, radius)
+            return
+        
+        t_values = np.linspace(0, 1, steps + 1)
+        x_coords = (x1 + dx * t_values).astype(np.int32)
+        y_coords = (y1 + dy * t_values).astype(np.int32)
+        
+        h, w = mask.shape
+        valid_mask = (x_coords >= 0) & (x_coords < w) & (y_coords >= 0) & (y_coords < h)
+        x_coords = x_coords[valid_mask]
+        y_coords = y_coords[valid_mask]
+        
+        if len(x_coords) > 0:
+            coords = np.column_stack((y_coords, x_coords))
+            unique_coords = np.unique(coords, axis=0)
+            
+            for y, x in unique_coords:
+                self._erase_circle(mask, int(x), int(y), radius)
+
+#endregion-------------IO_EasyMark------------------
+
+
+
+
+
+#region----------------IO_load_image_list
+import os
+import hashlib
+import json
+
+import numpy as np
+import torch
+from PIL import Image, ImageOps, ImageSequence
+
+import folder_paths
+import node_helpers
+
+
+class IO_LoadImgList:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image_list": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                    },
+                ),
+                "selected_indices": ("STRING", {"default": "[]", "multiline": False}),
+            }
+        }
+    NAME="IO_LoadImgList"
+    CATEGORY = "Apt_Preset/IO_Port"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("images",)
+    FUNCTION = "load_images"
+    OUTPUT_IS_LIST = (True,)
+
+    def load_images(self, image_list: str, selected_indices: str):
+        names = [x.strip() for x in (image_list or "").splitlines()]
+        names = [x for x in names if x]
+
+        try:
+            selected = json.loads(selected_indices)
+            if isinstance(selected, list) and len(selected) > 0:
+                valid_indices = [i for i in selected if isinstance(i, int) and i >= 0 and i < len(names)]
+                if valid_indices:
+                    names = [names[i] for i in valid_indices]
+                else:
+                    names = []
+            else:
+                names = []
+        except Exception as e:
+            names = []
+
+        if len(names) == 0:
+            empty_tensor = torch.zeros((0, 0, 0, 3), dtype=torch.float32)
+            return (empty_tensor,)
+
+        output_images = []
+
+        excluded_formats = ["MPO"]
+
+        for name in names:
+            if not folder_paths.exists_annotated_filepath(name):
+                continue
+
+            image_path = folder_paths.get_annotated_filepath(name)
+            img = node_helpers.pillow(Image.open, image_path)
+
+            w, h = None, None
+            frames = []
+
+            for i in ImageSequence.Iterator(img):
+                i = node_helpers.pillow(ImageOps.exif_transpose, i)
+
+                if i.mode == "I":
+                    i = i.point(lambda p: p * (1 / 255))
+                pil_image = i.convert("RGB")
+
+                if len(frames) == 0:
+                    w = pil_image.size[0]
+                    h = pil_image.size[1]
+
+                if pil_image.size[0] != w or pil_image.size[1] != h:
+                    continue
+
+                arr = np.array(pil_image).astype(np.float32) / 255.0
+                tensor = torch.from_numpy(arr)[None,]
+                frames.append(tensor)
+
+            if len(frames) == 0:
+                continue
+
+            if len(frames) > 1 and img.format not in excluded_formats:
+                image_tensor = torch.cat(frames, dim=0)
+            else:
+                image_tensor = frames[0]
+
+            output_images.append(image_tensor)
+
+        if len(output_images) == 0:
+            return ([],)
+        return (output_images,)
+
+    @classmethod
+    def IS_CHANGED(s, image_list: str, selected_indices: str):
+        m = hashlib.sha256()
+        names = [x.strip() for x in (image_list or "").splitlines()]
+        names = [x for x in names if x]
+
+        try:
+            selected = json.loads(selected_indices)
+            if isinstance(selected, list):
+                valid_indices = [i for i in selected if isinstance(i, int) and i >= 0 and i < len(names)]
+                if valid_indices:
+                    names = [names[i] for i in valid_indices]
+        except Exception:
+            pass
+
+        m.update(selected_indices.encode("utf-8"))
+        for name in names:
+            m.update(name.encode("utf-8"))
+            if folder_paths.exists_annotated_filepath(name):
+                image_path = folder_paths.get_annotated_filepath(name)
+                if os.path.isfile(image_path):
+                    with open(image_path, "rb") as f:
+                        m.update(f.read())
+        return m.digest().hex()
+
+    @classmethod
+    def VALIDATE_INPUTS(s, image_list: str, selected_indices: str):
+        names = [x.strip() for x in (image_list or "").splitlines()]
+        names = [x for x in names if x]
+
+        if len(names) == 0:
+            return "image_list is empty"
+
+        valid = False
+        for name in names:
+            if folder_paths.exists_annotated_filepath(name):
+                valid = True
+                break
+
+        if not valid:
+            return "No valid images in image_list"
+
+        return True
+
+
+
+
+#endregion----------------load_image_list---------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

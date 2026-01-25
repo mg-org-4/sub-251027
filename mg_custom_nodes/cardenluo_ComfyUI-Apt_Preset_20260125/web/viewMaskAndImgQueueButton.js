@@ -46,7 +46,7 @@ async function queueOutputNodes(nodes) {
     }
 }
 function addQueueButtonToViewNodes(node) {
-    const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetShape","view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache"];
+    const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetShape","view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache","view_mulView"];
     if (!targetNodes.includes(node.constructor.nodeData?.name)) {
         return;
     }
@@ -62,7 +62,7 @@ function addQueueButtonToViewNodes(node) {
 app.registerExtension({
     name: "AptPreset.ViewMaskAndImgQueueButton",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetShape", "view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache"];
+        const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetShape", "view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache","view_mulView"];
         if (targetNodes.includes(nodeData.name)) {
             const onNodeCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
@@ -73,7 +73,7 @@ app.registerExtension({
         }
     },
     async setup() {
-        const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetShape","view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache"];
+        const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetShape","view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache","view_mulView"];
         app.graph._nodes.forEach(node => {
             if (targetNodes.includes(node.constructor.nodeData?.name)) {
                 addQueueButtonToViewNodes(node);

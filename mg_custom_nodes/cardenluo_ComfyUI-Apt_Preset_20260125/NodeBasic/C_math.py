@@ -159,7 +159,7 @@ class math_Remap_data:
 
 
 
-class math_calculate:
+class XXXXmath_calculate:
     def __init__(self):
         pass
 
@@ -230,17 +230,19 @@ class math_calculate:
         
         return {
             "required": {
-                "preset": (
-                    [p[0] for p in presets], 
-                    {"default": "custom", "label": [p[1] for p in presets]}
-                ),
-                "expression": ("STRING", {"default": "", "multiline": False,}),
+
+
                 
             },
             "optional": {
                 "a": (ANY_TYPE,),
                 "b": (ANY_TYPE,),
                 "c": (ANY_TYPE,),
+                "preset": (
+                    [p[0] for p in presets], 
+                    {"default": "custom", "label": [p[1] for p in presets]}
+                ),
+                "expression": ("STRING", {"default": "", "multiline": False,}),
             }
         }
 
@@ -263,7 +265,7 @@ class math_calculate:
     """
 
 
-    def calculate(self, preset, expression, a, b=None, c=None):
+    def calculate(self, preset="custom", expression="", a=None, b=None, c=None):
         try:
             if preset != "custom":
             
@@ -318,6 +320,198 @@ class math_calculate:
         except Exception as e:
             print(f"Error performing calculation: {e}")
             return (0.0, 0, False)
+
+
+
+
+
+
+
+class math_calculate:
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(s):
+        # 定义预设运算列表（使用扁平化命名，避免斜杠等特殊符号）
+        presets = [
+            # 单值运算
+            ("custom", "自定义表达式"),
+            ("sin(a)", "正弦函数 sin(a)"),
+            ("cos(a)", "余弦函数 cos(a)"),
+            ("tan(a)", "正切函数 tan(a)"),
+            ("asin(a)", "反正弦函数 asin(a)"),
+            ("acos(a)", "反余弦函数 acos(a)"),
+            ("atan(a)", "反正切函数 atan(a)"),
+            ("pow(a, 2)", "平方 a²"),
+            ("sqrt(a)", "平方根 √a"),
+            ("log(a)", "自然对数 log(a)"),
+            ("log10(a)", "常用对数 log10(a)"),
+            ("sinh(a)", "双曲正弦 sinh(a)"),
+            ("cosh(a)", "双曲余弦 cosh(a)"),
+            ("tanh(a)", "双曲正切 tanh(a)"),
+            ("asinh(a)", "反双曲正弦 asinh(a)"),
+            ("acosh(a)", "反双曲余弦 acosh(a)"),
+            ("atanh(a)", "反双曲正切 atanh(a)"),
+            ("radians(a)", "角度转弧度 radians(a)"),
+            ("degrees(a)", "弧度转角度 degrees(a)"),
+            ("fabs(a)", "绝对值 fabs(a)"),
+            ("exp(a)", "指数函数 e的a次方"),
+            ("round(a)", "四舍五入 round(a)"),
+            ("ceil(a)", "向上取整 ceil(a)"),
+            ("floor(a)", "向下取整 floor(a)"),
+            ("abs(a)", "绝对值 abs(a)"),
+            
+            # 双值运算
+            ("a + b", "加法 a + b"),
+            ("a - b", "减法 a - b"),
+            ("a * b", "乘法 a * b"),
+            ("a ÷ b", "除法 a 除以 b"),
+            ("a % b", "取模 a 模 b"),
+            ("pow(a,b)", "幂运算 a的b次方"),
+            ("ceil(a÷b)", "向上取整 ceil(a÷b)"),
+            ("floor(a÷b)", "向下取整 floor(a÷b)"),
+            ("max(a,b)", "最大值 max(a,b)"),
+            ("min(a,b)", "最小值 min(a,b)"),
+            ("a > b", "大于 a > b"),
+            ("a < b", "小于 a < b"),
+            ("a >= b", "大于等于 a >= b"),
+            ("a <= b", "小于等于 a <= b"),
+            ("a == b", "等于 a == b"),
+            ("a != b", "不等于 a != b"),
+            ("a & b", "按位与 a & b"),
+            ("a | b", "按位或 a | b"),
+            ("a ^ b", "按位异或 a ^ b"),
+            ("a << b", "左移位 a << b"),
+            ("a >> b", "右移位 a >> b"),
+            ("atan2(a,b)", "四象限反正切 atan2(a,b)"),
+            ("hypot(a,b)", "直角三角形斜边 hypot(a,b)"),
+            ("copysign(a,b)", "复制符号 copysign(a,b)"),
+            ("fmod(a,b)", "浮点数取模 fmod(a,b)"),
+            
+            # 三值运算（仅保留三个值的最大值和最小值）
+            ("max(a,b,c)", "最大值 max(a,b,c)"),
+            ("min(a,b,c)", "最小值 min(a,b,c)"),
+            ("clamp(a,b,c)", "限制在b和c之间 clamp(a,b,c)"),
+            ("lerp(a,b,c)", "线性插值 lerp(a,b,c)"),
+        ]
+        
+        return {
+            "required": {},
+            "optional": {
+                "a": (ANY_TYPE,),
+                "b": (ANY_TYPE,),
+                "c": (ANY_TYPE,),
+                "preset": (
+                    [p[0] for p in presets], 
+                    {"default": "custom", "label": [p[1] for p in presets]}
+                ),
+                "expression": ("STRING", {"default": "", "multiline": False,}),
+            }
+        }
+
+    RETURN_TYPES = ("FLOAT", "INT", "BOOLEAN")
+    RETURN_NAMES = ("float_result", "int_result", "bool_result")
+    FUNCTION = "calculate"
+    CATEGORY = "Apt_Preset/data"
+    DESCRIPTION = """
+    - 基本运算：加 (+)、减 (-)、乘 (*)、除 (/)、模 (%)
+    - 三角函数: sin(a)、cos、tan、asin、acos、atan、atan2(a,b)
+    - 幂运算与开方: pow(a,2)=a*a、sqrt、hypot(a,b)
+    - 对数运算: log、log10(a)、exp(a)
+    - 双曲函数: sinh、cosh、tanh、asinh、acosh、atanh
+    - 角度与弧度转换: radians、degrees
+    - 绝对值与取整: fabs、abs、ceil、floor、round、sign
+    - 位运算: &(与)、|(或)、^(异或)、<<(左移)、>>(右移)
+    - 比大小: max(a,b,c) ,min(a,b,c)
+    - 布尔运算: a>b,a<b,a>=b,a<=b,a==b,a!=b ,返回True或False
+    - 其他运算: clamp(a,b,c)、lerp(a,b,c)、if(a,b,c)、copysign(a,b)、fmod(a,b)
+    """
+
+    def calculate(self, preset="custom", expression="", a=None, b=None, c=None):
+        try:
+            # 处理空值情况
+            a = a if a is not None else 0
+            b = b if b is not None else 0
+            c = c if c is not None else 0
+            
+            # 类型转换：确保输入是数值类型
+            def to_num(x):
+                if isinstance(x, torch.Tensor):
+                    return x.item() if x.numel() == 1 else 0
+                try:
+                    return float(x)
+                except (ValueError, TypeError):
+                    return 0
+            
+            a = to_num(a)
+            b = to_num(b)
+            c = to_num(c)
+            
+            if preset != "custom":
+                current_expression = preset.replace("÷", "/")
+            else:
+                current_expression = expression.strip()
+                if not current_expression:
+                    raise ValueError("自定义表达式不能为空")
+            
+            namespace = {
+                'a': a,
+                'b': b,
+                'c': c,
+                'math': math,
+                'sin': math.sin,
+                'cos': math.cos,
+                'tan': math.tan,
+                'asin': math.asin,
+                'acos': math.acos,
+                'atan': math.atan,
+                'atan2': math.atan2,
+                'pow': math.pow,
+                'sqrt': math.sqrt,
+                'hypot': math.hypot,
+                'log': math.log,
+                'log10': math.log10,
+                'exp': math.exp,
+                'sinh': math.sinh,
+                'cosh': math.cosh,
+                'tanh': math.tanh,
+                'asinh': math.asinh,
+                'acosh': math.acosh,
+                'atanh': math.atanh,
+                'radians': math.radians,
+                'degrees': math.degrees,
+                'fabs': math.fabs,
+                'abs': abs,
+                'ceil': math.ceil,
+                'floor': math.floor,
+                'round': round,
+                'max': max,
+                'min': min,
+                'copysign': math.copysign,
+                'fmod': math.fmod,
+                'clamp': lambda x, min_val, max_val: max(min(x, max_val), min_val),
+                'lerp': lambda a, b, c: a + (b - a) * c,
+            }
+            
+            # 执行表达式计算
+            result = eval(current_expression, {"__builtins__": None}, namespace)
+            
+            # 处理不同类型的返回值
+            float_result = float(result) if result is not None else 0.0
+            int_result = int(round(float_result))  # 四舍五入转整数
+            bool_result = bool(result) if isinstance(result, (int, float, bool)) else False
+            
+            return (float_result, int_result, bool_result)
+            
+        except Exception as e:
+            print(f"Math calculation error: {e}")
+            return (0.0, 0, False)
+
+
+
+
+
 
 #endregion---------------------math---------------------
 

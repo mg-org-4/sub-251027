@@ -2642,7 +2642,7 @@
         },
         "outputs": {
             "image": "图像",
-            "total": "总计"
+            "total": "释放总计"
         }
     },
     "IO_save_image": {

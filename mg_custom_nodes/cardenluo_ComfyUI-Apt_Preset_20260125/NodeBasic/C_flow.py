@@ -23,9 +23,6 @@ from ..office_unit import ImageUpscaleWithModel,UpscaleModelLoader
 
 #region----------------lowcpu--------------------------
 
-import model_management
-import torch
-
 
 
 has_gpu = torch.cuda.is_available()
@@ -99,22 +96,178 @@ class flow_low_gpu:
 
 
 
+#region----------------flow_bridge_image--------------------------
+
+try:
+    from comfy_execution.graph import ExecutionBlocker
+except ImportError:
+    class ExecutionBlocker:
+        def __init__(self, value):
+            self.value = value
 
 
-class AlwaysEqual(str):
-    def __eq__(self, _):
-        return True
+import torch
+import numpy as np
+from PIL import Image, PngImagePlugin
+import os
+import folder_paths
+import uuid
+import json
 
-    def __ne__(self, _):
-        return False
+lazy_options = {
+    "lazy": True
+}
+
+ExecutionBlocker = None
+try:
+    from comfy_execution.graph import ExecutionBlocker
+except ImportError:
+    class ExecutionBlocker:
+        def __init__(self, value):
+            self.value = value
 
 
-class AlwaysTuple(tuple):
-    def __getitem__(self, i):
-        if i < super().__len__():
-            return AlwaysEqual(super().__getitem__(i))
+class flow_bridge_image:
+    OUTPUT_NODE = True
+
+    def __init__(self):
+        self.stored_image = None
+        self.stored_mask = None
+        self.temp_subfolder = "zml_image_memory_previews"
+        self.temp_output_dir = folder_paths.get_temp_directory()
+        self.persistence_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "image_memory_cache.png")
+        self.prompt = None
+        self.extra_pnginfo = None
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "disable_input": ("BOOLEAN", {"default": False}),
+                "disable_output": ("BOOLEAN", {"default": False}),
+            },
+            "optional": {
+                "image": ("IMAGE", lazy_options),
+                "mask": ("MASK", lazy_options),
+            },
+            "hidden": {
+                "prompt": "PROMPT",
+                "extra_pnginfo": "EXTRA_PNGINFO",
+                "unique_id": "UNIQUE_ID",
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("image", "mask")
+    FUNCTION = "store_and_retrieve"
+    CATEGORY = "Apt_Preset/flow"
+    
+    def check_lazy_status(self, disable_input, **kwargs):
+        if disable_input:
+            return None
+        required_inputs = []
+        if "image" in kwargs:
+            required_inputs.append("image")
+        if "mask" in kwargs:
+            required_inputs.append("mask")
+        return required_inputs
+
+    def store_and_retrieve(self, disable_input, disable_output, image=None, mask=None, prompt=None, extra_pnginfo=None, unique_id=None):
+        self.prompt = prompt
+        self.extra_pnginfo = extra_pnginfo
+        
+        image_to_output = None
+        mask_to_output = None
+
+        # 核心逻辑：禁用输入则读取存储的图/遮罩，否则存入并读取当前输入的图/遮罩
+        if disable_input:
+            image_to_output = self.stored_image
+            mask_to_output = self.stored_mask
+        elif image is not None:
+            self.stored_image = image
+            self.stored_mask = mask
+            image_to_output = image
+            mask_to_output = mask
         else:
-            return AlwaysEqual(super().__getitem__(-1))
+            image_to_output = self.stored_image
+            mask_to_output = self.stored_mask
+
+        # 兜底：无图则生成默认1x1全黑图
+        if image_to_output is None:
+            default_size = 1
+            image_to_output = torch.zeros((1, default_size, default_size, 3), dtype=torch.float32, device="cpu")
+            
+        # 兜底：无遮罩则生成和图片尺寸匹配的全白遮罩
+        if mask_to_output is None:
+            batch_size, height, width, _ = image_to_output.shape
+            mask_to_output = torch.ones((batch_size, height, width), dtype=torch.float32, device="cpu")
+
+        # 生成UI预览图
+        subfolder_path = os.path.join(self.temp_output_dir, self.temp_subfolder)
+        os.makedirs(subfolder_path, exist_ok=True)
+        ui_image_data = []
+        batch_size = image_to_output.shape[0]
+        
+        for i in range(batch_size):
+            current_image = image_to_output[i:i+1]
+            
+            # 处理默认1x1小图的预览放大
+            if current_image.shape[1] == 1 and current_image.shape[2] == 1:
+                preview_image_tensor = torch.zeros((1, 32, 32, 3), dtype=torch.float32, device=current_image.device)
+                pil_image = Image.fromarray((preview_image_tensor.squeeze(0).cpu().numpy() * 255).astype(np.uint8))
+            else:
+                pil_image = Image.fromarray((current_image.squeeze(0).cpu().numpy() * 255).astype(np.uint8))
+
+            filename = f"zml_image_memory_batch_{i}_{uuid.uuid4()}.png"
+            file_path = os.path.join(subfolder_path, filename)
+
+            # 写入PNG元信息
+            metadata = PngImagePlugin.PngInfo()
+            if self.prompt is not None:
+                try:
+                    metadata.add_text("prompt", json.dumps(self.prompt))
+                except Exception:
+                    pass
+            if self.extra_pnginfo is not None:
+                for key, value in self.extra_pnginfo.items():
+                    try:
+                        metadata.add_text(key, json.dumps(value))
+                    except Exception:
+                        pass
+
+            pil_image.save(file_path, pnginfo=metadata, compress_level=4)
+            ui_image_data.append({"filename": filename, "subfolder": self.temp_subfolder, "type": "temp"})
+
+        # 禁用输出则返回阻塞器，否则返回完整的图/遮罩
+        if disable_output and ExecutionBlocker is not None:
+            output_image = ExecutionBlocker(None)
+            output_mask = ExecutionBlocker(None)
+        else:
+            output_image = image_to_output
+            output_mask = mask_to_output
+            
+        return {"ui": {"images": ui_image_data}, "result": (output_image, output_mask)}
+
+    def _save_to_local(self, image_tensor):
+        try:
+            pil_image = Image.fromarray((image_tensor.squeeze(0).cpu().numpy() * 255).astype(np.uint8))
+            pil_image.save(self.persistence_file, "PNG")
+        except Exception as e:
+            print(f"Failed to save image locally: {e}")
+
+    def _load_from_local(self):
+        if os.path.exists(self.persistence_file):
+            try:
+                pil_image = Image.open(self.persistence_file).convert('RGB')
+                image_np = np.array(pil_image).astype(np.float32) / 255.0
+                return torch.from_numpy(image_np).unsqueeze(0)
+            except Exception as e:
+                print(f"Failed to load image from local file: {e}")
+        return None
+
+#endregion----------    
+
+
 
 
 class flow_auto_pixel:
@@ -209,10 +362,6 @@ class flow_auto_pixel:
                     image = image.movedim(1, -1)  # (B, C, H, W) -> (B, H, W, C)
 
         return (image,)
-
-
-
-
 
 
 
@@ -505,8 +654,7 @@ class flow_QueueTrigger:
     NAME = "flow_QueueTrigger"
 
 
-    def doit(self, count, total, mode, min_value, max_value, unique_id):  # 新增参数：min_value, max_value
-        # 处理计数逻辑（保持原有逻辑不变）
+    def doit(self, count, total, mode, min_value, max_value, unique_id):  
         if mode:
             if count < total - 1:
                 PromptServer.instance.send_sync("node-feedback",
@@ -516,16 +664,12 @@ class flow_QueueTrigger:
                 PromptServer.instance.send_sync("node-feedback",
                                                 {"node_id": unique_id, "widget_name": "count", "type": "int", "value": 0})
 
-        # 新增：重映射逻辑（将count从[0, total-1]映射到[min_value, max_value]）
         if total == 1:
-            # 特殊情况：total=1时，count始终为0，直接映射为min_value
             remapped_value = min_value
         else:
-            # 归一化count到[0, 1]范围，再映射到目标区间
             normalized = count / (total - 1)
             remapped_value = min_value + (max_value - min_value) * normalized
 
-        # 返回原count、total，以及新增的重映射结果
         return (count, total, remapped_value)
 
 
@@ -578,92 +722,6 @@ class flow_ValueReceiver:
             return (value.lower() == "true", )
         else:
             return (value, )
-
-
-
-
-
-class XXflow_tensor_Unify:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "keep_alpha": ("BOOLEAN", {"default": False, "label_on": "4 Channels", "label_off": "3 Channels"}),
-            },
-            "optional": {
-                "image": ("IMAGE",),
-                "mask": ("MASK",)
-            }
-        }
-    
-    RETURN_TYPES = ("IMAGE", "MASK")
-    RETURN_NAMES = ("unified_image", "unified_mask")
-    FUNCTION = "unify_media"
-    CATEGORY = "Apt_Preset/flow"
-    
-    def unify_media(self, keep_alpha=False, image=None, mask=None):
-        if image is None:
-            if keep_alpha:
-                unified_image = torch.zeros((1, 64, 64, 4), dtype=torch.float32)
-            else:
-                unified_image = torch.zeros((1, 64, 64, 3), dtype=torch.float32)
-        else:
-            img_np = image.cpu().numpy().squeeze()
-            
-            if len(img_np.shape) == 2:
-                img_np = np.stack([img_np]*3, axis=-1)
-            elif len(img_np.shape) == 3:
-                if img_np.shape[-1] == 1:
-                    img_np = np.repeat(img_np, 3, axis=-1)
-                elif img_np.shape[0] == 3:
-                    img_np = np.transpose(img_np, (1, 2, 0))
-                elif img_np.shape[0] == 4:
-                    img_np = np.transpose(img_np, (1, 2, 0))
-            
-            if img_np.dtype != np.float32:
-                img_np = img_np.astype(np.float32) / 255.0 if img_np.max() > 1 else img_np.astype(np.float32)
-            
-            img_np = np.clip(img_np, 0.0, 1.0)
-            
-            if keep_alpha and img_np.shape[-1] < 4:
-                if img_np.shape[-1] == 3:
-                    alpha_channel = np.ones((*img_np.shape[:2], 1), dtype=img_np.dtype)
-                    img_np = np.concatenate([img_np, alpha_channel], axis=-1)
-                elif img_np.shape[-1] == 1:
-                    img_np = np.repeat(img_np, 3, axis=-1)
-                    alpha_channel = np.ones((*img_np.shape[:2], 1), dtype=img_np.dtype)
-                    img_np = np.concatenate([img_np, alpha_channel], axis=-1)
-            elif not keep_alpha and img_np.shape[-1] >= 3:
-                img_np = img_np[:, :, :3]
-            
-            if len(img_np.shape) == 3:
-                img_np = img_np[np.newaxis, ...]
-            
-            unified_image = torch.from_numpy(img_np).to(image.device)
-        
-        if mask is None:
-            unified_mask = torch.zeros((1, 64, 64), dtype=torch.float32)
-        else:
-            mask_np = mask.cpu().numpy().squeeze()
-            
-            if len(mask_np.shape) == 3:
-                if mask_np.shape[-1] in (1, 3, 4):
-                    mask_np = mask_np[..., 0]
-                else:
-                    mask_np = mask_np[0]
-            
-            if mask_np.dtype != np.float32:
-                mask_np = mask_np.astype(np.float32) / 255.0 if mask_np.max() > 1 else mask_np.astype(np.float32)
-            
-            mask_np = np.clip(mask_np, 0.0, 1.0)
-            
-            if len(mask_np.shape) == 2:
-                mask_np = mask_np[np.newaxis, ...]
-            
-            unified_mask = torch.from_numpy(mask_np).to(mask.device)
-        
-        return (unified_image, unified_mask)
-
 
 
 
@@ -740,181 +798,7 @@ class flow_tensor_Unify:
 
 
 
-
-
-
-
-
-
-
-
-try:
-    from comfy_execution.graph import ExecutionBlocker
-except ImportError:
-    class ExecutionBlocker:
-        def __init__(self, value):
-            self.value = value
-
-
-import torch
-import numpy as np
-from PIL import Image, PngImagePlugin
-import os
-import folder_paths
-import uuid
-import json
-
-lazy_options = {
-    "lazy": True
-}
-
-ExecutionBlocker = None
-try:
-    from comfy_execution.graph import ExecutionBlocker
-except ImportError:
-    class ExecutionBlocker:
-        def __init__(self, value):
-            self.value = value
-
-
-class flow_bridge_image:
-    OUTPUT_NODE = True
-
-    def __init__(self):
-        self.stored_image = None
-        self.stored_mask = None
-        self.temp_subfolder = "zml_image_memory_previews"
-        self.temp_output_dir = folder_paths.get_temp_directory()
-        self.persistence_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "image_memory_cache.png")
-        self.prompt = None
-        self.extra_pnginfo = None
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "disable_input": ("BOOLEAN", {"default": False}),
-                "disable_output": ("BOOLEAN", {"default": False}),
-            },
-            "optional": {
-                "image": ("IMAGE", lazy_options),
-                "mask": ("MASK", lazy_options),
-            },
-            "hidden": {
-                "prompt": "PROMPT",
-                "extra_pnginfo": "EXTRA_PNGINFO",
-                "unique_id": "UNIQUE_ID",
-            }
-        }
-
-    RETURN_TYPES = ("IMAGE", "MASK")
-    RETURN_NAMES = ("image", "mask")
-    FUNCTION = "store_and_retrieve"
-    CATEGORY = "Apt_Preset/flow"
-    
-    def check_lazy_status(self, disable_input, **kwargs):
-        if disable_input:
-            return None
-        required_inputs = []
-        if "image" in kwargs:
-            required_inputs.append("image")
-        if "mask" in kwargs:
-            required_inputs.append("mask")
-        return required_inputs
-
-    def store_and_retrieve(self, disable_input, disable_output, image=None, mask=None, prompt=None, extra_pnginfo=None, unique_id=None):
-        self.prompt = prompt
-        self.extra_pnginfo = extra_pnginfo
-        
-        image_to_output = None
-        mask_to_output = None
-
-        # 核心逻辑：禁用输入则读取存储的图/遮罩，否则存入并读取当前输入的图/遮罩
-        if disable_input:
-            image_to_output = self.stored_image
-            mask_to_output = self.stored_mask
-        elif image is not None:
-            self.stored_image = image
-            self.stored_mask = mask
-            image_to_output = image
-            mask_to_output = mask
-        else:
-            image_to_output = self.stored_image
-            mask_to_output = self.stored_mask
-
-        # 兜底：无图则生成默认1x1全黑图
-        if image_to_output is None:
-            default_size = 1
-            image_to_output = torch.zeros((1, default_size, default_size, 3), dtype=torch.float32, device="cpu")
-            
-        # 兜底：无遮罩则生成和图片尺寸匹配的全白遮罩
-        if mask_to_output is None:
-            batch_size, height, width, _ = image_to_output.shape
-            mask_to_output = torch.ones((batch_size, height, width), dtype=torch.float32, device="cpu")
-
-        # 生成UI预览图
-        subfolder_path = os.path.join(self.temp_output_dir, self.temp_subfolder)
-        os.makedirs(subfolder_path, exist_ok=True)
-        ui_image_data = []
-        batch_size = image_to_output.shape[0]
-        
-        for i in range(batch_size):
-            current_image = image_to_output[i:i+1]
-            
-            # 处理默认1x1小图的预览放大
-            if current_image.shape[1] == 1 and current_image.shape[2] == 1:
-                preview_image_tensor = torch.zeros((1, 32, 32, 3), dtype=torch.float32, device=current_image.device)
-                pil_image = Image.fromarray((preview_image_tensor.squeeze(0).cpu().numpy() * 255).astype(np.uint8))
-            else:
-                pil_image = Image.fromarray((current_image.squeeze(0).cpu().numpy() * 255).astype(np.uint8))
-
-            filename = f"zml_image_memory_batch_{i}_{uuid.uuid4()}.png"
-            file_path = os.path.join(subfolder_path, filename)
-
-            # 写入PNG元信息
-            metadata = PngImagePlugin.PngInfo()
-            if self.prompt is not None:
-                try:
-                    metadata.add_text("prompt", json.dumps(self.prompt))
-                except Exception:
-                    pass
-            if self.extra_pnginfo is not None:
-                for key, value in self.extra_pnginfo.items():
-                    try:
-                        metadata.add_text(key, json.dumps(value))
-                    except Exception:
-                        pass
-
-            pil_image.save(file_path, pnginfo=metadata, compress_level=4)
-            ui_image_data.append({"filename": filename, "subfolder": self.temp_subfolder, "type": "temp"})
-
-        # 禁用输出则返回阻塞器，否则返回完整的图/遮罩
-        if disable_output and ExecutionBlocker is not None:
-            output_image = ExecutionBlocker(None)
-            output_mask = ExecutionBlocker(None)
-        else:
-            output_image = image_to_output
-            output_mask = mask_to_output
-            
-        return {"ui": {"images": ui_image_data}, "result": (output_image, output_mask)}
-
-    def _save_to_local(self, image_tensor):
-        try:
-            pil_image = Image.fromarray((image_tensor.squeeze(0).cpu().numpy() * 255).astype(np.uint8))
-            pil_image.save(self.persistence_file, "PNG")
-        except Exception as e:
-            print(f"Failed to save image locally: {e}")
-
-    def _load_from_local(self):
-        if os.path.exists(self.persistence_file):
-            try:
-                pil_image = Image.open(self.persistence_file).convert('RGB')
-                image_np = np.array(pil_image).astype(np.float32) / 255.0
-                return torch.from_numpy(image_np).unsqueeze(0)
-            except Exception as e:
-                print(f"Failed to load image from local file: {e}")
-        return None
-
+#region--------------IN/out-switch--------------------------
 
 
 class flow_BooleanSwitch:
@@ -922,8 +806,10 @@ class flow_BooleanSwitch:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "any_input": (any_type,),
                 "switch": ("BOOLEAN", {"default": True, "label_on": "On", "label_off": "Off"}),
+            },
+            "optional": {
+                "any_input": (any_type,),
             }
         }
 
@@ -938,13 +824,18 @@ class flow_BooleanSwitch:
 
     def process(self, switch, any_input=None):
         if switch:
-            return (any_input,)
+            if any_input is not None:
+                return (any_input,)
+            else:
+                if ExecutionBlocker is not None:
+                    return (ExecutionBlocker(None),)
+                else:
+                    return ({},)
         else:
             if ExecutionBlocker is not None:
                 return (ExecutionBlocker(None),)
             else:
                 return ({},)
-
 
 
 
@@ -1056,8 +947,6 @@ class flow_switch_output:
 
 
 
-
-
 class flow_switch_input:
 
     @classmethod
@@ -1117,6 +1006,398 @@ class flow_switch_input:
             if isinstance(value, dict) and 'model' in value and 'clip' in value:
                 return all(v is None for v in value.values())
         return value is None
+
+
+#endregion----------------IN/out-switch--------------------------
+
+
+
+
+
+#region---------------loop team-------------
+
+
+class AlwaysEqualProxy(str):
+    def __eq__(self, _): return True
+    def __ne__(self, _): return False
+
+any_type = AlwaysEqualProxy("*")
+def ByPassTypeTuple(t): return t
+
+MAX_FLOW_NUM = 20
+
+
+from comfy_execution.graph_utils import GraphBuilder, is_link
+from comfy_execution.graph import ExecutionBlocker
+
+
+class flow_whileStart:
+    @classmethod
+    def INPUT_TYPES(cls):
+        inputs = {
+            "required": {
+                "condition": ("BOOLEAN", {"default": True}),
+            },
+            "optional": {},
+        }
+        for i in range(MAX_FLOW_NUM):
+            inputs["optional"]["initial_value_%d" % i] = (any_type,)
+        return inputs
+    
+    NAME="loop_whileStart"
+    RETURN_TYPES = ByPassTypeTuple(tuple(["FLOW_CL"] + [any_type] * MAX_FLOW_NUM))
+    RETURN_NAMES = ByPassTypeTuple(tuple(["flow"] + ["value_%d" % i for i in range(MAX_FLOW_NUM)]))
+    FUNCTION = "while_loop_open"
+    CATEGORY = "Apt_Preset/flow"
+
+    def while_loop_open(self, condition, **kwargs):
+        
+        values = []
+        for i in range(MAX_FLOW_NUM):
+            val = kwargs.get("initial_value_%d" % i, None)
+            values.append(val if condition else ExecutionBlocker(None))
+        return tuple(["stub"] + values)
+
+
+class flow_whileEnd:
+    @classmethod
+    def INPUT_TYPES(cls):
+        inputs = {
+            "required": {
+                "flow": ("FLOW_CL", {"rawLink": True}),
+                "condition": ("BOOLEAN", {}),
+            },
+            "optional": {},
+            "hidden": {
+                "dynprompt": "DYNPROMPT",
+                "unique_id": "UNIQUE_ID",
+            }
+        }
+        for i in range(MAX_FLOW_NUM):
+            inputs["optional"]["initial_value_%d" % i] = (any_type,)
+        return inputs
+    NAME="loop_whileEnd"
+    RETURN_TYPES = ByPassTypeTuple(tuple([any_type] * MAX_FLOW_NUM))
+    RETURN_NAMES = ByPassTypeTuple(tuple(["value_%d" % i for i in range(MAX_FLOW_NUM)]))
+    FUNCTION = "while_loop_close"
+    CATEGORY = "Apt_Preset/flow"
+
+    def explore_dependencies(self, node_id, dynprompt, upstream, parent_ids):
+        
+        node_info = dynprompt.get_node(node_id)
+        if "inputs" not in node_info:
+            return
+
+        for k, v in node_info["inputs"].items():
+            if is_link(v):
+                parent_id = v[0]
+                display_id = dynprompt.get_display_node_id(parent_id)
+                display_node = dynprompt.get_node(display_id)
+                class_type = display_node["class_type"]
+                loop_node_types = [
+                    'flow_forEnd', 'flow_forEnd',
+                    'flow_whileEnd', 'flow_whileEnd'
+                ]
+                if class_type not in loop_node_types:
+                    parent_ids.append(display_id)
+                if parent_id not in upstream:
+                    upstream[parent_id] = []
+                    self.explore_dependencies(parent_id, dynprompt, upstream, parent_ids)
+                upstream[parent_id].append(node_id)
+
+    def collect_contained(self, node_id, upstream, contained):
+        if node_id not in upstream:
+            return
+        for child_id in upstream[node_id]:
+            if child_id not in contained:
+                contained[child_id] = True
+                self.collect_contained(child_id, upstream, contained)
+
+    def while_loop_close(self, flow, condition, dynprompt=None, unique_id=None, **kwargs):
+        if not condition:
+            return tuple(kwargs.get("initial_value_%d" % i, None) for i in range(MAX_FLOW_NUM))
+
+        
+        upstream = {}
+        parent_ids = []
+        self.explore_dependencies(unique_id, dynprompt, upstream, parent_ids)
+        
+        graph = GraphBuilder()
+        contained = {}
+        
+        if flow is None or len(flow) == 0:
+             return tuple([None] * MAX_FLOW_NUM)
+
+        open_node = flow[0]
+        self.collect_contained(open_node, upstream, contained)
+        contained[unique_id] = True
+        contained[open_node] = True
+
+        for node_id in contained:
+            original_node = dynprompt.get_node(node_id)
+            node = graph.node(original_node["class_type"], "Recurse" if node_id == unique_id else node_id)
+            node.set_override_display_id(node_id)
+            
+        for node_id in contained:
+            original_node = dynprompt.get_node(node_id)
+            node = graph.lookup_node("Recurse" if node_id == unique_id else node_id)
+            for k, v in original_node["inputs"].items():
+                if is_link(v) and v[0] in contained:
+                    parent = graph.lookup_node(v[0])
+                    node.set_input(k, parent.out(v[1]))
+                else:
+                    node.set_input(k, v)
+
+        new_open = graph.lookup_node(open_node)
+        for i in range(MAX_FLOW_NUM):
+            key = "initial_value_%d" % i
+            new_open.set_input(key, kwargs.get(key, None))
+            
+        my_clone = graph.lookup_node("Recurse")
+        result = [my_clone.out(i) for i in range(MAX_FLOW_NUM)]
+        
+        return {
+            "result": tuple(result),
+            "expand": graph.finalize(),
+        }
+
+
+class flow_forStart:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "total": ("INT", {"default": 1, "min": 1, "max": 100000}),
+            },
+            "optional": {
+                "initial_value_%d" % i: (any_type,) for i in range(1, MAX_FLOW_NUM)
+            },
+            "hidden": {
+                "initial_value_0": (any_type,),
+                "unique_id": "UNIQUE_ID"
+            }
+        }
+    NAME="loop_forStart"
+    RETURN_TYPES = ByPassTypeTuple(tuple(["FLOW_CL", "INT"] + [any_type] * (MAX_FLOW_NUM - 1)))
+    RETURN_NAMES = ByPassTypeTuple(tuple(["flow", "index"] + ["value_%d" % i for i in range(1, MAX_FLOW_NUM)]))
+    FUNCTION = "loop_start"
+    CATEGORY = "Apt_Preset/flow"
+
+    def loop_start(self, total, **kwargs):
+        
+        graph = GraphBuilder()
+        
+        i = kwargs.get("initial_value_0", 0)
+
+        initial_vals = {}
+        for n in range(1, MAX_FLOW_NUM):
+            val = kwargs.get(f"initial_value_{n}")
+            if n == MAX_FLOW_NUM - 1 and val is None:
+                val = total
+            initial_vals[f"initial_value_{n}"] = val
+        
+        while_open = graph.node("flow_whileStart", 
+                                condition=total > 0, 
+                                initial_value_0=i, 
+                                **initial_vals)
+        
+        results = []
+        results.append(while_open.out(0)) 
+        results.append(while_open.out(1)) 
+        
+        for n in range(1, MAX_FLOW_NUM):
+            results.append(while_open.out(n + 1))
+
+        return {
+            "result": tuple(results),
+            "expand": graph.finalize(),
+        }
+    
+
+class flow_forEnd:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "flow": ("FLOW_CL", {"rawLink": True}),
+                "batch_output": ("BOOLEAN", {"default": True}),
+            },
+            "optional": {
+                "initial_value_%d" % i: (any_type, {"rawLink": True}) for i in range(1, MAX_FLOW_NUM)
+            },
+            "hidden": {
+                "dynprompt": "DYNPROMPT",
+                "unique_id": "UNIQUE_ID"
+            },
+        }
+    
+    NAME = "loop_forEnd"
+    RETURN_TYPES = ByPassTypeTuple(tuple([any_type] * (MAX_FLOW_NUM - 1)))
+    RETURN_NAMES = ByPassTypeTuple(tuple(["value_%d" % i for i in range(1, MAX_FLOW_NUM)]))
+    FUNCTION = "loop_end"
+    CATEGORY = "Apt_Preset/flow"
+
+    def loop_end(self, flow, batch_output=True, dynprompt=None, unique_id=None, **kwargs):
+        
+        graph = GraphBuilder()
+        
+        if flow is None or not isinstance(flow, (list, tuple)) or len(flow) == 0:
+            return tuple(kwargs.get(f"initial_value_{i}") for i in range(1, MAX_FLOW_NUM))
+            
+        while_open_id = flow[0]
+        start_node = dynprompt.get_node(while_open_id)
+        
+        if start_node is None:
+             return tuple(kwargs.get(f"initial_value_{i}") for i in range(1, MAX_FLOW_NUM))
+
+        total = None
+        total_input = start_node.get("inputs", {}).get("total")
+        if total_input is not None:
+            if is_link(total_input):
+                total = total_input
+            else:
+                try:
+                    if isinstance(total_input, torch.Tensor):
+                        total = int(total_input.item()) if total_input.numel() == 1 else 0
+                    else:
+                        total = int(total_input)
+                except (ValueError, TypeError):
+                    total = 0
+        
+        if total is None or (isinstance(total, list) and len(total) == 0):
+            total = MAX_FLOW_NUM
+
+        sub = graph.node(
+            "math_calculate", 
+            preset="a + b", 
+            expression="", 
+            a=[while_open_id, 1], 
+            b=1,
+            c=None
+        )
+        cond = graph.node(
+            "math_calculate", 
+            preset="a < b", 
+            expression="", 
+            a=sub.out(1),
+            b=total,
+            c=None
+        )
+
+        input_values = {}
+        for i in range(1, MAX_FLOW_NUM):
+            key = f"initial_value_{i}"
+            v = kwargs.get(key)
+            
+            if batch_output and is_link(v):
+                collector = graph.node("flow_createbatch", any_1=[while_open_id, i + 1], any_2=v)
+                input_values[key] = collector.out(0)
+            else:
+                input_values[key] = v
+        
+        while_close = graph.node(
+            "flow_whileEnd", 
+            flow=flow, 
+            condition=cond.out(2),
+            initial_value_0=sub.out(1),
+            **input_values
+        )
+        
+        results = []
+        for i in range(1, MAX_FLOW_NUM):
+            out = while_close.out(i)
+            results.append(out)
+
+        return {
+            "result": tuple(results),
+            "expand": graph.finalize(),
+        }
+
+
+class flow_createbatch:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "any_1": (any_type, {}),
+                "any_2": (any_type, {})
+            }
+        }
+    
+    NAME="loop_createbatch"
+    RETURN_TYPES = (any_type,)
+    RETURN_NAMES = ("batch",)
+
+    FUNCTION = "batch"
+    CATEGORY = "Apt_Preset/flow"
+
+    def latentBatch(self, any_1, any_2):
+        samples_out = any_1.copy()
+        s1 = any_1["samples"]
+        s2 = any_2["samples"]
+
+        if s1.shape[1:] != s2.shape[1:]:
+            s2 = comfy.utils.common_upscale(s2, s1.shape[3], s1.shape[2], "bilinear", "center")
+        s = torch.cat((s1, s2), dim=0)
+        samples_out["samples"] = s
+        samples_out["batch_index"] = any_1.get("batch_index",
+                                               [x for x in range(0, s1.shape[0])]) + any_2.get(
+            "batch_index", [x for x in range(0, s2.shape[0])])
+
+        return samples_out
+
+    def batch(self, any_1, any_2):
+        if isinstance(any_1, torch.Tensor) or isinstance(any_2, torch.Tensor):
+            if any_1 is None:
+                return (any_2,)
+            elif any_2 is None:
+                return (any_1,)
+            if any_1.shape[1:] != any_2.shape[1:]:
+                any_2 = comfy.utils.common_upscale(any_2.movedim(-1, 1), any_1.shape[2], any_1.shape[1], "bilinear",
+                                                   "center").movedim(1, -1)
+            return (torch.cat((any_1, any_2), 0),)
+        elif isinstance(any_1, (str, float, int)):
+            if any_2 is None:
+                return (any_1,)
+            elif isinstance(any_2, tuple):
+                return (any_2 + (any_1,),)
+            elif isinstance(any_2, list):
+                return (any_2 + [any_1],)
+            return ([any_1, any_2],)
+        elif isinstance(any_2, (str, float, int)):
+            if any_1 is None:
+                return (any_2,)
+            elif isinstance(any_1, tuple):
+                return (any_1 + (any_2,),)
+            elif isinstance(any_1, list):
+                return (any_1 + [any_2],)
+            return ([any_2, any_1],)
+        elif isinstance(any_1, dict) and 'samples' in any_1:
+            if any_2 is None:
+                return (any_1,)
+            elif isinstance(any_2, dict) and 'samples' in any_2:
+                return (self.latentBatch(any_1, any_2),)
+        elif isinstance(any_2, dict) and 'samples' in any_2:
+            if any_1 is None:
+                return (any_2,)
+            elif isinstance(any_1, dict) and 'samples' in any_1:
+                return (self.latentBatch(any_2, any_1),)
+        else:
+            if any_1 is None:
+                return (any_2,)
+            elif any_2 is None:
+                return (any_1,)
+            return (any_1 + any_2,)
+
+
+
+
+
+
+
+
+#endregion---------------loop team-------------
+
 
 
 

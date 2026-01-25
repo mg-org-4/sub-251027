@@ -5787,7 +5787,7 @@
         "name": "图像"
       },
       "1": {
-        "name": "总数"
+        "name": "释放总数"
       }
     }
   },
@@ -5887,10 +5887,10 @@
     },
     "outputs": {
       "0": {
-        "name": "输出0"
+        "name": "图像"
       },
       "1": {
-        "name": "输出1"
+        "name": "遮罩"
       }
     }
   },
@@ -6184,7 +6184,6 @@
 
 
 
-
   "color_select": {
     "display_name": "color_拾取颜色",
     "inputs": {
@@ -6196,12 +6195,6 @@
       }
     },
     "outputs": {
-      "0": {
-        "name": "颜色hex"
-      },
-      "1": {
-        "name": "颜色code"
-      }
     }
   },
   "basicIn_int": {
@@ -7953,8 +7946,8 @@
       "tone_strength": {
         "name": "色调强度"
       },
-      "ref_mask": {
-        "name": "参考遮罩"
+      "target_mask": {
+        "name": "目标图遮罩"
       }
     },
     "outputs": {
@@ -12181,7 +12174,126 @@
       }
     }
   },
-  "text_mul_Split": {
+
+
+"flow_whileStart": {
+    "display_name": "flow_While循环开始",
+    "inputs": {
+      "condition": {
+        "name": "循环条件"
+      }
+    },
+    "outputs": {
+      "flow": {
+        "name": "流程"
+      }
+    }
+  },
+"flow_whileEnd": {
+    "display_name": "flow_While循环结束",
+    "inputs": {
+      "flow": {
+        "name": "流程"
+      },
+      "condition": {
+        "name": "循环条件"
+      }
+    },
+    "outputs": {
+    }
+  },
+"flow_forStart": {
+    "display_name": "flow_For循环开始",
+    "inputs": {
+      "total": {
+        "name": "循环总数"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "流程"
+      },
+      "1": {
+        "name": "索引"
+      }
+    }
+  },
+"flow_forEnd": {
+    "display_name": "flow_For循环结束",
+    "inputs": {
+      "flow": {
+        "name": "流程"
+      },
+      "batch_output": {
+        "name": "批量输出"
+      }
+
+    },
+    "outputs": {
+    }
+  },
+
+
+"type_Image_List2Batch_adv": {
+    "display_name": "type_图像列表转批次adv",
+    "inputs": {
+      "image_list": {
+        "name": "图像列表"
+      },
+      "mode": {
+        "name": "尺寸模式"
+      },
+      "alignment": {
+        "name": "对齐方式"
+      },
+      "width": {
+        "name": "宽度"
+      },
+      "height": {
+        "name": "高度"
+      },
+      "background_color": {
+        "name": "背景颜色"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "图像批次"
+      }
+    }
+  },
+
+
+"IO_EasyMark": {
+    "display_name": "IO_简易打标记",
+    "inputs": {
+    },
+    "outputs": {
+    }
+  },
+
+"IO_LoadImgList": {
+    "display_name": "IO_加载图像列表",
+    "inputs": {
+      "image_list": {
+        "name": "图像列表"
+      },
+      "selected_indices": {
+        "name": "选中索引"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "图像列表"
+      }
+    }
+  },
+
+
+
+
+
+"text_mul_Split": {
     "display_name": "text_批量分割",
     "inputs": {
       "text": {
@@ -12222,3 +12334,19 @@
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

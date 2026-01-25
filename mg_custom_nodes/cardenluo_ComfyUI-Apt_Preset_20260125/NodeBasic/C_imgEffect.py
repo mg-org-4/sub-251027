@@ -2055,7 +2055,7 @@ class create_Mask_visual_tag:
     RETURN_TYPES = ("IMAGE", "MASK", "MASK")
     RETURN_NAMES = ("image", "mask", "fill_mask")
     FUNCTION = "separate"
-    CATEGORY = "Apt_Preset/mask"
+    CATEGORY = "Apt_Preset/🚫Deprecated/🚫"
 
     def separate(self, mask, base_image, ignore_threshold=100, opacity=0.8, 
                 outline_thickness=1, mask_mode="原始", fill=True, smoothness=1, 

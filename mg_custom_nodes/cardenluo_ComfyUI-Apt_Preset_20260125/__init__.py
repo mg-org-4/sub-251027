@@ -24,6 +24,7 @@ from .NodeChx.Scheduler import *
 from .NodeBasic.highway import Data_Highway
 from .NodeBasic.C_packdata import *
 from .NodeBasic.C_math import *
+from .NodeBasic.C_color import *
 from .NodeBasic.C_model import *
 from .NodeBasic.C_mask import *
 from .NodeBasic.C_latent import *
@@ -289,6 +290,8 @@ NODE_CLASS_MAPPINGS= {
 
 #-------------输入输出 IO_Port-------------------
 
+"IO_LoadImgList": IO_LoadImgList,
+"IO_EasyMark": IO_EasyMark,
 "IO_store_image": IO_store_image,
 "IO_save_image": IO_save_image, 
 "IO_getFilePath": IO_getFilePath,
@@ -334,6 +337,7 @@ NODE_CLASS_MAPPINGS= {
 
 
 "type_Image_List2Batch":type_Image_List2Batch,
+"type_Image_List2Batch_adv":type_Image_List2Batch_adv,
 "type_Image_Batch2List":type_Image_Batch2List,
 "type_Mask_List2Batch":type_Mask_List2Batch,
 "type_Mask_Batch2List":type_Mask_Batch2List,
@@ -370,7 +374,7 @@ NODE_CLASS_MAPPINGS= {
 
 #-------------------------------------------------------------
 
- 
+
 "Image_solo_crop2": Image_solo_crop2,
 "Image_solo_stitch": Image_solo_stitch,   
 
@@ -410,7 +414,6 @@ NODE_CLASS_MAPPINGS= {
 "Image_Channel_Apply": Image_Channel_Apply,   
 
 
-#"ZML_ColorPicker": ZML_ColorPicker,
 
 "color_select": color_select,  
 "color_brightGradient":color_brightGradient,
@@ -422,7 +425,7 @@ NODE_CLASS_MAPPINGS= {
 "color_OneColor_keep": color_OneColor_keep,     
 "color_TransforTool": color_TransforTool,
 "color_balance_adv": color_balance_adv,
-
+"color_Fragment": color_Fragment,
 
 
 #---ImgBatch-------------------------------------------
@@ -477,7 +480,7 @@ NODE_CLASS_MAPPINGS= {
 
 
 #-----------------mask----------------------
-"create_Mask_visual_tag":create_Mask_visual_tag,     
+
 "create_Mask_match_shape2": create_Mask_match_shape2,
 "create_mask_solo": create_mask_solo,  
 
@@ -491,7 +494,7 @@ NODE_CLASS_MAPPINGS= {
 "Mask_simple_adjust":Mask_simple_adjust,
 
 #----------***------------------
-   
+
 "create_AD_mask": create_AD_mask,
 "create_mask_array": create_mask_array,  
 "Mask_Detect_label": Mask_Detect_label,
@@ -572,6 +575,15 @@ NODE_CLASS_MAPPINGS= {
 "flow_sch_control":flow_sch_control,
 "flow_tensor_Unify":flow_tensor_Unify,
 "flow_auto_pixel":flow_auto_pixel, 
+"flow_forStart": flow_forStart,
+"flow_forEnd": flow_forEnd,
+"flow_whileStart": flow_whileStart,
+"flow_whileEnd": flow_whileEnd,
+"flow_createbatch": flow_createbatch,
+
+
+
+
 
 #----------------------外部导入节点-----------------------
 
@@ -583,6 +595,8 @@ NODE_CLASS_MAPPINGS= {
 
 
 #region------------------------准备废弃-------------------------
+"create_Mask_visual_tag":create_Mask_visual_tag,  
+
 
 "pack_Pack": Pack, #wed
 "pack_Unpack": Unpack, #wed
@@ -594,7 +608,6 @@ NODE_CLASS_MAPPINGS= {
 
 
 "Mask_Remove_bg": Mask_Remove_bg, #(Deprecated)
-
 "type_BasiPIPE": type_BasiPIPE, #(Deprecated) #TITLE = "load_FLUX (Deprecated)"    CATEGORY = "Apt_Preset/🚫Deprecated/🚫"
 "Image_Resize2": Image_Resize2,#(Deprecated)
 "chx_Ksampler_Kontext": chx_Ksampler_Kontext,   #(Deprecated)
@@ -602,10 +615,8 @@ NODE_CLASS_MAPPINGS= {
 "chx_Ksampler_Kontext_inpaint": chx_Ksampler_Kontext_inpaint,  #(Deprecated)
 "excel_qwen_font":excel_qwen_font,#(Deprecated)
 
-
 "Data_sampleData": Data_sampleData,#(Deprecated)
 "Data_presetData":Data_presetData,#(Deprecated)
-
 
 "img_effect_CircleWarp": img_effect_CircleWarp,#(Deprecated)
 "img_effect_Stretch": img_effect_Stretch,#(Deprecated)
@@ -654,7 +665,7 @@ NODE_CLASS_MAPPINGS= {
 
 NODE_DISPLAY_NAME_MAPPINGS = {
 "pre_qwen_controlnet": "pre_qwenModelPatch_CN"
-  
+
 }
 
 

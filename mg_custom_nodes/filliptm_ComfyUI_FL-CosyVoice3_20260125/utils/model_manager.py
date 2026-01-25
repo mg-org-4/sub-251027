@@ -117,13 +117,16 @@ def check_model_exists(model_dir: str) -> bool:
 
     # Check for any CosyVoice config file (v1, v2, or v3)
     config_files = ['cosyvoice.yaml', 'cosyvoice2.yaml', 'cosyvoice3.yaml']
-    essential_model_files = ['llm.pt', 'flow.pt']
+    # Note: Some models use llm.rl.pt instead of llm.pt (e.g., Fun-CosyVoice3 on HuggingFace)
+    llm_files = ['llm.pt', 'llm.rl.pt']
+    flow_file = 'flow.pt'
 
     # Recursively search for files
     for root, dirs, files in os.walk(model_dir):
         has_config = any(f in files for f in config_files)
-        essential_found = sum(1 for f in essential_model_files if f in files)
-        if has_config and essential_found >= 2:
+        has_llm = any(f in files for f in llm_files)
+        has_flow = flow_file in files
+        if has_config and has_llm and has_flow:
             return True
 
     return False

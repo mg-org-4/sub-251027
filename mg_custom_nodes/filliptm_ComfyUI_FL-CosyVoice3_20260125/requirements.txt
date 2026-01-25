@@ -8,6 +8,7 @@ tqdm
 onnxruntime>=1.18.0
 requests
 HyperPyYAML>=1.2.0
+ruamel.yaml<0.18
 conformer>=0.3.2
 omegaconf>=2.3.0
 inflect>=7.0.0

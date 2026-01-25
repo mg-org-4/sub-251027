@@ -37,7 +37,20 @@ from transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
-from transformers.pytorch_utils import Conv1D, find_pruneable_heads_and_indices, prune_conv1d_layer
+from transformers.pytorch_utils import Conv1D, prune_conv1d_layer
+try:
+    from transformers.pytorch_utils import find_pruneable_heads_and_indices
+except ImportError:
+    # Fallback for transformers >= 4.40.0 where this function was removed
+    from typing import List, Set
+    def find_pruneable_heads_and_indices(
+        heads: List[int], n_heads: int, head_dim: int, already_pruned_heads: Set[int]
+    ):
+        mask = torch.ones(n_heads, head_dim)
+        for head in set(heads) - already_pruned_heads:
+            mask[head] = 0
+        mask = mask.view(-1).contiguous().eq(1)
+        return set(heads) - already_pruned_heads, torch.arange(len(mask))[mask].long()
 from transformers.utils import (
     ModelOutput,
     add_code_sample_docstrings,
@@ -1107,28 +1120,24 @@ class GPT2Model(GPT2PreTrainedModel):
 
         # Attention mask.
         if attention_mask is not None:
-            if attention_mask.dim() == 4:
-                attention_mask = attention_mask.to(dtype=self.dtype)
-                attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
+            attention_mask = attention_mask.view(batch_size, -1)
+            if self._attn_implementation == "flash_attention_2":
+                attention_mask = attention_mask if 0 in attention_mask else None
             else:
-                attention_mask = attention_mask.view(batch_size, -1)
-                if self._attn_implementation == "flash_attention_2":
-                    attention_mask = attention_mask if 0 in attention_mask else None
-                else:
-                    # We create a 3D attention mask from a 2D tensor mask.
-                    # Sizes are [batch_size, 1, 1, to_seq_length]
-                    # So we can broadcast to [batch_size, num_heads, from_seq_length, to_seq_length]
-                    # this attention mask is more simple than the triangular masking of causal attention
-                    # used in OpenAI GPT, we just need to prepare the broadcast dimension here.
-                    attention_mask = attention_mask[:, None, None, :]
+                # We create a 3D attention mask from a 2D tensor mask.
+                # Sizes are [batch_size, 1, 1, to_seq_length]
+                # So we can broadcast to [batch_size, num_heads, from_seq_length, to_seq_length]
+                # this attention mask is more simple than the triangular masking of causal attention
+                # used in OpenAI GPT, we just need to prepare the broadcast dimension here.
+                attention_mask = attention_mask[:, None, None, :]
 
-                    # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-                    # masked positions, this operation will create a tensor which is 0.0 for
-                    # positions we want to attend and the dtype's smallest value for masked positions.
-                    # Since we are adding it to the raw scores before the softmax, this is
-                    # effectively the same as removing these entirely.
-                    attention_mask = attention_mask.to(dtype=self.dtype)  # fp16 compatibility
-                    attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
+                # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
+                # masked positions, this operation will create a tensor which is 0.0 for
+                # positions we want to attend and the dtype's smallest value for masked positions.
+                # Since we are adding it to the raw scores before the softmax, this is
+                # effectively the same as removing these entirely.
+                attention_mask = attention_mask.to(dtype=self.dtype)  # fp16 compatibility
+                attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
 
         # If a 2D or 3D attention mask is provided for the cross-attention
         # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
@@ -1138,11 +1147,7 @@ class GPT2Model(GPT2PreTrainedModel):
             if encoder_attention_mask is None:
                 encoder_attention_mask = torch.ones(encoder_hidden_shape, device=device)
             if self._attn_implementation != "flash_attention_2":
-                if encoder_attention_mask.dim() == 4:
-                    encoder_attention_mask = encoder_attention_mask.to(dtype=self.dtype)
-                    encoder_attention_mask = (1.0 - encoder_attention_mask) * torch.finfo(self.dtype).min
-                else:
-                    encoder_attention_mask = self.invert_attention_mask(encoder_attention_mask)
+                encoder_attention_mask = self.invert_attention_mask(encoder_attention_mask)
         else:
             encoder_attention_mask = None
 

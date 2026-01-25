@@ -37,7 +37,20 @@ from transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
-from transformers.pytorch_utils import Conv1D, find_pruneable_heads_and_indices, prune_conv1d_layer
+from transformers.pytorch_utils import Conv1D, prune_conv1d_layer
+try:
+    from transformers.pytorch_utils import find_pruneable_heads_and_indices
+except ImportError:
+    # Fallback for transformers >= 4.40.0 where this function was removed
+    from typing import List, Set
+    def find_pruneable_heads_and_indices(
+        heads: List[int], n_heads: int, head_dim: int, already_pruned_heads: Set[int]
+    ):
+        mask = torch.ones(n_heads, head_dim)
+        for head in set(heads) - already_pruned_heads:
+            mask[head] = 0
+        mask = mask.view(-1).contiguous().eq(1)
+        return set(heads) - already_pruned_heads, torch.arange(len(mask))[mask].long()
 from transformers.utils import (
     ModelOutput,
     add_code_sample_docstrings,
@@ -49,7 +62,7 @@ from transformers.utils import (
     replace_return_docstrings,
 )
 from transformers.utils.model_parallel_utils import assert_device_map, get_device_map
-from models.gpt2_config import GPT2Config
+from models_gpt.models.gpt2_config import GPT2Config
 
 
 if is_flash_attn_2_available():
@@ -473,16 +486,6 @@ class GPT2FlashAttention2(GPT2Attention):
 
         query_length = query.shape[2]
         tgt_len = key.shape[2]
-
-        # Add ropes to the query
-        query = query.transpose(1, 2)
-        freqs_cis= precompute_freqs_cis(dim=query.size(-1), end=query.size(1)).to(query.device)
-        query = apply_rotary_emb(query, freqs_cis)
-        query = query.transpose(1, 2)
-        if query.shape == key.shape:
-            key = key.transpose(1, 2)
-            key = apply_rotary_emb(key, freqs_cis)
-            key = key.transpose(1, 2)
 
         # Flash attention requires the input to have the shape
         # batch_size x seq_length x head_dim x hidden_dim

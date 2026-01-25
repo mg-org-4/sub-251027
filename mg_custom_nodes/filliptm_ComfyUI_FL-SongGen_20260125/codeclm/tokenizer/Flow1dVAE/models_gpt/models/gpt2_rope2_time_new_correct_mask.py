@@ -20,7 +20,6 @@ import os
 import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
-from typing import Any, Dict, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -37,19 +36,21 @@ from transformers.modeling_outputs import (
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
-from transformers.modeling_utils import PreTrainedModel
+from transformers.modeling_utils import PreTrainedModel, SequenceSummary
+from transformers.pytorch_utils import Conv1D, prune_conv1d_layer
 try:
-    from transformers.modeling_utils import SequenceSummary
+    from transformers.pytorch_utils import find_pruneable_heads_and_indices
 except ImportError:
-    # SequenceSummary removed in newer transformers versions
-    # Define a minimal stub - only used by GPT2DoubleHeadsModel (not needed for inference)
-    class SequenceSummary(nn.Module):
-        def __init__(self, config):
-            super().__init__()
-            self.summary = nn.Identity()
-        def forward(self, hidden_states, cls_index=None):
-            return hidden_states[:, -1]
-from transformers.pytorch_utils import Conv1D, find_pruneable_heads_and_indices, prune_conv1d_layer
+    # Fallback for transformers >= 4.40.0 where this function was removed
+    from typing import List, Set
+    def find_pruneable_heads_and_indices(
+        heads: List[int], n_heads: int, head_dim: int, already_pruned_heads: Set[int]
+    ):
+        mask = torch.ones(n_heads, head_dim)
+        for head in set(heads) - already_pruned_heads:
+            mask[head] = 0
+        mask = mask.view(-1).contiguous().eq(1)
+        return set(heads) - already_pruned_heads, torch.arange(len(mask))[mask].long()
 from transformers.utils import (
     ModelOutput,
     add_code_sample_docstrings,
@@ -61,107 +62,18 @@ from transformers.utils import (
     replace_return_docstrings,
 )
 from transformers.utils.model_parallel_utils import assert_device_map, get_device_map
-from models_gpt.models.gpt2_config import GPT2Config
+from models.gpt2_config import GPT2Config
 
 
 if is_flash_attn_2_available():
     from flash_attn import flash_attn_func, flash_attn_varlen_func
     from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input
 from diffusers.models.normalization import AdaLayerNormSingle
-from diffusers.models.embeddings import TimestepEmbedding
 
 logger = logging.get_logger(__name__)
 
 _CHECKPOINT_FOR_DOC = "openai-community/gpt2"
 _CONFIG_FOR_DOC = "GPT2Config"
-
-
-class AdaLayerNormSingleFlow(nn.Module):
-    r"""
-    Norm layer adaptive layer norm single (adaLN-single).
-
-    As proposed in PixArt-Alpha (see: https://arxiv.org/abs/2310.00426; Section 2.3).
-
-    Parameters:
-        embedding_dim (`int`): The size of each embedding vector.
-        use_additional_conditions (`bool`): To use additional conditions for normalization or not.
-    """
-
-    def __init__(self, embedding_dim: int, use_additional_conditions: bool = False):
-        super().__init__()
-
-        self.emb = PixArtAlphaCombinedFlowEmbeddings(
-            embedding_dim, size_emb_dim=embedding_dim // 3, use_additional_conditions=use_additional_conditions
-        )
-
-        self.silu = nn.SiLU()
-        self.linear = nn.Linear(embedding_dim, 6 * embedding_dim, bias=True)
-
-    def forward(
-        self,
-        timestep: torch.Tensor,
-        added_cond_kwargs: Optional[Dict[str, torch.Tensor]] = None,
-        batch_size: Optional[int] = None,
-        hidden_dtype: Optional[torch.dtype] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        # No modulation happening here.
-        embedded_timestep = self.emb(timestep, **added_cond_kwargs, batch_size=batch_size, hidden_dtype=hidden_dtype)
-        return self.linear(self.silu(embedded_timestep)), embedded_timestep
-
-class PixArtAlphaCombinedFlowEmbeddings(nn.Module):
-    """
-    For PixArt-Alpha.
-
-    Reference:
-    https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L164C9-L168C29
-    """
-
-    def __init__(self, embedding_dim, size_emb_dim, use_additional_conditions: bool = False):
-        super().__init__()
-
-        self.flow_t_size = 512
-        self.outdim = size_emb_dim
-        self.timestep_embedder = TimestepEmbedding(in_channels=self.flow_t_size, time_embed_dim=embedding_dim)
-
-        self.use_additional_conditions = use_additional_conditions
-        if use_additional_conditions:
-            self.additional_condition_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
-            self.resolution_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
-            self.aspect_ratio_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
-
-    # https://github.com/atong01/conditional-flow-matching/blob/main/torchcfm/models/unet/nn.py#L87
-    def timestep_embedding(self, timesteps, max_period=10000, scale=1000):
-        """Create sinusoidal timestep embeddings.
-
-        :param timesteps: a 1-D Tensor of N indices, one per batch element. These may be fractional.
-        :param dim: the dimension of the output.
-        :param max_period: controls the minimum frequency of the embeddings.
-        :return: an [N x dim] Tensor of positional embeddings.
-        """
-        half = self.flow_t_size // 2
-        freqs = torch.exp(-math.log(max_period) * torch.arange(start=0, end=half, device=timesteps.device) / half).type(timesteps.type())
-        args = timesteps[:, None] * freqs[None] * scale
-        embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
-        if self.flow_t_size % 2:
-            embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
-        return embedding
-
-    def forward(self, timestep, resolution, aspect_ratio, batch_size, hidden_dtype):
-        timesteps_proj = self.timestep_embedding(timestep)
-        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
-
-        if self.use_additional_conditions:
-            resolution_emb = self.additional_condition_proj(resolution.flatten()).to(hidden_dtype)
-            resolution_emb = self.resolution_embedder(resolution_emb).reshape(batch_size, -1)
-            aspect_ratio_emb = self.additional_condition_proj(aspect_ratio.flatten()).to(hidden_dtype)
-            aspect_ratio_emb = self.aspect_ratio_embedder(aspect_ratio_emb).reshape(batch_size, -1)
-            conditioning = timesteps_emb + torch.cat([resolution_emb, aspect_ratio_emb], dim=1)
-        else:
-            conditioning = timesteps_emb
-
-        return conditioning
-    
-
 
 
 # Copied from transformers.models.llama.modeling_llama._get_unpad_data
@@ -296,7 +208,6 @@ class GPT2Attention(nn.Module):
     def _attn(self, query, key, value, attention_mask=None, head_mask=None):
         
         query = query.transpose(1, 2)
-        
         freqs_cis= precompute_freqs_cis(dim=query.size(-1), end=query.size(1)).to(query.device)
         query = apply_rotary_emb(query, freqs_cis)
         query = query.transpose(1, 2)
@@ -317,15 +228,15 @@ class GPT2Attention(nn.Module):
         if self.scale_attn_by_inverse_layer_idx:
             attn_weights = attn_weights / float(self.layer_idx + 1)
 
-        # if not self.is_cross_attention:
-        #     # if only "normal" attention layer implements causal mask
-        #     query_length, key_length = query.size(-2), key.size(-2)
-        #     causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]
-        #     mask_value = torch.finfo(attn_weights.dtype).min
-        #     # Need to be a tensor, otherwise we get error: `RuntimeError: expected scalar type float but found double`.
-        #     # Need to be on the same device, otherwise `RuntimeError: ..., x and y to be on the same device`
-        #     mask_value = torch.full([], mask_value, dtype=attn_weights.dtype, device=attn_weights.device)
-        #     attn_weights = torch.where(causal_mask, attn_weights.to(attn_weights.dtype), mask_value)
+        if not self.is_cross_attention:
+            # if only "normal" attention layer implements causal mask
+            query_length, key_length = query.size(-2), key.size(-2)
+            causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]
+            mask_value = torch.finfo(attn_weights.dtype).min
+            # Need to be a tensor, otherwise we get error: `RuntimeError: expected scalar type float but found double`.
+            # Need to be on the same device, otherwise `RuntimeError: ..., x and y to be on the same device`
+            mask_value = torch.full([], mask_value, dtype=attn_weights.dtype, device=attn_weights.device)
+            attn_weights = torch.where(causal_mask, attn_weights.to(attn_weights.dtype), mask_value)
 
         if attention_mask is not None:
             # Apply the attention mask
@@ -1090,7 +1001,7 @@ class GPT2Model(GPT2PreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-        self.adaln_single = AdaLayerNormSingleFlow(config.hidden_size, use_additional_conditions=False)
+        self.adaln_single = AdaLayerNormSingle(config.hidden_size, use_additional_conditions=False)
         self.scale_shift_table = nn.Parameter(torch.randn(2, config.hidden_size) / config.hidden_size**0.5)
 
     @add_start_docstrings(PARALLELIZE_DOCSTRING)

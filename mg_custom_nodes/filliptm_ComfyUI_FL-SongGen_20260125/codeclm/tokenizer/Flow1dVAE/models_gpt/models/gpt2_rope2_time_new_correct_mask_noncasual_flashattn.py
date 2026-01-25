@@ -37,7 +37,20 @@ from transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
-from transformers.pytorch_utils import Conv1D, find_pruneable_heads_and_indices, prune_conv1d_layer
+from transformers.pytorch_utils import Conv1D, prune_conv1d_layer
+try:
+    from transformers.pytorch_utils import find_pruneable_heads_and_indices
+except ImportError:
+    # Fallback for transformers >= 4.40.0 where this function was removed
+    from typing import List, Set
+    def find_pruneable_heads_and_indices(
+        heads: List[int], n_heads: int, head_dim: int, already_pruned_heads: Set[int]
+    ):
+        mask = torch.ones(n_heads, head_dim)
+        for head in set(heads) - already_pruned_heads:
+            mask[head] = 0
+        mask = mask.view(-1).contiguous().eq(1)
+        return set(heads) - already_pruned_heads, torch.arange(len(mask))[mask].long()
 from transformers.utils import (
     ModelOutput,
     add_code_sample_docstrings,
@@ -55,7 +68,7 @@ from models.gpt2_config import GPT2Config
 if is_flash_attn_2_available():
     from flash_attn import flash_attn_func, flash_attn_varlen_func
     from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input
-
+from diffusers.models.normalization import AdaLayerNormSingle
 
 logger = logging.get_logger(__name__)
 
@@ -215,15 +228,15 @@ class GPT2Attention(nn.Module):
         if self.scale_attn_by_inverse_layer_idx:
             attn_weights = attn_weights / float(self.layer_idx + 1)
 
-        if not self.is_cross_attention:
-            # if only "normal" attention layer implements causal mask
-            query_length, key_length = query.size(-2), key.size(-2)
-            causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]
-            mask_value = torch.finfo(attn_weights.dtype).min
-            # Need to be a tensor, otherwise we get error: `RuntimeError: expected scalar type float but found double`.
-            # Need to be on the same device, otherwise `RuntimeError: ..., x and y to be on the same device`
-            mask_value = torch.full([], mask_value, dtype=attn_weights.dtype, device=attn_weights.device)
-            attn_weights = torch.where(causal_mask, attn_weights.to(attn_weights.dtype), mask_value)
+        # if not self.is_cross_attention:
+        #     # if only "normal" attention layer implements causal mask
+        #     query_length, key_length = query.size(-2), key.size(-2)
+        #     causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]
+        #     mask_value = torch.finfo(attn_weights.dtype).min
+        #     # Need to be a tensor, otherwise we get error: `RuntimeError: expected scalar type float but found double`.
+        #     # Need to be on the same device, otherwise `RuntimeError: ..., x and y to be on the same device`
+        #     mask_value = torch.full([], mask_value, dtype=attn_weights.dtype, device=attn_weights.device)
+        #     attn_weights = torch.where(causal_mask, attn_weights.to(attn_weights.dtype), mask_value)
 
         if attention_mask is not None:
             # Apply the attention mask
@@ -474,6 +487,16 @@ class GPT2FlashAttention2(GPT2Attention):
         query_length = query.shape[2]
         tgt_len = key.shape[2]
 
+        # Add ropes to the query
+        query = query.transpose(1, 2)
+        freqs_cis= precompute_freqs_cis(dim=query.size(-1), end=query.size(1)).to(query.device)
+        query = apply_rotary_emb(query, freqs_cis)
+        query = query.transpose(1, 2)
+        if query.shape == key.shape:
+            key = key.transpose(1, 2)
+            key = apply_rotary_emb(key, freqs_cis)
+            key = key.transpose(1, 2)
+
         # Flash attention requires the input to have the shape
         # batch_size x seq_length x head_dim x hidden_dim
         query = query.transpose(1, 2).view(bsz, query_length, self.num_heads, self.head_dim)
@@ -663,6 +686,7 @@ class GPT2Block(nn.Module):
             self.ln_cross_attn = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
 
         self.mlp = GPT2MLP(inner_dim, config)
+        self.scale_shift_table = nn.Parameter(torch.randn(6, hidden_size) / hidden_size**0.5)
 
     def forward(
         self,
@@ -673,10 +697,18 @@ class GPT2Block(nn.Module):
         encoder_hidden_states: Optional[torch.Tensor] = None,
         encoder_attention_mask: Optional[torch.FloatTensor] = None,
         use_cache: Optional[bool] = False,
+        time_step: Optional[torch.LongTensor] = None,
         output_attentions: Optional[bool] = False,
     ) -> Union[Tuple[torch.Tensor], Optional[Tuple[torch.Tensor, Tuple[torch.FloatTensor, ...]]]]:
+        batch_size = hidden_states.shape[0]
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
+                self.scale_shift_table[None] + time_step.reshape(batch_size, 6, -1)
+            ).chunk(6, dim=1)
+        
         residual = hidden_states
         hidden_states = self.ln_1(hidden_states)
+        hidden_states = hidden_states * (1 + scale_msa) + shift_msa
+        hidden_states = hidden_states.squeeze(1)
         attn_outputs = self.attn(
             hidden_states,
             layer_past=layer_past,
@@ -688,6 +720,8 @@ class GPT2Block(nn.Module):
         attn_output = attn_outputs[0]  # output_attn: a, present, (attentions)
         outputs = attn_outputs[1:]
         # residual connection
+        attn_output = attn_output *  gate_msa
+
         hidden_states = attn_output + residual
 
         if encoder_hidden_states is not None:
@@ -714,7 +748,9 @@ class GPT2Block(nn.Module):
 
         residual = hidden_states
         hidden_states = self.ln_2(hidden_states)
+        hidden_states = hidden_states * (1 + scale_mlp) + shift_mlp
         feed_forward_hidden_states = self.mlp(hidden_states)
+        feed_forward_hidden_states = feed_forward_hidden_states * gate_mlp
         # residual connection
         hidden_states = residual + feed_forward_hidden_states
 
@@ -965,6 +1001,7 @@ class GPT2Model(GPT2PreTrainedModel):
         self.drop = nn.Dropout(config.embd_pdrop)
         self.h = nn.ModuleList([GPT2Block(config, layer_idx=i) for i in range(config.num_hidden_layers)])
         self.ln_f = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon)
+        self.proj_out=torch.nn.Linear(self.embed_dim, self.embed_dim)
 
         # Model parallel
         self.model_parallel = False
@@ -974,6 +1011,8 @@ class GPT2Model(GPT2PreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
+        self.adaln_single = AdaLayerNormSingle(config.hidden_size, use_additional_conditions=False)
+        self.scale_shift_table = nn.Parameter(torch.randn(2, config.hidden_size) / config.hidden_size**0.5)
 
     @add_start_docstrings(PARALLELIZE_DOCSTRING)
     def parallelize(self, device_map=None):
@@ -1045,6 +1084,7 @@ class GPT2Model(GPT2PreTrainedModel):
         attention_mask: Optional[torch.FloatTensor] = None,
         token_type_ids: Optional[torch.LongTensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
+        time_step: Optional[torch.LongTensor] = None,
         head_mask: Optional[torch.FloatTensor] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
         encoder_hidden_states: Optional[torch.Tensor] = None,
@@ -1090,24 +1130,28 @@ class GPT2Model(GPT2PreTrainedModel):
 
         # Attention mask.
         if attention_mask is not None:
-            attention_mask = attention_mask.view(batch_size, -1)
-            if self._attn_implementation == "flash_attention_2":
-                attention_mask = attention_mask if 0 in attention_mask else None
-            else:
-                # We create a 3D attention mask from a 2D tensor mask.
-                # Sizes are [batch_size, 1, 1, to_seq_length]
-                # So we can broadcast to [batch_size, num_heads, from_seq_length, to_seq_length]
-                # this attention mask is more simple than the triangular masking of causal attention
-                # used in OpenAI GPT, we just need to prepare the broadcast dimension here.
-                attention_mask = attention_mask[:, None, None, :]
-
-                # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-                # masked positions, this operation will create a tensor which is 0.0 for
-                # positions we want to attend and the dtype's smallest value for masked positions.
-                # Since we are adding it to the raw scores before the softmax, this is
-                # effectively the same as removing these entirely.
-                attention_mask = attention_mask.to(dtype=self.dtype)  # fp16 compatibility
+            if attention_mask.dim() == 4:
+                attention_mask = attention_mask.to(dtype=self.dtype)
                 attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
+            else:
+                attention_mask = attention_mask.view(batch_size, -1)
+                if self._attn_implementation == "flash_attention_2":
+                    attention_mask = attention_mask if 0 in attention_mask else None
+                else:
+                    # We create a 3D attention mask from a 2D tensor mask.
+                    # Sizes are [batch_size, 1, 1, to_seq_length]
+                    # So we can broadcast to [batch_size, num_heads, from_seq_length, to_seq_length]
+                    # this attention mask is more simple than the triangular masking of causal attention
+                    # used in OpenAI GPT, we just need to prepare the broadcast dimension here.
+                    attention_mask = attention_mask[:, None, None, :]
+
+                    # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
+                    # masked positions, this operation will create a tensor which is 0.0 for
+                    # positions we want to attend and the dtype's smallest value for masked positions.
+                    # Since we are adding it to the raw scores before the softmax, this is
+                    # effectively the same as removing these entirely.
+                    attention_mask = attention_mask.to(dtype=self.dtype)  # fp16 compatibility
+                    attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
 
         # If a 2D or 3D attention mask is provided for the cross-attention
         # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
@@ -1117,7 +1161,11 @@ class GPT2Model(GPT2PreTrainedModel):
             if encoder_attention_mask is None:
                 encoder_attention_mask = torch.ones(encoder_hidden_shape, device=device)
             if self._attn_implementation != "flash_attention_2":
-                encoder_attention_mask = self.invert_attention_mask(encoder_attention_mask)
+                if encoder_attention_mask.dim() == 4:
+                    encoder_attention_mask = encoder_attention_mask.to(dtype=self.dtype)
+                    encoder_attention_mask = (1.0 - encoder_attention_mask) * torch.finfo(self.dtype).min
+                else:
+                    encoder_attention_mask = self.invert_attention_mask(encoder_attention_mask)
         else:
             encoder_attention_mask = None
 
@@ -1151,6 +1199,12 @@ class GPT2Model(GPT2PreTrainedModel):
         all_self_attentions = () if output_attentions else None
         all_cross_attentions = () if output_attentions and self.config.add_cross_attention else None
         all_hidden_states = () if output_hidden_states else None
+        added_cond_kwargs = {"resolution": None, "aspect_ratio": None}
+        # print("time_step", time_step)
+        time_step, embedded_timestep = self.adaln_single(
+            time_step, added_cond_kwargs, batch_size=batch_size, hidden_dtype=hidden_states.dtype
+        )
+
         for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
             # Model parallel
             if self.model_parallel:
@@ -1185,6 +1239,7 @@ class GPT2Model(GPT2PreTrainedModel):
                     attention_mask=attention_mask,
                     head_mask=head_mask[i],
                     encoder_hidden_states=encoder_hidden_states,
+                    time_step=time_step,
                     encoder_attention_mask=encoder_attention_mask,
                     use_cache=use_cache,
                     output_attentions=output_attentions,
@@ -1205,8 +1260,10 @@ class GPT2Model(GPT2PreTrainedModel):
                 for k, v in self.device_map.items():
                     if i == v[-1] and "cuda:" + str(k) != self.last_device:
                         hidden_states = hidden_states.to("cuda:" + str(k + 1))
-
+        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, dim=1)
         hidden_states = self.ln_f(hidden_states)
+        hidden_states = hidden_states * (1 + scale) + shift
+        hidden_states = self.proj_out(hidden_states)
 
         hidden_states = hidden_states.view(output_shape)
         # Add last hidden state

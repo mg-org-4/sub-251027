@@ -37,7 +37,20 @@ from transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
-from transformers.pytorch_utils import Conv1D, find_pruneable_heads_and_indices, prune_conv1d_layer
+from transformers.pytorch_utils import Conv1D, prune_conv1d_layer
+try:
+    from transformers.pytorch_utils import find_pruneable_heads_and_indices
+except ImportError:
+    # Fallback for transformers >= 4.40.0 where this function was removed
+    from typing import List, Set
+    def find_pruneable_heads_and_indices(
+        heads: List[int], n_heads: int, head_dim: int, already_pruned_heads: Set[int]
+    ):
+        mask = torch.ones(n_heads, head_dim)
+        for head in set(heads) - already_pruned_heads:
+            mask[head] = 0
+        mask = mask.view(-1).contiguous().eq(1)
+        return set(heads) - already_pruned_heads, torch.arange(len(mask))[mask].long()
 from transformers.utils import (
     ModelOutput,
     add_code_sample_docstrings,
@@ -195,12 +208,13 @@ class GPT2Attention(nn.Module):
     def _attn(self, query, key, value, attention_mask=None, head_mask=None):
         
         query = query.transpose(1, 2)
-        key = key.transpose(1, 2)
         freqs_cis= precompute_freqs_cis(dim=query.size(-1), end=query.size(1)).to(query.device)
         query = apply_rotary_emb(query, freqs_cis)
-        key = apply_rotary_emb(key, freqs_cis)
         query = query.transpose(1, 2)
-        key = key.transpose(1, 2)
+        if query.shape == key.shape:
+            key = key.transpose(1, 2)
+            key = apply_rotary_emb(key, freqs_cis)
+            key = key.transpose(1, 2)
 
 
         attn_weights = torch.matmul(query, key.transpose(-1, -2))
@@ -661,7 +675,6 @@ class GPT2Block(nn.Module):
             self.ln_cross_attn = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
 
         self.mlp = GPT2MLP(inner_dim, config)
-        self.scale_shift_table = nn.Parameter(torch.randn(6, hidden_size) / hidden_size**0.5)
 
     def forward(
         self,
@@ -672,24 +685,10 @@ class GPT2Block(nn.Module):
         encoder_hidden_states: Optional[torch.Tensor] = None,
         encoder_attention_mask: Optional[torch.FloatTensor] = None,
         use_cache: Optional[bool] = False,
-        time_step: Optional[torch.LongTensor] = None,
         output_attentions: Optional[bool] = False,
     ) -> Union[Tuple[torch.Tensor], Optional[Tuple[torch.Tensor, Tuple[torch.FloatTensor, ...]]]]:
-        batch_size = hidden_states.shape[0]
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-                self.scale_shift_table[None] + time_step.reshape(batch_size, 6, -1)
-            ).chunk(6, dim=1)
-        
         residual = hidden_states
         hidden_states = self.ln_1(hidden_states)
-        # print("shift_msa:",shift_msa.shape)
-        # print("scale_msa:",scale_msa.shape)
-        #shift_msa: torch.Size([5, 1, 768])
-        #scale_msa: torch.Size([5, 1, 768])
-        # print("before hidden:",hidden_states.shape)
-        hidden_states = hidden_states * (1 + scale_msa) + shift_msa
-        # print("after hidden:",hidden_states.shape)
-        hidden_states = hidden_states.squeeze(1)
         attn_outputs = self.attn(
             hidden_states,
             layer_past=layer_past,
@@ -701,10 +700,7 @@ class GPT2Block(nn.Module):
         attn_output = attn_outputs[0]  # output_attn: a, present, (attentions)
         outputs = attn_outputs[1:]
         # residual connection
-        attn_output = attn_output *  gate_msa
-        # print("attn_output:",attn_output.shape)
         hidden_states = attn_output + residual
-        # print("hidden_states:",hidden_states.shape)
 
         if encoder_hidden_states is not None:
             # add one self-attention block for cross-attention
@@ -730,9 +726,7 @@ class GPT2Block(nn.Module):
 
         residual = hidden_states
         hidden_states = self.ln_2(hidden_states)
-        hidden_states = hidden_states * (1 + scale_mlp) + shift_mlp
         feed_forward_hidden_states = self.mlp(hidden_states)
-        feed_forward_hidden_states = feed_forward_hidden_states * gate_mlp
         # residual connection
         hidden_states = residual + feed_forward_hidden_states
 
@@ -993,7 +987,6 @@ class GPT2Model(GPT2PreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-
     @add_start_docstrings(PARALLELIZE_DOCSTRING)
     def parallelize(self, device_map=None):
         # Check validity of device_map
@@ -1064,7 +1057,6 @@ class GPT2Model(GPT2PreTrainedModel):
         attention_mask: Optional[torch.FloatTensor] = None,
         token_type_ids: Optional[torch.LongTensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
-        time_step: Optional[torch.LongTensor] = None,
         head_mask: Optional[torch.FloatTensor] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
         encoder_hidden_states: Optional[torch.Tensor] = None,
@@ -1127,6 +1119,7 @@ class GPT2Model(GPT2PreTrainedModel):
                 # Since we are adding it to the raw scores before the softmax, this is
                 # effectively the same as removing these entirely.
                 attention_mask = attention_mask.to(dtype=self.dtype)  # fp16 compatibility
+                attention_mask = attention_mask.tril()
                 attention_mask = (1.0 - attention_mask) * torch.finfo(self.dtype).min
 
         # If a 2D or 3D attention mask is provided for the cross-attention
@@ -1206,7 +1199,6 @@ class GPT2Model(GPT2PreTrainedModel):
                     head_mask=head_mask[i],
                     encoder_hidden_states=encoder_hidden_states,
                     encoder_attention_mask=encoder_attention_mask,
-                    time_step=time_step,
                     use_cache=use_cache,
                     output_attentions=output_attentions,
                 )

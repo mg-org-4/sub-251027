@@ -37,7 +37,20 @@ from transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
-from transformers.pytorch_utils import Conv1D, find_pruneable_heads_and_indices, prune_conv1d_layer
+from transformers.pytorch_utils import Conv1D, prune_conv1d_layer
+try:
+    from transformers.pytorch_utils import find_pruneable_heads_and_indices
+except ImportError:
+    # Fallback for transformers >= 4.40.0 where this function was removed
+    from typing import List, Set
+    def find_pruneable_heads_and_indices(
+        heads: List[int], n_heads: int, head_dim: int, already_pruned_heads: Set[int]
+    ):
+        mask = torch.ones(n_heads, head_dim)
+        for head in set(heads) - already_pruned_heads:
+            mask[head] = 0
+        mask = mask.view(-1).contiguous().eq(1)
+        return set(heads) - already_pruned_heads, torch.arange(len(mask))[mask].long()
 from transformers.utils import (
     ModelOutput,
     add_code_sample_docstrings,
@@ -193,6 +206,17 @@ class GPT2Attention(nn.Module):
         self.pruned_heads = self.pruned_heads.union(heads)
 
     def _attn(self, query, key, value, attention_mask=None, head_mask=None):
+        
+        query = query.transpose(1, 2)
+        freqs_cis= precompute_freqs_cis(dim=query.size(-1), end=query.size(1)).to(query.device)
+        query = apply_rotary_emb(query, freqs_cis)
+        query = query.transpose(1, 2)
+        if query.shape == key.shape:
+            key = key.transpose(1, 2)
+            key = apply_rotary_emb(key, freqs_cis)
+            key = key.transpose(1, 2)
+
+
         attn_weights = torch.matmul(query, key.transpose(-1, -2))
 
         if self.scale_attn_weights:
@@ -229,6 +253,7 @@ class GPT2Attention(nn.Module):
             attn_weights = attn_weights * head_mask
 
         attn_output = torch.matmul(attn_weights, value)
+
 
         return attn_output, attn_weights
 
@@ -354,7 +379,54 @@ class GPT2Attention(nn.Module):
         return outputs  # a, present, (attentions)
 
 
+def precompute_freqs_cis(dim: int, end: int, constant: float = 10000.0):
+    '''
+    计算cos和sin的值，cos值在实部，sin值在虚部，类似于 cosx+j*sinx
+    :param dim: q,k,v的最后一维，一般为emb_dim/head_num
+    :param end: 句长length
+    :param constant： 这里指10000
+    :return:
+    复数计算 torch.polar(a, t)输出， a*(cos(t)+j*sin(t))
+    '''
+    # freqs: 计算 1/(10000^(2i/d) )，将结果作为参数theta
+    # 形式化为 [theta_0, theta_1, ..., theta_(d/2-1)]
+    freqs = 1.0 / (constant ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim)) # [d/2]
 
+    # 计算m
+    t = torch.arange(end, device=freqs.device)  # [length]
+    # 计算m*theta
+    freqs = torch.outer(t, freqs).float()  # [length, d/2]
+    # freqs形式化为 [m*theta_0, m*theta_1, ..., m*theta_(d/2-1)],其中 m=0,1,...,length-1
+
+    # 计算cos(m*theta)+j*sin(m*theta)
+    freqs_cis = torch.polar(torch.ones_like(freqs), freqs)  # complex64
+    # freqs_cis: [cos(m*theta_0)+j*sin(m*theta_0),  cos(m*theta_1)+j*sin(m*theta_1),), ..., cos(m*theta_(d/2-1))+j*sin(m*theta_(d/2-1))]
+    # 其中j为虚数单位， m=0,1,...,length-1
+    return freqs_cis # [length, d/2]
+
+def reshape_for_broadcast(freqs_cis: torch.Tensor, x: torch.Tensor):
+    ndim = x.ndim
+    assert 0 <= 1 < ndim
+    assert freqs_cis.shape == (x.shape[1], x.shape[-1])
+    shape = [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)] # (1, length, 1, d/2)
+    return freqs_cis.view(*shape) # [1, length, 1, d/2]
+
+def apply_rotary_emb(xq: torch.Tensor,  freqs_cis: torch.Tensor,):
+    # 先将xq维度变为[bs, length, head,  d/2, 2], 利用torch.view_as_complex转变为复数
+    # xq:[q0, q1, .., q(d-1)] 转变为 xq_: [q0+j*q1, q2+j*q3, ..., q(d-2)+j*q(d-1)]
+    xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2)) # [bs, length, head, d/2]
+
+
+    freqs_cis = reshape_for_broadcast(freqs_cis, xq_) # [1, length, 1, d/2]
+    # 下式xq_ * freqs_cis形式化输出，以第一个为例, 如下
+    # (q0+j*q1)(cos(m*theta_0)+j*sin(m*theta_0)) = q0*cos(m*theta_0)-q1*sin(m*theta_0) + j*(q1*cos(m*theta_0)+q0*sin(m*theta_0))
+    # 上式的实部为q0*cos(m*theta_0)-q1*sin(m*theta_0)，虚部为q1*cos(m*theta_0)+q0*sin(m*theta_0)
+    # 然后通过torch.view_as_real函数，取出实部和虚部，维度由[bs, length, head, d/2]变为[bs, length, head, d/2, 2]，最后一维放实部与虚部
+    # 最后经flatten函数将维度拉平，即[bs, length, head, d]
+    # 此时xq_out形式化为 [实部0，虚部0，实部1，虚部1，..., 实部(d/2-1), 虚部(d/2-1)]
+    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3) # [bs, length, head, d]
+
+    return xq_out.type_as(xq)
 
 
 
@@ -420,6 +492,8 @@ class GPT2FlashAttention2(GPT2Attention):
         query = query.transpose(1, 2).view(bsz, query_length, self.num_heads, self.head_dim)
         key = key.transpose(1, 2).view(bsz, tgt_len, self.num_heads, self.head_dim)
         value = value.transpose(1, 2).view(bsz, tgt_len, self.num_heads, self.head_dim)
+
+
 
         attn_dropout = self.attn_dropout.p if self.training else 0.0
 
@@ -597,6 +671,7 @@ class GPT2Block(nn.Module):
         self.ln_2 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
 
         if config.add_cross_attention:
+            # print("1")
             self.crossattention = attention_class(config=config, is_cross_attention=True, layer_idx=layer_idx)
             self.ln_cross_attn = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
 
@@ -1127,6 +1202,7 @@ class GPT2Model(GPT2PreTrainedModel):
                     use_cache=use_cache,
                     output_attentions=output_attentions,
                 )
+
 
             hidden_states = outputs[0]
             if use_cache is True:

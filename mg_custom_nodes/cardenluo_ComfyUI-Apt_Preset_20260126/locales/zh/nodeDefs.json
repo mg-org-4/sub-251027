@@ -5822,8 +5822,8 @@
       }
     }
   },
-  "IO_getFilePath": {
-    "display_name": "IO_获取文件路径",
+  "IO_loadFilePath": {
+    "display_name": "IO_加载文件路径",
     "inputs": {
       "folder_path": {
         "name": "文件夹路径"
@@ -5831,8 +5831,11 @@
       "recursive": {
         "name": "递归搜索"
       },
-      "file_extensions": {
-        "name": "文件扩展名"
+      "include_extensions": {
+        "name": "含扩展名"
+      },
+      "remove_extension": {
+        "name": "移除扩展名"
       },
       "comfy_folder": {
         "name": "Comfy文件夹"
@@ -5840,9 +5843,12 @@
     },
     "outputs": {
       "0": {
-        "name": "文件路径"
+        "name": "文件名称"
       },
       "1": {
+        "name": "文件路径"
+      },
+      "2": {
         "name": "路径列表"
       }
     }
@@ -5878,11 +5884,14 @@
       "file_path": {
         "name": "文件路径"
       },
+      "remove_extension": {
+        "name": "移除扩展名"
+      },
       "max_images": {
         "name": "最大图像数量"
       },
-      "keyword_filter": {
-        "name": "关键词过滤"
+      "Include_keyword": {
+        "name": "包含关键词"
       }
     },
     "outputs": {
@@ -5890,7 +5899,10 @@
         "name": "图像"
       },
       "1": {
-        "name": "遮罩"
+        "name": "文件名称"
+      },
+      "2": {
+        "name": "文件路径"
       }
     }
   },
@@ -10553,8 +10565,12 @@
       "char_limit": {
         "name": "字符限制"
       },
+      
       "batch_mode": {
         "name": "批次模式"
+      } ,     
+      "remove_extension": {
+        "name": "移除扩展名"
       }
     },
     "outputs": {
@@ -11045,28 +11061,23 @@
       }
     }
   },
+  
   "flow_QueueTrigger": {
     "display_name": "flow_队列触发器",
     "inputs": {
-      "count": {
-        "name": "计数"
+      "Index": {
+        "name": "索引"
       },
       "total": {
         "name": "总数"
       },
       "mode": {
         "name": "模式"
-      },
-      "min_value": {
-        "name": "最小值"
-      },
-      "max_value": {
-        "name": "最大值"
       }
     },
     "outputs": {
       "0": {
-        "name": "计数"
+        "name": "索引"
       },
       "1": {
         "name": "总数"
@@ -11135,12 +11146,6 @@
         "name": "索引"
       },
       "1": {
-        "name": "浮点"
-      },
-      "2": {
-        "name": "归一化"
-      },
-      "3": {
         "name": "总数"
       }
     }

@@ -584,50 +584,25 @@ class flow_sch_control:
         return {
             "required": {
                 "seed": ("INT", {"default": 0, "min": -1, "max": 0xffffffffffffffff}),
-                "total": ("INT", {"default": 500, "min": 0, "max": 5000} ),
-                "min_value": ("FLOAT", {"default": 0.0, "min": -999, "max": 999, "step": 0.01}),
-                "max_value": ("FLOAT", {"default": 1.0, "min": -999, "max": 999, "step": 0.01}),
-                "easing": (EASING_TYPES,{"default": "Linear"},
-                ),
+                "total": ("INT", {"default": 10, "min": 0, "max": 5000} ),
             },
             "optional": {
             },
         }
 
     FUNCTION = "set_range"
-    RETURN_TYPES = ("INT","FLOAT","FLOAT", "INT",)
-    RETURN_NAMES = ("Index","float","normalized","total",)
+    RETURN_TYPES = ("INT", "INT",)
+    RETURN_NAMES = ("Index", "total",)
     CATEGORY = "Apt_Preset/flow"
 
     def set_range(
         self,
-        min_value,
-        max_value,
-        easing,
         seed,
         total,
     ):
         
         value = seed + 1    
-        if total < value:
-            raise ValueError("pls stop running")
-
-        try:
-            float_value = float(value)
-        except ValueError:
-            raise ValueError("Invalid value for conversion to float")
-        
-        if 0 == total:
-            normalized_value = 0
-        else:
-            normalized_value = (float_value - 0) / (total - 0)
-        
-        normalized_value = max(min(normalized_value, 1), 0)
-        eased_value = apply_easing(normalized_value, easing)
-        
-        res_float = min_value + (max_value - min_value) * eased_value
-
-        return (value, float_value, res_float, total)
+        return (value, total)
 
 
 
@@ -635,11 +610,9 @@ class flow_QueueTrigger:
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {
-                    "count": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+                    "Index": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                     "total": ("INT", {"default": 10, "min": 1, "max": 0xffffffffffffffff}),
                     "mode": ("BOOLEAN", {"default": True, "label_on": "Trigger", "label_off": "Don't trigger"}),
-                    "min_value": ("FLOAT", {"default": 0.0, "min": -999, "max": 999, "step": 0.01}),  # 新增：映射最小值
-                    "max_value": ("FLOAT", {"default": 1.0, "min": -999, "max": 999, "step": 0.01}),  # 新增：映射最大值
                     },
                 "optional": {},
                 "hidden": {"unique_id": "UNIQUE_ID"}
@@ -648,29 +621,23 @@ class flow_QueueTrigger:
     FUNCTION = "doit"
 
     CATEGORY = "Apt_Preset/flow"
-    RETURN_TYPES = ("INT", "INT", "FLOAT")  # 新增：浮点型重映射结果
-    RETURN_NAMES = ("count", "total", "remapped_value")  # 新增输出名称
+    RETURN_TYPES = ("INT", "INT")
+    RETURN_NAMES = ("Index", "total")
     OUTPUT_NODE = True
     NAME = "flow_QueueTrigger"
 
 
-    def doit(self, count, total, mode, min_value, max_value, unique_id):  
+    def doit(self, Index, total, mode, unique_id):  
         if mode:
-            if count < total - 1:
+            if Index < total - 1:
                 PromptServer.instance.send_sync("node-feedback",
-                                                {"node_id": unique_id, "widget_name": "count", "type": "int", "value": count + 1})
+                                                {"node_id": unique_id, "widget_name": "Index", "type": "int", "value": Index + 1})
                 PromptServer.instance.send_sync("add-queue", {})
-            elif count >= total - 1:
+            elif Index >= total - 1:
                 PromptServer.instance.send_sync("node-feedback",
-                                                {"node_id": unique_id, "widget_name": "count", "type": "int", "value": 0})
+                                                {"node_id": unique_id, "widget_name": "Index", "type": "int", "value": 0})
 
-        if total == 1:
-            remapped_value = min_value
-        else:
-            normalized = count / (total - 1)
-            remapped_value = min_value + (max_value - min_value) * normalized
-
-        return (count, total, remapped_value)
+        return (Index, total)
 
 
 

@@ -2662,18 +2662,20 @@
             "out_path": "输出路径"
         }
     },
-    "IO_getFilePath": {
-        "title": "IO_获取文件路径",
+    "IO_loadFilePath": {
+        "title": "IO_加载文件路径",
         "inputs": {},
         "widgets": {
             "folder_path": "文件夹路径",
             "recursive": "递归",
-            "file_extensions": "文件扩展名",
+            "include_extensions": "含扩展名",
+            "remove_extension": "移除扩展名",
             "comfy_folder": "ComfyUI文件夹"
         },
         "outputs": {
-            "文件路径": "文件路径",
-            "路径列表": "路径列表"
+            "file_names": "文件名称",
+            "file_paths": "文件路径",
+            "paths_list": "路径列表"
         }
     },
     "IO_input_any": {
@@ -2696,11 +2698,11 @@
         "widgets": {
             "file_path": "文件路径",
             "max_images": "最大图像数",
-            "keyword_filter": "关键词过滤"
+            "remove_extension": "移除扩展名",
+            "Include_keyword": "包含关键词"
         },
         "outputs": {
-            "output_0": "输出0",
-            "output_1": "输出1"
+
         }
     },
     "IO_video_encode": {
@@ -5072,7 +5074,8 @@
             "path": "路径",
             "file_type": "文件类型",
             "char_limit": "字符限制",
-            "batch_mode": "批次模式"
+            "batch_mode": "批次模式",
+            "remove_extension": "移除扩展名"
         },
         "outputs": {
             "text": "文本",

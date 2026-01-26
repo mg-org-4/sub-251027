@@ -455,20 +455,20 @@ function createBrowserUI(node) {
     sidebar.appendChild(deleteSelectedBtn);
     sidebar.appendChild(clearBtn);
 
-    // 选中图片的索引集合
-    const selectedIndices = new Set();
+    // 选中图片的索引数组，用于保持选择顺序
+    const selectedIndices = [];
 
     // 全选/取消全选
     selectAllBtn.onclick = () => {
         const names = parseImageList(getImageListWidget(node)?.value);
-        if (selectedIndices.size === names.length) {
+        if (selectedIndices.length === names.length) {
             // 如果已经全选，取消全选
-            selectedIndices.clear();
+            selectedIndices.length = 0;
         } else {
-            // 否则全选
-            selectedIndices.clear();
+            // 否则全选，按照索引顺序添加
+            selectedIndices.length = 0;
             for (let i = 0; i < names.length; i++) {
-                selectedIndices.add(i);
+                selectedIndices.push(i);
             }
         }
         redraw();
@@ -479,7 +479,7 @@ function createBrowserUI(node) {
         const names = parseImageList(getImageListWidget(node)?.value);
         const sortedNames = [...names].sort((a, b) => a.localeCompare(b));
         setImageList(node, sortedNames);
-        selectedIndices.clear();
+        selectedIndices.length = 0;
         redraw();
     };
 
@@ -488,16 +488,21 @@ function createBrowserUI(node) {
         const names = parseImageList(getImageListWidget(node)?.value);
         const sortedNames = [...names].sort((a, b) => b.localeCompare(a));
         setImageList(node, sortedNames);
-        selectedIndices.clear();
+        selectedIndices.length = 0;
         redraw();
     };
 
     // 删除选中图片
     deleteSelectedBtn.onclick = () => {
         const names = parseImageList(getImageListWidget(node)?.value);
-        const newNames = names.filter((_, idx) => !selectedIndices.has(idx));
+        // 按索引从大到小删除，避免索引偏移
+        const sortedIndices = [...selectedIndices].sort((a, b) => b - a);
+        let newNames = [...names];
+        for (const idx of sortedIndices) {
+            newNames = newNames.slice(0, idx).concat(newNames.slice(idx + 1));
+        }
         setImageList(node, newNames);
-        selectedIndices.clear();
+        selectedIndices.length = 0;
         redraw();
     };
 
@@ -515,7 +520,8 @@ function createBrowserUI(node) {
 
         const frag = document.createDocumentFragment();
         names.forEach((name, idx) => {
-            const isSelected = selectedIndices.has(idx);
+            const indexInSelection = selectedIndices.indexOf(idx);
+            const isSelected = indexInSelection > -1;
             
             const cell = document.createElement("div");
             cell.style.cssText = `display:flex;flex-direction:column;gap:3px;cursor:pointer;${isSelected ? 'opacity:0.7;' : ''}`;
@@ -523,10 +529,13 @@ function createBrowserUI(node) {
             // 点击切换选择状态
             cell.onclick = (e) => {
                 e.preventDefault();
-                if (selectedIndices.has(idx)) {
-                    selectedIndices.delete(idx);
+                const index = selectedIndices.indexOf(idx);
+                if (index > -1) {
+                    // 如果已选中，移除
+                    selectedIndices.splice(index, 1);
                 } else {
-                    selectedIndices.add(idx);
+                    // 如果未选中，添加到数组末尾
+                    selectedIndices.push(idx);
                 }
                 redraw();
             };
@@ -537,11 +546,19 @@ function createBrowserUI(node) {
 
             // 选中指示器
             if (isSelected) {
+                // 左上角勾选标记
                 const checkmark = document.createElement("div");
                 checkmark.textContent = "✓";
                 checkmark.style.cssText =
                     "position:absolute;top:2px;left:2px;width:20px;height:20px;background:rgba(74,170,102,0.9);color:#fff;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:14px;";
                 thumb.appendChild(checkmark);
+                
+                // 中央顺序编号
+                const orderNumber = document.createElement("div");
+                orderNumber.textContent = `#${indexInSelection + 1}`;
+                orderNumber.style.cssText =
+                    "position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#000000;color:#ffffff;border-radius:4px;padding:4px 8px;font-size:16px;font-weight:bold;z-index:1;";
+                thumb.appendChild(orderNumber);
             }
 
             const img = document.createElement("img");
@@ -558,7 +575,7 @@ function createBrowserUI(node) {
                 e.stopPropagation();
                 const next = names.slice(0, idx).concat(names.slice(idx + 1));
                 setImageList(node, next);
-                selectedIndices.clear(); // 清空选择，因为索引可能变化
+                selectedIndices.length = 0; // 清空选择，因为索引可能变化
                 redraw();
             };
 
@@ -580,8 +597,7 @@ function createBrowserUI(node) {
         // 更新选中索引到后端
         const selectedIndicesWidget = getWidgetByName(node, "selected_indices");
         if (selectedIndicesWidget) {
-            const selectedArray = Array.from(selectedIndices);
-            selectedIndicesWidget.value = JSON.stringify(selectedArray);
+            selectedIndicesWidget.value = JSON.stringify(selectedIndices);
             selectedIndicesWidget.callback?.(selectedIndicesWidget.value);
         }
         

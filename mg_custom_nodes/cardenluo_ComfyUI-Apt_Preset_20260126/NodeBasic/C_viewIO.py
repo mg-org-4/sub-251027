@@ -833,31 +833,36 @@ class IO_load_anyimage:
         return {
             "required": {
                 "file_path": ("STRING", {"default": "./input/Apt_in",}),
+                "remove_extension": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "控制输出的文件名是否包含扩展名"
+                }),
             },
             "optional": {
                 "max_images": ("INT", {"default": 0, "min": 0, "max": 1000, "step": 1}),
-                "keyword_filter": ("STRING", {"default": "", "multiline": False})
+                "Include_keyword": ("STRING", {"default": "", "multiline": False})
             }
         }
-    RETURN_TYPES = ('IMAGE', 'MASK',)
-    RETURN_NAMES = ("images", "masks")
-    OUTPUT_IS_LIST = (True, True)
+    RETURN_TYPES = ('IMAGE', "STRING", "STRING",)
+    RETURN_NAMES = ("images", "file_names", "file_paths")
+    OUTPUT_IS_LIST = (True, True, True)
     FUNCTION = "get_transparent_image"
     CATEGORY = "Apt_Preset/IO_Port"
     
-    def get_transparent_image(self, file_path, max_images=0, keyword_filter=""):
+    def get_transparent_image(self, file_path, remove_extension=False, max_images=0, Include_keyword=""):
         try:
             image_list = []
-            mask_list = []
+            file_names = []
+            file_paths = []
             
             file_path = file_path.strip('"')
             
             if os.path.isdir(file_path):
                 image_files = [f for f in os.listdir(file_path) 
-                              if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
+                            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
                 
-                if keyword_filter:
-                    image_files = [f for f in image_files if keyword_filter in f]
+                if Include_keyword:
+                    image_files = [f for f in image_files if Include_keyword in f]
                 
                 image_files.sort()
                 
@@ -872,28 +877,42 @@ class IO_load_anyimage:
                     image_np = np.array(image).astype(np.float32) / 255.0
                     image_tensor = torch.from_numpy(image_np)[None, :, :, :]
                     image_list.append(image_tensor)
-                    mask_list.append(None)
+                    
+                    # 处理文件名，根据remove_extension决定是否移除扩展名
+                    if remove_extension:
+                        file_names.append(os.path.splitext(filename)[0])
+                    else:
+                        file_names.append(filename)
+                    
+                    # 添加完整文件路径
+                    file_paths.append(img_path)
                 
                 if not image_list:
-                    return [], []
+                    return [], [], []
                 
-                return image_list, mask_list        
+                return image_list, file_names, file_paths        
             else:
                 image = Image.open(file_path)
                 if image is not None:
                     image_rgba = image.convert('RGBA')
                     
-                    if keyword_filter and keyword_filter not in os.path.basename(file_path):
-                        print(f"文件 {file_path} 不包含关键字 '{keyword_filter}'，跳过加载")
-                        return [], []
+                    if Include_keyword and Include_keyword not in os.path.basename(file_path):
+                        print(f"文件 {file_path} 不包含关键字 '{Include_keyword}'，跳过加载")
+                        return [], [], []
                     
                     image_np = np.array(image_rgba).astype(np.float32) / 255.0
                     image_tensor = torch.from_numpy(image_np)[None, :, :, :]
-                    return [image_tensor], [None]
+                    
+                    # 处理文件名
+                    filename = os.path.basename(file_path)
+                    if remove_extension:
+                        filename = os.path.splitext(filename)[0]
+                    
+                    return [image_tensor], [filename], [file_path]
             
         except Exception as e:
             print(f"出错请重置节点：{e}")
-        return [], []
+        return [], [], []
 
 
 
@@ -1004,7 +1023,7 @@ class IO_image_select:
 
 
 
-class IO_getFilePath:
+class IO_loadFilePath:
     @classmethod
     def INPUT_TYPES(cls) -> dict:
         comfy_folder_options = list(folder_paths.folder_names_and_paths.keys()) if (folder_paths and hasattr(folder_paths, 'folder_names_and_paths')) else []
@@ -1017,14 +1036,16 @@ class IO_getFilePath:
                 }),
                 "recursive": ("BOOLEAN", {
                     "default": True,
-                    "label_on": "递归",
-                    "label_off": "非递归",
                     "tooltip": "递归，展开所有文件夹里的文件"
                 }),
-                "file_extensions": ("STRING", {
+                "include_extensions": ("STRING", {
                     "multiline": False,
                     "default": "",
                     "tooltip": "过滤扩展名（例：.png,.jpg 多个用逗号分隔，留空匹配所有文件）"
+                }),
+                "remove_extension": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "控制输出的文件名是否包含扩展名"
                 }),
             },
             "optional": {
@@ -1032,19 +1053,20 @@ class IO_getFilePath:
             }
         }
 
-    RETURN_TYPES = ("STRING", "LIST",)
-    RETURN_NAMES = ("文件路径", "路径列表",)
+    RETURN_TYPES = ("STRING", "STRING", "STRING",)
+    RETURN_NAMES = ("file_names", "file_paths", "paths_list",)
     FUNCTION = "get_file_paths"
     CATEGORY = "Apt_Preset/IO_Port"
-    OUTPUT_IS_LIST = (False, True)
+    OUTPUT_IS_LIST = (True, False, True)
 
     def get_file_paths(
         self,
         folder_path: str,
         recursive: bool = True,
-        file_extensions: str = "",
+        include_extensions: str = "",
+        remove_extension: bool = False,
         comfy_folder: Optional[str] = None
-    ) -> Tuple[str, List[str]]:
+    ) -> Tuple[List[str], str, List[str]]:
         folder_path = folder_path.strip().strip('"')
         
         if comfy_folder and folder_paths and hasattr(folder_paths, 'folder_names_and_paths'):
@@ -1068,16 +1090,17 @@ class IO_getFilePath:
 
             if not os.path.isdir(folder_path):
                 print(f"警告：文件夹不存在或不是目录：{folder_path}")
-                return ("", [])
+                return ([], "", [])
         else:
             print("警告：文件夹路径为空")
-            return ("", [])
+            return ([], "", [])
 
         extensions = []
-        if file_extensions.strip():
-            extensions = [ext.strip().lower() for ext in file_extensions.split(",") if ext.strip()]
+        if include_extensions.strip():
+            extensions = [ext.strip().lower() for ext in include_extensions.split(",") if ext.strip()]
 
         file_paths = []
+        file_names = []
 
         try:
             for root, dirs, files in os.walk(folder_path):
@@ -1089,18 +1112,27 @@ class IO_getFilePath:
 
                     full_path = os.path.abspath(os.path.join(root, file))
                     file_paths.append(full_path)
+                    
+                    # 处理文件名，根据remove_extension决定是否移除扩展名
+                    if remove_extension:
+                        file_names.append(os.path.splitext(file)[0])
+                    else:
+                        file_names.append(file)
 
                 if not recursive:
                     break
         except Exception as e:
             print(f"获取文件路径失败：{str(e)}")
-            return ("", [])
+            return ([], "", [])
 
-        file_paths.sort()
+        # 排序确保文件名和路径列表顺序一致
+        sorted_files = sorted(zip(file_names, file_paths), key=lambda x: x[1])
+        file_names, file_paths = zip(*sorted_files) if sorted_files else ([], [])
+        
         paths_string = "\n".join(file_paths) if file_paths else ""
-        paths_list = file_paths
+        paths_list = list(file_paths)
 
-        return (paths_string, paths_list)
+        return (list(file_names), paths_string, paths_list)
 
 
 

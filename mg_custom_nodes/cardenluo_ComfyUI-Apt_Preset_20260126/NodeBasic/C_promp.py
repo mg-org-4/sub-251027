@@ -1192,140 +1192,6 @@ class text_modifier:
 
 
 
-class text_loadText:
-    
-    @classmethod
-    def INPUT_TYPES(cls):
-        file_types = ["text", "md", "json", "js", "py", "toml"]
-        if REMOVER_AVAILABLE:
-            file_types.append("docx")
-        
-        return {
-            "required": {
-                "path": ("STRING", {
-                    "default": "",
-                    "placeholder": "输入文件路径"
-                }),
-                "file_type": (file_types,),
-                "char_limit": ("INT", {
-                    "default": 0,
-                    "min": 0,
-                    "max": 100000,
-                    "step": 10,
-                }),
-                "batch_mode": ("BOOLEAN", {
-                    "default": False,
-                    "label_on": "文件夹批量读取",
-                    "label_off": "单文件读取"
-                }),
-            }
-        }
-    
-    RETURN_TYPES = ("STRING", "STRING", "STRING")  # 新增文件名字段输出
-    RETURN_NAMES = ("text", "file_paths", "file_names")  # 新增文件名字段名称
-    FUNCTION = "read_content"
-    CATEGORY = "Apt_Preset/prompt/text_tool"
-
-    def read_content(self, path: str, file_type: str, char_limit: int, batch_mode: bool) -> Tuple[str, str, str]:
-        path = path.strip('\'"')
-        
-        if not path:
-            raise ValueError("路径不能为空")
-        
-        ext_mapping = {
-            "text": ".txt",
-            "md": ".md",
-            "json": ".json",
-            "js": ".js",
-            "py": ".py",
-            "toml": ".toml",
-            "docx": ".docx"
-        }
-        target_ext = ext_mapping.get(file_type, "")
-        
-        if file_type == "docx" and not REMOVER_AVAILABLE:
-            raise ValueError("缺少python-docx库，请安装后重试（可使用命令：pip install python-docx）")
-        
-        try:
-            if batch_mode:
-                if not os.path.isdir(path):
-                    raise ValueError(f"批量模式下路径必须是文件夹 - {path}")
-                
-                search_pattern = os.path.join(path, f"*{target_ext}")
-                file_paths = glob.glob(search_pattern)
-                
-                if not file_paths:
-                    raise ValueError(f"警告：在 {path} 中未找到{target_ext}类型文件")
-                
-                file_paths.sort(key=lambda x: os.path.basename(x))
-                read_paths = []
-                read_names = []  # 存储读取的文件名列表
-                
-                merged_content = []
-                total_char_count = 0
-                for file_path in file_paths:
-                    file_name = os.path.basename(file_path)
-                    merged_content.append(f"\n\n===== 开始：{file_name} =====")
-                    
-                    content = self._read_single_file(file_path, file_type)
-                    merged_content.append(content)
-                    merged_content.append(f"===== 结束：{file_name} =====")
-                    
-                    read_paths.append(file_path)
-                    read_names.append(file_name)  # 收集文件名
-                    total_char_count += len(content)
-                    
-                    if char_limit > 0 and total_char_count > char_limit:
-                        merged_content.append(f"\n\n...（已达字符限制 {char_limit}，后续文件未读取）")
-                        break
-                
-                final_content = ''.join(merged_content)
-                paths_str = "\n".join(read_paths)
-                names_str = "\n".join(read_names)  # 文件名用换行分隔拼接
-                return (final_content, paths_str, names_str)
-            
-            else:
-                if not os.path.isfile(path):
-                    raise ValueError(f"文件不存在 - {path}")
-                
-                if not path.lower().endswith(target_ext):
-                    raise ValueError(f"警告：文件扩展名与所选类型不匹配（预期{target_ext}）")
-                
-                content = self._read_single_file(path, file_type)
-                file_name = os.path.basename(path)  # 获取单个文件的文件名
-                
-                if char_limit > 0 and len(content) > char_limit:
-                    content = content[:char_limit] + f"\n\n...（内容已截断，原长度{len(content)}字符）"
-                
-                return (content, path, file_name)  # 返回单个文件名
-                
-        except Exception as e:
-            raise ValueError(f"读取失败：{str(e)}")
-    
-    def _read_single_file(self, file_path: str, file_type: str) -> str:
-        if file_type == "json":
-            with open(file_path, 'r', encoding='utf-8') as f:
-                json_data = json.load(f)
-                return json.dumps(json_data, ensure_ascii=False, indent=2)
-        elif file_type == "toml":
-            with open(file_path, 'r', encoding='utf-8') as f:
-                toml_data = toml.load(f)
-                return toml.dumps(toml_data)
-        elif file_type == "docx":
-            if not REMOVER_AVAILABLE or docx is None:
-                raise ValueError("python-docx库未安装，无法读取docx文件")
-            
-            doc = docx_Document(file_path)
-            full_text = []
-            for para in doc.paragraphs:
-                full_text.append(para.text)
-            return '\n'.join(full_text)
-        else:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return f.read()
-
-
-
 
 class text_saveText:
     @classmethod
@@ -1459,6 +1325,10 @@ class text_loadText:
                     "label_on": "文件夹批量读取",
                     "label_off": "单文件读取"
                 }),
+                "remove_extension": ("BOOLEAN", {
+                    "default": False,
+
+                }),
             }
         }
     
@@ -1467,7 +1337,7 @@ class text_loadText:
     FUNCTION = "read_content"
     CATEGORY = "Apt_Preset/prompt/text_tool"
 
-    def read_content(self, path: str, file_type: str, char_limit: int, batch_mode: bool) -> Tuple[str, str, str]:
+    def read_content(self, path: str, file_type: str, char_limit: int, batch_mode: bool, remove_extension: bool) -> Tuple[str, str, str]:
         path = path.strip('\'"')
         
         if not path:
@@ -1487,6 +1357,12 @@ class text_loadText:
         # 校验docx依赖
         if file_type == "docx" and not REMOVER_AVAILABLE:
             raise ValueError("缺少python-docx库，请安装后重试（可使用命令：pip install python-docx）")
+        
+        # 辅助函数：处理文件名，根据remove_extension决定是否移除后缀
+        def process_file_name(file_name):
+            if remove_extension:
+                return os.path.splitext(file_name)[0]
+            return file_name
         
         try:
             if batch_mode:
@@ -1512,6 +1388,7 @@ class text_loadText:
                 
                 for file_path in file_paths:
                     file_name = os.path.basename(file_path)
+                    processed_name = process_file_name(file_name)
                     merged_content.append(f"\n\n===== 开始：{file_name} =====")
                     
                     content = self._read_single_file(file_path, file_type)
@@ -1519,7 +1396,7 @@ class text_loadText:
                     merged_content.append(f"===== 结束：{file_name} =====")
                     
                     read_paths.append(file_path)
-                    read_names.append(file_name)
+                    read_names.append(processed_name)
                     total_char_count += len(content)
                     
                     # 字符限制校验
@@ -1548,12 +1425,13 @@ class text_loadText:
                 
                 content = self._read_single_file(path, file_type)
                 file_name = os.path.basename(path)
+                processed_name = process_file_name(file_name)
                 
                 # 字符截断
                 if char_limit > 0 and len(content) > char_limit:
                     content = content[:char_limit] + f"\n\n...（内容已截断，原长度{len(content)}字符）"
                 
-                return (content, path, file_name)
+                return (content, path, processed_name)
                 
         except Exception as e:
             raise ValueError(f"读取失败：{str(e)}")

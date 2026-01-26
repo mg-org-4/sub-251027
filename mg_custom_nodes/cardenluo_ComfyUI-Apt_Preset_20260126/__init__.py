@@ -291,14 +291,16 @@ NODE_CLASS_MAPPINGS= {
 #-------------输入输出 IO_Port-------------------
 
 "IO_LoadImgList": IO_LoadImgList,
-"IO_EasyMark": IO_EasyMark,
-"IO_store_image": IO_store_image,
-"IO_save_image": IO_save_image, 
-"IO_getFilePath": IO_getFilePath,
-"IO_input_any": IO_input_any,
+"IO_loadFilePath": IO_loadFilePath,
 "IO_load_anyimage": IO_load_anyimage,
-"IO_video_encode": IO_video_encode,
+"IO_store_image": IO_store_image,
+"IO_EasyMark": IO_EasyMark,
 "IO_image_select": IO_image_select,
+"IO_save_image": IO_save_image, 
+
+"IO_input_any": IO_input_any,
+"IO_video_encode": IO_video_encode,
+
 "IO_node_Script": IO_node_Script,
 
 "basicIn_input": basicIn_input,

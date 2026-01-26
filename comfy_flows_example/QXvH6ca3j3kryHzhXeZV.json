@@ -1,0 +1,354 @@
+{
+  "last_node_id": 33,
+  "last_link_id": 20,
+  "nodes": [
+    {
+      "id": 29,
+      "type": "PreviewImage",
+      "pos": [
+        -1083,
+        -34
+      ],
+      "size": [
+        878.0186767578125,
+        1305.6488037109375
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 16,
+          "label": "images"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 30,
+      "type": "InspyrenetRembg",
+      "pos": [
+        -197,
+        -169
+      ],
+      "size": [
+        262.5207214355469,
+        78
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 17,
+          "label": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            18
+          ],
+          "slot_index": 0,
+          "label": "IMAGE"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "label": "MASK"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InspyrenetRembg"
+      },
+      "widgets_values": [
+        "on"
+      ]
+    },
+    {
+      "id": 32,
+      "type": "AILAB_RMBG",
+      "pos": [
+        708,
+        -306
+      ],
+      "size": [
+        315,
+        222
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 19,
+          "label": "image"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            20
+          ],
+          "slot_index": 0,
+          "label": "image"
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "label": "mask"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AILAB_RMBG"
+      },
+      "widgets_values": [
+        "RMBG-2.0",
+        1,
+        1024,
+        0,
+        0,
+        "Alpha",
+        false
+      ]
+    },
+    {
+      "id": 31,
+      "type": "PreviewImage",
+      "pos": [
+        -195,
+        -33
+      ],
+      "size": [
+        900.8969116210938,
+        1309.3944091796875
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 18,
+          "label": "images"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 33,
+      "type": "PreviewImage",
+      "pos": [
+        703,
+        -38
+      ],
+      "size": [
+        959.5396728515625,
+        1317.2288818359375
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 20,
+          "label": "images"
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 28,
+      "type": "VHS_LoadImagesPath",
+      "pos": [
+        -1074,
+        -274
+      ],
+      "size": [
+        242.24609375,
+        194
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null,
+          "shape": 7,
+          "label": "meta_batch"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            16,
+            17,
+            19
+          ],
+          "slot_index": 0,
+          "label": "IMAGE"
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "label": "MASK"
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": null,
+          "label": "frame_count"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_LoadImagesPath"
+      },
+      "widgets_values": {
+        "directory": "C:\\AI\\ComfyUI\\ComfyUI\\input\\rmbg",
+        "image_load_cap": 0,
+        "skip_first_images": 0,
+        "select_every_nth": 1,
+        "choose folder to upload": "image",
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "frame_load_cap": 0,
+            "skip_first_frames": 0,
+            "select_every_nth": 1,
+            "filename": "C:\\AI\\ComfyUI\\ComfyUI\\input\\rmbg",
+            "type": "path",
+            "format": "folder"
+          },
+          "muted": false
+        }
+      }
+    }
+  ],
+  "links": [
+    [
+      16,
+      28,
+      0,
+      29,
+      0,
+      "IMAGE"
+    ],
+    [
+      17,
+      28,
+      0,
+      30,
+      0,
+      "IMAGE"
+    ],
+    [
+      18,
+      30,
+      0,
+      31,
+      0,
+      "IMAGE"
+    ],
+    [
+      19,
+      28,
+      0,
+      32,
+      0,
+      "IMAGE"
+    ],
+    [
+      20,
+      32,
+      0,
+      33,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "ComfyUI-RMBG",
+      "bounding": [
+        393.44573974609375,
+        20.000341415405273,
+        140,
+        80
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "ComfyUI-RMBG",
+      "bounding": [
+        1045.063232421875,
+        -188.55906677246094,
+        531.5433959960938,
+        99.34793090820312
+      ],
+      "color": "#88A",
+      "font_size": 70,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Inspyrenet Rembg",
+      "bounding": [
+        98.04850769042969,
+        -199.138671875,
+        583.0274658203125,
+        99.20972442626953
+      ],
+      "color": "#8AA",
+      "font_size": 70,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5644739300537773,
+      "offset": [
+        1882.3193630000003,
+        562.773371
+      ]
+    }
+  },
+  "version": 0.4
+}

@@ -1,0 +1,1048 @@
+/* WaveSpeed Generate Node - 流式布局样式 */
+
+/* 主容器 */
+.wavespeed-main-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    padding: 6px;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 120px;
+}
+
+/* 头部区域 */
+.wavespeed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 6px;
+    background-color: #1a1a1a;
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+
+.wavespeed-title {
+    color: #4a9eff;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.wavespeed-refresh-btn {
+    padding: 0;
+    background-color: transparent;
+    color: #888;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.wavespeed-refresh-btn:hover {
+    background-color: #333;
+    color: #4a9eff;
+}
+
+.wavespeed-refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 参数容器 */
+.wavespeed-params-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #333;
+}
+
+/* 参数行样式 */
+.wavespeed-param-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.wavespeed-param-row.wavespeed-param-multiline {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.wavespeed-param-row.wavespeed-param-toggle {
+    justify-content: space-between;
+}
+
+.wavespeed-param-label {
+    color: #e0e0e0;
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 80px;
+    flex-shrink: 0;
+}
+
+.wavespeed-param-multiline .wavespeed-param-label {
+    min-width: auto;
+    margin-bottom: 4px;
+}
+
+.wavespeed-param-input {
+    flex: 1;
+    padding: 6px 10px;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-sizing: border-box;
+}
+
+.wavespeed-param-input:focus {
+    outline: none;
+    border-color: #4a9eff;
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+}
+
+.wavespeed-param-input[type="number"] {
+    width: 100px;
+    flex: none;
+    text-align: right;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.wavespeed-param-select {
+    flex: 1;
+    padding: 6px 10px;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.wavespeed-param-select:focus {
+    outline: none;
+    border-color: #4a9eff;
+}
+
+.wavespeed-param-textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px 10px;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.4;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.wavespeed-param-textarea:focus {
+    outline: none;
+    border-color: #4a9eff;
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+}
+
+.wavespeed-param-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #4a9eff;
+}
+
+/* 分类标签区域 */
+.wavespeed-tabs-container {
+    margin: 1px 2px;
+    margin-bottom: 2px;
+}
+
+.wavespeed-tabs-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    margin-bottom: 1px;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
+.wavespeed-tab {
+    padding: 2px 4px;
+    border-radius: 2px;
+    border: 1px solid #444;
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    cursor: pointer;
+    font-size: 8px;
+    font-weight: normal;
+    min-height: 16px;
+    line-height: 1;
+    white-space: nowrap;
+    flex-shrink: 0;
+    flex-grow: 0;
+    transition: all 0.2s ease;
+}
+
+.wavespeed-tab:hover {
+    background-color: #3a3a3a;
+    border-color: #555;
+}
+
+.wavespeed-tab.active {
+    background-color: #4a9eff;
+    border-color: #4a9eff;
+    color: white;
+}
+
+/* 模型选择器区域 */
+.wavespeed-model-selector {
+    margin: 2px 0;
+}
+
+/* 参数区域 */
+.wavespeed-parameters {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.wavespeed-parameter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 0;
+    border-bottom: 1px solid #333;
+}
+
+.wavespeed-parameter-group:last-child {
+    border-bottom: none;
+}
+
+.wavespeed-parameter-label {
+    font-weight: bold;
+    font-size: 13px;
+    color: #4a9eff;
+    margin-bottom: 4px;
+}
+
+/* 媒体参数样式 */
+.wavespeed-media-widget {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.wavespeed-media-input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.wavespeed-media-label {
+    color: #e0e0e0;
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 60px;
+    white-space: nowrap;
+}
+
+.wavespeed-media-textarea {
+    flex: 1;
+    min-width: 200px;
+    min-height: 28px;
+    height: 28px;
+    max-height: 28px;
+    padding: 5px 10px 3px 10px;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+    border: 1px solid #555;
+    border-radius: 4px;
+    resize: none;
+    overflow: hidden;
+    white-space: nowrap;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    line-height: 1.2;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+}
+
+.wavespeed-media-textarea:focus {
+    outline: none;
+    border-color: #4a9eff;
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+}
+
+.wavespeed-media-textarea:disabled {
+    background-color: #1a1a1a;
+    cursor: not-allowed;
+    opacity: 0.6;
+    color: #888;
+    border-color: #333;
+}
+
+.wavespeed-upload-btn {
+    padding: 6px 12px;
+    background-color: #4a9eff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    height: 32px;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+}
+
+.wavespeed-upload-btn:hover {
+    background-color: #3a8eef;
+}
+
+.wavespeed-upload-btn:disabled {
+    background-color: #666;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 输入槽指示器 */
+.wavespeed-input-indicator {
+    background-color: #4a9eff;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: help;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.wavespeed-input-indicator:hover {
+    background-color: #3a8eef;
+    transform: translateY(-1px);
+}
+
+.wavespeed-input-indicator.connected {
+    background-color: #4caf50;
+    border-color: #45a049;
+    animation: pulse 2s infinite;
+}
+
+.wavespeed-input-indicator.connected:hover {
+    background-color: #45a049;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+    70% { box-shadow: 0 0 0 4px rgba(76, 175, 80, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+}
+
+/* 展开的数组项样式 */
+.wavespeed-expanded-array-item {
+    margin-left: 10px;
+    border-left: 2px solid #4a9eff;
+    padding-left: 8px;
+}
+
+.wavespeed-array-group-title {
+    color: #4a9eff;
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 4px;
+    text-transform: capitalize;
+}
+
+.wavespeed-array-item-label {
+    color: #888;
+    font-size: 11px;
+    min-width: 30px !important;
+    font-family: monospace;
+}
+
+/* 多项目媒体组件样式 */
+.wavespeed-multi-media {
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 8px;
+    background-color: #1a1a1a;
+    margin-bottom: 8px;
+    position: relative; /* 确保不悬浮 */
+}
+
+.wavespeed-media-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #333;
+}
+
+.wavespeed-media-title {
+    color: #4a9eff;
+    font-size: 13px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.wavespeed-add-item-btn {
+    padding: 4px 10px;
+    background-color: #4a9eff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background-color 0.2s ease;
+    height: 28px;
+}
+
+.wavespeed-add-item-btn:hover:not(:disabled) {
+    background-color: #3a8eef;
+}
+
+.wavespeed-add-item-btn:disabled {
+    background-color: #666;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.wavespeed-media-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative; /* 确保项目在正常文档流中 */
+}
+
+.wavespeed-media-item {
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 8px;
+    background-color: #2a2a2a;
+    margin-bottom: 6px;
+}
+
+.wavespeed-delete-item-btn {
+    padding: 4px 8px;
+    background-color: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    transition: background-color 0.2s ease;
+    min-width: 24px;
+    height: 32px;
+}
+
+.wavespeed-delete-item-btn:hover {
+    background-color: #cc3333;
+}
+
+/* 预览区域 */
+.wavespeed-preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+    min-height: 0;
+}
+
+.wavespeed-preview-item {
+    position: relative;
+    display: inline-block;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 2px solid #444;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.wavespeed-preview-item:hover {
+    border-color: #4a9eff;
+}
+
+.wavespeed-preview-item img,
+.wavespeed-preview-item video {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    display: block;
+}
+
+.wavespeed-preview-delete {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 24px;
+    height: 24px;
+    background-color: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.wavespeed-preview-item:hover .wavespeed-preview-delete {
+    opacity: 1;
+}
+
+/* LoRA 缩放控制 */
+.wavespeed-lora-scale {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.wavespeed-lora-scale-label {
+    color: #e0e0e0;
+    font-size: 11px;
+    white-space: nowrap;
+    min-width: 40px;
+}
+
+.wavespeed-lora-scale-slider {
+    flex: 1;
+    min-width: 80px;
+    cursor: pointer;
+}
+
+.wavespeed-lora-scale-input {
+    width: 45px;
+    padding: 2px 4px;
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 3px;
+    font-size: 11px;
+    text-align: right;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 数组参数样式 */
+.wavespeed-array-group {
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 8px;
+    margin: 4px 0;
+}
+
+.wavespeed-array-title {
+    padding: 8px 0 4px 0;
+    font-weight: bold;
+    font-size: 13px;
+    color: #4a9eff;
+    border-bottom: 1px solid #444;
+    margin-bottom: 8px;
+}
+
+/* 加载和错误状态 */
+.wavespeed-loading {
+    position: relative;
+    display: inline-block;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 2px solid #4a9eff;
+    background-color: #2a2a2a;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.wavespeed-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #444;
+    border-top: 3px solid #4a9eff;
+    border-radius: 50%;
+    animation: wavespeed-spin 1s linear infinite;
+}
+
+@keyframes wavespeed-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.wavespeed-loading-text {
+    font-size: 10px;
+    color: #4a9eff;
+}
+
+.wavespeed-error {
+    position: relative;
+    display: inline-block;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 2px solid #ff4444;
+    background-color: #2a2a2a;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.wavespeed-error-icon {
+    font-size: 32px;
+}
+
+.wavespeed-error-text {
+    font-size: 10px;
+    color: #ff4444;
+    text-align: center;
+}
+
+/* 模糊搜索模型选择器样式 */
+.fuzzy-model-selector {
+    position: relative;
+    width: 100%;
+    margin: 2px 0;
+}
+
+.fuzzy-model-label-row {
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #333;
+}
+
+.fuzzy-model-label {
+    color: #4a9eff;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.fuzzy-model-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.fuzzy-search-icon {
+    position: absolute;
+    left: 10px;
+    font-size: 12px;
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.fuzzy-model-input {
+    width: 100%;
+    padding: 6px 12px 6px 32px;
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.fuzzy-model-input:focus {
+    outline: none;
+    border-color: #4a9eff;
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+    cursor: text;
+}
+
+.fuzzy-model-selector.open .fuzzy-model-input {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-color: #4a9eff;
+}
+
+.fuzzy-model-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: #2a2a2a;
+    border: 1px solid #4a9eff;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.fuzzy-search-status {
+    padding: 6px 12px;
+    background-color: #1a1a1a;
+    color: #4a9eff;
+    font-size: 11px;
+    border-bottom: 1px solid #333;
+    font-weight: 500;
+}
+
+.fuzzy-model-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #333;
+    transition: background-color 0.15s ease;
+    user-select: none; /* 防止文本选择干扰点击 */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.fuzzy-model-item * {
+    pointer-events: none; /* 确保子元素不会阻止点击事件 */
+}
+
+.fuzzy-model-item:last-child {
+    border-bottom: none;
+}
+
+.fuzzy-model-item:hover,
+.fuzzy-model-item.selected {
+    background-color: #4a9eff;
+    color: white;
+}
+
+.fuzzy-model-item.selected {
+    background-color: #4a9eff;
+}
+
+.fuzzy-no-results {
+    color: #888;
+    font-style: italic;
+    text-align: center;
+    cursor: default;
+}
+
+.fuzzy-no-results:hover {
+    background-color: transparent;
+    color: #888;
+}
+
+.fuzzy-model-name {
+    font-weight: 500;
+    font-size: 13px;
+    margin-bottom: 2px;
+    line-height: 1.3;
+}
+
+.fuzzy-model-id {
+    font-size: 11px;
+    color: #aaa;
+    font-family: monospace;
+    line-height: 1.2;
+}
+
+.fuzzy-model-item:hover .fuzzy-model-id,
+.fuzzy-model-item.selected .fuzzy-model-id {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.fuzzy-model-category {
+    font-size: 10px;
+    color: #888;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.fuzzy-model-item:hover .fuzzy-model-category,
+.fuzzy-model-item.selected .fuzzy-model-category {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.fuzzy-match {
+    background-color: #ffeb3b;
+    color: #000;
+    font-weight: bold;
+    padding: 0 1px;
+    border-radius: 2px;
+}
+
+.fuzzy-model-item:hover .fuzzy-match,
+.fuzzy-model-item.selected .fuzzy-match {
+    background-color: #fff;
+    color: #4a9eff;
+}
+
+/* 滚动条样式 */
+.fuzzy-model-dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+
+.fuzzy-model-dropdown::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+.fuzzy-model-dropdown::-webkit-scrollbar-thumb {
+    background: #4a9eff;
+    border-radius: 3px;
+}
+
+.fuzzy-model-dropdown::-webkit-scrollbar-thumb:hover {
+    background: #3a8eef;
+}
+@media (max-width: 300px) {
+    .wavespeed-container {
+        max-width: 100%;
+    }
+    
+    .wavespeed-tabs-wrapper {
+        justify-content: center;
+    }
+    
+    .wavespeed-media-input-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+    }
+    
+    .wavespeed-media-label {
+        min-width: auto;
+    }
+}
+
+/* 滚动优化 */
+.wavespeed-container {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #4a9eff #2a2a2a;
+}
+
+.wavespeed-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.wavespeed-container::-webkit-scrollbar-track {
+    background: #2a2a2a;
+}
+
+.wavespeed-container::-webkit-scrollbar-thumb {
+    background: #4a9eff;
+    border-radius: 3px;
+}
+
+.wavespeed-container::-webkit-scrollbar-thumb:hover {
+    background: #3a8eef;
+}
+
+
+/* Size 选择器样式 */
+.wavespeed-size-selector {
+    display: flex;
+    flex-direction: column;
+    background-color: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 4px;
+    margin: 4px 0;
+    overflow: hidden;
+}
+
+.wavespeed-size-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+
+.wavespeed-size-header:hover {
+    background-color: #2a2a2a;
+}
+
+.wavespeed-size-toggle {
+    color: #4a9eff;
+    font-size: 10px;
+    width: 14px;
+    text-align: center;
+}
+
+.wavespeed-size-title {
+    color: #e0e0e0;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.wavespeed-size-preview {
+    margin-left: auto;
+    color: #888;
+    font-size: 11px;
+    font-family: monospace;
+}
+
+.wavespeed-size-selector.expanded .wavespeed-size-preview {
+    display: none;
+}
+
+.wavespeed-size-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 10px 10px 10px;
+    border-top: 1px solid #333;
+}
+
+.wavespeed-size-ratios {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.wavespeed-ratio-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s ease;
+}
+
+.wavespeed-ratio-btn:hover {
+    background-color: #3a3a3a;
+    border-color: #555;
+}
+
+.wavespeed-ratio-btn.active {
+    background-color: #4a9eff;
+    border-color: #4a9eff;
+    color: white;
+}
+
+.wavespeed-ratio-btn .ratio-icon {
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.wavespeed-ratio-btn .ratio-label {
+    font-weight: 500;
+}
+
+.wavespeed-size-inputs {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.wavespeed-size-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.wavespeed-size-label {
+    color: #888;
+    font-size: 11px;
+}
+
+.wavespeed-size-input {
+    width: 100%;
+    padding: 6px 10px;
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.wavespeed-size-input:focus {
+    outline: none;
+    border-color: #4a9eff;
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+}
+
+.wavespeed-size-input::-webkit-inner-spin-button,
+.wavespeed-size-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.wavespeed-size-swap {
+    padding: 6px 10px;
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    margin-bottom: 0;
+}
+
+.wavespeed-size-swap:hover {
+    background-color: #4a9eff;
+    border-color: #4a9eff;
+    color: white;
+}
+
+.wavespeed-size-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: #888;
+}
+
+.wavespeed-size-display {
+    color: #4a9eff;
+    font-weight: 500;
+}
+
+.wavespeed-size-range {
+    color: #666;
+}

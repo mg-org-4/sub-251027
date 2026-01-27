@@ -1,0 +1,191 @@
+{
+  "id": "2fa762de-b326-4889-b59d-87d3b3c6e7d0",
+  "revision": 0,
+  "last_node_id": 10,
+  "last_link_id": 12,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "WaveSpeedAIPredictor",
+      "pos": [
+        6631.296166938348,
+        -3982.894475047663
+      ],
+      "size": [
+        800,
+        500
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "*",
+          "widget": {
+            "name": "video"
+          },
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output_url",
+          "type": "*",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAIPredictor"
+      },
+      "widgets_values": [
+        "",
+        "/api/v3/wavespeed-ai/video-upscaler-pro",
+        "{\"target_resolution\":\"4k\"}",
+        "{\"video\":{\"type\":\"string\"},\"target_resolution\":{\"type\":\"string\",\"options\":[\"720p\",\"1080p\",\"2k\",\"4k\"]}}",
+        "",
+        ""
+      ],
+      "wavespeed": {
+        "modelId": "wavespeed-ai/video-upscaler-pro",
+        "apiPath": "",
+        "category": "video-to-video",
+        "parameterValues": {
+          "video": "",
+          "target_resolution": "4k"
+        },
+        "requestJsonValue": "{\"target_resolution\":\"4k\"}",
+        "savedInputs": [
+          {
+            "name": "video",
+            "type": "*",
+            "link": 12
+          },
+          {
+            "name": "target_resolution",
+            "type": "*",
+            "link": null
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "type": "WaveSpeedAI Preview",
+      "pos": [
+        7034.453711721062,
+        -3423.4301690381417
+      ],
+      "size": [
+        421.265625,
+        420
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_url",
+          "type": "*",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAI Preview"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "wavespeed_preview": {
+        "media_data": [
+          {
+            "type": "video",
+            "url": "https://d2p7pge43lyniu.cloudfront.net/output/cd2f462d-cdc9-42b7-8693-fd84b0406a80-u2_4be7463e-7293-4456-9f06-df24274a55fa.mp4"
+          }
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "type": "LoadVideo",
+      "pos": [
+        6606.367196074089,
+        -3429.062827875422
+      ],
+      "size": [
+        384.390625,
+        355.6875
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "case2.mp4",
+        "image"
+      ]
+    }
+  ],
+  "links": [
+    [
+      2,
+      1,
+      0,
+      3,
+      0,
+      "*"
+    ],
+    [
+      12,
+      10,
+      0,
+      1,
+      0,
+      "VIDEO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.620921323059155,
+      "offset": [
+        -5171.370911743034,
+        4622.6085534363365
+      ]
+    },
+    "workflowRendererVersion": "Vue",
+    "frontendVersion": "1.35.9",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

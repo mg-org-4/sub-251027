@@ -1,0 +1,245 @@
+{
+  "id": "e51d424c-a29f-45ea-86bf-5ce39cd5c065",
+  "revision": 0,
+  "last_node_id": 3,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "WaveSpeedAIPredictor",
+      "pos": [
+        6625.532222691957,
+        -4093.011277042777
+      ],
+      "size": [
+        800,
+        898
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "*",
+          "widget": {
+            "name": "image"
+          },
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output_url",
+          "type": "*",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAIPredictor"
+      },
+      "widgets_values": [
+        "",
+        "/api/v3/alibaba/wan-2.6/image-to-video",
+        "{\"audio\":\"\",\"prompt\":\"Subtle cinematic motion, rain falling,\\nneon lights flickering slightly,\\ngentle camera movement, realistic atmosphere,\\nkeep character identity consistent\",\"negative_prompt\":\"illustration, painting style, anime, low detail\",\"resolution\":\"1080p\",\"duration\":5,\"shot_type\":\"single\",\"enable_prompt_expansion\":false,\"seed\":0}",
+        "{\"image\":{\"type\":\"string\"},\"audio\":{\"type\":\"string\"},\"prompt\":{\"type\":\"string\"},\"negative_prompt\":{\"type\":\"string\"},\"resolution\":{\"type\":\"string\",\"options\":[\"720p\",\"1080p\"]},\"duration\":{\"type\":\"string\",\"options\":[5,10,15]},\"shot_type\":{\"type\":\"string\",\"options\":[\"single\",\"multi\"]},\"enable_prompt_expansion\":{\"type\":\"boolean\"},\"seed\":{\"type\":\"number\"}}",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "wavespeed": {
+        "modelId": "alibaba/wan-2.6/image-to-video",
+        "apiPath": "",
+        "category": "image-to-video",
+        "parameterValues": {
+          "image": "",
+          "audio": "",
+          "prompt": "Subtle cinematic motion, rain falling,\nneon lights flickering slightly,\ngentle camera movement, realistic atmosphere,\nkeep character identity consistent",
+          "negative_prompt": "illustration, painting style, anime, low detail",
+          "resolution": "1080p",
+          "duration": 5,
+          "shot_type": "single",
+          "enable_prompt_expansion": false,
+          "seed": 0
+        },
+        "requestJsonValue": "{\"audio\":\"\",\"prompt\":\"Subtle cinematic motion, rain falling,\\nneon lights flickering slightly,\\ngentle camera movement, realistic atmosphere,\\nkeep character identity consistent\",\"negative_prompt\":\"illustration, painting style, anime, low detail\",\"resolution\":\"1080p\",\"duration\":5,\"shot_type\":\"single\",\"enable_prompt_expansion\":false,\"seed\":0}",
+        "savedInputs": [
+          {
+            "name": "image",
+            "type": "*",
+            "link": 1
+          },
+          {
+            "name": "audio",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "prompt",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "negative_prompt",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "resolution",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "duration",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "shot_type",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "enable_prompt_expansion",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "seed",
+            "type": "*",
+            "link": null
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        6221.749964391176,
+        -3809.010776106269
+      ],
+      "size": [
+        339.328125,
+        556.46875
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "case1.png",
+        "image"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "WaveSpeedAI Preview",
+      "pos": [
+        7641.983919469301,
+        -4095.910949283988
+      ],
+      "size": [
+        739.078125,
+        473.984375
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_url",
+          "type": "*",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAI Preview"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "wavespeed_preview": {
+        "media_data": [
+          {
+            "type": "video",
+            "url": "https://d1q70pf5vjeyhc.cloudfront.net/predictions/6e9f4f4612ba4360bba92bd758ea17a3/1.mp4"
+          }
+        ]
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      1,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      1,
+      0,
+      3,
+      0,
+      "*"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.4665073802097333,
+      "offset": [
+        -4264.347388364628,
+        4596.38437749344
+      ]
+    },
+    "workflowRendererVersion": "Vue",
+    "frontendVersion": "1.35.9",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

@@ -1,0 +1,156 @@
+{
+  "id": "37675aeb-0a84-40dd-8aa5-f7dbf4121447",
+  "revision": 0,
+  "last_node_id": 9,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 4,
+      "type": "WaveSpeedAIPredictor",
+      "pos": [
+        3463.6980459995016,
+        -3867.5577881528793
+      ],
+      "size": [
+        800,
+        506
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "output_url",
+          "type": "*",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAIPredictor"
+      },
+      "widgets_values": [
+        "",
+        "/api/v3/google/nano-banana-pro/text-to-image",
+        "{\"prompt\":\"A cinematic cyberpunk city at night, neon lights reflecting on wet streets,\\na mysterious messenger standing under the rain,\\nfuturistic Asian city, holographic signs, ultra-detailed,\\ncinematic lighting, shallow depth of field, 35mm film look,\\nhigh realism, dramatic atmosphere\",\"aspect_ratio\":\"1:1\",\"resolution\":\"2k\",\"output_format\":\"png\"}",
+        "{\"prompt\":{\"type\":\"string\"},\"aspect_ratio\":{\"type\":\"string\",\"options\":[\"1:1\",\"3:2\",\"2:3\",\"3:4\",\"4:3\",\"4:5\",\"5:4\",\"9:16\",\"16:9\",\"21:9\"]},\"resolution\":{\"type\":\"string\",\"options\":[\"1k\",\"2k\",\"4k\"]},\"output_format\":{\"type\":\"string\",\"options\":[\"png\",\"jpeg\"]}}",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "wavespeed": {
+        "modelId": "google/nano-banana-pro/text-to-image",
+        "apiPath": "",
+        "category": "text-to-image",
+        "parameterValues": {
+          "prompt": "A cinematic cyberpunk city at night, neon lights reflecting on wet streets,\na mysterious messenger standing under the rain,\nfuturistic Asian city, holographic signs, ultra-detailed,\ncinematic lighting, shallow depth of field, 35mm film look,\nhigh realism, dramatic atmosphere",
+          "aspect_ratio": "1:1",
+          "resolution": "2k",
+          "output_format": "png"
+        },
+        "requestJsonValue": "{\"prompt\":\"A cinematic cyberpunk city at night, neon lights reflecting on wet streets,\\na mysterious messenger standing under the rain,\\nfuturistic Asian city, holographic signs, ultra-detailed,\\ncinematic lighting, shallow depth of field, 35mm film look,\\nhigh realism, dramatic atmosphere\",\"aspect_ratio\":\"1:1\",\"resolution\":\"2k\",\"output_format\":\"png\"}",
+        "savedInputs": [
+          {
+            "name": "prompt",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "aspect_ratio",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "resolution",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "output_format",
+            "type": "*",
+            "link": null
+          }
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "type": "WaveSpeedAI Preview",
+      "pos": [
+        4490.5029086704,
+        -3868.2599780942855
+      ],
+      "size": [
+        444.859375,
+        524.828125
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_url",
+          "type": "*",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAI Preview"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "wavespeed_preview": {
+        "media_data": [
+          {
+            "type": "image",
+            "url": "https://d1q70pf5vjeyhc.cloudfront.net/predictions/3d34d97465a249a2a5ada2269f20c04c/1.png"
+          }
+        ]
+      }
+    }
+  ],
+  "links": [
+    [
+      3,
+      4,
+      0,
+      7,
+      0,
+      "*"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.90909090909091,
+      "offset": [
+        -2857.8772690219635,
+        4329.4709116270005
+      ]
+    },
+    "workflowRendererVersion": "Vue",
+    "frontendVersion": "1.35.9",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

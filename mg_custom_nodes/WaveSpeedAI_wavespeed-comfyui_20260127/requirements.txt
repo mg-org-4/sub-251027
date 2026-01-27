@@ -1,0 +1,7 @@
+requests
+pillow
+opencv-python
+scipy
+torchaudio
+av
+pydantic

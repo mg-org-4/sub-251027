@@ -1,0 +1,261 @@
+{
+  "id": "2bef7222-21f4-42ff-862d-df75216903c4",
+  "revision": 0,
+  "last_node_id": 3,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "WaveSpeedAIPredictor",
+      "pos": [
+        6774.044473546868,
+        -4117.99558161674
+      ],
+      "size": [
+        800,
+        826
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_2",
+          "type": "*",
+          "widget": {
+            "name": "image_2"
+          },
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output_url",
+          "type": "*",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAIPredictor"
+      },
+      "widgets_values": [
+        "",
+        "/api/v3/google/nano-banana-pro/edit",
+        "{\"prompt\":\"Keep the original composition, camera angle, and object positions exactly the same.\\nTransform the entire image into a hand-painted oil painting style.\\n\\nThick brush strokes, visible paint texture,\\ndramatic color contrast, expressive lighting,\\nfine art illustration style, painterly look,\\nall elements rendered as a painting, not photorealistic.\\nGlobal style transformation, not just the character.\",\"image_0\":\"\",\"image_1\":\"\",\"image_2\":\"\",\"image_3\":\"\",\"image_4\":\"\",\"aspect_ratio\":\"1:1\",\"resolution\":\"2k\",\"output_format\":\"png\"}",
+        "{\"prompt\":{\"type\":\"string\"},\"images\":{\"type\":\"string\",\"isArray\":true,\"itemType\":\"string\"},\"aspect_ratio\":{\"type\":\"string\",\"options\":[\"1:1\",\"3:2\",\"2:3\",\"3:4\",\"4:3\",\"4:5\",\"5:4\",\"9:16\",\"16:9\",\"21:9\"]},\"resolution\":{\"type\":\"string\",\"options\":[\"1k\",\"2k\",\"4k\"]},\"output_format\":{\"type\":\"string\",\"options\":[\"png\",\"jpeg\"]}}",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "wavespeed": {
+        "modelId": "google/nano-banana-pro/edit",
+        "apiPath": "",
+        "category": "image-to-image",
+        "parameterValues": {
+          "prompt": "Keep the original composition, camera angle, and object positions exactly the same.\nTransform the entire image into a hand-painted oil painting style.\n\nThick brush strokes, visible paint texture,\ndramatic color contrast, expressive lighting,\nfine art illustration style, painterly look,\nall elements rendered as a painting, not photorealistic.\nGlobal style transformation, not just the character.",
+          "image_0": "",
+          "image_1": "",
+          "image_2": "",
+          "image_3": "",
+          "image_4": "",
+          "aspect_ratio": "1:1",
+          "resolution": "2k",
+          "output_format": "png"
+        },
+        "requestJsonValue": "{\"prompt\":\"Keep the original composition, camera angle, and object positions exactly the same.\\nTransform the entire image into a hand-painted oil painting style.\\n\\nThick brush strokes, visible paint texture,\\ndramatic color contrast, expressive lighting,\\nfine art illustration style, painterly look,\\nall elements rendered as a painting, not photorealistic.\\nGlobal style transformation, not just the character.\",\"image_0\":\"\",\"image_1\":\"\",\"image_2\":\"\",\"image_3\":\"\",\"image_4\":\"\",\"aspect_ratio\":\"1:1\",\"resolution\":\"2k\",\"output_format\":\"png\"}",
+        "savedInputs": [
+          {
+            "name": "prompt",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "image_0",
+            "type": "*",
+            "link": null,
+            "isExpandedArrayItem": true,
+            "parentArray": "images",
+            "arrayIndex": 0
+          },
+          {
+            "name": "image_1",
+            "type": "*",
+            "link": null,
+            "isExpandedArrayItem": true,
+            "parentArray": "images",
+            "arrayIndex": 1
+          },
+          {
+            "name": "image_2",
+            "type": "*",
+            "link": 2,
+            "isExpandedArrayItem": true,
+            "parentArray": "images",
+            "arrayIndex": 2
+          },
+          {
+            "name": "image_3",
+            "type": "*",
+            "link": null,
+            "isExpandedArrayItem": true,
+            "parentArray": "images",
+            "arrayIndex": 3
+          },
+          {
+            "name": "image_4",
+            "type": "*",
+            "link": null,
+            "isExpandedArrayItem": true,
+            "parentArray": "images",
+            "arrayIndex": 4
+          },
+          {
+            "name": "aspect_ratio",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "resolution",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "output_format",
+            "type": "*",
+            "link": null
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        6162.65232445977,
+        -4110.4987477549075
+      ],
+      "size": [
+        558.390625,
+        775.515625
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "case1.png",
+        "image"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "WaveSpeedAI Preview",
+      "pos": [
+        7794.102485314214,
+        -4117.973101908983
+      ],
+      "size": [
+        679.125,
+        759.09375
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_url",
+          "type": "*",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAI Preview"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "wavespeed_preview": {
+        "media_data": [
+          {
+            "type": "image",
+            "url": "https://d1q70pf5vjeyhc.cloudfront.net/predictions/356017ea9dd740238c9cd082cde3c6c7/1.png"
+          }
+        ]
+      }
+    }
+  ],
+  "links": [
+    [
+      2,
+      2,
+      0,
+      1,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      1,
+      0,
+      3,
+      0,
+      "*"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5131581182307067,
+      "offset": [
+        -4912.793656566765,
+        4428.654197738844
+      ]
+    },
+    "workflowRendererVersion": "Vue",
+    "frontendVersion": "1.35.9",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

@@ -1,0 +1,212 @@
+{
+  "id": "f47a355c-b9a3-4dc4-9880-be9d1b718dcd",
+  "revision": 0,
+  "last_node_id": 2,
+  "last_link_id": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "WaveSpeedAIPredictor",
+      "pos": [
+        7297.336743625308,
+        -4991.2354759547725
+      ],
+      "size": [
+        800,
+        906
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "output_url",
+          "type": "*",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAIPredictor"
+      },
+      "widgets_values": [
+        "",
+        "/api/v3/minimax/speech-02-turbo",
+        "{\"text\":\"A cinematic cyberpunk ambient soundtrack.\\nDeep atmospheric synths, distant city noise,\\nsoft rain sounds, low futuristic bass,\\ndark, mysterious, immersive mood\",\"voice_id\":\"1\",\"speed\":1,\"volume\":1,\"pitch\":0,\"emotion\":\"happy\",\"english_normalization\":false,\"sample_rate\":8000,\"bitrate\":32000,\"channel\":\"1\",\"format\":\"mp3\",\"language_boost\":\"English\"}",
+        "{\"text\":{\"type\":\"string\"},\"voice_id\":{\"type\":\"string\"},\"speed\":{\"type\":\"number\"},\"volume\":{\"type\":\"number\"},\"pitch\":{\"type\":\"number\"},\"emotion\":{\"type\":\"string\",\"options\":[\"happy\",\"sad\",\"angry\",\"fearful\",\"disgusted\",\"surprised\",\"neutral\"]},\"english_normalization\":{\"type\":\"boolean\"},\"sample_rate\":{\"type\":\"string\",\"options\":[8000,16000,22050,24000,32000,44100]},\"bitrate\":{\"type\":\"string\",\"options\":[32000,64000,128000,256000]},\"channel\":{\"type\":\"string\",\"options\":[\"1\",\"2\"]},\"format\":{\"type\":\"string\",\"options\":[\"mp3\",\"wav\",\"pcm\",\"flac\"]},\"language_boost\":{\"type\":\"string\",\"options\":[\"Chinese\",\"Chinese,Yue\",\"English\",\"Arabic\",\"Russian\",\"Spanish\",\"French\",\"Portuguese\",\"German\",\"Turkish\",\"Dutch\",\"Ukrainian\",\"Vietnamese\",\"Indonesian\",\"Japanese\",\"Italian\",\"Korean\",\"Thai\",\"Polish\",\"Romanian\",\"Greek\",\"Czech\",\"Finnish\",\"Hindi\",\"auto\"]}}",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "wavespeed": {
+        "modelId": "minimax/speech-02-turbo",
+        "apiPath": "",
+        "category": "text-to-audio",
+        "parameterValues": {
+          "text": "A cinematic cyberpunk ambient soundtrack.\nDeep atmospheric synths, distant city noise,\nsoft rain sounds, low futuristic bass,\ndark, mysterious, immersive mood",
+          "voice_id": "1",
+          "speed": 1,
+          "volume": 1,
+          "pitch": 0,
+          "emotion": "happy",
+          "english_normalization": false,
+          "sample_rate": 8000,
+          "bitrate": 32000,
+          "channel": "1",
+          "format": "mp3",
+          "language_boost": "English"
+        },
+        "requestJsonValue": "{\"text\":\"A cinematic cyberpunk ambient soundtrack.\\nDeep atmospheric synths, distant city noise,\\nsoft rain sounds, low futuristic bass,\\ndark, mysterious, immersive mood\",\"voice_id\":\"1\",\"speed\":1,\"volume\":1,\"pitch\":0,\"emotion\":\"happy\",\"english_normalization\":false,\"sample_rate\":8000,\"bitrate\":32000,\"channel\":\"1\",\"format\":\"mp3\",\"language_boost\":\"English\"}",
+        "savedInputs": [
+          {
+            "name": "text",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "voice_id",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "speed",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "volume",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "pitch",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "emotion",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "english_normalization",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "sample_rate",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "bitrate",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "channel",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "format",
+            "type": "*",
+            "link": null
+          },
+          {
+            "name": "language_boost",
+            "type": "*",
+            "link": null
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "type": "WaveSpeedAI Preview",
+      "pos": [
+        8337.424878390933,
+        -4990.9495872828975
+      ],
+      "size": [
+        719.984375,
+        329.984375
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_url",
+          "type": "*",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WaveSpeedAI Preview"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "wavespeed_preview": {
+        "media_data": [
+          {
+            "type": "audio",
+            "url": "https://d1q70pf5vjeyhc.cloudfront.net/predictions/4ed78af6f67c4310899cb6dc66c245d6/1.mp3"
+          }
+        ]
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "*"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1,
+      "offset": [
+        -5709.360425265933,
+        4388.269106325866
+      ]
+    },
+    "workflowRendererVersion": "Vue",
+    "frontendVersion": "1.35.9",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

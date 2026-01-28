@@ -1165,6 +1165,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         Returns:
             SparseTensor: The encoded structured latent.
         """
+        print('Converting mesh to flexible dual grid ...')
         vertices = torch.from_numpy(mesh.vertices).float()
         faces = torch.from_numpy(mesh.faces).long()
         
@@ -1522,6 +1523,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
     ) -> SparseTensor:
         # Upsample       
         self.load_shape_slat_decoder()
+        print('Decoding mesh slat ...')
         if self.low_vram:
             self.models['shape_slat_decoder'].to(self.device)
             self.models['shape_slat_decoder'].low_vram = True
@@ -1535,7 +1537,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
             self.unload_shape_slat_decoder()
         
         #downsampling = 16
-        lr_resolution = hr_resolution
+        lr_resolution = resolution
         # if hr_resolution == 512:
             # downsampling = 16
         # elif hr_resolution == 1024:
@@ -1546,7 +1548,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         while True:
             quant_coords = torch.cat([
                 hr_coords[:, :1],
-                ((hr_coords[:, 1:] + 0.5) / 512 * (lr_resolution // downsampling)).int(),
+                ((hr_coords[:, 1:] + 0.5) / lr_resolution * (hr_resolution // downsampling)).int(),
             ], dim=1)
             coords = quant_coords.unique(dim=0)
             num_tokens = coords.shape[0]
@@ -1598,7 +1600,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
     def refine_mesh(
         self,
         mesh: trimesh.Trimesh,
-        image: Image.Image,
+        image,
         seed: int = 42,
         shape_slat_sampler_params: dict = {},
         tex_slat_sampler_params: dict = {},
@@ -1608,16 +1610,22 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         return_latent = False,
         downsampling = 16,
         use_tiled: bool = True,
+        max_views: int = 4,
     ):
         mesh = self.preprocess_mesh(mesh)
         torch.manual_seed(seed)
         
         self.load_image_cond_model()
         
-        if resolution == 512:
-            cond = self.get_cond(image, 512)
+        if isinstance(image, (list, tuple)):
+            images = list(image)
         else:
-            cond = self.get_cond(image, 1024)
+            images = [image]        
+        
+        if resolution == 512:
+            cond = self.get_cond(images, 512, max_views = max_views)
+        else:
+            cond = self.get_cond(images, 1024, max_views = max_views)
         
         if not self.keep_models_loaded:
             self.unload_image_cond_model()        

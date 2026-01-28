@@ -970,7 +970,7 @@ to { transform: rotate(360deg);
   font-size: 13px;
 }
 
-.lora-pool-widget[data-v-7d3f681d] {
+.lora-pool-widget[data-v-4456abba] {
   padding: 12px;
   background: rgba(40, 44, 52, 0.6);
   border-radius: 4px;
@@ -1453,7 +1453,7 @@ to { transform: rotate(360deg);
   transform: translateY(4px);
 }
 
-.lora-randomizer-widget[data-v-45df1002] {
+.lora-randomizer-widget[data-v-8063df56] {
   padding: 6px;
   background: rgba(40, 44, 52, 0.6);
   border-radius: 6px;
@@ -1684,7 +1684,7 @@ to {
   opacity: 1;
 }
 
-.lora-cycler-widget[data-v-95dec8bd] {
+.lora-cycler-widget[data-v-6c9d29f9] {
   padding: 6px;
   background: rgba(40, 44, 52, 0.6);
   border-radius: 6px;
@@ -1770,7 +1770,7 @@ to {
   }
 })();
 var _a;
-import { app } from "../../../scripts/app.js";
+import { app as app$1 } from "../../../scripts/app.js";
 /**
 * @vue/shared v3.5.26
 * (c) 2018-present Yuxi (Evan) You and Vue contributors
@@ -3317,7 +3317,7 @@ function onWatcherCleanup(cleanupFn, failSilently = false, owner = activeWatcher
     cleanups.push(cleanupFn);
   }
 }
-function watch$2(source, cb, options = EMPTY_OBJ) {
+function watch$1(source, cb, options = EMPTY_OBJ) {
   const { immediate, deep, once, scheduler, augmentJob, call } = options;
   const reactiveGetter = (source2) => {
     if (deep) return source2;
@@ -3914,7 +3914,7 @@ const useSSRContext = () => {
     return ctx;
   }
 };
-function watch$1(source, cb, options) {
+function watch(source, cb, options) {
   return doWatch(source, cb, options);
 }
 function doWatch(source, cb, options = EMPTY_OBJ) {
@@ -3964,7 +3964,7 @@ function doWatch(source, cb, options = EMPTY_OBJ) {
       }
     }
   };
-  const watchHandle = watch$2(source, cb, baseWatchOptions);
+  const watchHandle = watch$1(source, cb, baseWatchOptions);
   if (isInSSRComponentSetup) {
     if (ssrCleanup) {
       ssrCleanup.push(watchHandle);
@@ -5319,12 +5319,12 @@ function createWatcher(raw, ctx, publicThis, key) {
     const handler = ctx[raw];
     if (isFunction(handler)) {
       {
-        watch$1(getter, handler);
+        watch(getter, handler);
       }
     }
   } else if (isFunction(raw)) {
     {
-      watch$1(getter, raw.bind(publicThis));
+      watch(getter, raw.bind(publicThis));
     }
   } else if (isObject(raw)) {
     if (isArray(raw)) {
@@ -5332,7 +5332,7 @@ function createWatcher(raw, ctx, publicThis, key) {
     } else {
       const handler = isFunction(raw.handler) ? raw.handler.bind(publicThis) : ctx[raw.handler];
       if (isFunction(handler)) {
-        watch$1(getter, handler, raw);
+        watch(getter, handler, raw);
       }
     }
   } else ;
@@ -9649,7 +9649,7 @@ function useStyle(css3) {
       onStyleMounted === null || onStyleMounted === void 0 || onStyleMounted(_name);
     }
     if (isLoaded.value) return;
-    stop = watch$1(cssRef, function(value) {
+    stop = watch(cssRef, function(value) {
       styleRef.value.textContent = value;
       onStyleUpdated === null || onStyleUpdated === void 0 || onStyleUpdated(_name);
     }, {
@@ -10104,7 +10104,7 @@ function setupConfig(app2, PrimeVue2) {
       isThemeChanged.value = true;
     }
   });
-  var stopConfigWatcher = watch$1(PrimeVue2.config, function(newValue, oldValue) {
+  var stopConfigWatcher = watch(PrimeVue2.config, function(newValue, oldValue) {
     PrimeVueService.emit("config:change", {
       newValue,
       oldValue
@@ -10113,7 +10113,7 @@ function setupConfig(app2, PrimeVue2) {
     immediate: true,
     deep: true
   });
-  var stopRippleWatcher = watch$1(function() {
+  var stopRippleWatcher = watch(function() {
     return PrimeVue2.config.ripple;
   }, function(newValue, oldValue) {
     PrimeVueService.emit("config:ripple:change", {
@@ -10124,7 +10124,7 @@ function setupConfig(app2, PrimeVue2) {
     immediate: true,
     deep: true
   });
-  var stopThemeWatcher = watch$1(function() {
+  var stopThemeWatcher = watch(function() {
     return PrimeVue2.config.theme;
   }, function(newValue, oldValue) {
     if (!isThemeChanged.value) {
@@ -10142,7 +10142,7 @@ function setupConfig(app2, PrimeVue2) {
     immediate: true,
     deep: false
   });
-  var stopUnstyledWatcher = watch$1(function() {
+  var stopUnstyledWatcher = watch(function() {
     return PrimeVue2.config.unstyled;
   }, function(newValue, oldValue) {
     if (!newValue && PrimeVue2.config.theme) {
@@ -10730,7 +10730,7 @@ const _sfc_main$e = /* @__PURE__ */ defineComponent({
     onUnmounted(() => {
       document.removeEventListener("keydown", handleKeydown);
     });
-    watch$1(() => props.visible, (isVisible) => {
+    watch(() => props.visible, (isVisible) => {
       if (isVisible) {
         document.body.style.overflow = "hidden";
       } else {
@@ -10830,7 +10830,7 @@ const _sfc_main$d = /* @__PURE__ */ defineComponent({
       searchQuery.value = "";
       (_a2 = searchInputRef.value) == null ? void 0 : _a2.focus();
     };
-    watch$1(() => props.visible, (isVisible) => {
+    watch(() => props.visible, (isVisible) => {
       if (isVisible) {
         nextTick(() => {
           var _a2;
@@ -10957,7 +10957,7 @@ const _sfc_main$c = /* @__PURE__ */ defineComponent({
       searchQuery.value = "";
       (_a2 = searchInputRef.value) == null ? void 0 : _a2.focus();
     };
-    watch$1(() => props.visible, (isVisible) => {
+    watch(() => props.visible, (isVisible) => {
       if (isVisible) {
         nextTick(() => {
           var _a2;
@@ -11192,7 +11192,7 @@ const _sfc_main$a = /* @__PURE__ */ defineComponent({
       const newSelected = props.selected.includes(key) ? props.selected.filter((k2) => k2 !== key) : [...props.selected, key];
       emit2("update:selected", newSelected);
     };
-    watch$1(() => props.visible, (isVisible) => {
+    watch(() => props.visible, (isVisible) => {
       if (isVisible) {
         searchQuery.value = "";
         expandedKeys.value = /* @__PURE__ */ new Set();
@@ -11336,6 +11336,7 @@ function useLoraPoolApi() {
 }
 function useLoraPoolState(widget) {
   const api = useLoraPoolApi();
+  let isRestoring = false;
   const selectedBaseModels = ref([]);
   const includeTags = ref([]);
   const excludeTags = ref([]);
@@ -11372,53 +11373,33 @@ function useLoraPoolState(widget) {
         lastUpdated: Date.now()
       }
     };
-    if (widget.updateConfig) {
-      widget.updateConfig(config);
-    } else {
+    if (!isRestoring) {
       widget.value = config;
     }
     return config;
   };
-  const migrateConfig = (legacy) => {
-    var _a2, _b, _c, _d, _e2;
-    return {
-      version: 2,
-      filters: {
-        baseModels: legacy.filters.baseModels || [],
-        tags: {
-          include: ((_a2 = legacy.filters.tags) == null ? void 0 : _a2.include) || [],
-          exclude: ((_b = legacy.filters.tags) == null ? void 0 : _b.exclude) || []
-        },
-        folders: {
-          include: ((_c = legacy.filters.folder) == null ? void 0 : _c.path) ? [legacy.filters.folder.path] : [],
-          exclude: []
-        },
-        license: {
-          noCreditRequired: ((_d = legacy.filters.license) == null ? void 0 : _d.noCreditRequired) ?? false,
-          allowSelling: ((_e2 = legacy.filters.license) == null ? void 0 : _e2.allowSellingGeneratedContent) ?? false
-        }
-      },
-      preview: legacy.preview || { matchCount: 0, lastUpdated: 0 }
-    };
-  };
-  const restoreFromConfig = (rawConfig) => {
+  const restoreFromConfig = (config) => {
     var _a2, _b, _c, _d, _e2, _f;
-    const config = rawConfig.version === 1 ? migrateConfig(rawConfig) : rawConfig;
-    if (!(config == null ? void 0 : config.filters)) return;
-    const { filters, preview } = config;
-    const updateIfChanged = (refValue, newValue) => {
-      if (JSON.stringify(refValue.value) !== JSON.stringify(newValue)) {
-        refValue.value = newValue;
-      }
-    };
-    updateIfChanged(selectedBaseModels, filters.baseModels || []);
-    updateIfChanged(includeTags, ((_a2 = filters.tags) == null ? void 0 : _a2.include) || []);
-    updateIfChanged(excludeTags, ((_b = filters.tags) == null ? void 0 : _b.exclude) || []);
-    updateIfChanged(includeFolders, ((_c = filters.folders) == null ? void 0 : _c.include) || []);
-    updateIfChanged(excludeFolders, ((_d = filters.folders) == null ? void 0 : _d.exclude) || []);
-    updateIfChanged(noCreditRequired, ((_e2 = filters.license) == null ? void 0 : _e2.noCreditRequired) ?? false);
-    updateIfChanged(allowSelling, ((_f = filters.license) == null ? void 0 : _f.allowSelling) ?? false);
-    matchCount.value = (preview == null ? void 0 : preview.matchCount) || 0;
+    isRestoring = true;
+    try {
+      if (!(config == null ? void 0 : config.filters)) return;
+      const { filters, preview } = config;
+      const updateIfChanged = (refValue, newValue) => {
+        if (JSON.stringify(refValue.value) !== JSON.stringify(newValue)) {
+          refValue.value = newValue;
+        }
+      };
+      updateIfChanged(selectedBaseModels, filters.baseModels || []);
+      updateIfChanged(includeTags, ((_a2 = filters.tags) == null ? void 0 : _a2.include) || []);
+      updateIfChanged(excludeTags, ((_b = filters.tags) == null ? void 0 : _b.exclude) || []);
+      updateIfChanged(includeFolders, ((_c = filters.folders) == null ? void 0 : _c.include) || []);
+      updateIfChanged(excludeFolders, ((_d = filters.folders) == null ? void 0 : _d.exclude) || []);
+      updateIfChanged(noCreditRequired, ((_e2 = filters.license) == null ? void 0 : _e2.noCreditRequired) ?? false);
+      updateIfChanged(allowSelling, ((_f = filters.license) == null ? void 0 : _f.allowSelling) ?? false);
+      matchCount.value = (preview == null ? void 0 : preview.matchCount) || 0;
+    } finally {
+      isRestoring = false;
+    }
   };
   const fetchFilterOptions = async () => {
     const [baseModels, tags, folders] = await Promise.all([
@@ -11452,7 +11433,7 @@ function useLoraPoolState(widget) {
       refreshPreview();
     }, 300);
   };
-  watch$1([
+  watch([
     selectedBaseModels,
     includeTags,
     excludeTags,
@@ -11520,17 +11501,14 @@ const _sfc_main$9 = /* @__PURE__ */ defineComponent({
       modalState.openModal(modal);
     };
     onMounted(async () => {
-      props.widget.serializeValue = async () => {
-        const config = state.buildConfig();
-        console.log("[LoraPoolWidget] Serializing config:", config);
-        return config;
-      };
-      props.widget.onSetValue = (v2) => {
-        state.restoreFromConfig(v2);
-        state.refreshPreview();
+      props.widget.callback = (v2) => {
+        if (v2) {
+          console.log("[LoraPoolWidget] Restoring config from callback");
+          state.restoreFromConfig(v2);
+        }
       };
       if (props.widget.value) {
-        console.log("[LoraPoolWidget] Restoring from saved value:", props.widget.value);
+        console.log("[LoraPoolWidget] Restoring from initial value");
         state.restoreFromConfig(props.widget.value);
       }
       await state.fetchFilterOptions();
@@ -11600,7 +11578,7 @@ const _sfc_main$9 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const LoraPoolWidget = /* @__PURE__ */ _export_sfc(_sfc_main$9, [["__scopeId", "data-v-7d3f681d"]]);
+const LoraPoolWidget = /* @__PURE__ */ _export_sfc(_sfc_main$9, [["__scopeId", "data-v-4456abba"]]);
 const _hoisted_1$8 = { class: "last-used-preview" };
 const _hoisted_2$5 = { class: "last-used-preview__content" };
 const _hoisted_3$3 = ["src", "onError"];
@@ -12349,6 +12327,7 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
 });
 const LoraRandomizerSettingsView = /* @__PURE__ */ _export_sfc(_sfc_main$5, [["__scopeId", "data-v-f7a531b6"]]);
 function useLoraRandomizerState(widget) {
+  let isRestoring = false;
   const countMode = ref("range");
   const countFixed = ref(3);
   const countMin = ref(2);
@@ -12366,24 +12345,46 @@ function useLoraRandomizerState(widget) {
   const lastUsed = ref(null);
   const executionSeed = ref(null);
   const nextSeed = ref(null);
-  const buildConfig = () => ({
-    count_mode: countMode.value,
-    count_fixed: countFixed.value,
-    count_min: countMin.value,
-    count_max: countMax.value,
-    model_strength_min: modelStrengthMin.value,
-    model_strength_max: modelStrengthMax.value,
-    use_same_clip_strength: !useCustomClipRange.value,
-    clip_strength_min: clipStrengthMin.value,
-    clip_strength_max: clipStrengthMax.value,
-    roll_mode: rollMode.value,
-    last_used: lastUsed.value,
-    use_recommended_strength: useRecommendedStrength.value,
-    recommended_strength_scale_min: recommendedStrengthScaleMin.value,
-    recommended_strength_scale_max: recommendedStrengthScaleMax.value,
-    execution_seed: executionSeed.value,
-    next_seed: nextSeed.value
-  });
+  const buildConfig = () => {
+    if (isRestoring) {
+      return {
+        count_mode: countMode.value,
+        count_fixed: countFixed.value,
+        count_min: countMin.value,
+        count_max: countMax.value,
+        model_strength_min: modelStrengthMin.value,
+        model_strength_max: modelStrengthMax.value,
+        use_same_clip_strength: !useCustomClipRange.value,
+        clip_strength_min: clipStrengthMin.value,
+        clip_strength_max: clipStrengthMax.value,
+        roll_mode: rollMode.value,
+        last_used: lastUsed.value,
+        use_recommended_strength: useRecommendedStrength.value,
+        recommended_strength_scale_min: recommendedStrengthScaleMin.value,
+        recommended_strength_scale_max: recommendedStrengthScaleMax.value,
+        execution_seed: executionSeed.value,
+        next_seed: nextSeed.value
+      };
+    }
+    return {
+      count_mode: countMode.value,
+      count_fixed: countFixed.value,
+      count_min: countMin.value,
+      count_max: countMax.value,
+      model_strength_min: modelStrengthMin.value,
+      model_strength_max: modelStrengthMax.value,
+      use_same_clip_strength: !useCustomClipRange.value,
+      clip_strength_min: clipStrengthMin.value,
+      clip_strength_max: clipStrengthMax.value,
+      roll_mode: rollMode.value,
+      last_used: lastUsed.value,
+      use_recommended_strength: useRecommendedStrength.value,
+      recommended_strength_scale_min: recommendedStrengthScaleMin.value,
+      recommended_strength_scale_max: recommendedStrengthScaleMax.value,
+      execution_seed: executionSeed.value,
+      next_seed: nextSeed.value
+    };
+  };
   const generateNewSeed = () => {
     executionSeed.value = nextSeed.value;
     nextSeed.value = Math.floor(Math.random() * 2147483647);
@@ -12394,29 +12395,34 @@ function useLoraRandomizerState(widget) {
     }
   };
   const restoreFromConfig = (config) => {
-    countMode.value = config.count_mode || "range";
-    countFixed.value = config.count_fixed || 3;
-    countMin.value = config.count_min || 2;
-    countMax.value = config.count_max || 5;
-    modelStrengthMin.value = config.model_strength_min ?? 0;
-    modelStrengthMax.value = config.model_strength_max ?? 1;
-    useCustomClipRange.value = !(config.use_same_clip_strength ?? true);
-    clipStrengthMin.value = config.clip_strength_min ?? 0;
-    clipStrengthMax.value = config.clip_strength_max ?? 1;
-    const rawRollMode = config.roll_mode;
-    if (rawRollMode === "frontend") {
-      rollMode.value = "fixed";
-    } else if (rawRollMode === "backend") {
-      rollMode.value = "always";
-    } else if (rawRollMode === "fixed" || rawRollMode === "always") {
-      rollMode.value = rawRollMode;
-    } else {
-      rollMode.value = "fixed";
+    isRestoring = true;
+    try {
+      countMode.value = config.count_mode || "range";
+      countFixed.value = config.count_fixed || 3;
+      countMin.value = config.count_min || 2;
+      countMax.value = config.count_max || 5;
+      modelStrengthMin.value = config.model_strength_min ?? 0;
+      modelStrengthMax.value = config.model_strength_max ?? 1;
+      useCustomClipRange.value = !(config.use_same_clip_strength ?? true);
+      clipStrengthMin.value = config.clip_strength_min ?? 0;
+      clipStrengthMax.value = config.clip_strength_max ?? 1;
+      const rawRollMode = config.roll_mode;
+      if (rawRollMode === "frontend") {
+        rollMode.value = "fixed";
+      } else if (rawRollMode === "backend") {
+        rollMode.value = "always";
+      } else if (rawRollMode === "fixed" || rawRollMode === "always") {
+        rollMode.value = rawRollMode;
+      } else {
+        rollMode.value = "fixed";
+      }
+      lastUsed.value = config.last_used || null;
+      useRecommendedStrength.value = config.use_recommended_strength ?? false;
+      recommendedStrengthScaleMin.value = config.recommended_strength_scale_min ?? 0.5;
+      recommendedStrengthScaleMax.value = config.recommended_strength_scale_max ?? 1;
+    } finally {
+      isRestoring = false;
     }
-    lastUsed.value = config.last_used || null;
-    useRecommendedStrength.value = config.use_recommended_strength ?? false;
-    recommendedStrengthScaleMin.value = config.recommended_strength_scale_min ?? 0.5;
-    recommendedStrengthScaleMax.value = config.recommended_strength_scale_max ?? 1;
   };
   const rollLoras = async (poolConfig, lockedLoras) => {
     try {
@@ -12473,7 +12479,7 @@ function useLoraRandomizerState(widget) {
   };
   const isClipStrengthDisabled = computed(() => !useCustomClipRange.value);
   const isRecommendedStrengthEnabled = computed(() => useRecommendedStrength.value);
-  watch$1([
+  watch([
     countMode,
     countFixed,
     countMin,
@@ -12488,12 +12494,7 @@ function useLoraRandomizerState(widget) {
     recommendedStrengthScaleMin,
     recommendedStrengthScaleMax
   ], () => {
-    const config = buildConfig();
-    if (widget.updateConfig) {
-      widget.updateConfig(config);
-    } else {
-      widget.value = config;
-    }
+    widget.value = buildConfig();
   }, { deep: true });
   return {
     // State refs
@@ -12598,7 +12599,7 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
         state.rollMode.value = "fixed";
       }
     };
-    watch$1(() => {
+    watch(() => {
       var _a2, _b;
       return (_b = (_a2 = props.node.widgets) == null ? void 0 : _a2.find((w2) => w2.name === "loras")) == null ? void 0 : _b.value;
     }, (newVal) => {
@@ -12618,12 +12619,10 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
         }
       }
       isMounted.value = true;
-      props.widget.serializeValue = async () => {
-        const config = state.buildConfig();
-        return config;
-      };
-      props.widget.onSetValue = (v2) => {
-        state.restoreFromConfig(v2);
+      props.widget.callback = (v2) => {
+        if (v2) {
+          state.restoreFromConfig(v2);
+        }
       };
       if (props.widget.value) {
         state.restoreFromConfig(props.widget.value);
@@ -12636,12 +12635,7 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
             state.initializeNextSeed();
             props.widget[HAS_EXECUTED] = true;
           }
-          const config = state.buildConfig();
-          if (props.widget.updateConfig) {
-            props.widget.updateConfig(config);
-          } else {
-            props.widget.value = config;
-          }
+          props.widget.value = state.buildConfig();
         }
       };
       const originalOnExecuted = (_b = props.node.onExecuted) == null ? void 0 : _b.bind(props.node);
@@ -12705,7 +12699,7 @@ const _sfc_main$4 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const LoraRandomizerWidget = /* @__PURE__ */ _export_sfc(_sfc_main$4, [["__scopeId", "data-v-45df1002"]]);
+const LoraRandomizerWidget = /* @__PURE__ */ _export_sfc(_sfc_main$4, [["__scopeId", "data-v-8063df56"]]);
 const _hoisted_1$3 = { class: "cycler-settings" };
 const _hoisted_2$2 = { class: "setting-section progress-section" };
 const _hoisted_3$1 = { class: "progress-display" };
@@ -12869,6 +12863,7 @@ const _sfc_main$3 = /* @__PURE__ */ defineComponent({
 });
 const LoraCyclerSettingsView = /* @__PURE__ */ _export_sfc(_sfc_main$3, [["__scopeId", "data-v-8690e14a"]]);
 function useLoraCyclerState(widget) {
+  let isRestoring = false;
   const currentIndex = ref(1);
   const totalCount = ref(0);
   const poolConfigHash = ref("");
@@ -12881,29 +12876,51 @@ function useLoraCyclerState(widget) {
   const isLoading = ref(false);
   const executionIndex = ref(null);
   const nextIndex = ref(null);
-  const buildConfig = () => ({
-    current_index: currentIndex.value,
-    total_count: totalCount.value,
-    pool_config_hash: poolConfigHash.value,
-    model_strength: modelStrength.value,
-    clip_strength: clipStrength.value,
-    use_same_clip_strength: !useCustomClipRange.value,
-    sort_by: sortBy.value,
-    current_lora_name: currentLoraName.value,
-    current_lora_filename: currentLoraFilename.value,
-    execution_index: executionIndex.value,
-    next_index: nextIndex.value
-  });
+  const buildConfig = () => {
+    if (isRestoring) {
+      return {
+        current_index: currentIndex.value,
+        total_count: totalCount.value,
+        pool_config_hash: poolConfigHash.value,
+        model_strength: modelStrength.value,
+        clip_strength: clipStrength.value,
+        use_same_clip_strength: !useCustomClipRange.value,
+        sort_by: sortBy.value,
+        current_lora_name: currentLoraName.value,
+        current_lora_filename: currentLoraFilename.value,
+        execution_index: executionIndex.value,
+        next_index: nextIndex.value
+      };
+    }
+    return {
+      current_index: currentIndex.value,
+      total_count: totalCount.value,
+      pool_config_hash: poolConfigHash.value,
+      model_strength: modelStrength.value,
+      clip_strength: clipStrength.value,
+      use_same_clip_strength: !useCustomClipRange.value,
+      sort_by: sortBy.value,
+      current_lora_name: currentLoraName.value,
+      current_lora_filename: currentLoraFilename.value,
+      execution_index: executionIndex.value,
+      next_index: nextIndex.value
+    };
+  };
   const restoreFromConfig = (config) => {
-    currentIndex.value = config.current_index || 1;
-    totalCount.value = config.total_count || 0;
-    poolConfigHash.value = config.pool_config_hash || "";
-    modelStrength.value = config.model_strength ?? 1;
-    clipStrength.value = config.clip_strength ?? 1;
-    useCustomClipRange.value = !(config.use_same_clip_strength ?? true);
-    sortBy.value = config.sort_by || "filename";
-    currentLoraName.value = config.current_lora_name || "";
-    currentLoraFilename.value = config.current_lora_filename || "";
+    isRestoring = true;
+    try {
+      currentIndex.value = config.current_index || 1;
+      totalCount.value = config.total_count || 0;
+      poolConfigHash.value = config.pool_config_hash || "";
+      modelStrength.value = config.model_strength ?? 1;
+      clipStrength.value = config.clip_strength ?? 1;
+      useCustomClipRange.value = !(config.use_same_clip_strength ?? true);
+      sortBy.value = config.sort_by || "filename";
+      currentLoraName.value = config.current_lora_name || "";
+      currentLoraFilename.value = config.current_lora_filename || "";
+    } finally {
+      isRestoring = false;
+    }
   };
   const generateNextIndex = () => {
     executionIndex.value = nextIndex.value;
@@ -13000,12 +13017,12 @@ function useLoraCyclerState(widget) {
     }
   };
   const isClipStrengthDisabled = computed(() => !useCustomClipRange.value);
-  watch$1(modelStrength, (newValue) => {
+  watch(modelStrength, (newValue) => {
     if (!useCustomClipRange.value) {
       clipStrength.value = newValue;
     }
   });
-  watch$1([
+  watch([
     currentIndex,
     totalCount,
     poolConfigHash,
@@ -13016,12 +13033,7 @@ function useLoraCyclerState(widget) {
     currentLoraName,
     currentLoraFilename
   ], () => {
-    const config = buildConfig();
-    if (widget.updateConfig) {
-      widget.updateConfig(config);
-    } else {
-      widget.value = config;
-    }
+    widget.value = buildConfig();
   }, { deep: true });
   return {
     // State refs
@@ -13115,11 +13127,10 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
     };
     onMounted(async () => {
       var _a2;
-      props.widget.serializeValue = async () => {
-        return state.buildConfig();
-      };
-      props.widget.onSetValue = (v2) => {
-        state.restoreFromConfig(v2);
+      props.widget.callback = (v2) => {
+        if (v2) {
+          state.restoreFromConfig(v2);
+        }
       };
       if (props.widget.value) {
         state.restoreFromConfig(props.widget.value);
@@ -13131,12 +13142,7 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
           state.initializeNextIndex();
           props.widget[HAS_EXECUTED] = true;
         }
-        const config = state.buildConfig();
-        if (props.widget.updateConfig) {
-          props.widget.updateConfig(config);
-        } else {
-          props.widget.value = config;
-        }
+        props.widget.value = state.buildConfig();
       };
       isMounted.value = true;
       try {
@@ -13204,7 +13210,7 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
     };
   }
 });
-const LoraCyclerWidget = /* @__PURE__ */ _export_sfc(_sfc_main$2, [["__scopeId", "data-v-95dec8bd"]]);
+const LoraCyclerWidget = /* @__PURE__ */ _export_sfc(_sfc_main$2, [["__scopeId", "data-v-6c9d29f9"]]);
 const _hoisted_1$1 = { class: "json-display-widget" };
 const _hoisted_2$1 = {
   class: "json-content",
@@ -13499,7 +13505,7 @@ function createModeChangeCallback(node, updateDownstreamLoaders2, nodeSpecificCa
     updateDownstreamLoaders2(node);
   };
 }
-const app$1 = {};
+const app = {};
 const ROOT_GRAPH_ID = "root";
 const LORA_PROVIDER_NODE_TYPES = [
   "Lora Stacker (LoraManager)",
@@ -13519,7 +13525,7 @@ function getNodeGraphId(node) {
   if (!node) {
     return ROOT_GRAPH_ID;
   }
-  return getGraphId(node.graph || app$1.graph);
+  return getGraphId(node.graph || app.graph);
 }
 function getNodeReference(node) {
   if (!node) {
@@ -13720,7 +13726,7 @@ function forwardMiddleMouseToCanvas(container) {
   if (!container) return;
   container.addEventListener("pointerdown", (event) => {
     if (event.button === 1) {
-      const canvas = app.canvas;
+      const canvas = app$1.canvas;
       if (canvas && typeof canvas.processMouseDown === "function") {
         canvas.processMouseDown(event);
       }
@@ -13728,7 +13734,7 @@ function forwardMiddleMouseToCanvas(container) {
   });
   container.addEventListener("pointermove", (event) => {
     if ((event.buttons & 4) === 4) {
-      const canvas = app.canvas;
+      const canvas = app$1.canvas;
       if (canvas && typeof canvas.processMouseMove === "function") {
         canvas.processMouseMove(event);
       }
@@ -13736,7 +13742,7 @@ function forwardMiddleMouseToCanvas(container) {
   });
   container.addEventListener("pointerup", (event) => {
     if (event.button === 1) {
-      const canvas = app.canvas;
+      const canvas = app$1.canvas;
       if (canvas && typeof canvas.processMouseUp === "function") {
         canvas.processMouseUp(event);
       }
@@ -13765,9 +13771,6 @@ function createLoraPoolWidget(node) {
       },
       setValue(v2) {
         internalValue = v2;
-        if (typeof widget.onSetValue === "function") {
-          widget.onSetValue(v2);
-        }
       },
       serialize: true,
       // Per dev guide: providing getMinHeight via options allows the system to
@@ -13777,9 +13780,6 @@ function createLoraPoolWidget(node) {
       }
     }
   );
-  widget.updateConfig = (v2) => {
-    internalValue = v2;
-  };
   const vueApp = createApp(LoraPoolWidget, {
     widget,
     node
@@ -13824,10 +13824,6 @@ function createLoraRandomizerWidget(node) {
       },
       setValue(v2) {
         internalValue = v2;
-        console.log("randomizer widget value update: ", internalValue);
-        if (typeof widget.onSetValue === "function") {
-          widget.onSetValue(v2);
-        }
       },
       serialize: true,
       getMinHeight() {
@@ -13835,9 +13831,6 @@ function createLoraRandomizerWidget(node) {
       }
     }
   );
-  widget.updateConfig = (v2) => {
-    internalValue = v2;
-  };
   node.getPoolConfig = () => getPoolConfigFromConnectedNode(node);
   widget.onRoll = (randomLoras) => {
     const lorasWidget = node.widgets.find((w2) => w2.name === "loras");
@@ -13891,9 +13884,6 @@ function createLoraCyclerWidget(node) {
       setValue(v2) {
         const oldFilename = internalValue == null ? void 0 : internalValue.current_lora_filename;
         internalValue = v2;
-        if (typeof widget.onSetValue === "function") {
-          widget.onSetValue(v2);
-        }
         if (oldFilename !== (v2 == null ? void 0 : v2.current_lora_filename)) {
           updateDownstreamLoaders(node);
         }
@@ -13904,13 +13894,6 @@ function createLoraCyclerWidget(node) {
       }
     }
   );
-  widget.updateConfig = (v2) => {
-    const oldFilename = internalValue == null ? void 0 : internalValue.current_lora_filename;
-    internalValue = v2;
-    if (oldFilename !== (v2 == null ? void 0 : v2.current_lora_filename)) {
-      updateDownstreamLoaders(node);
-    }
-  };
   node.getPoolConfig = () => getPoolConfigFromConnectedNode(node);
   const vueApp = createApp(LoraCyclerWidget, {
     widget,
@@ -13995,11 +13978,11 @@ function createJsonDisplayWidget(node) {
 const widgetInputOptions = /* @__PURE__ */ new Map();
 const initVueDomModeListener = () => {
   var _a2, _b;
-  if ((_b = (_a2 = app.ui) == null ? void 0 : _a2.settings) == null ? void 0 : _b.addEventListener) {
-    app.ui.settings.addEventListener("Comfy.VueNodes.Enabled.change", () => {
+  if ((_b = (_a2 = app$1.ui) == null ? void 0 : _a2.settings) == null ? void 0 : _b.addEventListener) {
+    app$1.ui.settings.addEventListener("Comfy.VueNodes.Enabled.change", () => {
       requestAnimationFrame(() => {
         var _a3, _b2, _c;
-        const isVueDomMode = ((_c = (_b2 = (_a3 = app.ui) == null ? void 0 : _a3.settings) == null ? void 0 : _b2.getSettingValue) == null ? void 0 : _c.call(_b2, "Comfy.VueNodes.Enabled")) ?? false;
+        const isVueDomMode = ((_c = (_b2 = (_a3 = app$1.ui) == null ? void 0 : _a3.settings) == null ? void 0 : _b2.getSettingValue) == null ? void 0 : _c.call(_b2, "Comfy.VueNodes.Enabled")) ?? false;
         document.dispatchEvent(new CustomEvent("lora-manager:vue-mode-change", {
           detail: { isVueDomMode }
         }));
@@ -14007,12 +13990,12 @@ const initVueDomModeListener = () => {
     });
   }
 };
-if ((_a = app.ui) == null ? void 0 : _a.settings) {
+if ((_a = app$1.ui) == null ? void 0 : _a.settings) {
   initVueDomModeListener();
 } else {
   const checkAppReady = setInterval(() => {
     var _a2;
-    if ((_a2 = app.ui) == null ? void 0 : _a2.settings) {
+    if ((_a2 = app$1.ui) == null ? void 0 : _a2.settings) {
       initVueDomModeListener();
       clearInterval(checkAppReady);
     }
@@ -14053,7 +14036,7 @@ function createAutocompleteTextWidgetFactory(node, widgetName, modelType, inputO
       }
     }
   );
-  const spellcheck = ((_c = (_b = (_a2 = app.ui) == null ? void 0 : _a2.settings) == null ? void 0 : _b.getSettingValue) == null ? void 0 : _c.call(_b, "Comfy.TextareaWidget.Spellcheck")) ?? false;
+  const spellcheck = ((_c = (_b = (_a2 = app$1.ui) == null ? void 0 : _a2.settings) == null ? void 0 : _b.getSettingValue) == null ? void 0 : _c.call(_b, "Comfy.TextareaWidget.Spellcheck")) ?? false;
   const vueApp = createApp(AutocompleteTextWidget, {
     widget,
     node,
@@ -14078,7 +14061,7 @@ function createAutocompleteTextWidgetFactory(node, widgetName, modelType, inputO
   };
   return { widget };
 }
-app.registerExtension({
+app$1.registerExtension({
   name: "LoraManager.VueWidgets",
   getCustomWidgets() {
     return {

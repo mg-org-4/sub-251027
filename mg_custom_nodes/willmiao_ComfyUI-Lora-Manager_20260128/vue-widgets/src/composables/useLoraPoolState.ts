@@ -1,7 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import type {
   LoraPoolConfig,
-  LegacyLoraPoolConfig,
   BaseModelOption,
   TagOption,
   FolderTreeNode,
@@ -10,8 +9,12 @@ import type {
 } from './types'
 import { useLoraPoolApi } from './useLoraPoolApi'
 
-export function useLoraPoolState(widget: ComponentWidget) {
+export function useLoraPoolState(widget: ComponentWidget<LoraPoolConfig>) {
   const api = useLoraPoolApi()
+
+  // Flag to prevent infinite loops during config restoration
+  // callback → restoreFromConfig → watch → refreshPreview → buildConfig → widget.value = config → callback → ...
+  let isRestoring = false
 
   // Filter state
   const selectedBaseModels = ref<string[]>([])
@@ -57,66 +60,46 @@ export function useLoraPoolState(widget: ComponentWidget) {
       }
     }
 
-    // Update widget value
-    if (widget.updateConfig) {
-      widget.updateConfig(config)
-    } else {
+    // Update widget value (this triggers callback for UI sync)
+    // Skip during restoration to prevent infinite loops:
+    // callback → restoreFromConfig → watch → refreshPreview → buildConfig → widget.value = config → callback → ...
+    if (!isRestoring) {
       widget.value = config
     }
     return config
   }
 
-  // Migrate legacy config (v1) to current format (v2)
-  const migrateConfig = (legacy: LegacyLoraPoolConfig): LoraPoolConfig => {
-    return {
-      version: 2,
-      filters: {
-        baseModels: legacy.filters.baseModels || [],
-        tags: {
-          include: legacy.filters.tags?.include || [],
-          exclude: legacy.filters.tags?.exclude || []
-        },
-        folders: {
-          include: legacy.filters.folder?.path ? [legacy.filters.folder.path] : [],
-          exclude: []
-        },
-        license: {
-          noCreditRequired: legacy.filters.license?.noCreditRequired ?? false,
-          allowSelling: legacy.filters.license?.allowSellingGeneratedContent ?? false
-        }
-      },
-      preview: legacy.preview || { matchCount: 0, lastUpdated: 0 }
-    }
-  }
-
   // Restore state from config
-  const restoreFromConfig = (rawConfig: LoraPoolConfig | LegacyLoraPoolConfig) => {
-    // Migrate if needed
-    const config = rawConfig.version === 1
-      ? migrateConfig(rawConfig as LegacyLoraPoolConfig)
-      : rawConfig as LoraPoolConfig
+  const restoreFromConfig = (config: LoraPoolConfig) => {
+    // Set flag to prevent buildConfig from triggering widget.value updates during restoration
+    // This breaks the infinite loop: callback → restoreFromConfig → watch → refreshPreview → buildConfig → widget.value = config → callback
+    isRestoring = true
 
-    if (!config?.filters) return
+    try {
+      if (!config?.filters) return
 
-    const { filters, preview } = config
+      const { filters, preview } = config
 
-    // Helper to update ref only if value changed
-    const updateIfChanged = <T>(refValue: { value: T }, newValue: T) => {
-      if (JSON.stringify(refValue.value) !== JSON.stringify(newValue)) {
-        refValue.value = newValue
+      // Helper to update ref only if value changed
+      const updateIfChanged = <T>(refValue: { value: T }, newValue: T) => {
+        if (JSON.stringify(refValue.value) !== JSON.stringify(newValue)) {
+          refValue.value = newValue
+        }
       }
-    }
 
-    updateIfChanged(selectedBaseModels, filters.baseModels || [])
-    updateIfChanged(includeTags, filters.tags?.include || [])
-    updateIfChanged(excludeTags, filters.tags?.exclude || [])
-    updateIfChanged(includeFolders, filters.folders?.include || [])
-    updateIfChanged(excludeFolders, filters.folders?.exclude || [])
-    updateIfChanged(noCreditRequired, filters.license?.noCreditRequired ?? false)
-    updateIfChanged(allowSelling, filters.license?.allowSelling ?? false)
-    
-    // matchCount doesn't trigger watchers, so direct assignment is fine
-    matchCount.value = preview?.matchCount || 0
+      updateIfChanged(selectedBaseModels, filters.baseModels || [])
+      updateIfChanged(includeTags, filters.tags?.include || [])
+      updateIfChanged(excludeTags, filters.tags?.exclude || [])
+      updateIfChanged(includeFolders, filters.folders?.include || [])
+      updateIfChanged(excludeFolders, filters.folders?.exclude || [])
+      updateIfChanged(noCreditRequired, filters.license?.noCreditRequired ?? false)
+      updateIfChanged(allowSelling, filters.license?.allowSelling ?? false)
+
+      // matchCount doesn't trigger watchers, so direct assignment is fine
+      matchCount.value = preview?.matchCount || 0
+    } finally {
+      isRestoring = false
+    }
   }
 
   // Fetch filter options from API

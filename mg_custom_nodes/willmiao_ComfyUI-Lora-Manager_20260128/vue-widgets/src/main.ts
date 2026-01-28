@@ -5,7 +5,7 @@ import LoraRandomizerWidget from '@/components/LoraRandomizerWidget.vue'
 import LoraCyclerWidget from '@/components/LoraCyclerWidget.vue'
 import JsonDisplayWidget from '@/components/JsonDisplayWidget.vue'
 import AutocompleteTextWidget from '@/components/AutocompleteTextWidget.vue'
-import type { LoraPoolConfig, LegacyLoraPoolConfig, RandomizerConfig, CyclerConfig } from './composables/types'
+import type { LoraPoolConfig, RandomizerConfig, CyclerConfig } from './composables/types'
 import {
   setupModeChangeHandler,
   createModeChangeCallback,
@@ -78,7 +78,7 @@ function createLoraPoolWidget(node) {
 
   forwardMiddleMouseToCanvas(container)
 
-  let internalValue: LoraPoolConfig | LegacyLoraPoolConfig | undefined
+  let internalValue: LoraPoolConfig | undefined
 
   const widget = node.addDOMWidget(
     'pool_config',
@@ -88,11 +88,10 @@ function createLoraPoolWidget(node) {
       getValue() {
         return internalValue
       },
-      setValue(v: LoraPoolConfig | LegacyLoraPoolConfig) {
+      setValue(v: LoraPoolConfig) {
         internalValue = v
-        if (typeof widget.onSetValue === 'function') {
-          widget.onSetValue(v)
-        }
+        // ComfyUI automatically calls widget.callback after setValue
+        // No need for custom onSetValue mechanism
       },
       serialize: true,
       // Per dev guide: providing getMinHeight via options allows the system to
@@ -102,10 +101,6 @@ function createLoraPoolWidget(node) {
       }
     }
   )
-
-  widget.updateConfig = (v: LoraPoolConfig) => {
-    internalValue = v
-  }
 
   const vueApp = createApp(LoraPoolWidget, {
     widget,
@@ -162,10 +157,8 @@ function createLoraRandomizerWidget(node) {
       },
       setValue(v: RandomizerConfig) {
         internalValue = v
-        console.log('randomizer widget value update: ', internalValue)
-        if (typeof widget.onSetValue === 'function') {
-          widget.onSetValue(v)
-        }
+        // ComfyUI automatically calls widget.callback after setValue
+        // No need for custom onSetValue mechanism
       },
       serialize: true,
       getMinHeight() {
@@ -173,10 +166,6 @@ function createLoraRandomizerWidget(node) {
       }
     }
   )
-
-  widget.updateConfig = (v: RandomizerConfig) => {
-    internalValue = v
-  }
 
   // Add method to get pool config from connected node
   node.getPoolConfig = () => getPoolConfigFromConnectedNode(node)
@@ -247,9 +236,8 @@ function createLoraCyclerWidget(node) {
       setValue(v: CyclerConfig) {
         const oldFilename = internalValue?.current_lora_filename
         internalValue = v
-        if (typeof widget.onSetValue === 'function') {
-          widget.onSetValue(v)
-        }
+        // ComfyUI automatically calls widget.callback after setValue
+        // No need for custom onSetValue mechanism
         // Update downstream loaders when the active LoRA filename changes
         if (oldFilename !== v?.current_lora_filename) {
           updateDownstreamLoaders(node)
@@ -261,15 +249,6 @@ function createLoraCyclerWidget(node) {
       }
     }
   )
-
-  widget.updateConfig = (v: CyclerConfig) => {
-    const oldFilename = internalValue?.current_lora_filename
-    internalValue = v
-    // Update downstream loaders when the active LoRA filename changes
-    if (oldFilename !== v?.current_lora_filename) {
-      updateDownstreamLoaders(node)
-    }
-  }
 
   // Add method to get pool config from connected node
   node.getPoolConfig = () => getPoolConfigFromConnectedNode(node)

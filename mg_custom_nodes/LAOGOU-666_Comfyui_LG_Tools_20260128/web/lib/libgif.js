@@ -68,9 +68,15 @@
     } else if (typeof exports === 'object') {
         module.exports = factory();
     } else {
-        root.SuperGif = factory();
+        // 在 ES 模块环境中 this 可能是 undefined，回退到 globalThis 或 window
+        var globalRoot = (typeof globalThis !== 'undefined' ? globalThis : 
+                         (typeof window !== 'undefined' ? window : 
+                         (typeof self !== 'undefined' ? self : {})));
+        globalRoot.SuperGif = factory();
     }
-}(this, function () {
+}(typeof globalThis !== 'undefined' ? globalThis : 
+  (typeof window !== 'undefined' ? window : 
+  (typeof self !== 'undefined' ? self : this)), function () {
     // Generic functions
     var bitsToNum = function (ba) {
         return ba.reduce(function (s, n) {

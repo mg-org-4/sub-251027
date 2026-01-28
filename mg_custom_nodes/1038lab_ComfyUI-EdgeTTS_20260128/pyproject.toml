@@ -1,0 +1,25 @@
+[project]
+name = "comfyui-edgetts"
+description = "ComfyUI-EdgeTTS is a powerful text-to-speech node for ComfyUI, leveraging Microsoft's Edge TTS capabilities. It enables seamless conversion of text into natural-sounding speech, supporting multiple languages and voices. Ideal for enhancing user interactions, this node is easy to integrate and customize, making it perfect for various applications."
+version = "1.2.2"
+
+license = {file = "LICENSE"}
+dependencies = [
+    "edge-tts>=7.0.0",
+    "torchaudio",
+    "torchcodec==0.9",
+    "openai-whisper>=20231117",
+    "numpy",
+    "torch",
+    "googletrans-py>=3.0.0",
+    "deep-translator>=1.11.4"
+]
+
+[project.urls]
+Repository = "https://github.com/1038lab/ComfyUI-EdgeTTS"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "ailab"
+DisplayName = "ComfyUI-EdgeTTS"
+Icon = ""

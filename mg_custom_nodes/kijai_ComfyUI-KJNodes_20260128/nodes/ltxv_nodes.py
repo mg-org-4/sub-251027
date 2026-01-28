@@ -38,11 +38,12 @@ class LTXVAddGuideMulti(LTXVAddGuide):
         return io.Schema(
             node_id="LTXVAddGuideMulti",
             category="KJNodes/ltxv",
+            description="Add multiple guide images at specified frame indices with strengths, uses DynamicCombo which requires ComfyUI 0.8.1 and frontend 1.33.4 or later.",
             inputs=[
-                io.Conditioning.Input("positive"),
-                io.Conditioning.Input("negative"),
-                io.Vae.Input("vae"),
-                io.Latent.Input("latent"),
+                io.Conditioning.Input("positive", tooltip="Positive conditioning to which guide keyframe info will be added"),
+                io.Conditioning.Input("negative", tooltip="Negative conditioning to which guide keyframe info will be added"),
+                io.Vae.Input("vae", tooltip="Video VAE used to encode the guide images"),
+                io.Latent.Input("latent", tooltip="Video latent, guides are added to the end of this latent"),
                 io.DynamicCombo.Input(
                     "num_guides",
                     options=options,
@@ -53,7 +54,7 @@ class LTXVAddGuideMulti(LTXVAddGuide):
             outputs=[
                 io.Conditioning.Output(display_name="positive"),
                 io.Conditioning.Output(display_name="negative"),
-                io.Latent.Output(display_name="latent"),
+                io.Latent.Output(display_name="latent", tooltip="Video latent with added guides"),
             ],
         )
 
@@ -102,6 +103,7 @@ class LTXVAddGuidesFromBatch(LTXVAddGuide):
         return io.Schema(
             node_id="LTXVAddGuidesFromBatch",
             category="conditioning/ltxv",
+            description="Adds multiple guide images from a batch to the latent at corresponding frame indices. Non-black images in the batch are used as guides.",
             inputs=[
                 io.Conditioning.Input("positive"),
                 io.Conditioning.Input("negative"),
@@ -1003,9 +1005,10 @@ class LTXVImgToVideoInplaceKJ(io.ComfyNode):
         return io.Schema(
             node_id="LTXVImgToVideoInplaceKJ",
             category="KJNodes/ltxv",
+            description="Replaces video latent frames with the encoded input images, uses DynamicCombo which requires ComfyUI 0.8.1 and frontend 1.33.4 or later.",
             inputs=[
-                io.Vae.Input("vae"),
-                io.Latent.Input("latent"),
+                io.Vae.Input("vae", tooltip="Video VAE used to encode the images"),
+                io.Latent.Input("latent", tooltip="Video latent to insert images into"),
                 io.DynamicCombo.Input(
                     "num_images",
                     options=options,
@@ -1014,7 +1017,7 @@ class LTXVImgToVideoInplaceKJ(io.ComfyNode):
                 ),
             ],
             outputs=[
-                io.Latent.Output(display_name="latent"),
+                io.Latent.Output(display_name="latent", tooltip="The video latent with the images inserted and latent noise mask updated."),
             ],
         )
 
@@ -1116,7 +1119,7 @@ def ltx2_forward(
             del norm_vx
 
             vgate_msa = self.get_ada_values(self.scale_shift_table, vx.shape[0], v_timestep, slice(2, 3))[0]
-            vx.addcmul_(attn1_out, vgate_msa, value=video_scale)
+            vx += attn1_out * vgate_msa * video_scale
             del vgate_msa, attn1_out
             vx.add_(self.attn2(comfy.ldm.common_dit.rms_norm(vx), context=v_context, mask=attention_mask, transformer_options=transformer_options), alpha=video_scale)
 
@@ -1131,7 +1134,7 @@ def ltx2_forward(
             del norm_ax
 
             agate_msa = self.get_ada_values(self.audio_scale_shift_table, ax.shape[0], a_timestep, slice(2, 3))[0]
-            ax.addcmul_(attn1_out, agate_msa, value=audio_scale)
+            ax += attn1_out * agate_msa * audio_scale
             del agate_msa, attn1_out
             ax.add_(self.audio_attn2(comfy.ldm.common_dit.rms_norm(ax), context=a_context, mask=attention_mask, transformer_options=transformer_options), alpha=audio_scale)
 
@@ -1157,7 +1160,7 @@ def ltx2_forward(
                 del vx_scaled, ax_scaled
 
                 gate_out_a2v = self.get_ada_values(self.scale_shift_table_a2v_ca_video[4:, :], vx.shape[0], v_cross_gate_timestep, slice(0, 1))[0]
-                vx.addcmul_(a2v_out, gate_out_a2v, value=audio_to_video_scale)
+                vx += a2v_out * gate_out_a2v * audio_to_video_scale
                 del gate_out_a2v, a2v_out
 
             # video to audio cross attention
@@ -1176,7 +1179,7 @@ def ltx2_forward(
                 del ax_scaled, vx_scaled
 
                 gate_out_v2a = self.get_ada_values(self.scale_shift_table_a2v_ca_audio[4:, :], ax.shape[0], a_cross_gate_timestep, slice(0, 1))[0]
-                ax.addcmul_(v2a_out, gate_out_v2a, value=video_to_audio_scale)
+                ax += v2a_out * gate_out_v2a * video_to_audio_scale
                 del gate_out_v2a, v2a_out
 
         # video feedforward
@@ -1189,7 +1192,7 @@ def ltx2_forward(
             del vx_scaled
 
             vgate_mlp = self.get_ada_values(self.scale_shift_table, vx.shape[0], v_timestep, slice(5, 6))[0]
-            vx.addcmul_(ff_out, vgate_mlp)
+            vx += ff_out * vgate_mlp * video_scale
             del vgate_mlp, ff_out
 
         # audio feedforward
@@ -1202,7 +1205,7 @@ def ltx2_forward(
             del ax_scaled
 
             agate_mlp = self.get_ada_values(self.audio_scale_shift_table, ax.shape[0], a_timestep, slice(5, 6))[0]
-            ax.addcmul_(ff_out, agate_mlp)
+            ax += ff_out * agate_mlp * audio_scale
             del agate_mlp, ff_out
 
         return vx, ax
@@ -1289,6 +1292,8 @@ class LTX2MemoryEfficientSageAttentionPatch(io.ComfyNode):
 
     @classmethod
     def execute(cls, model) -> io.NodeOutput:
+        if _cuda_archs is None:
+            raise RuntimeError("sageattention is not new enough version or could not determine CUDA architecture, cannot apply LTX2 Memory Efficient Sage Attention Patch.")
         model_clone = model.clone()
         diffusion_model = model_clone.get_model_object("diffusion_model")
 
@@ -1313,6 +1318,7 @@ def get_cuda_version():
         return 0, 0
 
 sageplus_sm89_available = False
+_cuda_archs = None
 try:
     from sageattention.core import per_thread_int8_triton, per_warp_int8_cuda, per_block_int8_triton, per_channel_fp8, get_cuda_arch_versions, attn_false
     _cuda_archs = get_cuda_arch_versions()
@@ -1434,3 +1440,165 @@ def ltx2_sageattn_forward(self, x, context=None, mask=None, pe=None, k_pe=None, 
 
     del q_int8, q_scale, k_int8, k_scale
     return self.to_out(o.view(batch_size, seq_len, -1))
+
+
+import folder_paths
+
+class LTX2LoraLoaderAdvanced(io.ComfyNode):
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="LTX2LoraLoaderAdvanced",
+            display_name="LTX2 LoRA Loader Advanced",
+            category="KJNodes/ltxv",
+            description="Advanced LoRA loader with per-block strength control for LTX2 models",
+            is_experimental=True,
+            inputs=[
+                io.Combo.Input("lora_name", options=folder_paths.get_filename_list("loras"), tooltip="The name of the LoRA."),
+                io.Model.Input("model", tooltip="The diffusion model the LoRA will be applied to."),
+                io.Float.Input("strength_model", default=1.0, min=-100.0, max=100.0, step=0.01, tooltip="How strongly to modify the diffusion model. This value can be negative."),
+                io.String.Input("opt_lora_path", optional=True, force_input=True,tooltip="Absolute path of the LoRA."),
+                io.Custom("SELECTEDDITBLOCKS").Input("blocks", optional=True, tooltip="Selected DiT blocks configuration"),
+                io.Float.Input("video", default=1.0, min=0.0, max=1.0, step=0.01, tooltip="Strength for video attention layers."),
+                io.Float.Input("video_to_audio", default=1.0, min=0.0, max=1.0, step=0.01, tooltip="Strength for video to audio cross-attention layers."),
+                io.Float.Input("audio", default=1.0, min=0.0, max=1.0, step=0.01, tooltip="Strength for audio attention layers."),
+                io.Float.Input("audio_to_video", default=1.0, min=0.0, max=1.0, step=0.01, tooltip="Strength for audio to video cross-attention layers."),
+                io.Float.Input("other", default=1.0, min=0.0, max=1.0, step=0.01, tooltip="Strength for layers not caught by other layer filters."),
+            ],
+            outputs=[
+                io.Model.Output(display_name="model", tooltip="The modified diffusion model."),
+                io.String.Output(display_name="rank", tooltip="Possible rank of the LoRA."),
+                io.String.Output(display_name="loaded_keys_info", tooltip="List of loaded keys and their alpha values."),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, model, lora_name, strength_model, video, video_to_audio, audio, audio_to_video, other, opt_lora_path=None, blocks=None) -> io.NodeOutput:
+        from comfy.utils import load_torch_file
+        import comfy.lora
+
+        if opt_lora_path:
+            lora_path = opt_lora_path
+        else:
+            lora_path = folder_paths.get_full_path("loras", lora_name)
+
+        lora = load_torch_file(lora_path, safe_load=True)
+
+        # Find the first key that ends with "weight"
+        rank = "unknown"
+        weight_key = next((key for key in lora.keys() if key.endswith('weight')), None)
+        # Print the shape of the value corresponding to the key
+        if weight_key:
+            print(f"Shape of the first 'weight' key ({weight_key}): {lora[weight_key].shape}")
+            rank = str(lora[weight_key].shape[0])
+        else:
+            print("No key ending with 'weight' found.")
+            rank = "Couldn't find rank"
+
+        key_map = {}
+        if model is not None:
+            key_map = comfy.lora.model_lora_keys_unet(model.model, key_map)
+
+        loaded = comfy.lora.load_lora(lora, key_map)
+
+        keys_to_delete = []
+
+        # First apply blocks filtering if provided
+        if blocks is not None:
+            for block in blocks:
+                for key in list(loaded.keys()):
+                    match = False
+                    if isinstance(key, str) and block in key:
+                        match = True
+                    elif isinstance(key, tuple):
+                        for k in key:
+                            if block in k:
+                                match = True
+                                break
+
+                    if match:
+                        ratio = blocks[block]
+                        if ratio == 0:
+                            keys_to_delete.append(key)
+                        else:
+                            # Only modify LoRA adapters, skip diff tuples
+                            value = loaded[key]
+                            if hasattr(value, 'weights'):
+                                weights_list = list(value.weights)
+                                weights_list[2] = ratio
+                                loaded[key].weights = tuple(weights_list)
+
+        # Then apply layer-based attention strength filtering (takes priority)
+        for key in list(loaded.keys()):
+            if key in keys_to_delete:
+                continue
+
+            key_str = key if isinstance(key, str) else (key[0] if isinstance(key, tuple) else str(key))
+
+            # Determine the strength multiplier based on layer name
+            # Check more specific patterns first
+            strength_multiplier = None
+
+            # Video to audio cross-attention (check first - most specific)
+            if "video_to_audio_attn" in key_str:
+                strength_multiplier = video_to_audio
+            # Audio to video cross-attention
+            elif "audio_to_video_attn" in key_str:
+                strength_multiplier = audio_to_video
+            # Audio layers
+            elif "audio_attn" in key_str or "audio_ff.net" in key_str:
+                strength_multiplier = audio
+            # Video layers (check last - most general)
+            elif "attn" in key_str or "ff.net" in key_str:
+                strength_multiplier = video
+            # Everything else not caught by above filters
+            else:
+                strength_multiplier = other
+
+            # Apply strength or mark for deletion
+            if strength_multiplier is not None:
+                if strength_multiplier == 0:
+                    keys_to_delete.append(key)
+                elif strength_multiplier != 1.0:
+                    value = loaded[key]
+                    if hasattr(value, 'weights'):
+                        weights_list = list(value.weights)
+                        # Handle case where alpha (weights[2]) might be None
+                        current_alpha = weights_list[2] if weights_list[2] is not None else 1.0
+                        weights_list[2] = current_alpha * strength_multiplier
+                        loaded[key].weights = tuple(weights_list)
+
+        for key in keys_to_delete:
+            if key in loaded:
+                del loaded[key]
+
+        # Build list of loaded keys and their alphas
+        loaded_keys_list = []
+        for key, value in loaded.items():
+            if hasattr(value, 'weights'):
+                key_str = key if isinstance(key, str) else str(key)
+                alpha = value.weights[2] if value.weights[2] is not None else "None"
+                loaded_keys_list.append(f"{key_str}: alpha={alpha}")
+            else:
+                key_str = key if isinstance(key, str) else str(key)
+                loaded_keys_list.append(f"{key_str}: type={type(value).__name__}")
+
+        if model is not None:
+            new_modelpatcher = model.clone()
+            k = new_modelpatcher.add_patches(loaded, strength_model)
+
+        # Add not loaded keys to the info
+        k = set(k)
+        not_loaded = []
+        for x in loaded:
+            if x not in k:
+                key_str = x if isinstance(x, str) else str(x)
+                not_loaded.append(f"NOT LOADED: {key_str}")
+
+        if not_loaded:
+            loaded_keys_list.extend(not_loaded)
+
+        loaded_keys_info = "\n".join(loaded_keys_list)
+
+        return io.NodeOutput(new_modelpatcher, rank, loaded_keys_info)

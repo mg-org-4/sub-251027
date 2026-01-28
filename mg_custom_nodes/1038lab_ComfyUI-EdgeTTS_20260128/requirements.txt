@@ -1,0 +1,9 @@
+edge-tts>=7.0.0
+torchaudio
+torchcodec==0.9
+openai-whisper>=20231117
+numpy
+#mutagen>=1.47.0  # For audio metadata handling
+torch
+googletrans-py>=3.0.0
+deep-translator>=1.11.4

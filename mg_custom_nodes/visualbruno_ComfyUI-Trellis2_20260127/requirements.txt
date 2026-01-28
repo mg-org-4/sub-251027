@@ -1,5 +1,0 @@
-meshlib
-requests
-pymeshlab
-opencv-python
-scipy

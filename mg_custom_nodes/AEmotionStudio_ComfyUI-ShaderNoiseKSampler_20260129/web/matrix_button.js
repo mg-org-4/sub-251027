@@ -1,17 +1,19 @@
-import { app } from "../../scripts/app.js";
-
 /**
- * Adds a "Show Matrix" button to the ShaderDisplay and ShaderNoiseKSampler nodes
+ * matrix_button.ts - Adds a "Show Matrix" documentation button to ShaderNoiseKSampler nodes
+ * Displays interactive shader documentation modal with noise visualizations
  */
-(function() {
+// @ts-ignore - Runtime ComfyUI import
+import { app } from "../../../scripts/app.js";
+// === INITIALIZATION ===
+(function () {
     // Define utility functions on window object to be accessible by treatiseHTML
-    window.scrollToSection = function(sectionId) {
-        const modalContent = document.querySelector('.shader-matrix-treatise'); // Scroll within the modal
-        if (!modalContent) return;
+    window.scrollToSection = function (sectionId) {
+        const modalContent = document.querySelector('.shader-matrix-treatise');
+        if (!modalContent)
+            return;
         const section = modalContent.querySelector('#' + sectionId);
         if (section) {
             section.scrollIntoView({ behavior: 'smooth' });
-
             // UX Enhancement: Move focus to the section header for accessibility
             const header = section.querySelector('h1, h2, h3, h4, h5, h6');
             if (header) {
@@ -20,63 +22,55 @@ import { app } from "../../scripts/app.js";
                     header.setAttribute('tabindex', '-1');
                 }
                 // Focus the header to update reading position for keyboard/screen reader users
-                // preventScroll: true prevents the browser from fighting the smooth scroll
                 header.focus({ preventScroll: true });
             }
         }
     };
-
-    window.showTab = function(tabIdToActivate, clickedTabElement) {
-        let tabsContainer;
-        let contentScope;
-        let tabSelector;
-        let tabContentSelector;
-
-        if (clickedTabElement) { // Prioritize if element is passed
-             tabsContainer = clickedTabElement.closest('.tabs') || clickedTabElement.closest('.sacred-tabs');
-        } else { // Fallback to querying globally within the modal if no element
+    window.showTab = function (tabIdToActivate, clickedTabElement) {
+        let tabsContainer = null;
+        let contentScope = null;
+        let tabSelector = '';
+        let tabContentSelector = '';
+        if (clickedTabElement) {
+            tabsContainer = clickedTabElement.closest('.tabs') || clickedTabElement.closest('.sacred-tabs');
+        }
+        else {
             const modalDiv = document.querySelector('.shader-matrix-treatise');
-            if (!modalDiv) return;
+            if (!modalDiv)
+                return;
             tabsContainer = modalDiv.querySelector('.tabs') || modalDiv.querySelector('.sacred-tabs');
         }
-
         if (!tabsContainer) {
             console.error("showTab: Could not find '.tabs' or '.sacred-tabs' container.");
             return;
         }
-
         if (tabsContainer.classList.contains('tabs')) {
             tabSelector = '.tab';
             tabContentSelector = '.tab-content';
-            contentScope = tabsContainer.parentNode; // Assumes content is sibling to .tabs div
-        } else if (tabsContainer.classList.contains('sacred-tabs')) {
+            contentScope = tabsContainer.parentNode;
+        }
+        else if (tabsContainer.classList.contains('sacred-tabs')) {
             tabSelector = '.sacred-tab';
             tabContentSelector = '.sacred-tab-content';
             contentScope = tabsContainer.closest('.sacred-section') || tabsContainer.parentNode;
-        } else {
-            return; // Unknown tab structure
         }
-
+        else {
+            return;
+        }
         tabsContainer.querySelectorAll(tabSelector).forEach(tab => {
             tab.classList.remove('active');
             tab.setAttribute('aria-selected', 'false');
             tab.setAttribute('tabindex', '-1');
         });
-
         let activeTab = clickedTabElement;
         if (!activeTab) {
-            // If no clicked element, try to find the tab by tabId (less robust)
-            activeTab = Array.from(tabsContainer.querySelectorAll(tabSelector)).find(
-                t => t.getAttribute('onclick') && t.getAttribute('onclick').includes(tabIdToActivate)
-            );
+            activeTab = Array.from(tabsContainer.querySelectorAll(tabSelector)).find(t => t.getAttribute('onclick')?.includes(tabIdToActivate));
         }
-
         if (activeTab) {
             activeTab.classList.add('active');
             activeTab.setAttribute('aria-selected', 'true');
             activeTab.setAttribute('tabindex', '0');
         }
-
         if (contentScope) {
             contentScope.querySelectorAll(tabContentSelector).forEach(content => {
                 content.style.display = 'none';
@@ -89,158 +83,134 @@ import { app } from "../../scripts/app.js";
             }
         }
     };
-
-    window.setupScrollTop = function(modalContentElement) { // Added modalContentElement parameter
-        if (!modalContentElement) return; // Check the passed element
-        const scrollTopButton = modalContentElement.querySelector('#scroll-top'); // Use passed element
+    window.setupScrollTop = function (modalContentElement) {
+        if (!modalContentElement)
+            return;
+        const scrollTopButton = modalContentElement.querySelector('#scroll-top');
         const titleElement = modalContentElement.querySelector('#treatise-title');
-
+        const modalEl = modalContentElement;
         if (scrollTopButton) {
-            modalContentElement.addEventListener('scroll', () => { // Use passed element
-                if (modalContentElement.scrollTop > 200) { // Use passed element
+            modalEl.addEventListener('scroll', () => {
+                if (modalEl.scrollTop > 200) {
                     scrollTopButton.classList.add('visible');
-                } else {
+                }
+                else {
                     scrollTopButton.classList.remove('visible');
                 }
             });
             scrollTopButton.addEventListener('click', (e) => {
                 e.stopPropagation();
-                modalContentElement.scrollTo({ top: 0, behavior: 'smooth' });
+                modalEl.scrollTo({ top: 0, behavior: 'smooth' });
                 if (titleElement) {
                     titleElement.focus({ preventScroll: true });
                 }
             });
         }
     };
-
-
-    window.copyCodeSection = function(buttonElement) {
+    // Helper to reset copy button state after timeout
+    const resetButtonTimeout = (button) => {
+        if (button.dataset.timeoutId) {
+            clearTimeout(parseInt(button.dataset.timeoutId));
+        }
+        const timeoutId = setTimeout(() => {
+            button.textContent = "Copy";
+            button.classList.remove('copied');
+            delete button.dataset.timeoutId;
+        }, 2000);
+        button.dataset.timeoutId = String(timeoutId);
+    };
+    window.copyCodeSection = function (buttonElement) {
         const headerElement = buttonElement.closest('.code-block-header');
-        if (!headerElement) return;
+        if (!headerElement)
+            return;
         const codeBlockContainer = headerElement.parentNode;
-        if (!codeBlockContainer) return;
-
+        if (!codeBlockContainer)
+            return;
         const preElement = codeBlockContainer.querySelector('pre.foldable-content code');
-        if (!preElement) return;
-
-        const codeText = preElement.textContent;
+        if (!preElement)
+            return;
+        const codeText = preElement.textContent || '';
         navigator.clipboard.writeText(codeText).then(() => {
-            // Enhanced UX: Use global toast if available
             if (window.showComfyToast) {
                 window.showComfyToast("Code copied to clipboard!", "success");
             }
-
             buttonElement.textContent = "Copied!";
             buttonElement.classList.add('copied');
-
-            if (buttonElement.dataset.timeoutId) {
-                clearTimeout(parseInt(buttonElement.dataset.timeoutId));
-            }
-
-            const timeoutId = setTimeout(() => {
-                buttonElement.textContent = "Copy";
-                buttonElement.classList.remove('copied');
-                delete buttonElement.dataset.timeoutId;
-            }, 2000);
-
-            buttonElement.dataset.timeoutId = timeoutId;
+            resetButtonTimeout(buttonElement);
         }).catch(err => {
             console.error('Failed to copy: ', err);
-
-            // Enhanced UX: Error toast
             if (window.showComfyToast) {
                 window.showComfyToast("Failed to copy code.", "error");
             }
-
             buttonElement.textContent = "Error";
-            // Ensure success class is removed if it was present
-            buttonElement.classList.remove('copied');
-
-            if (buttonElement.dataset.timeoutId) {
-                clearTimeout(parseInt(buttonElement.dataset.timeoutId));
-            }
-
-            const timeoutId = setTimeout(() => {
-                buttonElement.textContent = "Copy";
-                delete buttonElement.dataset.timeoutId;
-            }, 2000);
-
-            buttonElement.dataset.timeoutId = timeoutId;
+            resetButtonTimeout(buttonElement);
         });
     };
-
-    window.toggleCodeSection = function(buttonElement) {
+    window.toggleCodeSection = function (buttonElement) {
         const headerElement = buttonElement.closest('.code-block-header');
-        if (!headerElement) return;
+        if (!headerElement)
+            return;
         const codeBlockContainer = headerElement.parentNode;
-        if (!codeBlockContainer) return;
-
+        if (!codeBlockContainer)
+            return;
         const preElement = codeBlockContainer.querySelector('pre.foldable-content');
-        if (!preElement) return;
-
+        if (!preElement)
+            return;
         const isHidden = preElement.style.display === 'none' || preElement.style.display === '';
-
         if (isHidden) {
             preElement.style.display = 'block';
             buttonElement.textContent = 'Hide';
             buttonElement.setAttribute('aria-expanded', 'true');
-        } else {
+        }
+        else {
             preElement.style.display = 'none';
             buttonElement.textContent = 'Show';
             buttonElement.setAttribute('aria-expanded', 'false');
         }
     };
-
-    window.handleTabNavigation = function(event, tabElement) {
+    window.handleTabNavigation = function (event, tabElement) {
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             tabElement.click();
             return;
         }
-
-        const tabs = Array.from(tabElement.parentElement.children).filter(child => child.classList.contains('tab'));
+        if (!tabElement.parentElement)
+            return;
+        const tabs = Array.from(tabElement.parentElement.children).filter((child) => child.classList.contains('tab'));
         const index = tabs.indexOf(tabElement);
         let nextIndex = -1;
-
         if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
             nextIndex = (index + 1) % tabs.length;
-        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        }
+        else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
             nextIndex = (index - 1 + tabs.length) % tabs.length;
         }
-
         if (nextIndex !== -1) {
             event.preventDefault();
             const nextTab = tabs[nextIndex];
             nextTab.focus();
-            nextTab.click(); // Optional: automatically activate the tab on focus
+            nextTab.click();
         }
     };
-
     // Register the extension for ShaderDisplay and ShaderNoiseKSampler nodes
     app.registerExtension({
         name: "ComfyUI.ShaderNoise.MatrixButton",
-        
         beforeRegisterNodeDef(nodeType, nodeData) {
             // Modify ShaderDisplay, ShaderNoiseKSampler, and ShaderNoiseKSamplerDirect nodes
             if (nodeData.name !== "ShaderDisplay" && nodeData.name !== "ShaderNoiseKSampler" && nodeData.name !== "ShaderNoiseKSamplerDirect") {
                 return;
             }
-            
             // Store the original methods
             const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
-            
             // Add our button to the node
-            nodeType.prototype.onNodeCreated = function() {
+            nodeType.prototype.onNodeCreated = function () {
                 // Call the original onNodeCreated method first
                 const self = this; // Node instance
-
                 if (originalOnNodeCreated) {
                     originalOnNodeCreated.apply(self, arguments);
                 }
-                
                 // Add the "Show Matrix" button widget
                 // const self = this; // self is already defined above
-                
                 // Function to add the matrix button
                 const addMatrixButton = () => {
                     // MODIFIED: HTML content from Treatise.js
@@ -248,24 +218,20 @@ import { app } from "../../scripts/app.js";
                     // This ^ is now replaced by the global window.showTab for new HTML,
                     // but can be kept if old structures outside this modal might use it.
                     // For this modal, the new HTML will use window.showTab.
-
-                    const button = self.addWidget("button", "📊 Show Shader Matrix", null, function() {
+                    const button = self.addWidget("button", "📊 Show Shader Matrix", null, function () {
                         // Create modal container
                         const modal = document.createElement("div");
                         // Accessibility attributes for the modal
                         modal.setAttribute('role', 'dialog');
                         modal.setAttribute('aria-modal', 'true');
                         modal.setAttribute('aria-label', 'Shader Matrix Documentation');
-
                         modal.style.cssText = `
                             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                             background: linear-gradient(135deg, rgba(0,0,0,0.9), rgba(26,13,52,0.95));
                             display: flex; justify-content: center; align-items: center; z-index: 10000;
                             backdrop-filter: blur(5px);
                         `;
-                        
-                        let handleEscPress; 
-
+                        let handleEscPress = null;
                         const closeModalCleanup = () => {
                             if (modal && modal.parentNode) {
                                 document.body.removeChild(modal);
@@ -274,21 +240,17 @@ import { app } from "../../scripts/app.js";
                                 document.removeEventListener('keydown', handleEscPress);
                             }
                         };
-
                         handleEscPress = (e) => {
                             if (e.key === "Escape") {
                                 closeModalCleanup();
                             }
                         };
-
                         document.addEventListener('keydown', handleEscPress);
-                        
                         modal.onclick = (e) => {
                             if (e.target === modal) {
                                 closeModalCleanup();
                             }
                         };
-                        
                         const content = document.createElement("div");
                         content.className = "shader-matrix-treatise"; // This is the main scrollable container
                         content.style.cssText = `
@@ -302,7 +264,6 @@ import { app } from "../../scripts/app.js";
                             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Base font */
                             line-height: 1.6;
                         `;
-                        
                         // MODIFIED: HTML content from Treatise.js
                         const treatiseHTML = `
                             <style>
@@ -3174,7 +3135,6 @@ def apply_color_to_noise(noise_tensor, shader_params):
                             
                         `; // This line should end the template literal correctly
                         content.innerHTML = treatiseHTML;
-
                         // Attach listener to the close button *inside* the treatiseHTML
                         const closeButtonInTreatise = content.querySelector('.close-button');
                         if (closeButtonInTreatise) {
@@ -3183,29 +3143,25 @@ def apply_color_to_noise(noise_tensor, shader_params):
                                 closeModalCleanup();
                             };
                         }
-                        
                         modal.appendChild(content);
                         document.body.appendChild(modal);
-
                         // Accessibility: Focus Trap & Initial Focus
                         const focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
                         modal.addEventListener('keydown', (e) => {
                             if (e.key === 'Tab') {
                                 const focusableElements = Array.from(modal.querySelectorAll(focusableSelectors))
-                                    .filter(el => el.offsetParent !== null && !el.hasAttribute('disabled')); // Only visible and enabled elements
-
-                                if (focusableElements.length === 0) return;
-
+                                    .filter((el) => el.offsetParent !== null && !el.hasAttribute('disabled'));
+                                if (focusableElements.length === 0)
+                                    return;
                                 const firstElement = focusableElements[0];
                                 const lastElement = focusableElements[focusableElements.length - 1];
-
-                                if (e.shiftKey) { // Shift + Tab
+                                if (e.shiftKey) {
                                     if (document.activeElement === firstElement) {
                                         e.preventDefault();
                                         lastElement.focus();
                                     }
-                                } else { // Tab
+                                }
+                                else {
                                     if (document.activeElement === lastElement) {
                                         e.preventDefault();
                                         firstElement.focus();
@@ -3213,7 +3169,6 @@ def apply_color_to_noise(noise_tensor, shader_params):
                                 }
                             }
                         });
-
                         // Accessibility: Set focus to the close button when modal opens
                         // Using a small timeout to ensure DOM insertion is complete and to play nice with screen readers
                         setTimeout(() => {
@@ -3222,75 +3177,66 @@ def apply_color_to_noise(noise_tensor, shader_params):
                                 closeBtn.focus();
                             }
                         }, 50);
-                        
                         // Call the renderer for noise visualizations
-                        if (window.NoiseVisualizer && window.NoiseVisualizer.renderAllInModal) {
-                            // Defer to ensure layout is complete and modal content is fully rendered
+                        if (window.NoiseVisualizer?.renderAllInModal) {
                             setTimeout(() => {
-                                window.NoiseVisualizer.renderAllInModal(content); // 'content' is the div with class 'shader-matrix-treatise'
+                                window.NoiseVisualizer.renderAllInModal(content);
                             }, 0);
-                        } else {
+                        }
+                        else {
                             console.warn("NoiseVisualizer not found. Ensure noise_visualizer.js is loaded and available on the window object.");
                         }
-                        
                         // Initial scroll to top of modal content
                         content.scrollTop = 0;
-
                         // Activate the scroll-to-top button functionality
                         window.setupScrollTop(content); // Pass the 'content' element
-
                     });
-
                     // Add tooltip to the button
                     button.tooltip = "Show Shader Matrix & Documentation (Alt+M)";
-
                     // Position the button appropriately based on node type (from matrix_button - Copy.js)
                     if (nodeData.name === "ShaderNoiseKsampler") {
                         // For KSampler node, add to a specific section or position
-                        if (!button.options) { 
+                        if (!button.options) {
                             button.options = {};
                         }
                         button.options.section = "advanced";
-
                         // Custom button style for the KSampler node
                         button.label = "📊 Show Shader Matrix";
-                    } else {
+                    }
+                    else {
                         // Default styling for ShaderDisplay (label is already "Show Matrix")
                         // button.label = "Show Matrix"; // No change needed if initialized with "Show Matrix"
                     }
-
                     // Set button appearance (from matrix_button - Copy.js)
                     button.name = "📊 Show Shader Matrix";
                     button.serialize = false; // Don't include in serialization
-                    
                     // For ShaderDisplay, the button will use default positioning.
                     // For ShaderNoiseKsampler, without a section, it should append after other widgets.
-
                 };
-                
                 // Call addMatrixButton conditionally (from matrix_button - Copy.js)
                 if (self.constructor.type_name === "ShaderNoiseKsampler") {
                     addMatrixButton();
-                } else {
+                }
+                else {
                     // For other nodes, add after a small delay to ensure all widgets are ready
                     setTimeout(addMatrixButton, 50);
                 }
-
-                // --- Keybinding Logic for Matrix Button ---
                 const triggerMatrixButton = () => {
-                    const matrixButtonWidget = self.widgets.find(w => w.name === "📊 Show Shader Matrix" && w.type === "button");
+                    const matrixButtonWidget = self.widgets.find((w) => w.name === "📊 Show Shader Matrix" && w.type === "button");
                     if (matrixButtonWidget && typeof matrixButtonWidget.callback === 'function') {
                         matrixButtonWidget.callback.call(matrixButtonWidget.value, app.canvas, self, null, null);
-                    } else {
+                    }
+                    else {
                         console.warn("Matrix button widget not found or callback is not a function for Alt+M.");
                     }
                 };
-
                 const handleMatrixKeyDown = (event) => {
                     if (event.altKey && event.key.toLowerCase() === 'm') {
-                        if (app.canvas && (app.canvas.current_node === self || (app.canvas.selected_nodes && app.canvas.selected_nodes[self.id]))) {
-                            if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.isContentEditable)) {
-                                return; // Don't interfere with text input
+                        const appCanvas = app.canvas;
+                        if (appCanvas && (appCanvas.current_node === self || (appCanvas.selected_nodes && appCanvas.selected_nodes[self.id]))) {
+                            const activeEl = document.activeElement;
+                            if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+                                return;
                             }
                             console.log("Alt+M detected for current/selected node to show matrix.");
                             event.preventDefault();
@@ -3299,12 +3245,10 @@ def apply_color_to_noise(noise_tensor, shader_params):
                         }
                     }
                 };
-
                 document.addEventListener('keydown', handleMatrixKeyDown);
                 self.handleMatrixButtonKeyDown = handleMatrixKeyDown; // Store for removal
-
                 const originalOnRemoved = self.onRemoved;
-                self.onRemoved = function() {
+                self.onRemoved = function () {
                     if (self.handleMatrixButtonKeyDown) {
                         document.removeEventListener('keydown', self.handleMatrixButtonKeyDown);
                         delete self.handleMatrixButtonKeyDown;
@@ -3315,7 +3259,8 @@ def apply_color_to_noise(noise_tensor, shader_params):
                     }
                 };
                 // --- End Keybinding Logic ---
-            }
+            };
         }
     });
-})(); 
+})();
+//# sourceMappingURL=matrix_button.js.map

@@ -6,9 +6,8 @@ A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nun
 
 **Currently under development and testing. Debug logs are being output extensively. This does not affect functionality.**
 
-> Latest release: [v2.3.8 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.3.8)
+> Latest release: [v2.3.9 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.3.9)
 > 
-> ⚠️ **Note for v2.0+ users**: If you encounter `TypeError: got multiple values for argument 'guidance'` errors, see [troubleshooting section](#issue-30-typeerror-got-multiple-values-for-argument-guidance-v20) below.
 
 ## Source
 
@@ -30,6 +29,10 @@ For installation instructions, features, and requirements, see [Installation Gui
 If you have v1.57 or earlier installed with integration code in ComfyUI-nunchaku's `__init__.py`, see [UPGRADE_GUIDE_V1.57.md](md/UPGRADE_GUIDE_V1.57.md) for detailed upgrade instructions.
 
 ## Usage
+
+### Debug logs (optional)
+
+By default, detailed debug logs are **muted**. If you want detailed debug output (Key Diffusion / key mapping inspection, `[APPLY]`, `[AWQ_MOD]`, etc.), set the environment variable `nunchaku_log=1` before starting ComfyUI.
 
 ### Available Nodes
 
@@ -123,18 +126,6 @@ For detailed information, see [COMFYUI_0.4.0_MODEL_MANAGEMENT_ERRORS.md](md/COMF
   - [ComfyUI Issue #6600](https://github.com/comfyanonymous/ComfyUI/issues/6600) - `'NoneType' object is not callable` (Loader-related)
   - [ComfyUI Issue #6532](https://github.com/comfyanonymous/ComfyUI/issues/6532) - Crash after referencing models after model unload
 
-### Issue #30: TypeError: got multiple values for argument 'guidance' (v2.0+)
-
-- **Issue Link**: [Issue #30](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/30)
-- **Status**: ⚠️ **May Still Occur in Some Environments** - Even with v2.0.8 fixes
-- **Issue**: `TypeError: got multiple values for argument 'guidance'` error may still occur in some user environments when using v2.0+ versions with diffsynth ControlNet support, despite multiple fixes applied from v2.0.2 to v2.0.8.
-- **Root Cause**: v2.0+ versions include diffsynth ControlNet support, which requires complex argument handling between ComfyUI's scheduler patches, external patches (e.g., ComfyUI-EulerDiscreteScheduler), and the QwenImageTransformer2DModel.forward signature. Even with multiple layers of defense (exclusion logic in both `forward` and `_execute_model` methods), some edge cases in certain environments may still cause argument duplication.
-- **Solution for Affected Users**: If you continue to experience `TypeError: got multiple values for argument 'guidance'` errors with v2.0+ versions even after updating to v2.0.8, please use **v1.72** instead, which does not include diffsynth ControlNet support and therefore avoids these argument passing complexities.
-  - **v1.72 Release**: [v1.72 Release](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v1.72)
-  - **Note**: v1.72 is the latest v1.x release before v2.0+ diffsynth ControlNet support was added. If you don't need diffsynth ControlNet functionality, v1.72 provides stable LoRA loading without the argument passing complexities introduced in v2.0+.
-- **Related Issues**: 
-  - [Issue #32](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/32) - `TypeError: got multiple values for argument 'guidance'` error when using LoRA with KSampler
-
 ### Error: "No module named 'diffusers.models.transformers.transformer_z_image'"
 
 **Problem**: This error occurs when using Qwen-Edit models or Z-Image-Turbo models with an outdated `diffusers` library version.
@@ -178,11 +169,11 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
       - `lora.A.weight` / `lora.B.weight`
     - These are the standard formats produced by Kohya-ss, Diffusers, and most training scripts.
   - ✅ **PEFT Format LoRA** (v2.3.8+):
-    - Supported weight keys:
+    - Supported weight keys (examples):
       - `lora_A.default.weight` / `lora_B.default.weight`
       - `lora.up.default.weight` / `lora.down.default.weight`
-      - Other PEFT format variations with additional tags (e.g., `.default`, `.base`, etc.)
-    - These formats are produced by Hugging Face PEFT library. PEFT format support was added in v2.3.8 (PR #48).
+    - Additional tags between `lora_A`/`lora_B` and `.weight` are supported (e.g. `.default`).
+    - These formats are produced by the Hugging Face PEFT library. Support was added in v2.3.8 (PR #48).
   - ❌ **LoKR (Lycoris)**: Not supported (Keys like `lokr_w1`, `lokr_w2`)
   - ❌ **LoHa**: Not supported (Keys like `hada_w1`, `hada_w2`)
   - ❌ **IA3**: Not supported
@@ -211,12 +202,16 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 
 ## Changelog
 
+### v2.3.9
+- **Added**: Key Diffusion (key analysis logging) - Added detailed key analysis logging to all Qwen Image LoRA nodes (Loader, Legacy Stack, V2 Stack, V3 Stack). When enabled via `nunchaku_log=1` environment variable, displays key mapping information (`Key: <original key> -> Mapped to: <mapped target> (Group: <group>)`) for debugging and verification purposes. This feature matches the functionality already available in Z-Image Turbo LoRA nodes. **Note**: Logs are muted by default and only displayed when `nunchaku_log=1` is set.
+- **Technical Details**: See [v2.3.9 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.3.9) for complete explanation
+
 ### v2.3.8
 - **Fixed**: PEFT format LoRA detection - Fixed issue where LoRA files created with Hugging Face PEFT library (`.lora_A.default.weight` format) were incorrectly detected as "unsupported" and skipped. Changed pattern matching to support PEFT format while maintaining backward compatibility.
 - **Added**: Warning log for skipped LoRA weights - Added logging to display which LoRA files had weights automatically skipped for AWQ modulation layers.
 - **Merged**: [PR #48](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/pull/48) - feat(lora_qwen): improve format detection and add safety skip logs (proposed by [avan06](https://github.com/avan06))
 - **Related Issues**: [Issue #44](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/44) - Module resolution failures and unsupported LoRA format issues
-- **Technical Details**: See [v2.3.8 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.3.8) for complete explanation
+- **Technical Details**: See [v2.3.8 Release Notes](RELEASE_NOTES/RELEASE_NOTES_V2.3.8.md) for complete explanation
 
 ### v2.3.7
 - **Updated**: V3 nodes - AWQ modulation layer LoRA application is now **always enabled** (no switch needed). V3 nodes (`NunchakuQwenImageLoraStackV3`) automatically apply LoRA to AWQ quantized modulation layers (`img_mod.1` / `txt_mod.1`) without requiring the `apply_awq_mod` toggle that was needed in V2 nodes.

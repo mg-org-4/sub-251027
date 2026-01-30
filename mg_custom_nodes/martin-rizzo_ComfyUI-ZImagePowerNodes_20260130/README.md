@@ -18,7 +18,8 @@
 2. [Examples](#examples)
 3. [Installation](#installation)
 4. [Recommended Checkpoints](#recommended-checkpoints)
-5. [License](#license)
+5. [❤️ Support my work](#%EF%B8%8F-support-my-work)
+6. [License](#license)
 
 ## Nodes
 
@@ -129,6 +130,17 @@ Note: ComfyUI does not natively support GGUF format, so you need to install the 
  - __[ae.safetensors](https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors)__ <sub>(335 MB)</sub>\
    Local Directory: __`ComfyUI/models/vae/`__
 
+## ❤️ Support my work
+
+If you find these nodes useful or it has helped you in your projects, please consider becoming a sponsor. Your support allows me to keep my tools free and accessible for everyone.
+
+- **Ko-fi:** https://ko-fi.com/martinrizzo
+
+<!--
+[![Sponsor](https://img.shields.io/badge/Sponsor-@martin_rizzo-2ea44f?style=for-the-badge&logo=github-sponsors&logoColor=white)](https://github.com/sponsors/martin-rizzo)
+-->
+
+*Every contribution, no matter how small, is greatly appreciated!*
 
 ## License
 

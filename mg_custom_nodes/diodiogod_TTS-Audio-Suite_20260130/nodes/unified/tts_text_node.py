@@ -609,9 +609,9 @@ Back to the main narrator voice for the conclusion.""",
                     audio_tensor = opt_narrator
                     character_name = "narrator"
                     reference_text = ""  # No reference text available from direct audio
-                    
+
                     print(f"🎤 TTS Text: Using direct audio input ({character_name})")
-                    print(f"⚠️ TTS Text: Direct audio input has no reference text - F5-TTS engines will fail")
+                    print(f"⚠️ TTS Text: Direct audio input has no reference text - F5-TTS will fail, Qwen3-TTS will use x_vector_only mode (lower quality)")
                     return None, audio_tensor, reference_text, character_name
             
             # Priority 2: narrator_voice dropdown (fallback)
@@ -1150,16 +1150,31 @@ Back to the main narrator voice for the conclusion.""",
                 voice_mapping = {}
                 for character in characters:
                     # Special handling for narrator - use provided voice reference
-                    if character == "narrator" and audio_tensor is not None and reference_text:
-                        # Extract tensor from audio dict if needed
-                        actual_waveform = audio_tensor["waveform"] if isinstance(audio_tensor, dict) and "waveform" in audio_tensor else audio_tensor
-                        actual_sample_rate = audio_tensor["sample_rate"] if isinstance(audio_tensor, dict) and "sample_rate" in audio_tensor else 24000
-
-                        voice_mapping[character] = {
-                            "waveform": actual_waveform,
-                            "sample_rate": actual_sample_rate,
-                            "text": reference_text or ""  # Include transcript for ICL mode
-                        }
+                    if character == "narrator" and audio_tensor is not None:
+                        # Build voice reference dict with proper structure for adapter
+                        # Adapter looks for: prompt_audio_path, audio_path, audio, waveform (in that order)
+                        # Use 'audio' key if audio_tensor is already a ComfyUI audio dict, otherwise use 'waveform'
+                        if isinstance(audio_tensor, dict) and "waveform" in audio_tensor:
+                            # ComfyUI audio dict format - pass as 'audio' key
+                            voice_ref_dict = {
+                                "audio": audio_tensor,  # Full audio dict for adapter
+                                "text": reference_text or ""  # Reference transcript
+                            }
+                            # Only force x_vector_only_mode when we DON'T have ref text
+                            # When we have ref text, let engine widget setting decide
+                            if not reference_text:
+                                voice_ref_dict["x_vector_only_mode"] = True
+                            voice_mapping[character] = voice_ref_dict
+                        else:
+                            # Raw tensor - pass as 'waveform' key
+                            voice_ref_dict = {
+                                "waveform": audio_tensor,
+                                "sample_rate": 24000,  # Default sample rate
+                                "text": reference_text or ""
+                            }
+                            if not reference_text:
+                                voice_ref_dict["x_vector_only_mode"] = True
+                            voice_mapping[character] = voice_ref_dict
                     else:
                         # Use character-specific voice from voices/ folder with fallback to narrator
                         audio_path, ref_text = character_mapping.get(character, (None, None))
@@ -1251,17 +1266,32 @@ Back to the main narrator voice for the conclusion.""",
                         # Case 3: No audio file at all - fallback to narrator
                         else:
                             # Fallback to narrator voice for characters without voice files
-                            if audio_tensor is not None and reference_text:
-                                # Extract tensor from audio dict if needed
-                                actual_waveform = audio_tensor["waveform"] if isinstance(audio_tensor, dict) and "waveform" in audio_tensor else audio_tensor
-                                actual_sample_rate = audio_tensor["sample_rate"] if isinstance(audio_tensor, dict) and "sample_rate" in audio_tensor else 24000
+                            if audio_tensor is not None:
+                                # Build voice reference dict with proper structure for adapter
+                                if isinstance(audio_tensor, dict) and "waveform" in audio_tensor:
+                                    # ComfyUI audio dict format - pass as 'audio' key
+                                    voice_ref_dict = {
+                                        "audio": audio_tensor,
+                                        "text": reference_text or ""
+                                    }
+                                    if not reference_text:
+                                        voice_ref_dict["x_vector_only_mode"] = True
+                                    voice_mapping[character] = voice_ref_dict
+                                else:
+                                    # Raw tensor - pass as 'waveform' key
+                                    voice_ref_dict = {
+                                        "waveform": audio_tensor,
+                                        "sample_rate": 24000,
+                                        "text": reference_text or ""
+                                    }
+                                    if not reference_text:
+                                        voice_ref_dict["x_vector_only_mode"] = True
+                                    voice_mapping[character] = voice_ref_dict
 
-                                voice_mapping[character] = {
-                                    "waveform": actual_waveform,
-                                    "sample_rate": actual_sample_rate,
-                                    "text": reference_text or ""
-                                }
-                                print(f"🔄 Qwen3-TTS: Using narrator voice fallback for '{character}'")
+                                if reference_text:
+                                    print(f"🔄 Qwen3-TTS: Using narrator voice fallback for '{character}' (engine widget controls mode)")
+                                else:
+                                    print(f"🔄 Qwen3-TTS: Using narrator voice fallback for '{character}' (x_vector_only mode - no ref text)")
                             else:
                                 # No narrator voice available
                                 voice_mapping[character] = None

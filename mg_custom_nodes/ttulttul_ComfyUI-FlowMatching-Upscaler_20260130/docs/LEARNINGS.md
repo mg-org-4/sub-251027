@@ -89,3 +89,11 @@
   so `whiten → linear_upscale → recolor` is algebraically identical to directly upscaling
   the latent; only non-linear methods (e.g., `bislerp`) or per-component kernels can
   produce a materially different result.
+- Filtering ComfyUI `IMAGE` batches for placeholder frames is simplest by computing the
+  per-image `amax(abs(pixels))` across HWC and dropping entries whose maximum magnitude
+  stays below an epsilon threshold (device-friendly and avoids per-pixel Python loops).
+- Keeping generic batch utilities in a dedicated node pack (for example `Skoogeer-Batch-Ops`)
+  helps this repository stay focused on flow-matching upscaling and DyPE.
+- Flux2 uses a 4-axis RoPE scheme; extending DyPE support required a spatial-axis selector
+  so only height/width extrapolate while the text axis stays static, plus a dedicated
+  Flux2 DyPE node with Flux-shift defaults.

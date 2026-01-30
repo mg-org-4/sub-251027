@@ -172,7 +172,7 @@ class Engine:
         timing_cache=None,
         update_output_names=None,
     ):
-        print(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
+        # print(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
         p = [Profile()]
         if input_profile:
             p = [Profile() for i in range(len(input_profile))]
@@ -223,7 +223,7 @@ class Engine:
         return 0
 
     def load(self):
-        print(f"Loading TensorRT engine: {self.engine_path}")
+        # print(f"Loading TensorRT engine: {self.engine_path}")
         self.engine = engine_from_bytes(bytes_from_path(self.engine_path))
 
     def activate(self, reuse_device_memory=None):

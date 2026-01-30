@@ -294,62 +294,75 @@ class GGUFInference:
     CATEGORY = "ListHelper/LLM"
 
     def _free_memory(self):
-        """Free GPU and system memory"""
+        """Free GPU and system memory safely
+
+        Uses only Python-level APIs to avoid CUDA errors from direct C API calls.
+        """
         try:
-            # Clear chat_handler first (it may hold references to model)
+            # Step 1: Synchronize CUDA before any cleanup
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+            except:
+                pass
+
+            # Step 2: Clear chat_handler first (it holds references to vision model)
             if self.clip_model_array is not None:
                 try:
-                    # Try to explicitly close/cleanup chat_handler if it has such methods
-                    if hasattr(self.clip_model_array, 'clip_ctx') and self.clip_model_array.clip_ctx is not None:
-                        del self.clip_model_array.clip_ctx
-                    if hasattr(self.clip_model_array, '_clip_free'):
-                        try:
-                            self.clip_model_array._clip_free()
-                        except:
-                            pass
-                except:
-                    pass
+                    # Use close() if available (safe Python API)
+                    if hasattr(self.clip_model_array, 'close'):
+                        self.clip_model_array.close()
+                    # Fallback: try _clip_free for older versions
+                    elif hasattr(self.clip_model_array, '_clip_free'):
+                        self.clip_model_array._clip_free()
+                except Exception as e:
+                    pass  # Ignore errors, continue cleanup
 
                 del self.clip_model_array
                 self.clip_model_array = None
-
-                # Force garbage collection after freeing chat_handler
                 gc.collect()
 
-            # Clear model
+            # Step 3: Clear main model using safe Python APIs only
             if self.model is not None:
                 try:
-                    # Try to explicitly close model context if available
+                    # Reset model state if available (clears KV cache safely)
+                    if hasattr(self.model, 'reset'):
+                        self.model.reset()
+
+                    # Use close() method (Python wrapper's safe cleanup)
                     if hasattr(self.model, 'close'):
                         self.model.close()
-                    if hasattr(self.model, '_ctx') and self.model._ctx is not None:
-                        del self.model._ctx
-                except:
-                    pass
+                except Exception as e:
+                    pass  # Ignore errors, continue cleanup
 
+                # Nullify reference and let Python GC handle the rest
                 del self.model
                 self.model = None
 
             self.current_model_path = None
             self.current_mmproj_path = None
 
-            # Run garbage collection multiple times to ensure cleanup
+            # Step 4: Aggressive garbage collection
             for _ in range(3):
                 gc.collect()
 
-            # Try to free CUDA memory if available
+            # Step 5: Clear CUDA cache with synchronization
             try:
                 import torch
                 if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
                     torch.cuda.synchronize()
-                    # Force empty cache again
+                    torch.cuda.empty_cache()
+                    # IPC collect helps with shared memory cleanup
+                    if hasattr(torch.cuda, 'ipc_collect'):
+                        torch.cuda.ipc_collect()
                     torch.cuda.empty_cache()
             except:
                 pass
 
-            # Memory freed silently
-            pass
+            # Step 6: Small delay to ensure GPU operations complete
+            time.sleep(0.1)
+
         except Exception as e:
             print(f"⚠️ Error freeing memory: {e}")
 
@@ -844,6 +857,22 @@ class GGUFInference:
         model_name = os.path.basename(model_path).lower()
         return 'vl' in model_name
 
+    def _reset_model_state(self):
+        """Safely reset model state (KV cache) for consecutive runs
+
+        Uses only the Python API reset() method which is safe and stable.
+        """
+        if self.model is None:
+            return
+
+        try:
+            # Use the official reset() method - this safely clears KV cache
+            if hasattr(self.model, 'reset'):
+                self.model.reset()
+        except Exception as e:
+            # Non-critical, just log and continue
+            print(f"⚠️ Could not reset model state: {e}")
+
     def _load_model(self, model_path: str, enable_vision: bool = False, mmproj_path: Optional[str] = None, force_reload: bool = False) -> bool:
         """Load GGUF model with llama-cpp-python
 
@@ -859,14 +888,15 @@ class GGUFInference:
                 self.model is not None and
                 self.current_model_path == model_path and
                 self.current_mmproj_path == mmproj_path):
-                # Model already loaded, skip verbose output
+                # Model already loaded - reset state for clean inference
+                self._reset_model_state()
                 return True
 
             # Unload previous model if model or mmproj changed, or force reload
             if self.model is not None:
-                # Unload silently
+                # Unload with proper cleanup
                 self._free_memory()
-                # Wait a bit for memory to be fully released
+                # Wait for memory to be fully released
                 time.sleep(0.5)
 
             if not self.llama_cpp_available:

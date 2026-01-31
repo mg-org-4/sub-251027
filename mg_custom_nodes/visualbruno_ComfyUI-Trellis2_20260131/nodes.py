@@ -154,6 +154,24 @@ def remove_floater(mesh):
     mesh.faces = new_faces
     
     return mesh
+    
+def remove_floater2(vertices, faces):
+    print('Removing floater ...')
+    #faces = faces.cpu().numpy()
+    print(f"Current faces: {len(faces)}")
+    mesh_set = pymeshlab.MeshSet()
+    mesh_pymeshlab = pymeshlab.Mesh(vertex_matrix=vertices, face_matrix=faces)
+    mesh_set.add_mesh(mesh_pymeshlab, "converted_mesh")
+    mesh_set = pymeshlab_remove_floater(mesh_set)
+    
+    mesh_pymeshlab = mesh_set.current_mesh()    
+    
+    new_faces = mesh_pymeshlab.face_matrix()
+    print(f"After removing floater: {len(new_faces)}")
+    
+    new_vertices = mesh_pymeshlab.vertex_matrix()
+    
+    return new_vertices, new_faces
 
 def remove_mesh_infinite_vertices(mesh):
     print('Removing infinite vertices ...')
@@ -813,7 +831,7 @@ class Trellis2PostProcessMesh:
         mesh_copy.faces = new_faces.to(mesh_copy.device) 
         
         del cumesh
-        gc.collect()     
+        gc.collect()
                 
         return (mesh_copy,)
        
@@ -823,13 +841,13 @@ class Trellis2UnWrapAndRasterizer:
         return {
             "required": {
                 "mesh": ("MESHWITHVOXEL",),
-                "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":90.0,"min":0.0,"max":359.9}),
+                "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":60.0,"min":0.0,"max":359.9}),
                 "mesh_cluster_refine_iterations": ("INT",{"default":0}),
                 "mesh_cluster_global_iterations": ("INT",{"default":1}),
                 "mesh_cluster_smooth_strength": ("INT",{"default":1}),                
-                "texture_size": ("INT",{"default":1024, "min":512, "max":16384}),
+                "texture_size": ("INT",{"default":4096, "min":512, "max":16384}),
                 "texture_alpha_mode": (["OPAQUE","MASK","BLEND"],{"default":"OPAQUE"}),
-                "double_side_material": ("BOOLEAN",{"default":True}),
+                "double_side_material": ("BOOLEAN",{"default":False}),
                 "bake_on_vertices": ("BOOLEAN",{"default":False}),
                 "use_custom_normals": ("BOOLEAN",{"default":False}),
                 "bvh": ("BVH",),                
@@ -980,7 +998,7 @@ class Trellis2UnWrapAndRasterizer:
                 "threshold_cone_half_angle_rad": mesh_cluster_threshold_cone_half_angle_rad,
                 "refine_iterations": mesh_cluster_refine_iterations,
                 "global_iterations": mesh_cluster_global_iterations,
-                "smooth_strength": mesh_cluster_smooth_strength,
+                "smooth_strength": mesh_cluster_smooth_strength,                
             },
             return_vmaps=True,
             verbose=True,
@@ -1108,29 +1126,29 @@ class Trellis2MeshWithVoxelAdvancedGenerator:
             "required": {
                 "pipeline": ("TRELLIS2PIPELINE",),
                 "image": ("IMAGE",),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
+                "seed": ("INT", {"default": 12345, "min": 0, "max": 0x7fffffff}),
                 "pipeline_type": (["512","1024","1024_cascade","1536_cascade"],{"default":"1024_cascade"}),
                 "sparse_structure_steps": ("INT",{"default":12, "min":1, "max":100},),
-                "sparse_structure_guidance_strength": ("FLOAT",{"default":7.50}),
-                "sparse_structure_guidance_rescale": ("FLOAT",{"default":0.70}),
-                "sparse_structure_rescale_t": ("FLOAT",{"default":5.00}),
+                "sparse_structure_guidance_strength": ("FLOAT",{"default":6.50}),
+                "sparse_structure_guidance_rescale": ("FLOAT",{"default":0.20}),
+                "sparse_structure_rescale_t": ("FLOAT",{"default":4.00}),
                 "shape_steps": ("INT",{"default":12, "min":1, "max":100},),
-                "shape_guidance_strength": ("FLOAT",{"default":7.50}),
-                "shape_guidance_rescale": ("FLOAT",{"default":0.50}),
-                "shape_rescale_t": ("FLOAT",{"default":3.00}),                
+                "shape_guidance_strength": ("FLOAT",{"default":6.50}),
+                "shape_guidance_rescale": ("FLOAT",{"default":0.20}),
+                "shape_rescale_t": ("FLOAT",{"default":4.00}),                
                 "texture_steps": ("INT",{"default":12, "min":1, "max":100},),
-                "texture_guidance_strength": ("FLOAT",{"default":1.00}),
-                "texture_guidance_rescale": ("FLOAT",{"default":0.00}),
+                "texture_guidance_strength": ("FLOAT",{"default":3.00}),
+                "texture_guidance_rescale": ("FLOAT",{"default":0.20}),
                 "texture_rescale_t": ("FLOAT",{"default":3.00}),                
-                "max_num_tokens": ("INT",{"default":49152,"min":0,"max":999999}),
+                "max_num_tokens": ("INT",{"default":999999,"min":0,"max":999999}),
                 "max_views": ("INT", {"default": 4, "min": 1, "max": 16}),
                 "sparse_structure_resolution": ("INT", {"default":32,"min":8,"max":128,"step":8}),
                 "generate_texture_slat": ("BOOLEAN", {"default":True}),
-                "sparse_structure_guidance_interval_start": ("FLOAT",{"default":0.30,"min":0.00,"max":1.00,"step":0.01}),
+                "sparse_structure_guidance_interval_start": ("FLOAT",{"default":0.10,"min":0.00,"max":1.00,"step":0.01}),
                 "sparse_structure_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
-                "shape_guidance_interval_start": ("FLOAT",{"default":0.30,"min":0.00,"max":1.00,"step":0.01}),
+                "shape_guidance_interval_start": ("FLOAT",{"default":0.10,"min":0.00,"max":1.00,"step":0.01}),
                 "shape_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
-                "texture_guidance_interval_start": ("FLOAT",{"default":0.60,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_guidance_interval_start": ("FLOAT",{"default":0.00,"min":0.00,"max":1.00,"step":0.01}),
                 "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
                 "use_tiled_decoder": ("BOOLEAN", {"default":True}),
             },
@@ -1207,25 +1225,25 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
         return {
             "required": {
                 "mesh": ("MESHWITHVOXEL",),
-                "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":90.0,"min":0.0,"max":359.9}),
+                "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":60.0,"min":0.0,"max":359.9}),
                 "mesh_cluster_refine_iterations": ("INT",{"default":0}),
                 "mesh_cluster_global_iterations": ("INT",{"default":1}),
                 "mesh_cluster_smooth_strength": ("INT",{"default":1}),                
-                "texture_size": ("INT",{"default":2048, "min":512, "max":16384}),
+                "texture_size": ("INT",{"default":4096, "min":512, "max":16384}),
                 "remesh": ("BOOLEAN",{"default":True}),
                 "remesh_band": ("FLOAT",{"default":1.0}),
                 "remesh_project": ("FLOAT",{"default":0.0}),
                 "target_face_num": ("INT",{"default":2000000,"min":1,"max":16000000}),
                 "simplify_method": (["Cumesh","Meshlib"],{"default":"Cumesh"}),
                 "fill_holes": ("BOOLEAN", {"default":True}),
-                "fill_holes_max_perimeter": ("FLOAT",{"default":0.03,"min":0.001,"max":99.999,"step":0.001}),
                 "texture_alpha_mode": (["OPAQUE","MASK","BLEND"],{"default":"OPAQUE"}),
-                "dual_contouring_resolution": (["Auto","128","256","512","1024","2048"],{"default":"512"}),
-                "double_side_material": ("BOOLEAN",{"default":True}),
+                "dual_contouring_resolution": (["Auto","128","256","512","1024","2048"],{"default":"1024"}),
+                "double_side_material": ("BOOLEAN",{"default":False}),
                 "remove_floaters": ("BOOLEAN",{"default":True}),
                 "bake_on_vertices": ("BOOLEAN",{"default":False}),
                 "use_custom_normals":("BOOLEAN",{"default":False}),
                 "bvh": ("BVH",),
+                "remove_inner_faces": ("BOOLEAN",{"default":True}),
             }
         }
 
@@ -1235,7 +1253,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, mesh_cluster_threshold_cone_half_angle_rad, mesh_cluster_refine_iterations, mesh_cluster_global_iterations, mesh_cluster_smooth_strength, texture_size, remesh, remesh_band, remesh_project, target_face_num, simplify_method, fill_holes, fill_holes_max_perimeter, texture_alpha_mode, dual_contouring_resolution, double_side_material, remove_floaters, bake_on_vertices,use_custom_normals,bvh):
+    def process(self, mesh, mesh_cluster_threshold_cone_half_angle_rad, mesh_cluster_refine_iterations, mesh_cluster_global_iterations, mesh_cluster_smooth_strength, texture_size, remesh, remesh_band, remesh_project, target_face_num, simplify_method, fill_holes, texture_alpha_mode, dual_contouring_resolution, double_side_material, remove_floaters, bake_on_vertices,use_custom_normals,bvh,remove_inner_faces):
         pbar = ProgressBar(5 if not bake_on_vertices else 4)
         mesh_copy = copy.deepcopy(mesh)
         
@@ -1288,10 +1306,10 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
         
         # --- Initial Mesh Cleaning ---
         # Fills holes as much as we can before processing
-        if fill_holes:
-            cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)
-            print(f"After filling holes: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")
-            vertices, faces = cumesh.read()
+        # if fill_holes:
+            # cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)
+            # print(f"After filling holes: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")
+            # vertices, faces = cumesh.read()
             
         # BVH is coming from MeshWithVoxel Generator node
         # print(f"Building BVH for current mesh...")
@@ -1316,8 +1334,8 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
             cumesh.repair_non_manifold_edges()
             cumesh.remove_small_connected_components(1e-5)
             
-            if fill_holes:
-                cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)
+            # if fill_holes:
+                # cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)
             
             if simplify_method == 'Cumesh':
                 cumesh.simplify(target_face_num, verbose=True)
@@ -1331,8 +1349,8 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
             cumesh.repair_non_manifold_edges()
             cumesh.remove_small_connected_components(1e-5) 
 
-            if fill_holes:
-                cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)            
+            # if fill_holes:
+                # cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)            
             
             print(f"After initial cleanup: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")                            
                 
@@ -1361,14 +1379,19 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
                 band = remesh_band,
                 project_back = remesh_project, # Snaps vertices back to original surface
                 verbose = True,
+                remove_inner_faces = remove_inner_faces,
                 #bvh = bvh,
             ))
             
-            print(f"After remeshing: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")
+            new_vertices, new_faces = cumesh.read()
             
-            # Step 2: Unify face orientations
-            print('Unifying faces orientation ...')
-            cumesh.unify_face_orientations()           
+            if remove_floaters:
+                new_vertices, new_faces = remove_floater2(new_vertices.cpu().numpy(),new_faces.cpu().numpy())
+                new_vertices = torch.from_numpy(new_vertices).contiguous().float().cuda()
+                new_faces = torch.from_numpy(new_faces).contiguous().int().cuda()
+                cumesh.init(new_vertices, new_faces)                    
+            
+            print(f"After remeshing: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")
 
             if simplify_method == 'Cumesh':
                 cumesh.simplify(target_face_num, verbose=True)
@@ -1380,6 +1403,33 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
 
             print(f"After simplifying: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")            
             pbar.update(1)
+            
+        if fill_holes:
+            new_vertices, new_faces = cumesh.read()
+            meshlib_mesh = mrmeshnumpy.meshFromFacesVerts(new_faces.detach().clone().cpu().numpy(), new_vertices.detach().clone().cpu().numpy())
+            hole_edges = meshlib_mesh.topology.findHoleRepresentiveEdges()
+            holes_filled = 0
+            
+            nb_holes = len(hole_edges)
+            print(f"{nb_holes} holes found")
+            
+            if nb_holes>0:
+                progress_bar_holes = tqdm(total=nb_holes,desc="Filling holes")
+                
+                for e in hole_edges:
+                    params = mrmeshpy.FillHoleParams()
+                    params.metric = mrmeshpy.getUniversalMetric(meshlib_mesh)
+                    mrmeshpy.fillHole(meshlib_mesh, e, params)
+                    holes_filled += 1
+                    progress_bar_holes.update(1)
+            
+            new_vertices = mrmeshnumpy.getNumpyVerts(meshlib_mesh)
+            new_faces = mrmeshnumpy.getNumpyFaces(meshlib_mesh.topology)
+
+            del meshlib_mesh
+            gc.collect()
+            
+            cumesh.init(torch.from_numpy(new_vertices).float().to(coords.device), torch.from_numpy(new_faces).int().to(coords.device))
         
         # --- Branch: Bake On Vertices (skip UV unwrapping and texture creation) ---
         if bake_on_vertices:
@@ -1609,6 +1659,7 @@ class Trellis2Remesh:
                 "fill_holes_max_perimeter": ("FLOAT",{"default":0.03,"min":0.001,"max":99.999,"step":0.001}),
                 "dual_contouring_resolution": (["Auto","128","256","512","1024","2048"],{"default":"Auto"}),
                 "remove_floaters": ("BOOLEAN",{"default":True}),
+                "remove_inner_faces": ("BOOLEAN",{"default":False}),
             }
         }
 
@@ -1618,7 +1669,7 @@ class Trellis2Remesh:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, remesh_band, remesh_project, fill_holes, fill_holes_max_perimeter, dual_contouring_resolution, remove_floaters):
+    def process(self, mesh, remesh_band, remesh_project, fill_holes, fill_holes_max_perimeter, dual_contouring_resolution, remove_floaters, remove_inner_faces):
         mesh_copy = copy.deepcopy(mesh)
         
         if remove_floaters:
@@ -1701,9 +1752,15 @@ class Trellis2Remesh:
             band = remesh_band,
             project_back = remesh_project, # Snaps vertices back to original surface
             verbose = True,
+            remove_inner_faces = remove_inner_faces,
             #bvh = bvh,
         )
         
+        if remove_floaters:
+            vertices, faces = remove_floater2(vertices.cpu().numpy(),faces.cpu().numpy())
+            vertices = torch.from_numpy(vertices).contiguous().float()
+            faces = torch.from_numpy(faces).contiguous().int() 
+            
         print(f"After remeshing: {len(vertices)} vertices, {len(faces)} faces")                                 
         
         mesh_copy.vertices = vertices.to(mesh_copy.device)
@@ -1755,18 +1812,19 @@ class Trellis2MeshTexturing:
                 "trimesh": ("TRIMESH",),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
                 "texture_steps": ("INT",{"default":12, "min":1, "max":100},),
-                "texture_guidance_strength": ("FLOAT",{"default":1.0}),
-                "texture_guidance_rescale": ("FLOAT",{"default":0.0}),
+                "texture_guidance_strength": ("FLOAT",{"default":3.0}),
+                "texture_guidance_rescale": ("FLOAT",{"default":0.2}),
                 "texture_rescale_t": ("FLOAT",{"default":3.0}),
                 "resolution": ([512,1024],{"default":1024}),
-                "texture_size": ("INT",{"default":2048,"min":512,"max":16384}),
+                "texture_size": ("INT",{"default":4096,"min":512,"max":16384}),
                 "texture_alpha_mode": (["OPAQUE","MASK","BLEND"],{"default":"OPAQUE"}),
-                "double_side_material": ("BOOLEAN",{"default":True}), 
-                "texture_guidance_interval_start": ("FLOAT",{"default":0.60,"min":0.00,"max":1.00,"step":0.01}),
+                "double_side_material": ("BOOLEAN",{"default":False}), 
+                "texture_guidance_interval_start": ("FLOAT",{"default":0.00,"min":0.00,"max":1.00,"step":0.01}),
                 "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
                 "max_views": ("INT", {"default": 4, "min": 1, "max": 16}),
                 "bake_on_vertices": ("BOOLEAN",{"default":False}),
                 "use_custom_normals": ("BOOLEAN",{"default":False}),
+                "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":60.0,"min":0.0,"max":359.9}),
             },
         }
 
@@ -1776,7 +1834,7 @@ class Trellis2MeshTexturing:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material, texture_guidance_interval_start, texture_guidance_interval_end, max_views,bake_on_vertices,use_custom_normals):
+    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material, texture_guidance_interval_start, texture_guidance_interval_end, max_views,bake_on_vertices,use_custom_normals,mesh_cluster_threshold_cone_half_angle_rad):
         images = tensor_batch_to_pil_list(image, max_views=max_views)
         image_in = images[0] if len(images) == 1 else images
 
@@ -1917,22 +1975,22 @@ class Trellis2MeshRefiner:
                 "pipeline": ("TRELLIS2PIPELINE",),
                 "trimesh": ("TRIMESH",),
                 "image": ("IMAGE",),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
+                "seed": ("INT", {"default": 12345, "min": 0, "max": 0x7fffffff}),
                 "resolution": ([512,1024,1536],{"default":1024}),
                 "shape_steps": ("INT",{"default":12, "min":1, "max":100},),
-                "shape_guidance_strength": ("FLOAT",{"default":7.50}),
-                "shape_guidance_rescale": ("FLOAT",{"default":0.50}),
-                "shape_rescale_t": ("FLOAT",{"default":3.00}),                
+                "shape_guidance_strength": ("FLOAT",{"default":6.50}),
+                "shape_guidance_rescale": ("FLOAT",{"default":0.20}),
+                "shape_rescale_t": ("FLOAT",{"default":4.00}),                
                 "texture_steps": ("INT",{"default":12, "min":1, "max":100},),
-                "texture_guidance_strength": ("FLOAT",{"default":1.00}),
-                "texture_guidance_rescale": ("FLOAT",{"default":0.00}),
+                "texture_guidance_strength": ("FLOAT",{"default":3.00}),
+                "texture_guidance_rescale": ("FLOAT",{"default":0.20}),
                 "texture_rescale_t": ("FLOAT",{"default":3.00}),                
-                "max_num_tokens": ("INT",{"default":49152,"min":0,"max":999999}),
+                "max_num_tokens": ("INT",{"default":999999,"min":0,"max":999999}),
                 "generate_texture_slat": ("BOOLEAN", {"default":True}),
                 "downsampling":([16,32,64],{"default":16}),
-                "shape_guidance_interval_start": ("FLOAT",{"default":0.30,"min":0.00,"max":1.00,"step":0.01}),
+                "shape_guidance_interval_start": ("FLOAT",{"default":0.10,"min":0.00,"max":1.00,"step":0.01}),
                 "shape_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
-                "texture_guidance_interval_start": ("FLOAT",{"default":0.60,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_guidance_interval_start": ("FLOAT",{"default":0.00,"min":0.00,"max":1.00,"step":0.01}),
                 "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
                 "use_tiled_decoder": ("BOOLEAN", {"default":True}),
                 "max_views": ("INT", {"default": 4, "min": 1, "max": 16}),

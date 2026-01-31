@@ -224,7 +224,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
             print('Loading Texture Slat Flow 512 model ...')
             self.models['tex_slat_flow_model_512'] = models.from_pretrained(f"{self.path}/{self._pretrained_args['models']['tex_slat_flow_model_512']}")
             self.models['tex_slat_flow_model_512'].eval()
-            self.models['tex_slat_flow_model_512'].to(self._device)
+            self.models['tex_slat_flow_model_512'].to(self._device)          
 
     def unload_tex_slat_flow_model_512(self):
         if self.models['tex_slat_flow_model_512'] is not None:
@@ -267,7 +267,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
             print('Loading Shape Slat Flow 1024 model ...')
             self.models['shape_slat_flow_model_1024'] = models.from_pretrained(f"{self.path}/{self._pretrained_args['models']['shape_slat_flow_model_1024']}")
             self.models['shape_slat_flow_model_1024'].eval()
-            self.models['shape_slat_flow_model_1024'].to(self._device)
+            self.models['shape_slat_flow_model_1024'].to(self._device)           
 
     def unload_shape_slat_flow_model_1024(self):
         if self.models['shape_slat_flow_model_1024'] is not None:
@@ -280,7 +280,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
             print('Loading Texture Slat Flow 1024 model ...')
             self.models['tex_slat_flow_model_1024'] = models.from_pretrained(f"{self.path}/{self._pretrained_args['models']['tex_slat_flow_model_1024']}")
             self.models['tex_slat_flow_model_1024'].eval()
-            self.models['tex_slat_flow_model_1024'].to(self._device)
+            self.models['tex_slat_flow_model_1024'].to(self._device)                   
 
     def unload_tex_slat_flow_model_1024(self):
         if self.models['tex_slat_flow_model_1024'] is not None:
@@ -1207,7 +1207,8 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         texture_alpha_mode = 'OPAQUE',
         double_side_material = True,
         bake_on_vertices = False,
-        use_custom_normals = False
+        use_custom_normals = False,
+        mesh_cluster_threshold_cone_half_angle_rad = 60.0
     ):        
         vertices = mesh.vertices
         faces = mesh.faces
@@ -1225,7 +1226,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
             print('Unwrapping mesh ...')
             vertices_torch, faces_torch, uvs_torch, vmap = _cumesh.uv_unwrap(
                 compute_charts_kwargs={
-                    "threshold_cone_half_angle_rad": np.radians(90.0),
+                    "threshold_cone_half_angle_rad": np.radians(mesh_cluster_threshold_cone_half_angle_rad),
                     "refine_iterations": 0,
                     "global_iterations": 1,
                     "smooth_strength": 1,
@@ -1431,6 +1432,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         max_views = 4,
         bake_on_vertices = False,
         use_custom_normals = False,
+        mesh_cluster_threshold_cone_half_angle_rad=60.0
     ):
         mesh = self.preprocess_mesh(mesh)
         torch.manual_seed(seed)
@@ -1480,7 +1482,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         pbr_voxel = self.decode_tex_slat(tex_slat)
         torch.cuda.empty_cache()
         
-        out_mesh, baseColorTexture, metallicRoughnessTexture = self.postprocess_mesh(mesh, pbr_voxel, resolution, texture_size, texture_alpha_mode, double_side_material, bake_on_vertices, use_custom_normals)
+        out_mesh, baseColorTexture, metallicRoughnessTexture = self.postprocess_mesh(mesh, pbr_voxel, resolution, texture_size, texture_alpha_mode, double_side_material, bake_on_vertices, use_custom_normals, mesh_cluster_threshold_cone_half_angle_rad)
         return out_mesh, baseColorTexture, metallicRoughnessTexture
     
     def get_coords_from_trimesh(self, mesh, resolution):

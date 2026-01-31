@@ -24,6 +24,21 @@ def chunked_apply(module: nn.Module, x: torch.Tensor, chunk_size: int) -> torch.
     return out
 
 
+def inplace_skip_add(h: sp.SparseTensor, skip_feats: torch.Tensor, chunk_size: int) -> sp.SparseTensor:
+    """
+    Perform in-place addition of skip connection features to reduce peak memory.
+    Processes in chunks if low_vram mode is needed.
+    """
+    if chunk_size <= 0 or h.feats.shape[0] <= chunk_size:
+        h.feats.add_(skip_feats)
+    else:
+        for i in range(0, h.feats.shape[0], chunk_size):
+            end = min(i + chunk_size, h.feats.shape[0])
+            h.feats[i:end].add_(skip_feats[i:end])
+    del skip_feats
+    return h
+
+
 class SparseResBlock3d(nn.Module):
     def __init__(
         self,
@@ -103,7 +118,11 @@ class SparseResBlock3d(nn.Module):
             h = h.replace(self.norm2(h.feats))
             h = h.replace(F.silu(h.feats))
         h = self.conv2(h)
-        h = h + self.skip_connection(x)
+        if self.low_vram:
+            skip = self.skip_connection(x)
+            h = inplace_skip_add(h, skip.feats if hasattr(skip, 'feats') else skip, self.chunk_size)
+        else:
+            h = h + self.skip_connection(x)
         if self.upsample:
             return h, subdiv
         return h
@@ -155,7 +174,11 @@ class SparseResBlockDownsample3d(nn.Module):
             h = h.replace(self.norm2(h.feats))
             h = h.replace(F.silu(h.feats))
         h = self.conv2(h)
-        h = h + self.skip_connection(x)
+        if self.low_vram:
+            skip = self.skip_connection(x)
+            h = inplace_skip_add(h, skip.feats if hasattr(skip, 'feats') else skip, self.chunk_size)
+        else:
+            h = h + self.skip_connection(x)
         return h
     
     def forward(self, x: sp.SparseTensor) -> sp.SparseTensor:
@@ -212,7 +235,11 @@ class SparseResBlockUpsample3d(nn.Module):
             h = h.replace(self.norm2(h.feats))
             h = h.replace(F.silu(h.feats))
         h = self.conv2(h)
-        h = h + self.skip_connection(x)
+        if self.low_vram:
+            skip = self.skip_connection(x)
+            h = inplace_skip_add(h, skip.feats if hasattr(skip, 'feats') else skip, self.chunk_size)
+        else:
+            h = h + self.skip_connection(x)
         if self.pred_subdiv:
             return h, subdiv
         else:
@@ -265,7 +292,11 @@ class SparseResBlockS2C3d(nn.Module):
             h = h.replace(self.norm2(h.feats))
             h = h.replace(F.silu(h.feats))
         h = self.conv2(h)
-        h = h + self.skip_connection(x)
+        if self.low_vram:
+            skip = self.skip_connection(x)
+            h = inplace_skip_add(h, skip.feats if hasattr(skip, 'feats') else skip, self.chunk_size)
+        else:
+            h = h + self.skip_connection(x)
         return h
     
     def forward(self, x: sp.SparseTensor) -> sp.SparseTensor:
@@ -322,7 +353,11 @@ class SparseResBlockC2S3d(nn.Module):
             h = h.replace(self.norm2(h.feats))
             h = h.replace(F.silu(h.feats))
         h = self.conv2(h)
-        h = h + self.skip_connection(x)
+        if self.low_vram:
+            skip = self.skip_connection(x)
+            h = inplace_skip_add(h, skip.feats if hasattr(skip, 'feats') else skip, self.chunk_size)
+        else:
+            h = h + self.skip_connection(x)
         if self.pred_subdiv:
             return h, subdiv
         else:
@@ -419,6 +454,7 @@ class SparseUnetVaeEncoder(nn.Module):
         self.initialize_weights()
         self._low_vram = False
         self.chunk_size = 65536
+
         if use_fp16:
             self.convert_to_fp16()
 
@@ -608,6 +644,9 @@ class SparseUnetVaeDecoder(nn.Module):
                         h = block(h, subdiv=guide_subs[i] if guide_subs is not None else None)
                 else:
                     h = block(h)
+                # More frequent cache clearing in low_vram mode to reclaim memory between blocks
+                if self.low_vram:
+                    torch.cuda.empty_cache()
             torch.cuda.empty_cache()                        
         if self.low_vram:
             def fused_finalize(t):

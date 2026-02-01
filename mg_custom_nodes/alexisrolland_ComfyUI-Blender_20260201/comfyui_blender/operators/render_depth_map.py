@@ -1,8 +1,8 @@
-"""Operator to render a lineart."""
+"""Operator to render a depth map."""
 import logging
 import os
 import shutil
-from mathutils import Vector
+from math import tan
 
 import bpy
 
@@ -11,15 +11,15 @@ from ..utils import get_inputs_folder, get_temp_folder, upload_file
 log = logging.getLogger("comfyui_blender")
 
 
-class ComfyBlenderOperatorRenderLineart(bpy.types.Operator):
-    """Operator to render a lineart."""
+class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
+    """Operator to render a depth map."""
 
-    bl_idname = "comfy.render_lineart"
-    bl_label = "Render Lineart"
-    bl_description = "Render a lineart from the camera and upload it to the ComfyUI server."
+    bl_idname = "comfy.render_depth_map"
+    bl_label = "Render Depth Map"
+    bl_description = "Render a depth map from the camera and upload it to the ComfyUI server."
 
     workflow_property: bpy.props.StringProperty(name="Workflow Property")
-    temp_filename = "blender_lineart"
+    temp_filename = "blender_depth_map"
 
     def reset_scene(self, context, **kwargs):
         """Reset the scene to its initial state."""
@@ -34,9 +34,6 @@ class ComfyBlenderOperatorRenderLineart(bpy.types.Operator):
         scene.display_settings.display_device = kwargs["original_display_device"]
         scene.view_settings.view_transform = kwargs["original_view_transform"]
 
-        # Delete grease pencil object
-        bpy.data.objects.remove(kwargs["gpencil"], do_unlink=True)
-
         # Remove temporary files
         if os.path.exists(kwargs["extra_filepath"]):
             os.remove(kwargs["extra_filepath"])
@@ -47,7 +44,37 @@ class ComfyBlenderOperatorRenderLineart(bpy.types.Operator):
         """Execute the operator."""
 
         scene = context.scene
-        if not context.scene.camera:
+        addon_prefs = context.preferences.addons["comfyui_blender"].preferences
+
+        # Check if Update on Run mode is enabled
+        if addon_prefs.update_on_run:
+            # Schedule this render for later execution
+            # First, check if this workflow_property already has a scheduled render
+            existing_render = None
+            for scheduled in addon_prefs.scheduled_renders:
+                if scheduled.workflow_property == self.workflow_property:
+                    existing_render = scheduled
+                    break
+
+            # If found, update the render type; otherwise, add a new one
+            if existing_render:
+                existing_render.render_type = "render_depth_map"
+            else:
+                new_render = addon_prefs.scheduled_renders.add()
+                new_render.workflow_property = self.workflow_property
+                new_render.render_type = "render_depth_map"
+
+            self.report({'INFO'}, "Depth map render scheduled for workflow execution.")
+            return {'FINISHED'}
+
+        # Otherwise, execute immediately
+        return self._execute_render(context)
+
+    def _execute_render(self, context):
+        """Internal method to execute the render."""
+
+        scene = context.scene
+        if not scene.camera:
             error_message = "No camera found"
             log.error(error_message)
             bpy.ops.comfy.show_error_popup("INVOKE_DEFAULT", error_message=error_message)
@@ -77,16 +104,17 @@ class ComfyBlenderOperatorRenderLineart(bpy.types.Operator):
         scene.display_settings.display_device = "Display P3"
         scene.view_settings.view_transform = "Raw"
 
-        # Enable grease pencil pass
-        scene.view_layers["ViewLayer"].use_pass_grease_pencil = True
+        # Enable Z pass
+        scene.view_layers["ViewLayer"].use_pass_z = True
 
         # Create a new node tree for compositing
-        bpy.ops.node.new_compositing_node_group(name="CompositorLineart")
-        tree = bpy.data.node_groups["CompositorLineart"]
+        bpy.ops.node.new_compositing_node_group(name="CompositorDepthMap")
+        tree = bpy.data.node_groups["CompositorDepthMap"]
         tree.nodes.clear()
 
         # Create nodes
         rlayers_node = tree.nodes.new(type="CompositorNodeRLayers")
+        map_range_node = tree.nodes.new(type="ShaderNodeMapRange")
         output_file_node = tree.nodes.new(type="CompositorNodeOutputFile")
         output_file_node.directory = temp_folder
         output_file_node.file_name = ""  # Filename will be set by the file output item
@@ -94,30 +122,81 @@ class ComfyBlenderOperatorRenderLineart(bpy.types.Operator):
         output_file_node.format.color_mode = "RGB"
         output_file_node.format.file_format = "PNG"
         output_file_node.format.compression = 0
-        output_file_node.file_output_items.new("RGBA", self.temp_filename)  # Create input socket blender_lineart
+        output_file_node.file_output_items.new("FLOAT", self.temp_filename)  # Create input socket blender_depth_map
 
         # Link nodes
-        tree.links.new(rlayers_node.outputs["Grease Pencil"], output_file_node.inputs[self.temp_filename])  # From output socket Grease Pencil to input socket blender_lineart
+        tree.links.new(rlayers_node.outputs[2], map_range_node.inputs[0])  # From output socket Depth to input socket Value
+        tree.links.new(map_range_node.outputs[0], output_file_node.inputs[0])  # From output socket Value to input socket blender_depth_map
 
-        # Calculate position behind the camera
-        camera_location = scene.camera.location.copy()
-        camera_backward = scene.camera.matrix_world.to_quaternion() @ Vector((0, 0, 1))  # Camera's backward direction
-        gpencil_location = camera_location + camera_backward * 5  # 5 units behind camera
+        # Get camera info to get closest and furthest vertices in the camera frustum
+        cam_location = scene.camera.matrix_world.translation
+        cam_matrix = scene.camera.matrix_world
+        cam_data = scene.camera.data
+        aspect_ratio = scene.render.resolution_x / scene.render.resolution_y
+        min_distance = float('inf')
+        max_distance = 0.0
 
-        # Add a new grease pencil object
-        bpy.ops.object.grease_pencil_add(type="STROKE", align="WORLD", location=gpencil_location, scale=(1, 1, 1))
-        gpencil = context.object
-        white_material = bpy.data.materials["White"]
-        gpencil.data.materials[0] = white_material
-        reset_params["gpencil"] = gpencil  # Add the grease pencil to the reset param to delete it later
+        for obj in scene.objects:
+            if obj.type == "MESH" and obj.visible_get():
+                # Switch to object mode to ensure mesh data is available
+                if obj.mode == "EDIT":
+                    bpy.context.view_layer.objects.active = obj
+                    bpy.ops.object.mode_set(mode="OBJECT")
 
-        # Add Lineart modifier
-        bpy.ops.object.modifier_add(type="LINEART")
-        lineart_modifier = context.object.modifiers["Lineart"]
-        lineart_modifier.source_type = "SCENE"
-        lineart_modifier.target_layer = "Color"
-        lineart_modifier.target_material = white_material
-        lineart_modifier.radius = 0.015
+                for vertex in obj.data.vertices:
+                    # Convert vertex to world coordinates
+                    world_coord = obj.matrix_world @ vertex.co
+
+                    # Convert world coordinates to camera space coordinates
+                    cam_space = cam_matrix.inverted() @ world_coord.to_4d()
+
+                    # Check if vertex is in camera frustum
+                    # Z value should be negative (in front of camera)
+                    if cam_space.z >= 0:
+                        continue
+
+                    # Convert to normalized device coordinates
+                    # Get camera projection parameters
+                    if cam_data.type == "PERSP":
+                        # Calculate frustum bounds
+                        z_dist = -cam_space.z
+                        if z_dist < cam_data.clip_start or z_dist > cam_data.clip_end:
+                            continue
+
+                        # Calculate horizontal and vertical bounds
+                        tan_half_fov = tan(cam_data.angle / 2)
+                        h_bound = z_dist * tan_half_fov
+                        v_bound = h_bound / aspect_ratio
+
+                        # Check if vertex is within frustum bounds
+                        if (abs(cam_space.x) <= h_bound and abs(cam_space.y) <= v_bound):
+                            distance = (cam_location - world_coord.xyz).length
+                            min_distance = min(min_distance, distance)
+                            max_distance = max(max_distance, distance)
+
+                    # For orthographic camera
+                    elif cam_data.type == "ORTHO":
+                        ortho_scale = cam_data.ortho_scale
+                        h_bound = ortho_scale / 2
+                        v_bound = h_bound / aspect_ratio
+                        z_dist = -cam_space.z
+
+                        if (z_dist >= cam_data.clip_start and z_dist <= cam_data.clip_end and
+                            abs(cam_space.x) <= h_bound and abs(cam_space.y) <= v_bound):
+                            distance = (cam_location - world_coord.xyz).length
+                            min_distance = min(min_distance, distance)
+                            max_distance = max(max_distance, distance)
+
+        # Handle case where no vertices are in frustum
+        if min_distance == float("inf"):
+            min_distance = cam_data.clip_start
+            max_distance = cam_data.clip_end
+
+        # Update Map Range node
+        map_range_node.inputs[1].default_value = min_distance  # From Min
+        map_range_node.inputs[2].default_value = max_distance  # From Max
+        map_range_node.inputs[3].default_value = 1 # To Min
+        map_range_node.inputs[4].default_value = 0 # To Max
 
         # Render the scene
         scene.compositing_node_group = tree
@@ -192,10 +271,10 @@ class ComfyBlenderOperatorRenderLineart(bpy.types.Operator):
 def register():
     """Register the operator."""
 
-    bpy.utils.register_class(ComfyBlenderOperatorRenderLineart)
+    bpy.utils.register_class(ComfyBlenderOperatorRenderDepthMap)
 
 
 def unregister():
     """Unregister the operator."""
 
-    bpy.utils.unregister_class(ComfyBlenderOperatorRenderLineart)
+    bpy.utils.unregister_class(ComfyBlenderOperatorRenderDepthMap)

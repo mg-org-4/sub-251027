@@ -1,7 +1,8 @@
-"""Operator to render from the camera view."""
+"""Operator to render a lineart."""
 import logging
 import os
 import shutil
+from mathutils import Vector
 
 import bpy
 
@@ -10,15 +11,15 @@ from ..utils import get_inputs_folder, get_temp_folder, upload_file
 log = logging.getLogger("comfyui_blender")
 
 
-class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
-    """Operator to render from the camera view."""
+class ComfyBlenderOperatorRenderLineart(bpy.types.Operator):
+    """Operator to render a lineart."""
 
-    bl_idname = "comfy.render_view"
-    bl_label = "Render View"
-    bl_description = "Render from the camera and upload it to the ComfyUI server."
+    bl_idname = "comfy.render_lineart"
+    bl_label = "Render Lineart"
+    bl_description = "Render a lineart from the camera and upload it to the ComfyUI server."
 
     workflow_property: bpy.props.StringProperty(name="Workflow Property")
-    temp_filename = "blender_render"
+    temp_filename = "blender_lineart"
 
     def reset_scene(self, context, **kwargs):
         """Reset the scene to its initial state."""
@@ -26,6 +27,15 @@ class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
         # Restore original render settings
         scene = context.scene
         scene.render.filepath = kwargs["original_filepath"]
+        scene.render.image_settings.file_format = kwargs["original_file_format"]
+        scene.render.image_settings.color_mode = kwargs["original_color_mode"]
+        scene.render.image_settings.color_depth = kwargs["original_color_depth"]
+        scene.render.image_settings.compression = kwargs["original_compression"]
+        scene.display_settings.display_device = kwargs["original_display_device"]
+        scene.view_settings.view_transform = kwargs["original_view_transform"]
+
+        # Delete grease pencil object
+        bpy.data.objects.remove(kwargs["gpencil"], do_unlink=True)
 
         # Remove temporary files
         if os.path.exists(kwargs["extra_filepath"]):
@@ -37,7 +47,37 @@ class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
         """Execute the operator."""
 
         scene = context.scene
-        if not scene.camera:
+        addon_prefs = context.preferences.addons["comfyui_blender"].preferences
+
+        # Check if Update on Run mode is enabled
+        if addon_prefs.update_on_run:
+            # Schedule this render for later execution
+            # First, check if this workflow_property already has a scheduled render
+            existing_render = None
+            for scheduled in addon_prefs.scheduled_renders:
+                if scheduled.workflow_property == self.workflow_property:
+                    existing_render = scheduled
+                    break
+
+            # If found, update the render type; otherwise, add a new one
+            if existing_render:
+                existing_render.render_type = "render_lineart"
+            else:
+                new_render = addon_prefs.scheduled_renders.add()
+                new_render.workflow_property = self.workflow_property
+                new_render.render_type = "render_lineart"
+
+            self.report({'INFO'}, "Lineart render scheduled for workflow execution.")
+            return {'FINISHED'}
+
+        # Otherwise, execute immediately
+        return self._execute_render(context)
+
+    def _execute_render(self, context):
+        """Internal method to execute the render."""
+
+        scene = context.scene
+        if not context.scene.camera:
             error_message = "No camera found"
             log.error(error_message)
             bpy.ops.comfy.show_error_popup("INVOKE_DEFAULT", error_message=error_message)
@@ -51,13 +91,28 @@ class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
         reset_params = {}
         reset_params["extra_filepath"] = extra_filepath
         reset_params["original_filepath"] = scene.render.filepath
+        reset_params["original_file_format"] = scene.render.image_settings.file_format
+        reset_params["original_color_mode"] = scene.render.image_settings.color_mode
+        reset_params["original_color_depth"] = scene.render.image_settings.color_depth
+        reset_params["original_compression"] = scene.render.image_settings.compression
+        reset_params["original_display_device"] = scene.display_settings.display_device
+        reset_params["original_view_transform"] = scene.view_settings.view_transform
 
         # Set up the scene for rendering
         scene.render.filepath = extra_filepath
+        scene.render.image_settings.file_format = "PNG"
+        scene.render.image_settings.color_mode = "RGBA"
+        scene.render.image_settings.color_depth = "16"
+        scene.render.image_settings.compression = 0
+        scene.display_settings.display_device = "Display P3"
+        scene.view_settings.view_transform = "Raw"
+
+        # Enable grease pencil pass
+        scene.view_layers["ViewLayer"].use_pass_grease_pencil = True
 
         # Create a new node tree for compositing
-        bpy.ops.node.new_compositing_node_group(name="CompositorRender")
-        tree = bpy.data.node_groups["CompositorRender"]
+        bpy.ops.node.new_compositing_node_group(name="CompositorLineart")
+        tree = bpy.data.node_groups["CompositorLineart"]
         tree.nodes.clear()
 
         # Create nodes
@@ -66,13 +121,33 @@ class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
         output_file_node.directory = temp_folder
         output_file_node.file_name = ""  # Filename will be set by the file output item
         output_file_node.format.media_type = "IMAGE"
-        output_file_node.format.color_mode = "RGBA"
+        output_file_node.format.color_mode = "RGB"
         output_file_node.format.file_format = "PNG"
         output_file_node.format.compression = 0
-        output_file_node.file_output_items.new("RGBA", self.temp_filename)  # Create input socket blender_render
+        output_file_node.file_output_items.new("RGBA", self.temp_filename)  # Create input socket blender_lineart
 
         # Link nodes
-        tree.links.new(rlayers_node.outputs[0], output_file_node.inputs[self.temp_filename])  # From output socket Image to input socket blender_render
+        tree.links.new(rlayers_node.outputs["Grease Pencil"], output_file_node.inputs[self.temp_filename])  # From output socket Grease Pencil to input socket blender_lineart
+
+        # Calculate position behind the camera
+        camera_location = scene.camera.location.copy()
+        camera_backward = scene.camera.matrix_world.to_quaternion() @ Vector((0, 0, 1))  # Camera's backward direction
+        gpencil_location = camera_location + camera_backward * 5  # 5 units behind camera
+
+        # Add a new grease pencil object
+        bpy.ops.object.grease_pencil_add(type="STROKE", align="WORLD", location=gpencil_location, scale=(1, 1, 1))
+        gpencil = context.object
+        white_material = bpy.data.materials["White"]
+        gpencil.data.materials[0] = white_material
+        reset_params["gpencil"] = gpencil  # Add the grease pencil to the reset param to delete it later
+
+        # Add Lineart modifier
+        bpy.ops.object.modifier_add(type="LINEART")
+        lineart_modifier = context.object.modifiers["Lineart"]
+        lineart_modifier.source_type = "SCENE"
+        lineart_modifier.target_layer = "Color"
+        lineart_modifier.target_material = white_material
+        lineart_modifier.radius = 0.015
 
         # Render the scene
         scene.compositing_node_group = tree
@@ -147,10 +222,10 @@ class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
 def register():
     """Register the operator."""
 
-    bpy.utils.register_class(ComfyBlenderOperatorRenderDepthMap)
+    bpy.utils.register_class(ComfyBlenderOperatorRenderLineart)
 
 
 def unregister():
     """Unregister the operator."""
 
-    bpy.utils.unregister_class(ComfyBlenderOperatorRenderDepthMap)
+    bpy.utils.unregister_class(ComfyBlenderOperatorRenderLineart)

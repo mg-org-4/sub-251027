@@ -13,6 +13,8 @@ from .realtime_lora_trainer import RealtimeLoraTrainer, ApplyTrainedLora
 from .sdxl_lora_trainer import SDXLLoraTrainer
 from .sd15_lora_trainer import SD15LoraTrainer
 from .musubi_zimage_lora_trainer import MusubiZImageLoraTrainer
+from .musubi_zimage_base_lora_trainer import MusubiZImageBaseLoraTrainer
+from .musubi_flux_klein_lora_trainer import MusubiFluxKleinLoraTrainer
 from .musubi_qwen_image_lora_trainer import MusubiQwenImageLoraTrainer
 from .musubi_qwen_image_edit_lora_trainer import MusubiQwenImageEditLoraTrainer
 from .musubi_wan_lora_trainer import MusubiWanLoraTrainer
@@ -33,6 +35,8 @@ NODE_CLASS_MAPPINGS = {
     "SDXLLoraTrainer": SDXLLoraTrainer,
     "SD15LoraTrainer": SD15LoraTrainer,
     "MusubiZImageLoraTrainer": MusubiZImageLoraTrainer,
+    "MusubiZImageBaseLoraTrainer": MusubiZImageBaseLoraTrainer,
+    "MusubiFluxKleinLoraTrainer": MusubiFluxKleinLoraTrainer,
     "MusubiQwenImageLoraTrainer": MusubiQwenImageLoraTrainer,
     "MusubiQwenImageEditLoraTrainer": MusubiQwenImageEditLoraTrainer,
     "MusubiWanLoraTrainer": MusubiWanLoraTrainer,
@@ -53,6 +57,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDXLLoraTrainer": "Realtime LoRA Trainer (SDXL - sd-scripts)",
     "SD15LoraTrainer": "Realtime LoRA Trainer (SD 1.5 - sd-scripts)",
     "MusubiZImageLoraTrainer": "Realtime LoRA Trainer (Z-Image - Musubi Tuner)",
+    "MusubiZImageBaseLoraTrainer": "Realtime LoRA Trainer (Z-Image Base - Musubi Tuner)",
+    "MusubiFluxKleinLoraTrainer": "Realtime LoRA Trainer (FLUX Klein - Musubi Tuner)",
     "MusubiQwenImageLoraTrainer": "Realtime LoRA Trainer (Qwen Image - Musubi Tuner)",
     "MusubiQwenImageEditLoraTrainer": "Realtime LoRA Trainer (Qwen Image Edit - Musubi Tuner)",
     "MusubiWanLoraTrainer": "Realtime LoRA Trainer (Wan 2.2 - Musubi Tuner)",

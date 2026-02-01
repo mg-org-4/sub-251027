@@ -655,9 +655,7 @@
         "qwen_3_4b.safetensors",
         "lumina2",
         "default"
-      ],
-      "ndSuperSelectorEnabled": false,
-      "ndPowerEnabled": false
+      ]
     },
     {
       "id": 77,
@@ -696,9 +694,7 @@
       "widgets_values": [
         "z_image_turbo_bf16.safetensors",
         "default"
-      ],
-      "ndSuperSelectorEnabled": false,
-      "ndPowerEnabled": false
+      ]
     },
     {
       "id": 75,
@@ -736,9 +732,7 @@
       },
       "widgets_values": [
         "ae.sft"
-      ],
-      "ndSuperSelectorEnabled": false,
-      "ndPowerEnabled": false
+      ]
     },
     {
       "id": 79,
@@ -781,7 +775,7 @@
         }
       },
       "widgets_values": [
-        "S:\\Auto\\musubi-tuner\\output\\MyLora_20251211_010245_comfy.safetensors"
+        "S:\\Auto\\musubi-tuner\\output\\MyLora_20260131_164441_comfy.safetensors"
       ]
     },
     {
@@ -894,36 +888,6 @@
       ]
     },
     {
-      "id": 82,
-      "type": "Note",
-      "pos": [
-        -629.8472261640492,
-        622.6372464938978
-      ],
-      "size": [
-        352.63296568537794,
-        239.1413264016004
-      ],
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "IMPORTANT",
-      "properties": {
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.5.1",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "<----- Point me at your Musubi Tuner install\n\nSelect your DE-DEsitill version of Z-image - get it here and save it in models/diffusion_models :\n\nhttps://huggingface.co/ostris/Z-Image-De-Turbo/tree/main\n\nSelect your VAE ae.safetensors\n\nSelect your Text Encoder: qwen_3_4b.safetensors.\n\nNote: You do not need to use the De-distall model for Generating images."
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
       "id": 81,
       "type": "MusubiZImageLoraTrainer",
       "pos": [
@@ -932,7 +896,7 @@
       ],
       "size": [
         404.61875,
-        540
+        564
       ],
       "flags": {},
       "order": 13,
@@ -1012,7 +976,7 @@
         "",
         "S:\\Auto\\musubi-tuner",
         "z_image_de_turbo_v1_bf16.safetensors",
-        "ae.sft",
+        "ae-FLUX1.safetensors",
         "qwen_3_4b.safetensors",
         "",
         400,
@@ -1020,10 +984,39 @@
         16,
         "Low (768px)",
         "MyLora",
-        "MyLora"
+        "MyLora",
+        ""
+      ]
+    },
+    {
+      "id": 82,
+      "type": "Note",
+      "pos": [
+        -629.8472261640492,
+        622.6372464938978
       ],
-      "ndSuperSelectorEnabled": false,
-      "ndPowerEnabled": false
+      "size": [
+        352.63296568537794,
+        239.1413264016004
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "IMPORTANT",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "<----- Point me at your Musubi Tuner install\n\nSelect your DE-DEsitill version of Z-image - get it here and save it in models/diffusion_models :\n\nhttps://huggingface.co/ostris/Z-Image-De-Turbo/tree/main\n\nSelect your VAE ae.safetensors (flux 1 version  - https://huggingface.co/black-forest-labs/FLUX.1-schnell/blob/main/ae.safetensors - you can see how i custom named mine to the left )\n\nSelect your Text Encoder: qwen_3_4b.safetensors.\n\nNote: You do not need to use the De-distall model for Generating images."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
     }
   ],
   "links": [
@@ -1200,13 +1193,13 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 1.4122927695244514,
+      "scale": 2.0677378438607508,
       "offset": [
-        1163.7778851458522,
-        -362.93961904343246
+        1035.7275887064172,
+        -288.38276704853683
       ]
     },
-    "frontendVersion": "1.32.9",
+    "frontendVersion": "1.36.14",
     "workflowRendererVersion": "LG",
     "ue_links": [],
     "links_added_by_ue": [],

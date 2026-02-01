@@ -1,8 +1,10 @@
 """
-Musubi Tuner Z-Image LoRA Trainer Node for ComfyUI
+Musubi Tuner Z-Image Base LoRA Trainer Node for ComfyUI
 
-Trains Z-Image LoRAs using kohya-ss/musubi-tuner.
-Alternative to AI-Toolkit for Z-Image training.
+Trains Z-Image Base (non-distilled) LoRAs using kohya-ss/musubi-tuner.
+Key differences from Z-Image Turbo:
+- Default learning rate: 0.0001 (vs 0.0002)
+- Default LoRA rank: 32 (vs 16)
 """
 
 import os
@@ -18,63 +20,65 @@ from PIL import Image
 
 import folder_paths
 
+from .musubi_zimage_base_config_template import (
+    MUSUBI_ZIMAGE_BASE_VRAM_PRESETS,
+)
 from .musubi_zimage_config_template import (
     generate_dataset_config,
     save_config,
-    MUSUBI_ZIMAGE_VRAM_PRESETS,
 )
 
 
-# Global config for Musubi Z-Image trainer
-_musubi_config = {}
-_musubi_config_file = os.path.join(os.path.dirname(__file__), ".musubi_zimage_config.json")
+# Global config for Musubi Z-Image Base trainer
+_musubi_zimage_base_config = {}
+_musubi_zimage_base_config_file = os.path.join(os.path.dirname(__file__), ".musubi_zimage_base_config.json")
 
 # Global cache for trained LoRAs
-_musubi_lora_cache = {}
-_musubi_cache_file = os.path.join(os.path.dirname(__file__), ".musubi_zimage_lora_cache.json")
+_musubi_zimage_base_lora_cache = {}
+_musubi_zimage_base_cache_file = os.path.join(os.path.dirname(__file__), ".musubi_zimage_base_lora_cache.json")
 
 
 def _load_musubi_config():
     """Load Musubi config from disk."""
-    global _musubi_config
-    if os.path.exists(_musubi_config_file):
+    global _musubi_zimage_base_config
+    if os.path.exists(_musubi_zimage_base_config_file):
         try:
-            with open(_musubi_config_file, 'r', encoding='utf-8') as f:
-                _musubi_config = json.load(f)
+            with open(_musubi_zimage_base_config_file, 'r', encoding='utf-8') as f:
+                _musubi_zimage_base_config = json.load(f)
         except:
-            _musubi_config = {}
+            _musubi_zimage_base_config = {}
 
 
 def _save_musubi_config():
     """Save Musubi config to disk."""
     try:
-        with open(_musubi_config_file, 'w', encoding='utf-8') as f:
-            json.dump(_musubi_config, f, indent=2)
+        with open(_musubi_zimage_base_config_file, 'w', encoding='utf-8') as f:
+            json.dump(_musubi_zimage_base_config, f, indent=2)
     except:
         pass
 
 
 def _load_musubi_cache():
     """Load Musubi LoRA cache from disk."""
-    global _musubi_lora_cache
-    if os.path.exists(_musubi_cache_file):
+    global _musubi_zimage_base_lora_cache
+    if os.path.exists(_musubi_zimage_base_cache_file):
         try:
-            with open(_musubi_cache_file, 'r', encoding='utf-8') as f:
-                _musubi_lora_cache = json.load(f)
+            with open(_musubi_zimage_base_cache_file, 'r', encoding='utf-8') as f:
+                _musubi_zimage_base_lora_cache = json.load(f)
         except:
-            _musubi_lora_cache = {}
+            _musubi_zimage_base_lora_cache = {}
 
 
 def _save_musubi_cache():
     """Save Musubi LoRA cache to disk."""
     try:
-        with open(_musubi_cache_file, 'w', encoding='utf-8') as f:
-            json.dump(_musubi_lora_cache, f)
+        with open(_musubi_zimage_base_cache_file, 'w', encoding='utf-8') as f:
+            json.dump(_musubi_zimage_base_lora_cache, f)
     except:
         pass
 
 
-def _compute_image_hash(images, captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, use_folder_path=False):
+def _compute_image_hash(images, captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, dit_model, vae_model, text_encoder, use_folder_path=False):
     """Compute a hash of all images, captions, and training parameters."""
     hasher = hashlib.sha256()
 
@@ -91,9 +95,9 @@ def _compute_image_hash(images, captions, training_steps, learning_rate, lora_ra
             img_bytes = img_np.tobytes()
             hasher.update(img_bytes)
 
-    # Include all captions in hash
+    # Include all captions and model paths in hash
     captions_str = "|".join(captions)
-    params_str = f"musubi_zimage|{captions_str}|{training_steps}|{learning_rate}|{lora_rank}|{vram_mode}|{output_name}|{len(images)}"
+    params_str = f"musubi_zimage_base|{captions_str}|{training_steps}|{learning_rate}|{lora_rank}|{vram_mode}|{output_name}|{len(images)}|{dit_model}|{vae_model}|{text_encoder}"
     hasher.update(params_str.encode('utf-8'))
 
     return hasher.hexdigest()[:16]
@@ -161,9 +165,9 @@ _load_musubi_config()
 _load_musubi_cache()
 
 
-class MusubiZImageLoraTrainer:
+class MusubiZImageBaseLoraTrainer:
     """
-    Trains a Z-Image LoRA from one or more images using Musubi Tuner.
+    Trains a Z-Image Base (non-distilled) LoRA from one or more images using Musubi Tuner.
     """
 
     def __init__(self):
@@ -177,7 +181,7 @@ class MusubiZImageLoraTrainer:
         else:
             musubi_fallback = '~/musubi-tuner'
 
-        saved = _musubi_config.get('trainer_settings', {})
+        saved = _musubi_zimage_base_config.get('trainer_settings', {})
 
         # Get available models from ComfyUI folders
         diffusion_models = folder_paths.get_filename_list("diffusion_models")
@@ -191,7 +195,7 @@ class MusubiZImageLoraTrainer:
             clip_models = folder_paths.get_filename_list("clip")
         except:
             clip_models = []
-        text_encoder_list = sorted(set(text_encoders + clip_models))
+        text_encoder_list = sorted(set(text_encoders + clip_models)) if (text_encoders or clip_models) else ["(no text encoders found)"]
 
         # Get saved model selections (for default)
         saved_dit = saved.get('dit_model', '')
@@ -199,7 +203,7 @@ class MusubiZImageLoraTrainer:
         saved_te = saved.get('text_encoder', '')
 
         # Build dropdown configs with saved defaults if available
-        dit_config = {"tooltip": "Z-Image DiT model (transformer) from diffusion_models folder."}
+        dit_config = {"tooltip": "Z-Image Base DiT model (transformer) from diffusion_models folder."}
         if saved_dit and saved_dit in diffusion_models:
             dit_config["default"] = saved_dit
 
@@ -220,7 +224,7 @@ class MusubiZImageLoraTrainer:
                     "tooltip": "Optional: Path to folder containing training images. If provided, images from this folder are used instead of image inputs. Caption .txt files with matching names are used if present."
                 }),
                 "musubi_path": ("STRING", {
-                    "default": _musubi_config.get('musubi_path', musubi_fallback),
+                    "default": _musubi_zimage_base_config.get('musubi_path', musubi_fallback),
                     "tooltip": "Path to musubi-tuner installation."
                 }),
                 "dit_model": (diffusion_models, dit_config),
@@ -239,18 +243,18 @@ class MusubiZImageLoraTrainer:
                     "tooltip": "Number of training steps. 400 is a good starting point."
                 }),
                 "learning_rate": ("FLOAT", {
-                    "default": saved.get('learning_rate', 0.0002),
+                    "default": saved.get('learning_rate', 0.0001),
                     "min": 0.00001,
                     "max": 0.1,
                     "step": 0.00001,
-                    "tooltip": "Learning rate. 0.0002 is recommended for Z-Image training."
+                    "tooltip": "Learning rate. 0.0001 is recommended for Z-Image Base training."
                 }),
                 "lora_rank": ("INT", {
-                    "default": saved.get('lora_rank', 16),
+                    "default": saved.get('lora_rank', 32),
                     "min": 4,
                     "max": 128,
                     "step": 4,
-                    "tooltip": "LoRA rank/dimension. 16 is recommended for Z-Image."
+                    "tooltip": "LoRA rank/dimension. 32 is recommended for Z-Image Base."
                 }),
                 "vram_mode": (["Max (1256px)", "Max (1256px) fp8", "Max (1256px) fp8 offload", "Medium (1024px)", "Medium (1024px) fp8", "Medium (1024px) fp8 offload", "Low (768px)", "Min (512px)"], {
                     "default": saved.get('vram_mode', "Low (768px)"),
@@ -283,12 +287,12 @@ class MusubiZImageLoraTrainer:
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("lora_path",)
-    OUTPUT_TOOLTIPS = ("Path to the trained Z-Image LoRA file (ComfyUI format).",)
-    FUNCTION = "train_zimage_lora"
+    OUTPUT_TOOLTIPS = ("Path to the trained Z-Image Base LoRA file (ComfyUI format).",)
+    FUNCTION = "train_zimage_base_lora"
     CATEGORY = "loaders"
-    DESCRIPTION = "Trains a Z-Image LoRA from images using Musubi Tuner. Lighter alternative to AI-Toolkit."
+    DESCRIPTION = "Trains a Z-Image Base (non-distilled) LoRA from images using Musubi Tuner."
 
-    def train_zimage_lora(
+    def train_zimage_base_lora(
         self,
         inputcount,
         images_path,
@@ -307,7 +311,7 @@ class MusubiZImageLoraTrainer:
         image_1=None,
         **kwargs
     ):
-        global _musubi_lora_cache
+        global _musubi_zimage_base_lora_cache
 
         # Expand paths
         musubi_path = os.path.expanduser(musubi_path.strip())
@@ -346,11 +350,11 @@ class MusubiZImageLoraTrainer:
 
                 if folder_images:
                     use_folder_path = True
-                    print(f"[Musubi Z-Image] Using {len(folder_images)} images from folder: {images_path}")
+                    print(f"[Musubi Z-Image Base] Using {len(folder_images)} images from folder: {images_path}")
                 else:
-                    print(f"[Musubi Z-Image] No images found in folder: {images_path}, falling back to inputs")
+                    print(f"[Musubi Z-Image Base] No images found in folder: {images_path}, falling back to inputs")
             else:
-                print(f"[Musubi Z-Image] Invalid folder path: {images_path}, falling back to inputs")
+                print(f"[Musubi Z-Image Base] Invalid folder path: {images_path}, falling back to inputs")
 
         if not use_folder_path:
             # Collect all images and captions from inputs
@@ -373,26 +377,26 @@ class MusubiZImageLoraTrainer:
                 raise ValueError("No images provided. Either set images_path to a folder containing images, or connect at least one image input.")
 
         num_images = len(folder_images) if use_folder_path else len(all_images)
-        print(f"[Musubi Z-Image] Training with {num_images} image(s)")
-        print(f"[Musubi Z-Image] DiT: {dit_model}")
-        print(f"[Musubi Z-Image] VAE: {vae_model}")
-        print(f"[Musubi Z-Image] Text Encoder: {text_encoder}")
+        print(f"[Musubi Z-Image Base] Training with {num_images} image(s)")
+        print(f"[Musubi Z-Image Base] DiT: {dit_model}")
+        print(f"[Musubi Z-Image Base] VAE: {vae_model}")
+        print(f"[Musubi Z-Image Base] Text Encoder: {text_encoder}")
 
         # Get VRAM preset settings
-        preset = MUSUBI_ZIMAGE_VRAM_PRESETS.get(vram_mode, MUSUBI_ZIMAGE_VRAM_PRESETS["Low (768px)"])
-        print(f"[Musubi Z-Image] Using VRAM mode: {vram_mode}")
+        preset = MUSUBI_ZIMAGE_BASE_VRAM_PRESETS.get(vram_mode, MUSUBI_ZIMAGE_BASE_VRAM_PRESETS["Low (768px)"])
+        print(f"[Musubi Z-Image Base] Using VRAM mode: {vram_mode}")
 
         # Validate paths
         accelerate_path = _get_accelerate_path(musubi_path)
         train_script = os.path.join(musubi_path, "src", "musubi_tuner", "zimage_train_network.py")
-        convert_script = os.path.join(musubi_path, "src", "musubi_tuner", "networks", "convert_z_image_lora_to_comfy.py")
+        convert_script = os.path.join(musubi_path, "src", "musubi_tuner", "convert_lora.py")
 
         if not os.path.exists(accelerate_path):
             raise FileNotFoundError(f"Musubi Tuner accelerate not found at: {accelerate_path}")
         if not os.path.exists(train_script):
             raise FileNotFoundError(f"zimage_train_network.py not found at: {train_script}")
         if not os.path.exists(convert_script):
-            raise FileNotFoundError(f"convert_z_image_lora_to_comfy.py not found at: {convert_script}")
+            raise FileNotFoundError(f"convert_lora.py not found at: {convert_script}")
         if not dit_path or not os.path.exists(dit_path):
             raise FileNotFoundError(f"DiT model not found at: {dit_path}")
         if not vae_path or not os.path.exists(vae_path):
@@ -401,9 +405,9 @@ class MusubiZImageLoraTrainer:
             raise FileNotFoundError(f"Text encoder not found at: {text_encoder_path}")
 
         # Save settings
-        global _musubi_config
-        _musubi_config['musubi_path'] = musubi_path
-        _musubi_config['trainer_settings'] = {
+        global _musubi_zimage_base_config
+        _musubi_zimage_base_config['musubi_path'] = musubi_path
+        _musubi_zimage_base_config['trainer_settings'] = {
             'dit_model': dit_model,
             'vae_model': vae_model,
             'text_encoder': text_encoder,
@@ -420,23 +424,23 @@ class MusubiZImageLoraTrainer:
 
         # Compute hash for caching
         if use_folder_path:
-            image_hash = _compute_image_hash(folder_images, folder_captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, use_folder_path=True)
+            image_hash = _compute_image_hash(folder_images, folder_captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, dit_model, vae_model, text_encoder, use_folder_path=True)
         else:
-            image_hash = _compute_image_hash(all_images, all_captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, use_folder_path=False)
+            image_hash = _compute_image_hash(all_images, all_captions, training_steps, learning_rate, lora_rank, vram_mode, output_name, dit_model, vae_model, text_encoder, use_folder_path=False)
 
         # Check cache
-        if keep_lora and image_hash in _musubi_lora_cache:
-            cached_path = _musubi_lora_cache[image_hash]
+        if keep_lora and image_hash in _musubi_zimage_base_lora_cache:
+            cached_path = _musubi_zimage_base_lora_cache[image_hash]
             if os.path.exists(cached_path):
-                print(f"[Musubi Z-Image] Cache hit! Reusing: {cached_path}")
+                print(f"[Musubi Z-Image Base] Cache hit! Reusing: {cached_path}")
                 return (cached_path,)
             else:
-                del _musubi_lora_cache[image_hash]
+                del _musubi_zimage_base_lora_cache[image_hash]
                 _save_musubi_cache()
 
         # Generate run name with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        run_name = f"{output_name}_{timestamp}" if output_name else f"zimage_lora_{image_hash}"
+        run_name = f"{output_name}_{timestamp}" if output_name else f"zimage_base_lora_{image_hash}"
 
         # Output folder
         output_folder = os.path.join(musubi_path, "output")
@@ -452,12 +456,11 @@ class MusubiZImageLoraTrainer:
             run_name = f"{run_name}_{counter}"
             lora_output_path = os.path.join(output_folder, f"{run_name}.safetensors")
             lora_comfy_path = os.path.join(output_folder, f"{run_name}_comfy.safetensors")
-            print(f"[Musubi Z-Image] Name exists, using: {run_name}")
+            print(f"[Musubi Z-Image Base] Name exists, using: {run_name}")
 
         # Create temp directory for images
-        temp_dir = tempfile.mkdtemp(prefix="comfy_musubi_zimage_")
+        temp_dir = tempfile.mkdtemp(prefix="comfy_musubi_zimage_base_")
         image_folder = temp_dir  # Musubi uses image_directory directly
-        os.makedirs(image_folder, exist_ok=True)
 
         try:
             # Save images with captions
@@ -485,7 +488,7 @@ class MusubiZImageLoraTrainer:
                     with open(caption_path, 'w', encoding='utf-8') as f:
                         f.write(all_captions[idx])
 
-            print(f"[Musubi Z-Image] Saved {num_images} images to {image_folder}")
+            print(f"[Musubi Z-Image Base] Saved {num_images} images to {image_folder}")
 
             # Generate dataset config
             config_content = generate_dataset_config(
@@ -497,7 +500,7 @@ class MusubiZImageLoraTrainer:
 
             config_path = os.path.join(temp_dir, "dataset_config.toml")
             save_config(config_content, config_path)
-            print(f"[Musubi Z-Image] Dataset config saved to {config_path}")
+            print(f"[Musubi Z-Image Base] Dataset config saved to {config_path}")
 
             # Set up subprocess environment
             startupinfo = None
@@ -517,14 +520,14 @@ class MusubiZImageLoraTrainer:
                 python_path = _get_venv_python_path(musubi_path)
 
             # Pre-cache latents and text encoder outputs (REQUIRED for Musubi Z-Image training)
-            print(f"[Musubi Z-Image] Pre-caching latents and text encoder outputs...")
+            print(f"[Musubi Z-Image Base] Pre-caching latents and text encoder outputs...")
 
             # Cache latents
             cache_latents_script = os.path.join(musubi_path, "src", "musubi_tuner", "zimage_cache_latents.py")
             if not os.path.exists(cache_latents_script):
                 raise FileNotFoundError(f"zimage_cache_latents.py not found at: {cache_latents_script}")
 
-            print(f"[Musubi Z-Image] Caching VAE latents...")
+            print(f"[Musubi Z-Image Base] Caching VAE latents...")
             cache_latents_cmd = [
                 python_path,
                 cache_latents_script,
@@ -553,14 +556,14 @@ class MusubiZImageLoraTrainer:
             if cache_latents_process.returncode != 0:
                 raise RuntimeError(f"Latent caching failed with code {cache_latents_process.returncode}")
 
-            print(f"[Musubi Z-Image] VAE latents cached.")
+            print(f"[Musubi Z-Image Base] VAE latents cached.")
 
             # Cache text encoder outputs
             cache_te_script = os.path.join(musubi_path, "src", "musubi_tuner", "zimage_cache_text_encoder_outputs.py")
             if not os.path.exists(cache_te_script):
                 raise FileNotFoundError(f"zimage_cache_text_encoder_outputs.py not found at: {cache_te_script}")
 
-            print(f"[Musubi Z-Image] Caching text encoder outputs...")
+            print(f"[Musubi Z-Image Base] Caching text encoder outputs...")
             cache_te_cmd = [
                 python_path,
                 cache_te_script,
@@ -594,7 +597,7 @@ class MusubiZImageLoraTrainer:
             if cache_te_process.returncode != 0:
                 raise RuntimeError(f"Text encoder caching failed with code {cache_te_process.returncode}")
 
-            print(f"[Musubi Z-Image] Text encoder outputs cached.")
+            print(f"[Musubi Z-Image Base] Text encoder outputs cached.")
 
             # Build training command
             cmd = [
@@ -639,8 +642,8 @@ class MusubiZImageLoraTrainer:
             if preset.get('blocks_to_swap', 0) > 0:
                 cmd.append(f"--blocks_to_swap={preset['blocks_to_swap']}")
 
-            print(f"[Musubi Z-Image] Starting training: {run_name}")
-            print(f"[Musubi Z-Image] Images: {num_images}, Steps: {training_steps}, LR: {learning_rate}, Rank: {lora_rank}")
+            print(f"[Musubi Z-Image Base] Starting training: {run_name}")
+            print(f"[Musubi Z-Image Base] Images: {num_images}, Steps: {training_steps}, LR: {learning_rate}, Rank: {lora_rank}")
 
             # Run training
             process = subprocess.Popen(
@@ -666,7 +669,7 @@ class MusubiZImageLoraTrainer:
             if process.returncode != 0:
                 raise RuntimeError(f"Musubi Tuner training failed with code {process.returncode}")
 
-            print(f"[Musubi Z-Image] Training completed!")
+            print(f"[Musubi Z-Image Base] Training completed!")
 
             # Find the trained LoRA
             if not os.path.exists(lora_output_path):
@@ -677,16 +680,17 @@ class MusubiZImageLoraTrainer:
                 else:
                     raise FileNotFoundError(f"No LoRA file found in {output_folder}")
 
-            print(f"[Musubi Z-Image] Found trained LoRA: {lora_output_path}")
+            print(f"[Musubi Z-Image Base] Found trained LoRA: {lora_output_path}")
 
             # Convert LoRA to ComfyUI format
-            print(f"[Musubi Z-Image] Converting LoRA to ComfyUI format...")
+            print(f"[Musubi Z-Image Base] Converting LoRA to ComfyUI format...")
 
             convert_cmd = [
                 python_path,
                 convert_script,
-                lora_output_path,
-                lora_comfy_path,
+                "--input", lora_output_path,
+                "--output", lora_comfy_path,
+                "--target", "other",
             ]
 
             convert_process = subprocess.Popen(
@@ -714,15 +718,15 @@ class MusubiZImageLoraTrainer:
             if not os.path.exists(lora_comfy_path):
                 raise FileNotFoundError(f"Converted LoRA not found at: {lora_comfy_path}")
 
-            print(f"[Musubi Z-Image] Converted LoRA: {lora_comfy_path}")
+            print(f"[Musubi Z-Image Base] Converted LoRA: {lora_comfy_path}")
 
             # Handle caching - cache the ComfyUI format LoRA
             if keep_lora:
-                _musubi_lora_cache[image_hash] = lora_comfy_path
+                _musubi_zimage_base_lora_cache[image_hash] = lora_comfy_path
                 _save_musubi_cache()
-                print(f"[Musubi Z-Image] LoRA saved and cached at: {lora_comfy_path}")
+                print(f"[Musubi Z-Image Base] LoRA saved and cached at: {lora_comfy_path}")
             else:
-                print(f"[Musubi Z-Image] LoRA available at: {lora_comfy_path}")
+                print(f"[Musubi Z-Image Base] LoRA available at: {lora_comfy_path}")
 
             return (lora_comfy_path,)
 
@@ -731,4 +735,4 @@ class MusubiZImageLoraTrainer:
             try:
                 shutil.rmtree(temp_dir)
             except Exception as e:
-                print(f"[Musubi Z-Image] Warning: Could not clean up temp dir: {e}")
+                print(f"[Musubi Z-Image Base] Warning: Could not clean up temp dir: {e}")

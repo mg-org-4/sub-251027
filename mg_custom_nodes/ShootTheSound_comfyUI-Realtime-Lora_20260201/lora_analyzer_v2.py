@@ -392,6 +392,12 @@ def _detect_from_metadata(metadata: dict) -> str:
 
     # Check modelspec.architecture (newer LoRAs)
     arch = metadata.get('modelspec.architecture', '').lower()
+
+    # Check for FLUX Klein variants first (before generic FLUX)
+    if 'klein-4b' in arch or 'klein_4b' in arch:
+        return 'FLUX_KLEIN_4B'
+    if 'klein-9b' in arch or 'klein_9b' in arch:
+        return 'FLUX_KLEIN_9B'
     if 'flux' in arch:
         return 'FLUX'
     if 'sdxl' in arch:
@@ -401,6 +407,11 @@ def _detect_from_metadata(metadata: dict) -> str:
 
     # Check ss_base_model_version (Kohya format)
     base_model = metadata.get('ss_base_model_version', '').lower()
+    # Check Klein variants first
+    if 'flux_2_klein_4b' in base_model or 'flux-2-klein-4b' in base_model:
+        return 'FLUX_KLEIN_4B'
+    if 'flux_2_klein_9b' in base_model or 'flux-2-klein-9b' in base_model:
+        return 'FLUX_KLEIN_9B'
     if 'sdxl' in base_model:
         return 'SDXL'
     if 'sd_v1' in base_model or 'sd1' in base_model:
@@ -508,6 +519,8 @@ def _score_architecture(keys: list, num_keys: int, block_counts: dict) -> dict:
     scores = {
         'QWEN_IMAGE': 0,
         'FLUX': 0,
+        'FLUX_KLEIN_4B': 0,
+        'FLUX_KLEIN_9B': 0,
         'ZIMAGE': 0,
         'WAN': 0,
         'SDXL': 0,
@@ -545,6 +558,28 @@ def _score_architecture(keys: list, num_keys: int, block_counts: dict) -> dict:
         scores['FLUX'] += 20
     if block_counts['flux_single'] >= 30:
         scores['FLUX'] += 15
+
+    # === FLUX KLEIN 4B scoring ===
+    # Klein 4B has exactly 5 double blocks (0-4) and 20 single blocks (0-19)
+    if block_counts['flux_double'] == 5 and block_counts['flux_single'] == 20:
+        scores['FLUX_KLEIN_4B'] += 80
+    elif 4 <= block_counts['flux_double'] <= 6 and 18 <= block_counts['flux_single'] <= 22:
+        scores['FLUX_KLEIN_4B'] += 40
+    # Klein uses same key patterns as FLUX, so give base score if FLUX patterns present
+    if any('double_blocks' in k or 'single_blocks' in k for k in keys_lower):
+        if block_counts['flux_double'] <= 6:  # Can't be standard FLUX with so few double blocks
+            scores['FLUX_KLEIN_4B'] += 10
+
+    # === FLUX KLEIN 9B scoring ===
+    # Klein 9B has exactly 8 double blocks (0-7) and 24 single blocks (0-23)
+    if block_counts['flux_double'] == 8 and block_counts['flux_single'] == 24:
+        scores['FLUX_KLEIN_9B'] += 80
+    elif 7 <= block_counts['flux_double'] <= 9 and 22 <= block_counts['flux_single'] <= 26:
+        scores['FLUX_KLEIN_9B'] += 40
+    # Klein uses same key patterns as FLUX, so give base score if FLUX patterns present
+    if any('double_blocks' in k or 'single_blocks' in k for k in keys_lower):
+        if 6 < block_counts['flux_double'] <= 10:  # In range for Klein 9B but not standard FLUX
+            scores['FLUX_KLEIN_9B'] += 10
 
     # === Z-IMAGE scoring ===
     # ComfyUI/AI-Toolkit format
@@ -708,8 +743,11 @@ def _extract_block_id_v2(key: str, architecture: str) -> str:
         match = re.search(r'blocks[._](\d+)', key)
         return f"block_{match.group(1)}" if match else 'other'
 
-    elif architecture == 'FLUX':
+    elif architecture in ('FLUX', 'FLUX_KLEIN_4B', 'FLUX_KLEIN_9B'):
+        # FLUX and Klein variants use the same key patterns
         # FLUX has double blocks (19) and single blocks (38)
+        # Klein 4B has double blocks (5) and single blocks (20)
+        # Klein 9B has double blocks (8) and single blocks (24)
         # Different trainers use different naming:
         #   - Standard: double_blocks.N, single_blocks.N
         #   - AI-Toolkit: transformer.transformer_blocks.N (double), transformer.single_transformer_blocks.N (single)
@@ -737,7 +775,7 @@ def _extract_block_id_v2(key: str, architecture: str) -> str:
         if double:
             return f"double_{double.group(1)}"
 
-        return 'other'
+        return 'other_weights'
 
     elif architecture in ['SDXL', 'SD15']:
         te = re.search(r'lora_te(\d?)_', key_lower)
@@ -1137,6 +1175,64 @@ Supports strength scheduling format: 0:.2,.5:.8,1:1.0""",
                                                  if b not in ["double_7", "double_12", "double_16", "single_7", "single_12", "single_16", "single_20"]], "strength": 1.0},
             "Evens Only": {"enabled": [f"double_{i}" for i in range(0, 19, 2)] + [f"single_{i}" for i in range(0, 38, 2)], "strength": 1.0},
             "Odds Only": {"enabled": [f"double_{i}" for i in range(1, 19, 2)] + [f"single_{i}" for i in range(1, 38, 2)], "strength": 1.0},
+            "Custom": None,
+        },
+    },
+    "FLUX_KLEIN_4B": {
+        "node_id": "FluxKlein4BAnalyzerSelectiveLoaderV2",
+        "display_name": "FLUX Klein 4B Analyzer + Selective Loader V2",
+        "description": """Combined analyzer and selective loader for FLUX Klein 4B LoRAs.
+Analyzes block impact and allows per-block control with strength shaping.
+
+Block Guide (25 total):
+- double_0-4: Double transformer blocks (5 blocks, higher impact)
+- single_0-19: Single transformer blocks (20 blocks, lower impact)
+
+Supports strength scheduling format: 0:.2,.5:.8,1:1.0""",
+        "architecture": "FLUX_KLEIN_4B",
+        "blocks": [f"double_{i}" for i in range(5)] + [f"single_{i}" for i in range(20)] + ["other_weights"],
+        "block_labels": ({f"double_{i}": f"Double {i}" for i in range(5)} |
+                        {f"single_{i}": f"Single {i}" for i in range(20)} |
+                        {"other_weights": "Other Weights"}),
+        "presets": {
+            "Default": {"enabled": "ALL", "strength": 1.0},
+            "All Off": {"enabled": [], "strength": 0.0},
+            "Half Strength": {"enabled": "ALL", "strength": 0.5},
+            "Double Only": {"enabled": [f"double_{i}" for i in range(5)] + ["other_weights"], "strength": 1.0},
+            "Single Only": {"enabled": [f"single_{i}" for i in range(20)] + ["other_weights"], "strength": 1.0},
+            "High Impact (Double 2-4)": {"enabled": [f"double_{i}" for i in range(2, 5)], "strength": 1.0},
+            "Late Singles (10-19)": {"enabled": [f"single_{i}" for i in range(10, 20)], "strength": 1.0},
+            "Evens Only": {"enabled": [f"double_{i}" for i in range(0, 5, 2)] + [f"single_{i}" for i in range(0, 20, 2)], "strength": 1.0},
+            "Odds Only": {"enabled": [f"double_{i}" for i in range(1, 5, 2)] + [f"single_{i}" for i in range(1, 20, 2)], "strength": 1.0},
+            "Custom": None,
+        },
+    },
+    "FLUX_KLEIN_9B": {
+        "node_id": "FluxKlein9BAnalyzerSelectiveLoaderV2",
+        "display_name": "FLUX Klein 9B Analyzer + Selective Loader V2",
+        "description": """Combined analyzer and selective loader for FLUX Klein 9B LoRAs.
+Analyzes block impact and allows per-block control with strength shaping.
+
+Block Guide (32 total):
+- double_0-7: Double transformer blocks (8 blocks, higher impact)
+- single_0-23: Single transformer blocks (24 blocks, lower impact)
+
+Supports strength scheduling format: 0:.2,.5:.8,1:1.0""",
+        "architecture": "FLUX_KLEIN_9B",
+        "blocks": [f"double_{i}" for i in range(8)] + [f"single_{i}" for i in range(24)] + ["other_weights"],
+        "block_labels": ({f"double_{i}": f"Double {i}" for i in range(8)} |
+                        {f"single_{i}": f"Single {i}" for i in range(24)} |
+                        {"other_weights": "Other Weights"}),
+        "presets": {
+            "Default": {"enabled": "ALL", "strength": 1.0},
+            "All Off": {"enabled": [], "strength": 0.0},
+            "Half Strength": {"enabled": "ALL", "strength": 0.5},
+            "Double Only": {"enabled": [f"double_{i}" for i in range(8)] + ["other_weights"], "strength": 1.0},
+            "Single Only": {"enabled": [f"single_{i}" for i in range(24)] + ["other_weights"], "strength": 1.0},
+            "High Impact (Double 4-7)": {"enabled": [f"double_{i}" for i in range(4, 8)], "strength": 1.0},
+            "Late Singles (12-23)": {"enabled": [f"single_{i}" for i in range(12, 24)], "strength": 1.0},
+            "Evens Only": {"enabled": [f"double_{i}" for i in range(0, 8, 2)] + [f"single_{i}" for i in range(0, 24, 2)], "strength": 1.0},
+            "Odds Only": {"enabled": [f"double_{i}" for i in range(1, 8, 2)] + [f"single_{i}" for i in range(1, 24, 2)], "strength": 1.0},
             "Custom": None,
         },
     },

@@ -5,7 +5,7 @@ app.registerExtension({
     name: "RealtimeLoraTrainer.DynamicInputs",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         // Apply to trainer nodes only
-        if (!["RealtimeLoraTrainer", "SDXLLoraTrainer", "SD15LoraTrainer", "MusubiZImageLoraTrainer", "MusubiQwenImageLoraTrainer", "MusubiWanLoraTrainer"].includes(nodeData.name)) {
+        if (!["RealtimeLoraTrainer", "SDXLLoraTrainer", "SD15LoraTrainer", "MusubiZImageLoraTrainer", "MusubiZImageBaseLoraTrainer", "MusubiFluxKleinLoraTrainer", "MusubiQwenImageLoraTrainer", "MusubiWanLoraTrainer"].includes(nodeData.name)) {
             return;
         }
 
@@ -399,6 +399,44 @@ const SELECTIVE_LOADER_PRESETS = {
             "Odds Only": { enabled: Array.from({length: 30}, (_, i) => `block_${i * 2 + 1}`), strength: 1.0 },
         }
     },
+    // FLUX Klein 4B (5 double + 20 single blocks)
+    "FluxKlein4BAnalyzerSelectiveLoaderV2": {
+        blocks: [
+            ...Array.from({length: 5}, (_, i) => `double_${i}`),
+            ...Array.from({length: 20}, (_, i) => `single_${i}`),
+            "other_weights"
+        ],
+        presets: {
+            "Default": { enabled: "ALL", strength: 1.0 },
+            "All Off": { enabled: [], strength: 0.0 },
+            "Half Strength": { enabled: "ALL", strength: 0.5 },
+            "Double Only": { enabled: [...Array.from({length: 5}, (_, i) => `double_${i}`), "other_weights"], strength: 1.0 },
+            "Single Only": { enabled: [...Array.from({length: 20}, (_, i) => `single_${i}`), "other_weights"], strength: 1.0 },
+            "High Impact (Double 2-4)": { enabled: Array.from({length: 3}, (_, i) => `double_${i + 2}`), strength: 1.0 },
+            "Late Singles (10-19)": { enabled: Array.from({length: 10}, (_, i) => `single_${i + 10}`), strength: 1.0 },
+            "Evens Only": { enabled: [...Array.from({length: 3}, (_, i) => `double_${i * 2}`), ...Array.from({length: 10}, (_, i) => `single_${i * 2}`)], strength: 1.0 },
+            "Odds Only": { enabled: [...Array.from({length: 2}, (_, i) => `double_${i * 2 + 1}`), ...Array.from({length: 10}, (_, i) => `single_${i * 2 + 1}`)], strength: 1.0 },
+        }
+    },
+    // FLUX Klein 9B (8 double + 24 single blocks)
+    "FluxKlein9BAnalyzerSelectiveLoaderV2": {
+        blocks: [
+            ...Array.from({length: 8}, (_, i) => `double_${i}`),
+            ...Array.from({length: 24}, (_, i) => `single_${i}`),
+            "other_weights"
+        ],
+        presets: {
+            "Default": { enabled: "ALL", strength: 1.0 },
+            "All Off": { enabled: [], strength: 0.0 },
+            "Half Strength": { enabled: "ALL", strength: 0.5 },
+            "Double Only": { enabled: [...Array.from({length: 8}, (_, i) => `double_${i}`), "other_weights"], strength: 1.0 },
+            "Single Only": { enabled: [...Array.from({length: 24}, (_, i) => `single_${i}`), "other_weights"], strength: 1.0 },
+            "High Impact (Double 4-7)": { enabled: Array.from({length: 4}, (_, i) => `double_${i + 4}`), strength: 1.0 },
+            "Late Singles (12-23)": { enabled: Array.from({length: 12}, (_, i) => `single_${i + 12}`), strength: 1.0 },
+            "Evens Only": { enabled: [...Array.from({length: 4}, (_, i) => `double_${i * 2}`), ...Array.from({length: 12}, (_, i) => `single_${i * 2}`)], strength: 1.0 },
+            "Odds Only": { enabled: [...Array.from({length: 4}, (_, i) => `double_${i * 2 + 1}`), ...Array.from({length: 12}, (_, i) => `single_${i * 2 + 1}`)], strength: 1.0 },
+        }
+    },
     // Model Layer Editor nodes (base model per-block control)
     "SDXLModelLayerEditor": {
         blocks: [...Array.from({length: 12}, (_, i) => `input_${i}`), "mid", ...Array.from({length: 12}, (_, i) => `output_${i}`), "other"],
@@ -484,6 +522,8 @@ app.registerExtension({
             "FLUXAnalyzerSelectiveLoaderV2",
             "WanAnalyzerSelectiveLoaderV2",
             "QwenAnalyzerSelectiveLoaderV2",
+            "FluxKlein4BAnalyzerSelectiveLoaderV2",
+            "FluxKlein9BAnalyzerSelectiveLoaderV2",
             // Model Layer Editor nodes (base model per-block control)
             "SDXLModelLayerEditor",
             "SD15ModelLayerEditor",

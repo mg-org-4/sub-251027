@@ -138,8 +138,12 @@ class LLMConfig(BaseModel):
     model: str
     max_token: int
     temperature: float
+
+
+class NanoBananaConfig(LLMConfig):
     modalities: str = "image+text"
     aspect_ratio: str = "auto"
+    resolution: str = "1K"
 
 
 class LLMMessageRole(str, Enum):
@@ -346,30 +350,38 @@ class GeminiApi(BaseModel):
 
         system_message = [m for m in messages if m.role == "system"]
         user_messages = [m for m in messages if m.role != "system"]
+
+        if not user_messages:
+            return (
+                "Gemini API error: At least one user message is required. System messages alone are not sufficient.",
+                None,
+            )
+
         formated_messages = [m.to_gemini_message() for m in user_messages]
 
         url = f"{self.endpoint}/models/{config.model}:generateContent"
         headers = {"x-goog-api-key": self.api_key}
-
-        modalities = (config.modalities or "text+image").split("+")
-        responseModalities = [modality.strip().capitalize() for modality in modalities]
-        aspectRatio = config.aspect_ratio if (config.aspect_ratio and config.aspect_ratio != "auto") else None
 
         data = {
             "contents": formated_messages,
             "generationConfig": {
                 "maxOutputTokens": config.max_token,
                 "temperature": config.temperature,
-                "responseModalities": responseModalities,
-                "imageConfig": (
-                    {
-                        "aspectRatio": aspectRatio,
-                    }
-                    if aspectRatio
-                    else None
-                ),
             },
         }
+
+        if isinstance(config, NanoBananaConfig):
+            modalities = (config.modalities or "text+image").split("+")
+            responseModalities = [modality.strip().capitalize() for modality in modalities]
+            aspectRatio = config.aspect_ratio if (config.aspect_ratio and config.aspect_ratio != "auto") else None
+
+            data["generationConfig"]["responseModalities"] = responseModalities
+            data["generationConfig"]["imageConfig"] = {
+                "aspectRatio": aspectRatio,
+            }
+
+            if config.model == "gemini-3-pro-image-preview":
+                data["generationConfig"]["imageConfig"]["imageSize"] = config.resolution
 
         # Add system instruction if provided
         if len(system_message) > 0:
@@ -722,12 +734,17 @@ class NanoBananaApiConfigNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "model": (
+                    ["gemini-2.5-flash-image", "gemini-3-pro-image-preview"],
+                    {"default": "gemini-2.5-flash-image"},
+                ),
                 "temperature": ("FLOAT", {"default": 0.5, "min": 0, "max": 1.0, "step": 0.001}),
                 "modalities": (["image+text", "image", "text"], {"default": "image+text"}),
                 "aspect_ratio": (
                     ["auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
                     {"default": "auto"},
                 ),
+                "resolution": (["1K", "2K", "4K"], {"default": "1K"}),
             },
             "optional": {},
         }
@@ -737,14 +754,15 @@ class NanoBananaApiConfigNode:
     FUNCTION = "make_config"
     CATEGORY = "ArtVenture/LLM"
 
-    def make_config(self, temperature, modalities="image+text", aspect_ratio="auto"):
+    def make_config(self, model, temperature, modalities="image+text", aspect_ratio="auto", resolution="1K"):
         return (
-            LLMConfig(
-                model="gemini-2.5-flash-image",
+            NanoBananaConfig(
+                model=model,
                 max_token=8192,
                 temperature=temperature,
                 modalities=modalities,
                 aspect_ratio=aspect_ratio,
+                resolution=resolution,
             ),
         )
 

@@ -17,15 +17,36 @@
 | **Musubi Tuner** | Z-Image, Z-Image Base, FLUX Klein 4B/9B, Qwen Image, Qwen Image Edit, Wan 2.2 | Cutting-edge models, smaller LoRAs, excellent VRAM efficiency |
 | **AI-Toolkit** | FLUX.1-dev, Z-Image, Wan 2.2 alternative training pipeline |
 
-**8 architectures. 3 training backends. 33 nodes total.**
+**8 architectures. 3 training backends. 34 nodes total. **
 
 - 10 trainer nodes
 - 13 selective loaders (5 V1 + 8 V2 combined)
 - 2 analyzers (V1 + V2)
 - 6 model layer editors
-- 3 utility nodes
+- 4 utility nodes
 
 ## What's New
+
+### Model Diff to LoRA (LoRA Extraction & Merging)
+
+Extract the combined effect of multiple LoRAs into a single distributable file:
+
+- **LoRA Merging** - Chain multiple LoRAs through V2 Analyzers, then extract the combined effect into one file
+- **LoRA Compression** - Re-extract a LoRA at a lower rank to reduce file size while preserving most of the effect
+- **Selective Baking** - Use V2 Analyzers to disable certain layers, then extract only the effects you want
+
+**Features:**
+- Works with all architectures (FLUX, FLUX Klein, Z-Image, SDXL, SD 1.5, Wan, Qwen)
+- Configurable output rank (4-256) - higher = more accurate, larger file
+- GPU-accelerated SVD decomposition for fast extraction
+- Progress bar in ComfyUI UI and console
+- Auto-disables after successful save to prevent accidental re-runs
+- Remembers save path and filename between sessions
+
+**How it works:**
+1. Connect your base model (before LoRAs) to `model_before`
+2. Connect your modified model (after LoRA chain) to `model_after`
+3. The node calculates the difference and saves it as a new LoRA file
 
 ### FLUX Klein 4B/9B Training & Editing
 
@@ -74,6 +95,7 @@ Scale individual blocks of your **base model** before applying LoRAs:
 
 | Node | Description |
 |------|-------------|
+| **Model Diff to LoRA** | Extract combined LoRA effects into a single file - merge, compress, or selectively bake LoRAs |
 | **Clippy Reloaded** | Load images directly from clipboard - copy from browser/screenshot/editor, queue, done |
 | **Image of the Day** | 8 sources (Bing, NASA, Unsplash, Pexels, Wikimedia, Lorem Picsum, Random Dog/Cat) with API key persistence |
 | **Scheduled LoRA Loader** | Standalone strength scheduling for any LoRA |
@@ -242,6 +264,7 @@ Scale individual blocks of your base model before LoRA application:
 
 **Utility Nodes:**
 
+- **Model Diff to LoRA** - Extract combined LoRA effects into a single file (merge, compress, or selectively bake)
 - **Clippy Reloaded (Load Image from Clipboard)** - Paste images directly into ComfyUI
 - **Image of the Day** - Random inspiration images from Unsplash, Pexels, or NASA APOD
 - **LoRA Loader (Scheduled)** - Standalone strength scheduling for any LoRA
@@ -291,6 +314,7 @@ Workflows are included in the `workflows/` folder, organized by category.
 - `Lora Analysis and Block Control Demo- ADVANCED - Z-Image.json` - V2 with strength scheduling
 - `Scheduled Lora Loader Demo - zimage.json` - Standalone strength scheduling
 - `Model Layer Editor - Zimage.json` - Base model editing demo
+- `Save Lora from Multiple Editors Demo.json` - LoRA extraction, merging, and compression
 
 **Utility Workflows** (root `workflows/` folder):
 - `Clippy Reloaded - image from clipboard - zimage.json` - Clipboard loading demo
@@ -378,7 +402,41 @@ The V2 nodes support strength scheduling - varying LoRA strength during generati
 
 - **Trainer → Selective Loader**: The `lora_path` output from any trainer node is compatible with the Selective Loader's path input. Train a LoRA and immediately load it with per-block control - useful for testing which blocks matter for your freshly trained subject.
 
+- **Save combined LoRAs with Model Diff to LoRA**: Chain multiple V2 Analyzers (or mix with standard LoRA loaders), fine-tune each one's blocks and strengths, then use the **Model Diff to LoRA** node to extract the combined effect into a single distributable LoRA file. Connect your base model to `model_before` and the final model (after your LoRA chain) to `model_after`. This is perfect for creating merged LoRAs, compressing existing LoRAs to smaller file sizes, or baking selective block configurations into a standalone file. See `Save Lora from Multiple Editors Demo.json` for an example workflow.
+
 ## Utility Nodes
+
+### Model Diff to LoRA
+
+Extract the combined effect of multiple LoRAs into a single distributable LoRA file.
+
+**How to connect the inputs:**
+- **model_before**: Connect your original base model here (before any LoRAs are applied). This is your "clean" reference point.
+- **model_after**: Connect the model output from the end of your LoRA chain here (after all analysers/selective loaders). This is your "modified" model with all the LoRA effects you want to capture.
+
+The node calculates the difference between these two models and saves it as a new LoRA file using SVD decomposition.
+
+**Choosing the right rank:**
+- **Rank 64 (default)**: Good balance of quality and file size for most use cases.
+- **Rank 128-256**: Use when combining multiple complex LoRAs or when quality is critical. Larger file size.
+- **Rank 16-32**: Use for compression or when you only need the broad strokes of the effect. Smaller file size.
+
+**Use cases:**
+- **LoRA Merging** - Chain multiple LoRAs through V2 Analyzers and extract their combined effect into one file
+- **LoRA Compression** - Load a single high-rank LoRA and extract at a lower rank to create a smaller file
+- **Selective Baking** - Use V2 Analyzers to disable certain layers before extraction, creating a LoRA with only the effects you want
+
+**Features:**
+- Works with all architectures (FLUX, FLUX Klein 4B/9B, Z-Image, SDXL, SD 1.5, Wan, Qwen)
+- GPU-accelerated SVD for fast extraction
+- Progress bar in ComfyUI UI and console
+- Auto-disables after successful save to prevent accidental re-runs
+- Remembers save path and filename between sessions
+- Timestamp appended to filenames to prevent overwrites
+
+It can take several minutes to save - this is normal as complex math (SVD decomposition) is happening.
+
+See `workflows/Lora Analysis, Block and Model Editing/Save Lora from Multiple Editors Demo.json` for an example.
 
 ### Clippy Reloaded (Load Image from Clipboard)
 

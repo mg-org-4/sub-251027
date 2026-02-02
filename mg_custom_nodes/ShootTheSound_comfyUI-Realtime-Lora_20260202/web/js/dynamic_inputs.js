@@ -1396,6 +1396,36 @@ app.registerExtension({
     }
 });
 
+// Extension for Model Diff to LoRA - auto-disable after successful extraction
+app.registerExtension({
+    name: "ModelDiffToLoRA.AutoDisable",
+
+    async beforeRegisterNodeDef(nodeType, nodeData, app) {
+        if (nodeData.name !== "ModelDiffToLoRA") {
+            return;
+        }
+
+        // Hook onExecuted to auto-disable the toggle after successful extraction
+        const origOnExecuted = nodeType.prototype.onExecuted;
+        nodeType.prototype.onExecuted = function(output) {
+            if (origOnExecuted) {
+                origOnExecuted.apply(this, arguments);
+            }
+
+            // Check if we should auto-disable
+            if (output && output.auto_disable && output.auto_disable[0] === true) {
+                // Find the enabled toggle widget and set it to false
+                const enabledWidget = this.widgets?.find(w => w.name === "enabled");
+                if (enabledWidget) {
+                    enabledWidget.value = false;
+                    this.setDirtyCanvas(true);
+                    console.log("[Model Diff to LoRA] Auto-disabled after successful extraction");
+                }
+            }
+        };
+    }
+});
+
 // Extension for Image of the Day - persist API keys per source
 app.registerExtension({
     name: "ImageOfDay.ApiKeyPersistence",

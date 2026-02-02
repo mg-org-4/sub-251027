@@ -13,6 +13,10 @@ __pycache__/
 .v2_save_paths.json
 .image_of_day_config.json
 .model_layer_*.json
+.model_diff_save_path.json
+
+# Claude Code
+.claude/
 
 # IDE
 .vscode/

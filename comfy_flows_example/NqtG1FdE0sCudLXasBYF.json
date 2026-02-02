@@ -1,0 +1,921 @@
+{
+  "last_link_id": 63,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "translation",
+          "links": [
+            40,
+            47
+          ],
+          "label": "translation",
+          "type": "STRING",
+          "localized_name": "translation"
+        }
+      ],
+      "size": [
+        385.12969970703125,
+        179.8690185546875
+      ],
+      "pos": [
+        -826.9884643554688,
+        -380.8595886230469
+      ],
+      "widgets_values": [
+        "",
+        1877,
+        "randomize",
+        "force_english"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "link": 39,
+          "label": "prompt",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 36,
+      "type": "RH_Translator",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Translator"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "links": [],
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        219.8831329345703,
+        171.9650115966797
+      ],
+      "pos": [
+        -419.6566162109375,
+        -844.9799194335938
+      ],
+      "widgets_values": [
+        "slurp, slurp, soft munch, tiny licks, nibble, slurp"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 37,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 33,
+      "type": "easy showAnything",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 10
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "describe",
+          "links": [
+            37,
+            46
+          ],
+          "label": "describe",
+          "type": "STRING",
+          "localized_name": "describe"
+        }
+      ],
+      "size": [
+        399.0877380371094,
+        364.35089111328125
+      ],
+      "pos": [
+        -844.1475830078125,
+        -849.5413208007812
+      ],
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "You are such a great helper. ",
+        "Describe the sound based on this picture and the text format below. The words describing the sound are used as the title. Only the format is referred to, not the text content. The full text should not exceed 10 words. The text format reference is: the gentle sucking sound of a pacifier. Do not use punctuation marks other than commas and periods.",
+        0.6,
+        1583,
+        "fixed"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "ref_image",
+          "link": 63,
+          "label": "ref_image",
+          "type": "IMAGE",
+          "localized_name": "ref_image"
+        }
+      ],
+      "flags": {},
+      "id": 30,
+      "type": "RH_LLMAPI_NODE",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_LLMAPI_NODE"
+      },
+      "order": 8
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "text",
+          "links": [],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "size": [
+        538.8975219726562,
+        383.9240417480469
+      ],
+      "pos": [
+        -366.2262878417969,
+        294.22357177734375
+      ],
+      "widgets_values": [
+        "In a cozy, calm environment, a small kitten carefully nibbles on a delicate dish of fresh sashimi, with a rich orange egg yolk resting beside it. The soft pink and red slices of fish glisten as the kitten savors each bite. The gentle movement of its little paws and the tender chewing sounds create a peaceful atmosphere. A warm, calming melody accompanies this serene moment, giving it a comforting and soothing feel."
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 31,
+          "label": "text",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 25,
+      "type": "JjkShowText",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "JjkShowText"
+      },
+      "order": 9
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "describe",
+          "links": [
+            31,
+            60
+          ],
+          "label": "describe",
+          "type": "STRING",
+          "localized_name": "describe"
+        }
+      ],
+      "size": [
+        403.0104675292969,
+        515.6983032226562
+      ],
+      "pos": [
+        -881.6207885742188,
+        306.6841125488281
+      ],
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "You are such a great helper. ",
+        "Generate a new text description based on this image and describe the picture in the following text format. It can be accompanied by light music. Do not use noisy sounds. Please only refer to the format, not the content. The entire paragraph should not exceed 100 words. Do not use any punctuation marks other than commas and periods. Text format reference: First, create a soft and stable background sound, such as the sound of gently sucking on a pacifier. Add a subtle breathing rhythm to imitate the gentle mouth movements of a newborn. Keep your voice smooth, natural and soothing.",
+        0.6,
+        1178,
+        "fixed"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "ref_image",
+          "link": 50,
+          "label": "ref_image",
+          "type": "IMAGE",
+          "localized_name": "ref_image"
+        }
+      ],
+      "flags": {},
+      "id": 24,
+      "type": "RH_LLMAPI_NODE",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_LLMAPI_NODE"
+      },
+      "order": 7
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "links": [],
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        219.8831329345703,
+        171.9650115966797
+      ],
+      "pos": [
+        -416.9886169433594,
+        -380.8595886230469
+      ],
+      "widgets_values": [
+        "The kitten eats raw meat."
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "anything",
+          "link": 40,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 37,
+      "type": "easy showAnything",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy showAnything"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        210,
+        246
+      ],
+      "pos": [
+        -897.6248779296875,
+        -71.72712707519531
+      ],
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 49,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "flags": {},
+      "id": 41,
+      "type": "PreviewImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewImage"
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            49,
+            50,
+            63
+          ],
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "图像"
+        }
+      ],
+      "size": [
+        279.33807373046875,
+        97.75756072998047
+      ],
+      "pos": [
+        -1259.1163330078125,
+        -65.64945983886719
+      ],
+      "widgets_values": [
+        0,
+        1
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 53,
+          "label": "图像",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "flags": {},
+      "id": 40,
+      "type": "ImageFromBatch+",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImageFromBatch+"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            53
+          ],
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "name": "audio",
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "fps",
+          "links": [],
+          "label": "fps",
+          "type": "FLOAT",
+          "localized_name": "fps"
+        }
+      ],
+      "size": [
+        252,
+        66
+      ],
+      "pos": [
+        -1532.3310546875,
+        -50.47451400756836
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 14,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "flags": {},
+      "id": 11,
+      "type": "GetVideoComponents",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            59
+          ],
+          "label": "STRING",
+          "type": "STRING",
+          "localized_name": "selected_value"
+        },
+        {
+          "name": "selected_label",
+          "label": "标签",
+          "type": "STRING",
+          "localized_name": "selected_label"
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "localized_name": "selected_index"
+        }
+      ],
+      "size": [
+        315,
+        122
+      ],
+      "pos": [
+        -105.70836639404297,
+        -519.1678466796875
+      ],
+      "widgets_values": [
+        1,
+        false
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "input1",
+          "link": 46,
+          "label": "输入1",
+          "type": "STRING",
+          "localized_name": "input1"
+        },
+        {
+          "name": "input2",
+          "link": 47,
+          "label": "输入2",
+          "type": "STRING"
+        },
+        {
+          "name": "input3",
+          "label": "输入3",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "id": 38,
+      "type": "ImpactSwitch",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "order": 11
+    },
+    {
+      "outputs": [
+        {
+          "name": "video",
+          "links": [
+            61
+          ],
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "color": "#432",
+      "widgets_values": [
+        "Gentle Sucking Sounds From the Pacifier",
+        "Begin by creating a soft, steady background of light pacifier suckling. Add subtle, breathy rhythms to mimic a newborn's gentle mouth movements. Keep the sound smooth, natural, and soothing.",
+        681163364440414,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 55,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        },
+        {
+          "widget": {
+            "name": "title"
+          },
+          "name": "title",
+          "link": 59,
+          "label": "title",
+          "type": "STRING"
+        },
+        {
+          "widget": {
+            "name": "description"
+          },
+          "name": "description",
+          "link": 60,
+          "label": "description",
+          "type": "STRING"
+        }
+      ],
+      "flags": {},
+      "type": "RunningHub ThinkSound",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        250.90953063964844,
+        -303.36248779296875
+      ],
+      "id": 46,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RunningHub ThinkSound"
+      },
+      "order": 12
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "output",
+          "links": [
+            62
+          ],
+          "type": "*",
+          "localized_name": "output"
+        }
+      ],
+      "size": [
+        210,
+        26
+      ],
+      "pos": [
+        692.3201904296875,
+        -278.13824462890625
+      ],
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "anything",
+          "link": 61,
+          "label": "输入任何",
+          "type": "*",
+          "localized_name": "anything"
+        }
+      ],
+      "flags": {},
+      "id": 49,
+      "type": "easy cleanGpuUsed",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "easy cleanGpuUsed"
+      },
+      "order": 13
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        617.3023071289062,
+        921.0697631835938
+      ],
+      "pos": [
+        -2764.9013671875,
+        19.720516204833984
+      ],
+      "widgets_values": [
+        "video/ComfyUI",
+        "auto",
+        "auto",
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 62,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "flags": {},
+      "id": 48,
+      "type": "SaveVideo",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveVideo"
+      },
+      "order": 14
+    },
+    {
+      "outputs": [
+        {
+          "name": "STRING",
+          "links": [
+            39
+          ],
+          "label": "字符串",
+          "type": "STRING",
+          "localized_name": "字符串"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        "小猫吃生肉"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Text Multiline",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        369.5906677246094,
+        146.0233917236328
+      ],
+      "pos": [
+        -1270.2232666015625,
+        -363.8473205566406
+      ],
+      "id": 35,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "Text Multiline"
+      },
+      "order": 0
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "links": [
+            10,
+            14,
+            55
+          ],
+          "label": "VIDEO",
+          "type": "VIDEO",
+          "localized_name": "VIDEO"
+        }
+      ],
+      "size": [
+        469.9364929199219,
+        910.007568359375
+      ],
+      "pos": [
+        -2119.592529296875,
+        25.03431510925293
+      ],
+      "widgets_values": [
+        "db5ecd7c450c96192b1d44a2b796576376ceeb657c1601e3bd8ca0b98e7422bb.mp4",
+        "image",
+        ""
+      ],
+      "inputs": [],
+      "flags": {},
+      "id": 3,
+      "type": "LoadVideo",
+      "properties": {
+        "Node name for S&R": "LoadVideo"
+      },
+      "order": 1
+    }
+  ],
+  "extra": {
+    "VHS_KeepIntermediate": true,
+    "links_added_by_ue": [],
+    "VHS_MetadataImage": true,
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "VHS_latentpreviewrate": 0,
+    "VHS_latentpreview": false,
+    "ds": {
+      "offset": [
+        1555.6857891590896,
+        758.7868736699738
+      ],
+      "scale": 0.9646149645000016
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 1,
+      "title": "自动反推画面声音的标题",
+      "bounding": [
+        -854.1475830078125,
+        -923.1409301757812,
+        664.3744506835938,
+        447.9508972167969
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 2,
+      "title": "手动填写画面声音的标题",
+      "bounding": [
+        -1336.988525390625,
+        -454.45947265625,
+        1149.883056640625,
+        263.4690246582031
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 3,
+      "title": "画面声音的描述",
+      "bounding": [
+        -891.6207275390625,
+        220.6236572265625,
+        1074.292724609375,
+        611.7587890625
+      ]
+    },
+    {
+      "color": "#fd3030",
+      "font_size": 100,
+      "flags": {},
+      "id": 4,
+      "title": "加载视频",
+      "bounding": [
+        -2117.12841796875,
+        -160.4340362548828,
+        450.2521667480469,
+        129.74893188476562
+      ]
+    },
+    {
+      "color": "#fd3030",
+      "font_size": 100,
+      "flags": {},
+      "id": 6,
+      "title": "输出配音视频",
+      "bounding": [
+        -2763.05078125,
+        -162.12176513671875,
+        617.828369140625,
+        135.25611877441406
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 7,
+      "title": "视频变成一帧",
+      "bounding": [
+        -1550.3944091796875,
+        -159.78260803222656,
+        880.9267578125,
+        353.0072326660156
+      ]
+    }
+  ],
+  "links": [
+    [
+      14,
+      3,
+      0,
+      11,
+      0,
+      "VIDEO"
+    ],
+    [
+      31,
+      24,
+      0,
+      25,
+      0,
+      "STRING"
+    ],
+    [
+      37,
+      30,
+      0,
+      33,
+      0,
+      "*"
+    ],
+    [
+      39,
+      35,
+      0,
+      36,
+      0,
+      "STRING"
+    ],
+    [
+      40,
+      36,
+      0,
+      37,
+      0,
+      "*"
+    ],
+    [
+      46,
+      30,
+      0,
+      38,
+      0,
+      "STRING"
+    ],
+    [
+      47,
+      36,
+      0,
+      38,
+      1,
+      "STRING"
+    ],
+    [
+      49,
+      40,
+      0,
+      41,
+      0,
+      "IMAGE"
+    ],
+    [
+      50,
+      40,
+      0,
+      24,
+      0,
+      "IMAGE"
+    ],
+    [
+      53,
+      11,
+      0,
+      40,
+      0,
+      "IMAGE"
+    ],
+    [
+      55,
+      3,
+      0,
+      46,
+      0,
+      "VIDEO"
+    ],
+    [
+      59,
+      38,
+      0,
+      46,
+      1,
+      "STRING"
+    ],
+    [
+      60,
+      24,
+      0,
+      46,
+      2,
+      "STRING"
+    ],
+    [
+      61,
+      46,
+      0,
+      49,
+      0,
+      "*"
+    ],
+    [
+      62,
+      49,
+      0,
+      48,
+      0,
+      "VIDEO"
+    ],
+    [
+      63,
+      40,
+      0,
+      30,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "id": "9fd4809f-f61f-4daa-b4af-e66cd66657ea",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 49,
+  "revision": 0
+}

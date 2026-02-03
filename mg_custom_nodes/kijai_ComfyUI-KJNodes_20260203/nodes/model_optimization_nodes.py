@@ -2041,3 +2041,246 @@ class WanChunkFeedForward(io.ComfyNode):
             model_clone.add_object_patch(f"diffusion_model.blocks.{idx}.ffn.forward", patched_ffn)
 
         return io.NodeOutput(model_clone)
+
+from comfy.samplers import KSAMPLER
+from comfy.k_diffusion.sampling import to_d
+from tqdm import tqdm
+def sample_selfrefinevideo(model, x, sigmas, stochastic_step_map, certain_percentage=0.999, uncertainty_threshold=0.25, extra_args=None, callback=None, disable=None, verbose=False, video_shape=None, seed=None):
+    extra_args = {} if extra_args is None else extra_args
+    sigma_in = x.new_ones([x.shape[0]])
+
+    if seed is not None:
+        generator = torch.Generator(torch.device("cpu")).manual_seed(seed)
+
+    pbar = tqdm(total=len(sigmas) - 1, disable=disable, desc="Sampling")
+
+    for i in range(len(sigmas) - 1):
+
+        # Get stochastic steps for this noise level
+        current_num_anneal_steps = stochastic_step_map.get(i, 0)
+        use_stochastic = current_num_anneal_steps > 0
+        m = current_num_anneal_steps + 1 if use_stochastic else 1
+
+        sigma, sigma_next = sigmas[i], sigmas[i + 1]
+
+        prev_certain_mask = None
+        prev_denoised = None
+        prev_denoised_full = None
+        prev_x_next = None
+        prev_x_next_video = None
+        is_certain = False
+
+        for ii in range(m):
+            if m > 1:
+                pbar.set_description(f"Step {i}/{len(sigmas)-1} (substep {ii+1}/{m})")
+            # Early exit if certain threshold reached
+            if is_certain:
+                x = prev_x_next
+                break
+
+            # Determine input
+            noise = torch.randn(x.shape, device=torch.device("cpu"), generator=generator).to(x)
+            x_in = x if ii == 0 else (1.0 - sigma) * prev_denoised_full + sigma * noise
+            if ii > 0:
+                x = x_in
+
+            denoised = model(x_in, sigmas[i] * sigma_in, **extra_args)
+
+            if callback is not None:
+                callback({'x': x, 'i': i, 'sigma': sigmas[i], 'sigma_hat': sigmas[i], 'denoised': denoised})
+
+            # Compute next latents
+            d = to_d(x, sigma, denoised)
+            x_next = x + (sigma_next - sigma) * d
+
+            # Separate video and audio if joint model
+            if d.ndim == 3 and video_shape is not None:
+                cut = math.prod(video_shape[1:])
+                denoised_video = denoised[:, :, :cut].reshape([denoised.shape[0]] + list(video_shape)[1:])
+                x_next_video = x_next[:, :, :cut].reshape([denoised.shape[0]] + list(video_shape)[1:])
+                denoised_audio = denoised[:, :, cut:]
+                x_next_audio = x_next[:, :, cut:]
+                if verbose:
+                    tqdm.write(f"Video shape: {denoised_video.shape}, Audio shape: {denoised_audio.shape}")
+            else:
+                denoised_video = denoised
+                x_next_video = x_next
+                denoised_audio = None
+                x_next_audio = None
+
+            # Stochastic sampling with uncertainty masking
+            if use_stochastic and prev_denoised is not None:
+                # Compute uncertainty and masking on video part
+                diff = denoised_video - prev_denoised
+                uncertainty = torch.sqrt(torch.sum(diff ** 2, dim=1)) / denoised_video.shape[1]
+                certain_mask = uncertainty < uncertainty_threshold
+
+                if verbose:
+                    tqdm.write(f"Step {i}/{len(sigmas)-1} substep {ii+1}/{m}:")
+                    tqdm.write(f"Uncertainty: min {uncertainty.min():.4f}, max {uncertainty.max():.4f}, threshold {uncertainty_threshold}")
+                    tqdm.write(f"Certain pixels: {certain_mask.sum()}/{certain_mask.numel()} = {certain_mask.sum()/certain_mask.numel():.4f}")
+
+                # Update certain mask (union with previous)
+                if prev_certain_mask is not None:
+                    certain_mask = certain_mask | prev_certain_mask
+
+                # Check certainty threshold
+                if certain_mask.sum() / certain_mask.numel() > certain_percentage:
+                    is_certain = True
+                    if verbose:
+                        tqdm.write(f"{ii}/{current_num_anneal_steps}: Certain region is more than {certain_percentage}, we are certain")
+
+                # Apply masking to video
+                certain_mask_float = certain_mask.float().unsqueeze(1)
+                x_next_video = certain_mask_float * prev_x_next_video + (1.0 - certain_mask_float) * x_next_video
+                denoised_video = certain_mask_float * prev_denoised + (1.0 - certain_mask_float) * denoised_video
+
+                # Reconstruct full latents by replacing the video portion
+                if x_next_audio is not None:
+                    # Flatten masked video back to match original format and replace video portion
+                    x_next = x_next.clone()
+                    x_next[:, :, :cut] = x_next_video.reshape([x_next_video.shape[0], x_next.shape[1], -1])
+                    # Also reconstruct full denoised for next iteration input
+                    denoised_full = denoised.clone()
+                    denoised_full[:, :, :cut] = denoised_video.reshape([denoised_video.shape[0], denoised.shape[1], -1])
+                else:
+                    # No audio separation
+                    x_next = x_next_video
+                    denoised_full = denoised_video
+
+                prev_certain_mask = certain_mask
+                prev_denoised = denoised_video
+                prev_denoised_full = denoised_full
+                prev_x_next_video = x_next_video
+                prev_x_next = x_next
+            elif use_stochastic:
+                # For first stochastic step, create denoised_full if we have audio
+                if x_next_audio is not None:
+                    denoised_full = denoised.clone()
+                    denoised_full[:, :, :cut] = denoised_video.reshape([denoised_video.shape[0], denoised.shape[1], -1])
+                else:
+                    denoised_full = denoised_video
+
+                prev_certain_mask = None
+                prev_denoised = denoised_video
+                prev_denoised_full = denoised_full
+                prev_x_next_video = x_next_video
+                prev_x_next = x_next
+
+            # Update x for final step
+            if use_stochastic and ii == m - 1:
+                x = prev_x_next
+            elif not use_stochastic:
+                x = x_next
+
+        pbar.update(1)
+        if m == 1:
+            pbar.set_description("Sampling")
+    pbar.close()
+    return x
+
+class SamplerSelfRefineVideo(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        default_ranges = [
+            (2, 5, 3),   # Range 1
+            (6, 14, 1),  # Range 2
+        ]
+
+        options = []
+
+        # Option 1: 2 ranges
+        range_inputs_2 = []
+        for i in range(1, 3):
+            start_default, end_default, steps_default = default_ranges[i - 1]
+            range_inputs_2.extend([
+                io.Int.Input(f"start_step{i}", default=start_default, min=0, max=999, step=1, tooltip=f"Start step for range {i}"),
+                io.Int.Input(f"end_step{i}", default=end_default, min=0, max=999, step=1, tooltip=f"End step for range {i}"),
+                io.Int.Input(f"steps_{i}", default=steps_default, min=1, max=100, step=1, tooltip=f"Number of P&P steps for range {i}"),
+            ])
+        options.append(io.DynamicCombo.Option(key="2 ranges", inputs=range_inputs_2))
+
+        # Option 2: 1 range
+        range_inputs_1 = []
+        for i in range(1, 2):
+            start_default, end_default, steps_default = default_ranges[i - 1]
+            range_inputs_1.extend([
+                io.Int.Input(f"start_step{i}", default=start_default, min=0, max=999, step=1, tooltip=f"Start step for range {i}"),
+                io.Int.Input(f"end_step{i}", default=end_default, min=0, max=999, step=1, tooltip=f"End step for range {i}"),
+                io.Int.Input(f"steps_{i}", default=steps_default, min=1, max=100, step=1, tooltip=f"Number of P&P steps for range {i}"),
+            ])
+        options.append(io.DynamicCombo.Option(key="1 range", inputs=range_inputs_1))
+
+        # Option 3: Manual string input
+        options.append(io.DynamicCombo.Option(
+            key="from_string",
+            inputs=[
+                io.String.Input(
+                    "stochastic_plan",
+                    default="2-5:3,6-14:1",
+                    multiline=True,
+                    tooltip="Format: 'start-end:steps,start-end:steps' e.g. '2-5:3,6-14:1'"
+                )
+            ]
+        ))
+        return io.Schema(
+            node_id="SamplerSelfRefineVideo",
+            category="KJNodes/samplers",
+            description="Attempt to implement https://github.com/agwmon/self-refine-video, for testing only, MAY NOT WORK AS INTENDED.",
+            is_experimental=True,
+            inputs=[
+                io.DynamicCombo.Input("input_mode", options=options, tooltip="How to configure the step plan"),
+                io.Float.Input("certain_percentage", default=0.999, min=0.0, max=1.0, step=0.001, round=False, tooltip="Percentage of certain pixels to consider the frame as certain and skip further refinement"),
+                io.Float.Input("uncertainty_threshold", default=0.2, min=0.0, max=1.0, step=0.01, round=False, tooltip="Threshold of uncertainty to consider a pixel uncertain"),
+                io.Boolean.Input("verbose", default=False, tooltip="Enable verbose logging during sampling"),
+                io.Latent.Input("latent", optional=True, tooltip="Optional latent input to get input shape for LTX2 audio/video separation"),
+                io.Int.Input("seed", default=0, min=0, max=0xffffffffffffffff, step=1, tooltip="Seed for stochastic sampling"),
+            ],
+            outputs=[io.Sampler.Output()]
+        )
+
+    @classmethod
+    def execute(cls, input_mode, certain_percentage, uncertainty_threshold, seed, verbose, latent=None) -> io.NodeOutput:
+        video_shape = None
+        if latent is not None:
+            video_shape = latent["samples"].shape
+
+        range_keys = sorted([k for k in input_mode.keys() if k.startswith('start_step')])
+        stochastic_step_map = {}
+        if "stochastic_plan" in input_mode:
+            # Parse manual string format: "2-5:3,6-14:1"
+            plan_str = input_mode["stochastic_plan"]
+            ranges = plan_str.split(",")
+            for range_spec in ranges:
+                range_spec = range_spec.strip()
+                if not range_spec:
+                    continue
+                try:
+                    range_part, steps_part = range_spec.split(":")
+                    start, end = range_part.split("-")
+                    start, end, steps = int(start), int(end), int(steps_part)
+                    for idx in range(start, end + 1):
+                        stochastic_step_map[idx] = steps
+                except ValueError:
+                    raise ValueError(f"Invalid format in stochastic_plan: '{range_spec}'. Expected format: 'start-end:steps'")
+        else:
+            range_keys = [k for k in input_mode.keys() if k.startswith('start_step')]
+            for start_key in range_keys:
+                i = start_key.replace('start_step', '')
+                start = input_mode.get(f"start_step{i}")
+                end = input_mode.get(f"end_step{i}")
+                steps = input_mode.get(f"steps_{i}")
+
+                if start is not None and end is not None and steps is not None:
+                    for idx in range(start, end + 1):
+                        stochastic_step_map[idx] = steps
+
+        sampler = KSAMPLER(sample_selfrefinevideo, {
+            "stochastic_step_map": stochastic_step_map,
+            "certain_percentage": certain_percentage,
+            "uncertainty_threshold": uncertainty_threshold,
+            "verbose": verbose,
+            "video_shape": video_shape,
+            "seed": seed,
+        })
+        return io.NodeOutput(sampler)

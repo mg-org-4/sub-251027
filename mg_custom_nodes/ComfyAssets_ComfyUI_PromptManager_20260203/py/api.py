@@ -302,6 +302,46 @@ class PromptManagerAPI:
                     status=500,
                 )
 
+        # Serve static files from web/lib directory
+        @routes.get("/prompt_manager/lib/{filepath:.*}")
+        async def serve_lib_static(request):
+            """Serve static library files (JS, CSS) from web/lib directory."""
+            import os
+
+            # Explicit MIME type mapping
+            MIME_TYPES = {
+                ".js": "application/javascript",
+                ".css": "text/css",
+                ".json": "application/json",
+                ".map": "application/json",
+            }
+
+            filepath = request.match_info.get("filepath", "")
+
+            # Security: prevent directory traversal
+            if ".." in filepath or filepath.startswith("/"):
+                return web.Response(text="Forbidden", status=403)
+
+            current_dir = os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))
+            )
+            file_path = os.path.join(current_dir, "web", "lib", filepath)
+
+            if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                return web.Response(text=f"Not Found: {filepath}", status=404)
+
+            # Get extension and content type
+            ext = os.path.splitext(file_path)[1].lower()
+            content_type = MIME_TYPES.get(ext, "application/octet-stream")
+
+            with open(file_path, "rb") as f:
+                content = f.read()
+
+            return web.Response(
+                body=content,
+                content_type=content_type,
+            )
+
         # Statistics endpoint
         @routes.get("/prompt_manager/stats")
         async def get_stats_route(request):
@@ -1021,10 +1061,11 @@ class PromptManagerAPI:
                     thumbnails_dir = output_path / "thumbnails"
                     if thumbnails_dir.exists():
                         thumbnail_ext = '.jpg' if is_video else extension
-                        # Use full relative path to support subdirectories
-                        thumbnail_rel_path = Path("thumbnails") / rel_path.parent / f"{media_path.stem}_thumb{thumbnail_ext}"
+                        # Preserve subdirectory structure in thumbnail path
+                        rel_path_no_ext = rel_path.with_suffix('')
+                        thumbnail_rel_path = f"thumbnails/{rel_path_no_ext.as_posix()}_thumb{thumbnail_ext}"
                         thumbnail_abs_path = output_path / thumbnail_rel_path
-                        
+
                         if thumbnail_abs_path.exists():
                             from urllib.parse import quote
                             thumbnail_url = f'/prompt_manager/images/serve/{quote(thumbnail_rel_path.as_posix(), safe="/")}'
@@ -1148,9 +1189,9 @@ class PromptManagerAPI:
                         
                         # Also try to delete associated thumbnail if it exists
                         try:
-                            # Use full relative path to support subdirectories
                             rel_path = file_path.relative_to(output_path)
-                            thumbnail_path = output_path / "thumbnails" / rel_path.parent / f"{file_path.stem}_thumb{file_path.suffix}"
+                            rel_path_no_ext = rel_path.with_suffix('')
+                            thumbnail_path = output_path / "thumbnails" / f"{rel_path_no_ext.as_posix()}_thumb{file_path.suffix}"
                             if thumbnail_path.exists():
                                 os.remove(thumbnail_path)
                                 self.logger.debug(f"Deleted associated thumbnail: {thumbnail_path}")
@@ -1259,14 +1300,36 @@ class PromptManagerAPI:
     async def get_settings(self, request):
         """Get current settings."""
         try:
-            from .config import PromptManagerConfig
-            
+            from .config import PromptManagerConfig, GalleryConfig
+
+            # Get monitored directories from image monitor singleton if available
+            monitored_dirs = []
+            try:
+                import sys
+                # Check for the module in sys.modules (handles different import paths)
+                monitor_module = None
+                for mod_name in list(sys.modules.keys()):
+                    if 'image_monitor' in mod_name and hasattr(sys.modules[mod_name], '_monitor_instance'):
+                        monitor_module = sys.modules[mod_name]
+                        break
+
+                if monitor_module and monitor_module._monitor_instance is not None:
+                    monitored_dirs = getattr(monitor_module._monitor_instance, 'monitored_directories', [])
+                elif GalleryConfig.MONITORING_DIRECTORIES:
+                    monitored_dirs = GalleryConfig.MONITORING_DIRECTORIES
+            except Exception:
+                # Fallback to config
+                if GalleryConfig.MONITORING_DIRECTORIES:
+                    monitored_dirs = GalleryConfig.MONITORING_DIRECTORIES
+
             # Return actual configuration settings
             return web.json_response({
-                "success": True, 
+                "success": True,
                 "settings": {
                     "result_timeout": PromptManagerConfig.RESULT_TIMEOUT,
-                    "webui_display_mode": PromptManagerConfig.WEBUI_DISPLAY_MODE
+                    "webui_display_mode": PromptManagerConfig.WEBUI_DISPLAY_MODE,
+                    "gallery_root_path": GalleryConfig.MONITORING_DIRECTORIES[0] if GalleryConfig.MONITORING_DIRECTORIES else "",
+                    "monitored_directories": monitored_dirs
                 }
             })
         except Exception as e:
@@ -1278,12 +1341,59 @@ class PromptManagerAPI:
     async def save_settings(self, request):
         """Save settings."""
         try:
+            from .config import PromptManagerConfig, GalleryConfig
+            import json
+            import os
+
             data = await request.json()
-            # For now, just acknowledge the save
-            # In the future, we could store this in database or config file
-            return web.json_response(
-                {"success": True, "message": "Settings saved successfully"}
-            )
+            restart_required = False
+
+            # Update in-memory config
+            if 'result_timeout' in data:
+                PromptManagerConfig.RESULT_TIMEOUT = data['result_timeout']
+            if 'webui_display_mode' in data:
+                PromptManagerConfig.WEBUI_DISPLAY_MODE = data['webui_display_mode']
+
+            # Handle gallery root path
+            if 'gallery_root_path' in data:
+                new_path = data['gallery_root_path'].strip()
+                old_path = GalleryConfig.MONITORING_DIRECTORIES[0] if GalleryConfig.MONITORING_DIRECTORIES else ""
+
+                if new_path != old_path:
+                    if new_path:
+                        GalleryConfig.MONITORING_DIRECTORIES = [new_path]
+                    else:
+                        GalleryConfig.MONITORING_DIRECTORIES = []  # Reset to auto-detect
+                    restart_required = True
+
+            # Save to config file for persistence
+            config_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            config_file = os.path.join(config_dir, 'config.json')
+
+            config_data = {
+                'web_ui': {
+                    'result_timeout': PromptManagerConfig.RESULT_TIMEOUT,
+                    'webui_display_mode': PromptManagerConfig.WEBUI_DISPLAY_MODE
+                },
+                'gallery': {
+                    'monitoring': {
+                        'directories': GalleryConfig.MONITORING_DIRECTORIES
+                    }
+                }
+            }
+
+            try:
+                with open(config_file, 'w') as f:
+                    json.dump(config_data, f, indent=2)
+                self.logger.info(f"Settings saved to {config_file}")
+            except Exception as save_err:
+                self.logger.warning(f"Could not save config file: {save_err}")
+
+            return web.json_response({
+                "success": True,
+                "message": "Settings saved successfully",
+                "restart_required": restart_required
+            })
         except Exception as e:
             return web.json_response(
                 {"success": False, "error": f"Failed to save settings: {str(e)}"},
@@ -1912,9 +2022,11 @@ class PromptManagerAPI:
                         # For videos, look for thumbnail with .jpg extension
                         # Use full relative path to support subdirectories
                         thumbnail_ext = '.jpg' if is_video else extension
-                        thumbnail_rel_path = Path("thumbnails") / rel_path.parent / f"{media_path.stem}_thumb{thumbnail_ext}"
+                        # Preserve subdirectory structure in thumbnail path
+                        rel_path_no_ext = rel_path.with_suffix('')
+                        thumbnail_rel_path = f"thumbnails/{rel_path_no_ext.as_posix()}_thumb{thumbnail_ext}"
                         thumbnail_abs_path = output_path / thumbnail_rel_path
-                        
+
                         if thumbnail_abs_path.exists():
                             from urllib.parse import quote
                             thumbnail_url = f'/prompt_manager/images/serve/{quote(thumbnail_rel_path.as_posix(), safe="/")}'
@@ -2165,11 +2277,12 @@ class PromptManagerAPI:
                     is_video = any(media_file.name.lower().endswith(ext) for ext in video_extensions)
                     
                     # For videos, always save thumbnail as .jpg
-                    # Include parent directory structure to avoid collisions with same-named files
+                    # Preserve subdirectory structure in thumbnail path
+                    rel_path_no_ext = rel_path.with_suffix('')
                     if is_video:
-                        thumbnail_path = thumbnails_dir / rel_path.parent / f"{rel_path.stem}_thumb.jpg"
+                        thumbnail_path = thumbnails_dir / f"{rel_path_no_ext.as_posix()}_thumb.jpg"
                     else:
-                        thumbnail_path = thumbnails_dir / rel_path.parent / f"{rel_path.stem}_thumb{rel_path.suffix}"
+                        thumbnail_path = thumbnails_dir / f"{rel_path_no_ext.as_posix()}_thumb{rel_path.suffix}"
                     
                     # Skip if thumbnail already exists and is newer than original
                     if (thumbnail_path.exists() and 
@@ -2382,11 +2495,12 @@ class PromptManagerAPI:
                         rel_path = media_file.relative_to(output_path)
                         
                         # For videos, always save thumbnail as .jpg
-                        # Include parent directory structure to avoid collisions with same-named files
+                        # Preserve subdirectory structure in thumbnail path
+                        rel_path_no_ext = rel_path.with_suffix('')
                         if is_video:
-                            thumbnail_path = thumbnails_dir / rel_path.parent / f"{rel_path.stem}_thumb.jpg"
+                            thumbnail_path = thumbnails_dir / f"{rel_path_no_ext.as_posix()}_thumb.jpg"
                         else:
-                            thumbnail_path = thumbnails_dir / rel_path.parent / f"{rel_path.stem}_thumb{rel_path.suffix}"
+                            thumbnail_path = thumbnails_dir / f"{rel_path_no_ext.as_posix()}_thumb{rel_path.suffix}"
                         
                         # SAFETY: Ensure thumbnail path is within our thumbnails directory
                         try:
@@ -3002,7 +3116,27 @@ class PromptManagerAPI:
                 'status': 'ok' if output_dirs else 'warning',
                 'output_dirs': output_dirs
             }
-            
+
+            # Check image monitor status
+            try:
+                from ..utils.image_monitor import _monitor_instance
+                if _monitor_instance is not None:
+                    monitor_status = _monitor_instance.get_status()
+                    results['image_monitor'] = {
+                        'status': 'ok' if monitor_status.get('observer_alive') else 'error',
+                        **monitor_status
+                    }
+                else:
+                    results['image_monitor'] = {
+                        'status': 'error',
+                        'message': 'Image monitor not initialized'
+                    }
+            except Exception as e:
+                results['image_monitor'] = {
+                    'status': 'error',
+                    'message': f'Failed to get monitor status: {str(e)}'
+                }
+
             return web.json_response({
                 'success': True,
                 'diagnostics': results
@@ -4747,12 +4881,11 @@ class PromptManagerAPI:
                                 thumbnail_url = None
                                 thumbnails_dir = output_path / "thumbnails"
                                 if thumbnails_dir.exists():
-                                    # Use full relative path to support subdirectories
-                                    thumbnail_rel = Path("thumbnails") / rel_path.parent / f"{image_path.stem}_thumb{image_path.suffix}"
-                                    thumbnail_path = output_path / thumbnail_rel
+                                    # Preserve subdirectory structure in thumbnail path
+                                    rel_path_no_ext = rel_path.with_suffix('')
+                                    thumbnail_path = thumbnails_dir / f"{rel_path_no_ext.as_posix()}_thumb{image_path.suffix}"
                                     if thumbnail_path.exists():
-                                        from urllib.parse import quote
-                                        thumbnail_url = f'/prompt_manager/images/serve/{quote(thumbnail_rel.as_posix(), safe="/")}'
+                                        thumbnail_url = f'/prompt_manager/images/serve/thumbnails/{rel_path_no_ext.as_posix()}_thumb{image_path.suffix}'
 
                                 images.append({
                                     'filename': image_path.name,

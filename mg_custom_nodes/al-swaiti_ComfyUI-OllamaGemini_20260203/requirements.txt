@@ -1,5 +1,4 @@
 # API providers
-google-generativeai
 google-genai>=1.50.0  # Required for types.ImageConfig (Gemini 3 Pro Image support)
 requests
 anthropic
@@ -18,6 +17,7 @@ opencv-python # OpenCV for image processing
 
 # Machine learning
 transformers==4.55.4 # For CLIPSeg and BRIA_RMBG
+# ben2 @ git+https://github.com/PramaLLC/BEN2.git  # BEN2 background removal (optional)
 
 # For ComfyUI integration - these are usually provided by ComfyUI itself
 # torch

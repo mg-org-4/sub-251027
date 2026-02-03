@@ -14,6 +14,8 @@
 
 | Date | Description |
 | --- | --- |
+| **2026-02-02** | Added node "Smooth Normals"<br>Useful for "Low Poly" mesh to remove the "blocky" aspect|
+|| Added "remove_background" parameter for "PreProcess Image" node<br>Using rembg package|
 | **2026-01-30** | Updated Cumesh, updated nodes, updated workflows|
 ||PostProcess UnWrap and Rasterize : removed fill_holes_max_perimeter <br> using fill holes from Meshlib|
 ||Remesh : added "remove_inner_faces" -> same algorithm as "Reconstruct Mesh"|

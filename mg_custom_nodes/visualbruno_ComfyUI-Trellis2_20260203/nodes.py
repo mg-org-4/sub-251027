@@ -362,6 +362,7 @@ class Trellis2MeshWithVoxelGenerator:
     OUTPUT_NODE = True
 
     def process(self, pipeline, image, seed, pipeline_type, sparse_structure_steps, shape_steps, texture_steps, max_num_tokens, max_views, sparse_structure_resolution, generate_texture_slat, use_tiled_decoder):
+        reset_cuda()
         images = tensor_batch_to_pil_list(image, max_views=max_views)
         image_in = images[0] if len(images) == 1 else images
         
@@ -545,7 +546,7 @@ class Trellis2ProgressiveSimplify:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "max_edge_length": ("FLOAT",{"default":2.64,"min":0.01,"max":99999.99,"step":0.01}),
+                "max_edge_length": ("FLOAT",{"default":0.00,"min":0.00,"max":99999.99,"step":0.01}),
                 "max_triangle_aspect_ratio": ("FLOAT",{"default":20.00,"min":0.01,"max":99999.99,"step":0.01}),
                 "strategy": (["Minimal Error First","Shortest Edge First"],{"default":"Minimal Error First"}),
                 "stabilizer": ("FLOAT",{"default":0.000001,"min":0.0,"max":0.999999,"step":0.000001}),
@@ -599,17 +600,27 @@ class Trellis2ProgressiveSimplify:
         else:
             settings.strategy = mrmeshpy.DecimateStrategy.ShortestEdgeFirst
             
-        settings.maxEdgeLen = max_edge_length
         settings.maxTriangleAspectRatio = max_triangle_aspect_ratio
         settings.stabilizer = stabilizer
         settings.touchNearBdEdges = touch_near_boundary_edges
         settings.optimizeVertexPos = optimize_vertex_positions
-        settings.angleWeightedDistToPlane = angle_based_weights
-        settings.maxError = max_edge_length / 1000
+        settings.angleWeightedDistToPlane = angle_based_weights        
         settings.packMesh = True
         
         print('Generating Meshlib Mesh ...')
         mesh = mrmeshnumpy.meshFromFacesVerts(faces, vertices)
+        
+        if max_edge_length == 0.0:
+            max_edge_length = 2.0
+            # for edge_id in mesh.topology.allValidEdges():
+                    # edge_len = mesh.computeEdgeLen(edge_id)
+                    # if edge_len > max_edge_length:
+                        # max_edge_length = edge_len
+            # print(f"Calculated Max Edge Length: {max_edge_length}")
+            
+        settings.maxEdgeLen = max_edge_length   
+        settings.maxError = max_edge_length / 1000
+        
         print('Packing Optimally ...')
         mesh.packOptimally()
         print('Decimating ...')
@@ -697,19 +708,19 @@ class Trellis2PostProcessMesh:
         return {
             "required": {
                 "mesh": ("MESHWITHVOXEL",),                
-                "fill_holes": ("BOOLEAN", {"default":True}),
+                "fill_holes": ("BOOLEAN", {"default":False}),
                 "fill_holes_max_perimeter": ("FLOAT",{"default":0.03,"min":0.001,"max":99.999,"step":0.001}),
-                "remove_duplicate_faces": ("BOOLEAN",{"default":True}),
-                "repair_non_manifold_edges": ("BOOLEAN", {"default":True}),
-                "remove_non_manifold_faces": ("BOOLEAN", {"default":True}),
-                "remove_small_connected_components": ("BOOLEAN", {"default":True}),
+                "remove_duplicate_faces": ("BOOLEAN",{"default":False}),
+                "repair_non_manifold_edges": ("BOOLEAN", {"default":False}),
+                "remove_non_manifold_faces": ("BOOLEAN", {"default":False}),
+                "remove_small_connected_components": ("BOOLEAN", {"default":False}),
                 "remove_small_connected_components_size": ("FLOAT", {"default":0.00001,"min":0.00001,"max":9.99999,"step":0.00001}),
-                "unify_faces_orientation": ("BOOLEAN", {"default":True}),
-                "remove_floaters": ("BOOLEAN",{"default":True}),
-                "remove_infinite_vertices": ("BOOLEAN",{"default":True}),
-                "merge_vertices": ("BOOLEAN",{"default":True}),
+                "unify_faces_orientation": ("BOOLEAN", {"default":False}),
+                "remove_floaters": ("BOOLEAN",{"default":False}),
+                "remove_infinite_vertices": ("BOOLEAN",{"default":False}),
+                "merge_vertices": ("BOOLEAN",{"default":False}),
                 "merge_distance": ("FLOAT",{"default":0.0010,"min":0.0001,"max":999.9999,"step":0.0001}),
-                "remove_nan_vertices": ("BOOLEAN",{"default":True}),
+                "remove_nan_vertices": ("BOOLEAN",{"default":False}),                
             },
         }
 
@@ -1184,6 +1195,7 @@ class Trellis2MeshWithVoxelAdvancedGenerator:
         texture_guidance_interval_end,
         use_tiled_decoder):
 
+        reset_cuda()
         images = tensor_batch_to_pil_list(image, max_views=max_views)
         image_in = images[0] if len(images) == 1 else images
         
@@ -1893,6 +1905,7 @@ class Trellis2PreProcessImage:
             "required": {
                 "image": ("IMAGE",),
                 "padding": ("INT",{"default":0,"min":0,"max":1024}),
+                "remove_background": ("BOOLEAN",{"default":False}),
             }
         }
     RETURN_TYPES = ("IMAGE",)
@@ -1901,8 +1914,13 @@ class Trellis2PreProcessImage:
     FUNCTION = "process"
     CATEGORY = "Trellis2Wrapper"
 
-    def process(self, image, padding):
+    def process(self, image, padding, remove_background):
         image = tensor2pil(image)
+        
+        if remove_background:
+            from rembg import remove
+            image = remove(image)
+        
         image = self.preprocess_image(image)
         
         if padding>0:
@@ -2095,7 +2113,7 @@ class Trellis2PostProcess2:
         
         if fill_holes:
             print('Filling holes ...')
-            trimesh.fill_holes()  
+            trimesh.fill_holes()            
         
         new_vertices = torch.from_numpy(trimesh.vertices).float()
         new_faces = torch.from_numpy(trimesh.faces).int()                
@@ -2299,7 +2317,29 @@ class Trellis2FillHolesWithMeshlib:
         mesh_copy.vertices = torch.from_numpy(new_vertices).float().to(mesh_copy.device)
         mesh_copy.faces = torch.from_numpy(new_faces).int().to(mesh_copy.device)
         
-        return (mesh_copy, holes_filled)        
+        return (mesh_copy, holes_filled) 
+        
+class Trellis2SmoothNormals:    
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "trimesh": ("TRIMESH",),
+            },
+        }
+    
+    RETURN_TYPES = ("TRIMESH",)
+    RETURN_NAMES = ("trimesh",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+
+    def process(self, trimesh):
+        new_mesh = trimesh.copy()
+        new_mesh.vertex_normals = Trimesh.smoothing.get_vertices_normals(new_mesh)
+        
+        return (new_mesh,)         
+
+        
         
 NODE_CLASS_MAPPINGS = {
     "Trellis2LoadModel": Trellis2LoadModel,
@@ -2326,6 +2366,7 @@ NODE_CLASS_MAPPINGS = {
     "Trellis2ReconstructMesh": Trellis2ReconstructMesh,
     "Trellis2MeshWithVoxelToMeshlibMesh": Trellis2MeshWithVoxelToMeshlibMesh,
     "Trellis2FillHolesWithMeshlib": Trellis2FillHolesWithMeshlib,
+    "Trellis2SmoothNormals": Trellis2SmoothNormals,
     }
     
 
@@ -2354,4 +2395,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2ReconstructMesh": "Trellis2 - Reconstruct Mesh",
     "Trellis2MeshWithVoxelToMeshlibMesh": "Trellis2 - Mesh with Voxel to Meshlib Mesh",
     "Trellis2FillHolesWithMeshlib": "Trellis2 - Fill Holes with Meshlib",
+    "Trellis2SmoothNormals": "Trellis2 - Smooth Normals",
     }

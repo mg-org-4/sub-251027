@@ -1,4 +1,4 @@
-# 此项目包含ComfyUI-PainterAI2V（音频驱动图生视频）和PainterAV2V（音频驱动视频对口型）2个节点！由 绘画小子 制作
+# 此项目包含ComfyUI-PainterAI2V（音频驱动图生视频）和PainterAV2V（音频驱动视频对口型）2个节点（对comfyui官方infinitetalk节点添加功能优化而成） 由 绘画小子 制作
 # ComfyUI-PainterAI2V
 
 ---
@@ -15,7 +15,6 @@
   - **仅尾帧**：传入 `end_image`，视频最终定格指定画面并对口型
   - **首尾帧**：同时传入 `start_image` 和 `end_image`，视频从首帧自然过渡到尾帧，全程精准对口型
 - **提示词动作运镜控制**：继承 Wan2.2 强大的提示词理解能力，可通过文本精确控制人物动作、相机运镜和场景变化
-- **简化接口设计**：输入输出端口重命名为 `high_model`/`low_model`/`audio_encoder`，节点面板更清爽直观
 - **全功能保留**：支持单人/双人对口型、motion context、previous frames 延续生成等所有原生功能
 
 - 图片+音频 生视频
@@ -36,7 +35,6 @@
   - **Last frame only**: Pass `end_image` to end video at specified frame with lip-sync
   - **First & Last frames**: Pass both `start_image` and `end_image` for natural transition from start to end with precise lip-sync throughout
 - **Prompt-Controlled Motion & Camera**: Inherits Wan2.2's powerful prompt comprehension, enabling precise control of character movements, camera operations, and scene changes through text prompts
-- **Simplified Interface**: Input/output ports renamed to `high_model`/`low_model`/`audio_encoder` for cleaner, more intuitive node panel
 - **Full Feature Retention**: Supports all native features including single/dual speaker lip-sync, motion context, and previous frames continuation
 
 ---

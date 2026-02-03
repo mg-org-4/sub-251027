@@ -1,7 +1,0 @@
-meshlib
-requests
-pymeshlab
-opencv-python
-scipy
-open3d
-plotly

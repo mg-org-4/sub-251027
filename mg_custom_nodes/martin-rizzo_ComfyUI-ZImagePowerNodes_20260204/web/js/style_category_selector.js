@@ -42,7 +42,7 @@ function init(self, categoryWidget, styleWidget, stylesByCategory) {
     // fill the style combo widget with all the styles from the current category
     fillStyleWidget(self, self.categoryWidget.value);
 
-    // save the existing callback function
+    // save the existing callback functionconst ENABLED = true;
     const originalCallback = self.categoryWidget.callback;
 
     self.categoryWidget.callback = async (value) => {

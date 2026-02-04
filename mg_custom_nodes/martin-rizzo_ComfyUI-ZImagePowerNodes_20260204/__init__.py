@@ -117,6 +117,12 @@ class ZImagePowerNodesExtension(ComfyExtension):
         from .nodes.zsampler_turbo import ZSamplerTurbo
         _register_node( ZSamplerTurbo, subcategory, nodes )
 
+        from .nodes.my_top_10_styles_editor import MyTop10StylesEditor
+        _register_node( MyTop10StylesEditor, subcategory, nodes )
+
+        from .nodes.my_top_10_styles import MyTop10Styles
+        _register_node( MyTop10Styles, subcategory, nodes )
+
 
         #--[ __deprecated ]----------------------
         subcategory = "__deprecated"

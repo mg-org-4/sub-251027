@@ -171,7 +171,7 @@ class SaveImage(io.ComfyNode):
                                     "type"     : cls.xTYPE
                                     })
 
-        return { "ui": { "images": image_locations } }
+        return io.NodeOutput( ui = { "images": image_locations } )
 
 
 

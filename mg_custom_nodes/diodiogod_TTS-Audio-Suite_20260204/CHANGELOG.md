@@ -5,6 +5,103 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.20.9] - 2026-02-04
+
+### Added
+
+- Step Audio EditX now works on Apple Silicon (MPS) and CPU
+
+### Changed
+
+- CUDA users unaffected (same performance and behavior)
+
+### Fixed
+
+- Add Step Audio EditX Mac (MPS) compatibility patch
+- Fix crash on Mac: 'Torch not compiled with CUDA enabled'
+- Centralized patch system in utils/compatibility/ for maintainability
+- Note: Tentative fix addressing issue #245 - requires Mac user testing
+## [4.20.8] - 2026-02-04
+
+### Added
+
+- Extend Qwen3-TTS torch.compile optimizations to Voice Designer
+- Voice Designer now inherits torch.compile settings from Qwen3-TTS Engine node
+- Enable via use_torch_compile parameter in connected Engine node
+- Supports all compile modes (default, reduce-overhead, max-autotune)
+
+### Changed
+
+- Significant performance improvement (~2x speedup: 4 it/s → 8.3 it/s confirmed)
+## [4.20.7] - 2026-02-04
+
+### Added
+
+- Credit: Timing improvement contributed by @rongsam
+
+### Changed
+
+- Improve SRT output to show actual audio duration
+
+### Fixed
+
+- Fix SRT timing accuracy for video editors
+- Fix timing drift in stretch_to_fit and pad_with_silence modes
+- Better compatibility with video editing software
+## [4.20.6] - 2026-02-03
+
+### Added
+
+- Add Refresh Voice Cache node for dynamic voice workflows
+- New ♻️ Refresh Voice Cache node for on-the-fly voice discovery
+- Support dual signal passthrough to guarantee execution order
+- Enable dynamic workflows where voices are created during execution
+
+### Fixed
+
+- Fix voice files created mid-workflow being unavailable to downstream nodes
+## [4.20.5] - 2026-02-03
+
+### Added
+
+- Changing torch.compile or cuda_graphs now properly reloads the model
+- Backward compatible - no changes needed in workflows
+
+### Fixed
+
+- Fix Qwen3-TTS torch.compile optimization not applying when toggled on
+- Fix optimization settings not taking effect after changing from off to on
+## [4.20.4] - 2026-02-03
+
+### Added
+
+- Backward compatible with ComfyUI 0.11.x and earlier
+
+### Fixed
+
+- Fix ComfyUI 0.12.0+ compatibility issue
+- Fix AttributeError: 'Qwen3TTSModel' object has no attribute 'is_dynamic'
+- Compatibility fix affects all TTS engines using ComfyUI model management
+## [4.20.3] - 2026-02-03
+
+### Changed
+
+- Improve FunASR model loading reliability
+
+### Fixed
+
+- Fix Step Audio EditX failing to load on some systems
+- Fix 'NoneType' object is not callable error
+- Better compatibility with Python 3.12+
+- TENTATIVE FIX - User testing required
+## [4.20.2] - 2026-02-02
+
+### Added
+
+- Add guidance for Transformers 5.x incompatibility (Qwen3-TTS)
+- Add a startup warning when Transformers 5.x is installed
+- Cap supported Transformers versions to <=4.57.3 for Qwen3-TTS stability
+- Add a public report on the Qwen3-TTS tokenizer incompatibility
 ## [4.20.1] - 2026-01-31
 
 ### Added

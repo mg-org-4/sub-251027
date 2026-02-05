@@ -28,6 +28,6 @@ accelerate launch --mixed_precision="bf16" scripts/z_image/train_lora.py \
   --enable_bucket \
   --rank=64 \
   --network_alpha=64 \
-  --target_name="to_q,to_k,to_v,ff.0,ff.2,ff_context.0,ff_context.2" \
+  --target_name="to_q,to_k,to_v,feed_forward.w1,feed_forward.w2,feed_forward.w3" \
   --use_peft_lora \
   --uniform_sampling

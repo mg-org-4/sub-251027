@@ -21,12 +21,8 @@ try:
 except:
     pass
 
-from transformers import (
-    CLIPTextModel,
-    CLIPTokenizer,
-    CLIPTextConfig,
+from transformers import CLIPTextModel,CLIPTokenizer, CLIPTextConfig
 
-)
 script_directory = os.path.dirname(os.path.abspath(__file__))
 
 def dummy_build_vision_tower(*args, **kwargs):
@@ -46,15 +42,15 @@ def patch_build_vision_tower():
 def build_text_model_from_openai_state_dict(
         state_dict: dict,
         device,
-        cast_dtype=torch.float16,    
+        cast_dtype=torch.float16,
     ):
-   
+
     embed_dim = state_dict["text_projection"].shape[1]
     context_length = state_dict["positional_embedding"].shape[0]
     vocab_size = state_dict["token_embedding.weight"].shape[0]
     transformer_width = state_dict["ln_final.weight"].shape[0]
     transformer_heads = transformer_width // 64
-    transformer_layers = len(set(k.split(".")[2] for k in state_dict if k.startswith(f"transformer.resblocks")))
+    transformer_layers = len(set(k.split(".")[2] for k in state_dict if k.startswith("transformer.resblocks")))
 
     vision_cfg = None
     text_cfg = open_clip.CLIPTextCfg(
@@ -180,7 +176,10 @@ class SUPIR_decode:
             "latents": ("LATENT",),
             "use_tiled_vae": ("BOOLEAN", {"default": True}),
             "decoder_tile_size": ("INT", {"default": 512, "min": 64, "max": 8192, "step": 64}),
-            }
+        },
+            "optional": {
+                    "decoder_dtype": (['bf16', 'fp32', 'auto'], {"default": 'auto'}),
+                }
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -188,23 +187,30 @@ class SUPIR_decode:
     FUNCTION = "decode"
     CATEGORY = "SUPIR"
 
-    def decode(self, SUPIR_VAE, latents, use_tiled_vae, decoder_tile_size):
+    def decode(self, SUPIR_VAE, latents, use_tiled_vae, decoder_tile_size, decoder_dtype="auto"):
         device = mm.get_torch_device()
         mm.unload_all_models()
         samples = latents["samples"]
-        
+
         B, H, W, C = samples.shape
-                
+
         pbar = comfy.utils.ProgressBar(B)
-       
-        if mm.should_use_bf16():
-            print("Decoder using bf16")
-            dtype = torch.bfloat16
+
+        if decoder_dtype == 'auto':
+            try:
+                if mm.should_use_bf16():
+                    print("Decoder using bf16")
+                    vae_dtype = 'bf16'
+                else:
+                    print("Decoder using fp32")
+                    vae_dtype = 'fp32'
+            except:
+                raise AttributeError("ComfyUI version too old, can't autodetect properly. Set your dtypes manually.")
         else:
-            print("Decoder using fp32")
-            dtype = torch.float32
-        print("SUPIR decoder using", dtype)
-           
+            vae_dtype = decoder_dtype
+            print(f"Decoder using {vae_dtype}")
+
+        dtype = convert_dtype(vae_dtype)
         SUPIR_VAE.to(dtype).to(device)
         samples = samples.to(device)
 
@@ -902,7 +908,10 @@ high_vram: uses Accelerate to load weights to GPU, slightly faster model loading
             try:
                 print(f"Attempting to load SDXL model from node inputs")
                 mm.load_model_gpu(model)
-                sdxl_state_dict = model.model.state_dict_for_saving(None, vae.get_sd(), None)
+                try:
+                    sdxl_state_dict = model.model.state_dict_for_saving(model.model.diffusion_model.state_dict(), vae_state_dict=vae.get_sd())
+                except:
+                    sdxl_state_dict = model.model.state_dict_for_saving(None, vae.get_sd(), None)
                 if is_accelerate_available:
                     for key in sdxl_state_dict:
                         set_module_tensor_to_device(self.model, key, device=device, dtype=dtype, value=sdxl_state_dict[key])
@@ -1085,7 +1094,10 @@ high_vram: uses Accelerate to load weights to GPU, slightly faster model loading
             try:
                 print(f"Attempting to load SDXL model from node inputs")
                 mm.load_model_gpu(model)
-                sdxl_state_dict = model.model.state_dict_for_saving(None, vae.get_sd(), None)
+                try:
+                    sdxl_state_dict = model.model.state_dict_for_saving(model.model.diffusion_model.state_dict(), vae_state_dict=vae.get_sd())
+                except:
+                    sdxl_state_dict = model.model.state_dict_for_saving(None, vae.get_sd(), None)
                 if is_accelerate_available:
                     for key in sdxl_state_dict:
                         set_module_tensor_to_device(self.model, key, device=device, dtype=dtype, value=sdxl_state_dict[key])

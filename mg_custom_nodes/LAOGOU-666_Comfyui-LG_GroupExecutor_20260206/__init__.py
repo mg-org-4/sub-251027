@@ -1,6 +1,6 @@
 from .py.lgutils import *
 from .py.trans import *
-
+from .py.batch_video import *
 WEB_DIRECTORY = "web"
 
 NODE_CLASS_MAPPINGS = {
@@ -15,7 +15,12 @@ NODE_CLASS_MAPPINGS = {
     "MaskListRepeater": MaskListRepeater,
     "LG_FastPreview": LG_FastPreview,
     "LG_AccumulatePreview": LG_AccumulatePreview,
-
+    "LG_CreateAndSaveVideo": LG_CreateAndSaveVideo,
+    "LG_ConcatVideoFiles": LG_ConcatVideoFiles,
+    "LG_SaveAudioGetPath": LG_SaveAudioGetPath,
+    "LG_ValueSender": LG_ValueSender,
+    "LG_ValueReceiver": LG_ValueReceiver,
+    "LG_ClearAccumulatedValues": LG_ClearAccumulatedValues,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "GroupExecutorSingle": "🎈GroupExecutorSingle",
@@ -29,4 +34,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MaskListRepeater": "🎈List-Mask-Repeater",
     "LG_FastPreview": "🎈LG_FastPreview",
     "LG_AccumulatePreview": "🎈LG_AccumulatePreview",
+    "LG_CreateAndSaveVideo": "🎈LG_CreateAndSaveVideo",
+    "LG_ConcatVideoFiles": "🎈LG_ConcatVideoFiles",
+    "LG_SaveAudioGetPath": "🎈LG_SaveAudioGetPath",
+    "LG_ValueSender": "🎈LG_ValueSender",
+    "LG_ValueReceiver": "🎈LG_ValueReceiver",
+    "LG_ClearAccumulatedValues": "🎈LG_ClearAccumulatedValues",
 }

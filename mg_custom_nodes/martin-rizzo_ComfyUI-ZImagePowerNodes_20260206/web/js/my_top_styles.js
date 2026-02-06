@@ -45,14 +45,16 @@ const TOP_STYLES_INPUT = 'top_styles'; // name of the input socket that connects
  * @param {MyTopStylesCtrl} self - The instance of the controller being initialized.
  * @param {Object}          node - The node to control.
  */
-function init(self, node) {
+function init(self_, node) {
+    const self = self_;
 
-    // build a list with all widgets whose name starts with "style"
+    // find all required widgets
     const allStyleWidgets = node.widgets.filter(w => w.name.startsWith("style_"));
     const channelWidgets  = node.widgets.filter(w => w.name === "output_to");
+    const controlWidgets  = node.widgets.filter(w => w.name === "control_after_generate");
     const channelWidget   = channelWidgets.length > 0 ? channelWidgets[0] : null;
-
-    if( !allStyleWidgets || allStyleWidgets.length == 0 || !channelWidget ) {
+    const controlWidget   = controlWidgets.length > 0 ? controlWidgets[0] : null;
+    if( !allStyleWidgets || allStyleWidgets.length == 0 || !channelWidget || !controlWidget ) {
         console.error("Missing required widgets!");
         return;
     }
@@ -71,16 +73,23 @@ function init(self, node) {
                 onBooleanSwitchChanged(self, widget, value);
                 self.eventEnabled = true;
             }
-            if( typeof oldCallback === 'function' ) {
-                oldCallback.apply(this, arguments);
-            }
+            if( typeof oldCallback === 'function' ) { oldCallback.apply(this, arguments); }
         }
     }
 
-    // set controller properties and methods
+    if( controlWidget ) {
+        const oldAfterQueued = controlWidget.afterQueued;
+        controlWidget.afterQueued = function() {
+            onControlWidget(self, controlWidget, controlWidget.value);
+            if( typeof oldAfterQueued === 'function' ) { oldAfterQueued.apply(this, arguments); }
+        }
+    }
+
+    // set controller properties and public methods
     self.node                = node;
     self.allStyleWidgets     = allStyleWidgets;
     self.channelWidget       = channelWidget;
+    self.controlWidget       = controlWidget;
     self.eventEnabled        = true;
     self.topStylesOriginID   = null;
     self.inputOriginID       = null;
@@ -161,6 +170,22 @@ function updateTopStyles(self, topStyles) {
 
 
 /**
+ * Returns the index of the first style widget with a valid style name.
+ * @param {MyTopStylesCtrl} self - The controller instance.
+ * @returns {number}
+ *     The index of the first valid widget,
+ *     or -1 if no widget has a valid style name.
+ */
+function getFirstValidWidgetIndex(self) {
+    const allStyleWidgets = self.allStyleWidgets;
+    for( let i=0 ; i<allStyleWidgets.length ; ++i ) {
+        if( isValidStyleName(allStyleWidgets[i].label) ) { return i; }
+    }
+    return -1;
+}
+
+
+/**
  * Deselects all styles turning off all switch widgets.
  * @param {MyTopStylesCtrl} self - The controller instance.
  */
@@ -198,6 +223,41 @@ function onBooleanSwitchChanged(self, widget, value) {
     processChainMessage(self, { type     : "launch:deselectAllStyles",
                                 channel  : self.channelWidget.value,
                                 sender_id: self.node.id });
+}
+
+
+/**
+ * Called when the control widget requests to perform an action, typically after the workflow is queued.
+ * @param {MyTopStylesCtrl} self   - The controller instance.
+ * @param {Object}          widget - The control widget that requested the action.
+ * @param {string}          value  - The action to be performed, either "fixed", "next", or "randomize".
+ */
+function onControlWidget(self, widget, value) {
+    const allStyleWidgets = self.allStyleWidgets;
+
+    if( value === "next" ) {
+
+        const firstValidIndex = getFirstValidWidgetIndex(self);
+        if( firstValidIndex === -1 ) {
+            deselectAllStyles(self); return; }
+
+        // find the next widget after the one that is selected,
+        // taking into account that it must have a valid style name
+        let i = firstValidIndex;
+        for( ; i<allStyleWidgets.length ; ++i ) {
+            if( allStyleWidgets[i].value ) { ++i; break; } }
+        for( ; i<allStyleWidgets.length ; ++i ) {
+            if( isValidStyleName(allStyleWidgets[i].label) ) { break; } }
+
+        // activate the 'i' widget, but verifying that
+        // if it reached the end of the list it should return to the beginning
+        if( i>=allStyleWidgets.length ) { i = firstValidIndex; }
+        allStyleWidgets[i].value = true;
+        allStyleWidgets[i].callback(true);
+    }
+    else if( value === "randomize" ) {
+        // TODO: implement a random selector that doesn't repeat (something like a shuffle)
+    }
 }
 
 

@@ -2543,6 +2543,7 @@ class VRGDG_CleanAudio:
 
 
 
+
 import tempfile
 class VRGDG_CreateFinalVideo:
     RETURN_TYPES = ()
@@ -2661,6 +2662,263 @@ class VRGDG_CreateFinalVideo:
 
         except subprocess.CalledProcessError as e:
             print(f"❌ [CreateFinalVideo] Failed to add audio: {e.stderr}")
+
+        return ()
+
+
+
+
+import tempfile
+
+class VRGDG_CreateFinalVideo_SRT:
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
+    FUNCTION = "create_final"
+    CATEGORY = "Video"
+    OUTPUT_NODE = True
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "trigger": ("VHS_FILENAMES", {}),
+                "audio": ("AUDIO",),
+                "threshold": ("INT", {"default": 3}),
+                "group_list": ("STRING", {"default": "-1"}),
+                "video_folder": ("STRING", {"default": "video_output", "multiline": False}),
+            }
+        }
+
+    def create_final(self, trigger, audio, threshold, group_list, video_folder):
+        video_folder = video_folder.strip()
+
+        if not os.path.isabs(video_folder):
+            base_output = folder_paths.get_output_directory()
+            video_folder = os.path.join(base_output, video_folder)
+
+        print(f"[CreateFinalVideo] Looking in: {video_folder}")
+        # ✅ Local temp state folder (stored with videos)
+        temp_state_dir = os.path.join(video_folder, "vrgdg_temp")
+        os.makedirs(temp_state_dir, exist_ok=True)
+
+        # -------------------------------------------------
+        # ✅ RERUN MODE: WAIT FOR OVERRIDE QUEUE TO FINISH
+        # -------------------------------------------------
+        if group_list.strip() != "-1":
+
+            override_path = os.path.join(
+                temp_state_dir,
+                "vrgdg_override_queue.json"
+            )
+
+            if os.path.exists(override_path):
+                with open(override_path, "r") as f:
+                    remaining = json.load(f)
+
+                if remaining:
+                    print(f"[CreateFinalVideo] Waiting for override reruns: {remaining}")
+                    return ()
+
+        # -------------------------------------------------
+        # Collect video files
+        # -------------------------------------------------
+        videos = sorted([
+            f for f in os.listdir(video_folder)
+            if f.lower().endswith(".mp4") and "-audio" in f.lower()
+        ])
+
+        video_count = len(videos)
+
+        # -------------------------------------------------
+        # Normal mode threshold check
+        # -------------------------------------------------
+        if group_list.strip() == "-1":
+            if video_count < threshold:
+                print(f"[CreateFinalVideo] Threshold not met ({video_count}/{threshold}), skipping.")
+                return ()
+
+        # -------------------------------------------------
+        # Output name depends on rerun mode
+        # -------------------------------------------------
+        if group_list.strip() != "-1":
+            final_name = "FINAL_VIDEO_REDO.mp4"
+        else:
+            final_name = "FINAL_VIDEO.mp4"
+
+        final_output = os.path.join(video_folder, final_name)
+
+        # ✅ If file already exists (or is locked), make a new numbered one
+        if os.path.exists(final_output):
+            base, ext = os.path.splitext(final_name)
+            count = 2
+
+            while True:
+                candidate = os.path.join(video_folder, f"{base}{count}{ext}")
+                if not os.path.exists(candidate):
+                    final_output = candidate
+                    break
+                count += 1
+
+
+        # -------------------------------------------------
+        # Build concat list
+        # -------------------------------------------------
+        concat_file = os.path.join(video_folder, "concat_list.txt")
+        with open(concat_file, "w") as f:
+            for vid in videos:
+                f.write(f"file '{os.path.join(video_folder, vid)}'\n")
+
+        temp_video = os.path.join(video_folder, "_temp_video_no_audio.mp4")
+
+        print(f"[CreateFinalVideo] Concatenating {video_count} videos (removing audio)...")
+
+        ffmpeg_path = find_ffmpeg_path()
+        if not ffmpeg_path:
+            print("❌ [CreateFinalVideo] FFmpeg not available.")
+            return ()
+
+        cmd_concat = [
+            ffmpeg_path, "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", concat_file,
+            "-an",
+            "-c:v", "copy",
+            temp_video
+        ]
+
+        try:
+            subprocess.run(cmd_concat, capture_output=True, text=True, check=True)
+            print("✅ [CreateFinalVideo] Videos concatenated (no audio)")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ [CreateFinalVideo] Concatenation failed: {e.stderr}")
+            return ()
+
+        # -------------------------------------------------
+        # Save original audio
+        # -------------------------------------------------
+        temp_audio = os.path.join(video_folder, "_temp_original_audio.wav")
+        print("[CreateFinalVideo] Saving original audio...")
+
+        waveform = audio["waveform"]
+        sample_rate = audio["sample_rate"]
+        def _is_libtorchcodec_error(err_text):
+            return "libtorchcodec" in str(err_text).lower()
+
+        def _write_wav_pyav(path, wav_tensor, sr):
+            import av
+            import numpy as np
+
+            arr = wav_tensor.squeeze(0).detach().cpu().numpy()
+            if arr.ndim == 1:
+                arr = arr[None, :]
+            channels, samples = arr.shape
+            layout = "mono" if channels == 1 else "stereo"
+
+            arr = np.clip(arr, -1.0, 1.0)
+            pcm = (arr.T * 32767.0).astype(np.int16)
+
+            with av.open(path, "w", format="wav") as out_container:
+                stream = out_container.add_stream("pcm_s16le", rate=sr)
+                frame = av.AudioFrame.from_ndarray(pcm, format="s16", layout=layout)
+                frame.sample_rate = sr
+                for packet in stream.encode(frame):
+                    out_container.mux(packet)
+                for packet in stream.encode():
+                    out_container.mux(packet)
+
+        def _mux_with_pyav(video_path, audio_path, output_path):
+            import av
+
+            with av.open(video_path) as v_in, av.open(audio_path) as a_in, av.open(output_path, "w") as out:
+                v_stream_in = v_in.streams.video[0]
+                a_stream_in = a_in.streams.audio[0]
+
+                v_stream_out = out.add_stream(template=v_stream_in)
+                a_stream_out = out.add_stream(template=a_stream_in)
+
+                for packet in v_in.demux(v_stream_in):
+                    if packet.dts is None:
+                        continue
+                    packet.stream = v_stream_out
+                    out.mux(packet)
+
+                for packet in a_in.demux(a_stream_in):
+                    if packet.dts is None:
+                        continue
+                    packet.stream = a_stream_out
+                    out.mux(packet)
+
+        use_pyav_fallback = False
+
+        try:
+            torchaudio.save(temp_audio, waveform.squeeze(0).cpu(), sample_rate)
+        except Exception as e:
+            if _is_libtorchcodec_error(e):
+                print("[CreateFinalVideo] torchaudio.save failed (libtorchcodec). Falling back to PyAV.")
+                try:
+                    _write_wav_pyav(temp_audio, waveform, sample_rate)
+                    use_pyav_fallback = True
+                except Exception as pyav_err:
+                    print(f"❌ [CreateFinalVideo] PyAV WAV write failed: {pyav_err}")
+                    return ()
+            else:
+                print(f"❌ [CreateFinalVideo] Failed to save audio: {e}")
+                return ()
+
+        # -------------------------------------------------
+        # Combine video + audio
+        # -------------------------------------------------
+        print("[CreateFinalVideo] Adding original audio to video...")
+
+        cmd_combine = [
+            ffmpeg_path, "-y",
+            "-i", temp_video,
+            "-i", temp_audio,
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-shortest",
+            final_output
+        ]
+
+        try:
+            if not use_pyav_fallback:
+                subprocess.run(cmd_combine, capture_output=True, text=True, check=True)
+            else:
+                _mux_with_pyav(temp_video, temp_audio, final_output)
+
+        except subprocess.CalledProcessError as e:
+            if _is_libtorchcodec_error(e.stderr):
+                print("[CreateFinalVideo] FFmpeg mux failed (libtorchcodec). Falling back to PyAV.")
+                try:
+                    _mux_with_pyav(temp_video, temp_audio, final_output)
+                except Exception as pyav_err:
+                    print(f"❌ [CreateFinalVideo] PyAV mux failed: {pyav_err}")
+                    return ()
+            else:
+                print(f"❌ [CreateFinalVideo] Failed to add audio: {e.stderr}")
+                return ()
+        except Exception as e:
+            print(f"❌ [CreateFinalVideo] Failed to add audio: {e}")
+            return ()
+
+        os.remove(temp_video)
+        os.remove(temp_audio)
+
+        from server import PromptServer
+        message = (
+            f"🎉 Final video created!\n\n"
+            f"📁 Location:\n{final_output}\n\n"
+            f"✅ {video_count} sets combined\n"
+            f"✅ Original clean audio added"
+        )
+        PromptServer.instance.send_sync("vrgdg_instructions_popup", {
+            "message": message,
+            "type": "green",
+            "title": "✅ VIDEO COMPLETE!"
+        })
+
+        print(f"✅ [CreateFinalVideo] SUCCESS! Final video saved: {final_output}")
 
         return ()
 
@@ -3056,6 +3314,7 @@ NODE_CLASS_MAPPINGS = {
      "VRGDG_CleanAudio":VRGDG_CleanAudio,
      "VRGDG_MusicVideoPromptCreatorV2":VRGDG_MusicVideoPromptCreatorV2,
      "VRGDG_CreateFinalVideo":VRGDG_CreateFinalVideo,
+     "VRGDG_CreateFinalVideo":VRGDG_CreateFinalVideo_SRT,         
      "VRGDG_LoadAudioSplit_Wan22HumoFMML":VRGDG_LoadAudioSplit_Wan22HumoFMML    
 
  
@@ -3088,9 +3347,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VRGDG_CleanAudio":"VRGDG_CleanAudio",
     "VRGDG_MusicVideoPromptCreatorV2":"VRGDG_MusicVideoPromptCreatorV2",
     "VRGDG_CreateFinalVideo":"🎞️ VRGDG Create Final Video",
+    "VRGDG_CreateFinalVideo":"VRGDG_CreateFinalVideo_SRT",     
     "VRGDG_LoadAudioSplit_Wan22HumoFMML":"VRGDG_LoadAudioSplit_Wan22HumoFMML"    
 
 }
+
+
+
 
 
 

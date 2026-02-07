@@ -1665,6 +1665,71 @@ class VRGDG_LoadAudioSplit_General:
         )
     
         
+class VRGDG_BuildVideoOutputPath_General_SRT:
+    """
+    Computes the output file path for Video Combine.
+    Handles overwrite vs backup behavior.
+    Does NOT save files.
+    """
+
+    RETURN_TYPES = (
+        "STRING",  # output_path
+    )
+
+    RETURN_NAMES = (
+        "output_path",
+    )
+
+    FUNCTION = "run"
+    CATEGORY = "VRGDG"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "output_folder": ("STRING", {}),
+                "chunk_index": ("INT", {}),
+                "base_name": ("STRING", {
+                    "default": "video"
+                }),
+                "overwrite_mode": ("STRING", {}),
+            }
+        }
+
+
+    def run(self, output_folder, chunk_index, base_name, overwrite_mode):
+        # Ensure output folder exists
+        os.makedirs(output_folder, exist_ok=True)
+
+        # Avoid double-indexing if base_name already has trailing numeric groups.
+        base_name = re.sub(r"(?:_\d+)+$", "", base_name)
+
+        # Build canonical filename
+        human_index = chunk_index + 1
+        filename = f"{base_name}_{human_index:04d}_{chunk_index:04d}"
+        output_path = os.path.join(output_folder, filename)
+
+
+        # Handle backup mode (keep normal mp4 name)
+        if overwrite_mode == "backup":
+            backup_dir = os.path.join(output_folder, "backup")
+            os.makedirs(backup_dir, exist_ok=True)
+
+            prefix = f"{base_name}_{human_index:04d}_{chunk_index:04d}"
+            for f in os.listdir(output_folder):
+                if f.startswith(prefix) and f.endswith(".mp4"):
+                    src = os.path.join(output_folder, f)
+
+                    # ✅ backup keeps same filename, overwrites previous backup
+                    dst = os.path.join(backup_dir, f)
+
+                    os.replace(src, dst)
+
+
+
+        # In overwrite mode, Video Combine will overwrite naturally
+        return (output_path,)
+            
 class VRGDG_BuildVideoOutputPath_General:
     """
     Computes the output file path for Video Combine.
@@ -2172,32 +2237,60 @@ class BeatImpactAnalysisNode:
         onset_bass = onset_strength(y_bass)
         onset_vocals = onset_strength(y_vocals)
 
-        onset_times = librosa.frames_to_time(
-            np.arange(len(onset_mix)), sr=sr
-        )
+        # If mix onset is empty, fall back to beat-only impact=0.0
+        if onset_mix is None or len(onset_mix) == 0:
+            print("[BeatImpactAnalysisNode] onset_mix is empty; falling back to beat-only impact=0.0")
+            onset_times = np.array([], dtype=np.float32)
+        else:
+            onset_times = librosa.frames_to_time(
+                np.arange(len(onset_mix)), sr=sr
+            )
 
         beats = []
 
+        def safe_onset_value(onset_arr, idx, label):
+            if onset_arr is None or len(onset_arr) == 0:
+                return None
+            if idx < 0 or idx >= len(onset_arr):
+                print(f"[BeatImpactAnalysisNode] {label} onset index out of range (idx={idx}, len={len(onset_arr)}); falling back to mix onset.")
+                return None
+            return onset_arr[idx]
+
         for i, t in enumerate(beat_times):
-            idx = np.argmin(np.abs(onset_times - t))
+            # If we have no onset_times, we can't index into onset arrays; default to 0 impact.
+            if onset_times.size == 0:
+                idx = None
+            else:
+                idx = int(np.argmin(np.abs(onset_times - t)))
 
             impact = 0.0
             weight_sum = 0.0
 
-            if onset_drums is not None:
-                impact += onset_drums[idx] * 0.5
-                weight_sum += 0.5
+            if idx is not None:
+                val = safe_onset_value(onset_drums, idx, "drums")
+                if val is not None:
+                    impact += val * 0.5
+                    weight_sum += 0.5
 
-            if onset_bass is not None:
-                impact += onset_bass[idx] * 0.3
-                weight_sum += 0.3
+            if idx is not None:
+                val = safe_onset_value(onset_bass, idx, "bass")
+                if val is not None:
+                    impact += val * 0.3
+                    weight_sum += 0.3
 
-            if onset_vocals is not None:
-                impact += onset_vocals[idx] * 0.2
-                weight_sum += 0.2
+            if idx is not None:
+                val = safe_onset_value(onset_vocals, idx, "vocals")
+                if val is not None:
+                    impact += val * 0.2
+                    weight_sum += 0.2
 
             if weight_sum == 0.0:
-                impact = onset_mix[idx]
+                # Fall back to mix onset if available; otherwise keep impact at 0.
+                if idx is not None and onset_mix is not None and len(onset_mix) > 0:
+                    if idx < len(onset_mix):
+                        impact = onset_mix[idx]
+                    else:
+                        print(f"[BeatImpactAnalysisNode] mix onset index out of range (idx={idx}, len={len(onset_mix)}); using impact=0.0")
             else:
                 impact /= weight_sum
 
@@ -2337,15 +2430,31 @@ class BeatSceneDurationNode:
             scene_index += 1
             current_index = chosen_index
 
-        # --- Force final subtitle to reach song end ---
+        # --- Clamp tail to max_duration and always reach song end ---
         if current_time < song_end:
-            srt_lines.append(str(scene_index))
-            srt_lines.append(
-                f"{format_time(current_time)} --> {format_time(song_end)}"
-            )
-            srt_lines.append(f"SCENE {scene_index}")
+            remaining = song_end - current_time
 
-            srt_lines.append("")
+            # If tail is longer than max_duration, split into fixed chunks
+            while remaining > max_duration:
+                srt_lines.append(str(scene_index))
+                srt_lines.append(
+                    f"{format_time(current_time)} --> {format_time(current_time + max_duration)}"
+                )
+                srt_lines.append(f"SCENE {scene_index}")
+                srt_lines.append("")
+
+                current_time += max_duration
+                scene_index += 1
+                remaining = song_end - current_time
+
+            # Final tail (<= max_duration)
+            if current_time < song_end:
+                srt_lines.append(str(scene_index))
+                srt_lines.append(
+                    f"{format_time(current_time)} --> {format_time(song_end)}"
+                )
+                srt_lines.append(f"SCENE {scene_index}")
+                srt_lines.append("")
 
 
 
@@ -2551,6 +2660,7 @@ class VRGDG_PromptSplitterWithIndex:
 NODE_CLASS_MAPPINGS = {
     "VRGDG_LoadAudioSplit_General": VRGDG_LoadAudioSplit_General,
     "VRGDG_BuildVideoOutputPath_General": VRGDG_BuildVideoOutputPath_General,
+    "VRGDG_BuildVideoOutputPath_General_SRT": VRGDG_BuildVideoOutputPath_General_SRT,    
     "VRGDG_TrimFinalClip":VRGDG_TrimFinalClip,
     "VRGDG_PromptSplitter_General":VRGDG_PromptSplitter_General,
     "VRGDG_PadVideoWithLastFrame":VRGDG_PadVideoWithLastFrame,
@@ -2569,6 +2679,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "VRGDG_LoadAudioSplit_General": "VRGDG Load Audio Split (General)",
     "VRGDG_BuildVideoOutputPath_General": "VRGDG Build Video Output Path (General)",
+    "VRGDG_BuildVideoOutputPath_General_SRT": "VRGDG Build Video Output Path (General_SRT)",    
     "VRGDG_TrimFinalClip":"VRGDG_TrimFinalClip",
     "VRGDG_PromptSplitter_General":"VRGDG_PromptSplitter_General",
     "VRGDG_PadVideoWithLastFrame":"VRGDG_PadVideoWithLastFrame",
@@ -2584,4 +2695,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 
 
 }
+
+
+
 

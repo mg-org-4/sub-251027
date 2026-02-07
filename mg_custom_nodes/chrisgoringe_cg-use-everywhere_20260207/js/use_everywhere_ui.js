@@ -167,29 +167,30 @@ export class LinkRenderController extends Pausable {
     }
 
     disable_all_connected_widgets( ) {
-        const widgets_disabled = []
-
+        this.widgets_disabled = []
         app.canvas.graph.extra['ue_links']?.forEach((uel) => {
             const node = app.canvas.graph._nodes_by_id[uel.downstream]
             if (node) {
                 const name = node.inputs[uel.downstream_slot]?.name;
                 if (name) {
-                    const widget = node.widgets?.find((w)=>(w.name==name)) //  _getWidgetByName(name) 
-                    if (widget) {
-                        if (!widget.disabled) {
-                            widgets_disabled.push(widget)
-                            widget.disabled = true;
-                        }
-                        widget.linkedWidgets?.filter((w)=>!w.disabled).forEach((w)=>{
-                            widgets_disabled.push(w)
-                            w.disabled = true;
-                        })
+                    const widget = node.widgets?.find((w)=>(w.name==name)) 
+                    if (widget && !widget.disabled) {
+                        try {
+                            widget._disabled = widget.disabled;
+                            widget.disabled  = true;
+                            this.widgets_disabled.push(widget)
+                        } catch (e) { Logger.log_error(e, `Error disabling widget ${name} on node ${node.id}`) }
                     } 
                 } 
             } 
         })   
-        return widgets_disabled
     }
+
+    enable_all_disabled_widgets() {
+        this.widgets_disabled.forEach((w)=>{
+            try { w.disabled=w._disabled } catch (e) { Logger.log_error(e, `Error enabling widget ${w}`) }
+        })
+    }      
 
     highlight_subgraph_node_connections(subgraph, ctx) {
         if (!settingsCache.getSettingValue('Use Everywhere.Graphics.highlight')) return;

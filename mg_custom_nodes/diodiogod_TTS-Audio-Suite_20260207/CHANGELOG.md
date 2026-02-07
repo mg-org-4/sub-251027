@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.20.19] - 2026-02-06
+
+### Added
+
+- Higgs Audio engine was incorrectly being passed to Step Audio EditX editor
+- Inline tags now properly load Step Audio EditX engine for editing operations
+
+### Fixed
+
+- Fix Higgs Audio SRT inline tag processing crash
+- Fix AttributeError when using inline edit tags with Higgs Audio in SRT mode
+## [4.20.18] - 2026-02-06
+
+### Added
+
+- Safe VRAM unloading now works properly - audio quality preserved
+- Simplified cleanup to only reset necessary flags, let engine handle recreation
+- Improved console output clarity - removed debug noise
+- Updated node tooltip to reflect safe CUDA graph management
+- CUDA graphs now auto-recreate properly without audio degradation
+
+### Fixed
+
+- Fix Higgs Audio CUDA graph crashes when clearing VRAM and reloading
+- Fix generation quality issues after model reload with CUDA graphs enabled
+## [4.20.17] - 2026-02-06
+
+### Added
+
+- Properly cleanup CUDA graph memory pools on unload
+- Allow safe model reloading while keeping CUDA graph optimizations
+
+### Fixed
+
+- Fix Qwen3-TTS Windows CUDA graph crashes on model reload
+- Fix crash when clearing VRAM with CUDA graphs enabled
+- Fix crash when switching between TTS Text and SRT nodes
+- Fix crash when changing model parameters after VRAM clear
 ## [4.20.16] - 2026-02-05
 
 ### Added

@@ -10,6 +10,7 @@ import math
 import typing as t
 from pathlib import Path
 import logging
+import nodes
 
 
 
@@ -2955,12 +2956,6 @@ class Image_Detail_HL_frequencye:
 
 
 
-
-
-import torch
-import numpy as np
-import nodes
-
 class texture_render:
     @classmethod
     def INPUT_TYPES(s):
@@ -3013,6 +3008,16 @@ class texture_render:
         final = torch.clamp(final, 0.0, 1.0)
         
         return (final,)
+
+
+
+
+
+
+
+
+
+
 
 
 

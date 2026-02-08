@@ -1280,7 +1280,7 @@
         "name": "图5强度"
       },
       "main_prompt_ratio": {
-        "name": "主提示词占比"
+        "name": "整体prompt占比"
       }
     },
     "outputs": {
@@ -5819,7 +5819,10 @@
     },
     "outputs": {
       "0": {
-        "name": "输出路径"
+        "name": "图像列表"
+      },
+      "1": {
+        "name": "路径列表"
       }
     }
   },
@@ -6176,16 +6179,16 @@
         "name": "上下文"
       },
       "main_prompt_ratio": {
-        "name": "主提示词占比"
+        "name": "整体prompt占比"
       },
       "mode": {
         "name": "模式"
       },
       "pos": {
-        "name": "正向提示词"
+        "name": "正提示词"
       },
       "neg": {
-        "name": "反向提示词"
+        "name": "反提示词"
       }
     },
     "outputs": {
@@ -6193,10 +6196,10 @@
         "name": "上下文"
       },
       "1": {
-        "name": "正向条件"
+        "name": "正条件"
       },
       "2": {
-        "name": "反向条件"
+        "name": "反条件"
       }
     }
   },
@@ -6499,25 +6502,16 @@
         "name": "表达式"
       },
       "a": {
-        "name": "A值"
+        "name": "a"
       },
       "b": {
-        "name": "B值"
+        "name": "b"
       },
       "c": {
-        "name": "C值"
+        "name": "c"
       }
     },
     "outputs": {
-      "0": {
-        "name": "浮点结果"
-      },
-      "1": {
-        "name": "整数结果"
-      },
-      "2": {
-        "name": "布尔结果"
-      }
     }
   },
   "math_Remap_data": {
@@ -12237,6 +12231,9 @@
     "outputs": {
       "0": {
         "name": "图像批次"
+      },
+        "1": {
+        "name": "新图像列表"
       }
     }
   },
@@ -12360,7 +12357,22 @@
 }
 },
 
-
+"type_ImageAlphaSplit": {
+    "display_name": "type_图像通道拆分",
+    "inputs": {
+        "images": {
+            "name": "图像列表"
+        }
+    },
+    "outputs": {
+        "images": {
+            "name": "图像列表"
+        },
+        "masks": {
+            "name": "遮罩列表"
+        }
+    }
+},
 
 
 "text_mul_Split": {

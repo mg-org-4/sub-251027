@@ -1117,7 +1117,6 @@ class IO_loadFilePath:
                     full_path = os.path.abspath(os.path.join(root, file))
                     file_paths.append(full_path)
                     
-                    # 处理文件名，根据remove_extension决定是否移除扩展名
                     if remove_extension:
                         file_names.append(os.path.splitext(file)[0])
                     else:
@@ -1129,7 +1128,6 @@ class IO_loadFilePath:
             print(f"获取文件路径失败：{str(e)}")
             return ([], "", [])
 
-        # 排序确保文件名和路径列表顺序一致
         sorted_files = sorted(zip(file_names, file_paths), key=lambda x: x[1])
         file_names, file_paths = zip(*sorted_files) if sorted_files else ([], [])
         
@@ -1156,7 +1154,7 @@ class IO_save_image:
             },
             "optional": {
                 "number_prefix": ("BOOLEAN", {"default": False, "label_on": "前置编号", "label_off": "后置编号"}),
-                "number_digits": ("INT", {"default": 5, "min": 1, "max": 10, "step": 1, "tooltip": "编号位数，如设置为3则为001格式"}),
+                "number_digits": ("INT", {"default": 5, "min": 1, "max": 10, "step": 1}),
                 "save_workflow_as_json": ("BOOLEAN", {"default": False}),
             },
             "hidden": {
@@ -1165,11 +1163,11 @@ class IO_save_image:
             }
         }
 
-    RETURN_TYPES = ("STRING", )
-    RETURN_NAMES = ("out_path",)
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("imagelist", "pathlist")
     FUNCTION = "save_image"
     OUTPUT_NODE = True
-    OUTPUT_IS_LIST = (True,)
+    OUTPUT_IS_LIST = (True, True)
     CATEGORY = "Apt_Preset/IO_Port"
 
     @staticmethod
@@ -1191,21 +1189,25 @@ class IO_save_image:
 
     def save_image(self, image, file_format, filename_mid="Apt", output_path="", number_prefix=False, number_digits=5,
                    save_workflow_as_json=False, prompt=None, extra_pnginfo=None):
+        if isinstance(image, list):
+            image = np.concatenate(image, axis=0)
+        
         batch_size = image.shape[0]
         images_list = [image[i:i + 1, ...] for i in range(batch_size)]
         output_dir = folder_paths.get_output_directory()
         output_paths = []
 
-        if isinstance(output_path, str):
+        if isinstance(output_path, list):
+            if len(output_path) == batch_size:
+                for path in output_path:
+                    os.makedirs(path, exist_ok=True)
+                output_paths = output_path
+            else:
+                print(f"output_path列表长度({len(output_path)})与图片数量({batch_size})不匹配，使用默认路径")
+                output_paths = [output_dir] * batch_size
+        else:
             os.makedirs(output_path, exist_ok=True)
             output_paths = [output_path] * batch_size
-        elif isinstance(output_path, list) and len(output_path) == batch_size:
-            for path in output_path:
-                os.makedirs(path, exist_ok=True)
-            output_paths = output_path
-        else:
-            print("Invalid output_path format. Using default output directory.")
-            output_paths = [output_dir] * batch_size
 
         base_dir = output_paths[0]
         counter = self.find_highest_numeric_value(base_dir, filename_mid) + 1
@@ -1243,10 +1245,7 @@ class IO_save_image:
                 except Exception as e:
                     print(f"Failed to save workflow JSON: {e}")
 
-        return (absolute_paths, )
-
-
-
+        return (images_list, absolute_paths)
 
 
 

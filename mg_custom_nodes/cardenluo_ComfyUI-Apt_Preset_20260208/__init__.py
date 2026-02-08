@@ -340,7 +340,7 @@ NODE_CLASS_MAPPINGS= {
 "create_any_List": create_any_List,#wed
 "create_any_batch": create_any_batch,  #wed
 
-
+"type_ImageAlphaSplit":type_ImageAlphaSplit,
 "type_Image_List2Batch":type_Image_List2Batch,
 "type_Image_List2Batch_adv":type_Image_List2Batch_adv,
 "type_Image_Batch2List":type_Image_Batch2List,

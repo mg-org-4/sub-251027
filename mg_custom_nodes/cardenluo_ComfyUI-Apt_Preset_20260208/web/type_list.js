@@ -76,7 +76,7 @@ function getWorkflowTypes(app) {
 
 
 app.registerExtension({
-    name: "godmt.ListUtils",
+    name: "APTPRESET",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name === "pack_Pack" || nodeData.name === "create_any_batch" || nodeData.name === "create_image_batch"|| nodeData.name === "create_mask_batch") {
             const onNodeCreated = nodeType.prototype.onNodeCreated
@@ -511,6 +511,19 @@ app.registerExtension({
                 onExecuted === null || onExecuted === void 0 ? void 0 : onExecuted.apply(this, [message])
                 this.showValueWidget.value = message.text[0]
             }
+        } else if (nodeData.name === "sum_TextEncode") {
+            const onNodeCreated = nodeType.prototype.onNodeCreated
+            nodeType.prototype.onNodeCreated = function () {
+                onNodeCreated ? onNodeCreated.apply(this, []) : undefined
+                this.showValueWidget = ComfyWidgets["STRING"](this, "prompt_info", ["STRING", { multiline: true }], app).widget
+            }
+            const onExecuted = nodeType.prototype.onExecuted
+            nodeType.prototype.onExecuted = function (message) {
+                onExecuted === null || onExecuted === void 0 ? void 0 : onExecuted.apply(this, [message])
+                if (message.text && message.text.length > 0) {
+                    this.showValueWidget.value = message.text[0]
+                }
+            }
         } else if (nodeData.name === "XXlist_ListGetByIndex" || nodeData.name === "XXlist_ListSlice") {
             const onConnectionsChange = nodeType.prototype.onConnectionsChange
             nodeType.prototype.onConnectionsChange = function (slotType, slot, event, link_info, data) {
@@ -533,3 +546,5 @@ app.registerExtension({
         }
     }
 })
+
+

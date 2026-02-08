@@ -2012,10 +2012,11 @@ class sum_stack_flux2_Klein:
     FUNCTION = "process"
     CATEGORY = "Apt_Preset/chx_tool"
     DESCRIPTION = """
-    1-特征权追加：[语义@权重数值0~10] 
-    例如： 
-    风格减弱：3d风格，[女孩打伞，瀑布@0.6]
+    1-特征权重追加：[语义@权重数值0~10] 
+    例如：个性特征默认权重1.0 ，<1则减弱，>1则加强
+    风格减弱： 3d风格，[女孩打伞，瀑布@0.2]
     风格增强：[3d风格@0.2]，女孩打伞，瀑布
+    main_prompt_ratio：整体权重占比，越高，语义越偏向整体
     2-图片权重编号对应参考图编号
     3-latent_image: 生成图尺寸，如果没有连接，则从上下文获取latent尺寸
     """

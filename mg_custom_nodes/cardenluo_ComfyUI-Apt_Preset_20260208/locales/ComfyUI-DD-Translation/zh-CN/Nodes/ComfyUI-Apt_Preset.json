@@ -2659,7 +2659,8 @@
             "save_workflow_as_json": "保存工作流为JSON"
         },
         "outputs": {
-            "out_path": "输出路径"
+            "imagelist": "图像列表",
+            "pathlist": "路径列表"
         }
     },
     "IO_loadFilePath": {
@@ -3064,14 +3065,14 @@
         "widgets": {
             "preset": "预设",
             "expression": "表达式",
-            "a": "参数A",
-            "b": "参数B",
-            "c": "参数C"
+            "a": "a",
+            "b": "b",
+            "c": "c"
         },
         "outputs": {
-            "float_result": "浮点结果",
-            "int_result": "整数结果",
-            "bool_result": "布尔结果"
+            "float_result": "float",
+            "int_result": "int",
+            "bool_result": "bool"
         }
     },
     "math_Remap_data": {

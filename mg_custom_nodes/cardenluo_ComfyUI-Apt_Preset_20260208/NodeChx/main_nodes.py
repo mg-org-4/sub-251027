@@ -1056,22 +1056,24 @@ class sum_TextEncode:
             "optional": {
                 "pos": ("STRING", {"default": "", "multiline": True}),
                 "neg": ("STRING", {"default": "", "multiline": False}),
-                "mode": (["normal", "flux2.klein", "z-image",], {"default": "normal"}),
+                "mode": (["normal", "flux2.klein", "z-image", "qwen-image",], {"default": "normal"}),
                 "main_prompt_ratio": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
             }
         }
 
-    RETURN_TYPES = ("RUN_CONTEXT", "CONDITIONING", "CONDITIONING", "STRING", )
-    RETURN_NAMES = ("context",  "positive", "negative", "prompt_info")
+    RETURN_TYPES = ("RUN_CONTEXT", "CONDITIONING", "CONDITIONING", )
+    RETURN_NAMES = ("context",  "positive", "negative", )
     CATEGORY = "Apt_Preset/chx_tool"
     FUNCTION = "sum_text_encode"
+    OUTPUT_NODE = True
     DESCRIPTION = """
     特征权重追加：[语义@权重数值0~10] 
-    例如： 
+    例如：个性特征默认权重1.0 ，<1则减弱，>1则加强
     风格减弱： 3d风格，[女孩打伞，瀑布@0.2]
     风格增强：[3d风格@0.2]，女孩打伞，瀑布
+    main_prompt_ratio：整体权重占比越高，语义越偏向整体
     """
-    #"flux", "qwen-image", "wan2.1", "wan2.2"待定
+
     
     def sum_text_encode(self, context=None, main_prompt_ratio=0.5, pos="", neg="", mode="normal"):
         prompt_info = "默认：无提示词处理"
@@ -1089,12 +1091,17 @@ class sum_TextEncode:
             if mode in ["z-image", "flux2.klein"]:                
                 prompt_weight_processor = pre_Unit_PromptWeight()
                 positive, prompt_info = prompt_weight_processor.process(clip, pos, main_prompt_ratio)
+            elif mode == "qwen-image":
+                prompt_weight_processor = pre_qwenimage_PromptWeight()
+                positive, prompt_info = prompt_weight_processor.process(clip, pos, main_prompt_ratio)
+
             else:
                 positive = CLIPTextEncode().encode(clip, pos)[0]
                 prompt_info = f"原生编码：{pos[:20]}... | 模式：{mode}"
 
         context = new_context(context, positive=positive, negative=negative)
-        return (context, positive, negative, prompt_info)
+        return { "ui": {"text": (prompt_info,)}, "result": (context, positive, negative, ) }
+
 
 
 

@@ -1,6 +1,15 @@
 
 
-
+ZHIPU_MODELS = [
+    "None",
+    "GLM-4.5-Flash",
+    "glm-4v-flash",
+    "XX----下面的要开通支付-----XX",
+    "GLM-4.6V",
+    "glm-4.7",
+    "glm-4.5-air",
+    "glm-4.5",
+]
 
 #region-----------GLM4.5V-------------------------------------
 
@@ -16,9 +25,10 @@ import requests
 try:
     from zhipuai import ZhipuAI
     ZHIPUAI_AVAILABLE = True
-except ImportError:
+except (ImportError, TypeError):
     ZhipuAI = None
     ZHIPUAI_AVAILABLE = False
+    print("[GLM_Nodes] 警告：zhipuai 库导入失败，可能是 httpx 版本不兼容。GLM相关节点将不可用。")
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 json_path = os.path.join(current_dir, "AiPromptPreset.json")
@@ -1205,9 +1215,10 @@ import folder_paths
 try:
     from zhipuai import ZhipuAI
     ZHIPUAI_AVAILABLE = True
-except ImportError:
+except (ImportError, TypeError):
     ZhipuAI = None
     ZHIPUAI_AVAILABLE = False
+    print("[GLM_Nodes] 警告：zhipuai 库导入失败，可能是 httpx 版本不兼容。GLM相关节点将不可用。")
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 json_path = os.path.join(current_dir, "AiPromptPreset.json")
@@ -1246,16 +1257,7 @@ def load_prompts(prompt_type):
 TEXT_PROMPTS = load_prompts("TEXT_PROMPTS")
 IMAGE_PROMPTS = load_prompts("IMAGE_PROMPTS")
 
-ZHIPU_MODELS = [
-    "None",
-    "GLM-4.5-Flash",
-    "glm-4v-flash",
-    "XX----下面的要开通支付-----XX",
-    "GLM-4.6V",
-    "glm-4.7",
-    "glm-4.5-air",
-    "glm-4.5",
-]
+
 
 def analyze_glm_text_no_sdk(model, api_key, system_prompt, text_content, max_tokens, seed=None):
     if not api_key:

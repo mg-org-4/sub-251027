@@ -179,9 +179,10 @@ class type_Image_List2Batch_adv:
         }
 
     INPUT_IS_LIST = True
+    OUTPUT_IS_LIST = (False, True) 
     
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("image_batch",)
+    RETURN_TYPES = ("IMAGE", "IMAGE")
+    RETURN_NAMES = ("image_batch", "new_image_list")
     FUNCTION = "convert"
     CATEGORY = "Apt_Preset/data/list|Batch"
 
@@ -223,7 +224,8 @@ class type_Image_List2Batch_adv:
         bg_rgb = self.parse_color(background_color)
         
         if not image_list:
-            return (torch.zeros([1, 64, 64, 3]),)
+            empty_tensor = torch.zeros([1, 64, 64, 3])
+            return (empty_tensor, [empty_tensor])  # 第二个返回值是列表
 
         raw_images = []
         for item in image_list:
@@ -241,11 +243,12 @@ class type_Image_List2Batch_adv:
                     raw_images.append(item)
 
         if not raw_images:
-            return (torch.zeros([1, 64, 64, 3]),)
+            empty_tensor = torch.zeros([1, height, width, 3])
+            return (empty_tensor, [empty_tensor])  # 第二个返回值是列表
 
         target_h, target_w = height, width
         
-        processed_images = []
+        processed_images = []  # 这个列表会直接作为输出返回
         
         for img_batch in raw_images:
             for i in range(img_batch.shape[0]):
@@ -280,15 +283,15 @@ class type_Image_List2Batch_adv:
                     
                     final_canvas[:, :, y_off:y_off+new_h, x_off:x_off+new_w] = resized
                     img_out = final_canvas
-
-                processed_images.append(img_out.permute(0, 2, 3, 1))
+            processed_img = img_out.permute(0, 2, 3, 1)
+            processed_images.append(processed_img)
         
         if not processed_images:
-             return (torch.zeros([1, target_h, target_w, 3]),)
+            empty_tensor = torch.zeros([1, target_h, target_w, 3])
+            return (empty_tensor, [empty_tensor])  # 第二个返回值是列表
              
         final_batch = torch.cat(processed_images, dim=0)
-        return (final_batch,)
-
+        return (final_batch, processed_images)
 
 
 
@@ -789,6 +792,49 @@ class ImageBatchMultiple:
             out = torch.cat((out, image_5), dim=0)
 
         return (out,)
+
+
+
+
+
+
+
+class type_ImageAlphaSplit:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "images": ("IMAGE",),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("images", "masks")
+    INPUT_IS_LIST = (True,)         
+    OUTPUT_IS_LIST = (True, True,)   
+    FUNCTION = "split_alpha"
+    CATEGORY = "Apt_Preset/data"
+
+    def split_alpha(self, images):
+        output_images = []
+        output_masks = []
+
+        for img in images:
+            if img.shape[-1] == 4:
+                # 保留3通道图像（H,W,3）
+                img_3ch = img[..., :3]
+                alpha_mask = img[..., 3].squeeze(-1)
+                output_images.append(img_3ch)
+                output_masks.append(alpha_mask)
+            elif img.shape[-1] == 3:
+                output_images.append(img)
+                empty_mask = torch.zeros_like(img[..., 0])
+                output_masks.append(empty_mask)
+            else:
+                raise ValueError(f"不支持的图像通道数：{img.shape[-1]}，仅支持3/4通道")
+
+        return (output_images, output_masks)
+
 
 
 

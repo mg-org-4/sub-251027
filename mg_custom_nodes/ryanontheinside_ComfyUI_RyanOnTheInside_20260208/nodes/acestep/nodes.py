@@ -96,9 +96,9 @@ class ACEStep15SemanticHintsBlend:
 
     blend_factor: 0.0 = 100% hints_a, 1.0 = 100% hints_b, 0.5 = 50/50 mix
 
-    Optional FEATURE input enables temporal blending — the feature value at each
-    audio time step controls the blend weight, scaled by blend_factor. This allows
-    crossfades, rhythmic alternation, and region-based masking between sources.
+    Accepts a scalar float for static blending, or a list of floats (e.g. from
+    FeatureToFloat) for temporal blending — each value controls the blend weight
+    at the corresponding time step.
     """
 
     @classmethod
@@ -109,9 +109,6 @@ class ACEStep15SemanticHintsBlend:
                 "hints_b": ("SEMANTIC_HINTS",),
                 "blend_factor": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
             },
-            "optional": {
-                "feature": ("FEATURE",),
-            }
         }
 
     RETURN_TYPES = ("SEMANTIC_HINTS",)
@@ -119,7 +116,7 @@ class ACEStep15SemanticHintsBlend:
     FUNCTION = "blend"
     CATEGORY = "audio/acestep"
 
-    def blend(self, hints_a, hints_b, blend_factor, feature=None):
+    def blend(self, hints_a, hints_b, blend_factor):
         # Validate shapes match
         if hints_a.shape != hints_b.shape:
             # Try to match lengths by truncating to shorter
@@ -132,34 +129,35 @@ class ACEStep15SemanticHintsBlend:
         logger.debug(f"[SEMANTIC_BLEND]   hints_a shape: {hints_a.shape}, stats: mean={hints_a.mean():.4f}, std={hints_a.std():.4f}")
         logger.debug(f"[SEMANTIC_BLEND]   hints_b shape: {hints_b.shape}, stats: mean={hints_b.mean():.4f}, std={hints_b.std():.4f}")
 
-        if feature is not None:
-            # Temporal blending: sample feature across the time dimension
+        if isinstance(blend_factor, list):
+            # Temporal blending: list of per-frame weights (e.g. from FeatureToFloat)
             # Hints shape is [B, D, T] — time is the last dimension
             T = hints_a.shape[-1]
-            frame_count = feature.frame_count
+            frame_count = len(blend_factor)
 
-            logger.debug(f"[SEMANTIC_BLEND]   feature mode: {frame_count} feature frames -> {T} audio time steps")
+            logger.debug(f"[SEMANTIC_BLEND]   temporal mode: {frame_count} weight frames -> {T} audio time steps")
 
-            weights = []
-            for t in range(T):
-                # Map audio time step to feature frame index
-                if T == 1:
-                    frame_idx = 0
-                else:
-                    frame_idx = round(t * (frame_count - 1) / (T - 1))
-                frame_idx = max(0, min(frame_idx, frame_count - 1))
-                weights.append(float(feature.get_value_at_frame(frame_idx)))
+            # Resample weights to match time dimension
+            if frame_count == T:
+                weights = blend_factor
+            else:
+                weights = []
+                for t in range(T):
+                    if T == 1:
+                        frame_idx = 0
+                    else:
+                        frame_idx = round(t * (frame_count - 1) / (T - 1))
+                    frame_idx = max(0, min(frame_idx, frame_count - 1))
+                    weights.append(float(blend_factor[frame_idx]))
 
             # Shape [1, 1, T] to broadcast across batch and channel dims
             weight = torch.tensor(weights, dtype=hints_a.dtype, device=hints_a.device).reshape(1, 1, T)
-            # blend_factor scales the feature values
-            weight = weight * blend_factor
 
             logger.debug(f"[SEMANTIC_BLEND]   temporal weight stats: min={weight.min():.4f}, max={weight.max():.4f}, mean={weight.mean():.4f}")
 
             blended = (1.0 - weight) * hints_a + weight * hints_b
         else:
-            # Static blend — backward compatible
+            # Static blend with scalar float
             logger.debug(f"[SEMANTIC_BLEND]   blend_factor: {blend_factor} (0=A, 1=B)")
             blended = (1.0 - blend_factor) * hints_a + blend_factor * hints_b
 
@@ -975,7 +973,8 @@ class ACEStep15TaskTextEncodeNode:
             "required": {
                 "clip": ("CLIP",),
                 "text": ("STRING", {"multiline": True, "dynamicPrompts": True, "default": "A melodic electronic track with soft synths"}),
-                "task_type": (["text2music", "repaint", "cover"],),  # TODO: Re-enable "extract", "lego" when ready
+                "task_type": (["text2music", "repaint", "cover"],
+                             {"tooltip": "text2music/repaint use LM audio code generation (cfg_scale, temperature, top_p, top_k apply). cover uses precomputed semantic hints from source audio instead."}),  # TODO: Re-enable "extract", "lego" when ready
             },
             "optional": {
                 "track_name": (["", "vocals", "drums", "bass", "guitar", "keyboard", "strings",
@@ -989,6 +988,14 @@ class ACEStep15TaskTextEncodeNode:
                 "timesignature": ("COMBO", {"default": "4", "options": s.VALID_TIME_SIGNATURES}),
                 "language": ("COMBO", {"default": "en", "options": s.VALID_LANGUAGES}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffff}),
+                "cfg_scale": ("FLOAT", {"default": 2.0, "min": 0.0, "max": 100.0, "step": 0.1,
+                              "tooltip": "Controls how closely the generated audio follows your text prompt. Higher values produce output that matches your description more literally, lower values allow more freedom. No effect on cover/extract/lego tasks, which use semantic hints from source audio instead of generating new audio codes."}),
+                "temperature": ("FLOAT", {"default": 0.85, "min": 0.0, "max": 2.0, "step": 0.01,
+                                 "tooltip": "Controls randomness and creativity in the generated audio. Lower values (0.7-0.85) produce more consistent, predictable results. Higher values (0.9-1.1) produce more varied, surprising output. No effect on cover/extract/lego tasks, which use semantic hints from source audio instead of generating new audio codes."}),
+                "top_p": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.01,
+                           "tooltip": "Limits how many possible audio choices are considered at each step. Lower values (e.g. 0.8) produce safer, more predictable output. Higher values allow more diversity. 1.0 disables this filter. No effect on cover/extract/lego tasks, which use semantic hints from source audio instead of generating new audio codes."}),
+                "top_k": ("INT", {"default": 0, "min": 0, "max": 100,
+                           "tooltip": "Restricts each generation step to only the top K most likely choices. 0 disables this filter. Lower values (e.g. 40) reduce unlikely outputs while keeping variety. No effect on cover/extract/lego tasks, which use semantic hints from source audio instead of generating new audio codes."}),
             }
         }
 
@@ -998,7 +1005,8 @@ class ACEStep15TaskTextEncodeNode:
     CATEGORY = "conditioning"
 
     def encode(self, clip, text, task_type, track_name="", lyrics="", bpm=120,
-               duration=60, keyscale="C major", timesignature="4", language="en", seed=0):
+               duration=60, keyscale="C major", timesignature="4", language="en", seed=0,
+               cfg_scale=2.0, temperature=0.85, top_p=0.9, top_k=0):
         # Validate track_name for extract/lego tasks
         if task_type in ["extract", "lego"] and not track_name:
             logger.debug(f"[ACE15_TEXT_ENCODE] Warning: track_name not specified for {task_type} task, using default instruction")
@@ -1017,9 +1025,14 @@ class ACEStep15TaskTextEncodeNode:
             "seed": seed,
             "task_type": task_type,
             "track_name": track_name if track_name else None,
+            "cfg_scale": cfg_scale,
+            "temperature": temperature,
+            "top_p": top_p,
+            "top_k": top_k,
         }
 
         logger.debug(f"[ACE15_TEXT_ENCODE] Encoding with task_type={task_type}, track_name={track_name or 'N/A'}")
+        print(f"[ACE15_TEXT_ENCODE] LM params: cfg_scale={cfg_scale}, temperature={temperature}, top_p={top_p}, top_k={top_k}")
 
         # Import to get task instruction for verification
         from .patches import get_task_instruction, is_patched

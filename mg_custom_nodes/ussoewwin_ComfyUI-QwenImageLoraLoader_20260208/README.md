@@ -6,7 +6,7 @@ A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nun
 
 **Currently under development and testing. Debug logs are being output extensively. This does not affect functionality.**
 
-> Latest release: [v2.3.9 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.3.9)
+> Latest release: [v2.4.1 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.4.1)
 > 
 
 ## Source
@@ -44,6 +44,13 @@ By default, detailed debug logs are **muted**. If you want detailed debug output
 
 <img src="images/legacy_stack.png" alt="NunchakuQwenImageLoraStack: Multi LoRA stacker with dynamic UI (Legacy)" width="400">
 
+- **NunchakuQwenImageLoraStackV1**: Multi LoRA stacker with rgthree-style UI
+  - Clean, minimalist design inspired by [Power Lora Loader (rgthree-comfy)](https://github.com/rgthree/rgthree-comfy). Toggle, LoRA name, and strength per row.
+  - ⚠️ **Note**: Does **not** work properly with ComfyUI Nodes 2.0. Use the standard (LiteGraph) canvas.
+  - ⚠️ **When using with ComfyUI Nodes 2.0, pressing F5 to refresh will reflect changes.**
+
+<img src="images/qiv1_stack.png" alt="NunchakuQwenImageLoraStackV1: Multi LoRA stacker with rgthree-style UI" width="400">
+
 - **NunchakuQwenImageLoraStackV2**: Multi LoRA stacker with dynamic UI - ComfyUI Nodes 2.0 (Beta) compatible
   - **AWQ Modulation Layer Support**: Includes experimental support for applying LoRA to AWQ quantized modulation layers (`img_mod.1` / `txt_mod.1`) via the "Apply AWQ Mod" toggle. This feature uses Runtime Monkey Patch with Manual Planar Injection to fix noise issues. ⚠️ **Warning**: **This is an experimental feature currently implemented only in V2 nodes.** If no issues are found, this feature will be applied to V1 and V3 nodes as well.
 
@@ -53,6 +60,13 @@ By default, detailed debug logs are **muted**. If you want detailed debug output
   - **AWQ Modulation Layer Support**: AWQ quantized modulation layers (`img_mod.1` / `txt_mod.1`) LoRA application is **always enabled** (no switch needed). This feature uses Runtime Monkey Patch with Manual Planar Injection to fix noise issues. ✅ **V3 nodes always apply AWQ modulation layer LoRA by default.**
 
 <img src="images/qiv3_stack.png" alt="NunchakuQwenImageLoraStackV3: Multi LoRA stacker with dynamic UI - ComfyUI Nodes 2.0 (Beta) compatible" width="400">
+
+- **NunchakuZImageTurboLoraStackV1**: Z-Image-Turbo LoRA stacker with rgthree-style UI
+  - Clean, minimalist design inspired by [Power Lora Loader (rgthree-comfy)](https://github.com/rgthree/rgthree-comfy). Toggle, LoRA name, and strength per row. For official Nunchaku Z-Image loader only. Uses compose_loras_v2.
+  - ⚠️ **Note**: Does **not** work properly with ComfyUI Nodes 2.0. Use the standard (LiteGraph) canvas.
+  - ⚠️ **When using with ComfyUI Nodes 2.0, pressing F5 to refresh will reflect changes.**
+
+<img src="images/zitlorav1.png" alt="NunchakuZImageTurboLoraStackV1: Z-Image-Turbo LoRA stacker with rgthree-style UI" width="400">
 
 - **NunchakuZImageTurboLoraStackV4**: Z-Image-Turbo LoRA stacker with dynamic UI - Standard ComfyUI LoRA loader format (CLIP input/output) - ComfyUI Nodes 2.0 compatible
 
@@ -88,6 +102,7 @@ By default, detailed debug logs are **muted**. If you want detailed debug output
 - **Issue #3 Fixed (v1.4.0)**: Resolved [Node break cached progress error](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/3) by implementing proper IS_CHANGED method with hash-based change detection (thanks to @AHEKOT's bug report)
 - **Issue #10 Fixed**: Added portable ComfyUI support with embedded Python detection ([Issue #10](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/10)) - **Special Thanks**: This crucial feature was suggested by @vvhitevvizard, who identified the need for embedded Python support in portable ComfyUI installations. Without this suggestion, portable ComfyUI users would not have been able to use this LoRA loader.
 - **PR #48 Merged (v2.3.8)**: Improved PEFT format LoRA detection and added safety skip logs ([PR #48](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/pull/48)) - **Special Thanks**: We are deeply grateful to [@avan06](https://github.com/avan06) for identifying and fixing a critical mapping defect that caused PEFT format LoRAs to be incorrectly skipped. This fix significantly improves LoRA format compatibility and ensures proper detection of LoRA files created with Hugging Face PEFT library.
+- **PR #49 Merged (v2.4.0)**: Added Nunchaku Qwen Image LoRA Stack V1 with rgthree-style UI ([PR #49](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/pull/49)) - **Special Thanks**: We are deeply grateful to [@avan06](https://github.com/avan06) for proposing the clean, minimalist interface inspired by Power Lora Loader (rgthree-comfy). This contribution brings an elegant LoRA row layout with toggle, LoRA name, and strength control. We had long felt the need for such a UI but were unable to implement it with our technical skills; this PR fulfilled that need.
 
 ## Requirements
 
@@ -202,6 +217,17 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 
 ## Changelog
 
+### v2.4.1 (latest)
+- **Added**: Nunchaku Z-Image-Turbo LoRA Stack V1 with rgthree-style UI - Same layout as Qwen Image LoRA Stack V1: toggle, LoRA name, and strength per row. For official Nunchaku Z-Image loader only. Uses compose_loras_v2. Does not work properly with ComfyUI Nodes 2.0; when using with Nodes 2.0, pressing F5 to refresh will reflect changes.
+- **Related Issues**: [Issue #12](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/12) - Request for better LoRA option (rgthree-style UI), [Issue #36](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/36) - Request for enabling/disabling LoRA function
+
+### v2.4.0
+- **Added**: Nunchaku Qwen Image LoRA Stack V1 with rgthree-style UI - Clean, minimalist interface inspired by Power Lora Loader (rgthree-comfy). Toggle, LoRA name, and strength per row.
+- **Merged**: [PR #49](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/pull/49) - feat(qwen_lora): add Nunchaku Qwen Image LoRA Stack V4 with rgthree-style UI (proposed by [avan06](https://github.com/avan06))
+- **Note**: Does not work properly with ComfyUI Nodes 2.0. Use the standard (LiteGraph) canvas.
+- **Related Issues**: [Issue #12](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/12) - Request for better LoRA option (rgthree-style UI), [Issue #36](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/36) - Request for enabling/disabling LoRA function
+- **Technical Details**: See [v2.4.0 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.4.0) for complete explanation
+
 ### v2.3.9
 - **Added**: Key Diffusion (key analysis logging) - Added detailed key analysis logging to all Qwen Image LoRA nodes (Loader, Legacy Stack, V2 Stack, V3 Stack). When enabled via `nunchaku_log=1` environment variable, displays key mapping information (`Key: <original key> -> Mapped to: <mapped target> (Group: <group>)`) for debugging and verification purposes. This feature matches the functionality already available in Z-Image Turbo LoRA nodes. **Note**: Logs are muted by default and only displayed when `nunchaku_log=1` is set.
 - **Technical Details**: See [v2.3.9 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.3.9) for complete explanation
@@ -232,7 +258,7 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 - ⚠️ **Important**: This node is **only compatible with the unofficial Nunchaku Z-Image-Turbo DiT Loader** provided by [ComfyUI-nunchaku-unofficial-loader](https://github.com/ussoewwin/ComfyUI-nunchaku-unofficial-loader)
 - ⚠️ **Not Compatible**: This node is **not compatible** with the official Nunchaku Z-Image-Turbo DiT Loader from ComfyUI-Nunchaku
 
-### v2.3.1 (latest)
+### v2.3.1
 - **Fixed**: Resolved [Issue #46](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/46) – Fixed `NameError: name 'ZIMAGETURBO_V4_NAMES' is not defined` error that occurred when `zimageturbo_v4` module import failed. Initialized `ZIMAGETURBO_V4_NAMES`, `ZIMAGETURBO_V4_NODES`, `QWEN_V3_NAMES`, and `QWEN_V3_NODES` before the import block to prevent NameError on import failure.
 - **Fixed**: Resolved [Issue #47](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/47) – Added missing v4 files to Git repository (`nodes/lora/zimageturbo_v4.py`, `js/zimageturbo_lora_dynamic_v4.js`). These files were created but not committed to Git, causing `ModuleNotFoundError` in previous releases. The files are now included in the repository.
 

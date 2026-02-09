@@ -1,8 +1,7 @@
-"""Operator to render a depth map."""
+"""Operator to render from the camera view."""
 import logging
 import os
 import shutil
-from math import tan
 
 import bpy
 
@@ -12,14 +11,14 @@ log = logging.getLogger("comfyui_blender")
 
 
 class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
-    """Operator to render a depth map."""
+    """Operator to render from the camera view."""
 
-    bl_idname = "comfy.render_depth_map"
-    bl_label = "Render Depth Map"
-    bl_description = "Render a depth map from the camera and upload it to the ComfyUI server."
+    bl_idname = "comfy.render_view"
+    bl_label = "Render View"
+    bl_description = "Render view from the camera and upload it to the ComfyUI server."
 
     workflow_property: bpy.props.StringProperty(name="Workflow Property")
-    temp_filename = "blender_depth_map"
+    temp_filename = "blender_render"
 
     def reset_scene(self, context, **kwargs):
         """Reset the scene to its initial state."""
@@ -27,12 +26,6 @@ class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
         # Restore original render settings
         scene = context.scene
         scene.render.filepath = kwargs["original_filepath"]
-        scene.render.image_settings.file_format = kwargs["original_file_format"]
-        scene.render.image_settings.color_mode = kwargs["original_color_mode"]
-        scene.render.image_settings.color_depth = kwargs["original_color_depth"]
-        scene.render.image_settings.compression = kwargs["original_compression"]
-        scene.display_settings.display_device = kwargs["original_display_device"]
-        scene.view_settings.view_transform = kwargs["original_view_transform"]
 
         # Remove temporary files
         if os.path.exists(kwargs["extra_filepath"]):
@@ -43,11 +36,10 @@ class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
     def execute(self, context):
         """Execute the operator."""
 
-        scene = context.scene
         addon_prefs = context.preferences.addons["comfyui_blender"].preferences
 
-        # Check if Update on Run mode is enabled
-        if addon_prefs.update_on_run:
+        # Check if render on run mode is enabled
+        if addon_prefs.render_on_run:
             # Schedule this render for later execution
             # First, check if this workflow_property already has a scheduled render
             existing_render = None
@@ -58,20 +50,20 @@ class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
 
             # If found, update the render type; otherwise, add a new one
             if existing_render:
-                existing_render.render_type = "render_depth_map"
+                existing_render.render_type = "render_view"
             else:
                 new_render = addon_prefs.scheduled_renders.add()
                 new_render.workflow_property = self.workflow_property
-                new_render.render_type = "render_depth_map"
+                new_render.render_type = "render_view"
 
-            self.report({'INFO'}, "Depth map render scheduled for workflow execution.")
+            self.report({'INFO'}, "Camera render scheduled for workflow execution.")
             return {'FINISHED'}
 
         # Otherwise, execute immediately
-        return self._execute_render(context)
+        return self._render_scene(context)
 
-    def _execute_render(self, context):
-        """Internal method to execute the render."""
+    def _render_scene(self, context):
+        """Internal method to render the scene."""
 
         scene = context.scene
         if not scene.camera:
@@ -88,115 +80,28 @@ class ComfyBlenderOperatorRenderDepthMap(bpy.types.Operator):
         reset_params = {}
         reset_params["extra_filepath"] = extra_filepath
         reset_params["original_filepath"] = scene.render.filepath
-        reset_params["original_file_format"] = scene.render.image_settings.file_format
-        reset_params["original_color_mode"] = scene.render.image_settings.color_mode
-        reset_params["original_color_depth"] = scene.render.image_settings.color_depth
-        reset_params["original_compression"] = scene.render.image_settings.compression
-        reset_params["original_display_device"] = scene.display_settings.display_device
-        reset_params["original_view_transform"] = scene.view_settings.view_transform
 
         # Set up the scene for rendering
         scene.render.filepath = extra_filepath
-        scene.render.image_settings.file_format = "PNG"
-        scene.render.image_settings.color_mode = "RGBA"
-        scene.render.image_settings.color_depth = "16"
-        scene.render.image_settings.compression = 0
-        scene.display_settings.display_device = "Display P3"
-        scene.view_settings.view_transform = "Raw"
-
-        # Enable Z pass
-        scene.view_layers["ViewLayer"].use_pass_z = True
 
         # Create a new node tree for compositing
-        bpy.ops.node.new_compositing_node_group(name="CompositorDepthMap")
-        tree = bpy.data.node_groups["CompositorDepthMap"]
+        bpy.ops.node.new_compositing_node_group(name="CompositorRender")
+        tree = bpy.data.node_groups["CompositorRender"]
         tree.nodes.clear()
 
         # Create nodes
         rlayers_node = tree.nodes.new(type="CompositorNodeRLayers")
-        map_range_node = tree.nodes.new(type="ShaderNodeMapRange")
         output_file_node = tree.nodes.new(type="CompositorNodeOutputFile")
         output_file_node.directory = temp_folder
         output_file_node.file_name = ""  # Filename will be set by the file output item
         output_file_node.format.media_type = "IMAGE"
-        output_file_node.format.color_mode = "RGB"
+        output_file_node.format.color_mode = "RGBA"
         output_file_node.format.file_format = "PNG"
         output_file_node.format.compression = 0
-        output_file_node.file_output_items.new("FLOAT", self.temp_filename)  # Create input socket blender_depth_map
+        output_file_node.file_output_items.new("RGBA", self.temp_filename)  # Create input socket blender_render
 
         # Link nodes
-        tree.links.new(rlayers_node.outputs[2], map_range_node.inputs[0])  # From output socket Depth to input socket Value
-        tree.links.new(map_range_node.outputs[0], output_file_node.inputs[0])  # From output socket Value to input socket blender_depth_map
-
-        # Get camera info to get closest and furthest vertices in the camera frustum
-        cam_location = scene.camera.matrix_world.translation
-        cam_matrix = scene.camera.matrix_world
-        cam_data = scene.camera.data
-        aspect_ratio = scene.render.resolution_x / scene.render.resolution_y
-        min_distance = float('inf')
-        max_distance = 0.0
-
-        for obj in scene.objects:
-            if obj.type == "MESH" and obj.visible_get():
-                # Switch to object mode to ensure mesh data is available
-                if obj.mode == "EDIT":
-                    bpy.context.view_layer.objects.active = obj
-                    bpy.ops.object.mode_set(mode="OBJECT")
-
-                for vertex in obj.data.vertices:
-                    # Convert vertex to world coordinates
-                    world_coord = obj.matrix_world @ vertex.co
-
-                    # Convert world coordinates to camera space coordinates
-                    cam_space = cam_matrix.inverted() @ world_coord.to_4d()
-
-                    # Check if vertex is in camera frustum
-                    # Z value should be negative (in front of camera)
-                    if cam_space.z >= 0:
-                        continue
-
-                    # Convert to normalized device coordinates
-                    # Get camera projection parameters
-                    if cam_data.type == "PERSP":
-                        # Calculate frustum bounds
-                        z_dist = -cam_space.z
-                        if z_dist < cam_data.clip_start or z_dist > cam_data.clip_end:
-                            continue
-
-                        # Calculate horizontal and vertical bounds
-                        tan_half_fov = tan(cam_data.angle / 2)
-                        h_bound = z_dist * tan_half_fov
-                        v_bound = h_bound / aspect_ratio
-
-                        # Check if vertex is within frustum bounds
-                        if (abs(cam_space.x) <= h_bound and abs(cam_space.y) <= v_bound):
-                            distance = (cam_location - world_coord.xyz).length
-                            min_distance = min(min_distance, distance)
-                            max_distance = max(max_distance, distance)
-
-                    # For orthographic camera
-                    elif cam_data.type == "ORTHO":
-                        ortho_scale = cam_data.ortho_scale
-                        h_bound = ortho_scale / 2
-                        v_bound = h_bound / aspect_ratio
-                        z_dist = -cam_space.z
-
-                        if (z_dist >= cam_data.clip_start and z_dist <= cam_data.clip_end and
-                            abs(cam_space.x) <= h_bound and abs(cam_space.y) <= v_bound):
-                            distance = (cam_location - world_coord.xyz).length
-                            min_distance = min(min_distance, distance)
-                            max_distance = max(max_distance, distance)
-
-        # Handle case where no vertices are in frustum
-        if min_distance == float("inf"):
-            min_distance = cam_data.clip_start
-            max_distance = cam_data.clip_end
-
-        # Update Map Range node
-        map_range_node.inputs[1].default_value = min_distance  # From Min
-        map_range_node.inputs[2].default_value = max_distance  # From Max
-        map_range_node.inputs[3].default_value = 1 # To Min
-        map_range_node.inputs[4].default_value = 0 # To Max
+        tree.links.new(rlayers_node.outputs[0], output_file_node.inputs[self.temp_filename])  # From output socket Image to input socket blender_render
 
         # Render the scene
         scene.compositing_node_group = tree

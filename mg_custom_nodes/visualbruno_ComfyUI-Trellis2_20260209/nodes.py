@@ -46,6 +46,28 @@ class AnyType(str):
 
 any = AnyType("*")
 
+def parse_string_to_int_list(number_string):
+  """
+  Parses a string containing comma-separated numbers into a list of integers.
+
+  Args:
+    number_string: A string containing comma-separated numbers (e.g., "20000,10000,5000").
+
+  Returns:
+    A list of integers parsed from the input string.
+    Returns an empty list if the input string is empty or None.
+  """
+  if not number_string:
+    return []
+
+  try:
+    # Split the string by comma and convert each part to an integer
+    int_list = [int(num.strip()) for num in number_string.split(',')]
+    return int_list
+  except ValueError as e:
+    print(f"Error converting string to integer: {e}. Please ensure all values are valid numbers.")
+    return []
+
 def reset_cuda():
     # Force garbage collection of Python objects
     gc.collect()
@@ -1434,6 +1456,8 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
                     mrmeshpy.fillHole(meshlib_mesh, e, params)
                     holes_filled += 1
                     progress_bar_holes.update(1)
+                    
+                progress_bar_holes.close()
             
             new_vertices = mrmeshnumpy.getNumpyVerts(meshlib_mesh)
             new_faces = mrmeshnumpy.getNumpyFaces(meshlib_mesh.topology)
@@ -2311,6 +2335,8 @@ class Trellis2FillHolesWithMeshlib:
                 holes_filled += 1
                 progress_bar.update(1)
                 pbar.update(1)
+                
+            progress_bar.close()
         
         new_vertices = mrmeshnumpy.getNumpyVerts(mesh)
         new_faces = mrmeshnumpy.getNumpyFaces(mesh.topology)
@@ -2343,7 +2369,228 @@ class Trellis2SmoothNormals:
         
         return (new_mesh,)         
 
+class Trellis2RemeshWithQuad:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "mesh": ("MESHWITHVOXEL",),
+                "remesh_band": ("FLOAT",{"default":1.0}),
+                "remesh_project": ("FLOAT",{"default":0.0}),
+                "fill_holes": ("BOOLEAN", {"default":False}),
+                "fill_holes_max_perimeter": ("FLOAT",{"default":0.03,"min":0.001,"max":99.999,"step":0.001}),
+                "dual_contouring_resolution": (["Auto","128","256","512","1024","2048"],{"default":"Auto"}),
+                "remove_floaters": ("BOOLEAN",{"default":True}),
+                "remove_inner_faces": ("BOOLEAN",{"default":True}),
+            }
+        }
+
+    RETURN_TYPES = ("MESHWITHVOXEL",)
+    RETURN_NAMES = ("mesh",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, mesh, remesh_band, remesh_project, fill_holes, fill_holes_max_perimeter, dual_contouring_resolution, remove_floaters, remove_inner_faces):
+        reset_cuda()
         
+        mesh_copy = copy.deepcopy(mesh)
+        
+        if remove_floaters:
+            mesh_copy = remove_floater(mesh_copy)
+        
+        aabb = [[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]
+        
+        vertices = mesh_copy.vertices
+        faces = mesh_copy.faces
+        attr_volume = mesh_copy.attrs
+        coords = mesh_copy.coords
+        attr_layout = mesh_copy.layout
+        voxel_size = mesh_copy.voxel_size        
+        
+        # --- Input Normalization (AABB, Voxel Size, Grid Size) ---
+        if isinstance(aabb, (list, tuple)):
+            aabb = np.array(aabb)
+        if isinstance(aabb, np.ndarray):
+            aabb = torch.tensor(aabb, dtype=torch.float32, device='cuda')
+
+        # Calculate grid dimensions based on AABB and voxel size                
+        if voxel_size is not None:
+            if isinstance(voxel_size, float):
+                voxel_size = [voxel_size, voxel_size, voxel_size]
+            if isinstance(voxel_size, (list, tuple)):
+                voxel_size = np.array(voxel_size)
+            if isinstance(voxel_size, np.ndarray):
+                voxel_size = torch.tensor(voxel_size, dtype=torch.float32, device='cuda')
+            grid_size = ((aabb[1] - aabb[0]) / voxel_size).round().int()
+        else:
+            if isinstance(grid_size, int):
+                grid_size = [grid_size, grid_size, grid_size]
+            if isinstance(grid_size, (list, tuple)):
+                grid_size = np.array(grid_size)
+            if isinstance(grid_size, np.ndarray):
+                grid_size = torch.tensor(grid_size, dtype=torch.int32, device='cuda')
+            voxel_size = (aabb[1] - aabb[0]) / grid_size
+
+        # Move data to GPU
+        vertices = vertices.cuda()
+        faces = faces.cuda()
+        
+        # Initialize CUDA mesh handler
+        cumesh = CuMesh.CuMesh()
+        cumesh.init(vertices, faces)
+        print(f"Current vertices: {cumesh.num_vertices}, faces: {cumesh.num_faces}")
+        
+        # --- Initial Mesh Cleaning ---
+        # Fills holes as much as we can before processing
+        if fill_holes:
+            cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)
+            print(f"After filling holes: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")
+        
+        vertices, faces = cumesh.read()
+        
+        del cumesh
+        gc.collect()         
+            
+        # Build BVH for the current mesh to guide remeshing
+        #print(f"Building BVH for current mesh...")
+        #bvh = CuMesh.cuBVH(vertices.detach().clone(), faces.detach().clone())
+            
+        print("Cleaning mesh...")        
+        center = aabb.mean(dim=0)
+        scale = (aabb[1] - aabb[0]).max().item()
+        
+        if dual_contouring_resolution == "Auto":
+            resolution = grid_size.max().item()
+            print(f"Dual Contouring resolution: {resolution}")
+        else:
+            resolution = int(dual_contouring_resolution)
+        
+        print('Performing Dual Contouring ...')
+        # Perform Dual Contouring remeshing (rebuilds topology)
+        vertices, faces = CuMesh.remeshing.remesh_narrow_band_dc_quad(
+            vertices, faces,
+            center = center,
+            scale = scale * 1.1, # old calculation (resolution + 3 * remesh_band) / resolution * scale,
+            resolution = resolution,
+            band = remesh_band,
+            project_back = remesh_project, # Snaps vertices back to original surface
+            verbose = True,
+            remove_inner_faces = remove_inner_faces,
+            #bvh = bvh,
+        )
+        
+        if remove_floaters:
+            vertices, faces = remove_floater2(vertices.cpu().numpy(),faces.cpu().numpy())
+            vertices = torch.from_numpy(vertices).contiguous().float()
+            faces = torch.from_numpy(faces).contiguous().int() 
+            
+        print(f"After remeshing: {len(vertices)} vertices, {len(faces)} faces")                                 
+        
+        mesh_copy.vertices = vertices.to(mesh_copy.device)
+        mesh_copy.faces = faces.to(mesh_copy.device) 
+                
+        return (mesh_copy,)   
+
+class Trellis2BatchSimplifyMeshAndExport:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "mesh": ("MESHWITHVOXEL",),
+                "target_face_num": ("STRING",{"default":"2000000,1000000,500000,100000,50000,10000,5000,2500,1000"}),
+                "method": (["Cumesh","Meshlib"],{"default":"Cumesh"}),
+                "fill_holes":("BOOLEAN",{"default":True}),
+                "reorient_vertices":(["None","90 degrees","-90 degrees"],{"default":"90 degrees"}),
+                "filename_prefix":("STRING",),
+                "file_format": (["glb", "obj", "ply", "stl", "3mf", "dae"],),                
+            },
+        }
+
+    RETURN_TYPES = ("STRING", )
+    RETURN_NAMES = ("lst_glb_path", )
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, mesh, target_face_num, method, fill_holes, reorient_vertices, filename_prefix, file_format):
+        lst_output_mesh = []
+        list_of_faces = parse_string_to_int_list(target_face_num)
+        if len(list_of_faces)>0:
+            cumesh = CuMesh.CuMesh()
+            mesh_copy = copy.deepcopy(mesh)
+            
+            for target_nbfaces in list_of_faces:
+                print(f"Processing at {target_nbfaces} ...")                
+                
+                vertices = mesh_copy.vertices.detach().clone().cpu().numpy()
+                faces = mesh_copy.faces.detach().clone().cpu().numpy()                                
+                
+                if method=="Cumesh":
+                    cumesh.init(torch.from_numpy(vertices).float().cuda(), torch.from_numpy(faces).int().cuda())
+                    cumesh.simplify(target_nbfaces, verbose=True)
+                    vertices, faces = cumesh.read()
+                    vertices = vertices.cpu().numpy()
+                    faces = faces.cpu().numpy()
+                elif method=="Meshlib":
+                    vertices, faces = simplify_with_meshlib(vertices, faces, target_nbfaces)
+                else:
+                    raise Exception("Unknown simplification method")
+                
+                if fill_holes:
+                    import meshlib.mrmeshpy as mrmeshpy
+
+                    mmesh = mrmeshnumpy.meshFromFacesVerts(faces, vertices)
+                    
+                    hole_edges = mmesh.topology.findHoleRepresentiveEdges()
+                    
+                    nb_holes = len(hole_edges)
+                    print(f"{nb_holes} holes found")
+                    
+                    if nb_holes>0:
+                        progress_bar = tqdm(total=nb_holes,desc="Filling holes")
+                        
+                        for e in hole_edges:
+                            params = mrmeshpy.FillHoleParams()
+                            params.metric = mrmeshpy.getUniversalMetric(mmesh)
+                            mrmeshpy.fillHole(mmesh, e, params)
+                            progress_bar.update(1)
+                            
+                        progress_bar.close()
+                    
+                    vertices = mrmeshnumpy.getNumpyVerts(mmesh)
+                    faces = mrmeshnumpy.getNumpyFaces(mmesh.topology)
+
+                    del mmesh
+                    gc.collect()
+                
+                if reorient_vertices == '90 degrees':
+                    vertices[:, 1], vertices[:, 2] = vertices[:, 2], -vertices[:, 1]
+                elif reorient_vertices == '-90 degrees':
+                    vertices[:, 1], vertices[:, 2] = -vertices[:, 2], vertices[:, 1]
+                
+                trimesh = Trimesh.Trimesh(
+                    vertices=vertices,
+                    faces=faces,
+                    process=False
+                )
+
+                filename_prefix_with_nbfaces = f"{filename_prefix}_{target_nbfaces}"
+
+                full_output_folder, filename, counter, subfolder, filename_prefix_with_nbfaces = folder_paths.get_save_image_path(filename_prefix_with_nbfaces, folder_paths.get_output_directory())
+                output_glb_path = Path(full_output_folder, f'{filename}_{counter:05}_.{file_format}')
+                output_glb_path.parent.mkdir(exist_ok=True)
+                
+                trimesh.export(output_glb_path, file_type=file_format)
+                
+                lst_output_mesh.append(str(output_glb_path))
+
+                del trimesh
+            
+            del cumesh
+            del mesh_copy
+        
+        return (lst_output_mesh,)          
         
 NODE_CLASS_MAPPINGS = {
     "Trellis2LoadModel": Trellis2LoadModel,
@@ -2371,6 +2618,8 @@ NODE_CLASS_MAPPINGS = {
     "Trellis2MeshWithVoxelToMeshlibMesh": Trellis2MeshWithVoxelToMeshlibMesh,
     "Trellis2FillHolesWithMeshlib": Trellis2FillHolesWithMeshlib,
     "Trellis2SmoothNormals": Trellis2SmoothNormals,
+    "Trellis2RemeshWithQuad": Trellis2RemeshWithQuad,
+    "Trellis2BatchSimplifyMeshAndExport": Trellis2BatchSimplifyMeshAndExport,
     }
     
 
@@ -2400,4 +2649,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2MeshWithVoxelToMeshlibMesh": "Trellis2 - Mesh with Voxel to Meshlib Mesh",
     "Trellis2FillHolesWithMeshlib": "Trellis2 - Fill Holes with Meshlib",
     "Trellis2SmoothNormals": "Trellis2 - Smooth Normals",
+    "Trellis2RemeshWithQuad": "Trellis2 - Remesh With Quad",
+    "Trellis2BatchSimplifyMeshAndExport": "Trellis2 - Batch Simplify Mesh And Export",
     }

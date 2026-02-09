@@ -130,7 +130,10 @@ class Mesh:
         print(f"Reduced faces, resulting in {len(new_vertices)} vertices and {len(new_faces)} faces")
         
         self.vertices = torch.from_numpy(new_vertices).float().to(self.device)
-        self.faces = torch.from_numpy(new_faces).int().to(self.device)        
+        self.faces = torch.from_numpy(new_faces).int().to(self.device)
+
+        del mesh
+        gc.collect()
 
 
 class TextureFilterMode:

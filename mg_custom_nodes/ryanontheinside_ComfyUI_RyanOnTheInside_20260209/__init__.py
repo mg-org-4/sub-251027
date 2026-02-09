@@ -62,6 +62,8 @@ print("""
 
 
     
+from .nodes.misc.misc_nodes import ROTIDisplayAny
+
 from .nodes.masks.temporal_masks import (
     MaskMorph,
     MaskTransform,
@@ -98,6 +100,8 @@ from .nodes.audio.audio_nodes_effects import (
     AudioGain,
     AudioFade,
 )
+
+from .nodes.audio.audio_compare import PreviewAudioCompare
 
 from .nodes.audio.audio_nodes_utility import (
     AudioPad,
@@ -473,6 +477,7 @@ NODE_CLASS_MAPPINGS = {
     "AudioResample":                AudioResample,
     "AudioVolumeNormalization":     AudioVolumeNormalization,
     "Knob":                Knob,
+    "PreviewAudioCompare":          PreviewAudioCompare,
 
     #features   
     "AudioFeatureExtractor":        AudioFeatureExtractor,
@@ -598,6 +603,8 @@ NODE_CLASS_MAPPINGS = {
     
     "MIDIToAudio": MIDIToAudio,
     "MIDILoader": MIDILoader,
+
+    "ROTIDisplayAny": ROTIDisplayAny,
 }
 
 

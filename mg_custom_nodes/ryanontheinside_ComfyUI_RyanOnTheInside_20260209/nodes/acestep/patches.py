@@ -102,11 +102,25 @@ def _create_patched_ace_step15_forward(original_forward):
     @functools.wraps(original_forward)
     def patched_forward(self, x, timestep, context, lyric_embed=None, refer_audio=None,
                         audio_codes=None, chunk_masks=None, src_latents=None,
-                        is_covers=None, precomputed_lm_hints_25Hz=None, **kwargs):
+                        is_covers=None, precomputed_lm_hints_25Hz=None,
+                        replace_with_null_embeds=False, **kwargs):
         text_attention_mask = None
         lyric_attention_mask = None
         refer_audio_order_mask = None
         attention_mask = None
+
+        if not hasattr(patched_forward, '_diag_count'):
+            patched_forward._diag_count = 0
+        patched_forward._diag_count += 1
+        _call = patched_forward._diag_count
+        # Each step has 2 calls (cond + uncond). Log early, mid, late.
+        # Steps 1-2 = calls 1-4, step 15 = calls 29-30, step 28-30 = calls 55-60
+        _should_log = False #_call <= 4 or _call in (29, 30) or _call >= 55
+        if _should_log:
+            print(f"[PATCHED_FWD] Call #{_call}: "
+                  f"x={x.shape}, t={timestep}, is_covers={is_covers}, "
+                  f"hints={'yes' if precomputed_lm_hints_25Hz is not None else 'no'}, "
+                  f"null_embeds={replace_with_null_embeds}")
 
         # One-time diagnostic log for cover task
         if not _forward_logged[0] and precomputed_lm_hints_25Hz is not None:
@@ -170,6 +184,9 @@ def _create_patched_ace_step15_forward(original_forward):
             if isinstance(is_covers, torch.Tensor) and is_covers.any().item():
                 is_covers = True
 
+        if patched_forward._diag_count <= 2 and precomputed_lm_hints_25Hz is not None:
+            print(f"[PATCHED_FWD]   is_covers_adapted={is_covers}, hints.shape={precomputed_lm_hints_25Hz.shape}")
+
         enc_hidden, enc_mask, context_latents = self.prepare_condition(
             text_hidden_states, text_attention_mask,
             lyric_hidden_states, lyric_attention_mask,
@@ -178,6 +195,14 @@ def _create_patched_ace_step15_forward(original_forward):
             precomputed_lm_hints_25Hz=precomputed_lm_hints_25Hz,
             audio_codes=audio_codes
         )
+
+        # Apply learned null embeddings for uncond CFG pass (matching stock forward behavior)
+        if replace_with_null_embeds:
+            enc_hidden[:] = self.null_condition_emb.to(enc_hidden)
+
+        if _should_log:
+            print(f"[PATCHED_FWD]   enc_hidden: std={enc_hidden.std():.4f}, ctx_latents: shape={context_latents.shape}")
+            print(f"[PATCHED_FWD]   x stats: mean={x.mean():.4f}, std={x.std():.4f}, min={x.min():.4f}, max={x.max():.4f}")
 
         out = self.decoder(
             hidden_states=x,
@@ -188,6 +213,9 @@ def _create_patched_ace_step15_forward(original_forward):
             encoder_attention_mask=enc_mask,
             context_latents=context_latents
         )
+
+        if _should_log:
+            print(f"[PATCHED_FWD]   decoder out: mean={out.mean():.4f}, std={out.std():.4f}, min={out.min():.4f}, max={out.max():.4f}")
 
         return out.movedim(-1, -2)
 
@@ -214,11 +242,11 @@ def _create_patched_tokenizer(original_tokenize_with_weights):
 
         # Strip our custom kwargs before forwarding to the stock tokenizer
         stock_kwargs = {k: v for k, v in kwargs.items() if k not in ("task_type", "track_name")}
-        print(f"[ACE15_PATCHED_TOKENIZER] stock_kwargs LM params: cfg_scale={stock_kwargs.get('cfg_scale', 'MISSING')}, temperature={stock_kwargs.get('temperature', 'MISSING')}, top_p={stock_kwargs.get('top_p', 'MISSING')}, top_k={stock_kwargs.get('top_k', 'MISSING')}")
+        logger.debug(f"[ACE15_TOKENIZER] task={task_type}, track={track_name}")
 
         # Call the original tokenizer to get baseline output with all expected keys
         out = original_tokenize_with_weights(self, text, return_word_ids, **stock_kwargs)
-        print(f"[ACE15_PATCHED_TOKENIZER] lm_metadata after stock tokenizer: {out.get('lm_metadata', 'MISSING')}")
+        logger.debug(f"[ACE15_TOKENIZER] generate_audio_codes={out.get('lm_metadata', {}).get('generate_audio_codes', 'N/A')}")
 
         # Get appropriate instruction for task type
         instruction = get_task_instruction(task_type, track_name)
@@ -239,7 +267,9 @@ def _create_patched_tokenizer(original_tokenize_with_weights):
         out["lm_prompt"] = self.qwen3_06b.tokenize_with_weights(lm_template.format(instruction, text, lyrics, meta_lm), disable_weights=True)
         out["lm_prompt_negative"] = self.qwen3_06b.tokenize_with_weights(lm_template.format(instruction, text, lyrics, ""), disable_weights=True)
         out["lyrics"] = self.qwen3_06b.tokenize_with_weights("# Languages\n{}\n\n# Lyric{}<|endoftext|><|endoftext|>".format(language, lyrics), return_word_ids, disable_weights=True, **kwargs)
-        out["qwen3_06b"] = self.qwen3_06b.tokenize_with_weights("# Instruction\n{}\n\n# Caption\n{}# Metas\n{}<|endoftext|>\n<|endoftext|>".format(instruction, text, meta_cap), return_word_ids, **kwargs)
+        _fmt = "# Instruction\n{}\n\n# Caption\n{}\n\n# Metas\n{}<|endoftext|>\n".format(instruction, text, meta_cap)
+        print(f"[TOKENIZER_DEBUG] qwen3_06b prompt (first 200 chars): {repr(_fmt[:200])}")
+        out["qwen3_06b"] = self.qwen3_06b.tokenize_with_weights(_fmt, return_word_ids, **kwargs)
 
         # Cover/extract/lego tasks use precomputed semantic hints, skip LLM code generation
         if isinstance(out.get("lm_metadata"), dict):
@@ -249,7 +279,7 @@ def _create_patched_tokenizer(original_tokenize_with_weights):
         out["task_type"] = task_type
         out["track_name"] = track_name
 
-        print(f"[ACE15_PATCHED_TOKENIZER] FINAL lm_metadata: {out.get('lm_metadata', 'MISSING')}")
+        logger.debug(f"[ACE15_TOKENIZER] final generate_audio_codes={out.get('lm_metadata', {}).get('generate_audio_codes', 'N/A')}")
         return out
 
     return patched_tokenize_with_weights
@@ -284,6 +314,76 @@ def apply_patches():
         logger.info("[ACE-Step Patches] Patched ACE15Tokenizer.tokenize_with_weights")
     except ImportError as e:
         logger.info(f"[ACE-Step Patches] Warning: Could not patch ace15 tokenizer: {e}")
+
+    # Patch resolve_areas_and_cond_masks_multidim for 1D mask support.
+    # ComfyUI's mask normalization assumes 2D spatial dims (images). This patch
+    # generalizes it to work with any number of spatial dims (1D audio, 2D image, 3D video).
+
+    
+    try:
+        import comfy.samplers as _comfy_samplers
+        import comfy.utils
+        _original_resolve = _comfy_samplers.resolve_areas_and_cond_masks_multidim
+    
+        def _patched_resolve_areas_and_cond_masks_multidim(conditions, dims, device):
+            for i in range(len(conditions)):
+                c = conditions[i]
+                if 'area' in c:
+                    area = c['area']
+                    if area[0] == "percentage":
+                        modified = c.copy()
+                        a = area[1:]
+                        a_len = len(a) // 2
+                        area = ()
+                        for d in range(len(dims)):
+                            area += (max(1, round(a[d] * dims[d])),)
+                        for d in range(len(dims)):
+                            area += (round(a[d + a_len] * dims[d]),)
+                        modified['area'] = area
+                        c = modified
+                        conditions[i] = c
+    
+                if 'mask' in c:
+                    mask = c['mask'].to(device=device)
+                    modified = c.copy()
+                    target_ndim = len(dims) + 1
+                    while mask.ndim > target_ndim and mask.shape[0] == 1:
+                        mask = mask.squeeze(0)
+                    while mask.ndim < target_ndim:
+                        mask = mask.unsqueeze(0)
+                    if mask.shape[1:] != dims:
+                        if len(dims) == 1:
+                            mask = torch.nn.functional.interpolate(
+                                mask.unsqueeze(1), size=dims[0],
+                                mode='linear', align_corners=False).squeeze(1)
+                        elif mask.ndim < 4:
+                            mask = comfy.utils.common_upscale(
+                                mask.unsqueeze(1), dims[-1], dims[-2],
+                                'bilinear', 'none').squeeze(1)
+                        else:
+                            mask = comfy.utils.common_upscale(
+                                mask, dims[-1], dims[-2], 'bilinear', 'none')
+    
+                    if modified.get("set_area_to_bounds", False) and len(dims) == 2:
+                        from comfy.samplers import get_mask_aabb
+                        bounds = torch.max(torch.abs(mask), dim=0).values.unsqueeze(0)
+                        boxes, is_empty = get_mask_aabb(bounds)
+                        if is_empty[0]:
+                            modified['area'] = (8, 8, 0, 0)
+                        else:
+                            box = boxes[0]
+                            H, W, Y, X = (box[3] - box[1] + 1, box[2] - box[0] + 1, box[1], box[0])
+                            H = max(8, H)
+                            W = max(8, W)
+                            modified['area'] = (int(H), int(W), int(Y), int(X))
+    
+                    modified['mask'] = mask
+                    conditions[i] = modified
+    
+        _comfy_samplers.resolve_areas_and_cond_masks_multidim = _patched_resolve_areas_and_cond_masks_multidim
+        logger.info("[ACE-Step Patches] Patched resolve_areas_and_cond_masks_multidim for 1D mask support")
+    except Exception as e:
+        logger.info(f"[ACE-Step Patches] Warning: Could not patch resolve_areas_and_cond_masks_multidim: {e}")
 
     _patches_applied = True
     logger.info("[ACE-Step Patches] All patches applied successfully")

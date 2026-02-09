@@ -647,12 +647,20 @@ class GeminiUltraDetect:
                         # Skip to matting step
                         if matting_method == "BiRefNet-matting (Best Quality)":
                             log(f"Refining with {matting_method}...")
-                            mask_pil = Image.fromarray((combined_mask * 255).astype(np.uint8))
-                            birefnet = models.get_birefnet(birefnet_model)
-                            refined_mask = apply_birefnet_matting(pil_image, mask_pil, birefnet)
-                            mask_tensor = torch.from_numpy(refined_mask).float()
+                            # BiRefNet does full-image segmentation
+                            birefnet_mask = refine_birefnet(pil_image, birefnet_model)
+                            # Combine SAM3 detection with BiRefNet edge refinement
+                            # Use SAM3 as the region, BiRefNet for edge quality
+                            combined = combined_mask * birefnet_mask  # Intersection
+                            # If intersection is too small, use SAM3 mask weighted
+                            if combined.sum() < combined_mask.sum() * 0.3:
+                                # BiRefNet didn't find the same region, use SAM3 with edge refinement
+                                refined = refine_guided_filter(pil_image, combined_mask)
+                                mask_tensor = torch.from_numpy(refined).float()
+                            else:
+                                mask_tensor = torch.from_numpy(combined).float()
                         elif matting_method == "Guided Filter (Fast)":
-                            refined = apply_guided_filter(pil_image, combined_mask)
+                            refined = refine_guided_filter(pil_image, combined_mask)
                             mask_tensor = torch.from_numpy(refined).float()
                         
                         ret_masks.append(mask_tensor)
@@ -678,8 +686,16 @@ class GeminiUltraDetect:
                 target_device = 'cuda' if torch.cuda.is_available() else 'cpu'
                 yolo.to(target_device)
                 
-                # Set classes - this creates text embeddings
-                yolo.set_classes(classes)
+                # Set classes - YOLOE requires get_text_pe for text embeddings!
+                model_file = DETECTION_MODELS.get(detection_model, "")
+                if "yoloe" in model_file.lower() and hasattr(yolo, 'get_text_pe'):
+                    # YOLOE needs text prompt embeddings
+                    text_pe = yolo.get_text_pe(classes)
+                    yolo.set_classes(classes, text_pe)
+                    log(f"YOLOE: Set {len(classes)} classes with text embeddings")
+                else:
+                    # YOLO-World uses simpler set_classes
+                    yolo.set_classes(classes)
                 
                 # CRITICAL: Move text features to same device as model
                 # This fixes the "tensors on different devices" error
@@ -706,6 +722,7 @@ class GeminiUltraDetect:
             
             if not boxes:
                 log(f"No objects found.")
+                log(f"TIP: YOLO-World can't detect abstract concepts like 'sun', 'lake'. Try SAM3 for text-based segmentation!", 'warning')
                 # Return empty mask
                 h, w = pil_image.size[1], pil_image.size[0]
                 empty_mask = torch.zeros((h, w), dtype=torch.float32)
@@ -713,13 +730,19 @@ class GeminiUltraDetect:
                 ret_images.append(pil2tensor(pil_image))
                 continue
             
-            log(f"Found {len(boxes)} object(s). Segmenting...")
+            log(f"Found {len(boxes)} object(s). Segmenting with {sam_model}...")
             
             # Step 2: Segmentation with SAM2.1
             try:
+                log(f"Loading SAM model: {sam_model}")
                 sam = models.get_sam(sam_model)
-                bboxes_tensor = torch.tensor(boxes, device=device)
-                results = sam.predict(pil_image, bboxes=bboxes_tensor, verbose=False)
+                
+                # SAM expects bboxes as list of [x1, y1, x2, y2]
+                # Use model() directly instead of predict()
+                log(f"Running SAM prediction with {len(boxes)} boxes: {boxes[:2]}...")
+                
+                # Try direct call format (recommended by Ultralytics docs)
+                results = sam(pil_image, bboxes=boxes, verbose=False)
                 
                 combined_mask = None
                 for result in results:
@@ -732,6 +755,8 @@ class GeminiUltraDetect:
                                 combined_mask = np.maximum(combined_mask, mask_np)
             except Exception as e:
                 log(f"Segmentation failed: {e}", 'error')
+                import traceback
+                traceback.print_exc()
                 combined_mask = None
             
             if combined_mask is None:

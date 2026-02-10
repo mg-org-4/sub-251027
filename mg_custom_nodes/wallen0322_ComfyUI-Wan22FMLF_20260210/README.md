@@ -59,6 +59,25 @@
 
 ---
 
+### SVI Pro Advanced 节点 (NEW)
+
+**专为高分辨率无缝衔接优化的节点**
+
+- ✅ 高分辨率（如1920x1080）下 SVI 动态削弱问题
+- ✅ 视频段拼接处跳帧问题
+- ✅ 简化用户界面
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `motion_influence` | 1.0 | 动态传递权重 |
+| `overlap_frames` | 4 | 重叠帧数 |
+| `motion_boost` | 1.0 | 动作幅度放大 |
+| `detail_boost` | 1.0 | 动态速度增强 |
+
+**感谢**：[@a1010580415-commits](https://github.com/a1010580415-commits) 在 [PR #30](https://github.com/wallen0322/ComfyUI-Wan22FMLF/pull/30) 中的贡献
+
+---
+
 ### 最新更新 - 高性能图片选择节点
 
 - ✅ **重大性能优化**：改用服务器文件存储，不再在前端存储 base64 数据

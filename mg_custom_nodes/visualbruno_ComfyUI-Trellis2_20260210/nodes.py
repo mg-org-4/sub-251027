@@ -1894,7 +1894,8 @@ class Trellis2MeshTexturing:
             double_side_material = double_side_material,
             max_views = max_views,
             bake_on_vertices = bake_on_vertices,
-            use_custom_normals = use_custom_normals
+            use_custom_normals = use_custom_normals,
+            mesh_cluster_threshold_cone_half_angle_rad = mesh_cluster_threshold_cone_half_angle_rad
         )            
 
         baseColorTexture = pil2tensor(baseColorTexture_np)

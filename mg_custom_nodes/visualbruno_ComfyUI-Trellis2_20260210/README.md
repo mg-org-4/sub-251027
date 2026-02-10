@@ -14,6 +14,7 @@
 
 | Date | Description |
 | --- | --- |
+| **2026-02-09** | Fixed "Mesh Texturing" node<br>"mesh_cluster_threshold_cone_half_angle_rad" was not used |
 | **2026-02-08** | Fixed "Fill Holes" node progress bar<br>Updated Cumesh package<br>Added "Remesh with Quad" node<br>Added "Batch Simplify Mesh and Export" node|
 | **2026-02-07** | Updated Cumesh package<br>Improved "Remesh" node when removing inner layer|
 | **2026-02-02** | Added node "Smooth Normals"<br>Useful for "Low Poly" mesh to remove the "blocky" aspect|

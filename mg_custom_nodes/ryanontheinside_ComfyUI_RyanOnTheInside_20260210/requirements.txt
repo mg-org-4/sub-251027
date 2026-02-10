@@ -1,0 +1,9 @@
+opencv-python>=4.5.0
+scipy
+pillow
+pymunk>=6.8.0,<7.0.0
+matplotlib
+openunmix
+mido
+pygame
+scikit-image

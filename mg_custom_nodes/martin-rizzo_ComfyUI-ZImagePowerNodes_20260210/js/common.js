@@ -1,5 +1,5 @@
 /**
- * File    : common/helpers.js
+ * File    : common.js
  * Purpose : Common script file with helper functions.
  * Author  : Martin Rizzo | <martinrizzo@gmail.com>
  * Date    : Jan 31, 2026
@@ -10,7 +10,43 @@
  *       ComfyUI nodes designed specifically for the "Z-Image" model.
  *_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 */
-export { getOutputNodes, getInputOriginID, getInputNode, renameWidget, forceRenameWidget }
+export {
+    loadCSS,
+    isNodeFromMyProject,
+    getOutputNodes,
+    getInputOriginID,
+    getInputNode,
+    renameWidget,
+    forceRenameWidget
+};
+
+/**
+ * This constant represents the project ID used to identify nodes in the ComfyUI node registry.
+ * IMPORTANT: It must match the value defined in `__init__.py` !!.
+ * @type {string}
+ */
+const __PROJECT_ID = "//ZImagePowerNodes";
+
+
+function loadCSS(fileName) {
+    const fullPath = import.meta.resolve(`./${fileName}`);
+    const link     = document.createElement("link");
+    link.rel  = "stylesheet";
+    link.href = fullPath;
+    document.head.appendChild(link);
+    console.log("##>> document.head", document.head);
+}
+
+
+/**
+ * Checks if a given node belongs to the current project.
+ *
+ * @param {Object} node - The node object to check.
+ * @returns {boolean} True if the node belongs to the current project, false otherwise.
+ */
+function isNodeFromMyProject(node) {
+    return (node?.comfyClass ?? "").includes(__PROJECT_ID);
+}
 
 
 /**
@@ -41,7 +77,7 @@ function getOutputNodes(node, outputName) {
             const link       = graph.links[ links[j] || "" ];
             const outputNode = graph.getNodeById( link?.target_id || "" );
             if( outputNode ) {
-                outputNodes.push( outputNode )
+                outputNodes.push( outputNode );
             }
         }
     }
@@ -121,48 +157,47 @@ function renameWidget(widget, node, newLabel, parents)
 {
     // for proxy widgets in subgraphs, we need to rename the original interior widget
     if (isProxyWidget(widget) && parents?.length) {
-        console.log("##>> is proxy widget in subgraph")
-        const subgraph = parents[0].subgraph
+        const subgraph = parents[0].subgraph;
         if (!subgraph) {
-            console.error('Could not find subgraph for proxy widget')
-            return false
+            console.error('Could not find subgraph for proxy widget');
+            return false;
         }
-        const interiorNode = subgraph.getNodeById(widget._overlay.nodeId)
+        const interiorNode = subgraph.getNodeById(widget._overlay.nodeId);
 
         if (!interiorNode) {
-            console.error('Could not find interior node for proxy widget')
-            return false
+            console.error('Could not find interior node for proxy widget');
+            return false;
         }
 
         const originalWidget = interiorNode.widgets?.find(
             (w) => w.name === widget._overlay.widgetName
-        )
+        );
 
         if (!originalWidget) {
-            console.error('Could not find original widget for proxy widget')
-            return false
+            console.error('Could not find original widget for proxy widget');
+            return false;
         }
 
         // rename the original widget
-        originalWidget.label = newLabel || undefined
+        originalWidget.label = newLabel || undefined;
 
         // also rename the corresponding input on the interior node
         const interiorInput = interiorNode.inputs?.find(
             (inp) => inp.widget?.name === widget._overlay.widgetName
-        )
+        );
         if (interiorInput) {
-            interiorInput.label = newLabel || undefined
+            interiorInput.label = newLabel || undefined;
         }
     }
 
     // always rename the widget on the current node (either regular widget or proxy widget)
-    const input = node.inputs?.find((inp) => inp.widget?.name === widget.name)
+    const input = node.inputs?.find((inp) => inp.widget?.name === widget.name);
 
     // intentionally mutate the widget object here as it's a reference
     // to the actual widget in the graph
-    widget.label = newLabel || undefined
-    if (input) { input.label = newLabel || undefined }
-    return true
+    widget.label = newLabel || undefined;
+    if (input) { input.label = newLabel || undefined; }
+    return true;
 }
 
 
@@ -176,7 +211,7 @@ function renameWidget(widget, node, newLabel, parents)
  * @param {string} newLabel - The new label for the widget.
  */
 function forceRenameWidget(widget, node, newLabel, parents) {
-    renameWidget(widget, node, newLabel, parents)
+    renameWidget(widget, node, newLabel, parents);
 
     // force LiteGraph to mark the node as needing a redraw
     node.setDirtyCanvas(true, true);

@@ -11,7 +11,7 @@
  *_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 */
 import { app } from "../../../scripts/app.js";
-import { api } from "../../../scripts/api.js";
+import { fetchStyleNamesByCategory } from "./common_server.js";
 const ENABLED = true;
 /**
  * Object encapsulating the style category selection functionality.
@@ -29,15 +29,20 @@ const ENABLED = true;
  * @param {StyleCategorySelector} self           - The StyleCategorySelector object to initialize.
  * @param {Object}                categoryWidget - The combobox that manages categories.
  * @param {Object}                styleWidget    - The combobox that manages styles.
- * @param {Object.<string, Array<string>>} stylesByCategory - An object mapping each category to a list of styles.
  */
-function init(self, categoryWidget, styleWidget, stylesByCategory) {
+function init(self, categoryWidget, styleWidget) {
 
     self.categoryWidget     = categoryWidget;
     self.styleWidget        = styleWidget;
-    self.stylesByCategory   = stylesByCategory;
+    self.stylesByCategory   = null;
     self.oldCategory        = self.categoryWidget.value;
     self.selectedByCategory = {};
+
+    // performs an asynchronous request to the server to get styles by category
+    fetchStyleNamesByCategory( (stylesByCategory) => {
+        self.stylesByCategory = stylesByCategory;
+        console.log("##>> stylesByCategory: ",stylesByCategory);
+    });
 
     // fill the style combo widget with all the styles from the current category
     fillStyleWidget(self, self.categoryWidget.value);
@@ -48,7 +53,7 @@ function init(self, categoryWidget, styleWidget, stylesByCategory) {
     self.categoryWidget.callback = async (value) => {
         onCategoryChange(self, value);
         if (typeof originalCallback === 'function') { await originalCallback(value); }
-    }
+    };
 }
 
 
@@ -63,10 +68,14 @@ function init(self, categoryWidget, styleWidget, stylesByCategory) {
  */
 function fillStyleWidget(self, category) {
 
+    //console.log("##>> sbycat:", self.stylesByCategory );
+
     // if the category is not valid -> styles = ["none"]
-    if( category in self.stylesByCategory === false ) {
+    if( !self.stylesByCategory ||
+        category in self.stylesByCategory === false
+    ) {
         self.styleWidget.options.values = ["none"];
-        return "none"
+        return "none";
     }
 
     // fill the style combo widget with the option "none"
@@ -80,7 +89,7 @@ function fillStyleWidget(self, category) {
 
     // by default try to select the second style
     // (because the first always is "none")
-    return styles[ styles.length>=2 ? 1 : 0 ]
+    return styles[ styles.length>=2 ? 1 : 0 ];
 }
 
 
@@ -107,20 +116,6 @@ function onCategoryChange(self, newCategory) {
 }
 
 
-/**
- * Fetches available styles by category from the API.
- * @returns - An object mapping categories to list of styles, or an empty object on failure.
- */
-async function fetchQuotedStylesByCategory() {
-    try {
-        const response = await api.fetchApi("/zi_power/quoted_styles/by_category");
-        if ( response.ok ) { return await response.json();  }
-    }
-    catch (error) { console.error(error); }
-    return {};
-}
-
-
 //#=========================================================================#
 //#////////////////////////// REGISTER EXTENSION ///////////////////////////#
 //#=========================================================================#
@@ -134,7 +129,7 @@ app.registerExtension({
     init()
     {
         if (!ENABLED) return;
-        console.log("##>> Style Prompt Encoder: extension loaded.")
+        console.log("##>> Style Prompt Encoder: extension loaded.");
     },
 
 	/**
@@ -153,14 +148,14 @@ app.registerExtension({
 
         const categoryWidget   = node.widgets.find(w => w.name === "category");
         const styleWidget      = node.widgets.find(w => w.name === "style"   );
-        const stylesByCategory = await fetchQuotedStylesByCategory();
 
         // if any of the widgets or stylesByCategory could not be created, return
-        if( !categoryWidget || !styleWidget || Object.keys(stylesByCategory).length === 0 )
+        if( !categoryWidget || !styleWidget  )
         { return; }
 
         node.styleCategorySelectorZ = {};
-        init(node.styleCategorySelectorZ, categoryWidget, styleWidget, stylesByCategory);
+        init(node.styleCategorySelectorZ, categoryWidget, styleWidget );
+
 	},
 
-})
+});

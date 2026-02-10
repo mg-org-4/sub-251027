@@ -11,7 +11,7 @@
  *_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 */
 import { app } from "../../../scripts/app.js";
-import { getOutputNodes } from "./common/helpers.js";
+import { getOutputNodes } from "./common.js";
 const ENABLED = true;
 
 
@@ -42,17 +42,17 @@ function init(self, node) {
     // add a callback to each widget so we can know when the user makes any modification
     for( let i=0 ; i<allStyleWidgets.length ; ++i ) {
         const widget = allStyleWidgets[i];
-        widget.callback = function (v) {
+        widget.callback = function () {
             const topStyles = getTopStylesFromWidgets(self);
             onTopStylesChanged(self, topStyles);
             self.node?.setDirtyCanvas?.(true);
-        }
+        };
     }
 
     // controller properties and methods
     self.allStyleWidgets = allStyleWidgets;
     self.node            = node;
-    self.getTopStyles    = function() { return getTopStylesFromWidgets(self); }
+    self.getTopStyles    = function() { return getTopStylesFromWidgets(self); };
 }
 
 
@@ -103,7 +103,7 @@ app.registerExtension({
      */
     init() {
         if (!ENABLED) return;
-        console.log("##>> My Top Styles Editor: extension loaded.")
+        console.log("##>> My Top Styles Editor: extension loaded.");
     },
 
     /**
@@ -117,8 +117,8 @@ app.registerExtension({
         // inject controller only to nodes of type "My Top-X Styles"
         if( comfyClass.startsWith("MyTop10StylesEditor //ZImage") ) {
             node.zzController = {};
-            init(node.zzController, node)
+            init(node.zzController, node);
         }
     },
 
-})
+});

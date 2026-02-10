@@ -14,9 +14,9 @@ The V3 schema documentation can be found here:
  - https://docs.comfy.org/custom-nodes/v3_migration
 
 """
-from comfy_api.latest           import io
-from .lib.style_helpers         import get_style_template, append_style_to_text, remove_style_from_text
-from .styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
+from comfy_api.latest            import io
+from .lib.style_helpers          import get_style_template, append_style_to_text, remove_style_from_text
+from ..styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
 
 
 class MyTop10Styles(io.ComfyNode):
@@ -54,7 +54,7 @@ class MyTop10Styles(io.ComfyNode):
                 io.Boolean.Input( "style_8" , display_name="-", default=False, ),
                 io.Boolean.Input( "style_9" , display_name="-", default=False, ),
                 io.Boolean.Input( "style_10", display_name="-", default=False, ),
-                io.Custom("ZIPOWER_DIVIDER").Input("divider"),
+                io.Custom("ZIPN_DIVIDER").Input("divider"),
                 io.Combo.Input( "control_after_generate", options=["fixed", "next"], default="fixed", ),
                 io.Combo.Input( "output_to", options=cls.channels(), ),
             ],

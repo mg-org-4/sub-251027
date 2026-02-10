@@ -24,6 +24,11 @@ Xcodeproj/
 __pycache__/
 venv/
 
+# Node.js
+#
+node_modules/
+
+
 # User-specific files and folders
 #
 *~.*

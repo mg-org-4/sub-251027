@@ -14,9 +14,9 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  - https://docs.comfy.org/custom-nodes/v3_migration
 
 """
-from comfy_api.latest           import io
-from .lib.style_group           import StyleGroup
-from .styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
+from comfy_api.latest            import io
+from .lib.style_group            import StyleGroup
+from ..styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
 
 
 class StyleStringInjector(io.ComfyNode):

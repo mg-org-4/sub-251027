@@ -10,7 +10,7 @@
  *       ComfyUI nodes designed specifically for the "Z-Image" model.
  *_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 */
-export { executeLowPriorityTasks, scheduleIntervalCalls }
+export { executeLowPriorityTasks, scheduleIntervalCalls };
 
 
 let nodes = new Set();

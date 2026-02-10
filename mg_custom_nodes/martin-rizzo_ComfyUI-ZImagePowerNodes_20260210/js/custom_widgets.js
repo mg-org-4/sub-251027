@@ -95,8 +95,8 @@ app.registerExtension({
     getCustomWidgets() {
         if (!ENABLED) return {};
         return {
-            "ZIPOWER_DIVIDER": createDividerWidget,
-            "ZIPOWER_SPACER" : createSpacerWidget,
+            "ZIPN_DIVIDER": createDividerWidget,
+            "ZIPN_SPACER" : createSpacerWidget,
         };
     },
 

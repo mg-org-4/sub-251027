@@ -14,10 +14,10 @@ The V3 schema documentation can be found here:
  - https://docs.comfy.org/custom-nodes/v3_migration
 
 """
-from functools                  import cache
-from comfy_api.latest           import io
-from .styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
-from .lib.style_helpers         import normalize_style_name
+from functools                   import cache
+from comfy_api.latest            import io
+from .lib.style_helpers          import normalize_style_name
+from ..styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
 
 
 
@@ -43,15 +43,34 @@ class MyTop10StylesEditor(io.ComfyNode):
             ),
             inputs=[
                 io.Combo.Input( "style_1" , options=cls.all_style_names(), ),
+                io.Custom("ZIPN_STYLE_GALLERY").Input("gallery_1"),
+                io.Custom("ZIPN_SPACER").Input("divider_1"),
                 io.Combo.Input( "style_2" , options=cls.all_style_names(), ),
+                io.Custom("ZIPN_STYLE_GALLERY").Input("gallery_2"),
+                io.Custom("ZIPN_SPACER").Input("divider_2"),
                 io.Combo.Input( "style_3" , options=cls.all_style_names(), ),
+                io.Custom("ZIPN_STYLE_GALLERY").Input("gallery_3"),
+                io.Custom("ZIPN_DIVIDER").Input("divider_3"),
                 io.Combo.Input( "style_4" , options=cls.all_style_names(), ),
+                io.Custom("ZIPN_STYLE_GALLERY").Input("gallery_4"),
+                io.Custom("ZIPN_DIVIDER").Input("divider_4"),
                 io.Combo.Input( "style_5" , options=cls.all_style_names(), ),
+                io.Custom("ZIPN_STYLE_GALLERY").Input("gallery_5"),
+                io.Custom("ZIPN_DIVIDER").Input("divider_5"),
                 io.Combo.Input( "style_6" , options=cls.all_style_names(), ),
+                io.Custom("ZIPN_STYLE_GALLERY").Input("gallery_6"),
+                io.Custom("ZIPN_DIVIDER").Input("divider_6"),
                 io.Combo.Input( "style_7" , options=cls.all_style_names(), ),
+                io.Custom("ZIPN_STYLE_GALLERY").Input("gallery_7"),
+                io.Custom("ZIPN_DIVIDER").Input("divider_7"),
                 io.Combo.Input( "style_8" , options=cls.all_style_names(), ),
+                io.Custom("ZIPN_STYLE_GALLERY").Input("gallery_8"),
+                io.Custom("ZIPN_DIVIDER").Input("divider_8"),
                 io.Combo.Input( "style_9" , options=cls.all_style_names(), ),
+                io.Custom("ZIPN_STYLE_GALLERY").Input("gallery_9"),
+                io.Custom("ZIPN_DIVIDER").Input("divider_9"),
                 io.Combo.Input( "style_10", options=cls.all_style_names(), ),
+                io.Custom("ZIPN_STYLE_GALLERY").Input("gallery_10"),
             ],
             outputs=[
                 io.Custom("TOP_STYLES").Output("TOP_STYLES",

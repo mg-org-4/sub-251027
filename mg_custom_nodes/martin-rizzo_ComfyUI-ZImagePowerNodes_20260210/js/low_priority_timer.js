@@ -11,7 +11,7 @@
  *_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 */
 import { app } from "../../../scripts/app.js";
-import { executeLowPriorityTasks } from "./common/timer.js";
+import { executeLowPriorityTasks } from "./common_timer.js";
 const ENABLED = true;
 
 
@@ -35,6 +35,7 @@ app.registerExtension({
     async setup() {
         const restartTimer = () => {
             setTimeout(() => {
+                // eslint-disable-next-line
                 (window.requestIdleCallback || window.setTimeout)(() => {
 
                     // execute the low priority tasks and restart the timer
@@ -49,4 +50,4 @@ app.registerExtension({
         restartTimer();
     },
 
-})
+});

@@ -14,11 +14,11 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  - https://docs.comfy.org/custom-nodes/v3_migration
 
 """
-from functools                  import cache
-from comfy_api.latest           import io
-from .lib.system                import logger
-from .lib.style_group           import StyleGroup
-from .styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
+from functools                   import cache
+from comfy_api.latest            import io
+from .lib.system                 import logger
+from .lib.style_group            import StyleGroup
+from ..styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
 
 
 class StylePromptEncoder(io.ComfyNode):

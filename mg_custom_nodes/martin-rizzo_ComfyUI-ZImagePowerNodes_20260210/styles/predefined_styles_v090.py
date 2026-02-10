@@ -10,7 +10,7 @@ License : MIT
          ComfyUI nodes designed specifically for the "Z-Image" model.
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
-from ..lib.style_group  import StyleGroup
+from ..nodes.lib.style_group  import StyleGroup
 
 
 _PhotoStyles = """

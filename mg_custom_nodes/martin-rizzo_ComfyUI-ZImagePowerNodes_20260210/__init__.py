@@ -32,8 +32,9 @@ License : MIT
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
 import os
-from comfy_api.latest  import ComfyExtension, io
-from .nodes.server     import *
+from comfy_api.latest   import ComfyExtension, io
+from .nodes.server      import *
+from .nodes.lib.helpers import get_project_version
 __PROJECT_EMOJI = "⚡"                 #< emoji that identifies the project
 __PROJECT_MENU  = "Z-Image"            #< name of the menu where all the nodes will be
 __PROJECT_ID    = "//ZImagePowerNodes" #< used to identify the project in the ComfyUI node registry.
@@ -137,9 +138,12 @@ class ZImagePowerNodesExtension(ComfyExtension):
         _register_node( IllustrationStylePromptEncoder, subcategory, nodes, deprecated=True )
 
 
-        # report the number of nodes added by this extension
+        # report version and the number of nodes added by this extension
+        version           = get_project_version()
         num_of_deprecated = sum(node_class.xDEPRECATED for node_class in nodes)
         num_of_nodes      = len(nodes) - num_of_deprecated
+
+        logger.info(f"Version: {version}")
         if num_of_deprecated>0:
             logger.info(f"Imported {num_of_nodes} nodes + {num_of_deprecated} deprecated ones.")
         else:
@@ -151,5 +155,5 @@ async def comfy_entrypoint() -> ZImagePowerNodesExtension:
     return ZImagePowerNodesExtension()
 
 
-WEB_DIRECTORY = "./web"
+WEB_DIRECTORY = "./js"
 __all__ = ["WEB_DIRECTORY"]

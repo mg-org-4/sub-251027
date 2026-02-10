@@ -13,6 +13,8 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 import re
 import time
 import torch
+from pathlib   import Path
+from functools import cache
 
 
 def ireplace(text: str, old: str, new: str, count: int = 0) -> str:
@@ -172,3 +174,44 @@ def normalize_images(images: torch.Tensor,
 
     return images
 
+
+@cache
+def get_project_version():
+    """
+    Retrieve the project version from "pyproject.toml".
+
+    Returns:
+        The project version as a string in versioning format (e.g., "1.2.3").
+
+    Notes:
+        - If pyproject.toml is not found, returns the DEFAULT_ERROR_VERSION.
+        - Tries to use tomllib for parsing pyproject.toml if available.
+        - Fallbacks to manual reading of pyproject.toml for Python 3.10 compatibility.
+        - Returns DEFAULT_ERROR_VERSION if all methods fail.
+    """
+    DEFAULT_ERROR_VERSION = "0.0.1"
+    pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+    if not pyproject_path.exists():
+        return DEFAULT_ERROR_VERSION
+
+    # use tomllib to get the version from "pyproject.toml"
+    try:
+        import tomllib
+        with open(pyproject_path, "rb") as f:
+            data = tomllib.load(f)
+            return data.get("project", {}).get("version", DEFAULT_ERROR_VERSION)
+    except (ImportError, Exception):
+        pass
+
+    # fallback for python 3.10 (simple manual read)
+    try:
+        with open(pyproject_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip().startswith("version"):
+                    _, _, value = line.partition('=')
+                    return value.split("#")[0].strip().strip('"').strip("'")
+    except:
+        pass
+
+    # nothing worked, return default version
+    return DEFAULT_ERROR_VERSION

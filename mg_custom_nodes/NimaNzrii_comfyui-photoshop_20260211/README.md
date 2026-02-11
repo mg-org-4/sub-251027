@@ -40,8 +40,6 @@ Seamlessly integrate ComfyUI's powerful AI capabilities into your Photoshop work
 
 </details>
 
-[![youtubelink](https://raw.githubusercontent.com/NimaNzrii/comfyui-photoshop/main/data/PreviewFiles/pr3.webp)](https://www.youtube.com/watch?v=i__ciRbs3VA&t=40s)
-
 <details>
 <summary><h1> 🛠️ Installation </h1> click to expand</summary>
 

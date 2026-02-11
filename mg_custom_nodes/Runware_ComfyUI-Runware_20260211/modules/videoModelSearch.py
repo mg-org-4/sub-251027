@@ -56,6 +56,7 @@ class videoModelSearch:
             "vidu:1@5 (Vidu 1.5)",
             "vidu:2@0 (Vidu 2.0)",
             "vidu:4@1 (Vidu Q3)",
+            "vidu:4@2 (Vidu Q3 Turbo)",
         ],
         "Wan": [
             "runware:200@1 (Wan 2.1 1.3B)",
@@ -102,6 +103,9 @@ class videoModelSearch:
         ],
         "Hunyuan": [
             "runware:hunyuanvideo@1.5 (HunyuanVideo-1.5)",
+        ],
+        "Kandinsky": [
+            "runware:210@1 (Kandinsky 5.0 Lite)",
         ],
         "xAI": [
             "xai:grok-imagine@video (Grok Imagine Video)",
@@ -166,6 +170,7 @@ class videoModelSearch:
         "vidu:1@5": {"width": 1920, "height": 1080},
         "vidu:2@0": {"width": 1920, "height": 1080},
         "vidu:4@1": {"width": 1920, "height": 1080},
+        "vidu:4@2": {"width": 1920, "height": 1080},
         
         # Wan Models
         "runware:200@1": {"width": 853, "height": 480},
@@ -212,6 +217,9 @@ class videoModelSearch:
         
         # Hunyuan Models
         "runware:hunyuanvideo@1.5": {"width": 848, "height": 480},
+
+        # Kandinsky Models
+        "runware:210@1": {"width": 512, "height": 512},
 
         # xAI Models
         "xai:grok-imagine@video": {"width": 480, "height": 480},
@@ -275,6 +283,7 @@ class videoModelSearch:
         "vidu:1@5": "1080p",
         "vidu:2@0": "1080p",
         "vidu:4@1": "1080p",
+        "vidu:4@2": "1080p",
         
         # Wan Models
         "runware:200@1": "480p",
@@ -322,6 +331,9 @@ class videoModelSearch:
         # Hunyuan Models
         "runware:hunyuanvideo@1.5": "480p",
 
+        # Kandinsky Models
+        "runware:210@1": None,  # No resolution support (fixed 512x512)
+
         # xAI Models
         "xai:grok-imagine@video": "480p",
 
@@ -347,6 +359,7 @@ class videoModelSearch:
         "Bria",
         "Creatify",
         "Hunyuan",
+        "Kandinsky",
         "xAI",
         "VEED"
     ]

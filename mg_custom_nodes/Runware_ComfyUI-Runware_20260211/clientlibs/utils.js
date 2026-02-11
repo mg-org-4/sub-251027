@@ -760,6 +760,8 @@ function useParameterToggleHandler(node) {
         "useCustomDimensions": ["width", "height"], // Note: Also handled separately in videoInferenceDimensionsHandler
         "useDuration": ["duration"],
         "useFps": ["fps"],
+        "useSchedulers": ["scheduler"],
+        "useCFGScale": ["cfgScale"],
         // useSteps and useSeed are same as image inference, handled by fallback
         
         // Upscaler specific mappings (override for nodes that have CFGScale with capital C)
@@ -1553,6 +1555,61 @@ function sourcefulProviderSettingsFontsToggleHandler(fontsNode) {
     }
 }
 
+function threeDInferenceToggleHandler(node) {
+    const useOutputQualityWidget = node.widgets.find(w => w.name === "useOutputQuality");
+    const outputQualityWidget = node.widgets.find(w => w.name === "outputQuality");
+    if (!useOutputQualityWidget || !outputQualityWidget) return;
+    function toggleEnabled() {
+        const enabled = useOutputQualityWidget.value === true;
+        toggleWidgetEnabled(outputQualityWidget, enabled, node);
+        node.setDirtyCanvas(true);
+    }
+    appendWidgetCB(useOutputQualityWidget, () => setTimeout(toggleEnabled, 50));
+    setTimeout(toggleEnabled, 100);
+}
+
+function threeDInferenceSettingsToggleHandler(node) {
+    const pairs = [
+        ["useTextureSize", "textureSize"],
+        ["useDecimationTarget", "decimationTarget"],
+        ["useRemesh", "remesh"],
+        ["useResolution", "resolution"],
+    ];
+    pairs.forEach(([useName, paramName]) => {
+        const useW = node.widgets.find(w => w.name === useName);
+        const paramW = node.widgets.find(w => w.name === paramName);
+        if (!useW || !paramW) return;
+        function toggleEnabled() {
+            const enabled = useW.value === true;
+            toggleWidgetEnabled(paramW, enabled, node);
+            node.setDirtyCanvas(true);
+        }
+        appendWidgetCB(useW, () => setTimeout(toggleEnabled, 50));
+        setTimeout(toggleEnabled, 100);
+    });
+}
+
+function threeDInferenceSettingsLatToggleHandler(node) {
+    const pairs = [
+        ["useGuidanceStrength", "guidanceStrength"],
+        ["useGuidanceRescale", "guidanceRescale"],
+        ["useSteps", "steps"],
+        ["useRescaleT", "rescaleT"],
+    ];
+    pairs.forEach(([useName, paramName]) => {
+        const useW = node.widgets.find(w => w.name === useName);
+        const paramW = node.widgets.find(w => w.name === paramName);
+        if (!useW || !paramW) return;
+        function toggleEnabled() {
+            const enabled = useW.value === true;
+            toggleWidgetEnabled(paramW, enabled, node);
+            node.setDirtyCanvas(true);
+        }
+        appendWidgetCB(useW, () => setTimeout(toggleEnabled, 50));
+        setTimeout(toggleEnabled, 100);
+    });
+}
+
 function openaiProviderSettingsToggleHandler(openaiNode) {
     // Find all "use" parameter widgets for OpenAI Provider Settings (these are COMBO widgets)
     const useBackgroundWidget = openaiNode.widgets.find(w => w.name === "useBackground");
@@ -1967,6 +2024,10 @@ function videoInferenceDimensionsHandler(videoInferenceNode) {
     const stepsWidget = videoInferenceNode.widgets.find(w => w.name === "steps");
     const useBatchSizeWidget = videoInferenceNode.widgets.find(w => w.name === "useBatchSize");
     const batchSizeWidget = videoInferenceNode.widgets.find(w => w.name === "batchSize");
+    const useSchedulersWidget = videoInferenceNode.widgets.find(w => w.name === "useSchedulers");
+    const schedulerWidget = videoInferenceNode.widgets.find(w => w.name === "scheduler");
+    const useCFGScaleWidget = videoInferenceNode.widgets.find(w => w.name === "useCFGScale");
+    const cfgScaleWidget = videoInferenceNode.widgets.find(w => w.name === "cfgScale");
     
     // Helper function to toggle widget enabled state
     function toggleWidgetState(useWidget, paramWidget, paramName) {
@@ -2034,6 +2095,14 @@ function videoInferenceDimensionsHandler(videoInferenceNode) {
     if (useBatchSizeWidget && batchSizeWidget) {
         toggleWidgetState(useBatchSizeWidget, batchSizeWidget, "batchSize");
     }
+    
+    if (useSchedulersWidget && schedulerWidget) {
+        toggleWidgetState(useSchedulersWidget, schedulerWidget, "scheduler");
+    }
+    
+    if (useCFGScaleWidget && cfgScaleWidget) {
+        toggleWidgetState(useCFGScaleWidget, cfgScaleWidget, "cfgScale");
+    }
 }
 
 function videoModelSearchFilterHandler(videoModelSearchNode) {
@@ -2083,6 +2152,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
             "vidu:1@0 (Vidu Q1 Classic)", "vidu:1@1 (Vidu Q1)",
             "vidu:1@5 (Vidu 1.5)", "vidu:2@0 (Vidu 2.0)",
             "vidu:4@1 (Vidu Q3)",
+            "vidu:4@2 (Vidu Q3 Turbo)",
         ],
         "Wan": [
             "runware:200@1 (Wan 2.1 1.3B)", "runware:200@2 (Wan 2.1 14B)",
@@ -2125,6 +2195,9 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         ],
         "Hunyuan": [
             "runware:hunyuanvideo@1.5 (HunyuanVideo-1.5)",
+        ],
+        "Kandinsky": [
+            "runware:210@1 (Kandinsky 5.0 Lite)",
         ],
         "xAI": [
             "xai:grok-imagine@video (Grok Imagine Video)",
@@ -2178,6 +2251,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "vidu:1@5": {"width": 1920, "height": 1080},
         "vidu:2@0": {"width": 1920, "height": 1080},
         "vidu:4@1": {"width": 1920, "height": 1080},
+        "vidu:4@2": {"width": 1920, "height": 1080},
         "runware:200@1": {"width": 853, "height": 480},
         "runware:200@2": {"width": 853, "height": 480},
         "runware:200@6": {"width": 1280, "height": 720},
@@ -2203,6 +2277,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "creatify:aurora@fast": {"width": 1280, "height": 720},
         "creatify:aurora@0": {"width": 1280, "height": 720},
         "runware:hunyuanvideo@1.5": {"width": 848, "height": 480},
+        "runware:210@1": {"width": 512, "height": 512},
         "xai:grok-imagine@video": {"width": 480, "height": 480},
         "veed:fabric@1.0": {"width": 1280, "height": 720},
     };
@@ -2251,6 +2326,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "vidu:1@5": "1080p",
         "vidu:2@0": "1080p",
         "vidu:4@1": "1080p",
+        "vidu:4@2": "1080p",
         "runware:200@1": "480p",
         "runware:200@2": "480p",
         "runware:200@6": "720p",
@@ -2276,6 +2352,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "creatify:aurora@fast": "720p",
         "creatify:aurora@0": "720p",
         "runware:hunyuanvideo@1.5": "480p",
+        "runware:210@1": null,  // No resolution support (fixed 512x512)
         "xai:grok-imagine@video": "480p",
         "veed:fabric@1.0": "720p",
     };
@@ -3546,6 +3623,9 @@ export {
     viduProviderSettingsToggleHandler,
     sourcefulProviderSettingsToggleHandler,
     sourcefulProviderSettingsFontsToggleHandler,
+    threeDInferenceToggleHandler,
+    threeDInferenceSettingsToggleHandler,
+    threeDInferenceSettingsLatToggleHandler,
     ultralyticsProviderSettingsToggleHandler,
     openaiProviderSettingsToggleHandler,
     lightricksProviderSettingsToggleHandler,

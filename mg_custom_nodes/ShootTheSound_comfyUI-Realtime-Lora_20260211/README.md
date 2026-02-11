@@ -262,6 +262,85 @@ Scale individual blocks of your base model before LoRA application:
 - **Wan Model Layer Editor**
 - **Qwen Model Layer Editor**
 
+  ---
+
+## Deep Debiaser & Inspector Nodes
+
+A new suite of **8 nodes** for sub-component-level control and analysis of DIT models, VAEs, and text encoders. These go far deeper than block-level editing — you can scale individual attention heads, MLPs, norms, and convolutions inside each block.
+
+**No additional installation required** — these work out of the box like the existing analysis and editing nodes.
+
+### What is "Debiasing"?
+
+Deep debiasers let you scale individual functional sub-components (attention, MLP, norms, embedders) of your base model before LoRA application. This is useful for:
+
+- **Fixing color/saturation bias** in VAE decoders by scaling specific conv layers
+- **Reducing text encoder dominance** on certain prompt tokens by weakening specific attention layers
+- **Fine-tuning DIT behavior** at sub-block granularity — go beyond block-level control to target the exact sub-component causing an issue
+- **Saving modified models** to disk for reuse
+
+All debiasers are **LoRA-safe** via ComfyUI's `add_patches` system — your LoRAs still apply correctly on top.
+
+### Deep Debiaser Nodes (5)
+
+| Node | Target | Controllable Units | Architecture |
+| --- | --- | --- | --- |
+| **DIT Deep Debiaser (Z-Image Sub-Component)** | Z-Image DIT | 174 sub-components | 5 embedders, 2×4 context_refiner subs, 30×5 layer subs, 2×5 noise_refiner subs, 1 final_layer |
+| **DIT Deep Debiaser (FLUX.2 Klein — Verified)** | FLUX Klein DIT | 63 sub-components | 7 global, 8×4 double block subs, 24 single blocks. Architecture verified via forward-pass hook tracing |
+| **VAE Deep Debiaser (Flux 2 Klein — 125 Tensors)** | Flux VAE (32ch latent) | 125 tensor units | 1 batch norm, 70 decoder units, 54 encoder units. Every conv, norm, shortcut, q/k/v/proj individually controllable |
+| **Text Encoder Deep Debiaser (Qwen3-4B)** | Qwen3-4B text encoder | 182 sub-components | 1 embed_tokens, 36×5 layer subs (input_norm, attn, attn_norm, mlp, post_norm), 1 final_norm |
+| **Text Encoder Deep Debiaser (Qwen3-8B / Flux 2 Klein)** | Qwen3-8B text encoder | 182 sub-components | Same structure as 4B variant but for the 8B encoder used by Flux 2 Klein 9B |
+
+**Common features across all debiasers:**
+
+- Per-sub-component strength sliders (0.0–2.0, default 1.0)
+- Preset system with save/load/delete for your own configurations
+- Save modified models to disk (safetensors format)
+- Persistent save paths between sessions
+- Handles quantized weights where applicable
+
+> **Warning:** Setting any sub-component to 0.0 will likely produce noise or artifacts. Use values between 0.5–1.5 for most adjustments.
+
+### Inspector Nodes (3)
+
+| Node | Target | What It Analyzes |
+| --- | --- | --- |
+| **VAE Inspector (Flux 2 Klein — 125 Tensors)** | Flux VAE | Weight norms, distributions, and optional decode ablation for all 125 tensor units |
+| **Text Encoder Inspector (Qwen3-4B)** | Qwen3-4B text encoder | Per-layer activation analysis — magnitude, variance, sparsity, and attention pattern stats |
+| **Text Encoder Inspector (Qwen3-8B / Flux 2 Klein)** | Qwen3-8B text encoder | Same analysis for the 8B encoder used by Flux 2 Klein 9B |
+
+**Inspector features:**
+
+- **Weight analysis** (fast) — weight norms, distributions, max values per sub-component. Identifies which layers dominate.
+- **Activation analysis** (text encoders) — run a prompt through the encoder and measure per-layer activation magnitude, variance, and sparsity. Reveals which layers actually contribute most to your specific prompt.
+- **Decode ablation** (VAE, slow) — weakens each decoder unit individually, decodes, and measures pixel-level + per-channel (R/G/B) impact. Precise importance rankings for color tuning.
+- Outputs both human-readable reports and JSON data for further processing.
+
+**Recommended workflow:** Run the inspector first to identify high-impact sub-components, then use the corresponding debiaser to make targeted adjustments.
+
+### FLUX Klein Pipeline Coverage
+
+These nodes provide full-stack coverage for the FLUX Klein pipeline:
+
+1. **Text Encoder** → Qwen3-4B Inspector + Debiaser (for Klein 4B) or Qwen3-8B Inspector + Debiaser (for Klein 9B)
+2. **DIT** → FLUX Klein Deep Debiaser (63 sub-components with verified architecture mapping)
+3. **VAE** → Flux VAE Inspector + Debiaser (125 individual tensor controls)
+
+This means you can inspect and tune every component of the generation pipeline at sub-block granularity.
+
+### Node List (for ComfyUI search)
+
+Search for these in ComfyUI:
+
+- **DIT Deep Debiaser (Z-Image Sub-Component)** — 174 sub-component controls for Z-Image DIT
+- **DIT Deep Debiaser (FLUX.2 Klein — Verified)** — 63 sub-component controls for FLUX Klein DIT
+- **VAE Deep Debiaser (Flux 2 Klein — 125 Tensors)** — Individual tensor control for Flux VAE
+- **VAE Inspector (Flux 2 Klein — 125 Tensors)** — Analyze Flux VAE tensor importance
+- **Text Encoder Deep Debiaser (Qwen3-4B)** — 182 sub-component controls for Qwen3-4B
+- **Text Encoder Inspector (Qwen3-4B)** — Analyze Qwen3-4B layer importance
+- **Text Encoder Deep Debiaser (Qwen3-8B / Flux 2 Klein)** — 182 sub-component controls for Qwen3-8B
+- **Text Encoder Inspector (Qwen3-8B / Flux 2 Klein)** — Analyze Qwen3-8B layer importance
+
 **Utility Nodes:**
 
 - **Model Diff to LoRA** - Extract combined LoRA effects into a single file (merge, compress, or selectively bake)

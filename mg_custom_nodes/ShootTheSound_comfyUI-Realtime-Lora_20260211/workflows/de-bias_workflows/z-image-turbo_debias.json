@@ -1,0 +1,1446 @@
+{
+  "id": "462784b4-7ee6-447c-ac18-cc936f498102",
+  "revision": 0,
+  "last_node_id": 16,
+  "last_link_id": 20,
+  "nodes": [
+    {
+      "id": 7,
+      "type": "VAEDecode",
+      "pos": [
+        850.6111692394106,
+        -209.94289202393725
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 4
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 8,
+      "type": "PreviewImage",
+      "pos": [
+        929.9485492394102,
+        -359.02763702393736
+      ],
+      "size": [
+        825.1485565359235,
+        1441.5174522935163
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 5
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "type": "KSampler",
+      "pos": [
+        418.23199431966464,
+        -381.1934213593653
+      ],
+      "size": [
+        270,
+        474
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 13
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 7
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 9
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        133249963448608,
+        "fixed",
+        8,
+        1,
+        "euler",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 12,
+      "type": "EmptyLatentImage",
+      "pos": [
+        116.05470833734046,
+        -0.9410342136476092
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        768,
+        1120,
+        1
+      ]
+    },
+    {
+      "id": 2,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -250.88883076058937,
+        -342.44289202393725
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "a woman is smiling at viewer, she has a fancy dress, she has glasses, chaotic scene"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "Qwen3_4BTextEncoderDebiaser",
+      "pos": [
+        -719.86176133415,
+        101.66171865712963
+      ],
+      "size": [
+        520,
+        4518
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": [
+            14,
+            15
+          ]
+        },
+        {
+          "name": "info",
+          "type": "STRING",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "shootthesound/comfyUI-Realtime-Lora",
+        "ver": "04a1493640d6eee819608bc1e45c8a90ead68ee0",
+        "Node name for S&R": "Qwen3_4BTextEncoderDebiaser"
+      },
+      "widgets_values": [
+        "Default",
+        false,
+        "full_model",
+        "auto",
+        true,
+        1.42,
+        true,
+        1,
+        true,
+        0.87,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.89,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1
+      ]
+    },
+    {
+      "id": 11,
+      "type": "ZImageDeepDebiaser",
+      "pos": [
+        -1677.647111854776,
+        103.59759404258813
+      ],
+      "size": [
+        520,
+        4326
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            13
+          ]
+        },
+        {
+          "name": "info",
+          "type": "STRING",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "shootthesound/comfyUI-Realtime-Lora",
+        "ver": "04a1493640d6eee819608bc1e45c8a90ead68ee0",
+        "Node name for S&R": "ZImageDeepDebiaser"
+      },
+      "widgets_values": [
+        "Default",
+        false,
+        "full_model",
+        "auto",
+        true,
+        1.7,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.77,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.79,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.78,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.81,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.75,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.81,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.76,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.87,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.75,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.77,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.79,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.85,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.8300000000000001,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.88,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.78,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.85,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.86,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.9,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        0.93,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1,
+        true,
+        1
+      ]
+    },
+    {
+      "id": 14,
+      "type": "PreviewAny",
+      "pos": [
+        -1075.7767624765756,
+        742.4115698722629
+      ],
+      "size": [
+        210,
+        166
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 18
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [
+        null,
+        null,
+        false
+      ]
+    },
+    {
+      "id": 15,
+      "type": "PreviewAny",
+      "pos": [
+        -126.77376247657597,
+        910.1175698722631
+      ],
+      "size": [
+        210,
+        166
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 19
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [
+        null,
+        null,
+        false
+      ]
+    },
+    {
+      "id": 5,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -25.626330760589322,
+        192.98260797606275
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        -1561.384519955316,
+        -350.90448190850805
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "z_image_turbo_bf16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "CLIPLoader",
+      "pos": [
+        -1558.5743536415393,
+        -226.75472625657164
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            11,
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen_3_4b_fp4_mixed.safetensors",
+        "stable_diffusion",
+        "default"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "VAELoader",
+      "pos": [
+        -1564.1356946018566,
+        -75.80102200139781
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "ae.safetensors"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "Qwen3_4BTextEncoderInspector",
+      "pos": [
+        -1098.6741551265764,
+        -447.3436418277366
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": [
+            20
+          ]
+        },
+        {
+          "name": "json_data",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "shootthesound/comfyUI-Realtime-Lora",
+        "ver": "04a1493640d6eee819608bc1e45c8a90ead68ee0",
+        "Node name for S&R": "Qwen3_4BTextEncoderInspector"
+      },
+      "widgets_values": [
+        "a woman is smiling at viewer, she has a fancy dress, she has glasses, chaotic scene",
+        "quick",
+        0.5
+      ]
+    },
+    {
+      "id": 16,
+      "type": "PreviewAny",
+      "pos": [
+        -633.2192624765755,
+        -505.40093012773656
+      ],
+      "size": [
+        289.7934499999999,
+        552.5223999999998
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 20
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.12.3",
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [
+        null,
+        null,
+        false
+      ]
+    }
+  ],
+  "links": [
+    [
+      4,
+      6,
+      0,
+      7,
+      0,
+      "LATENT"
+    ],
+    [
+      5,
+      7,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      6,
+      4,
+      0,
+      7,
+      1,
+      "VAE"
+    ],
+    [
+      7,
+      2,
+      0,
+      6,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      9,
+      5,
+      0,
+      6,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      11,
+      3,
+      0,
+      10,
+      0,
+      "CLIP"
+    ],
+    [
+      12,
+      1,
+      0,
+      11,
+      0,
+      "MODEL"
+    ],
+    [
+      13,
+      11,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      14,
+      10,
+      0,
+      2,
+      0,
+      "CLIP"
+    ],
+    [
+      15,
+      10,
+      0,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      16,
+      12,
+      0,
+      6,
+      3,
+      "LATENT"
+    ],
+    [
+      17,
+      3,
+      0,
+      13,
+      0,
+      "CLIP"
+    ],
+    [
+      18,
+      11,
+      1,
+      14,
+      0,
+      "STRING"
+    ],
+    [
+      19,
+      10,
+      1,
+      15,
+      0,
+      "STRING"
+    ],
+    [
+      20,
+      13,
+      0,
+      16,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "workflowRendererVersion": "LG",
+    "ds": {
+      "scale": 0.31863081771035684,
+      "offset": [
+        3434.652434415286,
+        1248.8591025858261
+      ]
+    },
+    "frontendVersion": "1.38.13"
+  },
+  "version": 0.4
+}

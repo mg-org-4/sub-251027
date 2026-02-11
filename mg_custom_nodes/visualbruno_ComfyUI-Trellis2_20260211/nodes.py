@@ -1405,7 +1405,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
             
             print('Performing Dual Contouring ...')
             # Perform Dual Contouring remeshing (rebuilds topology)
-            cumesh.init(*CuMesh.remeshing.remesh_narrow_band_dc(
+            cumesh.init(*CuMesh.remeshing.remesh_narrow_band_dc_quad(
                 vertices, faces,
                 center = center,
                 scale = scale * 1.1, # old calculation : (resolution + 3 * remesh_band) / resolution * scale,
@@ -1446,18 +1446,37 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
             
             nb_holes = len(hole_edges)
             print(f"{nb_holes} holes found")
-            
-            if nb_holes>0:
-                progress_bar_holes = tqdm(total=nb_holes,desc="Filling holes")
+
+            if nb_holes > 0:
+                progress_bar = tqdm(total=nb_holes, desc="Filling holes")
                 
-                for e in hole_edges:
+                last_reported_percent = -1  # Initialize at -1 to ensure 0% triggers an update
+                
+                for i, e in enumerate(hole_edges):
                     params = mrmeshpy.FillHoleParams()
                     params.metric = mrmeshpy.getUniversalMetric(meshlib_mesh)
                     mrmeshpy.fillHole(meshlib_mesh, e, params)
-                    holes_filled += 1
-                    progress_bar_holes.update(1)
                     
-                progress_bar_holes.close()
+                    # Calculate current progress
+                    current_step = i + 1
+                    current_percent = int((current_step / nb_holes) * 100)
+                    
+                    # Only update the UI if the percentage has moved up
+                    if current_percent > last_reported_percent:
+                        # Calculate how many holes have been filled since the last UI update
+                        # This handles cases where 1% might represent multiple holes
+                        if last_reported_percent == -1:
+                            # First update
+                            progress_bar.update(current_step)
+                        else:
+                            # Update by the difference since the last check
+                            last_step = int((last_reported_percent * nb_holes) / 100)
+                            diff = current_step - last_step
+                            progress_bar.update(diff)
+                        
+                        last_reported_percent = current_percent
+                            
+                progress_bar.close()                 
             
             new_vertices = mrmeshnumpy.getNumpyVerts(meshlib_mesh)
             new_faces = mrmeshnumpy.getNumpyFaces(meshlib_mesh.topology)
@@ -2324,20 +2343,40 @@ class Trellis2FillHolesWithMeshlib:
         
         nb_holes = len(hole_edges)
         print(f"{nb_holes} holes found")
-        
-        if nb_holes>0:
-            progress_bar = tqdm(total=nb_holes,desc="Filling holes")
+
+        if nb_holes > 0:
+            progress_bar = tqdm(total=nb_holes, desc="Filling holes")
             pbar = ProgressBar(nb_holes)
             
-            for e in hole_edges:
+            last_reported_percent = -1  # Initialize at -1 to ensure 0% triggers an update
+            
+            for i, e in enumerate(hole_edges):
                 params = mrmeshpy.FillHoleParams()
                 params.metric = mrmeshpy.getUniversalMetric(mesh)
                 mrmeshpy.fillHole(mesh, e, params)
-                holes_filled += 1
-                progress_bar.update(1)
-                pbar.update(1)
                 
-            progress_bar.close()
+                # Calculate current progress
+                current_step = i + 1
+                current_percent = int((current_step / nb_holes) * 100)
+                
+                # Only update the UI if the percentage has moved up
+                if current_percent > last_reported_percent:
+                    # Calculate how many holes have been filled since the last UI update
+                    # This handles cases where 1% might represent multiple holes
+                    if last_reported_percent == -1:
+                        # First update
+                        progress_bar.update(current_step)
+                        pbar.update(current_step)
+                    else:
+                        # Update by the difference since the last check
+                        last_step = int((last_reported_percent * nb_holes) / 100)
+                        diff = current_step - last_step
+                        progress_bar.update(diff)
+                        pbar.update(diff)
+                    
+                    last_reported_percent = current_percent
+                        
+            progress_bar.close()            
         
         new_vertices = mrmeshnumpy.getNumpyVerts(mesh)
         new_faces = mrmeshnumpy.getNumpyFaces(mesh.topology)
@@ -2547,17 +2586,37 @@ class Trellis2BatchSimplifyMeshAndExport:
                     
                     nb_holes = len(hole_edges)
                     print(f"{nb_holes} holes found")
-                    
-                    if nb_holes>0:
-                        progress_bar = tqdm(total=nb_holes,desc="Filling holes")
+
+                    if nb_holes > 0:
+                        progress_bar = tqdm(total=nb_holes, desc="Filling holes")
                         
-                        for e in hole_edges:
+                        last_reported_percent = -1  # Initialize at -1 to ensure 0% triggers an update
+                        
+                        for i, e in enumerate(hole_edges):
                             params = mrmeshpy.FillHoleParams()
                             params.metric = mrmeshpy.getUniversalMetric(mmesh)
                             mrmeshpy.fillHole(mmesh, e, params)
-                            progress_bar.update(1)
                             
-                        progress_bar.close()
+                            # Calculate current progress
+                            current_step = i + 1
+                            current_percent = int((current_step / nb_holes) * 100)
+                            
+                            # Only update the UI if the percentage has moved up
+                            if current_percent > last_reported_percent:
+                                # Calculate how many holes have been filled since the last UI update
+                                # This handles cases where 1% might represent multiple holes
+                                if last_reported_percent == -1:
+                                    # First update
+                                    progress_bar.update(current_step)
+                                else:
+                                    # Update by the difference since the last check
+                                    last_step = int((last_reported_percent * nb_holes) / 100)
+                                    diff = current_step - last_step
+                                    progress_bar.update(diff)
+                                
+                                last_reported_percent = current_percent
+                                    
+                        progress_bar.close()                         
                     
                     vertices = mrmeshnumpy.getNumpyVerts(mmesh)
                     faces = mrmeshnumpy.getNumpyFaces(mmesh.topology)

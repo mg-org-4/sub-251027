@@ -10,6 +10,7 @@
  *       ComfyUI nodes designed specifically for the "Z-Image" model.
  *_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 */
+import { app } from "../../../scripts/app.js";
 export {
     loadCSS,
     isNodeFromMyProject,
@@ -121,6 +122,7 @@ function getInputOriginID(node, inputName) {
  * @returns {(Object|null)} The node that is connected as input or `null` if nothing is connected.
  */
 function getInputNode(node, inputName) {
+    const graph    = (node?.graph || app.graph);
     const originID = getInputOriginID(node, inputName);
     return originID != null ? graph.getNodeById(originID) : null;
 }

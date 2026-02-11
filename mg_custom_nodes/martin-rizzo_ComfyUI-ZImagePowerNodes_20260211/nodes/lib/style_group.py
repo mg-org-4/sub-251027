@@ -10,6 +10,62 @@ License : MIT
          ComfyUI nodes designed specifically for the "Z-Image" model.
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
+import re
+
+
+#================================== STYLE ==================================#
+
+class Style:
+    """
+    Represents a style with a name, template, description and tags.
+
+    Attributes:
+        name        (str): The name of the style.
+        template    (str): The template associated with this style.
+        description (str): A description for the style.
+        tags       (list): Tags or categories associated with the style.
+
+    Properties:
+        comma_separated_tags (str): Returns a comma-separated string of all tags.
+        quoted_name          (str): Returns the style name enclosed in double quotes.
+        slug                 (str): Returns a slug version of the style's name for URL use.
+    """
+    def __init__(self,
+                 name       : str, /,*,
+                 template   : str,
+                 description: str = "",
+                 tags       : list = []
+                 ):
+        self.name        = name
+        self.template    = template
+        self.description = description
+        self.tags        = tags
+
+
+    @property
+    def comma_separated_tags(self) -> str:
+        """Returns a comma-separated string of all tags associated with the style."""
+        return ", ".join(self.tags)
+
+
+    @property
+    def quoted_name(self) -> str:
+        """Returns the name of the style enclosed in double quotes."""
+        return f'"{self.name}"'
+
+
+    @property
+    def slug(self) -> str:
+        """Generates a slug from the style's name for use in URLs or file names."""
+        name = self.name.strip().lower()
+        name = name.replace(" ", "_")           #< spaces to underscores
+        name = re.sub(r"['\"`]", "", name)      #< remove any quotes
+        name = re.sub(r"[^a-z0-9_]", "x", name) #< any strange character will be converted to 'x'
+        return name
+
+
+
+#=============================== STYLE GROUP ===============================#
 
 class StyleGroup:
     """
@@ -38,9 +94,9 @@ class StyleGroup:
 
         self.category = category
         self.version  = version
-        self._templates_by_lowername = {}
-        self._names_by_lowername     = {}
-        self._ordered_names          = []
+        self._styles_by_lowername = {}
+        self._names_by_lowername  = {}
+        self._ordered_names       = []
 
         # if no styles are provided then leave everything empty and do nothing
         if styles is None:
@@ -140,40 +196,51 @@ class StyleGroup:
 
     def contains(self, name: str) -> bool:
         """Check whether the group contains a given style or not."""
-        return name.lower() in self._templates_by_lowername
+        return name.lower() in self._styles_by_lowername
+
+
+    def get_style(self, name: str) -> Style | None:
+        """Return the style for a given name. If it doesn't exist, returns None."""
+        lowername = name.strip().lower()
+        # the name can be quoted with single or double quotes
+        if(  ( lowername.startswith("'") and lowername.endswith("'") )  or
+             ( lowername.startswith('"') and lowername.endswith('"') )  ):
+            lowername = lowername[1:-1]
+        return self._styles_by_lowername.get(lowername)
 
 
     def get_style_template(self, name: str, default: str = "") -> str:
         """Return the style template for a given name. If it doesn't exist, returns `default` or empty string."""
-        name = name.strip()
-        # the name can be quoted with single or double quotes
-        if(  ( name.startswith("'") and name.endswith("'") )  or
-             ( name.startswith('"') and name.endswith('"') )  ):
-            name = name[1:-1]
-        lowername = name.lower()
-        return self._templates_by_lowername.get(lowername, default)
+        style = self.get_style(name)
+        return style.template if style else default
 
 
-    def add_style(self, name: str, template: str):
+    def add_style(self, name: str, style: Style|str):
         """Add a new style or update an existing one."""
-        lowername = name.lower()
+        lowername = name.strip().lower()
+
+        # if instead of an object, a string is passed as parameter,
+        # then it is assumed that this string is the template
+        if isinstance(style, str):
+            style = Style(name, template=style)
+
         # if the style already exists, then it is only updated
-        if lowername in self._templates_by_lowername:
-            self._templates_by_lowername[lowername] = template
+        if lowername in self._styles_by_lowername:
+            self._styles_by_lowername[lowername] = style
             return
         # adds a new style
-        self._templates_by_lowername[lowername] = template
+        self._styles_by_lowername[lowername] = style
         self._names_by_lowername[lowername] = name
         self._ordered_names.append(name)
 
 
     def remove_style(self, name: str):
         """Remove a style by its name."""
-        lowername = name.lower()
-        if lowername not in self._templates_by_lowername:
+        lowername = name.strip().lower()
+        if lowername not in self._styles_by_lowername:
             return
         name = self._names_by_lowername[lowername] or name
-        del self._templates_by_lowername[lowername]
+        del self._styles_by_lowername[lowername]
         del self._names_by_lowername[lowername]
         self._ordered_names.remove(name)
 
@@ -181,7 +248,8 @@ class StyleGroup:
     def update(self, style_group: "StyleGroup"):
         """Update this style group with another one."""
         for name in style_group.get_names():
-            self.add_style(name, style_group.get_style_template(name))
+            style = style_group.get_style(name)
+            if style: self.add_style(name, style)
 
 
     def get_names(self, /,*, quoted: bool | str = False) -> list[str]:
@@ -198,28 +266,9 @@ class StyleGroup:
         return [ f'{quote_char}{x}{quote_char}' for x in self.get_names() ]
 
 
-    def __getitem__(self, name: str):
-        """Allow indexing by style name."""
-        if not self.contains(name):
-            raise KeyError(f"Style '{name}' not found.")
-        return self.get_style_template(name)
-
-
-    def __setitem__(self, name: str, template: str):
-        """Allow setting a new style or updating an existing one using indexing."""
-        self.add_style(name, template)
-
-
-    def __delitem__(self, name):
-        """Allow deleting a style by its name using the `del` keyword."""
-        if not self.contains(name):
-            raise KeyError(f"Style '{name}' not found.")
-        self.remove_style(name)
-
-
     def __len__(self):
         """Return the number of styles."""
-        return len(self._templates_by_lowername)
+        return len(self._styles_by_lowername)
 
 
     def __contains__(self, name):
@@ -228,5 +277,5 @@ class StyleGroup:
 
 
     def __str__(self) -> str:
-        return f"StyleGroup({len(self._templates_by_lowername)} styles)"
+        return f"StyleGroup({len(self._styles_by_lowername)} styles)"
 

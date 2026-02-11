@@ -64,7 +64,7 @@ function createSpacerWidget( node, inputName ) {
         name      : inputName,
         serialize : false,
 
-        draw: function(ctx, node, widget_width, y, widget_height) {
+        draw: function(_ctx, _node, _widget_width, _y, _widget_height) {
         },
 
         // computeSize: function(widgetWidth) {

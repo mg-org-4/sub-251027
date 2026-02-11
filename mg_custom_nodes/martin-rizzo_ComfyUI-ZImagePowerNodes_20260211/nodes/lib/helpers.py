@@ -176,7 +176,7 @@ def normalize_images(images: torch.Tensor,
 
 
 @cache
-def get_project_version():
+def get_project_version() -> str:
     """
     Retrieve the project version from "pyproject.toml".
 
@@ -215,3 +215,8 @@ def get_project_version():
 
     # nothing worked, return default version
     return DEFAULT_ERROR_VERSION
+
+
+@cache
+def get_project_root() -> Path:
+    return Path(__file__).parent.parent.parent.resolve()

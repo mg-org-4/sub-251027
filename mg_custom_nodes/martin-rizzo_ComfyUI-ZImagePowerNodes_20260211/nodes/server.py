@@ -14,10 +14,14 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  - https://docs.comfy.org/development/comfyui-server/comms_routes
 
 """
+import os
+import re
+from aiohttp                     import web
 from functools                   import cache
 from server                      import PromptServer
 from aiohttp                     import web
 from ..styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
+from .lib.helpers                import get_project_root
 routes = PromptServer.instance.routes
 
 
@@ -35,25 +39,47 @@ def _get_last_version_styles() -> list[list[str]]:
                          [5] thumbnail   (str): URL for the style's thumbnail (currently empty).
     """
     LAST_VERSION_STYLE_GROUPS = PREDEFINED_STYLE_GROUPS
-    last_version_styles = []
+    styles = []
     for style_group in LAST_VERSION_STYLE_GROUPS:
         category = style_group.category
-        names    = style_group.get_names()
-        for name in names:
-            thumbnail   = ""
-            description = ""
-            tags        = ""
-            template    = style_group.get_style_template(name)
+        for name in style_group.get_names():
+            style = style_group.get_style(name)
+            if not style: continue
+            thumbnail   = f"{style.slug}.jpg"
+            description = style.description
+            tags        = style.comma_separated_tags
+            template    = style.template
             style_data : list[str] = [
                 name,         # 0: name
                 category,     # 1: category
                 description,  # 2: description
                 tags,         # 3: tags (comma-separated)
                 template,     # 4: template
-                thumbnail,    # 5: thumbnail url (front-end generated)
+                thumbnail,    # 5: thumbnail filename (e.g. "casual_photo.jpg")
             ]
-            last_version_styles.append(style_data)
-    return last_version_styles
+            styles.append(style_data)
+    return styles
+
+
+def _sanitize_filename(filename: str) -> str:
+    """
+    Sanitizes a given filename to ensure it is valid and secure for most file systems.
+
+    This function removes any characters from the filename that are not
+    alphanumeric, underscores, or hyphens. This sanitization process helps
+    in making filenames safe from potential security threats and reduces the
+    risk of errors due to unsupported characters in different operating systems.
+
+    Args:
+        filename (str): The original filename to be sanitized.
+    Returns:
+        A sanitized version of the input filename,
+        suitable for most file systems and secure against common threats.
+    """
+    name, ext = os.path.splitext( os.path.basename(filename) )
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', name) #< remove any non-alphanumeric characters from the name
+    safe_ext  = re.sub(r'[^a-zA-Z0-9]'  , '', ext ) #< remove any non-alphanumeric characters from the extension
+    return f"{safe_name}.{safe_ext}" if safe_ext else safe_name
 
 
 #============================== SERVER ROUTES ==============================#
@@ -63,3 +89,17 @@ async def get_last_version_styles(_):
     return web.json_response( _get_last_version_styles() )
 
 
+@routes.get("/zi_power/styles/samples")
+async def get_style_sample(request: web.Request) -> web.StreamResponse:
+    #
+    # To request a style sample, you should use:
+    #    "/zi_power/styles/samples?file=my_sample_image.jpg&t=${T}"
+    #    where T could be "Math.floor(Date.now() / 3600000)" for cache busting
+    #
+    file = request.query.get("file")
+    file = _sanitize_filename(file) if file else None
+    fullpath = (get_project_root() / "styles" / "samples" / file) if file else None
+    if not fullpath or not os.path.isfile(fullpath):
+        return web.Response(status=400)
+
+    return web.FileResponse(fullpath)

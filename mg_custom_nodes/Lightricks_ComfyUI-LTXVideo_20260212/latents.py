@@ -809,6 +809,18 @@ class LTXVSetAudioVideoMaskByTime:
                 :, :, audio_latent_frame_index_start:audio_latent_frame_index_end
             ] = 1.0
 
+        if "noise_mask" in av_latent:
+            base_mask = av_latent["noise_mask"].tensors[0].clone()
+            if (
+                base_mask.shape[0]
+                == base_mask.shape[1]
+                == 1
+                == base_mask.shape[3]
+                == base_mask.shape[4]
+            ):
+                for frame in range(base_mask.shape[2]):
+                    video_mask[:, :, frame, :, :] *= base_mask[0, 0, frame, 0, 0]
+
         av_latent["noise_mask"] = NestedTensor(
             ltxav.recombine_audio_and_video_latents(video_mask, audio_mask)
         )

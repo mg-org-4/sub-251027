@@ -1,5 +1,7 @@
 import { forwardMiddleMouseToCanvas } from "./utils.js";
 
+const MIN_HEIGHT = 150;
+
 export function addTagsWidget(node, name, opts, callback, wheelSensitivity = 0.02, options = {}) {
   // Create container for tags
   const container = document.createElement("div");
@@ -8,10 +10,7 @@ export function addTagsWidget(node, name, opts, callback, wheelSensitivity = 0.0
   const { allowStrengthAdjustment = true } = options;
 
   forwardMiddleMouseToCanvas(container);
-  
-  // Set initial height
-  const defaultHeight = 150;
-  
+
   Object.assign(container.style, {
     display: "flex",
     flexWrap: "wrap",
@@ -20,20 +19,15 @@ export function addTagsWidget(node, name, opts, callback, wheelSensitivity = 0.0
     backgroundColor: "rgba(40, 44, 52, 0.6)",
     borderRadius: "6px",
     width: "100%",
+    height: "100%",
     boxSizing: "border-box",
     overflow: "auto",
-    alignItems: "flex-start" // Ensure tags align at the top of each row
+    alignItems: "flex-start",
+    alignContent: "flex-start"
   });
 
   // Initialize default value as array
   const initialTagsData = opts?.defaultVal || [];
-
-  // Fixed sizes for tag elements to avoid zoom-related calculation issues
-  const TAG_HEIGHT = 26; // Adjusted height of a single tag including margins
-  const TAGS_PER_ROW = 3; // Approximate number of tags per row
-  const ROW_GAP = 2; // Reduced gap between rows
-  const CONTAINER_PADDING = 12; // Top and bottom padding
-  const EMPTY_CONTAINER_HEIGHT = 60; // Height when no tags are present
 
   // Function to render tags from array data
   const renderTags = (tagsData, widget) => {
@@ -61,25 +55,9 @@ export function addTagsWidget(node, name, opts, callback, wheelSensitivity = 0.0
         width: "100%"
       });
       container.appendChild(emptyMessage);
-      
-      // Set fixed height for empty state
-      updateWidgetHeight(EMPTY_CONTAINER_HEIGHT);
       return;
     }
 
-    // Create a row container approach for better layout control
-    let rowContainer = document.createElement("div");
-    rowContainer.className = "comfy-tags-row";
-    Object.assign(rowContainer.style, {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "4px",
-      width: "100%",
-      marginBottom: "2px" // Small gap between rows
-    });
-    container.appendChild(rowContainer);
-
-    let tagCount = 0;
     normalizedTags.forEach((tagData, index) => {
       const { text, active, highlighted, strength } = tagData;
       const tagEl = document.createElement("div");
@@ -129,7 +107,6 @@ export function addTagsWidget(node, name, opts, callback, wheelSensitivity = 0.0
       tagEl.addEventListener("click", (e) => {
         e.stopPropagation();
 
-        // Toggle active state for this specific tag using its index
         const updatedTags = [...widget.value];
         updatedTags[index].active = !updatedTags[index].active;
         textSpan.textContent = updatedTags[index].text;
@@ -153,29 +130,20 @@ export function addTagsWidget(node, name, opts, callback, wheelSensitivity = 0.0
           e.preventDefault();
           e.stopPropagation();
 
-          // Only adjust strength if the mouse is over the tag
           const updatedTags = [...widget.value];
           let currentStrength = updatedTags[index].strength;
-          
-          // If no strength is set, default to 1.0
+
           if (currentStrength === undefined || currentStrength === null) {
             currentStrength = 1.0;
           }
 
-          // Adjust strength based on scroll direction
-          // DeltaY < 0 is scroll up, deltaY > 0 is scroll down
           if (e.deltaY < 0) {
-            // Scroll up: increase strength by wheelSensitivity
             currentStrength += wheelSensitivity;
           } else {
-            // Scroll down: decrease strength by wheelSensitivity
             currentStrength -= wheelSensitivity;
           }
 
-          // Ensure strength doesn't go below 0
           currentStrength = Math.max(0, currentStrength);
-
-          // Update the strength value
           updatedTags[index].strength = currentStrength;
           textSpan.textContent = updatedTags[index].text;
 
@@ -185,34 +153,8 @@ export function addTagsWidget(node, name, opts, callback, wheelSensitivity = 0.0
         });
       }
 
-      rowContainer.appendChild(tagEl);
-      tagCount++;
+      container.appendChild(tagEl);
     });
-    
-    // Calculate height based on number of tags and fixed sizes
-    const tagsCount = normalizedTags.length;
-    const rows = Math.ceil(tagsCount / TAGS_PER_ROW);
-    const calculatedHeight = CONTAINER_PADDING + (rows * TAG_HEIGHT) + ((rows - 1) * ROW_GAP);
-    
-    // Update widget height with calculated value
-    updateWidgetHeight(calculatedHeight);
-  };
-
-  // Function to update widget height consistently
-  const updateWidgetHeight = (height) => {
-    // Ensure minimum height
-    const finalHeight = Math.max(defaultHeight, height);
-    
-    // Update CSS variables
-    container.style.setProperty('--comfy-widget-min-height', `${finalHeight}px`);
-    container.style.setProperty('--comfy-widget-height', `${finalHeight}px`);
-    
-    // Force node to update size after a short delay to ensure DOM is updated
-    if (node) {
-      setTimeout(() => {
-        node.setDirtyCanvas(true, true);
-      }, 10);
-    }
   };
 
   // Helper function to update tag style based on active state
@@ -232,19 +174,19 @@ export function addTagsWidget(node, name, opts, callback, wheelSensitivity = 0.0
       alignItems: "center",
       gap: "6px",
       boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
-      margin: "1px", 
+      margin: "1px",
       userSelect: "none",
       WebkitUserSelect: "none",
       MozUserSelect: "none",
       msUserSelect: "none",
-      height: "22px", // Increased height to better fit text with descenders
-      minHeight: "22px", // Matching minHeight
+      height: "22px",
+      minHeight: "22px",
       boxSizing: "border-box",
       width: "fit-content",
       maxWidth: "200px",
-      lineHeight: "16px", // Added explicit line-height
-      verticalAlign: "middle", // Added vertical alignment
-      textAlign: "center", // Center text horizontally
+      lineHeight: "16px",
+      verticalAlign: "middle",
+      textAlign: "center",
     };
 
     const highlightStyles = highlighted
@@ -276,7 +218,6 @@ export function addTagsWidget(node, name, opts, callback, wheelSensitivity = 0.0
       });
     }
 
-    // Add hover effect
     tagEl.onmouseenter = () => {
       tagEl.style.transform = "translateY(-1px)";
       tagEl.dataset.prevBoxShadow = tagEl.style.boxShadow || "";
@@ -328,10 +269,8 @@ export function addTagsWidget(node, name, opts, callback, wheelSensitivity = 0.0
     }
   }
 
-  // Store the value as array
   let widgetValue = initialTagsData;
 
-  // Create widget with new DOM Widget API
   const widget = node.addDOMWidget(name, "custom", container, {
     getValue: function() {
       return widgetValue;
@@ -340,19 +279,17 @@ export function addTagsWidget(node, name, opts, callback, wheelSensitivity = 0.0
       widgetValue = v;
       renderTags(widgetValue, widget);
     },
+    getMinHeight: () => MIN_HEIGHT,
     hideOnZoom: true,
     selectOn: ['click', 'focus']
   });
 
-  // Set initial value
   widget.value = initialTagsData;
-
-  // Set callback
   widget.callback = callback;
 
   widget.serializeValue = () => {
     return widgetValue
   };
 
-  return { minWidth: 300, minHeight: defaultHeight, widget };
+  return { minWidth: 300, minHeight: MIN_HEIGHT, widget };
 }

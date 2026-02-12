@@ -2,12 +2,13 @@
 
 Implementation of
 
-- Perturbed-Attention Guidance from [Self-Rectifying Diffusion Sampling with Perturbed-Attention Guidance (D. Ahn et al.)](https://ku-cvlab.github.io/Perturbed-Attention-Guidance/)
+- Perturbed-Attention Guidance (PAG) from [Self-Rectifying Diffusion Sampling with Perturbed-Attention Guidance (D. Ahn et al.)](https://ku-cvlab.github.io/Perturbed-Attention-Guidance/)
 - [Smoothed Energy Guidance: Guiding Diffusion Models with Reduced Energy Curvature of Attention (Susung Hong)](https://arxiv.org/abs/2408.00760)
-- Sliding Window Guidance from [The Unreasonable Effectiveness of Guidance for Diffusion Models (Kaiser et al.)](https://arxiv.org/abs/2411.10257)
+- Sliding Window Guidance (SWG) from [The Unreasonable Effectiveness of Guidance for Diffusion Models (Kaiser et al.)](https://arxiv.org/abs/2411.10257)
 - [PLADIS: Pushing the Limits of Attention in Diffusion Models at Inference Time by Leveraging Sparsity](https://cubeyoung.github.io/pladis-proejct/) (ComfyUI-only)
 - [Normalized Attention Guidance: Universal Negative Guidance for Diffusion Models](https://arxiv.org/abs/2505.21179) (ComfyUI-only, has a description inside ComfyUI)
 - [Token Perturbation Guidance for Diffusion Models](https://arxiv.org/abs/2506.10036) (ComfyUI-only)
+- Frequency-Decoupled Guidance (FDG) from [Guidance in the Frequency Domain Enables High-Fidelity Sampling at Low CFG Scales](https://arxiv.org/abs/2506.19713) (ComfyUI-only)
 
 as an extension for [ComfyUI](https://github.com/Comfy-Org/ComfyUI) and [SD WebUI (reForge)](https://github.com/Panchovix/stable-diffusion-webui-reForge).
 
@@ -74,14 +75,78 @@ As an alternative for A1111 WebUI you can use PAG implementation from [sd-webui-
 
 ## ComfyUI TensorRT PAG (Experimental)
 
-To use PAG together with [ComfyUI_TensorRT](https://github.com/comfyanonymous/ComfyUI_TensorRT), you'll need to:
+Deprecated: [ComfyUI_TensorRT](https://github.com/comfyanonymous/ComfyUI_TensorRT) is unmaintained.
 
-0. Have 24GB of VRAM.
-1. Build static/dynamic TRT engine of a desired model.
-2. Build static/dynamic TRT engine of the same model with the same TRT parameters, but with fixed PAG injection in selected UNET blocks (`TensorRT Attach PAG` node).
-3. Use `TensorRT Perturbed-Attention Guidance` node with two model inputs: one for base engine and one for PAG engine.
 
-![trt-engines](res/trt-engines.png)
+## Citation
+```
+@misc{ahn2025selfrectifyingdiffusionsamplingperturbedattention,
+      title={Self-Rectifying Diffusion Sampling with Perturbed-Attention Guidance},
+      author={Donghoon Ahn and Hyoungwon Cho and Jaewon Min and Wooseok Jang and Jungwoo Kim and SeonHwa Kim and Hyun Hee Park and Kyong Hwan Jin and Seungryong Kim},
+      year={2025},
+      eprint={2403.17377},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2403.17377},
+}
 
-![trt-inference](res/trt-inference.png)
+@misc{hong2024smoothedenergyguidanceguiding,
+      title={Smoothed Energy Guidance: Guiding Diffusion Models with Reduced Energy Curvature of Attention},
+      author={Susung Hong},
+      year={2024},
+      eprint={2408.00760},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2408.00760},
+}
 
+@misc{adaloglou2025guidingdiffusionmodelusing,
+      title={Guiding a diffusion model using sliding windows},
+      author={Nikolas Adaloglou and Tim Kaiser and Damir Iagudin and Markus Kollmann},
+      year={2025},
+      eprint={2411.10257},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2411.10257},
+}
+
+@misc{kim2025pladispushinglimitsattention,
+      title={PLADIS: Pushing the Limits of Attention in Diffusion Models at Inference Time by Leveraging Sparsity},
+      author={Kwanyoung Kim and Byeongsu Sim},
+      year={2025},
+      eprint={2503.07677},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2503.07677},
+}
+
+@misc{chen2025normalizedattentionguidanceuniversal,
+      title={Normalized Attention Guidance: Universal Negative Guidance for Diffusion Models},
+      author={Dar-Yen Chen and Hmrishav Bandyopadhyay and Kai Zou and Yi-Zhe Song},
+      year={2025},
+      eprint={2505.21179},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2505.21179},
+}
+
+@misc{rajabi2025tokenperturbationguidancediffusion,
+      title={Token Perturbation Guidance for Diffusion Models},
+      author={Javad Rajabi and Soroush Mehraban and Seyedmorteza Sadat and Babak Taati},
+      year={2025},
+      eprint={2506.10036},
+      archivePrefix={arXiv},
+      primaryClass={cs.GR},
+      url={https://arxiv.org/abs/2506.10036},
+}
+
+@misc{sadat2025guidancefrequencydomainenables,
+      title={Guidance in the Frequency Domain Enables High-Fidelity Sampling at Low CFG Scales},
+      author={Seyedmorteza Sadat and Tobias Vontobel and Farnood Salehi and Romann M. Weber},
+      year={2025},
+      eprint={2506.19713},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2506.19713},
+}
+```

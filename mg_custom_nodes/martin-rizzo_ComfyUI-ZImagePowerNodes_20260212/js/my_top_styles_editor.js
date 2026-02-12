@@ -98,12 +98,10 @@ function onTopStylesChanged(self, topStyles) {
 app.registerExtension({
     name: "ZImagePowerNodes.MyTopStylesEditor",
 
-    /**
-     * Called when the extension is loaded.
-     */
+    /** Called when the extension is loaded. */
     init() {
         if (!ENABLED) return;
-        console.log("##>> My Top Styles Editor: extension loaded.");
+        console.log(`[${this.name}]: Extension loaded.`);
     },
 
     /**

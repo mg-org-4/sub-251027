@@ -1,0 +1,131 @@
+
+.zipn-spacer {
+  width          : 0.5em;
+  height         : 20px;
+  display        : inline-block;
+  vertical-align : middle;
+}
+
+.zipn-divider {
+  width          : 1px;
+  height         : 20px;
+  margin-inline  : 0.5em;
+  display        : inline-block;
+  background-color: rgb(113, 113, 113);
+  vertical-align : middle;
+}
+
+.zipn-result-container {
+  flex           : 1 1 auto;
+  overflow-y     : auto;
+  padding        : 20px;
+  min-width      : 400px;
+  min-height     : 500px;
+  max-height     : 500px;
+}
+
+
+.zipn-status-bar {
+  flex           : 0 0 auto;
+  padding        : 8px 16px;
+  border-top     : 1px solid #ccc;
+  font-size      : 0.9rem;
+  color          : #555;
+}
+
+/*============================ TOOLBAR BUTTONS ============================*/
+
+.zipn-dialog .p-button-text.p-highlight {
+  background-color: var(--primary-color, #1976d2);
+  color:            var(--primary-text , #ffffff);
+  border-radius:    4px;
+}
+
+/*========================== STYLE GALLERY: GRID ==========================*/
+
+.zipn-style-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, 132px);
+  gap: 8px;
+}
+
+.zipn-style-grid-card {
+  /* width          : 128px; */
+  display        : flex;
+  flex-direction : column;
+  align-items    : center;
+  border         : 2px solid transparent;
+}
+
+.zipn-style-grid-card.p-highlight {
+    background-color : rgba(255, 0, 0, 1);
+    border-color     : rgba(255, 0, 0, 1);
+}
+
+.zipn-style-grid-card img {
+  width          : 128px;
+  height         : 128px;
+  object-fit     : cover;
+  display        : block;
+  border-radius  : 8px;
+}
+
+.zipn-style-grid-card p {
+  margin         : 4px 0 0 0;
+  padding        : 0 2px;
+  width          : 100%;
+  font-size      : 0.7rem;
+  line-height    : 1.1;
+  text-align     : center;
+  overflow       : hidden;
+  text-overflow  : ellipsis;
+  white-space    : nowrap;
+  background     : transparent;
+}
+
+
+
+/*========================== STYLE GALLERY: LIST ==========================*/
+
+.zipn-style-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.zipn-style-list-card {
+  width          : 100%;
+  display        : flex;
+  align-items    : center;
+  gap            : 0.75rem;
+  padding        : 0.2rem 0.2rem;
+  background-color: transparent;
+  border-radius  : 4px;
+  cursor         : pointer;
+}
+
+.zipn-style-list-card.p-highlight {
+    background-color : rgba(255, 0, 0, 1);
+    border-color     : rgba(255, 0, 0, 1);
+}
+
+.zipn-style-list-card img {
+  width          : 32px;
+  height         : 32px;
+  flex-shrink    : 0;
+  object-fit     : cover;
+  display        : block;
+}
+
+.zipn-style-list-card p {
+  margin         : 0;
+  padding        : 0;
+  font-size      : 1.2rem;
+  line-height    : 1.3;
+  color          : inherit;
+  overflow       : hidden;
+  text-overflow  : ellipsis;
+  white-space    : nowrap;
+}
+
+

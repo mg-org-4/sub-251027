@@ -22,13 +22,10 @@ const ENABLED = true;
 app.registerExtension({
     name: "ZImagePowerNodes.LowPriorityTimer",
 
-    /**
-     * Called when the extension is loaded.
-     */
+    /** Called when the extension is loaded. */
     init() {
         if (!ENABLED) return;
-        console.log("##>> Low Priority Timer: extension loaded.");
-
+        console.log(`[${this.name}]: Extension loaded.`);
     },
 
 

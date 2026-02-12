@@ -375,12 +375,10 @@ function isValidStyleName(styleName) {
 app.registerExtension({
     name: "ZImagePowerNodes.MyTopStyles",
 
-    /**
-     * Called when the extension is loaded.
-     */
+    /** Called when the extension is loaded. */
     init() {
         if (!ENABLED) return;
-        console.log("##>> My Top Styles: extension loaded.");
+        console.log(`[${this.name}]: Extension loaded.`);
     },
 
     /**

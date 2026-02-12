@@ -54,8 +54,7 @@ def _get_last_version_styles() -> list[list[str]]:
                 category,     # 1: category
                 description,  # 2: description
                 tags,         # 3: tags (comma-separated)
-                template,     # 4: template
-                thumbnail,    # 5: thumbnail filename (e.g. "casual_photo.jpg")
+                thumbnail,    # 4: thumbnail filename (e.g. "casual_photo.jpg")
             ]
             styles.append(style_data)
     return styles
@@ -100,6 +99,7 @@ async def get_style_sample(request: web.Request) -> web.StreamResponse:
     file = _sanitize_filename(file) if file else None
     fullpath = (get_project_root() / "styles" / "samples" / file) if file else None
     if not fullpath or not os.path.isfile(fullpath):
-        return web.Response(status=400)
+        notAvailable = get_project_root() / "styles" / "samples" / "00sample-not-available.jpg"
+        return web.FileResponse(notAvailable)
 
     return web.FileResponse(fullpath)

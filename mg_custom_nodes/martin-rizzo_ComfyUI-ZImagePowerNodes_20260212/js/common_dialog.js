@@ -12,8 +12,8 @@
 */
 import { $el as html } from "../../../scripts/ui.js"; //< deprrecated ?
 export {
-    normalizeDOMnodes as normalizeNodes,
-    makeCustomDialog
+    makeCustomDialog,
+    setupCardHoverListeners
 };
 
 
@@ -58,6 +58,7 @@ function normalizeDOMnodes(content)
  * concepts for this implementation were inspired by ComfYUI-Manager project.
  *
  * @param {string} dialogId  - The ID for the dialog element.
+ * @param {string} titleId   - The ID for the title element within the dialog.
  * @param {string} title     - The title to be displayed in the dialog header.
  * @param {string} iconClass - The CSS class for the icon that will appear next to the title.
  * @param {string|HTMLElement[]} content - The content of the dialog, which can be a string or an array of HTML elements.
@@ -65,7 +66,7 @@ function normalizeDOMnodes(content)
  * @returns {HTMLElement} 
  *     Returns the main container element for the dialog mask.
  */
-function makeCustomDialog(dialogId, title, iconClass, content, onClose) {
+function makeCustomDialog(dialogId, titleId, title, iconClass, content, onClose) {
 
     const dialogOutsideArea = html("div.p-dialog-mask.p-overlay-mask.p-overlay-mask-enter", {
         parent: document.body,
@@ -102,7 +103,7 @@ function makeCustomDialog(dialogId, title, iconClass, content, onClose) {
                     html(iconClass, {
                         style: { "font-size": "1.25rem", "margin-right": ".5rem" }
                     }),
-                    html("span", { textContent: title })
+                    html("span", { id: titleId, textContent: title })
                 ])
             ])
         ]),
@@ -134,3 +135,43 @@ function makeCustomDialog(dialogId, title, iconClass, content, onClose) {
     });
     return dialogOutsideArea;
 }
+
+
+/**
+ * Sets up hover and click event listeners for cards within a container.
+ *
+ * This function is particularly useful for managing gallery images or item
+ * listings where interactive behavior such as highlighting on hover and
+ * triggering actions on click are required.
+ *
+ * @param {HTMLElement} containerEl  - The container element where the cards reside.
+ * @param {string}      cardSelector - A CSS selector used to identify card elements.
+ * @param {(card: HTMLElement) => void} onCardEnter - Callback function when hovering over a card.
+ * @param {(card: HTMLElement) => void} onCardLeave - Callback function when moving the mouse away from a card.
+ * @param {(card: HTMLElement) => void} onCardClick - Callback function when clicking on a card.
+ */
+function setupCardHoverListeners(containerEl, cardSelector, onCardEnter, onCardLeave, onCardClick) {
+
+    const hasPointer = true; //!!window.PointerEvent;
+    const events = {
+        over : hasPointer ? 'pointerover'  : 'mouseover',
+        out  : hasPointer ? 'pointerout'   : 'mouseout',
+        leave: hasPointer ? 'pointerleave' : 'mouseleave'
+    };
+
+    containerEl.addEventListener(events.over, (e) => {
+        const card = e.target.closest(cardSelector);
+        if( card && !card.contains(e.relatedTarget) ) { onCardEnter?.(card, e); }
+    });
+
+    containerEl.addEventListener(events.out, (e) => {
+        const card = e.target.closest(cardSelector);
+        if( card && !card.contains(e.relatedTarget) ) { onCardLeave?.(card, e); }
+    });
+
+    containerEl.addEventListener('click', (e) => {
+        const card = e.target.closest(cardSelector);
+        if( card ) { onCardClick?.(card, e); }
+    });
+}
+

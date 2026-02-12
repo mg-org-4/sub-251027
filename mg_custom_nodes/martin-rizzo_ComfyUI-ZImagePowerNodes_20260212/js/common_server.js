@@ -54,6 +54,9 @@ async function fetchLastVersionStyles(onResponse) {
         if( typeof styles !== "object" )
         { console.error("The fetching of last version style failed."); return; }
 
+        // prefix to use when requesting thumbnails
+        const requestPrefix = "/zi_power/styles/samples?file=";
+
         _lastVersionStyles = styles.map((style, index) => {
             return {
                 id         : index,
@@ -61,8 +64,7 @@ async function fetchLastVersionStyles(onResponse) {
                 category   : style[1],
                 description: style[2],
                 tags       : style[3].split(","),
-                template   : style[4],
-                thumbnail  : style[5]
+                thumbnail  : requestPrefix + style[4]
             };
         });
         onResponse( _lastVersionStyles );

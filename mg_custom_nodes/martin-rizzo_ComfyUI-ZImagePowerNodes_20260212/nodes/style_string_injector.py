@@ -20,7 +20,7 @@ from ..styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
 
 
 class StyleStringInjector(io.ComfyNode):
-    xTITLE         = "Style String Injector"
+    xTITLE         = "Style String Injector (old version)"
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False

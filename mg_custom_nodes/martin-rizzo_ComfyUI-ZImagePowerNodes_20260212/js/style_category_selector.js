@@ -123,13 +123,11 @@ function onCategoryChange(self, newCategory) {
 app.registerExtension({
     name: "ZImagePowerNodes.StyleCategorySelector",
 
-    /**
-     * Called when the extension is loaded.
-     */
+    /** Called when the extension is loaded. */
     init()
     {
         if (!ENABLED) return;
-        console.log("##>> Style Prompt Encoder: extension loaded.");
+        console.log(`[${this.name}]: Extension loaded.`);
     },
 
 	/**

@@ -88,7 +88,7 @@ app.registerExtension({
     /** Called when the extension is loaded. */
     init() {
         if (!ENABLED) return;
-        console.log(`[Extension] ${this.name} loaded.`);
+        console.log(`[${this.name}]: Extension loaded.`);
     },
 
     /** Called to register custom widgets. */

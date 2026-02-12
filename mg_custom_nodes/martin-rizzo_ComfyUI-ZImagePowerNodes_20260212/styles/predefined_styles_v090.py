@@ -13,7 +13,9 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 from ..nodes.lib.style_group  import StyleGroup
 
 
+#============================== PHOTO STYLES ===============================#
 _PhotoStyles = """
+
 >>>Phone Photo
 YOUR CONTEXT:
 Your photographs has android phone cam-quality.
@@ -276,7 +278,9 @@ YOUR PHOTO:
 """
 
 
+#=========================== ILLUSTRATION STYLES ===========================#
 _IllustrationStyles = """
+
 >>>Comic 1
 YOUR CONTEXT:
 You are an American artist.
@@ -500,8 +504,8 @@ YOUR ILLUSTRATION:
 """
 
 
-
-_OtherStyles = """
+#=============================== WILD STYLES ===============================#
+_WildStyles = """
 
 >>>Low-Poly Render
 YOUR CONTEXT:
@@ -654,11 +658,12 @@ Your photograph showcases {$spicy-content-with} a high-key composition flooded w
 YOUR PHOTOGRAPHY:
 {$@}
 
-
 """
 
 
+#============================== CUSTOM STYLES ==============================#
 _CustomStyles = """
+
 >>>Custom 1
 {$@}
 
@@ -670,13 +675,14 @@ _CustomStyles = """
 
 >>>Custom 4
 {$@}
+
 """
 
 
 PREDEFINED_STYLE_GROUPS = [
-    StyleGroup.from_string( _PhotoStyles       , category="photo"       , version="v0.8.0" ),
-    StyleGroup.from_string( _IllustrationStyles, category="illustration", version="v0.8.0" ),
-    StyleGroup.from_string( _OtherStyles       , category="other"       , version="v0.8.0" ),
-    StyleGroup.from_string( _CustomStyles      , category="custom"      , version="v0.8.0" ),
+    StyleGroup.from_string( _PhotoStyles       , category="photo"       , version="0.9.0" ),
+    StyleGroup.from_string( _IllustrationStyles, category="illustration", version="0.9.0" ),
+    StyleGroup.from_string( _WildStyles        , category="wild"        , version="0.9.0" ),
+    StyleGroup.from_string( _CustomStyles      , category="custom"      , version="0.9.0" ),
 ]
 

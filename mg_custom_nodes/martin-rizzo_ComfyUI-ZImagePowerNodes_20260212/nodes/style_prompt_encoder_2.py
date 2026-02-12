@@ -1,6 +1,6 @@
 """
-File    : style_prompt_encoder.py
-Purpose : Node to get conditioning embeddings from a given style + prompt.
+File    : style_prompt_encoder_2.py
+Purpose : Node to get conditioning embeddings from a given style + prompt (version 2)
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Jan 16, 2026
 Repo    : https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes
@@ -21,7 +21,7 @@ from .lib.style_group            import StyleGroup
 from ..styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
 
 
-class StylePromptEncoder(io.ComfyNode):
+class StylePromptEncoder2(io.ComfyNode):
     xTITLE         = "Style & Prompt Encoder"
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
@@ -52,12 +52,13 @@ class StylePromptEncoder(io.ComfyNode):
                                   'its description on the next lines. The description should incorporate "{$@}" where the '
                                   'main text prompt will be inserted.'),
                                ),
-                io.Combo.Input ("category", options=cls.category_names(), default=cls.default_category_name(),
-                                tooltip="The category of styles you want to select from.",
-                               ),
                 io.Combo.Input ("style", options=cls.style_names(), default=cls.default_style_name(),
                                 tooltip="The style you want for your image.",
                                ),
+                io.Custom("ZIPN_STYLE_GALLERY").Input("gallery",
+                                                      tooltip="Open the style gallery to see all available styles."
+                                                     ),
+                io.Custom("ZIPN_SPACER").Input("spacer"),
                 io.String.Input("text", multiline=True, dynamic_prompts=True,
                                 tooltip="The prompt to encode.",
                                ),
@@ -72,8 +73,7 @@ class StylePromptEncoder(io.ComfyNode):
     @classmethod
     def execute(cls,
                 clip,
-                category      : str,
-                style: str,
+                style         : str,
                 text          : str,
                 customization : str = ""
                 ) -> io.NodeOutput:
@@ -100,20 +100,11 @@ class StylePromptEncoder(io.ComfyNode):
     #__ VALIDATION ________________________________________
     @classmethod
     def validate_inputs(cls, **kwargs) -> bool | str:
-        if kwargs["category"] not in cls.category_names():
-            return f"The category name '{kwargs['category']}' is invalid. May be the node is from an older version."
         return True
 
 
 
     #__ internal functions ________________________________
-
-    @staticmethod
-    @cache
-    def category_names() -> list[str]:
-        """Returns all available category names."""
-        return [ group.category for group in PREDEFINED_STYLE_GROUPS ]
-
 
     @staticmethod
     @cache
@@ -125,12 +116,6 @@ class StylePromptEncoder(io.ComfyNode):
         number_of_custom_styles=4
         logger.info(f'"Style & Prompt Encoder" includes support for {len(names)-number_of_custom_styles-1} different styles.')
         return names
-
-
-    @staticmethod
-    @cache
-    def default_category_name() -> str:
-        return PREDEFINED_STYLE_GROUPS[0].category
 
 
     @staticmethod

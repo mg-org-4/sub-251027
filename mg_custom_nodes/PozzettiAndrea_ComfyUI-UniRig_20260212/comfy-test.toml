@@ -1,0 +1,18 @@
+[test]
+levels = ["syntax", "install", "execution"]
+publish = 'true'
+
+[test.workflows]
+timeout = 300
+cpu = ['apply_animation','skeleton_comparison','rigged_manipulator']
+gpu = ["mia_humanoid","unirig_bird","unirig_humanoid"]
+
+[test.platforms]
+# CPU platforms
+linux = true
+macos = true
+windows = true
+windows_portable = true
+linux_gpu = true
+windows_gpu = true
+windows_portable_gpu = true

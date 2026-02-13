@@ -56,7 +56,11 @@ from .nodes.lib.system  import logger
 
 #============================ HELPER FUNCTIONS =============================#
 
-def _register_node(node_class, node_subcategory, node_list, deprecated: bool = False):
+def _register_node(node_class      : type,
+                   node_class_list : list[type],
+                   node_subcategory: str,
+                   deprecated      : bool | None = None
+                   ):
     """
     Registers a node in the given `node_class_list` with appropriate title based on its category and status.
 
@@ -64,11 +68,18 @@ def _register_node(node_class, node_subcategory, node_list, deprecated: bool = F
     in the function `get_node_list(self)` of a ComfyExtension.
 
     Args:
-        node_class       : The class of the node to be registered.
-        node_subcategory : The subcategory for the node (used for the menu grouping)
-        node_list        : List where the node will be appended after registration.
-        deprecated (optional): Indicates whether the node is deprecated. Defaults to False.
+        node_class           : The class of the node to be registered.
+        node_class_list      : List where the node will be appended after registration.
+        node_subcategory     : The subcategory for the node (used for menu grouping).
+        deprecated (optional): Indicates if the node is deprecated. If not provided,
+                               it's automatically determined based on the subcategory.
     """
+
+    # if `deprecated`` is not provided, it will be automatically
+    # determined based on the subcategory where it's being registered
+    if deprecated == None:
+        deprecated = "deprecated" in node_subcategory.lower()
+
     # add a '/' to the beginning of node_subcategory if it doesn't already start with one
     if node_subcategory and not node_subcategory.startswith("/"):
         node_subcategory = "/" + node_subcategory
@@ -87,7 +98,7 @@ def _register_node(node_class, node_subcategory, node_list, deprecated: bool = F
     node_class.xCATEGORY      = category
     node_class.xCOMFY_NODE_ID = comfy_node_id
     node_class.xDEPRECATED    = deprecated
-    node_list.append( node_class )
+    node_class_list.append( node_class )
 
 
 #======================= COMFY EXTENSION (V3 schema) =======================#
@@ -104,31 +115,25 @@ class ZImagePowerNodesExtension(ComfyExtension):
         subcategory = ""
 
         from .nodes.empty_zimage_latent_image import EmptyZImageLatentImage
-        _register_node( EmptyZImageLatentImage, subcategory, nodes )
+        _register_node( EmptyZImageLatentImage, nodes, subcategory )
 
         from .nodes.save_image import SaveImage
-        _register_node( SaveImage, subcategory, nodes )
-
-        from .nodes.style_prompt_encoder import StylePromptEncoder
-        _register_node( StylePromptEncoder, subcategory, nodes )
+        _register_node( SaveImage, nodes, subcategory )
 
         from .nodes.style_prompt_encoder_2 import StylePromptEncoder2
-        _register_node( StylePromptEncoder2, subcategory, nodes )
-
-        from .nodes.style_string_injector import StyleStringInjector
-        _register_node( StyleStringInjector, subcategory, nodes )
+        _register_node( StylePromptEncoder2, nodes, subcategory )
 
         from .nodes.style_string_injector_2 import StyleStringInjector2
-        _register_node( StyleStringInjector2, subcategory, nodes )
+        _register_node( StyleStringInjector2, nodes, subcategory )
 
         from .nodes.zsampler_turbo import ZSamplerTurbo
-        _register_node( ZSamplerTurbo, subcategory, nodes )
+        _register_node( ZSamplerTurbo, nodes, subcategory )
 
         from .nodes.my_top_10_styles_editor import MyTop10StylesEditor
-        _register_node( MyTop10StylesEditor, subcategory, nodes )
+        _register_node( MyTop10StylesEditor, nodes, subcategory )
 
         from .nodes.my_top_10_styles import MyTop10Styles
-        _register_node( MyTop10Styles, subcategory, nodes )
+        _register_node( MyTop10Styles, nodes, subcategory )
 
 
         #--[ __deprecated ]----------------------
@@ -138,10 +143,16 @@ class ZImagePowerNodesExtension(ComfyExtension):
         # maintained only for compatibility go
 
         from .nodes.deprecated_nodes.photo_style_prompt_encoder import PhotoStylePromptEncoder
-        _register_node( PhotoStylePromptEncoder, subcategory, nodes, deprecated=True )
+        _register_node( PhotoStylePromptEncoder, nodes, subcategory )
 
         from .nodes.deprecated_nodes.illustration_style_prompt_encoder import IllustrationStylePromptEncoder
-        _register_node( IllustrationStylePromptEncoder, subcategory, nodes, deprecated=True )
+        _register_node( IllustrationStylePromptEncoder, nodes, subcategory )
+
+        from .nodes.deprecated_nodes.style_prompt_encoder import StylePromptEncoder
+        _register_node( StylePromptEncoder, nodes, subcategory )
+
+        from .nodes.deprecated_nodes.style_string_injector import StyleStringInjector
+        _register_node( StyleStringInjector, nodes, subcategory )
 
 
         # report version and the number of nodes added by this extension

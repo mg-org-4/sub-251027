@@ -75,7 +75,8 @@ class StylePromptEncoder2(io.ComfyNode):
                 clip,
                 style         : str,
                 text          : str,
-                customization : str = ""
+                customization : str = "",
+                **kwargs
                 ) -> io.NodeOutput:
         template      = None
         prompt        = text

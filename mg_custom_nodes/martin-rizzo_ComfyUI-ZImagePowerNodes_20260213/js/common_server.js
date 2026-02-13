@@ -61,6 +61,7 @@ async function fetchLastVersionStyles(onResponse) {
             return {
                 id         : index,
                 name       : style[0],
+                lowerName  : style[0].toLowerCase(),
                 category   : style[1],
                 description: style[2],
                 tags       : style[3].split(","),

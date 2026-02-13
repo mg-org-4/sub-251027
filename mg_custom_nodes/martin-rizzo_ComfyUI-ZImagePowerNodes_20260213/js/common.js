@@ -35,7 +35,6 @@ function loadCSS(fileName) {
     link.rel  = "stylesheet";
     link.href = fullPath;
     document.head.appendChild(link);
-    console.log("##>> document.head", document.head);
 }
 
 

@@ -1,8 +1,8 @@
 {
   "id": "f14c6566-993e-4413-bd11-9c7f2ca07fd1",
   "revision": 0,
-  "last_node_id": 42,
-  "last_link_id": 61,
+  "last_node_id": 43,
+  "last_link_id": 63,
   "nodes": [
     {
       "id": 8,
@@ -70,7 +70,7 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 61
+          "link": 63
         },
         {
           "name": "latent_input",
@@ -465,7 +465,7 @@
           "name": "",
           "type": "CLIP",
           "links": [
-            60
+            62
           ]
         }
       ],
@@ -475,14 +475,14 @@
       }
     },
     {
-      "id": 42,
-      "type": "StylePromptEncoder //ZImagePowerNodes",
+      "id": 43,
+      "type": "StylePromptEncoder2 //ZImagePowerNodes",
       "pos": [
-        200,
+        190,
         210
       ],
       "size": [
-        660,
+        670,
         570
       ],
       "flags": {},
@@ -492,7 +492,7 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 60
+          "link": 62
         },
         {
           "name": "customization",
@@ -506,7 +506,7 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            61
+            63
           ]
         },
         {
@@ -516,11 +516,12 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "StylePromptEncoder //ZImagePowerNodes"
+        "Node name for S&R": "StylePromptEncoder2 //ZImagePowerNodes"
       },
       "widgets_values": [
-        "photo",
         "\"Vintage Photo\"",
+        null,
+        null,
         "The interior of a bar features architecture with rounded, modular forms. A bar counter extends horizontally along the frame, showcasing a strip of acrylic. In the center-right, a man in his mid-thirties stands at the bar, resting one hand on the surface while holding a tall glass in the other. He turns his head to look directly at the camera, a playful, knowing smile spreading across his face. The glass contains a drink with small floating spheres that reflect the light. He wears a form-fitting uniform with a short, high collar and a single vertical stripe on the jacket. His brown hair is neatly styled with a clean, mid-century part. In the center, tending the bar, is a rather peculiar alien bartender, a colossal and terrifying humanoid figure resembling an octopus. He is a mass of tissue from whose torso emerges a network of thick tentacles. He is wearing black dress pants. And on its head, a set of multifaceted insectoid eyes constantly moves, scanning the room. The tentacles, with delicate pads at their tips, manipulate the glassware with unsettling grace. Behind the bartender, a mirrored wall reflects rows of liquor bottles with geometric labels. Above the bar floats a neon sign made of curved glass tubes that reads 'COSMIC LOUNGE' in tall, rounded letters, emitting light with a soft, glowing halo. An illuminated menu board reads 'SIGNATURE DRINKS' with three items: 'ORBITAL HIGHBALL,' 'NEBULA SOUR,' and 'ROCKET MARTINI,' each displayed on glowing horizontal bars. To the right, a cylindrical column features a vertical neon panel that reads 'OPEN 24 HOURS' in condensed letters within a translucent strip. To the left, a curved booth sits beneath a domed ceiling light. An illuminated sign reading 'GALAXY BAR SERVICE' encircles the inner rim of the dome in capitals and dominates the left side of the frame. Soft lighting reflects off the glass and acrylic surfaces, highlighting the structural design."
       ],
       "color": "#232",
@@ -610,16 +611,16 @@
       "VAE"
     ],
     [
-      60,
+      62,
       38,
       0,
-      42,
+      43,
       0,
       "CLIP"
     ],
     [
-      61,
-      42,
+      63,
+      43,
       0,
       18,
       1,
@@ -646,11 +647,11 @@
     "ds": {
       "scale": 0.7513148009015778,
       "offset": [
-        606.7510930672208,
-        216.27277330736652
+        450.51456962972054,
+        216.92787486986646
       ]
     },
-    "frontendVersion": "1.35.9",
+    "frontendVersion": "1.37.11",
     "workflowRendererVersion": "LG"
   },
   "version": 0.4

@@ -56,8 +56,9 @@ class StyleStringInjector2(io.ComfyNode):
     #__ FUNCTION __________________________________________
     @classmethod
     def execute(cls,
-                style         : str,
-                string        : str,
+                style  : str,
+                string : str,
+                **kwargs
                 ) -> io.NodeOutput:
         style_to_apply = None
         prompt         = string

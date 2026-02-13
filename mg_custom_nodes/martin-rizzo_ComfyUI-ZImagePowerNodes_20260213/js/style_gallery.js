@@ -43,34 +43,49 @@ class StyleGalleryDialog extends ComfyDialog {
             () => this.close() //< close callback
         );
 
-        this.textFilter       = "";
-        this.categoryFilter   = "";     // "", "photo", "illustration", "wild", "custom"
-        this.viewMode         = "grid"; // "grid" or "list"
-        this.allStyles        = {};
-        this.gridEl           = this.element.querySelector('#zipn-style-grid');
-        this.statusEl         = this.element.querySelector('#zipn-status-text');
-        this.c_allButtonEl    = this.element.querySelector('#zipn-all-btn');
-        this.c_photoButtonEl  = this.element.querySelector('#zipn-photo-btn');
-        this.c_illusButtonEl  = this.element.querySelector('#zipn-illus-btn');
-        this.c_wildButtonEl   = this.element.querySelector('#zipn-wild-btn');
-        this.c_customButtonEl = this.element.querySelector('#zipn-custom-btn');
-        this.gridButtonEl     = this.element.querySelector('#zipn-grid-btn');
-        this.listButtonEl     = this.element.querySelector('#zipn-list-btn');
-        this.onSelectStyle    = null;
+        this.textFilter      = "";
+        this.categoryFilter  = "";     // "", "photo", "illustration", "wild", "custom"
+        this.viewMode        = "grid"; // "grid" or "list"
+        this.allStyles       = {};
+        this.searchInputEl   = this.element.querySelector('#zipn-search-input');
+        this.searchResultsEl = this.element.querySelector('#zipn-search-results');
+        this.detailsHeaderEl = this.element.querySelector('.zipn-details-pane h1');
+        this.detailsImageEl  = this.element.querySelector('.zipn-details-pane img');
+        this.detailsTextEl   = this.element.querySelector('.zipn-details-pane p');
+        this.onSelectStyle   = null;
+        // toolbar buttons
+        this.tb_allButtonEl    = this.element.querySelector('#zipn-all-btn');
+        this.tb_photoButtonEl  = this.element.querySelector('#zipn-photo-btn');
+        this.tb_illusButtonEl  = this.element.querySelector('#zipn-illus-btn');
+        this.tb_wildButtonEl   = this.element.querySelector('#zipn-wild-btn');
+        this.tb_customButtonEl = this.element.querySelector('#zipn-custom-btn');
+        this.tb_gridButtonEl   = this.element.querySelector('#zipn-grid-btn');
+        this.tb_listButtonEl   = this.element.querySelector('#zipn-list-btn');
+
+        let inputTimeoutId = null;
+        this.searchInputEl.addEventListener('input', (e) => {
+            clearTimeout(inputTimeoutId);
+            inputTimeoutId = setTimeout(() => {
+                this.updateSearch(`>${e.target.value}`);
+                console.log('Buscando en el servidor:', e.target.value);
+            }, 300);
+        });
 
         const CARD_SELECTOR = '.zipn-style-grid-card, .zipn-style-list-card';
-        setupCardHoverListeners( this.gridEl, CARD_SELECTOR,
+        setupCardHoverListeners( this.searchResultsEl, CARD_SELECTOR,
             (card) => { this.onCardEnter(card); },
             (card) => { this.onCardLeave(card); },
             (card) => { this.onCardClick(card); }
         );
-
-        this.updateButtons();
+        this.updateToolbarButtons();
     }
 
 
     /**
      * Launches the style gallery dialog.
+     * @param {string}   title         - The title of the dialog.
+     * @param {Function} onSelectStyle - A callback function that gets called
+     *                                   when a style is selected by the user.
      */
     static launch(title, onSelectStyle) {
         // create the first time and use the same instance the next time
@@ -89,16 +104,41 @@ class StyleGalleryDialog extends ComfyDialog {
 
 
     /**
-     * Updates the button states based on current view mode and category filter.
+     * Gets the details of a style based on its unique identifier.
+     * @param {string} id - The unique identifier of the style to be fetched.
+     * @returns {Object|null}
+     *     Returns the style object if found, or null otherwise.
      */
-    updateButtons() {
-        this.listButtonEl.classList.toggle('p-highlight', this.viewMode == "list" );
-        this.gridButtonEl.classList.toggle('p-highlight', this.viewMode == "grid" );
-        this.c_allButtonEl.classList.toggle('p-highlight', this.categoryFilter == "" );
-        this.c_photoButtonEl.classList.toggle('p-highlight', this.categoryFilter == "photo" );
-        this.c_illusButtonEl.classList.toggle('p-highlight', this.categoryFilter == "illustration" );
-        this.c_wildButtonEl.classList.toggle('p-highlight', this.categoryFilter == "wild" );
-        this.c_customButtonEl.classList.toggle('p-highlight', this.categoryFilter == "custom" );
+    getStyleByID( id ) { return this.allStyles?.[id]; }
+
+
+    /**
+     * Updates the details pane with the provided style's information.
+     * @param {Object} style      - The style object containing the details to be displayed.
+     * @param {string} [imageURL] - Optional URL of the image to be displayed in the details
+     *                              pane. If not provided, the style's thumbnail is used.
+     */
+    updateDetails(style, imageURL) {
+        if( !imageURL ) { imageURL = style.thumbnail; }
+        this.detailsHeaderEl.textContent = style.name;
+        this.detailsImageEl.src          = imageURL;
+        this.detailsTextEl.textContent   = style.description;
+    }
+
+
+    /**
+     * Updates toolbar buttons state based on current view mode and category filter.
+     */
+    updateToolbarButtons() {
+        // view mode buttons
+        this.tb_listButtonEl.classList.toggle('p-highlight', this.viewMode == "list" );
+        this.tb_gridButtonEl.classList.toggle('p-highlight', this.viewMode == "grid" );
+        // category buttons
+        this.tb_allButtonEl.classList.toggle('p-highlight', this.categoryFilter == "" );
+        this.tb_photoButtonEl.classList.toggle('p-highlight', this.categoryFilter == "photo" );
+        this.tb_illusButtonEl.classList.toggle('p-highlight', this.categoryFilter == "illustration" );
+        this.tb_wildButtonEl.classList.toggle('p-highlight', this.categoryFilter == "wild" );
+        this.tb_customButtonEl.classList.toggle('p-highlight', this.categoryFilter == "custom" );
     }
 
 
@@ -122,7 +162,7 @@ class StyleGalleryDialog extends ComfyDialog {
             const viewMode = command.substring(1);
             if( viewMode == this.viewMode ) { return; }
             this.viewMode = viewMode;
-            this.updateButtons();
+            this.updateToolbarButtons();
         }
 
         // if the command starts with "@", change the category filter
@@ -130,7 +170,7 @@ class StyleGalleryDialog extends ComfyDialog {
             const categoryFilter = command.substring(1);
             if( categoryFilter == this.categoryFilter ) { return; }
             this.categoryFilter = categoryFilter;
-            this.updateButtons();
+            this.updateToolbarButtons();
         }
 
         // if the command starts with ">", change the text filter
@@ -141,12 +181,8 @@ class StyleGalleryDialog extends ComfyDialog {
         }
 
         // apply filters and re-render gallery
-        const categoryFilter = this.categoryFilter;
-        const filteredStyles = this.allStyles.filter( style => {
-            return this.categoryFilter == "" || style.category === categoryFilter;
-        });
-        StyleGalleryDialog.renderGrid( this.gridEl, this.viewMode, filteredStyles );
-        this.statusEl.innerText = `${filteredStyles.length} style(s) found ${categoryFilter ? `in category '${categoryFilter}'` : ''}`;
+        const filteredStyles = StyleGalleryDialog.applyFilter( this.allStyles, this.textFilter, this.categoryFilter );
+        StyleGalleryDialog.renderResults( this.searchResultsEl, this.viewMode, filteredStyles );
     }
 
 
@@ -156,16 +192,15 @@ class StyleGalleryDialog extends ComfyDialog {
      * This static method generates HTML content for displaying a
      * list/grid of styles based on the specified view mode.
      *
-     * @param {HTMLElement}   gridEl - The container element where the grid will be rendered.
-     * @param {string}      viewMode - The current view mode ('grid' or 'list') that determines
-     *                                 the layout of each item.
-     * @param {Array<Object>} styles - An array of objects representing the visual styles
-     *                                 to display.
+     * @param {HTMLElement} containerEl - The container element where the grid will be rendered.
+     * @param {string}      viewMode    - The current view mode ('grid' or 'list') that determines
+     *                                    the layout of each item.
+     * @param {Array<Object>} styles    - An array of objects representing the visual styles
+     *                                    to display.
      */
-    static renderGrid(gridEl, viewMode, styles) {
-
-        gridEl.className = `zipn-style-${viewMode}`;
-        gridEl.innerHTML = styles.map(item => `
+    static renderResults(containerEl, viewMode, styles) {
+        containerEl.className = `zipn-style-${viewMode}`;
+        containerEl.innerHTML = styles.map(item => `
         <div class="zipn-style-${viewMode}-card" data-id="${item.id}">
             <img src="${item.thumbnail}" loading="lazy" alt="${item.name}">
             <p>${item.name}</p>
@@ -173,10 +208,38 @@ class StyleGalleryDialog extends ComfyDialog {
         `).join('');
     }
 
+
+    /**
+     * Applies a filter to an array of styles based on text and category criteria.
+     * @param {Object[]} allStyles - An array of style objects, each containing properties
+     *                               such as id, name, description, category, etc.
+     * @param {string}  textFilter - A string that filters styles by matching style names
+     *                               against search terms.
+     * @param {string}    category - The selected category for filtering the styles
+     *                               (e.g., "photo", "illustration", etc.). An empty
+     *                               string indicates no specific category filter.
+     * @returns {Object[]}
+     *   Returns an array of style objects that match the given text and category filters.
+     */
+     static applyFilter(allStyles, textFilter, category) {
+        const terms = textFilter.toLowerCase().split(' ');
+        //const tags  = terms.filter(t => t.startsWith('#'));
+        const words = terms.filter(t => !t.startsWith('#'));
+        return allStyles.filter(style => {
+            const matchesCategory = category === "" || style.category === category;
+            const matchesWords    = words.every(word => style.lowerName.includes(word));
+            const matchesTags     = true; //tags.length === 0 || tags.some(tag => style.tags.includes(tag));
+            return matchesCategory && matchesWords && matchesTags;
+        });
+    }
+
+
    //-- EVENTS -----------------------------------------------------------
 
     onCardEnter(cardEl) {
         cardEl.classList.add('p-highlight');
+        const style = this.getStyleByID( cardEl?.dataset?.id );
+        if( style ) { this.updateDetails( style, cardEl?.querySelector('img')?.src ); }
     }
 
     onCardLeave(cardEl) {
@@ -184,9 +247,7 @@ class StyleGalleryDialog extends ComfyDialog {
     }
 
     onCardClick(cardEl) {
-        const styleIdx  = cardEl.dataset.id;
-        const allStyles = this.allStyles || [];
-        const style     = 0<=styleIdx && styleIdx<allStyles.length ? allStyles[styleIdx] : null;
+        const style = this.getStyleByID( cardEl?.dataset?.id );
         if( style ) { this.onSelectStyle?.(style.name); }
         this.close();
     }
@@ -205,25 +266,26 @@ class StyleGalleryDialog extends ComfyDialog {
     }
 
     /**
-     * A container for displaying the gallery results in grid format.
-     * @returns {HTMLElement} An HTML structure representing the grid container.
+     * A container for displaying detailed information about the hovered style.
+     * @returns {HTMLElement} An HTML structure representing the details pane.
      */
-    static get RESULT_GRID() {
-        return html("main.zipn-result-container", { id: "result-container" }, [
-            html("div.zipn-style-grid", { id: "zipn-style-grid" })
+    static get DETAILS_PANE() {
+        return html("div.zipn-details-pane", {}, [
+            html("h1.zipn-details-header"),
+            html("img"),
+            html("p.zipn-details-description"),
         ]);
     }
 
     /**
-     * A status bar to show current status or messages.
-     * @returns {HTMLElement} An HTML structure representing the status bar.
+     * A container for displaying the styles resulting from a search query.
+     * @returns {HTMLElement} An HTML structure representing the search results pane.
      */
-    static get STATUS_BAR() {
-        return html("footer.zipn-status-bar", {}, [
-            html("span", { id: "zipn-status-text", textContent: "Showing 0 elements"})
+    static get SEARCH_RESULTS_PANE() {
+        return html("div.zipn-search-results-pane", {}, [
+            html("div.zipn-style-grid", { id: "zipn-search-results" })
         ]);
     }
-
 
     /**
      * Creates a button for the toolbar.
@@ -244,7 +306,6 @@ class StyleGalleryDialog extends ComfyDialog {
         if( icon ) {
             icon = icon.replace(' ', '.');
         }
-
         // generate the 3 possible types of buttons:
         //   - button with icon only (no text)
         //   - button with text only
@@ -267,7 +328,7 @@ class StyleGalleryDialog extends ComfyDialog {
      */
     createSearchBar() {
         return html("div", {}, [
-            html("input.p-inputtext.p-component", { type: "search", placeholder: "Search" }),
+            html("input.p-inputtext.p-component", { id: "zipn-search-input", type: "search", placeholder: "Search" }),
             StyleGalleryDialog.DIVIDER,
             this.createToolButton("zipn-all-btn"   , '', "All"         , "Search all styles"              , () => { this.updateSearch("@"); }),
             this.createToolButton("zipn-photo-btn" , '', "Photo"       , "Search only photographic styles", () => { this.updateSearch("@photo");}),
@@ -281,12 +342,18 @@ class StyleGalleryDialog extends ComfyDialog {
         ]);
     }
 
-
+    /**
+     * Creates the main content for the style gallery dialog.
+     * @returns {HTMLElement} An HTML structure representing the dialog's main content.
+     * It includes a search bar and two columns: details pane and search results pane.
+     */
     createDialogContent() {
         return html("div.zipn-dialog", {}, [
             this.createSearchBar(),
-            StyleGalleryDialog.RESULT_GRID,
-            StyleGalleryDialog.STATUS_BAR
+            html("div.zipn-two-columns", {}, [
+                StyleGalleryDialog.DETAILS_PANE,
+                StyleGalleryDialog.SEARCH_RESULTS_PANE,
+            ]),
         ]);
     }
 
@@ -343,6 +410,7 @@ function createStyleGalleryButton( node, inputName ) {
             if( !style.startsWith('"') ) { style = `"${style}"`; }
             prevWidget.value = style;
             prevWidget.callback(style);
+            node?.setDirtyCanvas?.(true);
         });
     };
     return { widget: button };

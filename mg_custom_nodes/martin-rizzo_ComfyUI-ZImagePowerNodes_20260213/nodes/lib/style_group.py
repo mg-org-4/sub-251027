@@ -135,9 +135,16 @@ class StyleGroup:
         style_group = StyleGroup(category=category, version=version)
         action  = None
         content = ""
+        all_lines = string.splitlines()
+
+        # if the input string does not contain any explicit style definitions (>>>),
+        # it is assumed to be plain text and automatically assigned to a default
+        # style "Custom 1".
+        if not any(line.startswith(">>>") for line in all_lines):
+            all_lines.insert(0, ">>>Custom 1")
 
         is_first_line = True
-        for line in string.splitlines():
+        for line in all_lines:
             is_shebang_line = is_first_line and line.startswith("#!")
             is_first_line   = False
 

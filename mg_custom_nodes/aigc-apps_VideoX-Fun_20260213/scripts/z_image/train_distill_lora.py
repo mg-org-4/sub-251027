@@ -102,36 +102,6 @@ def filter_kwargs(cls, kwargs):
     filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
     return filtered_kwargs
 
-def linear_decay(initial_value, final_value, total_steps, current_step):
-    if current_step >= total_steps:
-        return final_value
-    current_step = max(0, current_step)
-    step_size = (final_value - initial_value) / total_steps
-    current_value = initial_value + step_size * current_step
-    return current_value
-
-def generate_timestep_with_lognorm(low, high, shape, device="cpu", generator=None):
-    u = torch.normal(mean=0.0, std=1.0, size=shape, device=device, generator=generator)
-    t = 1 / (1 + torch.exp(-u)) * (high - low) + low
-    return torch.clip(t.to(torch.int32), low, high - 1)
-
-def compute_empirical_mu(image_seq_len: int, num_steps: int) -> float:
-    a1, b1 = 8.73809524e-05, 1.89833333
-    a2, b2 = 0.00016927, 0.45666666
-
-    if image_seq_len > 4300:
-        mu = a2 * image_seq_len + b2
-        return float(mu)
-
-    m_200 = a2 * image_seq_len + b2
-    m_10 = a1 * image_seq_len + b1
-
-    a = (m_200 - m_10) / 190.0
-    b = m_200 - 200.0 * a
-    mu = a * num_steps + b
-
-    return float(mu)
-
 def calculate_shift(
     image_seq_len,
     base_seq_len: int = 256,
@@ -195,7 +165,7 @@ check_min_version("0.18.0.dev0")
 
 logger = get_logger(__name__, log_level="INFO")
 
-def log_validation(vae, text_encoder, tokenizer, transformer3d, args, accelerator, weight_dtype, global_step):
+def log_validation(vae, text_encoder, tokenizer, transformer3d, network, args, accelerator, weight_dtype, global_step):
     try:
         is_deepspeed = type(transformer3d).__name__ == 'DeepSpeedEngine'
         if is_deepspeed:
@@ -231,7 +201,7 @@ def log_validation(vae, text_encoder, tokenizer, transformer3d, args, accelerato
                     width       = args.image_sample_size,
                     generator   = generator,
                     guidance_scale = 0,
-                    num_inference_steps = 8,
+                    num_inference_steps = len(args.denoising_step_indices_list),
                 ).images
                 os.makedirs(os.path.join(args.output_dir, "sample"), exist_ok=True)
                 image = sample[0].save(
@@ -246,6 +216,7 @@ def log_validation(vae, text_encoder, tokenizer, transformer3d, args, accelerato
             torch.cuda.empty_cache()
             torch.cuda.ipc_collect()
             vae.to(accelerator.device if not args.low_vram else "cpu", dtype=weight_dtype)
+            transformer3d.to(accelerator.device, dtype=weight_dtype)
             if not args.enable_text_encoder_in_dataloader:
                 text_encoder.to(accelerator.device if not args.low_vram else "cpu", dtype=weight_dtype)
         if is_deepspeed:
@@ -256,6 +227,7 @@ def log_validation(vae, text_encoder, tokenizer, transformer3d, args, accelerato
         torch.cuda.ipc_collect()
         print(f"Eval error on rank {accelerator.process_index} with info {e}")
         vae.to(accelerator.device if not args.low_vram else "cpu", dtype=weight_dtype)
+        transformer3d.to(accelerator.device, dtype=weight_dtype)
         if not args.enable_text_encoder_in_dataloader:
             text_encoder.to(accelerator.device if not args.low_vram else "cpu", dtype=weight_dtype)
 
@@ -534,7 +506,27 @@ def parse_args():
             " more information see https://huggingface.co/docs/accelerate/v0.17.0/en/package_reference/accelerator#accelerate.Accelerator"
         ),
     )
-    
+
+    parser.add_argument(
+        "--rank",
+        type=int,
+        default=128,
+        help=("The dimension of the LoRA update matrices."),
+    )
+    parser.add_argument(
+        "--network_alpha",
+        type=int,
+        default=64,
+        help=("The dimension of the LoRA update matrices."),
+    )
+    parser.add_argument(
+        "--use_peft_lora", action="store_true", help="Whether or not to use peft lora."
+    )
+    parser.add_argument(
+        "--train_text_encoder",
+        action="store_true",
+        help="Whether to train the text encoder. If set, the text encoder should be float32 precision.",
+    )
     parser.add_argument(
         "--snr_loss", action="store_true", help="Whether or not to use snr_loss."
     )
@@ -594,18 +586,8 @@ def parse_args():
         default=None,
         help=("If you want to load the weight from other vaes, input its path."),
     )
+    parser.add_argument("--save_state", action="store_true", help="Whether or not to save state.")
 
-    parser.add_argument(
-        '--trainable_modules', 
-        nargs='+', 
-        help='Enter a list of trainable modules'
-    )
-    parser.add_argument(
-        '--trainable_modules_low_learning_rate', 
-        nargs='+', 
-        default=[],
-        help='Enter a list of trainable modules with lower learning rate'
-    )
     parser.add_argument(
         "--use_deepspeed", action="store_true", help="Whether or not to use deepspeed."
     )
@@ -633,6 +615,18 @@ def parse_args():
         type=float,
         default=1.29,
         help="Scale of mode weighting scheme. Only effective when using the `'mode'` as the `weighting_scheme`.",
+    )
+    parser.add_argument(
+        "--lora_skip_name",
+        type=str,
+        default=None,
+        help=("The module is not trained in loras. "),
+    )
+    parser.add_argument(
+        "--target_name",
+        type=str,
+        default=None,
+        help=("The module is trained in loras. "),
     )
 
     parser.add_argument(
@@ -796,8 +790,8 @@ def main():
         weight_dtype = torch.bfloat16
         args.mixed_precision = accelerator.mixed_precision
 
-    args.denoising_step_indices_list = [int(i) for i in args.denoising_step_indices_list]
     # Load scheduler, tokenizer and models.
+    args.denoising_step_indices_list = [int(i) for i in args.denoising_step_indices_list]
     noise_scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
         args.pretrained_model_name_or_path, 
         subfolder="scheduler"
@@ -868,6 +862,43 @@ def main():
     real_score_transformer3d.requires_grad_(False)
     fake_score_transformer3d.requires_grad_(False)
 
+    # Lora will work with this...
+    if args.use_peft_lora:
+        from peft import (LoraConfig, get_peft_model_state_dict,
+                          inject_adapter_in_model)
+        lora_config = LoraConfig(r=args.rank, lora_alpha=args.network_alpha, target_modules=args.target_name.split(","))
+        generator_transformer3d = inject_adapter_in_model(lora_config, generator_transformer3d)
+
+        fake_score_lora_config = LoraConfig(r=args.rank, lora_alpha=args.network_alpha, target_modules=args.target_name.split(","))
+        fake_score_transformer3d = inject_adapter_in_model(fake_score_lora_config, fake_score_transformer3d)
+
+        network = None
+        fake_score_network = None
+    else:
+        network = create_network(
+            1.0,
+            args.rank,
+            args.network_alpha,
+            text_encoder,
+            generator_transformer3d,
+            neuron_dropout=None,
+            target_name=args.target_name,
+            skip_name=args.lora_skip_name,
+        )
+        network.apply_to(text_encoder, generator_transformer3d, args.train_text_encoder and not args.training_with_video_token_length, True)
+
+        fake_score_network = create_network(
+            1.0,
+            args.rank,
+            args.network_alpha,
+            None,
+            fake_score_transformer3d,
+            neuron_dropout=None,
+            target_name=args.target_name,
+            skip_name=args.lora_skip_name,
+        )
+        fake_score_network.apply_to(None, fake_score_transformer3d, False, True)
+
     if args.transformer_path is not None:
         print(f"From checkpoint: {args.transformer_path}")
         if args.transformer_path.endswith("safetensors"):
@@ -896,26 +927,6 @@ def main():
         print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
         assert len(u) == 0
     
-    # A good trainable modules is showed below now.
-    # For 3D Patch: trainable_modules = ['ff.net', 'pos_embed', 'attn2', 'proj_out', 'timepositionalencoding', 'h_position', 'w_position']
-    # For 2D Patch: trainable_modules = ['ff.net', 'attn2', 'timepositionalencoding', 'h_position', 'w_position']
-    generator_transformer3d.train()
-    fake_score_transformer3d.train()
-    if accelerator.is_main_process:
-        accelerator.print(
-            f"Trainable modules '{args.trainable_modules}'."
-        )
-    for name, param in generator_transformer3d.named_parameters():
-        for trainable_module_name in args.trainable_modules + args.trainable_modules_low_learning_rate:
-            if trainable_module_name in name:
-                param.requires_grad = True
-                break
-    for name, param in fake_score_transformer3d.named_parameters():
-        for trainable_module_name in args.trainable_modules + args.trainable_modules_low_learning_rate:
-            if trainable_module_name in name:
-                param.requires_grad = True
-                break
-
     # `accelerate` 0.16.0 will have better support for customized saving
     if version.parse(accelerate.__version__) >= version.parse("0.16.0"):
         # create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format
@@ -924,10 +935,18 @@ def main():
                 accelerate_state_dict = accelerator.get_state_dict(models[-1], unwrap=True)
                 if accelerator.is_main_process:
                     from safetensors.torch import save_file
-
-                    safetensor_save_path = os.path.join(output_dir, f"diffusion_pytorch_model.safetensors")
-                    accelerate_state_dict = {k: v.to(dtype=weight_dtype) for k, v in accelerate_state_dict.items()}
-                    save_file(accelerate_state_dict, safetensor_save_path, metadata={"format": "pt"})
+                    safetensor_save_path = os.path.join(output_dir, f"lora_diffusion_pytorch_model.safetensors")
+                    if args.use_peft_lora:
+                        network_state_dict = get_peft_model_state_dict(accelerator.unwrap_model(models[-1]), accelerate_state_dict)
+                        network_state_dict_kohya = convert_peft_lora_to_kohya_lora(network_state_dict)
+                        safetensor_kohya_format_save_path = os.path.join(output_dir, f"lora_diffusion_pytorch_model_compatible_with_comfyui.safetensors")
+                        save_model(safetensor_kohya_format_save_path, network_state_dict_kohya)
+                    else:
+                        network_state_dict = {}
+                        for key in accelerate_state_dict:
+                            if "network" in key:
+                                network_state_dict[key.replace("network.", "")] = accelerate_state_dict[key].to(weight_dtype)
+                    save_file(network_state_dict, safetensor_save_path, metadata={"format": "pt"})
 
                     with open(os.path.join(output_dir, "sampler_pos_start.pkl"), 'wb') as file:
                         pickle.dump([batch_sampler.sampler._pos_start, first_epoch], file)
@@ -939,31 +958,34 @@ def main():
                         loaded_number, _ = pickle.load(file)
                         batch_sampler.sampler._pos_start = max(loaded_number - args.dataloader_num_workers * accelerator.num_processes * 2, 0)
                     print(f"Load pkl from {pkl_path}. Get loaded_number = {loaded_number}.")
+
         else:
             # create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format
             def save_model_hook(models, weights, output_dir):
+                accelerate_state_dict = accelerator.get_state_dict(models[-1], unwrap=True)
                 if accelerator.is_main_process:
-                    models[0].save_pretrained(os.path.join(output_dir, "transformer"))
+                    from safetensors.torch import save_file
+                    safetensor_save_path = os.path.join(output_dir, f"lora_diffusion_pytorch_model.safetensors")
+                    if args.use_peft_lora:
+                        network_state_dict = get_peft_model_state_dict(accelerator.unwrap_model(models[-1]), accelerate_state_dict)
+                        network_state_dict_kohya = convert_peft_lora_to_kohya_lora(network_state_dict)
+                        safetensor_kohya_format_save_path = os.path.join(output_dir, f"lora_diffusion_pytorch_model_compatible_with_comfyui.safetensors")
+                        save_model(safetensor_kohya_format_save_path, network_state_dict_kohya)
+                    else:
+                        network_state_dict = {}
+                        for key in accelerate_state_dict:
+                            if "network" in key:
+                                network_state_dict[key.replace("network.", "")] = accelerate_state_dict[key].to(weight_dtype)
+                    save_file(network_state_dict, safetensor_save_path, metadata={"format": "pt"})
+
                     if not args.use_deepspeed:
-                        weights.pop()
+                        for _ in range(len(weights)):
+                            weights.pop()
 
                     with open(os.path.join(output_dir, "sampler_pos_start.pkl"), 'wb') as file:
                         pickle.dump([batch_sampler.sampler._pos_start, first_epoch], file)
 
             def load_model_hook(models, input_dir):
-                for i in range(len(models)):
-                    # pop models so that they are not loaded again
-                    model = models.pop()
-
-                    # load diffusers style into model
-                    load_model = ZImageTransformer2DModel.from_pretrained(
-                        input_dir, subfolder="transformer"
-                    )
-                    model.register_to_config(**load_model.config)
-
-                    model.load_state_dict(load_model.state_dict())
-                    del load_model
-
                 pkl_path = os.path.join(input_dir, "sampler_pos_start.pkl")
                 if os.path.exists(pkl_path):
                     with open(pkl_path, 'rb') as file:
@@ -973,12 +995,14 @@ def main():
 
         accelerator.register_save_state_pre_hook(save_model_hook)
         accelerator.register_load_state_pre_hook(load_model_hook)
+
         accelerator_fake_score_transformer3d.register_save_state_pre_hook(save_model_hook)
         accelerator_fake_score_transformer3d.register_load_state_pre_hook(load_model_hook)
 
     if args.gradient_checkpointing:
         generator_transformer3d.enable_gradient_checkpointing()
         fake_score_transformer3d.enable_gradient_checkpointing()
+        real_score_transformer3d.enable_gradient_checkpointing()
 
     # Enable TF32 for faster training on Ampere GPUs,
     # cf https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices
@@ -1012,61 +1036,22 @@ def main():
     else:
         optimizer_cls = torch.optim.AdamW
 
-    trainable_params = list(filter(lambda p: p.requires_grad, generator_transformer3d.parameters()))
-    trainable_params_optim = [
-        {'params': [], 'lr': args.learning_rate},
-        {'params': [], 'lr': args.learning_rate / 2},
-    ]
-    in_already = []
-    for name, param in generator_transformer3d.named_parameters():
-        high_lr_flag = False
-        if name in in_already:
-            continue
-        for trainable_module_name in args.trainable_modules:
-            if trainable_module_name in name:
-                in_already.append(name)
-                high_lr_flag = True
-                trainable_params_optim[0]['params'].append(param)
-                if accelerator.is_main_process:
-                    print(f"Set {name} to lr : {args.learning_rate}")
-                break
-        if high_lr_flag:
-            continue
-        for trainable_module_name in args.trainable_modules_low_learning_rate:
-            if trainable_module_name in name:
-                in_already.append(name)
-                trainable_params_optim[1]['params'].append(param)
-                if accelerator.is_main_process:
-                    print(f"Set {name} to lr : {args.learning_rate / 2}")
-                break
+    if args.use_peft_lora:
+        logging.info("Add peft parameters")
+        trainable_params = list(filter(lambda p: p.requires_grad, generator_transformer3d.parameters()))
+        trainable_params_optim = list(filter(lambda p: p.requires_grad, generator_transformer3d.parameters()))
 
-    fake_trainable_params = list(filter(lambda p: p.requires_grad, fake_score_transformer3d.parameters()))
-    fake_trainable_params_optim = [
-        {'params': [], 'lr': args.learning_rate},
-        {'params': [], 'lr': args.learning_rate / 2},
-    ]
-    in_already = []
-    for name, param in fake_score_transformer3d.named_parameters():
-        high_lr_flag = False
-        if name in in_already:
-            continue
-        for trainable_module_name in args.trainable_modules:
-            if trainable_module_name in name:
-                in_already.append(name)
-                high_lr_flag = True
-                fake_trainable_params_optim[0]['params'].append(param)
-                if accelerator.is_main_process:
-                    print(f"Set {name} to lr : {args.learning_rate}")
-                break
-        if high_lr_flag:
-            continue
-        for trainable_module_name in args.trainable_modules_low_learning_rate:
-            if trainable_module_name in name:
-                in_already.append(name)
-                fake_trainable_params_optim[1]['params'].append(param)
-                if accelerator.is_main_process:
-                    print(f"Set {name} to lr : {args.learning_rate / 2}")
-                break
+        logging.info("Add fake score peft parameters")
+        fake_trainable_params = list(filter(lambda p: p.requires_grad, fake_score_transformer3d.parameters()))
+        fake_trainable_params_optim = list(filter(lambda p: p.requires_grad, fake_score_transformer3d.parameters()))
+    else:
+        logging.info("Add network parameters")
+        trainable_params = list(filter(lambda p: p.requires_grad, network.parameters()))
+        trainable_params_optim = network.prepare_optimizer_params(args.learning_rate / 2, args.learning_rate, args.learning_rate)
+
+        logging.info("Add fake_score_network parameters")
+        fake_trainable_params = list(filter(lambda p: p.requires_grad, fake_score_network.parameters()))
+        fake_trainable_params_optim = fake_score_network.prepare_optimizer_params(args.learning_rate / 2, args.learning_rate, args.learning_rate)
 
     if args.use_came:
         optimizer = optimizer_cls(
@@ -1135,7 +1120,7 @@ def main():
                 new_examples['prompt_embeds'] = prompt_embeds
         
                 neg_prompt_embeds = encode_prompt(
-                    [""], device="cpu",
+                    ["亮度过高，过曝，严重的色彩失真，低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲。"], device="cpu",
                     text_encoder=text_encoder, 
                     tokenizer=tokenizer,
                 )
@@ -1188,12 +1173,24 @@ def main():
     )
 
     # Prepare everything with our `accelerator`.
-    generator_transformer3d, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
-        generator_transformer3d, optimizer, train_dataloader, lr_scheduler
-    )
-    fake_score_transformer3d, critic_optimizer, fake_score_lr_scheduler= accelerator_fake_score_transformer3d.prepare(
-        fake_score_transformer3d, critic_optimizer, fake_score_lr_scheduler
-    )
+    if args.use_peft_lora:
+        generator_transformer3d, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+            generator_transformer3d, optimizer, train_dataloader, lr_scheduler
+        )
+        fake_score_transformer3d, critic_optimizer, fake_score_lr_scheduler = accelerator_fake_score_transformer3d.prepare(
+            fake_score_transformer3d, critic_optimizer, fake_score_lr_scheduler
+        )
+    else:
+        generator_transformer3d.network = network
+        generator_transformer3d = generator_transformer3d.to(dtype=weight_dtype)
+        generator_transformer3d, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+            generator_transformer3d, optimizer, train_dataloader, lr_scheduler
+        )
+        fake_score_transformer3d.network = fake_score_network
+        fake_score_transformer3d = fake_score_transformer3d.to(dtype=weight_dtype)
+        fake_score_transformer3d, critic_optimizer, fake_score_lr_scheduler = accelerator_fake_score_transformer3d.prepare(
+            fake_score_transformer3d, critic_optimizer, fake_score_lr_scheduler
+        )
 
     if fsdp_stage != 0 or zero_stage != 0:
         from videox_fun.dist import set_multi_gpus_devices, shard_model
@@ -1207,7 +1204,9 @@ def main():
 
     # Move text_encode and vae to gpu and cast to weight_dtype
     vae.to(accelerator.device if not args.low_vram else "cpu", dtype=weight_dtype)
-    real_score_transformer3d.to(accelerator.device if not args.low_vram else "cpu", dtype=weight_dtype)
+    generator_transformer3d.to(accelerator.device, dtype=weight_dtype)
+    fake_score_transformer3d.to(accelerator.device, dtype=weight_dtype)
+    real_score_transformer3d.to(accelerator.device, dtype=weight_dtype)
     if not args.enable_text_encoder_in_dataloader:
         text_encoder.to(accelerator.device if not args.low_vram else "cpu")
 
@@ -1283,6 +1282,16 @@ def main():
             accelerator_fake_score_transformer3d.load_state(os.path.join(args.output_dir, fake_score_path))
     else:
         initial_global_step = 0
+
+    # function for saving/removing
+    def save_model(ckpt_file, unwrapped_nw):
+        os.makedirs(args.output_dir, exist_ok=True)
+        accelerator.print(f"\nsaving checkpoint: {ckpt_file}")
+        if isinstance(unwrapped_nw, dict):
+            from safetensors.torch import save_file
+            save_file(unwrapped_nw, ckpt_file, metadata={"format": "pt"})
+            return ckpt_file
+        unwrapped_nw.save_weights(ckpt_file, weight_dtype, None)
 
     progress_bar = tqdm(
         range(0, args.max_train_steps),
@@ -1849,11 +1858,42 @@ def main():
                         gc.collect()
                         torch.cuda.empty_cache()
                         torch.cuda.ipc_collect()
-                        save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
-                        fake_score_save_path = os.path.join(save_path, "fake_score")
-                        accelerator.save_state(save_path)
-                        accelerator_fake_score_transformer3d.save_state(fake_score_save_path)
-                        logger.info(f"Saved state to {save_path}")
+                        if not args.save_state:
+                            if args.use_peft_lora:
+                                safetensor_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}.safetensors")
+                                network_state_dict = get_peft_model_state_dict(accelerator.unwrap_model(generator_transformer3d))
+                                save_model(safetensor_save_path, network_state_dict)
+                                logger.info(f"Saved safetensor to {safetensor_save_path}")
+
+                                safetensor_kohya_format_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}-compatible_with_comfyui.safetensors")
+                                network_state_dict_kohya = convert_peft_lora_to_kohya_lora(network_state_dict)
+                                save_model(safetensor_kohya_format_save_path, network_state_dict_kohya)
+                                logger.info(f"Saved safetensor to {safetensor_save_path}")
+
+                                safetensor_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}-fake_score.safetensors")
+                                network_state_dict = get_peft_model_state_dict(accelerator.unwrap_model(fake_score_transformer3d))
+                                save_model(safetensor_save_path, network_state_dict)
+                                logger.info(f"Saved safetensor to {safetensor_save_path}")
+
+                                safetensor_kohya_format_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}-fake_score-compatible_with_comfyui.safetensors")
+                                network_state_dict_kohya = convert_peft_lora_to_kohya_lora(network_state_dict)
+                                save_model(safetensor_kohya_format_save_path, network_state_dict_kohya)
+                                logger.info(f"Saved safetensor to {safetensor_save_path}")
+                            else:
+                                safetensor_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}.safetensors")
+                                save_model(safetensor_save_path, accelerator.unwrap_model(network))
+                                logger.info(f"Saved safetensor to {safetensor_save_path}")
+
+                                safetensor_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}-fake_score.safetensors")
+                                save_model(safetensor_save_path, accelerator.unwrap_model(fake_score_network))
+                                logger.info(f"Saved safetensor to {safetensor_save_path}")
+                        else:
+                            save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
+                            fake_score_save_path = os.path.join(save_path, "fake_score")
+                            accelerator.save_state(save_path)
+                            accelerator_fake_score_transformer3d.save_state(fake_score_save_path)
+                            logger.info(f"Saved state to {save_path}")
+
 
                 if args.validation_prompts is not None and global_step % args.validation_steps == 0:
                     log_validation(
@@ -1861,6 +1901,7 @@ def main():
                         text_encoder,
                         tokenizer,
                         generator_transformer3d,
+                        network,
                         args,
                         accelerator,
                         weight_dtype,
@@ -1879,6 +1920,7 @@ def main():
                 text_encoder,
                 tokenizer,
                 generator_transformer3d,
+                network,
                 args,
                 accelerator,
                 weight_dtype,
@@ -1887,13 +1929,49 @@ def main():
 
     # Create the pipeline using the trained modules and save it.
     accelerator.wait_for_everyone()
+    if accelerator.is_main_process:
+        generator_transformer3d = unwrap_model(generator_transformer3d)
+        fake_score_transformer3d = unwrap_model(fake_score_transformer3d)
+
     if args.use_deepspeed or args.use_fsdp or accelerator.is_main_process:
         gc.collect()
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
-        save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
-        accelerator.save_state(save_path)
-        logger.info(f"Saved state to {save_path}")
+        if not args.save_state:
+            if args.use_peft_lora:
+                safetensor_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}.safetensors")
+                network_state_dict = get_peft_model_state_dict(accelerator.unwrap_model(generator_transformer3d))
+                save_model(safetensor_save_path, network_state_dict)
+                logger.info(f"Saved safetensor to {safetensor_save_path}")
+
+                safetensor_kohya_format_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}-compatible_with_comfyui.safetensors")
+                network_state_dict_kohya = convert_peft_lora_to_kohya_lora(network_state_dict)
+                save_model(safetensor_kohya_format_save_path, network_state_dict_kohya)
+                logger.info(f"Saved safetensor to {safetensor_save_path}")
+
+                safetensor_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}-fake_score.safetensors")
+                network_state_dict = get_peft_model_state_dict(accelerator.unwrap_model(fake_score_transformer3d))
+                save_model(safetensor_save_path, network_state_dict)
+                logger.info(f"Saved safetensor to {safetensor_save_path}")
+
+                safetensor_kohya_format_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}-fake_score-compatible_with_comfyui.safetensors")
+                network_state_dict_kohya = convert_peft_lora_to_kohya_lora(network_state_dict)
+                save_model(safetensor_kohya_format_save_path, network_state_dict_kohya)
+                logger.info(f"Saved safetensor to {safetensor_save_path}")
+            else:
+                safetensor_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}.safetensors")
+                save_model(safetensor_save_path, accelerator.unwrap_model(network))
+                logger.info(f"Saved safetensor to {safetensor_save_path}")
+
+                safetensor_save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}-fake_score.safetensors")
+                save_model(safetensor_save_path, accelerator.unwrap_model(fake_score_network))
+                logger.info(f"Saved safetensor to {safetensor_save_path}")
+        else:
+            save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
+            fake_score_save_path = os.path.join(save_path, "fake_score")
+            accelerator.save_state(save_path)
+            accelerator_fake_score_transformer3d.save_state(fake_score_save_path)
+            logger.info(f"Saved state to {save_path}")
 
     accelerator.end_training()
 

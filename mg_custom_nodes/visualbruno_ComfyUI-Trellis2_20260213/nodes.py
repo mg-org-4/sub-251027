@@ -1253,6 +1253,140 @@ class Trellis2MeshWithVoxelAdvancedGenerator:
         
         return (mesh,bvh,)    
 
+class Trellis2MeshWithVoxelMultiViewGenerator:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "pipeline": ("TRELLIS2PIPELINE",),
+                "front_image": ("IMAGE",),
+                "seed": ("INT", {"default": 12345, "min": 0, "max": 0x7fffffff}),
+                "pipeline_type": (["512","1024","1024_cascade","1536_cascade"],{"default":"1024_cascade"}),
+                "sparse_structure_steps": ("INT",{"default":12, "min":1, "max":100},),
+                "sparse_structure_guidance_strength": ("FLOAT",{"default":6.50}),
+                "sparse_structure_guidance_rescale": ("FLOAT",{"default":0.20}),
+                "sparse_structure_rescale_t": ("FLOAT",{"default":4.00}),
+                "shape_steps": ("INT",{"default":12, "min":1, "max":100},),
+                "shape_guidance_strength": ("FLOAT",{"default":6.50}),
+                "shape_guidance_rescale": ("FLOAT",{"default":0.20}),
+                "shape_rescale_t": ("FLOAT",{"default":4.00}),                
+                "texture_steps": ("INT",{"default":12, "min":1, "max":100},),
+                "texture_guidance_strength": ("FLOAT",{"default":3.00}),
+                "texture_guidance_rescale": ("FLOAT",{"default":0.20}),
+                "texture_rescale_t": ("FLOAT",{"default":3.00}),                
+                "max_num_tokens": ("INT",{"default":999999,"min":0,"max":999999}),
+                "sparse_structure_resolution": ("INT", {"default":32,"min":8,"max":128,"step":8}),
+                "generate_texture_slat": ("BOOLEAN", {"default":True}),
+                "sparse_structure_guidance_interval_start": ("FLOAT",{"default":0.10,"min":0.00,"max":1.00,"step":0.01}),
+                "sparse_structure_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
+                "shape_guidance_interval_start": ("FLOAT",{"default":0.10,"min":0.00,"max":1.00,"step":0.01}),
+                "shape_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_guidance_interval_start": ("FLOAT",{"default":0.00,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
+                "use_tiled_decoder": ("BOOLEAN", {"default":True}),
+                "front_axis": (["z", "x"], {"default": "z"}),
+                "blend_temperature": ("FLOAT", {"default": 2.0, "min": 0.1, "max": 10.0, "step": 0.1}),
+            },
+            "optional": {
+                "back_image": ("IMAGE",),
+                "left_image": ("IMAGE",),
+                "right_image": ("IMAGE",),
+            },
+        }
+
+    RETURN_TYPES = ("MESHWITHVOXEL","BVH", )
+    RETURN_NAMES = ("mesh", "bvh", )
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, pipeline, front_image, seed, pipeline_type, sparse_structure_steps, 
+        sparse_structure_guidance_strength, 
+        sparse_structure_guidance_rescale,
+        sparse_structure_rescale_t,
+        shape_steps, 
+        shape_guidance_strength, 
+        shape_guidance_rescale,
+        shape_rescale_t,        
+        texture_steps, 
+        texture_guidance_strength, 
+        texture_guidance_rescale,
+        texture_rescale_t,        
+        max_num_tokens,
+        sparse_structure_resolution,
+        generate_texture_slat,
+        sparse_structure_guidance_interval_start,
+        sparse_structure_guidance_interval_end,
+        shape_guidance_interval_start,
+        shape_guidance_interval_end,
+        texture_guidance_interval_start,
+        texture_guidance_interval_end,
+        use_tiled_decoder,
+        front_axis,
+        blend_temperature,
+        back_image=None,
+        left_image=None,
+        right_image=None):
+
+        reset_cuda()
+        
+        # Convert front image tensor to PIL
+        front_pil = tensor2pil(front_image)
+        
+        # Convert optional view image tensors to PIL
+        back_pil = tensor2pil(back_image) if back_image is not None else None
+        left_pil = tensor2pil(left_image) if left_image is not None else None
+        right_pil = tensor2pil(right_image) if right_image is not None else None        
+        
+        sparse_structure_guidance_interval = [sparse_structure_guidance_interval_start,sparse_structure_guidance_interval_end]
+        shape_guidance_interval = [shape_guidance_interval_start,shape_guidance_interval_end]
+        texture_guidance_interval = [texture_guidance_interval_start,texture_guidance_interval_end]
+        
+        sparse_structure_sampler_params = {"steps":sparse_structure_steps,"guidance_strength":sparse_structure_guidance_strength,"guidance_rescale":sparse_structure_guidance_rescale,"guidance_interval":sparse_structure_guidance_interval,"rescale_t":sparse_structure_rescale_t}        
+        shape_slat_sampler_params = {"steps":shape_steps,"guidance_strength":shape_guidance_strength,"guidance_rescale":shape_guidance_rescale,"guidance_interval":shape_guidance_interval,"rescale_t":shape_rescale_t}       
+        tex_slat_sampler_params = {"steps":texture_steps,"guidance_strength":texture_guidance_strength,"guidance_rescale":texture_guidance_rescale,"guidance_interval":texture_guidance_interval,"rescale_t":texture_rescale_t}
+            
+        if generate_texture_slat:
+            num_steps = 5
+        else:
+            num_steps = 4
+
+        pbar = ProgressBar(num_steps)
+        
+        mesh = pipeline.run_multiview(
+            front=front_pil,
+            back=back_pil,
+            left=left_pil,
+            right=right_pil,
+            seed=seed,
+            pipeline_type=pipeline_type,
+            sparse_structure_sampler_params=sparse_structure_sampler_params,
+            shape_slat_sampler_params=shape_slat_sampler_params,
+            tex_slat_sampler_params=tex_slat_sampler_params,
+            max_num_tokens=max_num_tokens,
+            sparse_structure_resolution=sparse_structure_resolution,
+            generate_texture_slat=generate_texture_slat,
+            use_tiled=use_tiled_decoder,
+            pbar=pbar,
+            front_axis=front_axis,
+            blend_temperature=blend_temperature,
+        )[0]         
+        
+        vertices = mesh.vertices.cuda()
+        faces = mesh.faces.cuda()                
+        
+        if generate_texture_slat:
+            # Build BVH for the current mesh to guide remeshing
+            print("Building BVH for current mesh...")
+            bvh = CuMesh.cuBVH(vertices.detach().clone(), faces.detach().clone())           
+            bvh.vertices = vertices.detach().clone()
+            bvh.faces = faces.detach().clone()
+        else:
+            print("Not building BVH : only used for texturing")
+            bvh = None
+        
+        return (mesh,bvh,)
+
 class Trellis2PostProcessAndUnWrapAndRasterizer:
     @classmethod
     def INPUT_TYPES(s):
@@ -1921,6 +2055,105 @@ class Trellis2MeshTexturing:
         metallicRoughnessTexture = pil2tensor(metallicRoughnessTexture_np)
         
         return (textured_mesh, baseColorTexture, metallicRoughnessTexture, )
+        
+class Trellis2MeshTexturingMultiView:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "pipeline": ("TRELLIS2PIPELINE",),
+                "front_image": ("IMAGE",),
+                "trimesh": ("TRIMESH",),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
+                "texture_steps": ("INT",{"default":12, "min":1, "max":100},),
+                "texture_guidance_strength": ("FLOAT",{"default":3.0}),
+                "texture_guidance_rescale": ("FLOAT",{"default":0.2}),
+                "texture_rescale_t": ("FLOAT",{"default":3.0}),
+                "resolution": ([512,1024],{"default":1024}),
+                "texture_size": ("INT",{"default":4096,"min":512,"max":16384}),
+                "texture_alpha_mode": (["OPAQUE","MASK","BLEND"],{"default":"OPAQUE"}),
+                "double_side_material": ("BOOLEAN",{"default":False}), 
+                "texture_guidance_interval_start": ("FLOAT",{"default":0.00,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
+                "bake_on_vertices": ("BOOLEAN",{"default":False}),
+                "use_custom_normals": ("BOOLEAN",{"default":False}),
+                "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":60.0,"min":0.0,"max":359.9}),
+                "front_axis": (["z", "x"], {"default": "z"}),
+                "blend_temperature": ("FLOAT", {"default": 2.0, "min": 0.1, "max": 10.0, "step": 0.1}),                
+            },
+            "optional": {
+                "back_image": ("IMAGE",),
+                "left_image": ("IMAGE",),
+                "right_image": ("IMAGE",),                
+            }
+        }
+
+    RETURN_TYPES = ("TRIMESH","IMAGE","IMAGE",)
+    RETURN_NAMES = ("trimesh","base_color_texture","metallic_roughness_texture",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, 
+        pipeline, 
+        front_image, 
+        trimesh, 
+        seed, 
+        texture_steps, 
+        texture_guidance_strength, 
+        texture_guidance_rescale, 
+        texture_rescale_t, 
+        resolution, 
+        texture_size, 
+        texture_alpha_mode, 
+        double_side_material, 
+        texture_guidance_interval_start, 
+        texture_guidance_interval_end, 
+        bake_on_vertices,
+        use_custom_normals,
+        mesh_cluster_threshold_cone_half_angle_rad,
+        front_axis,
+        blend_temperature,
+        back_image = None,
+        left_image = None,
+        right_image = None):
+        
+        reset_cuda()
+        
+        # Convert front image tensor to PIL
+        front_pil = tensor2pil(front_image)
+        
+        # Convert optional view image tensors to PIL
+        back_pil = tensor2pil(back_image) if back_image is not None else None
+        left_pil = tensor2pil(left_image) if left_image is not None else None
+        right_pil = tensor2pil(right_image) if right_image is not None else None        
+        
+        texture_guidance_interval = [texture_guidance_interval_start,texture_guidance_interval_end]                
+        
+        tex_slat_sampler_params = {"steps":texture_steps,"guidance_strength":texture_guidance_strength,"guidance_rescale":texture_guidance_rescale,"guidance_interval":texture_guidance_interval,"rescale_t":texture_rescale_t}
+
+        textured_mesh, baseColorTexture_np, metallicRoughnessTexture_np = pipeline.texture_mesh_multiview(mesh=trimesh, 
+            front=front_pil,
+            back=back_pil,
+            left=left_pil,
+            right=right_pil,
+            seed=seed, 
+            tex_slat_sampler_params = tex_slat_sampler_params,
+            resolution = resolution,
+            texture_size = texture_size,
+            texture_alpha_mode = texture_alpha_mode,
+            double_side_material = double_side_material,
+            bake_on_vertices = bake_on_vertices,
+            use_custom_normals = use_custom_normals,
+            mesh_cluster_threshold_cone_half_angle_rad = mesh_cluster_threshold_cone_half_angle_rad,
+            front_axis = front_axis,
+            blend_temperature = blend_temperature
+        )            
+
+        baseColorTexture = pil2tensor(baseColorTexture_np)
+        metallicRoughnessTexture = pil2tensor(metallicRoughnessTexture_np)
+        
+        return (textured_mesh, baseColorTexture, metallicRoughnessTexture, )        
         
 class Trellis2LoadMesh:
     @classmethod
@@ -2680,6 +2913,8 @@ NODE_CLASS_MAPPINGS = {
     "Trellis2SmoothNormals": Trellis2SmoothNormals,
     "Trellis2RemeshWithQuad": Trellis2RemeshWithQuad,
     "Trellis2BatchSimplifyMeshAndExport": Trellis2BatchSimplifyMeshAndExport,
+    "Trellis2MeshWithVoxelMultiViewGenerator": Trellis2MeshWithVoxelMultiViewGenerator,
+    "Trellis2MeshTexturingMultiView": Trellis2MeshTexturingMultiView,
     }
     
 
@@ -2711,4 +2946,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2SmoothNormals": "Trellis2 - Smooth Normals",
     "Trellis2RemeshWithQuad": "Trellis2 - Remesh With Quad",
     "Trellis2BatchSimplifyMeshAndExport": "Trellis2 - Batch Simplify Mesh And Export",
+    "Trellis2MeshWithVoxelMultiViewGenerator": "Trellis2 - Mesh With Voxel Multi-View Generator",
+    "Trellis2MeshTexturingMultiView": "Trellis2 - Mesh Texturing Multi-View",
     }

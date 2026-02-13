@@ -14,6 +14,9 @@
 
 | Date | Description |
 | --- | --- |
+| **2026-02-12** | Added the node "Mesh With Voxel Multi-View Generator" |
+|| Added the node "Mesh Texturing Multi-View" |
+|| Added new example workflows |
 | **2026-02-10** | Improved progress bar when filling holes with meshlib |
 | **2026-02-09** | Fixed "Mesh Texturing" node<br>"mesh_cluster_threshold_cone_half_angle_rad" was not used |
 | **2026-02-08** | Fixed "Fill Holes" node progress bar<br>Updated Cumesh package<br>Added "Remesh with Quad" node<br>Added "Batch Simplify Mesh and Export" node|

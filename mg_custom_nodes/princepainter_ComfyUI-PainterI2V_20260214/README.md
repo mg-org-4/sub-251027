@@ -2,6 +2,8 @@
 
 Wan2.2 图生视频增强节点，专门针对4步LoRA（如 lightx2v）的慢动作问题进行优化。
 
+2026-2-13 我制作了一个PainterHumoAI2V节点，已经实现WAN2.2+Humo 直接 音频+图片 4步生成音频驱动的图生视频（AI2V）并支持首尾帧，欢迎尝试（项目内有工作流）！https://github.com/princepainter/ComfyUI-PainterNodes
+
 2025-12-30，我更新了一个PainterI2V的优化版PainterI2Vadvanced，建议尝试使用。项目地址：https://github.com/princepainter/ComfyUI-PainterI2Vadvanced
 
 如果你用的是KJ的wan2.2-i2v工作流，请使用这个专门为KJ开发的节点，效果一致 (https://github.com/princepainter/ComfyUI-PainterI2VforKJ)
@@ -208,6 +210,8 @@ In your workflow, replace `WanImageToVideo` with `PainterI2V`.
 If you find this project helpful, please give it a star ⭐ to show your support!
 </div>
 # Restart ComfyUI
+
+
 
 
 

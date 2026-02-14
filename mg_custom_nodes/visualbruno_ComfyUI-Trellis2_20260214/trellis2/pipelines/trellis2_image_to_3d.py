@@ -1997,7 +1997,11 @@ class Trellis2ImageTo3DPipeline(Pipeline):
             images = [image]
         
         self.load_image_cond_model()        
-        cond = self.get_cond(images, resolution, max_views = max_views)
+        cond_resolution = resolution
+        if cond_resolution>1024:
+            cond_resolution = 1024
+            
+        cond = self.get_cond(images, cond_resolution, max_views = max_views)
         
         if not self.keep_models_loaded:
             self.unload_image_cond_model()

@@ -2008,7 +2008,7 @@ class Trellis2MeshTexturing:
                 "texture_guidance_strength": ("FLOAT",{"default":3.0}),
                 "texture_guidance_rescale": ("FLOAT",{"default":0.2}),
                 "texture_rescale_t": ("FLOAT",{"default":3.0}),
-                "resolution": ([512,1024],{"default":1024}),
+                "resolution": ([512,1024,1536],{"default":1024}),
                 "texture_size": ("INT",{"default":4096,"min":512,"max":16384}),
                 "texture_alpha_mode": (["OPAQUE","MASK","BLEND"],{"default":"OPAQUE"}),
                 "double_side_material": ("BOOLEAN",{"default":False}), 
@@ -2069,7 +2069,7 @@ class Trellis2MeshTexturingMultiView:
                 "texture_guidance_strength": ("FLOAT",{"default":3.0}),
                 "texture_guidance_rescale": ("FLOAT",{"default":0.2}),
                 "texture_rescale_t": ("FLOAT",{"default":3.0}),
-                "resolution": ([512,1024],{"default":1024}),
+                "resolution": ([512,1024,1536],{"default":1024}),
                 "texture_size": ("INT",{"default":4096,"min":512,"max":16384}),
                 "texture_alpha_mode": (["OPAQUE","MASK","BLEND"],{"default":"OPAQUE"}),
                 "double_side_material": ("BOOLEAN",{"default":False}), 
@@ -2357,6 +2357,8 @@ class Trellis2PostProcess2:
                 "fix_normals": ("BOOLEAN", {"default":False}),
                 "fix_face_orientation": ("BOOLEAN", {"default":True}),
                 "remove_duplicate_faces": ("BOOLEAN",{"default":True}),
+                "weld_vertices": ("BOOLEAN",{"default":True}),
+                "weld_vertices_digits": ("INT",{"default":4,"min":1,"max":8}),
             },
         }
 
@@ -2366,7 +2368,7 @@ class Trellis2PostProcess2:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, fill_holes, fix_normals, fix_face_orientation, remove_duplicate_faces,):
+    def process(self, mesh, fill_holes, fix_normals, fix_face_orientation, remove_duplicate_faces, weld_vertices, weld_vertices_digits,):
         mesh_copy = copy.deepcopy(mesh)
         
         vertices_np = mesh_copy.vertices.cpu().numpy()
@@ -2394,7 +2396,14 @@ class Trellis2PostProcess2:
         
         if fill_holes:
             print('Filling holes ...')
-            trimesh.fill_holes()            
+            trimesh.fill_holes()     
+
+        if weld_vertices:
+            vertices_count = len(trimesh.vertices)
+            trimesh.merge_vertices(digits_vertex=weld_vertices_digits)
+            new_vertices_count = len(trimesh.vertices)
+            nb_vertices_removed = vertices_count - new_vertices_count
+            print(f"Weld Vertices: Removed {nb_vertices_removed} vertices")            
         
         new_vertices = torch.from_numpy(trimesh.vertices).float()
         new_faces = torch.from_numpy(trimesh.faces).int()                
@@ -2776,7 +2785,9 @@ class Trellis2BatchSimplifyMeshAndExport:
                 "fill_holes":("BOOLEAN",{"default":True}),
                 "reorient_vertices":(["None","90 degrees","-90 degrees"],{"default":"90 degrees"}),
                 "filename_prefix":("STRING",),
-                "file_format": (["glb", "obj", "ply", "stl", "3mf", "dae"],),                
+                "file_format": (["glb", "obj", "ply", "stl", "3mf", "dae"],),
+                "weld_vertices": ("BOOLEAN",{"default":True}),
+                "weld_vertices_digits":("INT",{"default":4,"min":1,"max":8}),
             },
         }
 
@@ -2786,7 +2797,7 @@ class Trellis2BatchSimplifyMeshAndExport:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, target_face_num, method, fill_holes, reorient_vertices, filename_prefix, file_format):
+    def process(self, mesh, target_face_num, method, fill_holes, reorient_vertices, filename_prefix, file_format, weld_vertices, weld_vertices_digits):
         lst_output_mesh = []
         list_of_faces = parse_string_to_int_list(target_face_num)
         if len(list_of_faces)>0:
@@ -2867,6 +2878,14 @@ class Trellis2BatchSimplifyMeshAndExport:
                     faces=faces,
                     process=False
                 )
+                
+                if weld_vertices:
+                    vertices_count = len(trimesh.vertices)
+                    trimesh.merge_vertices(digits_vertex=digits)
+                    new_vertices_count = len(trimesh.vertices)
+                    nb_vertices_removed = vertices_count - new_vertices_count
+                    print(f"Weld Vertices: Removed {nb_vertices_removed} vertices")                    
+                    
 
                 filename_prefix_with_nbfaces = f"{filename_prefix}_{target_nbfaces}"
 
@@ -2883,7 +2902,34 @@ class Trellis2BatchSimplifyMeshAndExport:
             del cumesh
             del mesh_copy
         
-        return (lst_output_mesh,)          
+        return (lst_output_mesh,)   
+
+class Trellis2WeldVertices:    
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "trimesh": ("TRIMESH",),
+                "merge_texture": ("BOOLEAN",{"default":True}),
+                "merge_normals": ("BOOLEAN",{"default":True}),
+                "digits":("INT",{"default":4,"min":1,"max":8}),
+            },
+        }
+    
+    RETURN_TYPES = ("TRIMESH",)
+    RETURN_NAMES = ("trimesh",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+
+    def process(self, trimesh, merge_texture, merge_normals, digits):
+        new_mesh = trimesh.copy()
+        vertices_count = len(new_mesh.vertices)
+        new_mesh.merge_vertices(merge_tex=merge_texture, merge_norm=merge_normals, digits_vertex=digits, digits_norm=digits, digits_uv=digits)
+        new_vertices_count = len(new_mesh.vertices)
+        nb_vertices_removed = vertices_count - new_vertices_count
+        print(f"Weld Vertices: Removed {nb_vertices_removed} vertices")
+        
+        return (new_mesh,)         
         
 NODE_CLASS_MAPPINGS = {
     "Trellis2LoadModel": Trellis2LoadModel,
@@ -2915,6 +2961,7 @@ NODE_CLASS_MAPPINGS = {
     "Trellis2BatchSimplifyMeshAndExport": Trellis2BatchSimplifyMeshAndExport,
     "Trellis2MeshWithVoxelMultiViewGenerator": Trellis2MeshWithVoxelMultiViewGenerator,
     "Trellis2MeshTexturingMultiView": Trellis2MeshTexturingMultiView,
+    "Trellis2WeldVertices": Trellis2WeldVertices,
     }
     
 
@@ -2925,7 +2972,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2SimplifyMesh": "Trellis2 - Simplify Mesh",
     "Trellis2MeshWithVoxelToTrimesh": "Trellis2 - Mesh With Voxel To Trimesh",
     "Trellis2ExportMesh": "Trellis2 - Export Mesh",
-    "Trellis2PostProcessMesh": "Trellis2 - PostProcess Mesh",
+    "Trellis2PostProcessMesh": "Trellis2 - PostProcess Mesh (using Cumesh)",
     "Trellis2UnWrapAndRasterizer": "Trellis2 - UV Unwrap and Rasterize",
     "Trellis2MeshWithVoxelAdvancedGenerator": "Trellis2 - Mesh With Voxel Advanced Generator",
     "Trellis2PostProcessAndUnWrapAndRasterizer": "Trellis2 - Post Process/UnWrap and Rasterize",
@@ -2934,7 +2981,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2LoadMesh": "Trellis2 - Load Mesh",
     "Trellis2PreProcessImage": "Trellis2 - PreProcess Image",
     "Trellis2MeshRefiner": "Trellis2 - Mesh Refiner",
-    "Trellis2PostProcess2": "Trellis2 - PostProcess Mesh 2",
+    "Trellis2PostProcess2": "Trellis2 - PostProcess Mesh (using Trimesh)",
     "Trellis2OvoxelExportToGLB": "Trellis2 - Ovoxel Export to GLB",
     "Trellis2TrimeshToMeshWithVoxel": "Trellis2 - Trimesh to Mesh with Voxel",
     "Trellis2SimplifyTrimesh": "Trellis2 - Simplify Trimesh",
@@ -2948,4 +2995,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2BatchSimplifyMeshAndExport": "Trellis2 - Batch Simplify Mesh And Export",
     "Trellis2MeshWithVoxelMultiViewGenerator": "Trellis2 - Mesh With Voxel Multi-View Generator",
     "Trellis2MeshTexturingMultiView": "Trellis2 - Mesh Texturing Multi-View",
+    "Trellis2WeldVertices": "Trellis2 - Weld Vertices",
     }

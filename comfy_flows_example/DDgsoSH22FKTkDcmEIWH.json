@@ -1,0 +1,4562 @@
+{
+  "last_link_id": 82,
+  "nodes": [
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            30
+          ],
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "name": "audio",
+          "links": [
+            31
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "fps",
+          "links": [
+            32
+          ],
+          "label": "fps",
+          "type": "FLOAT",
+          "localized_name": "fps"
+        }
+      ],
+      "size": [
+        185.17733764648438,
+        66
+      ],
+      "pos": [
+        2697.439208984375,
+        776.573486328125
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 11,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "flags": {},
+      "id": 13,
+      "type": "GetVideoComponents",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "order": 16
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            33
+          ],
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "name": "audio",
+          "links": [
+            34
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "fps",
+          "links": [
+            35
+          ],
+          "label": "fps",
+          "type": "FLOAT",
+          "localized_name": "fps"
+        }
+      ],
+      "size": [
+        185.17733764648438,
+        66
+      ],
+      "pos": [
+        2678.9267578125,
+        1107.55078125
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 12,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "flags": {},
+      "id": 14,
+      "type": "GetVideoComponents",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "order": 17
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            36
+          ],
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "name": "audio",
+          "links": [
+            37
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "fps",
+          "links": [
+            38
+          ],
+          "label": "fps",
+          "type": "FLOAT",
+          "localized_name": "fps"
+        }
+      ],
+      "size": [
+        185.17733764648438,
+        66
+      ],
+      "pos": [
+        2674.5361328125,
+        1625.8416748046875
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 13,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "flags": {},
+      "id": 15,
+      "type": "GetVideoComponents",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "order": 18
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            39
+          ],
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "name": "audio",
+          "links": [
+            40
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "fps",
+          "links": [
+            41
+          ],
+          "label": "fps",
+          "type": "FLOAT",
+          "localized_name": "fps"
+        }
+      ],
+      "size": [
+        185.17733764648438,
+        66
+      ],
+      "pos": [
+        2755.060791015625,
+        2226.122802734375
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 14,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "flags": {},
+      "id": 16,
+      "type": "GetVideoComponents",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "order": 19
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            28
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "size": [
+        174.52011108398438,
+        26
+      ],
+      "pos": [
+        4067.450439453125,
+        937.572021484375
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 15,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "flags": {},
+      "id": 17,
+      "type": "ReverseImageBatch",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ReverseImageBatch"
+      },
+      "order": 36
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AFVIDEO",
+          "links": [
+            22
+          ],
+          "label": "AFVIDEO",
+          "type": "VIDEO",
+          "localized_name": "AFVIDEO"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        4537.71044921875,
+        412.06396484375
+      ],
+      "widgets_values": [
+        3
+      ],
+      "inputs": [
+        {
+          "name": "filenames",
+          "link": 16,
+          "label": "filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "filenames"
+        },
+        {
+          "widget": {
+            "name": "sleep"
+          },
+          "name": "sleep",
+          "label": "sleep",
+          "type": "INT",
+          "localized_name": "sleep"
+        }
+      ],
+      "flags": {},
+      "id": 18,
+      "type": "VideoUtilitiesGetVHSFilePath",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VideoUtilitiesGetVHSFilePath"
+      },
+      "order": 39
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AFVIDEO",
+          "links": [
+            23
+          ],
+          "label": "AFVIDEO",
+          "type": "VIDEO",
+          "localized_name": "AFVIDEO"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        4550.71435546875,
+        584.2554321289062
+      ],
+      "widgets_values": [
+        3
+      ],
+      "inputs": [
+        {
+          "name": "filenames",
+          "link": 17,
+          "label": "filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "filenames"
+        },
+        {
+          "widget": {
+            "name": "sleep"
+          },
+          "name": "sleep",
+          "label": "sleep",
+          "type": "INT",
+          "localized_name": "sleep"
+        }
+      ],
+      "flags": {},
+      "id": 19,
+      "type": "VideoUtilitiesGetVHSFilePath",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VideoUtilitiesGetVHSFilePath"
+      },
+      "order": 40
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Filenames",
+          "links": [
+            16
+          ],
+          "label": "Filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "size": [
+        214.7587890625,
+        358
+      ],
+      "pos": [
+        4268.97021484375,
+        320.5317077636719
+      ],
+      "widgets_values": {
+        "save_output": true,
+        "filename_prefix": "AnimateDiff",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 19,
+        "trim_to_audio": true,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {
+            "score": "0",
+            "filename": "AnimateDiff_00001_p82_pnfyv_1766038689.mp4",
+            "workflow": "AnimateDiff_00001_p82.png",
+            "fullpath": "/data/ComfyUI/personal/689150aabadd66736d9d737ed1a06e53/output/AnimateDiff_00001_p82.mp4",
+            "format": "video/h264-mp4",
+            "subfolder": "",
+            "label": "Normal",
+            "type": "output",
+            "frame_rate": 31.996053799330035
+          }
+        },
+        "format": "video/h264-mp4",
+        "no_preview": false,
+        "frame_rate": 8,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 18,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "link": 19,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "link": 20,
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "frame_rate"
+        },
+        {
+          "widget": {
+            "name": "loop_count"
+          },
+          "name": "loop_count",
+          "label": "loop_count",
+          "type": "INT",
+          "localized_name": "loop_count"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        },
+        {
+          "widget": {
+            "name": "pingpong"
+          },
+          "name": "pingpong",
+          "label": "pingpong",
+          "type": "BOOLEAN",
+          "localized_name": "pingpong"
+        },
+        {
+          "widget": {
+            "name": "save_output"
+          },
+          "name": "save_output",
+          "label": "save_output",
+          "type": "BOOLEAN",
+          "localized_name": "save_output"
+        },
+        {
+          "widget": {
+            "name": "no_preview"
+          },
+          "shape": 7,
+          "name": "no_preview",
+          "label": "no_preview",
+          "type": "BOOLEAN",
+          "localized_name": "no_preview"
+        }
+      ],
+      "flags": {},
+      "id": 20,
+      "type": "VHS_VideoCombine",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "order": 37
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            24
+          ],
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "name": "audio",
+          "links": [
+            25
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "fps",
+          "links": [
+            26
+          ],
+          "label": "fps",
+          "type": "FLOAT",
+          "localized_name": "fps"
+        }
+      ],
+      "size": [
+        185.17733764648438,
+        66
+      ],
+      "pos": [
+        5467.36474609375,
+        376.52496337890625
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 21,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "flags": {},
+      "id": 21,
+      "type": "GetVideoComponents",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "order": 42
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "stitched_video",
+          "links": [
+            21
+          ],
+          "label": "stitched_video",
+          "type": "VIDEO",
+          "localized_name": "stitched_video"
+        },
+        {
+          "name": "video_path",
+          "label": "video_path",
+          "type": "STRING",
+          "localized_name": "video_path"
+        },
+        {
+          "name": "AFVIDEO",
+          "label": "AFVIDEO",
+          "type": "VIDEO",
+          "localized_name": "AFVIDEO"
+        }
+      ],
+      "size": [
+        281.404296875,
+        414
+      ],
+      "pos": [
+        5053.17041015625,
+        238.11962890625
+      ],
+      "widgets_values": [
+        "",
+        "concat",
+        "high",
+        true,
+        true,
+        0,
+        true,
+        "fade",
+        false,
+        false
+      ],
+      "inputs": [
+        {
+          "name": "video1",
+          "link": 22,
+          "label": "video1",
+          "type": "VIDEO",
+          "localized_name": "video1"
+        },
+        {
+          "shape": 7,
+          "name": "video2",
+          "link": 23,
+          "label": "video2",
+          "type": "VIDEO",
+          "localized_name": "video2"
+        },
+        {
+          "shape": 7,
+          "name": "video3",
+          "label": "video3",
+          "type": "VIDEO",
+          "localized_name": "video3"
+        },
+        {
+          "shape": 7,
+          "name": "video4",
+          "label": "video4",
+          "type": "VIDEO",
+          "localized_name": "video4"
+        },
+        {
+          "shape": 7,
+          "name": "video5",
+          "label": "video5",
+          "type": "VIDEO",
+          "localized_name": "video5"
+        },
+        {
+          "shape": 7,
+          "name": "video6",
+          "label": "video6",
+          "type": "VIDEO",
+          "localized_name": "video6"
+        },
+        {
+          "shape": 7,
+          "name": "video7",
+          "label": "video7",
+          "type": "VIDEO",
+          "localized_name": "video7"
+        },
+        {
+          "shape": 7,
+          "name": "video8",
+          "label": "video8",
+          "type": "VIDEO",
+          "localized_name": "video8"
+        },
+        {
+          "widget": {
+            "name": "output_filename"
+          },
+          "shape": 7,
+          "name": "output_filename",
+          "label": "output_filename",
+          "type": "STRING",
+          "localized_name": "output_filename"
+        },
+        {
+          "widget": {
+            "name": "stitch_method"
+          },
+          "shape": 7,
+          "name": "stitch_method",
+          "label": "stitch_method",
+          "type": "COMBO",
+          "localized_name": "stitch_method"
+        },
+        {
+          "widget": {
+            "name": "output_quality"
+          },
+          "shape": 7,
+          "name": "output_quality",
+          "label": "output_quality",
+          "type": "COMBO",
+          "localized_name": "output_quality"
+        },
+        {
+          "widget": {
+            "name": "scale_videos"
+          },
+          "shape": 7,
+          "name": "scale_videos",
+          "label": "scale_videos",
+          "type": "BOOLEAN",
+          "localized_name": "scale_videos"
+        },
+        {
+          "widget": {
+            "name": "smooth_transitions"
+          },
+          "shape": 7,
+          "name": "smooth_transitions",
+          "label": "smooth_transitions",
+          "type": "BOOLEAN",
+          "localized_name": "smooth_transitions"
+        },
+        {
+          "widget": {
+            "name": "transition_duration"
+          },
+          "shape": 7,
+          "name": "transition_duration",
+          "label": "transition_duration",
+          "type": "FLOAT",
+          "localized_name": "transition_duration"
+        },
+        {
+          "widget": {
+            "name": "force_keyframes"
+          },
+          "shape": 7,
+          "name": "force_keyframes",
+          "label": "force_keyframes",
+          "type": "BOOLEAN",
+          "localized_name": "force_keyframes"
+        },
+        {
+          "widget": {
+            "name": "transition_type"
+          },
+          "shape": 7,
+          "name": "transition_type",
+          "label": "transition_type",
+          "type": "COMBO",
+          "localized_name": "transition_type"
+        },
+        {
+          "widget": {
+            "name": "motion_compensation"
+          },
+          "shape": 7,
+          "name": "motion_compensation",
+          "label": "motion_compensation",
+          "type": "BOOLEAN",
+          "localized_name": "motion_compensation"
+        },
+        {
+          "widget": {
+            "name": "edge_enhancement"
+          },
+          "shape": 7,
+          "name": "edge_enhancement",
+          "label": "edge_enhancement",
+          "type": "BOOLEAN",
+          "localized_name": "edge_enhancement"
+        }
+      ],
+      "flags": {},
+      "id": 22,
+      "type": "VideoStitchingNode",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VideoStitchingNode"
+      },
+      "order": 41
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Filenames",
+          "links": [
+            27
+          ],
+          "label": "Filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "size": [
+        214.7587890625,
+        358
+      ],
+      "pos": [
+        5824.36865234375,
+        132.6479949951172
+      ],
+      "widgets_values": {
+        "save_output": true,
+        "filename_prefix": "AnimateDiff",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 19,
+        "trim_to_audio": true,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {}
+        },
+        "format": "video/h264-mp4",
+        "no_preview": false,
+        "frame_rate": 8,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 24,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "link": 25,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "link": 26,
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "frame_rate"
+        },
+        {
+          "widget": {
+            "name": "loop_count"
+          },
+          "name": "loop_count",
+          "label": "loop_count",
+          "type": "INT",
+          "localized_name": "loop_count"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        },
+        {
+          "widget": {
+            "name": "pingpong"
+          },
+          "name": "pingpong",
+          "label": "pingpong",
+          "type": "BOOLEAN",
+          "localized_name": "pingpong"
+        },
+        {
+          "widget": {
+            "name": "save_output"
+          },
+          "name": "save_output",
+          "label": "save_output",
+          "type": "BOOLEAN",
+          "localized_name": "save_output"
+        },
+        {
+          "widget": {
+            "name": "no_preview"
+          },
+          "shape": 7,
+          "name": "no_preview",
+          "label": "no_preview",
+          "type": "BOOLEAN",
+          "localized_name": "no_preview"
+        }
+      ],
+      "flags": {},
+      "id": 23,
+      "type": "VHS_VideoCombine",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "order": 43
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        336.2183532714844,
+        58
+      ],
+      "pos": [
+        6094.49365234375,
+        213.54541015625
+      ],
+      "widgets_values": [
+        "output_video"
+      ],
+      "inputs": [
+        {
+          "name": "filenames",
+          "link": 27,
+          "label": "filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "filenames"
+        },
+        {
+          "widget": {
+            "name": "output_name"
+          },
+          "name": "output_name",
+          "label": "output_name",
+          "type": "STRING",
+          "localized_name": "output_name"
+        }
+      ],
+      "flags": {},
+      "id": 24,
+      "type": "ShellAgentPluginSaveVideoVHS",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShellAgentPluginSaveVideoVHS"
+      },
+      "order": 44
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Filenames",
+          "links": [
+            17
+          ],
+          "label": "Filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "size": [
+        214.7587890625,
+        358
+      ],
+      "pos": [
+        4299.62060546875,
+        875.5191650390625
+      ],
+      "widgets_values": {
+        "save_output": true,
+        "filename_prefix": "AnimateDiff",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 19,
+        "trim_to_audio": false,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {
+            "score": "0",
+            "filename": "AnimateDiff_00002_p82_cfhke_1766038709.mp4",
+            "workflow": "AnimateDiff_00002_p82.png",
+            "fullpath": "/data/ComfyUI/personal/689150aabadd66736d9d737ed1a06e53/output/AnimateDiff_00002_p82.mp4",
+            "format": "video/h264-mp4",
+            "subfolder": "",
+            "label": "Normal",
+            "type": "output",
+            "frame_rate": 8
+          }
+        },
+        "format": "video/h264-mp4",
+        "no_preview": false,
+        "frame_rate": 8,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 28,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "link": 29,
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "frame_rate"
+        },
+        {
+          "widget": {
+            "name": "loop_count"
+          },
+          "name": "loop_count",
+          "label": "loop_count",
+          "type": "INT",
+          "localized_name": "loop_count"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        },
+        {
+          "widget": {
+            "name": "pingpong"
+          },
+          "name": "pingpong",
+          "label": "pingpong",
+          "type": "BOOLEAN",
+          "localized_name": "pingpong"
+        },
+        {
+          "widget": {
+            "name": "save_output"
+          },
+          "name": "save_output",
+          "label": "save_output",
+          "type": "BOOLEAN",
+          "localized_name": "save_output"
+        },
+        {
+          "widget": {
+            "name": "no_preview"
+          },
+          "shape": 7,
+          "name": "no_preview",
+          "label": "no_preview",
+          "type": "BOOLEAN",
+          "localized_name": "no_preview"
+        }
+      ],
+      "flags": {},
+      "id": 25,
+      "type": "VHS_VideoCombine",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "order": 38
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Filenames",
+          "links": [
+            45
+          ],
+          "label": "Filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "size": [
+        214.7587890625,
+        358
+      ],
+      "pos": [
+        3035.439208984375,
+        629.9735717773438
+      ],
+      "widgets_values": {
+        "save_output": true,
+        "filename_prefix": "AnimateDiff",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 19,
+        "trim_to_audio": false,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {}
+        },
+        "format": "video/h264-mp4",
+        "no_preview": false,
+        "frame_rate": 8,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 30,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "link": 31,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "link": 32,
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "frame_rate"
+        },
+        {
+          "widget": {
+            "name": "loop_count"
+          },
+          "name": "loop_count",
+          "label": "loop_count",
+          "type": "INT",
+          "localized_name": "loop_count"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        },
+        {
+          "widget": {
+            "name": "pingpong"
+          },
+          "name": "pingpong",
+          "label": "pingpong",
+          "type": "BOOLEAN",
+          "localized_name": "pingpong"
+        },
+        {
+          "widget": {
+            "name": "save_output"
+          },
+          "name": "save_output",
+          "label": "save_output",
+          "type": "BOOLEAN",
+          "localized_name": "save_output"
+        },
+        {
+          "widget": {
+            "name": "no_preview"
+          },
+          "shape": 7,
+          "name": "no_preview",
+          "label": "no_preview",
+          "type": "BOOLEAN",
+          "localized_name": "no_preview"
+        }
+      ],
+      "flags": {},
+      "id": 26,
+      "type": "VHS_VideoCombine",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "order": 22
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Filenames",
+          "links": [
+            46
+          ],
+          "label": "Filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "size": [
+        214.7587890625,
+        358
+      ],
+      "pos": [
+        3027.926513671875,
+        1121.5509033203125
+      ],
+      "widgets_values": {
+        "save_output": true,
+        "filename_prefix": "AnimateDiff",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 19,
+        "trim_to_audio": false,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {}
+        },
+        "format": "video/h264-mp4",
+        "no_preview": false,
+        "frame_rate": 8,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 33,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "link": 34,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "link": 35,
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "frame_rate"
+        },
+        {
+          "widget": {
+            "name": "loop_count"
+          },
+          "name": "loop_count",
+          "label": "loop_count",
+          "type": "INT",
+          "localized_name": "loop_count"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        },
+        {
+          "widget": {
+            "name": "pingpong"
+          },
+          "name": "pingpong",
+          "label": "pingpong",
+          "type": "BOOLEAN",
+          "localized_name": "pingpong"
+        },
+        {
+          "widget": {
+            "name": "save_output"
+          },
+          "name": "save_output",
+          "label": "save_output",
+          "type": "BOOLEAN",
+          "localized_name": "save_output"
+        },
+        {
+          "widget": {
+            "name": "no_preview"
+          },
+          "shape": 7,
+          "name": "no_preview",
+          "label": "no_preview",
+          "type": "BOOLEAN",
+          "localized_name": "no_preview"
+        }
+      ],
+      "flags": {},
+      "id": 27,
+      "type": "VHS_VideoCombine",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "order": 23
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Filenames",
+          "links": [
+            47
+          ],
+          "label": "Filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "size": [
+        214.7587890625,
+        358
+      ],
+      "pos": [
+        3023.536376953125,
+        1639.8416748046875
+      ],
+      "widgets_values": {
+        "save_output": true,
+        "filename_prefix": "AnimateDiff",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 19,
+        "trim_to_audio": false,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {}
+        },
+        "format": "video/h264-mp4",
+        "no_preview": false,
+        "frame_rate": 8,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 36,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "link": 37,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "link": 38,
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "frame_rate"
+        },
+        {
+          "widget": {
+            "name": "loop_count"
+          },
+          "name": "loop_count",
+          "label": "loop_count",
+          "type": "INT",
+          "localized_name": "loop_count"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        },
+        {
+          "widget": {
+            "name": "pingpong"
+          },
+          "name": "pingpong",
+          "label": "pingpong",
+          "type": "BOOLEAN",
+          "localized_name": "pingpong"
+        },
+        {
+          "widget": {
+            "name": "save_output"
+          },
+          "name": "save_output",
+          "label": "save_output",
+          "type": "BOOLEAN",
+          "localized_name": "save_output"
+        },
+        {
+          "widget": {
+            "name": "no_preview"
+          },
+          "shape": 7,
+          "name": "no_preview",
+          "label": "no_preview",
+          "type": "BOOLEAN",
+          "localized_name": "no_preview"
+        }
+      ],
+      "flags": {},
+      "id": 28,
+      "type": "VHS_VideoCombine",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "order": 24
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Filenames",
+          "links": [
+            48
+          ],
+          "label": "Filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "size": [
+        214.7587890625,
+        358
+      ],
+      "pos": [
+        3104.060791015625,
+        2240.122802734375
+      ],
+      "widgets_values": {
+        "save_output": true,
+        "filename_prefix": "AnimateDiff",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 19,
+        "trim_to_audio": false,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {}
+        },
+        "format": "video/h264-mp4",
+        "no_preview": false,
+        "frame_rate": 8,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 39,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "link": 40,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "link": 41,
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "frame_rate"
+        },
+        {
+          "widget": {
+            "name": "loop_count"
+          },
+          "name": "loop_count",
+          "label": "loop_count",
+          "type": "INT",
+          "localized_name": "loop_count"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        },
+        {
+          "widget": {
+            "name": "pingpong"
+          },
+          "name": "pingpong",
+          "label": "pingpong",
+          "type": "BOOLEAN",
+          "localized_name": "pingpong"
+        },
+        {
+          "widget": {
+            "name": "save_output"
+          },
+          "name": "save_output",
+          "label": "save_output",
+          "type": "BOOLEAN",
+          "localized_name": "save_output"
+        },
+        {
+          "widget": {
+            "name": "no_preview"
+          },
+          "shape": 7,
+          "name": "no_preview",
+          "label": "no_preview",
+          "type": "BOOLEAN",
+          "localized_name": "no_preview"
+        }
+      ],
+      "flags": {},
+      "id": 29,
+      "type": "VHS_VideoCombine",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "order": 25
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Filenames",
+          "links": [
+            67
+          ],
+          "label": "Filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "size": [
+        214.7587890625,
+        358
+      ],
+      "pos": [
+        3080.635498046875,
+        2874.077880859375
+      ],
+      "widgets_values": {
+        "save_output": true,
+        "filename_prefix": "AnimateDiff",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 19,
+        "trim_to_audio": false,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {}
+        },
+        "format": "video/h264-mp4",
+        "no_preview": false,
+        "frame_rate": 8,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 42,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "link": 43,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "link": 44,
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "frame_rate"
+        },
+        {
+          "widget": {
+            "name": "loop_count"
+          },
+          "name": "loop_count",
+          "label": "loop_count",
+          "type": "INT",
+          "localized_name": "loop_count"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        },
+        {
+          "widget": {
+            "name": "pingpong"
+          },
+          "name": "pingpong",
+          "label": "pingpong",
+          "type": "BOOLEAN",
+          "localized_name": "pingpong"
+        },
+        {
+          "widget": {
+            "name": "save_output"
+          },
+          "name": "save_output",
+          "label": "save_output",
+          "type": "BOOLEAN",
+          "localized_name": "save_output"
+        },
+        {
+          "widget": {
+            "name": "no_preview"
+          },
+          "shape": 7,
+          "name": "no_preview",
+          "label": "no_preview",
+          "type": "BOOLEAN",
+          "localized_name": "no_preview"
+        }
+      ],
+      "flags": {},
+      "id": 30,
+      "type": "VHS_VideoCombine",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "order": 26
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AFVIDEO",
+          "links": [
+            74
+          ],
+          "label": "AFVIDEO",
+          "type": "VIDEO",
+          "localized_name": "AFVIDEO"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        3234.523193359375,
+        393.347900390625
+      ],
+      "widgets_values": [
+        3
+      ],
+      "inputs": [
+        {
+          "name": "filenames",
+          "link": 45,
+          "label": "filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "filenames"
+        },
+        {
+          "widget": {
+            "name": "sleep"
+          },
+          "name": "sleep",
+          "label": "sleep",
+          "type": "INT",
+          "localized_name": "sleep"
+        }
+      ],
+      "flags": {},
+      "id": 31,
+      "type": "VideoUtilitiesGetVHSFilePath",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VideoUtilitiesGetVHSFilePath"
+      },
+      "order": 28
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AFVIDEO",
+          "links": [
+            75
+          ],
+          "label": "AFVIDEO",
+          "type": "VIDEO",
+          "localized_name": "AFVIDEO"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        3395.123291015625,
+        1130.347900390625
+      ],
+      "widgets_values": [
+        3
+      ],
+      "inputs": [
+        {
+          "name": "filenames",
+          "link": 46,
+          "label": "filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "filenames"
+        },
+        {
+          "widget": {
+            "name": "sleep"
+          },
+          "name": "sleep",
+          "label": "sleep",
+          "type": "INT",
+          "localized_name": "sleep"
+        }
+      ],
+      "flags": {},
+      "id": 32,
+      "type": "VideoUtilitiesGetVHSFilePath",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VideoUtilitiesGetVHSFilePath"
+      },
+      "order": 29
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AFVIDEO",
+          "links": [
+            76
+          ],
+          "label": "AFVIDEO",
+          "type": "VIDEO",
+          "localized_name": "AFVIDEO"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        3372.023193359375,
+        1703.4478759765625
+      ],
+      "widgets_values": [
+        3
+      ],
+      "inputs": [
+        {
+          "name": "filenames",
+          "link": 47,
+          "label": "filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "filenames"
+        },
+        {
+          "widget": {
+            "name": "sleep"
+          },
+          "name": "sleep",
+          "label": "sleep",
+          "type": "INT",
+          "localized_name": "sleep"
+        }
+      ],
+      "flags": {},
+      "id": 33,
+      "type": "VideoUtilitiesGetVHSFilePath",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VideoUtilitiesGetVHSFilePath"
+      },
+      "order": 30
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AFVIDEO",
+          "links": [
+            77
+          ],
+          "label": "AFVIDEO",
+          "type": "VIDEO",
+          "localized_name": "AFVIDEO"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        3498.523681640625,
+        2298.548095703125
+      ],
+      "widgets_values": [
+        60
+      ],
+      "inputs": [
+        {
+          "name": "filenames",
+          "link": 48,
+          "label": "filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "filenames"
+        },
+        {
+          "widget": {
+            "name": "sleep"
+          },
+          "name": "sleep",
+          "label": "sleep",
+          "type": "INT",
+          "localized_name": "sleep"
+        }
+      ],
+      "flags": {},
+      "id": 34,
+      "type": "VideoUtilitiesGetVHSFilePath",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VideoUtilitiesGetVHSFilePath"
+      },
+      "order": 31
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            57,
+            58
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        1776.9112548828125,
+        759.0646362304688
+      ],
+      "widgets_values": [
+        0,
+        1
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 49,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "start_frame"
+          },
+          "name": "start_frame",
+          "label": "start_frame",
+          "type": "INT",
+          "localized_name": "start_frame"
+        },
+        {
+          "widget": {
+            "name": "end_frame"
+          },
+          "name": "end_frame",
+          "label": "end_frame",
+          "type": "INT",
+          "localized_name": "end_frame"
+        }
+      ],
+      "flags": {},
+      "id": 35,
+      "type": "BatchThief",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "BatchThief"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            59,
+            60
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        1766.6900634765625,
+        1016.494384765625
+      ],
+      "widgets_values": [
+        1,
+        2
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 50,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "start_frame"
+          },
+          "name": "start_frame",
+          "label": "start_frame",
+          "type": "INT",
+          "localized_name": "start_frame"
+        },
+        {
+          "widget": {
+            "name": "end_frame"
+          },
+          "name": "end_frame",
+          "label": "end_frame",
+          "type": "INT",
+          "localized_name": "end_frame"
+        }
+      ],
+      "flags": {},
+      "id": 36,
+      "type": "BatchThief",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "BatchThief"
+      },
+      "order": 5
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            61,
+            62
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        1784.1119384765625,
+        1455.80517578125
+      ],
+      "widgets_values": [
+        2,
+        3
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 51,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "start_frame"
+          },
+          "name": "start_frame",
+          "label": "start_frame",
+          "type": "INT",
+          "localized_name": "start_frame"
+        },
+        {
+          "widget": {
+            "name": "end_frame"
+          },
+          "name": "end_frame",
+          "label": "end_frame",
+          "type": "INT",
+          "localized_name": "end_frame"
+        }
+      ],
+      "flags": {},
+      "id": 37,
+      "type": "BatchThief",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "BatchThief"
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            63,
+            64
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        1793.6842041015625,
+        1699.665283203125
+      ],
+      "widgets_values": [
+        3,
+        4
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 52,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "start_frame"
+          },
+          "name": "start_frame",
+          "label": "start_frame",
+          "type": "INT",
+          "localized_name": "start_frame"
+        },
+        {
+          "widget": {
+            "name": "end_frame"
+          },
+          "name": "end_frame",
+          "label": "end_frame",
+          "type": "INT",
+          "localized_name": "end_frame"
+        }
+      ],
+      "flags": {},
+      "id": 38,
+      "type": "BatchThief",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "BatchThief"
+      },
+      "order": 7
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            65,
+            72
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        1765.2681884765625,
+        1973.436767578125
+      ],
+      "widgets_values": [
+        4,
+        5
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 53,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "start_frame"
+          },
+          "name": "start_frame",
+          "label": "start_frame",
+          "type": "INT",
+          "localized_name": "start_frame"
+        },
+        {
+          "widget": {
+            "name": "end_frame"
+          },
+          "name": "end_frame",
+          "label": "end_frame",
+          "type": "INT",
+          "localized_name": "end_frame"
+        }
+      ],
+      "flags": {},
+      "id": 39,
+      "type": "BatchThief",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "BatchThief"
+      },
+      "order": 8
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            73
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        1718.6529541015625,
+        2202.687744140625
+      ],
+      "widgets_values": [
+        5,
+        6
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 54,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "start_frame"
+          },
+          "name": "start_frame",
+          "label": "start_frame",
+          "type": "INT",
+          "localized_name": "start_frame"
+        },
+        {
+          "widget": {
+            "name": "end_frame"
+          },
+          "name": "end_frame",
+          "label": "end_frame",
+          "type": "INT",
+          "localized_name": "end_frame"
+        }
+      ],
+      "flags": {},
+      "id": 40,
+      "type": "BatchThief",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "BatchThief"
+      },
+      "order": 9
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            15,
+            18
+          ],
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "name": "audio",
+          "links": [
+            19
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "fps",
+          "links": [
+            20,
+            29
+          ],
+          "label": "fps",
+          "type": "FLOAT",
+          "localized_name": "fps"
+        }
+      ],
+      "size": [
+        185.17733764648438,
+        66
+      ],
+      "pos": [
+        3911.966064453125,
+        564.4087524414062
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 55,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "flags": {},
+      "id": 41,
+      "type": "GetVideoComponents",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "order": 35
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Frames",
+          "links": [
+            49,
+            50,
+            51,
+            52,
+            53,
+            54
+          ],
+          "label": "Frames",
+          "type": "IMAGE",
+          "localized_name": "Frames"
+        }
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "pos": [
+        1341.2760009765625,
+        1329.612548828125
+      ],
+      "widgets_values": [
+        3,
+        3
+      ],
+      "inputs": [
+        {
+          "name": "grid",
+          "link": 56,
+          "label": "grid",
+          "type": "IMAGE",
+          "localized_name": "grid"
+        },
+        {
+          "widget": {
+            "name": "rows"
+          },
+          "name": "rows",
+          "label": "rows",
+          "type": "INT",
+          "localized_name": "rows"
+        },
+        {
+          "widget": {
+            "name": "columns"
+          },
+          "name": "columns",
+          "label": "columns",
+          "type": "INT",
+          "localized_name": "columns"
+        }
+      ],
+      "flags": {},
+      "id": 42,
+      "type": "BreakGrid",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "BreakGrid"
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "video",
+          "links": [
+            11
+          ],
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "size": [
+        400,
+        204
+      ],
+      "pos": [
+        2154.728515625,
+        732.03759765625
+      ],
+      "widgets_values": [
+        "[主体/场景]的丝般顺滑、电影级慢动作特写。摄像机进行极其缓慢、沉稳的滑行运镜（heavy drift），在空间中轻松推移，毫无抖动。画面运动流畅且具有催眠感。主体几乎保持完全静止，仅展现出极其微小且刻意的动作——例如缓慢的眨眼、浅浅的呼吸或在原地轻微漂浮——营造出一种时间凝固的氛围。柔和的体积光，8K超高清，天鹅绒般的细腻质感，极致细节",
+        "auto",
+        "5",
+        0,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 57,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "last_image",
+          "label": "last_image",
+          "type": "IMAGE",
+          "localized_name": "last_image"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "aspect_ratio"
+          },
+          "name": "aspect_ratio",
+          "label": "aspect_ratio",
+          "type": "COMBO",
+          "localized_name": "aspect_ratio"
+        },
+        {
+          "widget": {
+            "name": "duration"
+          },
+          "name": "duration",
+          "label": "duration",
+          "type": "COMBO",
+          "localized_name": "duration"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 43,
+      "type": "RH_KlingO1_Image2Video",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_KlingO1_Image2Video"
+      },
+      "order": 10
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "video",
+          "links": [
+            12
+          ],
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "size": [
+        400,
+        204
+      ],
+      "pos": [
+        2193.07861328125,
+        1046.80322265625
+      ],
+      "widgets_values": [
+        "[主体/场景]的丝般顺滑、电影级慢动作特写。摄像机进行极其缓慢、沉稳的滑行运镜（heavy drift），在空间中轻松推移，毫无抖动。画面运动流畅且具有催眠感。主体几乎保持完全静止，仅展现出极其微小且刻意的动作——例如缓慢的眨眼、浅浅的呼吸或在原地轻微漂浮——营造出一种时间凝固的氛围。柔和的体积光，8K超高清，天鹅绒般的细腻质感，极致细节",
+        "auto",
+        "5",
+        0,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 58,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "last_image",
+          "link": 59,
+          "label": "last_image",
+          "type": "IMAGE",
+          "localized_name": "last_image"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "aspect_ratio"
+          },
+          "name": "aspect_ratio",
+          "label": "aspect_ratio",
+          "type": "COMBO",
+          "localized_name": "aspect_ratio"
+        },
+        {
+          "widget": {
+            "name": "duration"
+          },
+          "name": "duration",
+          "label": "duration",
+          "type": "COMBO",
+          "localized_name": "duration"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 44,
+      "type": "RH_KlingO1_Image2Video",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_KlingO1_Image2Video"
+      },
+      "order": 11
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "video",
+          "links": [
+            13
+          ],
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "size": [
+        400,
+        204
+      ],
+      "pos": [
+        2226.19482421875,
+        1417.976318359375
+      ],
+      "widgets_values": [
+        "[主体/场景]的丝般顺滑、电影级慢动作特写。摄像机进行极其缓慢、沉稳的滑行运镜（heavy drift），在空间中轻松推移，毫无抖动。画面运动流畅且具有催眠感。主体几乎保持完全静止，仅展现出极其微小且刻意的动作——例如缓慢的眨眼、浅浅的呼吸或在原地轻微漂浮——营造出一种时间凝固的氛围。柔和的体积光，8K超高清，天鹅绒般的细腻质感，极致细节",
+        "auto",
+        "5",
+        0,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 60,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "last_image",
+          "link": 61,
+          "label": "last_image",
+          "type": "IMAGE",
+          "localized_name": "last_image"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "aspect_ratio"
+          },
+          "name": "aspect_ratio",
+          "label": "aspect_ratio",
+          "type": "COMBO",
+          "localized_name": "aspect_ratio"
+        },
+        {
+          "widget": {
+            "name": "duration"
+          },
+          "name": "duration",
+          "label": "duration",
+          "type": "COMBO",
+          "localized_name": "duration"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 45,
+      "type": "RH_KlingO1_Image2Video",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_KlingO1_Image2Video"
+      },
+      "order": 12
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "video",
+          "links": [
+            14
+          ],
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "size": [
+        400,
+        204
+      ],
+      "pos": [
+        2175.14013671875,
+        1693.942138671875
+      ],
+      "widgets_values": [
+        "[主体/场景]的丝般顺滑、电影级慢动作特写。摄像机进行极其缓慢、沉稳的滑行运镜（heavy drift），在空间中轻松推移，毫无抖动。画面运动流畅且具有催眠感。主体几乎保持完全静止，仅展现出极其微小且刻意的动作——例如缓慢的眨眼、浅浅的呼吸或在原地轻微漂浮——营造出一种时间凝固的氛围。柔和的体积光，8K超高清，天鹅绒般的细腻质感，极致细节",
+        "auto",
+        "5",
+        0,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 62,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "last_image",
+          "link": 63,
+          "label": "last_image",
+          "type": "IMAGE",
+          "localized_name": "last_image"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "aspect_ratio"
+          },
+          "name": "aspect_ratio",
+          "label": "aspect_ratio",
+          "type": "COMBO",
+          "localized_name": "aspect_ratio"
+        },
+        {
+          "widget": {
+            "name": "duration"
+          },
+          "name": "duration",
+          "label": "duration",
+          "type": "COMBO",
+          "localized_name": "duration"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 46,
+      "type": "RH_KlingO1_Image2Video",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_KlingO1_Image2Video"
+      },
+      "order": 13
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "video",
+          "links": [
+            66
+          ],
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "size": [
+        400,
+        204
+      ],
+      "pos": [
+        2135.126708984375,
+        2150.663330078125
+      ],
+      "widgets_values": [
+        "[主体/场景]的丝般顺滑、电影级慢动作特写。摄像机进行极其缓慢、沉稳的滑行运镜（heavy drift），在空间中轻松推移，毫无抖动。画面运动流畅且具有催眠感。主体几乎保持完全静止，仅展现出极其微小且刻意的动作——例如缓慢的眨眼、浅浅的呼吸或在原地轻微漂浮——营造出一种时间凝固的氛围。柔和的体积光，8K超高清，天鹅绒般的细腻质感，极致细节",
+        "auto",
+        "5",
+        0,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 64,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "last_image",
+          "link": 65,
+          "label": "last_image",
+          "type": "IMAGE",
+          "localized_name": "last_image"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "aspect_ratio"
+          },
+          "name": "aspect_ratio",
+          "label": "aspect_ratio",
+          "type": "COMBO",
+          "localized_name": "aspect_ratio"
+        },
+        {
+          "widget": {
+            "name": "duration"
+          },
+          "name": "duration",
+          "label": "duration",
+          "type": "COMBO",
+          "localized_name": "duration"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 47,
+      "type": "RH_KlingO1_Image2Video",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_KlingO1_Image2Video"
+      },
+      "order": 14
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            42
+          ],
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "name": "audio",
+          "links": [
+            43
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "fps",
+          "links": [
+            44
+          ],
+          "label": "fps",
+          "type": "FLOAT",
+          "localized_name": "fps"
+        }
+      ],
+      "size": [
+        185.17733764648438,
+        66
+      ],
+      "pos": [
+        2731.63525390625,
+        2860.077880859375
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 66,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "flags": {},
+      "id": 48,
+      "type": "GetVideoComponents",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "order": 20
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AFVIDEO",
+          "links": [
+            78
+          ],
+          "label": "AFVIDEO",
+          "type": "VIDEO",
+          "localized_name": "AFVIDEO"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        3541.423583984375,
+        2928.84814453125
+      ],
+      "widgets_values": [
+        3
+      ],
+      "inputs": [
+        {
+          "name": "filenames",
+          "link": 67,
+          "label": "filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "filenames"
+        },
+        {
+          "widget": {
+            "name": "sleep"
+          },
+          "name": "sleep",
+          "label": "sleep",
+          "type": "INT",
+          "localized_name": "sleep"
+        }
+      ],
+      "flags": {},
+      "id": 49,
+      "type": "VideoUtilitiesGetVHSFilePath",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VideoUtilitiesGetVHSFilePath"
+      },
+      "order": 32
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Filenames",
+          "links": [
+            80
+          ],
+          "label": "Filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "Filenames"
+        }
+      ],
+      "size": [
+        214.7587890625,
+        358
+      ],
+      "pos": [
+        2949.593505859375,
+        3378.386474609375
+      ],
+      "widgets_values": {
+        "save_output": true,
+        "filename_prefix": "AnimateDiff",
+        "loop_count": 0,
+        "pix_fmt": "yuv420p",
+        "save_metadata": true,
+        "crf": 19,
+        "trim_to_audio": false,
+        "videopreview": {
+          "paused": false,
+          "hidden": false,
+          "params": {}
+        },
+        "format": "video/h264-mp4",
+        "no_preview": false,
+        "frame_rate": 8,
+        "pingpong": false
+      },
+      "inputs": [
+        {
+          "name": "images",
+          "link": 68,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "shape": 7,
+          "name": "audio",
+          "link": 69,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "shape": 7,
+          "name": "meta_batch",
+          "label": "meta_batch",
+          "type": "VHS_BatchManager",
+          "localized_name": "meta_batch"
+        },
+        {
+          "shape": 7,
+          "name": "vae",
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "widget": {
+            "name": "frame_rate"
+          },
+          "name": "frame_rate",
+          "link": 70,
+          "label": "frame_rate",
+          "type": "FLOAT",
+          "localized_name": "frame_rate"
+        },
+        {
+          "widget": {
+            "name": "loop_count"
+          },
+          "name": "loop_count",
+          "label": "loop_count",
+          "type": "INT",
+          "localized_name": "loop_count"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "format"
+          },
+          "name": "format",
+          "label": "format",
+          "type": "COMBO",
+          "localized_name": "format"
+        },
+        {
+          "widget": {
+            "name": "pingpong"
+          },
+          "name": "pingpong",
+          "label": "pingpong",
+          "type": "BOOLEAN",
+          "localized_name": "pingpong"
+        },
+        {
+          "widget": {
+            "name": "save_output"
+          },
+          "name": "save_output",
+          "label": "save_output",
+          "type": "BOOLEAN",
+          "localized_name": "save_output"
+        },
+        {
+          "widget": {
+            "name": "no_preview"
+          },
+          "shape": 7,
+          "name": "no_preview",
+          "label": "no_preview",
+          "type": "BOOLEAN",
+          "localized_name": "no_preview"
+        }
+      ],
+      "flags": {},
+      "id": 50,
+      "type": "VHS_VideoCombine",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "order": 27
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "images",
+          "links": [
+            68
+          ],
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "name": "audio",
+          "links": [
+            69
+          ],
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "audio"
+        },
+        {
+          "name": "fps",
+          "links": [
+            70
+          ],
+          "label": "fps",
+          "type": "FLOAT",
+          "localized_name": "fps"
+        }
+      ],
+      "size": [
+        185.17733764648438,
+        66
+      ],
+      "pos": [
+        2600.59521484375,
+        3364.386474609375
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "link": 71,
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "flags": {},
+      "id": 51,
+      "type": "GetVideoComponents",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "order": 21
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "video",
+          "links": [
+            71
+          ],
+          "label": "video",
+          "type": "VIDEO",
+          "localized_name": "video"
+        }
+      ],
+      "size": [
+        400,
+        204
+      ],
+      "pos": [
+        2073.034912109375,
+        2775.723876953125
+      ],
+      "widgets_values": [
+        "[主体/场景]的丝般顺滑、电影级慢动作特写。摄像机进行极其缓慢、沉稳的滑行运镜（heavy drift），在空间中轻松推移，毫无抖动。画面运动流畅且具有催眠感。主体几乎保持完全静止，仅展现出极其微小且刻意的动作——例如缓慢的眨眼、浅浅的呼吸或在原地轻微漂浮——营造出一种时间凝固的氛围。柔和的体积光，8K超高清，天鹅绒般的细腻质感，极致细节",
+        "auto",
+        "5",
+        0,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 72,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "shape": 7,
+          "name": "last_image",
+          "link": 73,
+          "label": "last_image",
+          "type": "IMAGE",
+          "localized_name": "last_image"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "aspect_ratio"
+          },
+          "name": "aspect_ratio",
+          "label": "aspect_ratio",
+          "type": "COMBO",
+          "localized_name": "aspect_ratio"
+        },
+        {
+          "widget": {
+            "name": "duration"
+          },
+          "name": "duration",
+          "label": "duration",
+          "type": "COMBO",
+          "localized_name": "duration"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 52,
+      "type": "RH_KlingO1_Image2Video",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_KlingO1_Image2Video"
+      },
+      "order": 15
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "stitched_video",
+          "links": [
+            55
+          ],
+          "label": "stitched_video",
+          "type": "VIDEO",
+          "localized_name": "stitched_video"
+        },
+        {
+          "name": "video_path",
+          "label": "video_path",
+          "type": "STRING",
+          "localized_name": "video_path"
+        },
+        {
+          "name": "AFVIDEO",
+          "label": "AFVIDEO",
+          "type": "VIDEO",
+          "localized_name": "AFVIDEO"
+        }
+      ],
+      "size": [
+        281.404296875,
+        414
+      ],
+      "pos": [
+        4253.9609375,
+        2883.0859375
+      ],
+      "widgets_values": [
+        "",
+        "concat",
+        "high",
+        true,
+        false,
+        0,
+        true,
+        "fade",
+        true,
+        false
+      ],
+      "inputs": [
+        {
+          "name": "video1",
+          "link": 74,
+          "label": "video1",
+          "type": "VIDEO",
+          "localized_name": "video1"
+        },
+        {
+          "shape": 7,
+          "name": "video2",
+          "link": 75,
+          "label": "video2",
+          "type": "VIDEO",
+          "localized_name": "video2"
+        },
+        {
+          "shape": 7,
+          "name": "video3",
+          "link": 76,
+          "label": "video3",
+          "type": "VIDEO",
+          "localized_name": "video3"
+        },
+        {
+          "shape": 7,
+          "name": "video4",
+          "link": 77,
+          "label": "video4",
+          "type": "VIDEO",
+          "localized_name": "video4"
+        },
+        {
+          "shape": 7,
+          "name": "video5",
+          "link": 78,
+          "label": "video5",
+          "type": "VIDEO",
+          "localized_name": "video5"
+        },
+        {
+          "shape": 7,
+          "name": "video6",
+          "link": 79,
+          "label": "video6",
+          "type": "VIDEO",
+          "localized_name": "video6"
+        },
+        {
+          "shape": 7,
+          "name": "video7",
+          "label": "video7",
+          "type": "VIDEO",
+          "localized_name": "video7"
+        },
+        {
+          "shape": 7,
+          "name": "video8",
+          "label": "video8",
+          "type": "VIDEO",
+          "localized_name": "video8"
+        },
+        {
+          "widget": {
+            "name": "output_filename"
+          },
+          "shape": 7,
+          "name": "output_filename",
+          "label": "output_filename",
+          "type": "STRING",
+          "localized_name": "output_filename"
+        },
+        {
+          "widget": {
+            "name": "stitch_method"
+          },
+          "shape": 7,
+          "name": "stitch_method",
+          "label": "stitch_method",
+          "type": "COMBO",
+          "localized_name": "stitch_method"
+        },
+        {
+          "widget": {
+            "name": "output_quality"
+          },
+          "shape": 7,
+          "name": "output_quality",
+          "label": "output_quality",
+          "type": "COMBO",
+          "localized_name": "output_quality"
+        },
+        {
+          "widget": {
+            "name": "scale_videos"
+          },
+          "shape": 7,
+          "name": "scale_videos",
+          "label": "scale_videos",
+          "type": "BOOLEAN",
+          "localized_name": "scale_videos"
+        },
+        {
+          "widget": {
+            "name": "smooth_transitions"
+          },
+          "shape": 7,
+          "name": "smooth_transitions",
+          "label": "smooth_transitions",
+          "type": "BOOLEAN",
+          "localized_name": "smooth_transitions"
+        },
+        {
+          "widget": {
+            "name": "transition_duration"
+          },
+          "shape": 7,
+          "name": "transition_duration",
+          "label": "transition_duration",
+          "type": "FLOAT",
+          "localized_name": "transition_duration"
+        },
+        {
+          "widget": {
+            "name": "force_keyframes"
+          },
+          "shape": 7,
+          "name": "force_keyframes",
+          "label": "force_keyframes",
+          "type": "BOOLEAN",
+          "localized_name": "force_keyframes"
+        },
+        {
+          "widget": {
+            "name": "transition_type"
+          },
+          "shape": 7,
+          "name": "transition_type",
+          "label": "transition_type",
+          "type": "COMBO",
+          "localized_name": "transition_type"
+        },
+        {
+          "widget": {
+            "name": "motion_compensation"
+          },
+          "shape": 7,
+          "name": "motion_compensation",
+          "label": "motion_compensation",
+          "type": "BOOLEAN",
+          "localized_name": "motion_compensation"
+        },
+        {
+          "widget": {
+            "name": "edge_enhancement"
+          },
+          "shape": 7,
+          "name": "edge_enhancement",
+          "label": "edge_enhancement",
+          "type": "BOOLEAN",
+          "localized_name": "edge_enhancement"
+        }
+      ],
+      "flags": {},
+      "id": 53,
+      "type": "VideoStitchingNode",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VideoStitchingNode"
+      },
+      "order": 34
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AFVIDEO",
+          "links": [
+            79
+          ],
+          "label": "AFVIDEO",
+          "type": "VIDEO",
+          "localized_name": "AFVIDEO"
+        }
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "pos": [
+        3410.381591796875,
+        3433.15673828125
+      ],
+      "widgets_values": [
+        3
+      ],
+      "inputs": [
+        {
+          "name": "filenames",
+          "link": 80,
+          "label": "filenames",
+          "type": "VHS_FILENAMES",
+          "localized_name": "filenames"
+        },
+        {
+          "widget": {
+            "name": "sleep"
+          },
+          "name": "sleep",
+          "label": "sleep",
+          "type": "INT",
+          "localized_name": "sleep"
+        }
+      ],
+      "flags": {},
+      "id": 54,
+      "type": "VideoUtilitiesGetVHSFilePath",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VideoUtilitiesGetVHSFilePath"
+      },
+      "order": 33
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        298.3472595214844,
+        106
+      ],
+      "pos": [
+        1356.6866455078125,
+        936.4361572265625
+      ],
+      "widgets_values": [
+        "output_image",
+        "ComfyUI",
+        false
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 81,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "output_name"
+          },
+          "name": "output_name",
+          "label": "output_name",
+          "type": "STRING",
+          "localized_name": "output_name"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        },
+        {
+          "widget": {
+            "name": "encrypt"
+          },
+          "name": "encrypt",
+          "label": "encrypt",
+          "type": "BOOLEAN",
+          "localized_name": "encrypt"
+        }
+      ],
+      "flags": {},
+      "id": 55,
+      "type": "ShellAgentPluginSaveImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShellAgentPluginSaveImage"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            56,
+            81
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "size": [
+        400,
+        364
+      ],
+      "pos": [
+        794.2125244140625,
+        476.1133728027344
+      ],
+      "widgets_values": [
+        "\n\n# SYSTEM INSTRUCTION: SEAMLESS 3×3 CINEMATIC CONTACT SHEET GENERATOR\n\n**PHASE 1: THEMATIC ANALYSIS & MOOD DETECTION**\nUpon receiving an input image, you must silently analyze and \"imprint\" the following:\n*   **Thematic DNA:** Detect the aesthetic vibe (e.g., \"Cyberpunk Minimalism,\" \"Gritty Neo-Noir,\" \"Distorted Luxury\").\n*   **Wardrobe Inventory:** Catalogue every texture (knit, vinyl, metal), branding (stitching, logos), and closure (zippers, buttons).\n*   **Subject Fidelity:** Map the specific age details, skin moisture (oil/sweat), and bone structure.\n*   **Film Grade:** Apply a **Fuji Velvia** aesthetic: Overexposed, high-saturation, heavy grain, and a **hard-direct flash** causing harsh white reflections.\n\n**PHASE 2: THE \"ZERO-GUTTER\" ARCHITECTURE**\n*   **Seamless Grid:** The final output must be a single image containing a 3×3 grid of 9 frames.\n*   **No Borderlines:** There must be **zero pixels** of white, black, or gray space between the frames. The images must be **abutting** and **edge-to-edge**, creating a continuous visual block.\n\n---\n\n### REQUIRED 9-FRAME SHOT LIST (ALL RESTING FRAMES)\n\n1.  **High-Fashion Beauty Portrait:** Close, intimate, focusing on skin texture and the gold chain. Sculptural lighting.\n2.  **Top-Down Shape Abstraction:** Camera directly overhead. The subject is seated or squatting, turning the wardrobe into a geometric form.\n3.  **Low-Angle Oblique Full-Body:** Camera at floor level, angled up. Elongates the silhouette and highlights footwear.\n4.  **The Wide Studio Environment:** Shows the full car/set, the cyclorama background, and the massive overhead softbox.\n5.  **The Defiant Tilt:** High-angle boom shot. Subject tilts head back to look at the lens while pulling glasses down. Distant expression.\n6.  **The Macro Fragment:** Extreme close-up from a non-intuitive angle (e.g., a zipper tooth or a specific fabric weave).\n7.  **The Dutch Tilt Mid-Shot:** Camera rotated 45 degrees. Captures the subject's torso and hands in a dynamic, unstable composition.\n8.  **The Sharp Profile:** Eye-level side view. Focuses on the silhouette of the face and the stacking of the clothing materials.\n9.  **The Reverse Low-Angle:** Looking at the subject from behind/below. Emphasizes back-detailing and hair texture.\n\n---\n\n### CONTINUITY & TECHNICAL REQUIREMENTS\n*   **Seamlessness:** Maintain 100% fidelity of the model, wardrobe (red top, Ducati pants, gold chain), and environment across all 9 frames.\n*   **Lighting Falloff:** Light must be concentrated on the subject and fade naturally toward the edges of each individual frame.\n*   **Hard Flash:** Every frame must exhibit the harsh, shiny, oily skin texture and specular reflections characteristic of a direct flash.\n*   **Non-Linearity:** The frames must not follow a chronological or logical sequence; they must feel like 9 distinct camera positions from the same shoot.\n\n---\n\n### OUTPUT FORMAT\n\n**A) 3×3 SEAMLESS CONTACT SHEET IMAGE**\n*   Output a single 3×3 grid.\n*   **Strict Constraint:** Edge-to-edge frames with **no borders, no gutters, and no separator lines**.\n\n**B) KEYFRAME BREAKDOWN**\n*   Provide a numbered list (1–9).\n*   For each frame: Describe the **final camera position** and the **subject's action**.\n*   Do not describe motion; only the resting point.\n\n***\n",
+        "1024x1024",
+        "high",
+        -1,
+        "randomize"
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "image1",
+          "link": 82,
+          "label": "image1",
+          "type": "IMAGE",
+          "localized_name": "image1"
+        },
+        {
+          "shape": 7,
+          "name": "image2",
+          "label": "image2",
+          "type": "IMAGE",
+          "localized_name": "image2"
+        },
+        {
+          "shape": 7,
+          "name": "image3",
+          "label": "image3",
+          "type": "IMAGE",
+          "localized_name": "image3"
+        },
+        {
+          "shape": 7,
+          "name": "image4",
+          "label": "image4",
+          "type": "IMAGE",
+          "localized_name": "image4"
+        },
+        {
+          "shape": 7,
+          "name": "image5",
+          "label": "image5",
+          "type": "IMAGE",
+          "localized_name": "image5"
+        },
+        {
+          "shape": 7,
+          "name": "image6",
+          "label": "image6",
+          "type": "IMAGE",
+          "localized_name": "image6"
+        },
+        {
+          "shape": 7,
+          "name": "image7",
+          "label": "image7",
+          "type": "IMAGE",
+          "localized_name": "image7"
+        },
+        {
+          "shape": 7,
+          "name": "image8",
+          "label": "image8",
+          "type": "IMAGE",
+          "localized_name": "image8"
+        },
+        {
+          "shape": 7,
+          "name": "image9",
+          "label": "image9",
+          "type": "IMAGE",
+          "localized_name": "image9"
+        },
+        {
+          "shape": 7,
+          "name": "image10",
+          "label": "image10",
+          "type": "IMAGE",
+          "localized_name": "image10"
+        },
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "size"
+          },
+          "name": "size",
+          "label": "size",
+          "type": "COMBO",
+          "localized_name": "size"
+        },
+        {
+          "widget": {
+            "name": "quality"
+          },
+          "name": "quality",
+          "label": "quality",
+          "type": "COMBO",
+          "localized_name": "quality"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "shape": 7,
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        }
+      ],
+      "flags": {},
+      "id": 56,
+      "type": "RH_GPT_Image15",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_GPT_Image15"
+      },
+      "order": 1
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            82
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        },
+        {
+          "name": "MASK",
+          "label": "MASK",
+          "type": "MASK",
+          "localized_name": "MASK"
+        }
+      ],
+      "size": [
+        297.5747985839844,
+        362
+      ],
+      "pos": [
+        355.99267578125,
+        643.8644409179688
+      ],
+      "widgets_values": [
+        "input_image",
+        "9bd2009b39e08aa0ef517f6524d1308ba9cbbaf7d655baaaae7b413b3f7de124.webp",
+        "image",
+        ""
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "input_name"
+          },
+          "name": "input_name",
+          "label": "input_name",
+          "type": "STRING",
+          "localized_name": "input_name"
+        },
+        {
+          "widget": {
+            "name": "default_value"
+          },
+          "name": "default_value",
+          "label": "default_value",
+          "type": "COMBO",
+          "localized_name": "default_value"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "upload"
+        },
+        {
+          "widget": {
+            "name": "description"
+          },
+          "shape": 7,
+          "name": "description",
+          "label": "description",
+          "type": "STRING",
+          "localized_name": "description"
+        }
+      ],
+      "flags": {},
+      "id": 57,
+      "type": "ShellAgentPluginInputImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShellAgentPluginInputImage"
+      },
+      "order": 0
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        254.53873697916674,
+        116.61572604709204
+      ],
+      "scale": 0.9106820604478063
+    }
+  },
+  "groups": [],
+  "links": [
+    [
+      11,
+      43,
+      0,
+      13,
+      0,
+      "VIDEO"
+    ],
+    [
+      12,
+      44,
+      0,
+      14,
+      0,
+      "VIDEO"
+    ],
+    [
+      13,
+      45,
+      0,
+      15,
+      0,
+      "VIDEO"
+    ],
+    [
+      14,
+      46,
+      0,
+      16,
+      0,
+      "VIDEO"
+    ],
+    [
+      15,
+      41,
+      0,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      16,
+      20,
+      0,
+      18,
+      0,
+      "VHS_FILENAMES"
+    ],
+    [
+      17,
+      25,
+      0,
+      19,
+      0,
+      "VHS_FILENAMES"
+    ],
+    [
+      18,
+      41,
+      0,
+      20,
+      0,
+      "IMAGE"
+    ],
+    [
+      19,
+      41,
+      1,
+      20,
+      1,
+      "AUDIO"
+    ],
+    [
+      20,
+      41,
+      2,
+      20,
+      4,
+      "FLOAT"
+    ],
+    [
+      21,
+      22,
+      0,
+      21,
+      0,
+      "VIDEO"
+    ],
+    [
+      22,
+      18,
+      0,
+      22,
+      0,
+      "VIDEO"
+    ],
+    [
+      23,
+      19,
+      0,
+      22,
+      1,
+      "VIDEO"
+    ],
+    [
+      24,
+      21,
+      0,
+      23,
+      0,
+      "IMAGE"
+    ],
+    [
+      25,
+      21,
+      1,
+      23,
+      1,
+      "AUDIO"
+    ],
+    [
+      26,
+      21,
+      2,
+      23,
+      4,
+      "FLOAT"
+    ],
+    [
+      27,
+      23,
+      0,
+      24,
+      0,
+      "VHS_FILENAMES"
+    ],
+    [
+      28,
+      17,
+      0,
+      25,
+      0,
+      "IMAGE"
+    ],
+    [
+      29,
+      41,
+      2,
+      25,
+      4,
+      "FLOAT"
+    ],
+    [
+      30,
+      13,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ],
+    [
+      31,
+      13,
+      1,
+      26,
+      1,
+      "AUDIO"
+    ],
+    [
+      32,
+      13,
+      2,
+      26,
+      4,
+      "FLOAT"
+    ],
+    [
+      33,
+      14,
+      0,
+      27,
+      0,
+      "IMAGE"
+    ],
+    [
+      34,
+      14,
+      1,
+      27,
+      1,
+      "AUDIO"
+    ],
+    [
+      35,
+      14,
+      2,
+      27,
+      4,
+      "FLOAT"
+    ],
+    [
+      36,
+      15,
+      0,
+      28,
+      0,
+      "IMAGE"
+    ],
+    [
+      37,
+      15,
+      1,
+      28,
+      1,
+      "AUDIO"
+    ],
+    [
+      38,
+      15,
+      2,
+      28,
+      4,
+      "FLOAT"
+    ],
+    [
+      39,
+      16,
+      0,
+      29,
+      0,
+      "IMAGE"
+    ],
+    [
+      40,
+      16,
+      1,
+      29,
+      1,
+      "AUDIO"
+    ],
+    [
+      41,
+      16,
+      2,
+      29,
+      4,
+      "FLOAT"
+    ],
+    [
+      42,
+      48,
+      0,
+      30,
+      0,
+      "IMAGE"
+    ],
+    [
+      43,
+      48,
+      1,
+      30,
+      1,
+      "AUDIO"
+    ],
+    [
+      44,
+      48,
+      2,
+      30,
+      4,
+      "FLOAT"
+    ],
+    [
+      45,
+      26,
+      0,
+      31,
+      0,
+      "VHS_FILENAMES"
+    ],
+    [
+      46,
+      27,
+      0,
+      32,
+      0,
+      "VHS_FILENAMES"
+    ],
+    [
+      47,
+      28,
+      0,
+      33,
+      0,
+      "VHS_FILENAMES"
+    ],
+    [
+      48,
+      29,
+      0,
+      34,
+      0,
+      "VHS_FILENAMES"
+    ],
+    [
+      49,
+      42,
+      0,
+      35,
+      0,
+      "IMAGE"
+    ],
+    [
+      50,
+      42,
+      0,
+      36,
+      0,
+      "IMAGE"
+    ],
+    [
+      51,
+      42,
+      0,
+      37,
+      0,
+      "IMAGE"
+    ],
+    [
+      52,
+      42,
+      0,
+      38,
+      0,
+      "IMAGE"
+    ],
+    [
+      53,
+      42,
+      0,
+      39,
+      0,
+      "IMAGE"
+    ],
+    [
+      54,
+      42,
+      0,
+      40,
+      0,
+      "IMAGE"
+    ],
+    [
+      55,
+      53,
+      0,
+      41,
+      0,
+      "VIDEO"
+    ],
+    [
+      56,
+      56,
+      0,
+      42,
+      0,
+      "IMAGE"
+    ],
+    [
+      57,
+      35,
+      0,
+      43,
+      0,
+      "IMAGE"
+    ],
+    [
+      58,
+      35,
+      0,
+      44,
+      0,
+      "IMAGE"
+    ],
+    [
+      59,
+      36,
+      0,
+      44,
+      1,
+      "IMAGE"
+    ],
+    [
+      60,
+      36,
+      0,
+      45,
+      0,
+      "IMAGE"
+    ],
+    [
+      61,
+      37,
+      0,
+      45,
+      1,
+      "IMAGE"
+    ],
+    [
+      62,
+      37,
+      0,
+      46,
+      0,
+      "IMAGE"
+    ],
+    [
+      63,
+      38,
+      0,
+      46,
+      1,
+      "IMAGE"
+    ],
+    [
+      64,
+      38,
+      0,
+      47,
+      0,
+      "IMAGE"
+    ],
+    [
+      65,
+      39,
+      0,
+      47,
+      1,
+      "IMAGE"
+    ],
+    [
+      66,
+      47,
+      0,
+      48,
+      0,
+      "VIDEO"
+    ],
+    [
+      67,
+      30,
+      0,
+      49,
+      0,
+      "VHS_FILENAMES"
+    ],
+    [
+      68,
+      51,
+      0,
+      50,
+      0,
+      "IMAGE"
+    ],
+    [
+      69,
+      51,
+      1,
+      50,
+      1,
+      "AUDIO"
+    ],
+    [
+      70,
+      51,
+      2,
+      50,
+      4,
+      "FLOAT"
+    ],
+    [
+      71,
+      52,
+      0,
+      51,
+      0,
+      "VIDEO"
+    ],
+    [
+      72,
+      39,
+      0,
+      52,
+      0,
+      "IMAGE"
+    ],
+    [
+      73,
+      40,
+      0,
+      52,
+      1,
+      "IMAGE"
+    ],
+    [
+      74,
+      31,
+      0,
+      53,
+      0,
+      "VIDEO"
+    ],
+    [
+      75,
+      32,
+      0,
+      53,
+      1,
+      "VIDEO"
+    ],
+    [
+      76,
+      33,
+      0,
+      53,
+      2,
+      "VIDEO"
+    ],
+    [
+      77,
+      34,
+      0,
+      53,
+      3,
+      "VIDEO"
+    ],
+    [
+      78,
+      49,
+      0,
+      53,
+      4,
+      "VIDEO"
+    ],
+    [
+      79,
+      54,
+      0,
+      53,
+      5,
+      "VIDEO"
+    ],
+    [
+      80,
+      50,
+      0,
+      54,
+      0,
+      "VHS_FILENAMES"
+    ],
+    [
+      81,
+      56,
+      0,
+      55,
+      0,
+      "IMAGE"
+    ],
+    [
+      82,
+      57,
+      0,
+      56,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "id": "6791da5d-5762-48e4-96ce-e25a685f39c7",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 57,
+  "revision": 0
+}

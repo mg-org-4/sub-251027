@@ -8,7 +8,6 @@ from numbers import Number
 from abc import ABC, abstractmethod
 from functools import reduce, partial
 import operator
-from sortedcontainers import SortedDict
 from typing import Tuple, Optional, Union, Dict, Callable
 from collections import UserDict
 import random, string

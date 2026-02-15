@@ -1,16 +1,30 @@
+from __future__ import annotations
+import os
+import io
+import json
+import time
+import wave
+import hashlib
+import zipfile
+import numpy as np
+import torch
+from PIL import Image, ImageOps
+from PIL.PngImagePlugin import PngInfo
+from typing import Dict, Any, Optional, Tuple, List
+import folder_paths
+import node_helpers
+from comfy.cli_args import args
+from comfy_api.input_impl import VideoFromFile
+
+#--------------------------------------------------------------------
 
 from nodes import MAX_RESOLUTION, SaveImage, common_ksampler
-import torch
 import os
 import sys
-import folder_paths
 import random
 from pathlib import Path
 from PIL.PngImagePlugin import PngInfo
-import json
-
 from comfy.cli_args import args
-import numpy as np
 import inspect
 import re
 import traceback
@@ -20,14 +34,10 @@ from server import PromptServer
 from aiohttp import web
 from PIL import Image, ImageOps, ImageSequence
 import node_helpers
-import hashlib
 import ast
-import io
 import base64
-from typing import List, Dict, Any,Tuple,Optional
 import glob
 import torch.nn.functional as F
-
 
 
 
@@ -39,13 +49,17 @@ from ..office_unit import ImageCompositeMasked
 #---------------------安全导入------
 try:
     import cv2
-    REMOVER_AVAILABLE = True  # 导入成功时设置为True
+    REMOVER_AVAILABLE = True  
 except ImportError:
     cv2 = None
-    REMOVER_AVAILABLE = False  # 导入失败时设置为False
+    REMOVER_AVAILABLE = False  
 
-
-
+try:
+    import soundfile as _sf
+    SOUNDFILE_AVAILABLE = True
+except ImportError:
+    _sf = None
+    SOUNDFILE_AVAILABLE = False
 
 
 
@@ -60,11 +74,7 @@ def updateTextWidget(node, widget, text):
 routes = PromptServer.instance.routes
 
 
-
-
 #region-----------------------收纳-------------------------------------------------------#
-
-
 
 
 
@@ -89,43 +99,32 @@ class view_mask(SaveImage):
     DESCRIPTION = "show mask"
     
     def execute(self, mask, filename_prefix="ComfyUI", prompt=None, extra_pnginfo=None):
-        # 处理列表类型的遮罩
         if isinstance(mask, list):
-            # 存储所有处理后的遮罩
             processed_masks = []
             for m in mask:
-                # 确保每个元素都是张量
                 if isinstance(m, torch.Tensor):
                     processed = self.process_single_mask(m)
                     processed_masks.append(processed)
             
-            # 合并所有遮罩为一个批次
             if processed_masks:
                 preview = torch.cat(processed_masks, dim=0)
             else:
-                # 处理空列表情况
                 return {"ui": {"images": []}}
-        # 处理单个张量遮罩
         elif isinstance(mask, torch.Tensor):
             preview = self.process_single_mask(mask)
         else:
-            # 处理其他不支持的类型
             return {"ui": {"images": []}}
         
         return self.save_images(preview, filename_prefix, prompt, extra_pnginfo)
     
     def process_single_mask(self, mask_tensor):
-        """处理单个遮罩张量，转换为正确的预览格式"""
-        # 根据张量维度进行不同处理
-        if mask_tensor.dim() == 2:  # 形状为 (H, W)
-            # 添加批次和通道维度: (1, 1, H, W) -> 转换后 (1, H, W, 3)
+        if mask_tensor.dim() == 2:
             return mask_tensor.unsqueeze(0).unsqueeze(0).movedim(1, -1).expand(-1, -1, -1, 3)
-        elif mask_tensor.dim() == 3:  # 形状为 (B, H, W) 或 (1, H, W)
-            # 添加通道维度并转换: (B, 1, H, W) -> (B, H, W, 3)
+        elif mask_tensor.dim() == 3:
             return mask_tensor.unsqueeze(1).movedim(1, -1).expand(-1, -1, -1, 3)
-        else:  # 其他维度，使用reshape确保兼容性
+        else:
             return mask_tensor.reshape((-1, 1, mask_tensor.shape[-2], mask_tensor.shape[-1])).movedim(1, -1).expand(-1, -1, -1, 3)
-    
+
 
 
 class view_combo:     # web_node/view_Data_text.js
@@ -367,11 +366,11 @@ class view_Data:
 
     RETURN_TYPES = (anyType,)  
     RETURN_NAMES = ("record",)  
-    INPUT_IS_LIST = (True,)
     OUTPUT_NODE = True
     NAME = "view_Data"
     CATEGORY = "Apt_Preset/PreView"
     FUNCTION = "process"
+    INPUT_IS_LIST = True
 
     def process(self, data, unique_id, any=None):
         displayText = self.render(any)
@@ -1027,118 +1026,6 @@ class IO_image_select:
 
 
 
-class IO_loadFilePath:
-    @classmethod
-    def INPUT_TYPES(cls) -> dict:
-        comfy_folder_options = list(folder_paths.folder_names_and_paths.keys()) if (folder_paths and hasattr(folder_paths, 'folder_names_and_paths')) else []
-        return {
-            "required": {
-                "folder_path": ("STRING", {
-                    "multiline": False,
-                    "default": "",
-                    "placeholder": "绝对路径或相对路径"
-                }),
-                "recursive": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": "递归，展开所有文件夹里的文件"
-                }),
-                "include_extensions": ("STRING", {
-                    "multiline": False,
-                    "default": "",
-                    "tooltip": "过滤扩展名（例：.png,.jpg 多个用逗号分隔，留空匹配所有文件）"
-                }),
-                "remove_extension": ("BOOLEAN", {
-                    "default": False,
-                    "tooltip": "控制输出的文件名是否包含扩展名"
-                }),
-            },
-            "optional": {
-                "comfy_folder": (comfy_folder_options,),
-            }
-        }
-
-    RETURN_TYPES = ("STRING", "STRING", "STRING",)
-    RETURN_NAMES = ("file_names", "file_paths", "paths_list",)
-    FUNCTION = "get_file_paths"
-    CATEGORY = "Apt_Preset/IO_Port"
-    OUTPUT_IS_LIST = (True, False, True)
-
-    def get_file_paths(
-        self,
-        folder_path: str,
-        recursive: bool = True,
-        include_extensions: str = "",
-        remove_extension: bool = False,
-        comfy_folder: Optional[str] = None
-    ) -> Tuple[List[str], str, List[str]]:
-        folder_path = folder_path.strip().strip('"')
-        
-        if comfy_folder and folder_paths and hasattr(folder_paths, 'folder_names_and_paths'):
-            comfy_folder_data = folder_paths.folder_names_and_paths.get(comfy_folder)
-            if comfy_folder_data and isinstance(comfy_folder_data, (list, tuple)) and len(comfy_folder_data) > 0:
-                base_paths = comfy_folder_data[0]
-                if isinstance(base_paths, (list, tuple)) and len(base_paths) > 0:
-                    base_path = base_paths[0]
-                else:
-                    base_path = base_paths
-
-                if isinstance(base_path, str) and folder_path.strip():
-                    folder_path = os.path.join(base_path, folder_path.strip())
-                elif isinstance(base_path, str):
-                    folder_path = base_path
-
-        if folder_path.strip():
-            if not os.path.isabs(folder_path):
-                base_dir = folder_paths.base_path if (folder_paths and hasattr(folder_paths, 'base_path')) else ""
-                folder_path = os.path.abspath(os.path.join(base_dir, folder_path))
-
-            if not os.path.isdir(folder_path):
-                print(f"警告：文件夹不存在或不是目录：{folder_path}")
-                return ([], "", [])
-        else:
-            print("警告：文件夹路径为空")
-            return ([], "", [])
-
-        extensions = []
-        if include_extensions.strip():
-            extensions = [ext.strip().lower() for ext in include_extensions.split(",") if ext.strip()]
-
-        file_paths = []
-        file_names = []
-
-        try:
-            for root, dirs, files in os.walk(folder_path):
-                for file in files:
-                    if extensions:
-                        file_ext = os.path.splitext(file)[1].lower()
-                        if file_ext not in extensions:
-                            continue
-
-                    full_path = os.path.abspath(os.path.join(root, file))
-                    file_paths.append(full_path)
-                    
-                    if remove_extension:
-                        file_names.append(os.path.splitext(file)[0])
-                    else:
-                        file_names.append(file)
-
-                if not recursive:
-                    break
-        except Exception as e:
-            print(f"获取文件路径失败：{str(e)}")
-            return ([], "", [])
-
-        sorted_files = sorted(zip(file_names, file_paths), key=lambda x: x[1])
-        file_names, file_paths = zip(*sorted_files) if sorted_files else ([], [])
-        
-        paths_string = "\n".join(file_paths) if file_paths else ""
-        paths_list = list(file_paths)
-
-        return (list(file_names), paths_string, paths_list)
-
-
-
-
 class IO_save_image:
     def __init__(self):
         self.type = "output"
@@ -1153,7 +1040,15 @@ class IO_save_image:
                 "filename_mid": ("STRING", {"default": "Apt"}),
             },
             "optional": {
-                "number_prefix": ("BOOLEAN", {"default": False, "label_on": "前置编号", "label_off": "后置编号"}),
+                "naming_format": (
+                    [
+                        "序号",
+                        "命名+序号",
+                        "序号+命名",
+                        "命名",
+                    ],
+                    {"default": "命名+序号"}
+                ),
                 "number_digits": ("INT", {"default": 5, "min": 1, "max": 10, "step": 1}),
                 "save_workflow_as_json": ("BOOLEAN", {"default": False}),
             },
@@ -1175,20 +1070,47 @@ class IO_save_image:
         highest_value = -1
         if not os.path.exists(directory):
             return highest_value
+        
         for filename in os.listdir(directory):
-            if filename.startswith(filename_mid):
-                try:
-                    numeric_part = filename[len(filename_mid):]
-                    numeric_str = re.search(r'\d+', numeric_part).group()
-                    numeric_value = int(numeric_str)
-                    if numeric_value > highest_value:
-                        highest_value = numeric_value
-                except (ValueError, AttributeError):
-                    continue
+            try:
+                # 尝试匹配常见的编号模式
+                # 1. 纯数字格式：00001.png
+                # 2. 前缀_编号格式：8a_00001.png
+                # 3. 编号_后缀格式：00001_8a.png
+                
+                # 首先尝试提取末尾的数字（通常是编号）
+                name_part = filename.split('.')[0]
+                parts = name_part.split('_')
+                for part in reversed(parts):
+                    if part.isdigit() and len(part) >= 3:  # 编号通常至少3位
+                        numeric_value = int(part)
+                        if numeric_value > highest_value:
+                            highest_value = numeric_value
+                        break
+                
+                # 如果没有找到，尝试其他模式
+                if highest_value == -1:
+                    # 提取所有数字部分
+                    numeric_parts = re.findall(r'\d+', filename)
+                    if numeric_parts:
+                        # 过滤掉可能是日期的长数字（8位以上）
+                        valid_parts = [p for p in numeric_parts if len(p) < 8]
+                        if valid_parts:
+                            # 取最长的数字串作为编号
+                            longest_num = max(valid_parts, key=len)
+                            numeric_value = int(longest_num)
+                            if numeric_value > highest_value:
+                                highest_value = numeric_value
+            except (ValueError, AttributeError):
+                continue
+        
         return highest_value
 
-    def save_image(self, image, file_format, filename_mid="Apt", output_path="", number_prefix=False, number_digits=5,
+    def save_image(self, image, file_format, filename_mid="Apt", output_path="", naming_format="命名_序号", number_digits=5,
                    save_workflow_as_json=False, prompt=None, extra_pnginfo=None):
+        import datetime
+        import time
+        
         if isinstance(image, list):
             image = np.concatenate(image, axis=0)
         
@@ -1210,7 +1132,35 @@ class IO_save_image:
             output_paths = [output_path] * batch_size
 
         base_dir = output_paths[0]
-        counter = self.find_highest_numeric_value(base_dir, filename_mid) + 1
+        # 查找最高编号，确保准确
+        import re
+        existing_counters = []
+        
+        # 生成可能的命名格式模式
+        patterns = []
+        patterns.append(r"^(\d+)$")  # 序号
+        patterns.append(r"^" + re.escape(filename_mid) + r"(\d+)$")  # 命名+序号
+        patterns.append(r"^(\d+)" + re.escape(filename_mid) + r"$")  # 序号+命名
+        patterns.append(r"^" + re.escape(filename_mid) + r"(\d+)$")  # 命名
+        
+        # 扫描目录中的文件
+        if os.path.exists(base_dir):
+            for filename in os.listdir(base_dir):
+                for pattern in patterns:
+                    match = re.match(pattern, os.path.splitext(filename)[0])
+                    if match:
+                        try:
+                            counter = int(match.group(1))
+                            existing_counters.append(counter)
+                        except:
+                            pass
+        
+        # 确定起始编号
+        if existing_counters:
+            counter = max(existing_counters) + 1
+        else:
+            counter = 1
+        
         absolute_paths = []
 
         for idx, img_tensor in enumerate(images_list):
@@ -1219,13 +1169,40 @@ class IO_save_image:
             img = Image.fromarray(img_np[0])
             out_path = output_paths[idx]
 
-            numbering = f"{counter + idx:0{number_digits}d}"
-            if number_prefix:
-                output_filename = f"{numbering}_{filename_mid}"
+            # 生成序号
+            numbering = f"{counter:0{number_digits}d}"
+            
+            # 生成新文件名
+            if naming_format == "序号":
+                output_filename = f"{numbering}"
+            elif naming_format == "命名+序号":
+                output_filename = f"{filename_mid}{numbering}"
+            elif naming_format == "序号+命名":
+                output_filename = f"{numbering}{filename_mid}"
+            elif naming_format == "命名":
+                output_filename = f"{filename_mid}{numbering}"
             else:
-                output_filename = f"{filename_mid}_{numbering}"
+                output_filename = f"{filename_mid}{numbering}"
+            
+            # 递增计数器
+            counter += 1
 
+            # 构建完整路径
             resolved_image_path = os.path.join(out_path, f"{output_filename}.{file_format}")
+            
+            # 确保文件名唯一，避免覆盖
+            unique_counter = 1
+            original_filename = output_filename
+            while os.path.exists(resolved_image_path):
+                # 如果文件已存在，添加后缀
+                output_filename = f"{original_filename}_{unique_counter}"
+                resolved_image_path = os.path.join(out_path, f"{output_filename}.{file_format}")
+                unique_counter += 1
+                # 避免无限循环
+                if unique_counter > 100:
+                    break
+
+            # 保存图片
             img_params = {
                 'png': {'compress_level': 4},
                 'webp': {'method': 6, 'lossless': False, 'quality': 80},
@@ -1244,6 +1221,9 @@ class IO_save_image:
                             json.dump(workflow, f)
                 except Exception as e:
                     print(f"Failed to save workflow JSON: {e}")
+
+            # 稍微延迟，避免并发问题
+            time.sleep(0.01)
 
         return (images_list, absolute_paths)
 
@@ -2847,9 +2827,6 @@ class IO_LoadImgList:
 
 
 
-import re
-import os
-from typing import Optional
 
 class IO_PathProcessor:
     CATEGORY = "Apt_Preset/IO_Port"
@@ -2859,8 +2836,8 @@ class IO_PathProcessor:
     INPUT_IS_LIST = (True,)
     OUTPUT_IS_LIST = (True, True, True)
 
-    DESCRIPTION = """
-    【正则排序规则（四种常用写法）】
+    DESCRIPTION = r"""
+    【正则排序规则（三种常用写法）】
     1. 开头匹配：^(\d+) → （如12AI图片.png中的12）
     2. 结尾匹配：(\d{2})(?=\.\w+$) → （如AI图片63.png中的63）
     3. 括号匹配：\((\d+)\) → （如图片(45).png中的45）
@@ -3080,6 +3057,10 @@ class IO_RegexPreset:
             preview_result = self.preview_regex_effect(final_regex, preview_test_text)
             rule_desc += f"\n{preview_result}"
         return (final_regex, rule_desc)
+
+
+
+
 
 
 

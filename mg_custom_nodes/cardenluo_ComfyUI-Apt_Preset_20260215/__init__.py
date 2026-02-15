@@ -295,7 +295,6 @@ NODE_CLASS_MAPPINGS= {
 
 "IO_PathProcessor": IO_PathProcessor,
 "IO_LoadImgList": IO_LoadImgList,
-"IO_loadFilePath": IO_loadFilePath,
 "IO_load_anyimage": IO_load_anyimage,
 "IO_store_image": IO_store_image,
 "IO_EasyMark": IO_EasyMark,
@@ -303,6 +302,11 @@ NODE_CLASS_MAPPINGS= {
 "IO_save_image": IO_save_image, 
 "IO_input_any": IO_input_any,
 "IO_RegexPreset": IO_RegexPreset,
+
+
+
+
+
 
 "IO_node_Script": IO_node_Script,
 "IO_video_encode": IO_video_encode,
@@ -467,7 +471,6 @@ NODE_CLASS_MAPPINGS= {
 
 
 "lay_images_free_layout":lay_images_free_layout,
-#"lay_image_XYgrid": lay_image_XYgrid,
 "lay_image_grid_note": lay_image_grid_note,
 "lay_mul_image":lay_mul_image,
 "lay_ImageGrid": lay_ImageGrid,
@@ -517,12 +520,13 @@ NODE_CLASS_MAPPINGS= {
 "excel_roles":excel_roles,   
 "excel_Prompter":excel_Prompter,       
 "excel_Qwen_camera": excel_Qwen_camera,
-"excel_read_easy":excel_read_easy,
-"excel_write_data_easy":excel_write_data_easy,
-"excel_insert_image_easy":excel_insert_image_easy,
-"excel_search_data":excel_search_data,
 "excel_row_diff":excel_row_diff,
 "excel_column_diff":excel_column_diff,         
+"excel_insert_image_easy":excel_insert_image_easy,
+"excel_search_data":excel_search_data,
+"excel_read_easy":excel_read_easy,
+"excel_write_data_easy":excel_write_data_easy,
+
 
 
 "text_sum": text_sum,#web
@@ -632,7 +636,7 @@ NODE_CLASS_MAPPINGS= {
 "text_mul_Split":text_mul_Split,#(Deprecated)  
 "text_list_combine ": text_list_combine , 
 "Image_solo_crop": Image_solo_crop,  #(Deprecated)   
- 
+
 
 #------------------------隐藏节点-------------------------
 

@@ -124,7 +124,7 @@ class ModelSDXL(ModelTemplate):
         (
             "input_blocks.3.0.op.weight", "input_blocks.6.0.op.weight",
             "output_blocks.2.2.conv.weight", "output_blocks.5.2.conv.weight",
-        ), # Non-diffusers
+        ), 
         ("label_emb.0.0.weight",),
     ]
 
@@ -136,7 +136,7 @@ class ModelSD1(ModelTemplate):
         (
             "input_blocks.3.0.op.weight", "input_blocks.6.0.op.weight", "input_blocks.9.0.op.weight",
             "output_blocks.2.1.conv.weight", "output_blocks.5.2.conv.weight", "output_blocks.8.2.conv.weight"
-        ), # Non-diffusers
+        ), 
     ]
 
 class ModelLumina2(ModelTemplate):

@@ -15,7 +15,7 @@ import math
 import scipy.ndimage
 from torchvision.transforms import functional as TF
 import folder_paths
-from ultralytics import YOLO,settings
+
 
 import random
 
@@ -34,22 +34,32 @@ except ImportError:
     REMOVER_AVAILABLE = False
 try:
     import cv2
-    REMOVER_AVAILABLE = True  # 导入成功时设置为True
+    REMOVER_AVAILABLE = True  
 except ImportError:
     cv2 = None
-    REMOVER_AVAILABLE = False  # 导入失败时设置为False
-
+    REMOVER_AVAILABLE = False  
 
 
 #region---------DetectByLabel检测遮罩--------------------------------------
 
-MODELS_DIR =  comfy_paths.models_dir
-sys.path.append(os.path.join(__file__,'../../'))
-settings.update({'weights_dir':os.path.join(folder_paths.models_dir,'ultralytics')})
+try:
+    from ultralytics import YOLO, settings
+    YOLO_AVAILABLE = True
+except ImportError:
+    YOLO = None
+    settings = None
+    YOLO_AVAILABLE = False
 
+# 仅在 ultralytics 可用时更新设置
+if YOLO_AVAILABLE:
+    MODELS_DIR = comfy_paths.models_dir
+    sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+    settings.update({'weights_dir': os.path.join(folder_paths.models_dir, 'ultralytics')})
 
 def get_files_with_extension(directory, extension):
     file_list = []
+    if not os.path.exists(directory):
+        return file_list
     for root, dirs, files in os.walk(directory):
         for file in files:
             if file.endswith(extension):
@@ -57,23 +67,20 @@ def get_files_with_extension(directory, extension):
                 file_list.append(file_name)
     return file_list
 
-
-def createMask(image,x,y,w,h):
+def createMask(image, x, y, w, h):
     mask = Image.new("L", image.size)
     pixels = mask.load()
-    # 遍历指定区域的像素，将其设置为黑色（0 表示黑色）
     for i in range(int(x), int(x + w)):
         for j in range(int(y), int(y + h)):
-            pixels[i, j] = 255
-    # mask.save("mask.png")
+            if 0 <= i < image.size[0] and 0 <= j < image.size[1]:
+                pixels[i, j] = 255
     return mask
-
 
 def grow(mask, expand, tapered_corners):
     c = 0 if tapered_corners else 1
     kernel = np.array([[c, 1, c],
-                            [1, 1, 1],
-                            [c, 1, c]])
+                       [1, 1, 1],
+                       [c, 1, c]])
     mask = mask.reshape((-1, mask.shape[-2], mask.shape[-1]))
     out = []
     for m in mask:
@@ -87,7 +94,6 @@ def grow(mask, expand, tapered_corners):
         out.append(output)
     return torch.stack(out, dim=0)
 
-
 def combine(destination, source, x, y):
     output = destination.reshape((-1, destination.shape[-2], destination.shape[-1])).clone()
     source = source.reshape((-1, source.shape[-2], source.shape[-1]))
@@ -99,12 +105,115 @@ def combine(destination, source, x, y):
     source_portion = source[:, :visible_height, :visible_width]
     destination_portion = destination[:, top:bottom, left:right]
 
-    #operation == "subtract":
     output[:, top:bottom, left:right] = destination_portion - source_portion
         
     output = torch.clamp(output, 0.0, 1.0)
 
     return output
+
+# 辅助函数（补充缺失的 tensor/pil 转换函数）
+def tensor2pil(image):
+    return Image.fromarray(np.clip(255. * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+
+def pil2tensor(image):
+    return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)
+
+class Mask_Detect_label:
+    @classmethod
+    def INPUT_TYPES(s):
+        model_list = []
+        if YOLO_AVAILABLE:
+            model_dir = os.path.join(folder_paths.models_dir, 'ultralytics')
+            model_list = get_files_with_extension(model_dir, '.pt')
+        
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "confidence": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1, "step": 0.01, "display": "number"}),
+                "model": (model_list if model_list else ["ultralytics_not_available"],)
+            },
+            "optional": {}
+        }
+    
+    RETURN_TYPES = ("MASK", "IMAGE",)
+    RETURN_NAMES = ("masks", "image",)
+    FUNCTION = "run"
+    CATEGORY = "Apt_Preset/mask/😺backup"
+    INPUT_IS_LIST = False
+    OUTPUT_IS_LIST = (True, True,)
+
+    def run(self, image, confidence, model, target_label="", debug="on"):
+        # 检查 ultralytics 是否可用
+        if not YOLO_AVAILABLE:
+            empty_mask = Image.new("L", (image.shape[2], image.shape[1]))
+            empty_mask = pil2tensor(empty_mask)
+            return ([empty_mask], [image])
+        
+        # 处理目标标签
+        target_labels = target_label.split('\n')
+        target_labels = [t.strip() for t in target_labels if t.strip() != '']
+        
+        # 加载模型并推理
+        try:
+            model = YOLO(os.path.join(folder_paths.models_dir, 'ultralytics', model + '.pt'))
+            image_pil = tensor2pil(image).convert('RGB')
+            images = [image_pil]
+            results = model(images)
+            
+            masks = []
+            images_debug = []
+            
+            for i in range(len(results)):
+                result = results[i]
+                img = images[i]
+                boxes = result.boxes
+                
+                if boxes is None:
+                    continue
+                    
+                bb = boxes.xyxy.cpu().numpy()
+                confs = boxes.conf.cpu().numpy()
+                
+                if debug == 'on':
+                    im_bgr = result.plot()
+                    im_rgb = Image.fromarray(im_bgr[..., ::-1])
+                    images_debug.append(pil2tensor(im_rgb))
+                
+                for j in range(len(bb)):
+                    name = result.names[boxes[j].cls.item()]
+                    is_target = True
+                    
+                    if len(target_labels) > 0:
+                        is_target = name in target_labels
+                    
+                    if is_target and confs[j] >= confidence:
+                        b = bb[j]
+                        x, y, xw, yh = b
+                        w = xw - x
+                        h = yh - y
+                        mask = createMask(img, x, y, w, h)
+                        mask = pil2tensor(mask)
+                        masks.append(mask)
+            
+            # 确保至少返回一个空遮罩
+            if len(masks) == 0:
+                empty_mask = Image.new("L", image_pil.size)
+                empty_mask = pil2tensor(empty_mask)
+                masks.append(empty_mask)
+            
+            # 确保调试图片列表非空
+            if len(images_debug) == 0:
+                images_debug.append(image)
+                
+            return (masks, images_debug,)
+            
+        except Exception as e:
+            # 捕获所有异常，返回空遮罩避免插件崩溃
+            empty_mask = Image.new("L", (image.shape[2], image.shape[1]))
+            empty_mask = pil2tensor(empty_mask)
+            return ([empty_mask], [image])
+
+
 
 #endregion-----------------
 
@@ -865,79 +974,6 @@ class create_mask_solo:
 
 
 
-
-class Mask_Detect_label:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {"required": {
-            "image": ("IMAGE",),
-            "confidence":("FLOAT", {"default": 0.1, "min": 0.0, "max": 1, "step":0.01, "display": "number"}),
-            "model":(get_files_with_extension(os.path.join(folder_paths.models_dir,'ultralytics'),'.pt'),),
-            },
-            "optional":{ }
-        }
-    
-    RETURN_TYPES = ("MASK","IMAGE",)
-    RETURN_NAMES = ("masks","image",)
-    FUNCTION = "run"
-    CATEGORY = "Apt_Preset/mask/😺backup"
-    INPUT_IS_LIST = False
-    OUTPUT_IS_LIST = (True,True,)
-
-    def run(self,image,confidence,model,target_label="",debug="on"):
-        target_labels=target_label.split('\n')
-        target_labels=[t.strip() for t in target_labels if t.strip()!='']
-        model = YOLO(model+'.pt')  
-        image=tensor2pil(image)
-        image=image.convert('RGB')
-        images=[image]
-        results = model(images)  
-        masks=[]
-        names=[]
-        grids=[]
-        images_debug=[]
-        for i in range(len(results)):
-            result=results[i]
-            img=images[i]
-            boxes = result.boxes
-            bb=boxes.xyxy.cpu().numpy()
-            confs=boxes.conf.cpu().numpy()
-            if debug=='on':
-                im_bgr = result.plot()
-                im_rgb = Image.fromarray(im_bgr[..., ::-1])
-                images_debug.append(pil2tensor(im_rgb))
-            for j in range(len(bb)):
-                name=result.names[boxes[j].cls.item()]
-                is_target=True
-                if len(target_labels)>0:
-                    is_target=False
-                    for t in target_labels:
-                        if t==name:
-                            is_target=True
-                if is_target:
-                    b=bb[j]
-                    conf=confs[j]
-                    if conf >= confidence:
-                        x,y,xw,yh=b
-                        w=xw-x
-                        h=yh-y
-                        mask=createMask(img,x,y,w,h)
-                        mask=pil2tensor(mask)
-                        masks.append(mask)
-                        names.append(name)
-                        grids.append((x,y,w,h))
-        if len(masks)==0:
-            mask = Image.new("L", image.size)
-            mask=pil2tensor(mask)
-            masks.append(mask)
-            grids.append((0,0,image.size[0],image.size[1]))
-            names.append(['-'])
-        return (masks,images_debug,)
-
-
-
-
-
 class create_mask_array:
     def __init__(self):
         pass
@@ -1166,6 +1202,18 @@ class create_mask_array:
 
 
 
+
+REMBG_MODULE_AVAILABLE = False
+BriaRMBG = None
+preprocess_image = None
+postprocess_image = None
+
+try:
+    from .moduleRembg.rembg import BriaRMBG, preprocess_image, postprocess_image
+    REMBG_MODULE_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    pass
+
 class Mask_Remove_bg:
     def __init__(self):
         pass
@@ -1188,19 +1236,35 @@ class Mask_Remove_bg:
     
     def removebg(self, bg_img, image, threshold, rem_mode):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        masks = []
         
-        # ComfyUI的IMAGE张量格式：[batch, H, W, C]
+        if not REMBG_MODULE_AVAILABLE:
+            batch_size, h, w, c = image.shape
+            mask_stack = torch.ones((batch_size, h, w, 1), device=device)
+            invert_mask = 1.0 - mask_stack
+            rgba_image = torch.cat([image, mask_stack], dim=-1)
+            return (image, mask_stack.squeeze(-1), invert_mask.squeeze(-1), rgba_image,)
+        
+        if not FOLDER_PATHS_AVAILABLE:
+            batch_size, h, w, c = image.shape
+            mask_stack = torch.ones((batch_size, h, w, 1), device=device)
+            invert_mask = 1.0 - mask_stack
+            rgba_image = torch.cat([image, mask_stack], dim=-1)
+            return (image, mask_stack.squeeze(-1), invert_mask.squeeze(-1), rgba_image,)
+        
+        model_path = os.path.join(folder_paths.models_dir, "rembg", "RMBG-1.4.pth")
+        if not os.path.exists(model_path):
+            batch_size, h, w, c = image.shape
+            mask_stack = torch.ones((batch_size, h, w, 1), device=device)
+            invert_mask = 1.0 - mask_stack
+            rgba_image = torch.cat([image, mask_stack], dim=-1)
+            return (image, mask_stack.squeeze(-1), invert_mask.squeeze(-1), rgba_image,)
+        
+        masks = []
         batch_size, h, w, c = image.shape
         image = image.to(device)
         
-        # 生成掩码（单通道）
         if rem_mode == "RMBG-1.4":
-            model_path = os.path.join(folder_paths.models_dir, "rembg", "RMBG-1.4.pth")
-            if not os.path.exists(model_path):
-                raise FileNotFoundError(f"RMBG-1.4 模型文件未找到：{model_path}")
             try:
-                from .moduleRembg.rembg import BriaRMBG, preprocess_image, postprocess_image
                 net = BriaRMBG()
                 net.load_state_dict(torch.load(model_path, map_location=device))
                 net.to(device)
@@ -1208,7 +1272,6 @@ class Mask_Remove_bg:
                 model_input_size = [1024, 1024]
                 
                 for i in range(batch_size):
-                    # 取出单张图片处理
                     img_tensor = image[i]
                     orig_im = tensor2pil(img_tensor)
                     h_ori, w_ori = orig_im.size[1], orig_im.size[0]
@@ -1217,9 +1280,8 @@ class Mask_Remove_bg:
                     with torch.no_grad():
                         model_output = net(input_image)
                         mask_array = postprocess_image(model_output[0][0], (h_ori, w_ori))
-                        # 转换为张量并调整维度：[H, W] → [1, H, W, 1]
                         mask_tensor = torch.from_numpy(mask_array).float() / 255.0
-                        mask_tensor = (mask_tensor > threshold).float()  # 应用阈值
+                        mask_tensor = (mask_tensor > threshold).float()
                         masks.append(mask_tensor)
                 
                 del net
@@ -1227,19 +1289,20 @@ class Mask_Remove_bg:
                     torch.cuda.empty_cache()
                     
             except Exception as e:
-                raise RuntimeError(f"RMBG-1.4 错误：{str(e)}")
-
+                batch_size, h, w, c = image.shape
+                mask_stack = torch.ones((batch_size, h, w, 1), device=device)
+                invert_mask = 1.0 - mask_stack
+                rgba_image = torch.cat([image, mask_stack], dim=-1)
+                return (image, mask_stack.squeeze(-1), invert_mask.squeeze(-1), rgba_image,)
+        
         mask_stack = torch.stack(masks, dim=0).to(device)
         if mask_stack.ndim == 3:
             mask_stack = mask_stack.unsqueeze(-1)
         
-        # 广播掩码到3通道：[batch, H, W, 1] → [batch, H, W, 3]
         mask_broadcast_rgb = mask_stack.repeat(1, 1, 1, 3)
         invert_mask = 1.0 - mask_stack
         
-        # 背景替换逻辑
         if bg_img == "image":
-            # 使用原图作为背景（实际是保留前景，背景透明）
             image2 = image * mask_broadcast_rgb + image * (1 - mask_broadcast_rgb)
         elif bg_img == "white":
             white_bg = torch.ones_like(image, device=device)
@@ -1249,32 +1312,54 @@ class Mask_Remove_bg:
             image2 = image * mask_broadcast_rgb + black_bg * (1 - mask_broadcast_rgb)
         elif bg_img == "green":
             green_bg = torch.zeros_like(image, device=device)
-            green_bg[..., 1] = 1.0  # G通道设为1
+            green_bg[..., 1] = 1.0
             image2 = image * mask_broadcast_rgb + green_bg * (1 - mask_broadcast_rgb)
         elif bg_img == "red":
             red_bg = torch.zeros_like(image, device=device)
-            red_bg[..., 0] = 1.0  # R通道设为1
+            red_bg[..., 0] = 1.0
             image2 = image * mask_broadcast_rgb + red_bg * (1 - mask_broadcast_rgb)
         elif bg_img == "blue":
             blue_bg = torch.zeros_like(image, device=device)
-            blue_bg[..., 2] = 1.0  # B通道设为1
+            blue_bg[..., 2] = 1.0
             image2 = image * mask_broadcast_rgb + blue_bg * (1 - mask_broadcast_rgb)
         elif bg_img == "gray":
             gray_bg = torch.full_like(image, 0.5, device=device)
             image2 = image * mask_broadcast_rgb + gray_bg * (1 - mask_broadcast_rgb)
         
-        # 生成4通道RGBA图像：[batch, H, W, 4]
         rgba_image = torch.cat([image2, mask_stack], dim=-1)
-        
-        # 调整掩码输出格式：[batch, H, W, 1] → [batch, H, W]
         mask_output = mask_stack.squeeze(-1)
         invert_mask_output = invert_mask.squeeze(-1)
         
-        # 确保输出在0-1范围内
         image2 = torch.clamp(image2, 0.0, 1.0)
         rgba_image = torch.clamp(rgba_image, 0.0, 1.0)
         
         return (image2, mask_output, invert_mask_output, rgba_image,)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

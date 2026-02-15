@@ -1,13 +1,9 @@
-import os
-import re
-import folder_paths
-import comfy
 import os, re
 from typing import Dict, List, Tuple
 
 from PIL import Image as PILImage
 from io import BytesIO
-import random
+import csv
 
 
 
@@ -1649,18 +1645,6 @@ class excel_Prompter:
             final_output = "❌ No valid excel content"
         
         return (final_output, )
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

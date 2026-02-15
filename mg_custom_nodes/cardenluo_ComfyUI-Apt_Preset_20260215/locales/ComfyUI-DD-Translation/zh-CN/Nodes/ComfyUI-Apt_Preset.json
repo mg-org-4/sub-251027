@@ -2645,6 +2645,7 @@
             "total": "释放总计"
         }
     },
+
     "IO_save_image": {
         "title": "IO_保存图像",
         "inputs": {
@@ -2654,7 +2655,7 @@
             "file_format": "文件格式",
             "output_path": "输出路径",
             "filename_mid": "文件名中间",
-            "number_prefix": "数字前缀",
+            "naming_format": "命名方式",
             "number_digits": "数字位数",
             "save_workflow_as_json": "保存工作流为JSON"
         },
@@ -2669,13 +2670,12 @@
         "widgets": {
             "folder_path": "文件夹路径",
             "recursive": "递归",
-            "include_extensions": "含扩展名",
-            "remove_extension": "移除扩展名",
-            "comfy_folder": "ComfyUI文件夹"
+            "include_extensions": "含扩展名文件",
+            "remove_extension": "命名移除扩展名",
+            "ComfyUI_models": "ComfyUI模型"
         },
         "outputs": {
-            "file_names": "文件名称",
-            "file_paths": "文件路径",
+            "file_names_list": "名称列表",
             "paths_list": "路径列表"
         }
     },

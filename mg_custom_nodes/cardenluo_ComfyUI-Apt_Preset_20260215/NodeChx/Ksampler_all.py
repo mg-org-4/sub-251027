@@ -61,15 +61,12 @@ from server import PromptServer
 import itertools
 from typing import Optional
 import math
-
 import logging
 import nodes
 from comfy.k_diffusion import sampling as k_diffusion_sampling
 from comfy import samplers
 import latent_preview
 import comfy.model_management as mm
-
-
 
 
 from .main_stack import Apply_CN_union,Apply_Redux

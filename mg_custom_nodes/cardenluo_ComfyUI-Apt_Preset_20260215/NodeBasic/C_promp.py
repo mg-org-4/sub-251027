@@ -1021,9 +1021,9 @@ class text_modifier:
                     ], 
                     {"default": "None"}
                 ),
-                "replace_targets": ("STRING", {"multiline": False, "default": "{text1},{text2}", "placeholder": "目标文本格式: {text1},{text2}"}),
-                "replace_content": ("STRING", {"multiline": False, "default": "{text3},{text4}", "placeholder": "替换内容格式: {text3},{text4}"}),
-                "remove_targets": ("STRING", {"multiline": False, "default": "{text1},{text2}", "placeholder": "移除内容格式: {text1},{text2}"})
+                "replace_targets": ("STRING", {"multiline": False, "default": "{text1}|{text2}", }),
+                "replace_content": ("STRING", {"multiline": False, "default": "{A}|{B}", }),
+                "remove_targets": ("STRING", {"multiline": False, "default": "{text1}|{text2}", })
             }
         }
 
@@ -1032,11 +1032,11 @@ class text_modifier:
     FUNCTION = "process_text"
     CATEGORY = "Apt_Preset/prompt/text_tool"
     DESCRIPTION = """
-    多文本替换或移除，使用逗号分隔，支持正则表达式。
+    多文本替换或移除，使用竖线分隔，支持正则表达式。
     例如：
-    targets = "{man}, {dog}"
-    replacements = "{girl}, {cat}" 同时替换
-    words_to_remove = "{man}, {dog}" 同时移除
+    targets = "{man}|{dog}"
+    replacements = "{girl}|{cat}" 同时替换
+    words_to_remove = "{man}|{dog}" 同时移除
     """ 
 
 
@@ -1059,19 +1059,13 @@ class text_modifier:
             return self.repair_text(text, repair_type)
     
     def replace_text(self, text, replace_targets, replace_content):
-        """替换文本功能，使用 {text1},{text2} 格式"""
+        """替换文本功能，使用 {text1}|{text2} 格式"""
         if not replace_targets.strip() or not replace_content.strip():
             return (text,)
         
-        # 解析目标文本和替换内容
-        def parse_bracket_content(input_str):
-            # 提取括号内的内容，不包含括号
-            pattern = r'\{([^}]+)\}'
-            matches = re.findall(pattern, input_str)
-            return [match.strip() for match in matches if match.strip()]
-        
-        targets = parse_bracket_content(replace_targets)
-        replacements = parse_bracket_content(replace_content)
+        # 按 | 分割目标和替换内容
+        targets = [t.strip() for t in replace_targets.split('|') if t.strip()]
+        replacements = [r.strip() for r in replace_content.split('|') if r.strip()]
         
         if not targets or not replacements:
             return (text,)
@@ -1088,24 +1082,19 @@ class text_modifier:
         
         result = text
         for target in sorted_targets:
+            # 替换整个 {target} 为对应的替换内容
             pattern = re.escape(target)
             result = re.sub(pattern, word_map[target], result)
         
         return (result,)
     
     def remove_text(self, text, remove_targets):
-        """移除文本功能，使用 {text1},{text2} 格式"""
+        """移除文本功能，使用 {text1}|{text2} 格式"""
         if not remove_targets.strip():
             return (text,)
         
-        # 解析要移除的内容
-        def parse_bracket_content(input_str):
-            # 提取括号内的内容，不包含括号
-            pattern = r'\{([^}]+)\}'
-            matches = re.findall(pattern, input_str)
-            return [match.strip() for match in matches if match.strip()]
-        
-        remove_words = parse_bracket_content(remove_targets)
+        # 按 | 分割要移除的内容
+        remove_words = [w.strip() for w in remove_targets.split('|') if w.strip()]
         
         if not remove_words:
             return (text,)
@@ -1196,9 +1185,8 @@ class text_modifier:
 class text_saveText:
     @classmethod
     def INPUT_TYPES(cls):
+        # 移除docx选项，仅保留其他格式
         file_types = ["text", "md", "json", "js", "py", "toml"]
-        if REMOVER_AVAILABLE:
-            file_types.append("docx")
         
         return {
             "required": {
@@ -1233,14 +1221,14 @@ class text_saveText:
         if not file_path:
             raise ValueError("文件路径不能为空")
         
+        # 移除docx映射，仅保留其他格式的扩展名映射
         ext_mapping = {
             "text": ".txt",
             "md": ".md",
             "json": ".json",
             "js": ".js",
             "py": ".py",
-            "toml": ".toml",
-            "docx": ".docx"
+            "toml": ".toml"
         }
         target_ext = ext_mapping.get(file_type, "")
         if not target_ext:
@@ -1280,15 +1268,7 @@ class text_saveText:
                     with open(full_path, 'w', encoding='utf-8') as f:
                         f.write(content)
             
-            elif file_type == "docx":
-                if not REMOVER_AVAILABLE:
-                    raise ValueError("缺少python-docx库，请安装后重试")
-                
-                doc = Document()
-                for para_text in content.split('\n'):
-                    doc.add_paragraph(para_text)
-                doc.save(full_path)
-            
+            # 移除所有docx相关的分支逻辑
             else:
                 with open(full_path, 'w', encoding='utf-8') as f:
                     f.write(content)
@@ -1304,8 +1284,6 @@ class text_loadText:
     @classmethod
     def INPUT_TYPES(cls):
         file_types = ["text", "md", "json", "js", "py", "toml"]
-        if REMOVER_AVAILABLE:
-            file_types.append("docx")
         
         return {
             "required": {
@@ -1327,7 +1305,6 @@ class text_loadText:
                 }),
                 "remove_extension": ("BOOLEAN", {
                     "default": False,
-
                 }),
             }
         }
@@ -1349,16 +1326,10 @@ class text_loadText:
             "json": ".json",
             "js": ".js",
             "py": ".py",
-            "toml": ".toml",
-            "docx": ".docx"
+            "toml": ".toml"
         }
         target_ext = ext_mapping.get(file_type, "")
         
-        # 校验docx依赖
-        if file_type == "docx" and not REMOVER_AVAILABLE:
-            raise ValueError("缺少python-docx库，请安装后重试（可使用命令：pip install python-docx）")
-        
-        # 辅助函数：处理文件名，根据remove_extension决定是否移除后缀
         def process_file_name(file_name):
             if remove_extension:
                 return os.path.splitext(file_name)[0]
@@ -1366,11 +1337,9 @@ class text_loadText:
         
         try:
             if batch_mode:
-                # 批量模式：读取文件夹下所有指定扩展名的文件
                 if not os.path.isdir(path):
                     raise ValueError(f"批量模式下路径必须是文件夹 - {path}")
                 
-                # 处理空扩展名（防止glob匹配错误）
                 if not target_ext:
                     raise ValueError(f"不支持的文件类型：{file_type}")
                 
@@ -1399,7 +1368,6 @@ class text_loadText:
                     read_names.append(processed_name)
                     total_char_count += len(content)
                     
-                    # 字符限制校验
                     if char_limit > 0 and total_char_count > char_limit:
                         merged_content.append(f"\n\n...（已达字符限制 {char_limit}，后续文件未读取）")
                         break
@@ -1410,13 +1378,10 @@ class text_loadText:
                 return (final_content, paths_str, names_str)
             
             else:
-                # 单文件模式：读取指定文件
                 if not os.path.isfile(path):
                     raise ValueError(f"文件不存在 - {path}")
                 
-                # 扩展名校验（容错：允许用户输入路径不带扩展名）
                 if not path.lower().endswith(target_ext):
-                    # 自动补全扩展名
                     new_path = path + target_ext
                     if os.path.isfile(new_path):
                         path = new_path
@@ -1427,7 +1392,6 @@ class text_loadText:
                 file_name = os.path.basename(path)
                 processed_name = process_file_name(file_name)
                 
-                # 字符截断
                 if char_limit > 0 and len(content) > char_limit:
                     content = content[:char_limit] + f"\n\n...（内容已截断，原长度{len(content)}字符）"
                 
@@ -1437,7 +1401,6 @@ class text_loadText:
             raise ValueError(f"读取失败：{str(e)}")
     
     def _read_single_file(self, file_path: str, file_type: str) -> str:
-        """读取单个文件的核心逻辑（按类型适配）"""
         try:
             if file_type == "json":
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -1449,28 +1412,16 @@ class text_loadText:
                     toml_data = toml.load(f)
                     return toml.dumps(toml_data)
             
-            elif file_type == "docx":
-                # 双重校验docx依赖
-                if not REMOVER_AVAILABLE or docx_Document is None:
-                    raise ValueError("python-docx库未安装，无法读取docx文件")
-                
-                doc = docx_Document(file_path)
-                full_text = []
-                for para in doc.paragraphs:
-                    full_text.append(para.text)
-                return '\n'.join(full_text)
-            
             else:
-                # 通用文本文件读取
                 with open(file_path, 'r', encoding='utf-8') as f:
                     return f.read()
         
         except UnicodeDecodeError:
-            # 容错：UTF-8读取失败时尝试GBK
             with open(file_path, 'r', encoding='gbk') as f:
                 return f.read()
         except Exception as e:
             raise ValueError(f"读取文件 {file_path} 失败：{str(e)}")
+
 
 
 

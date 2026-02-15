@@ -1088,8 +1088,11 @@ class sum_TextEncode:
             prompt_info += f" | 负提示词：{neg[:20]}..."
         
         if clip is not None and pos is not None and pos.strip() != '': 
-            if mode in ["z-image", "flux2.klein"]:                
+            if mode == "flux2.klein":                
                 prompt_weight_processor = pre_Unit_PromptWeight()
+                positive, prompt_info = prompt_weight_processor.process(clip, pos, main_prompt_ratio)
+            elif mode == "z-image":
+                prompt_weight_processor = pre_zimage_PromptWeight()
                 positive, prompt_info = prompt_weight_processor.process(clip, pos, main_prompt_ratio)
             elif mode == "qwen-image":
                 prompt_weight_processor = pre_qwenimage_PromptWeight()

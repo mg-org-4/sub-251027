@@ -1,0 +1,549 @@
+{
+  "last_link_id": 8,
+  "nodes": [
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "参考音频文案，要求一样！"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        1019.516357421875,
+        1149.338623046875
+      ],
+      "id": 2,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 0
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "提示词"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "Note",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        210,
+        88
+      ],
+      "pos": [
+        1012,
+        873.2587890625
+      ],
+      "id": 4,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 1
+    },
+    {
+      "outputs": [],
+      "color": "#432",
+      "widgets_values": [
+        "## 🎤 Achieving High-Quality Voice Clones\n\nTo achieve the best voice cloning results, providing an accurate `prompt_text` is **critical**. This text acts as a transcript that aligns the sound of the `prompt_audio` with the words being spoken, teaching the model the speaker's unique vocal characteristics.\n\n### How to Use `prompt_text` Effectively\n\n#### 1. **Provide a Verbatim Transcript**\nThe `prompt_text` must be a word-for-word transcript of the `prompt_audio`. Do not summarize or describe the audio.\n\n✅ **Correct:** `The quick brown fox jumps over the lazy dog.`\n\n❌ **Incorrect:** `A person saying a sentence about a fox.`\n\n#### 2. **Punctuation is Important**\nUse accurate punctuation to capture the speaker's intonation. The model learns how the speaker ends sentences, asks questions, or shows excitement.\n\n-   **For a statement:** `This is a great example.`\n-   **For a question:** `Is this a great example?`\n-   **For excitement:** `This is a great example!`\n\n#### 3. **Match Audio and Text Length**\nThe audio clip should be long enough to capture the speaker's natural pacing and rhythm.\n\n👍 **Good:** A 5-15 second clip of continuous, clear speech.\n\n👌 **Okay:** A 3-5 second clip.\n\n⚠️ **Warning:** Very short clips (< 3 seconds) may result in a less stable or robotic-sounding clone.\n\n\n> **Note:**\n> For the best results, use a clean, high-quality `prompt_audio` with minimal background noise, reverb, or music. The model will try to clone the *entire* acoustic environment, not just the voice."
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "MarkdownNote",
+      "mode": 0,
+      "bgcolor": "#653",
+      "size": [
+        360.7866516113281,
+        348.9750061035156
+      ],
+      "pos": [
+        1720.447265625,
+        639.96435546875
+      ],
+      "id": 6,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 2
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "size": [
+        396.5276794433594,
+        193.39329528808594
+      ],
+      "pos": [
+        2576.03466796875,
+        665.177734375
+      ],
+      "widgets_values": [
+        "audio/VoxCPM"
+      ],
+      "inputs": [
+        {
+          "name": "audio",
+          "link": 8,
+          "label": "audio",
+          "type": "AUDIO",
+          "localized_name": "音频"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "文件名前缀"
+        },
+        {
+          "widget": {
+            "name": "audioUI"
+          },
+          "name": "audioUI",
+          "label": "audioUI",
+          "type": "AUDIO_UI",
+          "localized_name": "音频UI"
+        }
+      ],
+      "flags": {},
+      "id": 7,
+      "type": "SaveAudio",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.52",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "filename_prefix": true,
+            "audioUI": true
+          },
+          "version": "7.0.1"
+        },
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveAudio"
+      },
+      "order": 7
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "links": [
+            5,
+            8
+          ],
+          "label": "音频",
+          "type": "AUDIO",
+          "localized_name": "音频"
+        }
+      ],
+      "size": [
+        350.4437255859375,
+        136
+      ],
+      "pos": [
+        1299.0845947265625,
+        601.611572265625
+      ],
+      "widgets_values": [
+        "cfebcc41919b105096d0d119c9b26f38bb0a8ee88ff0943be4412fcba8a8abb3.WAV",
+        null,
+        null
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "audio"
+          },
+          "name": "audio",
+          "label": "audio",
+          "type": "COMBO",
+          "localized_name": "音频"
+        },
+        {
+          "widget": {
+            "name": "audioUI"
+          },
+          "name": "audioUI",
+          "label": "audioUI",
+          "type": "AUDIO_UI",
+          "localized_name": "音频UI"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "AUDIOUPLOAD",
+          "localized_name": "选择文件上传"
+        }
+      ],
+      "flags": {},
+      "id": 1,
+      "type": "LoadAudio",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.52",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "upload": true,
+            "audio": true,
+            "audioUI": true
+          },
+          "version": "7.0.1"
+        },
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadAudio"
+      },
+      "order": 3
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            6
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "label": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        1274.8648681640625,
+        837.3739013671875
+      ],
+      "widgets_values": [
+        "呢个世界我哋只嚟一次，人生苦短，要及时行乐，食你钟意食嘅嘢，见你想见嘅人，睇你想睇嘅风景，做你喜欢做的事，没钱就摆正心态，其他的唔使太在意，知道未啊靓仔"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "提示词"
+        }
+      ],
+      "flags": {},
+      "id": 3,
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 4
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "prompt",
+          "links": [
+            7
+          ],
+          "label": "提示词文本",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "name": "show_help",
+          "label": "show_help",
+          "type": "STRING",
+          "localized_name": "show_help"
+        }
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        1312.5626220703125,
+        1184.5020751953125
+      ],
+      "widgets_values": [
+        "呢个世界我哋只嚟一次，人生苦短，要及时行乐"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "提示词"
+        }
+      ],
+      "flags": {},
+      "id": 5,
+      "type": "CR Prompt Text",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Prompt Text"
+      },
+      "order": 5
+    },
+    {
+      "outputs": [],
+      "color": "#233",
+      "widgets_values": [
+        "# ComfyUI-VoxCPM\n\n**VoxCPM**  a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.\n\n## Models\nThis node automatically downloads the required model files.\n\n| Model | Parameters | Hugging Face Link |\n|:---|:---:|:---|\n| VoxCPM-0.5B | 0.5B | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |\n\n## Support \n\n- Don't know how to update PyTorch?\n- Need help with ComfyUI?\n- Need technical support?\n\n### Or do you just have questions? Then join the [@TokenDiffusion Hub](https://t.me/TokenDiff_hub) group\n\n### AI news [TokenDiffusion](https://t.me/TokenDiff)"
+      ],
+      "inputs": [],
+      "flags": {},
+      "type": "MarkdownNote",
+      "title": "Note",
+      "mode": 0,
+      "bgcolor": "#355",
+      "size": [
+        311.074462890625,
+        346.9256286621094
+      ],
+      "pos": [
+        2597.168212890625,
+        931.626708984375
+      ],
+      "id": 9,
+      "properties": {
+        "widget_ue_connectable": {}
+      },
+      "order": 6
+    },
+    {
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "Generated Audio",
+          "label": "Generated Audio",
+          "type": "AUDIO",
+          "localized_name": "Generated Audio"
+        }
+      ],
+      "size": [
+        400,
+        382
+      ],
+      "pos": [
+        2157.227294921875,
+        809.3876953125
+      ],
+      "widgets_values": [
+        "VoxCPM1.5",
+        "VoxCPM is an innovative TTS model designed to generate highly expressive speech.",
+        2,
+        20,
+        true,
+        817594313524117,
+        "randomize",
+        false,
+        "cuda",
+        3,
+        6,
+        ""
+      ],
+      "inputs": [
+        {
+          "shape": 7,
+          "name": "prompt_audio",
+          "link": 5,
+          "label": "prompt_audio",
+          "type": "AUDIO",
+          "localized_name": "prompt_audio"
+        },
+        {
+          "widget": {
+            "name": "model_name"
+          },
+          "name": "model_name",
+          "label": "model_name",
+          "type": "COMBO",
+          "localized_name": "model_name"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 6,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        },
+        {
+          "widget": {
+            "name": "cfg_value"
+          },
+          "name": "cfg_value",
+          "label": "cfg_value",
+          "type": "FLOAT",
+          "localized_name": "cfg_value"
+        },
+        {
+          "widget": {
+            "name": "inference_timesteps"
+          },
+          "name": "inference_timesteps",
+          "label": "inference_timesteps",
+          "type": "INT",
+          "localized_name": "inference_timesteps"
+        },
+        {
+          "widget": {
+            "name": "normalize_text"
+          },
+          "name": "normalize_text",
+          "label": "normalize_text",
+          "type": "BOOLEAN",
+          "localized_name": "normalize_text"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "force_offload"
+          },
+          "name": "force_offload",
+          "label": "force_offload",
+          "type": "BOOLEAN",
+          "localized_name": "force_offload"
+        },
+        {
+          "widget": {
+            "name": "device"
+          },
+          "name": "device",
+          "label": "device",
+          "type": "COMBO",
+          "localized_name": "device"
+        },
+        {
+          "widget": {
+            "name": "retry_max_attempts"
+          },
+          "name": "retry_max_attempts",
+          "label": "retry_max_attempts",
+          "type": "INT",
+          "localized_name": "retry_max_attempts"
+        },
+        {
+          "widget": {
+            "name": "retry_threshold"
+          },
+          "name": "retry_threshold",
+          "label": "retry_threshold",
+          "type": "FLOAT",
+          "localized_name": "retry_threshold"
+        },
+        {
+          "widget": {
+            "name": "prompt_text"
+          },
+          "shape": 7,
+          "name": "prompt_text",
+          "link": 7,
+          "label": "prompt_text",
+          "type": "STRING",
+          "localized_name": "prompt_text"
+        }
+      ],
+      "flags": {},
+      "id": 11,
+      "type": "VoxCPM_TTS",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VoxCPM_TTS"
+      },
+      "order": 8
+    }
+  ],
+  "extra": {
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ds": {
+      "offset": [
+        -893.5105027046137,
+        -357.3939188307371
+      ],
+      "scale": 0.9646149645000006
+    }
+  },
+  "groups": [],
+  "links": [
+    [
+      5,
+      1,
+      0,
+      11,
+      0,
+      "AUDIO"
+    ],
+    [
+      6,
+      3,
+      0,
+      11,
+      2,
+      "STRING"
+    ],
+    [
+      7,
+      5,
+      0,
+      11,
+      11,
+      "STRING"
+    ],
+    [
+      8,
+      1,
+      0,
+      7,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "id": "8ee3f53f-b131-4ec1-847d-7ca92a9ca0f4",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 11,
+  "revision": 0
+}

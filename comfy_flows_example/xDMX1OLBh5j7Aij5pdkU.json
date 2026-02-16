@@ -1,0 +1,2234 @@
+{
+  "last_link_id": 384,
+  "nodes": [
+    {
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            145
+          ],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING",
+          "localized_name": "CONDITIONING"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        30
+      ],
+      "inputs": [
+        {
+          "name": "conditioning",
+          "link": 113,
+          "label": "conditioning",
+          "type": "CONDITIONING",
+          "localized_name": "conditioning"
+        },
+        {
+          "widget": {
+            "name": "guidance"
+          },
+          "name": "guidance",
+          "label": "guidance",
+          "type": "FLOAT",
+          "localized_name": "guidance"
+        }
+      ],
+      "flags": {},
+      "type": "FluxGuidance",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        317.4000244140625,
+        58
+      ],
+      "pos": [
+        -5260.845703125,
+        577.15625
+      ],
+      "id": 56,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "FluxGuidance",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 9
+    },
+    {
+      "outputs": [],
+      "color": "#322",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 365,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "flags": {},
+      "type": "PreviewImage",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        210,
+        246
+      ],
+      "pos": [
+        -6573.6796875,
+        458.8876647949219
+      ],
+      "id": 178,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewImage",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 12
+    },
+    {
+      "outputs": [
+        {
+          "name": "translation",
+          "links": [
+            332,
+            333
+          ],
+          "label": "translation",
+          "type": "STRING",
+          "localized_name": "translation"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "戴着手表",
+        843,
+        "randomize",
+        "auto"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "prompt"
+          },
+          "name": "prompt",
+          "label": "prompt",
+          "type": "STRING",
+          "localized_name": "prompt"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "advanced_options"
+          },
+          "shape": 7,
+          "name": "advanced_options",
+          "label": "advanced_options",
+          "type": "COMBO",
+          "localized_name": "advanced_options"
+        }
+      ],
+      "flags": {},
+      "type": "RH_Translator",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        400,
+        200
+      ],
+      "pos": [
+        -7427.53955078125,
+        116.4535903930664
+      ],
+      "id": 205,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "RH_Translator",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 0
+    },
+    {
+      "outputs": [
+        {
+          "name": "positive",
+          "slot_index": 0,
+          "links": [
+            105
+          ],
+          "label": "positive",
+          "type": "CONDITIONING",
+          "localized_name": "positive"
+        },
+        {
+          "name": "negative",
+          "slot_index": 1,
+          "links": [
+            106
+          ],
+          "label": "negative",
+          "type": "CONDITIONING",
+          "localized_name": "negative"
+        },
+        {
+          "name": "latent",
+          "slot_index": 2,
+          "links": [
+            263
+          ],
+          "label": "latent",
+          "type": "LATENT",
+          "localized_name": "latent"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        false
+      ],
+      "inputs": [
+        {
+          "name": "positive",
+          "link": 145,
+          "label": "positive",
+          "type": "CONDITIONING",
+          "localized_name": "positive"
+        },
+        {
+          "name": "negative",
+          "link": 335,
+          "label": "negative",
+          "type": "CONDITIONING",
+          "localized_name": "negative"
+        },
+        {
+          "name": "vae",
+          "link": 116,
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        },
+        {
+          "name": "pixels",
+          "link": 373,
+          "label": "pixels",
+          "type": "IMAGE",
+          "localized_name": "pixels"
+        },
+        {
+          "name": "mask",
+          "link": 374,
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        },
+        {
+          "widget": {
+            "name": "noise_mask"
+          },
+          "name": "noise_mask",
+          "label": "noise_mask",
+          "type": "BOOLEAN",
+          "localized_name": "noise_mask"
+        }
+      ],
+      "flags": {},
+      "type": "InpaintModelConditioning",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        302.4000244140625,
+        138
+      ],
+      "pos": [
+        -4844.2109375,
+        575.75732421875
+      ],
+      "id": 60,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "InpaintModelConditioning",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 14
+    },
+    {
+      "outputs": [
+        {
+          "name": "LATENT",
+          "slot_index": 0,
+          "links": [
+            264
+          ],
+          "label": "LATENT",
+          "type": "LATENT",
+          "localized_name": "LATENT"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        1
+      ],
+      "inputs": [
+        {
+          "name": "latent",
+          "link": 263,
+          "label": "latent",
+          "type": "LATENT",
+          "localized_name": "latent"
+        },
+        {
+          "widget": {
+            "name": "batch_size"
+          },
+          "name": "batch_size",
+          "label": "batch_size",
+          "type": "INT",
+          "localized_name": "batch_size"
+        }
+      ],
+      "flags": {},
+      "type": "CR Latent Batch Size",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        315,
+        58
+      ],
+      "pos": [
+        -4855.10302734375,
+        773.5464477539062
+      ],
+      "id": 164,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "CR Latent Batch Size",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 15
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "slot_index": 0,
+          "links": [
+            104
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 339,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        }
+      ],
+      "flags": {},
+      "type": "DifferentialDiffusion",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        277.20001220703125,
+        26
+      ],
+      "pos": [
+        -4840.49951171875,
+        473.1361083984375
+      ],
+      "id": 61,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "DifferentialDiffusion",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 7
+    },
+    {
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "links": [
+            335
+          ],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING",
+          "localized_name": "CONDITIONING"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "conditioning",
+          "link": 336,
+          "label": "conditioning",
+          "type": "CONDITIONING",
+          "localized_name": "conditioning"
+        }
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "type": "ConditioningZeroOut",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        317.4000244140625,
+        26
+      ],
+      "pos": [
+        -5257.58837890625,
+        703.4552612304688
+      ],
+      "id": 206,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ConditioningZeroOut",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 10
+    },
+    {
+      "outputs": [],
+      "color": "#322",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "mask",
+          "link": 366,
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        }
+      ],
+      "flags": {},
+      "type": "MaskPreview+",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        210,
+        246
+      ],
+      "pos": [
+        -6582.3701171875,
+        824.4896850585938
+      ],
+      "id": 176,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "MaskPreview+",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 13
+    },
+    {
+      "outputs": [
+        {
+          "name": "stitch",
+          "links": [
+            367
+          ],
+          "label": "stitch",
+          "type": "STITCH",
+          "localized_name": "stitch"
+        },
+        {
+          "name": "cropped_image",
+          "links": [
+            365,
+            373
+          ],
+          "label": "cropped_image",
+          "type": "IMAGE",
+          "localized_name": "cropped_image"
+        },
+        {
+          "name": "cropped_mask",
+          "links": [
+            366,
+            374
+          ],
+          "label": "cropped_mask",
+          "type": "MASK",
+          "localized_name": "cropped_mask"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        500,
+        1,
+        true,
+        50,
+        false,
+        32,
+        "bicubic",
+        "ranged size",
+        1024,
+        1024,
+        1,
+        1024,
+        1024,
+        1024,
+        1024,
+        32
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 363,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "mask",
+          "link": 364,
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        },
+        {
+          "shape": 7,
+          "name": "optional_context_mask",
+          "label": "optional_context_mask",
+          "type": "MASK",
+          "localized_name": "optional_context_mask"
+        },
+        {
+          "widget": {
+            "name": "context_expand_pixels"
+          },
+          "name": "context_expand_pixels",
+          "label": "context_expand_pixels",
+          "type": "INT",
+          "localized_name": "context_expand_pixels"
+        },
+        {
+          "widget": {
+            "name": "context_expand_factor"
+          },
+          "name": "context_expand_factor",
+          "label": "context_expand_factor",
+          "type": "FLOAT",
+          "localized_name": "context_expand_factor"
+        },
+        {
+          "widget": {
+            "name": "fill_mask_holes"
+          },
+          "name": "fill_mask_holes",
+          "label": "fill_mask_holes",
+          "type": "BOOLEAN",
+          "localized_name": "fill_mask_holes"
+        },
+        {
+          "widget": {
+            "name": "blur_mask_pixels"
+          },
+          "name": "blur_mask_pixels",
+          "label": "blur_mask_pixels",
+          "type": "FLOAT",
+          "localized_name": "blur_mask_pixels"
+        },
+        {
+          "widget": {
+            "name": "invert_mask"
+          },
+          "name": "invert_mask",
+          "label": "invert_mask",
+          "type": "BOOLEAN",
+          "localized_name": "invert_mask"
+        },
+        {
+          "widget": {
+            "name": "blend_pixels"
+          },
+          "name": "blend_pixels",
+          "label": "blend_pixels",
+          "type": "FLOAT",
+          "localized_name": "blend_pixels"
+        },
+        {
+          "widget": {
+            "name": "rescale_algorithm"
+          },
+          "name": "rescale_algorithm",
+          "label": "rescale_algorithm",
+          "type": "COMBO",
+          "localized_name": "rescale_algorithm"
+        },
+        {
+          "widget": {
+            "name": "mode"
+          },
+          "name": "mode",
+          "label": "mode",
+          "type": "COMBO",
+          "localized_name": "mode"
+        },
+        {
+          "widget": {
+            "name": "force_width"
+          },
+          "name": "force_width",
+          "label": "force_width",
+          "type": "INT",
+          "localized_name": "force_width"
+        },
+        {
+          "widget": {
+            "name": "force_height"
+          },
+          "name": "force_height",
+          "label": "force_height",
+          "type": "INT",
+          "localized_name": "force_height"
+        },
+        {
+          "widget": {
+            "name": "rescale_factor"
+          },
+          "name": "rescale_factor",
+          "label": "rescale_factor",
+          "type": "FLOAT",
+          "localized_name": "rescale_factor"
+        },
+        {
+          "widget": {
+            "name": "min_width"
+          },
+          "name": "min_width",
+          "label": "min_width",
+          "type": "INT",
+          "localized_name": "min_width"
+        },
+        {
+          "widget": {
+            "name": "min_height"
+          },
+          "name": "min_height",
+          "label": "min_height",
+          "type": "INT",
+          "localized_name": "min_height"
+        },
+        {
+          "widget": {
+            "name": "max_width"
+          },
+          "name": "max_width",
+          "label": "max_width",
+          "type": "INT",
+          "localized_name": "max_width"
+        },
+        {
+          "widget": {
+            "name": "max_height"
+          },
+          "name": "max_height",
+          "label": "max_height",
+          "type": "INT",
+          "localized_name": "max_height"
+        },
+        {
+          "widget": {
+            "name": "padding"
+          },
+          "name": "padding",
+          "label": "padding",
+          "type": "COMBO",
+          "localized_name": "padding"
+        }
+      ],
+      "flags": {},
+      "type": "InpaintCrop",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        321.2398376464844,
+        458
+      ],
+      "pos": [
+        -7004.73046875,
+        678.9360961914062
+      ],
+      "id": 222,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "InpaintCrop",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 11
+    },
+    {
+      "outputs": [
+        {
+          "shape": 6,
+          "name": "text",
+          "links": [],
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "Wearing a watch"
+      ],
+      "inputs": [
+        {
+          "name": "text",
+          "link": 332,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {},
+      "type": "ShowText|pysssss",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        315,
+        112
+      ],
+      "pos": [
+        -6971.90087890625,
+        170.8070068359375
+      ],
+      "id": 187,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "ShowText|pysssss",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 5
+    },
+    {
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            363
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "mask",
+          "links": [
+            364
+          ],
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        },
+        {
+          "name": "context_mask",
+          "label": "context_mask",
+          "type": "MASK",
+          "localized_name": "context_mask"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "nearest",
+        "ensure minimum size",
+        4096,
+        4096,
+        3.0000000000000004
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "link": 361,
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        },
+        {
+          "name": "mask",
+          "link": 362,
+          "label": "mask",
+          "type": "MASK",
+          "localized_name": "mask"
+        },
+        {
+          "shape": 7,
+          "name": "optional_context_mask",
+          "label": "optional_context_mask",
+          "type": "MASK",
+          "localized_name": "optional_context_mask"
+        },
+        {
+          "widget": {
+            "name": "rescale_algorithm"
+          },
+          "name": "rescale_algorithm",
+          "label": "rescale_algorithm",
+          "type": "COMBO",
+          "localized_name": "rescale_algorithm"
+        },
+        {
+          "widget": {
+            "name": "mode"
+          },
+          "name": "mode",
+          "label": "mode",
+          "type": "COMBO",
+          "localized_name": "mode"
+        },
+        {
+          "widget": {
+            "name": "min_width"
+          },
+          "name": "min_width",
+          "label": "min_width",
+          "type": "INT",
+          "localized_name": "min_width"
+        },
+        {
+          "widget": {
+            "name": "min_height"
+          },
+          "name": "min_height",
+          "label": "min_height",
+          "type": "INT",
+          "localized_name": "min_height"
+        },
+        {
+          "widget": {
+            "name": "rescale_factor"
+          },
+          "name": "rescale_factor",
+          "label": "rescale_factor",
+          "type": "FLOAT",
+          "localized_name": "rescale_factor"
+        }
+      ],
+      "flags": {},
+      "type": "InpaintResize",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        409.1021423339844,
+        194
+      ],
+      "pos": [
+        -7049.65478515625,
+        430.787841796875
+      ],
+      "id": 220,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "InpaintResize",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 8
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            337,
+            378
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [],
+      "inputs": [
+        {
+          "name": "samples",
+          "link": 109,
+          "label": "samples",
+          "type": "LATENT",
+          "localized_name": "samples"
+        },
+        {
+          "name": "vae",
+          "link": 110,
+          "label": "vae",
+          "type": "VAE",
+          "localized_name": "vae"
+        }
+      ],
+      "flags": {},
+      "type": "VAEDecode",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        309.3173828125,
+        63.86370849609375
+      ],
+      "pos": [
+        -4521.1416015625,
+        780.0358276367188
+      ],
+      "id": 52,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAEDecode",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 17
+    },
+    {
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            113,
+            336
+          ],
+          "label": "CONDITIONING",
+          "type": "CONDITIONING",
+          "localized_name": "CONDITIONING"
+        }
+      ],
+      "color": "#232",
+      "widgets_values": [
+        ""
+      ],
+      "inputs": [
+        {
+          "name": "clip",
+          "link": 112,
+          "label": "clip",
+          "type": "CLIP",
+          "localized_name": "clip"
+        },
+        {
+          "widget": {
+            "name": "text"
+          },
+          "name": "text",
+          "link": 333,
+          "label": "text",
+          "type": "STRING",
+          "localized_name": "text"
+        }
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "type": "CLIPTextEncode",
+      "mode": 0,
+      "bgcolor": "#353",
+      "size": [
+        422.84503173828125,
+        164.31304931640625
+      ],
+      "pos": [
+        -5249.10107421875,
+        524.7298583984375
+      ],
+      "id": 55,
+      "properties": {
+        "widget_ue_connectable": {
+          "text": true
+        },
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "order": 6
+    },
+    {
+      "outputs": [
+        {
+          "name": "MODEL",
+          "links": [
+            339
+          ],
+          "label": "MODEL",
+          "type": "MODEL",
+          "localized_name": "MODEL"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "svdq-int4-flux.1-fill-dev",
+        0,
+        "nunchaku-fp16",
+        "auto",
+        0,
+        "bfloat16",
+        "enabled"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "model_path"
+          },
+          "name": "model_path",
+          "label": "model_path",
+          "type": "COMBO",
+          "localized_name": "model_path"
+        },
+        {
+          "widget": {
+            "name": "cache_threshold"
+          },
+          "name": "cache_threshold",
+          "label": "cache_threshold",
+          "type": "FLOAT",
+          "localized_name": "cache_threshold"
+        },
+        {
+          "widget": {
+            "name": "attention"
+          },
+          "name": "attention",
+          "label": "attention",
+          "type": "COMBO",
+          "localized_name": "attention"
+        },
+        {
+          "widget": {
+            "name": "cpu_offload"
+          },
+          "name": "cpu_offload",
+          "label": "cpu_offload",
+          "type": "COMBO",
+          "localized_name": "cpu_offload"
+        },
+        {
+          "widget": {
+            "name": "device_id"
+          },
+          "name": "device_id",
+          "label": "device_id",
+          "type": "INT",
+          "localized_name": "device_id"
+        },
+        {
+          "widget": {
+            "name": "data_type"
+          },
+          "name": "data_type",
+          "label": "data_type",
+          "type": "COMBO",
+          "localized_name": "data_type"
+        },
+        {
+          "widget": {
+            "name": "i2f_mode"
+          },
+          "shape": 7,
+          "name": "i2f_mode",
+          "label": "i2f_mode",
+          "type": "COMBO",
+          "localized_name": "i2f_mode"
+        }
+      ],
+      "flags": {},
+      "type": "NunchakuFluxDiTLoader",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        275.7613220214844,
+        202
+      ],
+      "pos": [
+        -5611.37646484375,
+        421.6466979980469
+      ],
+      "id": 211,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "NunchakuFluxDiTLoader",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 3
+    },
+    {
+      "outputs": [
+        {
+          "name": "VAE",
+          "slot_index": 0,
+          "links": [
+            110,
+            116
+          ],
+          "label": "VAE",
+          "type": "VAE",
+          "localized_name": "VAE"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "ae.sft"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "vae_name"
+          },
+          "name": "vae_name",
+          "label": "vae_name",
+          "type": "COMBO",
+          "localized_name": "vae_name"
+        }
+      ],
+      "flags": {},
+      "type": "VAELoader",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        315,
+        58
+      ],
+      "pos": [
+        -5604.02734375,
+        688.3223876953125
+      ],
+      "id": 58,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "VAELoader",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 2
+    },
+    {
+      "outputs": [
+        {
+          "name": "CLIP",
+          "links": [
+            112
+          ],
+          "label": "CLIP",
+          "type": "CLIP",
+          "localized_name": "CLIP"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "sd3/t5xxl_fp8_e4m3fn.safetensors",
+        "clip_l.safetensors",
+        "flux",
+        "default"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "clip_name1"
+          },
+          "name": "clip_name1",
+          "label": "clip_name1",
+          "type": "COMBO",
+          "localized_name": "clip_name1"
+        },
+        {
+          "widget": {
+            "name": "clip_name2"
+          },
+          "name": "clip_name2",
+          "label": "clip_name2",
+          "type": "COMBO",
+          "localized_name": "clip_name2"
+        },
+        {
+          "widget": {
+            "name": "type"
+          },
+          "name": "type",
+          "label": "type",
+          "type": "COMBO",
+          "localized_name": "type"
+        },
+        {
+          "widget": {
+            "name": "device"
+          },
+          "shape": 7,
+          "name": "device",
+          "label": "device",
+          "type": "COMBO",
+          "localized_name": "device"
+        }
+      ],
+      "flags": {},
+      "type": "DualCLIPLoader",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        315,
+        130
+      ],
+      "pos": [
+        -5620.27001953125,
+        817.4684448242188
+      ],
+      "id": 59,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "DualCLIPLoader",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 1
+    },
+    {
+      "outputs": [
+        {
+          "name": "LATENT",
+          "slot_index": 0,
+          "links": [
+            109
+          ],
+          "label": "LATENT",
+          "type": "LATENT",
+          "localized_name": "LATENT"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        416421967668749,
+        "randomize",
+        20,
+        1,
+        "euler",
+        "normal",
+        1
+      ],
+      "inputs": [
+        {
+          "name": "model",
+          "link": 104,
+          "label": "model",
+          "type": "MODEL",
+          "localized_name": "model"
+        },
+        {
+          "name": "positive",
+          "link": 105,
+          "label": "positive",
+          "type": "CONDITIONING",
+          "localized_name": "positive"
+        },
+        {
+          "name": "negative",
+          "link": 106,
+          "label": "negative",
+          "type": "CONDITIONING",
+          "localized_name": "negative"
+        },
+        {
+          "name": "latent_image",
+          "link": 264,
+          "label": "latent_image",
+          "type": "LATENT",
+          "localized_name": "latent_image"
+        },
+        {
+          "widget": {
+            "name": "seed"
+          },
+          "name": "seed",
+          "label": "seed",
+          "type": "INT",
+          "localized_name": "seed"
+        },
+        {
+          "widget": {
+            "name": "steps"
+          },
+          "name": "steps",
+          "label": "steps",
+          "type": "INT",
+          "localized_name": "steps"
+        },
+        {
+          "widget": {
+            "name": "cfg"
+          },
+          "name": "cfg",
+          "label": "cfg",
+          "type": "FLOAT",
+          "localized_name": "cfg"
+        },
+        {
+          "widget": {
+            "name": "sampler_name"
+          },
+          "name": "sampler_name",
+          "label": "sampler_name",
+          "type": "COMBO",
+          "localized_name": "sampler_name"
+        },
+        {
+          "widget": {
+            "name": "scheduler"
+          },
+          "name": "scheduler",
+          "label": "scheduler",
+          "type": "COMBO",
+          "localized_name": "scheduler"
+        },
+        {
+          "widget": {
+            "name": "denoise"
+          },
+          "name": "denoise",
+          "label": "denoise",
+          "type": "FLOAT",
+          "localized_name": "denoise"
+        }
+      ],
+      "flags": {},
+      "type": "KSampler",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        315,
+        262
+      ],
+      "pos": [
+        -4510.8984375,
+        460.8600769042969
+      ],
+      "id": 50,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "KSampler",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 16
+    },
+    {
+      "outputs": [],
+      "color": "#322",
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 337,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        }
+      ],
+      "flags": {},
+      "type": "SaveImage",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        352.631591796875,
+        574.5791625976562
+      ],
+      "pos": [
+        -4174.591796875,
+        453.49176025390625
+      ],
+      "id": 207,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 18
+    },
+    {
+      "outputs": [],
+      "color": "#322",
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/view?filename=rgthree.compare._temp_lcuti_00001_kqplx_1756686778.png&type=temp&subfolder=&rand=0.4015171385734573&Rh-Comfy-Auth=eyJ1c2VySWQiOiJmYWQxMjUxYzhiMzI2Nzg0NTQ5ZmFkZDhhYzhjMTY2MyIsInNpZ25FeHBpcmUiOjE3NTcyODk2OTY5MjAsInRzIjoxNzU2Njg0ODk2OTIwLCJzaWduIjoiMmI5M2NlYmI3NDE4MTlhYzMwZmJmMWZhM2VkZDlmNTAifQ==&Rh-Identify=fad1251c8b326784549fadd8ac8c1663"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/view?filename=rgthree.compare._temp_lcuti_00002_dueez_1756686782.png&type=temp&subfolder=&rand=0.5763262421509253&Rh-Comfy-Auth=eyJ1c2VySWQiOiJmYWQxMjUxYzhiMzI2Nzg0NTQ5ZmFkZDhhYzhjMTY2MyIsInNpZ25FeHBpcmUiOjE3NTcyODk2OTY5MjAsInRzIjoxNzU2Njg0ODk2OTIwLCJzaWduIjoiMmI5M2NlYmI3NDE4MTlhYzMwZmJmMWZhM2VkZDlmNTAifQ==&Rh-Identify=fad1251c8b326784549fadd8ac8c1663"
+          }
+        ]
+      ],
+      "inputs": [
+        {
+          "name": "image_a",
+          "link": 379,
+          "label": "image_a",
+          "dir": 3,
+          "type": "IMAGE"
+        },
+        {
+          "name": "image_b",
+          "link": 295,
+          "label": "image_b",
+          "dir": 3,
+          "type": "IMAGE"
+        }
+      ],
+      "flags": {},
+      "type": "Image Comparer (rgthree)",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        564.7603149414062,
+        779.3109130859375
+      ],
+      "pos": [
+        -6253.9736328125,
+        396.8718566894531
+      ],
+      "id": 183,
+      "properties": {
+        "comparer_mode": "Slide",
+        "widget_ue_connectable": {},
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 21
+    },
+    {
+      "mode": 0,
+      "outputs": [],
+      "bgcolor": "#533",
+      "size": [
+        533.8773803710938,
+        608.0353393554688
+      ],
+      "color": "#322",
+      "pos": [
+        -7442.95458984375,
+        1356.2767333984375
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 383,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        }
+      ],
+      "flags": {},
+      "id": 231,
+      "type": "PreviewImage",
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "PreviewImage",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 22
+    },
+    {
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "links": [
+            295,
+            361
+          ],
+          "label": "IMAGE",
+          "type": "IMAGE",
+          "localized_name": "IMAGE"
+        },
+        {
+          "name": "MASK",
+          "links": [
+            362
+          ],
+          "label": "MASK",
+          "type": "MASK",
+          "localized_name": "MASK"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "clipspace/de042664052c224ae74e44bb371e3ae2_811e2b5c3851af63a518904ea86e4c595b41c8d3c2e1e86f67caa72989516e75.png [input]",
+        "image"
+      ],
+      "inputs": [
+        {
+          "widget": {
+            "name": "image"
+          },
+          "name": "image",
+          "label": "image",
+          "type": "COMBO",
+          "localized_name": "image"
+        },
+        {
+          "widget": {
+            "name": "upload"
+          },
+          "name": "upload",
+          "label": "upload",
+          "type": "IMAGEUPLOAD",
+          "localized_name": "choose file to upload"
+        }
+      ],
+      "flags": {},
+      "type": "LoadImage",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        348.08575439453125,
+        519.175537109375
+      ],
+      "pos": [
+        -7454.43603515625,
+        431.7228088378906
+      ],
+      "id": 174,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "LoadImage",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 4
+    },
+    {
+      "outputs": [
+        {
+          "name": "image",
+          "links": [
+            369,
+            379,
+            383
+          ],
+          "label": "image",
+          "type": "IMAGE",
+          "localized_name": "image"
+        }
+      ],
+      "color": "#322",
+      "widgets_values": [
+        "bislerp"
+      ],
+      "inputs": [
+        {
+          "name": "stitch",
+          "link": 367,
+          "label": "stitch",
+          "type": "STITCH",
+          "localized_name": "stitch"
+        },
+        {
+          "name": "inpainted_image",
+          "link": 378,
+          "label": "inpainted_image",
+          "type": "IMAGE",
+          "localized_name": "inpainted_image"
+        },
+        {
+          "widget": {
+            "name": "rescale_algorithm"
+          },
+          "name": "rescale_algorithm",
+          "label": "rescale_algorithm",
+          "type": "COMBO",
+          "localized_name": "rescale_algorithm"
+        }
+      ],
+      "flags": {},
+      "type": "InpaintStitch",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        325.9087829589844,
+        78
+      ],
+      "pos": [
+        -6780.55908203125,
+        1244.1878662109375
+      ],
+      "id": 223,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "InpaintStitch",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 19
+    },
+    {
+      "outputs": [],
+      "color": "#322",
+      "widgets_values": [
+        "ComfyUI"
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "link": 369,
+          "label": "images",
+          "type": "IMAGE",
+          "localized_name": "images"
+        },
+        {
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "name": "filename_prefix",
+          "label": "filename_prefix",
+          "type": "STRING",
+          "localized_name": "filename_prefix"
+        }
+      ],
+      "flags": {},
+      "type": "SaveImage",
+      "mode": 0,
+      "bgcolor": "#533",
+      "size": [
+        626.1863403320312,
+        617.1346435546875
+      ],
+      "pos": [
+        -6811.04638671875,
+        1350.8858642578125
+      ],
+      "id": 210,
+      "properties": {
+        "widget_ue_connectable": {},
+        "Node name for S&R": "SaveImage",
+        "ttNbgOverride": {
+          "bgcolor": "#533",
+          "groupcolor": "#A88",
+          "color": "#322"
+        }
+      },
+      "order": 20
+    }
+  ],
+  "extra": {
+    "VHS_KeepIntermediate": true,
+    "links_added_by_ue": [],
+    "ue_links": [],
+    "VHS_MetadataImage": true,
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "VHS_latentpreviewrate": 0,
+    "VHS_latentpreview": false,
+    "frontendVersion": "1.23.0",
+    "groupNodes": {
+      "redux": {
+        "external": [
+          [
+            2,
+            0,
+            "CONDITIONING"
+          ]
+        ],
+        "nodes": [
+          {
+            "mode": 0,
+            "outputs": [
+              {
+                "name": "STYLE_MODEL",
+                "links": [],
+                "label": "风格模型",
+                "type": "STYLE_MODEL",
+                "localized_name": "STYLE_MODEL"
+              }
+            ],
+            "size": {
+              "0": 315,
+              "1": 58
+            },
+            "pos": {
+              "0": -4753.44482421875,
+              "1": 2435.62890625
+            },
+            "widgets_values": [
+              "flux1-redux-dev"
+            ],
+            "inputs": [],
+            "flags": {},
+            "index": 0,
+            "id": -1,
+            "type": "StyleModelLoader",
+            "properties": {
+              "Node name for S&R": "StyleModelLoader"
+            },
+            "order": 29
+          },
+          {
+            "mode": 0,
+            "outputs": [
+              {
+                "name": "CLIP_VISION",
+                "links": [],
+                "label": "CLIP视觉",
+                "type": "CLIP_VISION",
+                "localized_name": "CLIP_VISION"
+              }
+            ],
+            "size": {
+              "0": 315,
+              "1": 58
+            },
+            "pos": {
+              "0": -4737.27001953125,
+              "1": 2540.650390625
+            },
+            "widgets_values": [
+              "sigclip_vision_patch14_384"
+            ],
+            "inputs": [],
+            "flags": {},
+            "index": 1,
+            "id": -1,
+            "type": "CLIPVisionLoader",
+            "properties": {
+              "Node name for S&R": "CLIPVisionLoader"
+            },
+            "order": 30
+          },
+          {
+            "mode": 0,
+            "outputs": [
+              {
+                "name": "CONDITIONING",
+                "links": [],
+                "label": "CONDITIONING",
+                "type": "CONDITIONING",
+                "localized_name": "CONDITIONING"
+              },
+              {
+                "name": "IMAGE",
+                "label": "IMAGE",
+                "type": "IMAGE",
+                "localized_name": "IMAGE"
+              },
+              {
+                "name": "MASK",
+                "label": "MASK",
+                "type": "MASK",
+                "localized_name": "MASK"
+              }
+            ],
+            "size": {
+              "0": 315,
+              "1": 234
+            },
+            "pos": {
+              "0": -4361.24560546875,
+              "1": 2548.60986328125
+            },
+            "widgets_values": [
+              3,
+              "area",
+              "center crop (square)",
+              1,
+              0.1
+            ],
+            "inputs": [
+              {
+                "name": "conditioning",
+                "label": "conditioning",
+                "type": "CONDITIONING",
+                "localized_name": "conditioning"
+              },
+              {
+                "name": "style_model",
+                "label": "style_model",
+                "type": "STYLE_MODEL",
+                "localized_name": "style_model"
+              },
+              {
+                "name": "clip_vision",
+                "label": "clip_vision",
+                "type": "CLIP_VISION",
+                "localized_name": "clip_vision"
+              },
+              {
+                "name": "image",
+                "label": "image",
+                "type": "IMAGE",
+                "localized_name": "image"
+              },
+              {
+                "shape": 7,
+                "name": "mask",
+                "label": "mask",
+                "type": "MASK",
+                "localized_name": "mask"
+              }
+            ],
+            "flags": {},
+            "index": 2,
+            "id": -1,
+            "type": "ReduxAdvanced",
+            "properties": {
+              "Node name for S&R": "ReduxAdvanced"
+            },
+            "order": 59
+          }
+        ],
+        "links": [
+          [
+            null,
+            0,
+            2,
+            0,
+            88,
+            "CONDITIONING"
+          ],
+          [
+            0,
+            0,
+            2,
+            1,
+            193,
+            "STYLE_MODEL"
+          ],
+          [
+            1,
+            0,
+            2,
+            2,
+            192,
+            "CLIP_VISION"
+          ],
+          [
+            null,
+            0,
+            2,
+            3,
+            81,
+            "IMAGE"
+          ]
+        ]
+      }
+    },
+    "ds": {
+      "offset": [
+        7941.6431467095945,
+        -669.9094678094344
+      ],
+      "scale": 0.598950000000004
+    }
+  },
+  "groups": [
+    {
+      "color": "#3f789e",
+      "font_size": 70,
+      "flags": {},
+      "id": 9,
+      "title": "局部重绘——细节放大重绘",
+      "bounding": [
+        -7507.95068359375,
+        -35.05754852294922,
+        4056.444580078125,
+        2040.7921142578125
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 7,
+      "title": "无水印结果图",
+      "bounding": [
+        -7465.17138671875,
+        1238.9296875,
+        586.6756591796875,
+        736.5394897460938
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 8,
+      "title": "裁剪--如果选区太小可以，在选取外额外点一个点，这样会参考更多的画面",
+      "bounding": [
+        -7483.0966796875,
+        339.4060974121094,
+        1173.8433837890625,
+        817.9049072265625
+      ]
+    },
+    {
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {},
+      "id": 10,
+      "title": "工作区",
+      "bounding": [
+        -5636.91455078125,
+        348.4429931640625,
+        1832.36376953125,
+        707.2068481445312
+      ]
+    }
+  ],
+  "links": [
+    [
+      104,
+      61,
+      0,
+      50,
+      0,
+      "MODEL"
+    ],
+    [
+      105,
+      60,
+      0,
+      50,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      106,
+      60,
+      1,
+      50,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      109,
+      50,
+      0,
+      52,
+      0,
+      "LATENT"
+    ],
+    [
+      110,
+      58,
+      0,
+      52,
+      1,
+      "VAE"
+    ],
+    [
+      112,
+      59,
+      0,
+      55,
+      0,
+      "CLIP"
+    ],
+    [
+      113,
+      55,
+      0,
+      56,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      116,
+      58,
+      0,
+      60,
+      2,
+      "VAE"
+    ],
+    [
+      145,
+      56,
+      0,
+      60,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      263,
+      60,
+      2,
+      164,
+      0,
+      "LATENT"
+    ],
+    [
+      264,
+      164,
+      0,
+      50,
+      3,
+      "LATENT"
+    ],
+    [
+      295,
+      174,
+      0,
+      183,
+      1,
+      "IMAGE"
+    ],
+    [
+      332,
+      205,
+      0,
+      187,
+      0,
+      "STRING"
+    ],
+    [
+      333,
+      205,
+      0,
+      55,
+      1,
+      "STRING"
+    ],
+    [
+      335,
+      206,
+      0,
+      60,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      336,
+      55,
+      0,
+      206,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      337,
+      52,
+      0,
+      207,
+      0,
+      "IMAGE"
+    ],
+    [
+      339,
+      211,
+      0,
+      61,
+      0,
+      "MODEL"
+    ],
+    [
+      361,
+      174,
+      0,
+      220,
+      0,
+      "IMAGE"
+    ],
+    [
+      362,
+      174,
+      1,
+      220,
+      1,
+      "MASK"
+    ],
+    [
+      363,
+      220,
+      0,
+      222,
+      0,
+      "IMAGE"
+    ],
+    [
+      364,
+      220,
+      1,
+      222,
+      1,
+      "MASK"
+    ],
+    [
+      365,
+      222,
+      1,
+      178,
+      0,
+      "IMAGE"
+    ],
+    [
+      366,
+      222,
+      2,
+      176,
+      0,
+      "MASK"
+    ],
+    [
+      367,
+      222,
+      0,
+      223,
+      0,
+      "STITCH"
+    ],
+    [
+      369,
+      223,
+      0,
+      210,
+      0,
+      "IMAGE"
+    ],
+    [
+      373,
+      222,
+      1,
+      60,
+      3,
+      "IMAGE"
+    ],
+    [
+      374,
+      222,
+      2,
+      60,
+      4,
+      "MASK"
+    ],
+    [
+      378,
+      52,
+      0,
+      223,
+      1,
+      "IMAGE"
+    ],
+    [
+      379,
+      223,
+      0,
+      183,
+      0,
+      "IMAGE"
+    ],
+    [
+      383,
+      223,
+      0,
+      231,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "id": "7ebe9096-1126-48ba-b3c0-570844c87581",
+  "config": {},
+  "version": 0.4,
+  "last_node_id": 233,
+  "revision": 0
+}

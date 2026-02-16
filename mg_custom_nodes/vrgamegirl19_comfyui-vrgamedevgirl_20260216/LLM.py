@@ -10,8 +10,49 @@ import uuid
 import urllib.request
 import urllib.error
 
-from google import genai
+try:
+    import google.generativeai as genai_legacy
+except Exception:
+    genai_legacy = None
 
+try:
+    from google import genai as genai_new
+except Exception:
+    genai_new = None
+
+
+def _google_generate_content(api_key: str, model: str, contents):
+    if genai_legacy is not None and hasattr(genai_legacy, "configure") and hasattr(genai_legacy, "GenerativeModel"):
+        genai_legacy.configure(api_key=api_key)
+        gm = genai_legacy.GenerativeModel(model)
+        return gm.generate_content(contents)
+    if genai_new is not None and hasattr(genai_new, "Client"):
+        client = genai_new.Client(api_key=api_key)
+        return client.models.generate_content(model=model, contents=contents)
+    raise Exception(
+        "Google SDK not available. Install `google-generativeai` or `google-genai` in this ComfyUI Python env."
+    )
+
+
+def _extract_google_inline_image(response) -> Optional[Image.Image]:
+    candidates = getattr(response, "candidates", []) or []
+    for cand in candidates:
+        content = getattr(cand, "content", None)
+        parts = getattr(content, "parts", []) if content is not None else []
+        for part in parts:
+            inline_data = getattr(part, "inline_data", None)
+            if inline_data is None:
+                continue
+            data_bytes = getattr(inline_data, "data", None)
+            if not data_bytes:
+                continue
+            try:
+                if isinstance(data_bytes, str):
+                    data_bytes = base64.b64decode(data_bytes)
+                return Image.open(BytesIO(data_bytes)).convert("RGB")
+            except Exception:
+                pass
+    return None
 
 class VRGDG_NanoBananaPro:
     """
@@ -71,9 +112,7 @@ class VRGDG_NanoBananaPro:
         if not api_key.strip():
             raise Exception("API key missing")
 
-        genai.configure(api_key=api_key)
-
-        model = genai.GenerativeModel("gemini-3-pro-image-preview")
+        model = "gemini-3-pro-image-preview"
 
         contents = []
 
@@ -91,14 +130,11 @@ class VRGDG_NanoBananaPro:
 
         contents.append(full_prompt)
 
-        response = model.generate_content(contents)
+        response = _google_generate_content(api_key=api_key, model=model, contents=contents)
 
-        # Extract inline returned image
-        for part in response.candidates[0].content.parts:
-            if hasattr(part, "inline_data") and part.inline_data:
-                img_bytes = part.inline_data.data
-                pil_img = Image.open(BytesIO(img_bytes)).convert("RGB")
-                return (self._pil_to_tensor(pil_img),)
+        pil_img = _extract_google_inline_image(response)
+        if pil_img is not None:
+            return (self._pil_to_tensor(pil_img),)
 
         raise Exception("No image returned")
 
@@ -1068,4 +1104,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VRGDG_LLM_Multi": "🤖 VRGDG LLM Multi 🤖",
     "VRGDG_LocalLLM": "💻 VRGDG Local LLM 💻",
 }
+
+
 

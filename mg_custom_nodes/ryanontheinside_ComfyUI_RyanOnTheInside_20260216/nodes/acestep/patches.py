@@ -9,7 +9,8 @@ These patches extend ComfyUI's ACE-Step implementation to support all task types
 - extract: Extract specific track (e.g., vocals, drums) from audio
 - lego: Generate specific track within a region
 
-Patches are applied at module import time.
+Mask patches (1D latent fixes) are applied at import time.
+ACE-Step model patches (forward/tokenizer) are applied lazily on first use.
 """
 
 import torch
@@ -17,8 +18,9 @@ import math
 import functools
 from . import logger
 
-# Flag to track if patches have been applied
-_patches_applied = False
+# Flags to track if patches have been applied
+_mask_patches_applied = False
+_acestep_patches_applied = False
 
 # Task instructions from official ACE-Step 1.5 constants
 TASK_INSTRUCTIONS = {
@@ -83,9 +85,6 @@ def _create_patched_ace_step15_forward(original_forward):
 
     This enables extend, repaint, cover, extract, and lego task types.
     """
-    # One-time logging flag
-    _forward_logged = [False]
-
     # Stock prepare_condition uses `is_covers is True` identity checks which fail
     # for tensors. Detect at patch-creation time whether the stock code has been
     # updated to use tensor ops (e.g. unsqueeze) so we pass the right type.
@@ -99,37 +98,27 @@ def _create_patched_ace_step15_forward(original_forward):
     except Exception:
         _prepare_wants_tensor = False
 
+    logged = False
+
     @functools.wraps(original_forward)
     def patched_forward(self, x, timestep, context, lyric_embed=None, refer_audio=None,
                         audio_codes=None, chunk_masks=None, src_latents=None,
                         is_covers=None, precomputed_lm_hints_25Hz=None,
                         replace_with_null_embeds=False, **kwargs):
+        nonlocal logged
         text_attention_mask = None
         lyric_attention_mask = None
         refer_audio_order_mask = None
         attention_mask = None
 
-        if not hasattr(patched_forward, '_diag_count'):
-            patched_forward._diag_count = 0
-        patched_forward._diag_count += 1
-        _call = patched_forward._diag_count
-        # Each step has 2 calls (cond + uncond). Log early, mid, late.
-        # Steps 1-2 = calls 1-4, step 15 = calls 29-30, step 28-30 = calls 55-60
-        _should_log = False #_call <= 4 or _call in (29, 30) or _call >= 55
-        if _should_log:
-            print(f"[PATCHED_FWD] Call #{_call}: "
-                  f"x={x.shape}, t={timestep}, is_covers={is_covers}, "
-                  f"hints={'yes' if precomputed_lm_hints_25Hz is not None else 'no'}, "
-                  f"null_embeds={replace_with_null_embeds}")
-
         # One-time diagnostic log for cover task
-        if not _forward_logged[0] and precomputed_lm_hints_25Hz is not None:
+        if not logged and precomputed_lm_hints_25Hz is not None:
             logger.debug(f"[ACE15_PATCHED_FORWARD] Cover mode detected")
             logger.debug(f"[ACE15_PATCHED_FORWARD]   x.shape (before transpose): {x.shape}")
             logger.debug(f"[ACE15_PATCHED_FORWARD]   is_covers: {is_covers}")
             logger.debug(f"[ACE15_PATCHED_FORWARD]   precomputed_lm_hints_25Hz.shape (before transpose): {precomputed_lm_hints_25Hz.shape}")
             logger.debug(f"[ACE15_PATCHED_FORWARD]   precomputed_lm_hints_25Hz stats: mean={precomputed_lm_hints_25Hz.mean():.4f}, std={precomputed_lm_hints_25Hz.std():.4f}")
-            _forward_logged[0] = True
+            logged = True
 
         # is_covers can now be passed explicitly by guiders:
         # - Cover/Extract tasks: is_covers=1 (use lm_hints from precomputed_lm_hints_25Hz)
@@ -157,14 +146,8 @@ def _create_patched_ace_step15_forward(original_forward):
         if precomputed_lm_hints_25Hz is not None:
             # precomputed_lm_hints_25Hz comes in ComfyUI format [B, D, T], transpose to [B, T, D]
             precomputed_lm_hints_25Hz = precomputed_lm_hints_25Hz.movedim(-1, -2)
-            # Log post-transpose shape (one-time)
-            if _forward_logged[0] and not hasattr(patched_forward, '_post_transpose_logged'):
-                logger.debug(f"[ACE15_PATCHED_FORWARD]   precomputed_lm_hints_25Hz.shape (after transpose): {precomputed_lm_hints_25Hz.shape}")
-                logger.debug(f"[ACE15_PATCHED_FORWARD]   x.shape (after transpose): {x.shape}")
-                logger.debug(f"[ACE15_PATCHED_FORWARD]   src_latents.shape (after transpose): {src_latents.shape if src_latents is not None else 'None'}")
-                patched_forward._post_transpose_logged = True
 
-        if src_latents is None and is_covers is None:
+        if src_latents is None:
             src_latents = x
 
         if chunk_masks is None:
@@ -184,9 +167,6 @@ def _create_patched_ace_step15_forward(original_forward):
             if isinstance(is_covers, torch.Tensor) and is_covers.any().item():
                 is_covers = True
 
-        if patched_forward._diag_count <= 2 and precomputed_lm_hints_25Hz is not None:
-            print(f"[PATCHED_FWD]   is_covers_adapted={is_covers}, hints.shape={precomputed_lm_hints_25Hz.shape}")
-
         enc_hidden, enc_mask, context_latents = self.prepare_condition(
             text_hidden_states, text_attention_mask,
             lyric_hidden_states, lyric_attention_mask,
@@ -200,10 +180,6 @@ def _create_patched_ace_step15_forward(original_forward):
         if replace_with_null_embeds:
             enc_hidden[:] = self.null_condition_emb.to(enc_hidden)
 
-        if _should_log:
-            print(f"[PATCHED_FWD]   enc_hidden: std={enc_hidden.std():.4f}, ctx_latents: shape={context_latents.shape}")
-            print(f"[PATCHED_FWD]   x stats: mean={x.mean():.4f}, std={x.std():.4f}, min={x.min():.4f}, max={x.max():.4f}")
-
         out = self.decoder(
             hidden_states=x,
             timestep=timestep,
@@ -213,9 +189,6 @@ def _create_patched_ace_step15_forward(original_forward):
             encoder_attention_mask=enc_mask,
             context_latents=context_latents
         )
-
-        if _should_log:
-            print(f"[PATCHED_FWD]   decoder out: mean={out.mean():.4f}, std={out.std():.4f}, min={out.min():.4f}, max={out.max():.4f}")
 
         return out.movedim(-1, -2)
 
@@ -294,16 +267,16 @@ def _create_patched_tokenizer(original_tokenize_with_weights):
     return patched_tokenize_with_weights
 
 
-def apply_patches():
+def _apply_mask_patches():
     """
-    Apply all ACE-Step 1.5 patches.
+    Apply mask-related patches for 1D latent support.
 
-    This should be called once at module load time.
-    Safe to call multiple times (will only apply once).
+    These are safe to apply at import time since they only fix ComfyUI bugs
+    for 1D spatial dimensions and don't change behavior for standard 2D/3D latents.
     """
-    global _patches_applied
+    global _mask_patches_applied
 
-    if _patches_applied:
+    if _mask_patches_applied:
         return
 
     try:
@@ -385,15 +358,10 @@ def apply_patches():
         def _patched_reshape_mask(input_mask, output_shape):
             dims = len(output_shape) - 2
             if dims == 1:
-                # Reshape to (batch, 1, length) for F.interpolate with mode='linear'
-                if input_mask.ndim == 1:
-                    input_mask = input_mask.reshape(1, 1, -1)
-                elif input_mask.ndim == 2:
-                    input_mask = input_mask.reshape(input_mask.shape[0], 1, -1)
-                elif input_mask.ndim >= 3:
-                    input_mask = input_mask.reshape(-1, 1, input_mask.shape[-1])
-
-                mask = torch.nn.functional.interpolate(input_mask, size=output_shape[2:], mode='linear', align_corners=False)
+                input_mask = input_mask.reshape((-1, 1, input_mask.shape[-1]))
+                # Fall through to stock interpolation logic would be ideal,
+                # but we can't since we replaced the function. Replicate it:
+                mask = torch.nn.functional.interpolate(input_mask, size=output_shape[2:], mode='linear')
                 if mask.shape[1] < output_shape[1]:
                     mask = mask.repeat((1, output_shape[1]) + (1,) * dims)[:, :output_shape[1]]
                 mask = _utils.repeat_to_batch_size(mask, output_shape[0])
@@ -407,6 +375,24 @@ def apply_patches():
         logger.info("[ACE-Step Patches] Patched comfy.utils.reshape_mask for 1D latent support")
     except Exception as e:
         logger.warning(f"[ACE-Step Patches] Warning: Could not patch reshape_mask: {e}")
+
+    _mask_patches_applied = True
+
+
+def apply_acestep_patches():
+    """
+    Apply ACE-Step model patches (forward method and tokenizer).
+
+    These are applied lazily — only when an ACE-Step node is actually executed —
+    so that users who have this node pack installed but aren't using ACE-Step
+    nodes don't get their ACE-Step forward method overwritten.
+
+    Safe to call multiple times (will only apply once).
+    """
+    global _acestep_patches_applied
+
+    if _acestep_patches_applied:
+        return
 
     try:
         # Patch AceStepConditionGenerationModel.forward
@@ -426,14 +412,14 @@ def apply_patches():
     except ImportError as e:
         logger.info(f"[ACE-Step Patches] Warning: Could not patch ace15 tokenizer: {e}")
 
-    _patches_applied = True
-    logger.info("[ACE-Step Patches] All patches applied successfully")
+    _acestep_patches_applied = True
+    logger.info("[ACE-Step Patches] ACE-Step model patches applied")
 
 
 def is_patched():
-    """Check if patches have been applied."""
-    return _patches_applied
+    """Check if ACE-Step model patches have been applied."""
+    return _acestep_patches_applied
 
 
-# Apply patches when this module is imported
-apply_patches()
+# Apply mask patches at import time (safe for all users, fixes 1D latent bugs)
+_apply_mask_patches()

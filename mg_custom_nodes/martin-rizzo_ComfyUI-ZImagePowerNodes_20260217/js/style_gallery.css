@@ -83,15 +83,20 @@
   display        : flex;
   flex-direction : column;
   align-items    : center;
-  border         : 4px solid transparent;
+  border         : 2px solid transparent;
   border-radius  : 8px;
 }
 
-.zipn-style-grid-card.p-highlight {
+.zipn-style-grid-card.initial {
   background-color: var(--p-button-primary-background);
-  background-color: color-mix(in srgb,  var(--p-button-primary-background) 66%, var(--p-dialog-background));
+  background-color: color-mix(in srgb,  var(--p-button-primary-background) 33%, var(--p-dialog-background));
 }
 
+.zipn-style-grid-card.active {
+  background-color: var(--p-button-primary-background);
+  background-color: color-mix(in srgb,  var(--p-button-primary-background) 66%, var(--p-dialog-background));
+  border-color: var(--p-button-primary-background);
+}
 
 .zipn-style-grid-card img {
   width          : 96px;
@@ -136,6 +141,18 @@
   background-color: var(--p-button-primary-background);
   background-color: color-mix(in srgb,  var(--p-button-primary-background) 66%, var(--p-dialog-background));
 }
+
+.zipn-style-list-card.initial {
+  background-color: var(--p-button-primary-background);
+  background-color: color-mix(in srgb,  var(--p-button-primary-background) 33%, var(--p-dialog-background));
+}
+
+.zipn-style-list-card.active {
+  background-color: var(--p-button-primary-background);
+  background-color: color-mix(in srgb,  var(--p-button-primary-background) 66%, var(--p-dialog-background));
+  border-color: var(--p-button-primary-background);
+}
+
 
 .zipn-style-list-card img {
   width          : 32px;

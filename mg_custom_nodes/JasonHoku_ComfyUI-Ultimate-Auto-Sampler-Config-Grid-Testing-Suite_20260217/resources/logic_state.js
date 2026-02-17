@@ -1,0 +1,84 @@
+/**
+ * GLOBAL STATE MANAGEMENT
+ * Holds the raw data, layout metrics, and viewport coordinates.
+ */
+
+// --- DATA CONTAINERS ---
+
+
+
+// --- 2. HELPERS (Restored) ---
+var currentSort = currentSort || 'oldest';
+var currentSecondarySort = currentSecondarySort || 'none';
+var processedData = processedData || [];
+var activeData = activeData || [];
+var searchFilters = searchFilters || [];
+var isPipelinePending = false;
+var lastFilterKey = null;
+var idToIndexMap = new Map();
+var meta = meta || {}; 
+
+// Filter State Containers
+var filters = filters || {
+    model: new Set(),
+    sampler: new Set(),
+    scheduler: new Set(),
+    denoise: new Set(),
+    lora: new Set(),
+    positive: new Set(),
+    negative: new Set(),
+    size: new Set(),
+    seed: new Set()
+};
+
+// Top-level filter toggles (true = show, false = hide)
+var topFilters = topFilters || {
+    showFavorites: true,    // Default ON
+    showNonFavorited: true, // Default ON
+    showRejected: false     // Default OFF
+};
+
+const sortOptionsList = [
+    { id: 'oldest', label: 'Oldest' },
+    { id: 'newest', label: 'Newest' },
+    { id: 'fastest', label: 'Fastest' },
+    { id: 'favorited', label: 'Favorited' },
+    { id: 'model', label: 'Model' },
+    { id: 'prompt', label: 'Prompt' },
+    { id: 'cfg', label: 'CFG' },
+    { id: 'denoise', label: 'Denoise' },
+    { id: 'lora', label: 'LoRA' },
+    { id: 'sampler', label: 'Sampler' },
+    { id: 'seed', label: 'Seed' },
+    { id: 'size', label: 'Size' }
+];
+
+// --- SEARCH FILTER STATE ---
+// Array of search filter objects: { type: 'model', term: 'mountain' }
+
+
+// --- VIRTUALIZATION & PIPELINE ---
+let visibleSlice = { start: -1, end: -1 };
+
+const nodeMap = new Map();
+// --- LAYOUT METRICS ---
+let metrics = { 
+    cardWidth: 240,
+    cardHeight: 350,
+    colCount: 4,
+    totalHeight: 0,
+    ready: false 
+};
+
+// --- VIEWPORT COORDINATES (Legacy - kept for compatibility) ---
+let px = 0;
+let py = 0;
+let s = 1;
+
+// --- RENDER THROTTLING ---
+let isRenderPending = false; 
+let lastRenderTime = 0;
+const RENDER_THROTTLE_MS = 16;
+
+// --- DEBOUNCE TIMER (Prevents rapid re-renders) ---
+let updateDebounceTimer = null;

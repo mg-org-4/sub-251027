@@ -1,0 +1,46 @@
+name: Nightly Build
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - nightly
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build-nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Archive
+        # Nous reproduisons ici la logique d'exclusion de votre script make_release_zip.ps1
+        run: |
+          zip -r ComfyUI-Majoor-AssetsManager_nightly.zip . \
+          -x "*.git/*" \
+          -x ".github/*" \
+          -x ".claude/*" \
+          -x "*/__pycache__/*" \
+          -x "node_modules/*" \
+          -x "*/.pytest_cache/*" \
+          -x "tests/*" \
+          -x "scripts/make_release_zip.ps1" \
+          -x "*.zip"
+
+      - name: Update Nightly Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: nightly
+          name: "Nightly Build (Development)"
+          prerelease: true
+          overwrite_files: true
+          files: |
+            ./ComfyUI-Majoor-AssetsManager_nightly.zip

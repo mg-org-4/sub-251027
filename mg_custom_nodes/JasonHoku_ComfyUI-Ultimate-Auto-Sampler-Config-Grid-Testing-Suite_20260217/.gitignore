@@ -1,0 +1,8 @@
+﻿__pycache__/
+*.pyc
+.claude_data
+.claude
+.claude_data/
+.claude/
+/.claude_data/
+/.claude/

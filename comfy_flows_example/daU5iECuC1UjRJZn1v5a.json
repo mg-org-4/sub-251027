@@ -1,0 +1,395 @@
+{
+  "id": "f704ca2b-c381-4882-887a-bbf727b7999c",
+  "revision": 0,
+  "last_node_id": 16,
+  "last_link_id": 38,
+  "nodes": [
+    {
+      "id": 12,
+      "type": "VAEDecode",
+      "pos": [
+        469.3713684082031,
+        163.135498046875
+      ],
+      "size": [
+        210,
+        46
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 31
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 38
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            35
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.30",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 16,
+      "type": "PreviewImage",
+      "pos": [
+        701.6470336914062,
+        163.5681610107422
+      ],
+      "size": [
+        210,
+        258
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 35
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.30",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 13,
+      "type": "EmptyLatentImage",
+      "pos": [
+        -300.66827392578125,
+        636.1821899414062
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            32
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.30",
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1080,
+        1080,
+        1
+      ]
+    },
+    {
+      "id": 11,
+      "type": "KSampler",
+      "pos": [
+        132.3997802734375,
+        158.32794189453125
+      ],
+      "size": [
+        315,
+        262
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 30
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 33
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 34
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 32
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            31
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.30",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        11231733368739,
+        "randomize",
+        90,
+        5,
+        "euler",
+        "normal",
+        1
+      ]
+    },
+    {
+      "id": 10,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -710.3428344726562,
+        282.9367980957031
+      ],
+      "size": [
+        315,
+        98
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            30
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            36,
+            37
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            38
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.30",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "cyberrealisticPony_v90Alt1.safetensors"
+      ]
+    },
+    {
+      "id": 15,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -324.59197998046875,
+        377.8885803222656
+      ],
+      "size": [
+        423.85247802734375,
+        210.6094512939453
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 36
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            34
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.30",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "blurry, deformed, cartoon, anime, low-res, low quality, painting, sketch, illustration, unrealistic proportions, bad anatomy, extra limbs, fused fingers, missing fingers, disfigured face, unnatural skin texture, overexposed, underexposed, harsh lighting, poor contrast, unnatural expression, exaggerated breasts, doll-like, plastic texture, 3D render, CGI, watermark, text, logo, nudity, nsfw, open mouth showing teeth, exaggerated features\n\n\n"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 14,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -316.8893737792969,
+        149.6536102294922
+      ],
+      "size": [
+        422.4140319824219,
+        174.7642364501953
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 37
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            33
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.30",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "A young blonde 18 year old, hyper-realistic woman with long, soft and voluminous hair, styled with natural waves. She has clear and smooth skin, delicate facial features, expressive blue eyes, long eyelashes, well-defined eyebrows and soft full pink lips. Totally nude with large breasts. She stands confidently on a beach, illuminated by daylight. Soft shadows and shallow depth of field create a sense of cinematic portrait. Realistic skin pores, natural body proportions, perfect lighting, elegant pose, seductive expression, high resolution, ultra-detailed, RAW photo, DSLR photo, studio quality, 85mm lens."
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    }
+  ],
+  "links": [
+    [
+      30,
+      10,
+      0,
+      11,
+      0,
+      "MODEL"
+    ],
+    [
+      31,
+      11,
+      0,
+      12,
+      0,
+      "LATENT"
+    ],
+    [
+      32,
+      13,
+      0,
+      11,
+      3,
+      "LATENT"
+    ],
+    [
+      33,
+      14,
+      0,
+      11,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      34,
+      15,
+      0,
+      11,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      35,
+      12,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      36,
+      10,
+      1,
+      15,
+      0,
+      "CLIP"
+    ],
+    [
+      37,
+      10,
+      1,
+      14,
+      0,
+      "CLIP"
+    ],
+    [
+      38,
+      10,
+      2,
+      12,
+      1,
+      "VAE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9090909090909091,
+      "offset": [
+        897.4878821684911,
+        -19.47911150040835
+      ]
+    },
+    "frontendVersion": "1.17.11",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

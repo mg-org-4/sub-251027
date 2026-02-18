@@ -1,0 +1,7 @@
+__pycache__
+Cumesh/*
+o_voxel/*
+FlexGEMM/*
+weights/*
+triton_cache/*
+triton_caches/*

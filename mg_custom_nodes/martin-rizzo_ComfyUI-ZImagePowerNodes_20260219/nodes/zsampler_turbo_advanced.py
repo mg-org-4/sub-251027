@@ -1,5 +1,5 @@
 """
-File    : zsampler_turbo_advanced_2.py
+File    : zsampler_turbo_advanced.py
 Purpose : Node for denoising latent images with Z-Image Turbo (ZIT) using a set of custom sigmas,
           (this advanced version allows you to manually configure additional parameters)
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
@@ -27,7 +27,7 @@ from .lib.system        import logger
 from .lib.progress_bar  import ProgressPreview
 
 
-class ZSamplerTurboAdvanced2(io.ComfyNode):
+class ZSamplerTurboAdvanced(io.ComfyNode):
     xTITLE         = "Z-Sampler Turbo (Advanced)"
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
@@ -59,27 +59,35 @@ class ZSamplerTurboAdvanced2(io.ComfyNode):
                 io.Int.Input         ("seed", default=1, min=1, max=0xffffffffffffffff, control_after_generate=True,
                                       tooltip="The seed used for the random noise generator, ensuring the same result is produced with the same value.",
                                      ),
-                io.Int.Input         ("steps", default=9, min=5, max=10, step=1,
+                io.Int.Input         ("steps", default=8, min=4, max=9, step=1,
                                       tooltip="The number of iterations to be performed during the sampling process.",
                                      ),
                 io.Float.Input       ("denoise", default=1.0, min=0.00, max=1.00, step=0.01,
                                       tooltip="The amount of denoising applied, lower values will maintain the structure of the initial image allowing for image to image sampling.",
                                      ),
                 io.Custom("ZIPN_DIVIDER").Input("divider"),
-                io.Combo.Input       ("noise_bias_method", default="experimental", options=["experimental", "accurate"],
-                                      tooltip="Method used to calculate the bias in each channel of the initial noise. "
-                                              "`experimental`: Denoises a blank latent image to calculate the bias. "
-                                              "`accurate`: Denoises a random latent image to calculate the bias. "
+                io.Float.Input       ("initial_noise_calibration", default=0.00, min=0.00, max=1.00, step=0.05,
+                                      tooltip="The amount of adjustment applied to the initial noise (0 means no adjustment). "
+                                              "This typically enhances image contrast and saturation, "
+                                              "higher values increase these effects more significantly."
                                      ),
-                io.Combo.Input       ("noise_bias_size", default="source", options=["source", "1024px", "512px", "256px"],
+                io.Combo.Input       ("noise_bias_estimation", default="experimental", options=["experimental", "accurate"],
+                                      tooltip="Method used to estimate the bias in each channel of the initial noise. "
+                                              "`experimental`: Calculate the bias by denoising a latent image with minimal noise. "
+                                              "`accurate`: Calculate the bias by denoising a fully noisy latent image. "
+                                     ),
+                io.Combo.Input       ("noise_bias_sample_size", default="image_size", options=["image_size", "1024px", "512px", "256px"],
                                       tooltip="The size of the latent image used to calculate the bias. "
-                                              "The smaller the image size, the faster the calculation."
+                                              "The smaller the image size, the faster the calculation of the first step. "
                                      ),
-                io.Float.Input       ("noise_bias_scale", default=0.11, min=0.00, max=1.00, step=0.01,
-                                      tooltip="The level of automatic adjustament from the calculated noise bias to apply before the first denoising step. (0 means no automatic adjustment).",
+                io.Float.Input       ("noise_bias_scale", default=0.12, min=0.00, max=1.00, step=0.01,
+                                      tooltip="The level of adjustament from the calculated noise bias "
+                                              "to apply before the first denoising step. "
+                                              "(0.0 means no bias adjustment; 1.0 means using the calculated bias).",
                                      ),
-                io.Float.Input       ("noise_overdose", default=0.34, min=-1.00, max=1.00, step=0.01,
-                                      tooltip="The amount of overamplitude in the initial noise generation. (negative values will reduce the amplitude)."
+                io.Float.Input       ("noise_overdose", default=0.33, min=-1.00, max=1.00, step=0.01,
+                                      tooltip="The amount of overamplitude in the initial noise generation. "
+                                              "(negative values will reduce the amplitude)."
                                      ),
             ],
             outputs=[
@@ -91,17 +99,26 @@ class ZSamplerTurboAdvanced2(io.ComfyNode):
     @classmethod
     def execute(cls,
                 model,
-                positive         : list,
-                latent_input     : dict[str, Any],
-                seed             : int,
-                steps            : int,
-                denoise          : float,
-                noise_bias_method: str,
-                noise_bias_size  : str | int | None,
-                noise_bias_scale : float,
-                noise_overdose   : float,
+                positive                 : list,
+                latent_input             : dict[str, Any],
+                seed                     : int,
+                steps                    : int,
+                denoise                  : float,
+                initial_noise_calibration: float,
+                noise_bias_estimation    : str,
+                noise_bias_sample_size   : str | int | None,
+                noise_bias_scale         : float,
+                noise_overdose           : float,
                 **kwargs
                 ) -> io.NodeOutput:
+
+        # calibration level determines the amount of adjustment applied
+        noise_bias_scale *= initial_noise_calibration
+        noise_overdose   *= initial_noise_calibration
+
+        # the "accurate" estimation method has a more sensitive scale
+        if noise_bias_estimation == "accurate":
+            noise_bias_scale /= 2
 
         # create a progress bar from 0 to 100
         progress = ProgressPreview.from_comfyui( model, 100 )
@@ -112,10 +129,10 @@ class ZSamplerTurboAdvanced2(io.ComfyNode):
         # `forced_size` is noise_bias_size converted to integer (pixels)
         # or None if "source" option was selected
         forced_size = None
-        if isinstance(noise_bias_size, str) and noise_bias_size.endswith("px"):
-            forced_size = int(noise_bias_size[:-2])
-        elif isinstance(noise_bias_size, (int,float)):
-            forced_size = int(noise_bias_size)
+        if isinstance(noise_bias_sample_size, str) and noise_bias_sample_size.endswith("px"):
+            forced_size = int(noise_bias_sample_size[:-2])
+        elif isinstance(noise_bias_sample_size, (int,float)):
+            forced_size = int(noise_bias_sample_size)
 
 
         # Sigmas are divided into 3 stages:
@@ -134,45 +151,43 @@ class ZSamplerTurboAdvanced2(io.ComfyNode):
         #   The transition from Stage 2 to Stage 3 can also be thought of as applying an "Euler-ancestral"
         #   sampling method instead of the standard "Euler", but only for that single step between stages.
         #
-        if steps>=10:
-            sigma0  = 1.000 #< used only to calculate the noise bias (optional first step)
-            sigmas1 = [0.991, 0.980, 0.920]                #< +2 steps
-            sigmas2 = [0.935, 0.90, 0.875, 0.750, 0.0000]  #< +4 steps
-            sigmas3 = [0.6582, 0.4556, 0.2000, 0.0000]     #< +3 steps
+        if steps>=9:
+            sigmas1 = [0.991, 0.980, 0.920]                 #< +2 steps
+            sigmas2 = [0.935, 0.90, 0.875, 0.750, 0.0000]   #< +4 steps
+            sigmas3 = [0.6582, 0.4556, 0.2000, 0.0000]      #< +3 steps
 
-        elif steps==9:
-            sigma0  = 1.000
-            sigmas1 = [0.991, 0.980, 0.920]
-            sigmas2 = [0.935, 0.90, 0.875, 0.750, 0.0000]
-            sigmas3 = [0.6582, 0.3019, 0.0000]
-
-        # these parameters configure the initial noise added to the latent space.
         elif steps==8:
-            sigma0  = 1.000
-            sigmas1 = [0.991, 0.980, 0.920]
-            sigmas2 = [0.9350, 0.8916, 0.7600, 0.0000]  # alt [0.9350, 0.8916, 0.7895, 0.0000],
-            sigmas3 = [0.6582, 0.3019, 0.0000]
+            sigmas1 = [0.991, 0.980, 0.920]                 #< +2 steps
+            sigmas2 = [0.935, 0.90, 0.875, 0.750, 0.0000]   #< +4 steps
+            sigmas3 = [0.6582, 0.3019, 0.0000]              #< +2 steps
 
         elif steps==7:
-            sigma0  = 1.000
-            sigmas1 = [0.991, 0.980, 0.920]
-            sigmas2 = [0.942, 0.780, 0.000]  # alt [0.935, 0.770, 0.000]
-            sigmas3 = [0.6582, 0.3019, 0.0000]
+            sigmas1 = [0.991, 0.980, 0.920]                 #< +2 steps
+            sigmas2 = [0.9350, 0.8916, 0.7600, 0.0000]      #< +3 steps
+            sigmas3 = [0.6582, 0.3019, 0.0000]              #< +2 steps
 
         elif steps==6:
             sigma0  = 1.000
-            sigmas1 = [0.991, 0.980, 0.920]
-            sigmas2 = [0.942, 0.780, 0.000]
-            sigmas3 = [0.6200, 0.0000]
+            sigmas1 = [0.991, 0.980, 0.920]                 #< +2 steps
+            sigmas2 = [0.942, 0.780, 0.000]                 #< +2 steps
+            sigmas3 = [0.6582, 0.3019, 0.0000]              #< +2 steps
 
-        elif steps<=5:
-            sigma0  = 1.000                   #< optional first step
-            sigmas1 = [0.991, 0.980, 0.920]   #< +2 steps
-            sigmas2 = [0.942, 0.000]          #< +1 steps
-            sigmas3 = [0.790, 0.000]          #< +1 steps
+        elif steps==5:
+            sigmas1 = [0.991, 0.980, 0.920]                 #< +2 steps
+            sigmas2 = [0.942, 0.780, 0.000]                 #< +2 steps
+            sigmas3 = [0.6200, 0.0000]                      #< +1 step
+
+        elif steps<=4:
+            sigmas1 = [0.991, 0.980, 0.920]                 #< +2 steps
+            sigmas2 = [0.942, 0.000]                        #< +1 steps
+            sigmas3 = [0.790, 0.000]                        #< +1 steps
+
+        # sigma0 is used only for estimating the initial noise bias (optional first step)
+        # (denoising for that estimation step goes from sigma0 to sigmas1[0])
+        sigma0 = 1.000
 
 
-        # these parameters tweak the bias and amplitude of the initial noise added
+        # these parameters determine the bias and amplitude of the initial noise added
         # to the latent space. vaguely speaking, they can be thought of as modifiers
         # influencing brightness and contrast/saturation of the final image.
         # given that the first sigma value is always set to "0.991", these values
@@ -183,11 +198,11 @@ class ZSamplerTurboAdvanced2(io.ComfyNode):
 
         # `initial_noise_bias` is calculated ONLY if the user set a non-zero scale
         # (this calculation adds an extra step to the diffusion process)
-        if noise_bias_scale != 0 and noise_bias_method != "none" and denoise >= 0.99:
+        if noise_bias_scale != 0 and noise_bias_estimation != "none" and denoise >= 0.99:
             bias = cls.calculate_denoise_bias(latent_input, model, seed, positive, positive,
                                               sampler     = sampler,
                                               sigmas      = [sigma0, sigmas1[0]],
-                                              method      = noise_bias_method,
+                                              method      = noise_bias_estimation,
                                               forced_size = forced_size,
                                               progress_preview = ProgressPreview( 100, parent=(progress,0,100//steps) ),
                                               )
@@ -207,6 +222,20 @@ class ZSamplerTurboAdvanced2(io.ComfyNode):
                                                       )
         return io.NodeOutput(latent_output)
 
+
+    #----------------------------------------------------------------------------
+    # Alternative 8/7-step sigma sequences discarded in the early stages of development
+    # if steps==8:
+    #     sigma0  = 1.000
+    #     sigmas1 = [0.991, 0.980, 0.920]
+    #     sigmas2 = [0.935, 0.8916, 0.7895, 0.000],
+    #     sigmas3 = [0.6582, 0.3019, 0.0000]
+    # if steps==7:
+    #     sigma0  = 1.000
+    #     sigmas1 = [0.991, 0.980, 0.920]
+    #     sigmas2 = [0.935, 0.770, 0.000]
+    #     sigmas3 = [0.6582, 0.3019, 0.0000]
+    #----------------------------------------------------------------------------
 
 
     #__ internal functions ________________________________

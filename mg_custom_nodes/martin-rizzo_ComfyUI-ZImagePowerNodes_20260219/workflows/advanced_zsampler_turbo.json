@@ -1,8 +1,8 @@
 {
   "id": "86aac45c-36d2-43be-8e53-2afb5f63d889",
   "revision": 0,
-  "last_node_id": 63,
-  "last_link_id": 92,
+  "last_node_id": 68,
+  "last_link_id": 104,
   "nodes": [
     {
       "id": 20,
@@ -201,7 +201,7 @@
           "name": "",
           "type": "MODEL",
           "links": [
-            89
+            101
           ]
         }
       ],
@@ -335,7 +335,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            91
+            103
           ]
         }
       ],
@@ -373,7 +373,7 @@
           ]
         }
       ],
-      "title": "Custom Style to Test",
+      "title": "\"Custom 1\" Style to Test",
       "properties": {
         "Node name for S&R": "PrimitiveStringMultiline"
       },
@@ -383,64 +383,10 @@
       "shape": 1
     },
     {
-      "id": 43,
-      "type": "StylePromptEncoder2 //ZImagePowerNodes",
-      "pos": [
-        190.33333772233937,
-        211.33333311298637
-      ],
-      "size": [
-        670,
-        515
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 62
-        },
-        {
-          "name": "customization",
-          "shape": 7,
-          "type": "STRING",
-          "link": 68
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            90
-          ]
-        },
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "StylePromptEncoder2 //ZImagePowerNodes"
-      },
-      "widgets_values": [
-        "\"Teal and Orange Photo\"",
-        null,
-        null,
-        "On the left side of the image, a young woman is depicted in close-up profile, gazing out a window in a castle corridor. The view is framed by a row of arched windows. She is a striking 18-year-old with long, flowing white hair, sharp cheekbones, and delicate curls. She has full lips and is dressed in a pale red and purple gown with intricate lace detailing, paired with soft moccasins. She appears innocent and is blushing slightly, her dress gently lifted at the hips. Her hands are pressed against the cool glass, her expression one of wistful longing.\n\nBehind her, another woman stands, embracing her warmly from behind, her hands gently circling the other woman’s waist. This woman is of African descent, with dark reddish hair and a fit physique, wearing a flowery summer dress. She gently holds the other woman's neck, a mischievous smile playing on her lips.\n\nOn the right side of the image, receding into the background and slightly out of focus, stands a robust robot constructed entirely of dark, polished wood. It is large and imposing, with visible gears and joints, hinting at complex inner workings. The background is softly blurred, emphasizing the distance.\n\nThe corridor walls are constructed of white stone, intricately carved with mosaic patterns, and lined with elegant columns."
-      ],
-      "color": "#232",
-      "bgcolor": "#353",
-      "shape": 1
-    },
-    {
       "id": 8,
       "type": "VAEDecode",
       "pos": [
-        1200,
+        1240,
         150
       ],
       "size": [
@@ -454,7 +400,7 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 92
+          "link": 104
         },
         {
           "name": "vae",
@@ -483,7 +429,7 @@
       "id": 31,
       "type": "SaveImage //ZImagePowerNodes",
       "pos": [
-        1400,
+        1440,
         150
       ],
       "size": [
@@ -510,15 +456,69 @@
       ]
     },
     {
-      "id": 63,
-      "type": "ZSamplerTurboAdvanced2 //ZImagePowerNodes",
+      "id": 43,
+      "type": "StylePromptEncoder2 //ZImagePowerNodes",
+      "pos": [
+        190.33333772233937,
+        211.33333311298637
+      ],
+      "size": [
+        670,
+        570
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 62
+        },
+        {
+          "name": "customization",
+          "shape": 7,
+          "type": "STRING",
+          "link": 68
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            102
+          ]
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StylePromptEncoder2 //ZImagePowerNodes"
+      },
+      "widgets_values": [
+        "\"Dramatic Light & Shadow\"",
+        null,
+        null,
+        "On the left side of the image, a young woman is depicted in close-up profile, gazing out a window in a castle corridor. The view is framed by a row of arched windows. She is a striking 18-year-old with long, flowing white hair, sharp cheekbones, and delicate curls. She has full lips and is dressed in a pale red and purple gown with intricate lace detailing, paired with soft moccasins. She appears innocent and is blushing slightly, her dress gently lifted at the hips. Her hands are pressed against the cool glass, her expression one of wistful longing.\n\nBehind her, another woman stands, embracing her warmly from behind, her hands gently circling the other woman’s waist. This woman is of African descent, with dark reddish hair and a fit physique, wearing a flowery summer dress. She gently holds the other woman's neck, a mischievous smile playing on her lips.\n\nOn the right side of the image, receding into the background and slightly out of focus, stands a robust robot constructed entirely of dark, polished wood. It is large and imposing, with visible gears and joints, hinting at complex inner workings. The background is softly blurred, emphasizing the distance.\n\nThe corridor walls are constructed of white stone, intricately carved with mosaic patterns, and lined with elegant columns."
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "shape": 1
+    },
+    {
+      "id": 68,
+      "type": "ZSamplerTurboAdvanced //ZImagePowerNodes",
       "pos": [
         880,
         150
       ],
       "size": [
-        310,
-        580
+        340,
+        630
       ],
       "flags": {},
       "order": 11,
@@ -527,17 +527,17 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 89
+          "link": 101
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 90
+          "link": 102
         },
         {
           "name": "latent_input",
           "type": "LATENT",
-          "link": 91
+          "link": 103
         }
       ],
       "outputs": [
@@ -545,21 +545,24 @@
           "name": "latent_output",
           "type": "LATENT",
           "links": [
-            92
+            104
           ]
         }
       ],
       "properties": {
-        "Node name for S&R": "ZSamplerTurboAdvanced2 //ZImagePowerNodes"
+        "Node name for S&R": "ZSamplerTurboAdvanced //ZImagePowerNodes"
       },
       "widgets_values": [
         1,
         "fixed",
         9,
+        1,
+        null,
+        0,
         "experimental",
+        "image_size",
         0.12,
-        0.3,
-        1
+        0.33
       ]
     }
   ],
@@ -637,32 +640,32 @@
       "STRING"
     ],
     [
-      89,
+      101,
       39,
       0,
-      63,
+      68,
       0,
       "MODEL"
     ],
     [
-      90,
+      102,
       43,
       0,
-      63,
+      68,
       1,
       "CONDITIONING"
     ],
     [
-      91,
+      103,
       32,
       0,
-      63,
+      68,
       2,
       "LATENT"
     ],
     [
-      92,
-      63,
+      104,
+      68,
       0,
       8,
       0,
@@ -687,10 +690,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 1.3310000000000004,
+      "scale": 0.8264462809917354,
       "offset": [
-        -397.1225609468996,
-        15.618903711087032
+        8.566520159882304,
+        114.0909693278697
       ]
     },
     "frontendVersion": "1.37.11",

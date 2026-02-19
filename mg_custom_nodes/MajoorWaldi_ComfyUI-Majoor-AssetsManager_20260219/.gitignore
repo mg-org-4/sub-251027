@@ -1,0 +1,134 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.pyd
+
+# Distribution / packaging
+build/
+dist/
+sdist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+
+# Pytest
+.pytest_cache/
+tests/__pytest_tmp__/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Databases / runtime data
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# ComfyUI / outputs
+output/
+output/_mjr_index/
+
+# Node / frontend
+node_modules/
+
+# Editor / OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-workspace
+
+# Logs and temp
+*.log
+logs/
+*.tmp
+*.temp
+*~
+*.swp
+
+# Testing and tooling
+.tox/
+.nox/
+__pytest_tmp__/
+
+# Build artefacts
+*.egg
+*.whl
+
+# Misc
+.env
+.env.*
+coverage.xml
+
+# Ignore runtime-generated indexes and caches
+*.cache
+cache/
+
+# Allow local overrides: uncomment to ignore local config
+# local_config.py
+input/hello.txt
+input/hello_1.txt
+
+# Restored project files to ignore
+AGENTS.md
+ROADMAP.md
+VERSION
+eslint.config.js
+ROADMAP.md
+VERSION
+AGENTS.md
+eslint.config.js
+VERSION
+package-lock.json
+package.json
+.claude/settings.local.json
+.claude/settings.local.json
+
+# Local untracked docs, assets, and test outputs (added by assistant)
+AUDIT_EVENTS.md
+PERFORMANCE_AUDIT.md
+VIEWER_DISPLAY_AUDIT.md
+VIEWER_HOTKEYS_AUDIT.md
+VIEWER_HUD_AUDIT.md
+VIEWER_INVESTIGATION_REPORT.md
+VIEWER_LATENCY_FIX.md
+clean_pycache.bat
+
+# Docs produced during audits or local notes
+docs/AUDIT_BACKEND_FEATURES.md
+docs/AUDIT_SETTINGS.md
+docs/GRID_DEEP_AUDIT_2026.md
+docs/SCAN_SETTINGS_AUDIT.md
+docs/VIEWER_FULLSCREEN.md
+docs/VIRTUAL_GRID_AUDIT.md
+docs/adr/0003-context-menu-strategy.md
+
+# Local resources / images
+ressources/MPDF.png
+ressources/full-moon-with-face.png
+
+# Scripts and local tools
+scripts/benchmark_scan.py
+update_filesystem_handlers.py
+
+# Test outputs and dumps
+tests/__reports__/
+variation_exif_dump.json
+run_tests_comfy_cli.bat
+scripts/sync_and_test_comfy_cli.bat
+.codex_filelist.txt
+.codex_existing_tests.txt

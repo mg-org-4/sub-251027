@@ -1,0 +1,112 @@
+const STORAGE_KEY = "mjr_panel_state";
+let _lastSavedSerialized = "";
+
+function loadPanelState() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+}
+
+function savePanelState(state) {
+    try {
+        const toSave = { ...state };
+        // Don't persist transient stats
+        delete toSave.lastGridCount;
+        delete toSave.lastGridTotal;
+        const serialized = JSON.stringify(toSave);
+        if (serialized === _lastSavedSerialized) return;
+        _lastSavedSerialized = serialized;
+        localStorage.setItem(STORAGE_KEY, serialized);
+    } catch {}
+}
+
+export function createPanelState() {
+    const saved = loadPanelState() || {};
+    const allowedScopes = new Set(["output", "input", "all", "custom"]);
+    const rawScope = String(saved.scope || "output").toLowerCase();
+    const normalizedScope = rawScope === "outputs" ? "output" : rawScope === "inputs" ? "input" : rawScope;
+    
+    const state = {
+        scope: allowedScopes.has(normalizedScope) ? normalizedScope : "output",
+        customRootId: saved.customRootId || "",
+        // Backward-compatible migration from old saved `subfolder` key.
+        currentFolderRelativePath: saved.currentFolderRelativePath || saved.subfolder || "",
+        collectionId: saved.collectionId || "",
+        collectionName: saved.collectionName || "",
+        kindFilter: saved.kindFilter || "",
+        dateRangeFilter: saved.dateRangeFilter || "",
+        dateExactFilter: saved.dateExactFilter || "",
+        workflowOnly: saved.workflowOnly || false,
+        minRating: saved.minRating || 0,
+        minSizeMB: Number(saved.minSizeMB || 0) || 0,
+        maxSizeMB: Number(saved.maxSizeMB || 0) || 0,
+        resolutionCompare: saved.resolutionCompare === "lte" ? "lte" : "gte",
+        minWidth: Number(saved.minWidth || 0) || 0,
+        minHeight: Number(saved.minHeight || 0) || 0,
+        maxWidth: Number(saved.maxWidth || 0) || 0,
+        maxHeight: Number(saved.maxHeight || 0) || 0,
+        workflowType: saved.workflowType || "",
+        sort: saved.sort || "mtime_desc",
+        // Search query and scroll position persistence
+        searchQuery: saved.searchQuery || "",
+        scrollTop: saved.scrollTop || 0,
+        
+        // Last grid load stats (best-effort; used by UI summary bar).
+        lastGridCount: 0,
+        lastGridTotal: 0,
+        // Selection state (source of truth) for durable selection across grid re-renders.
+        // Stored as strings because DOM dataset values are strings.
+        activeAssetId: saved.activeAssetId || "",
+        selectedAssetIds: saved.selectedAssetIds || [],
+        
+        // Sidebar open state for restoring across panel close/reopen.
+        sidebarOpen: saved.sidebarOpen || false
+    };
+    
+    let debounceTimer = null;
+    const debouncedSave = (targetState) => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            savePanelState(targetState);
+            debounceTimer = null;
+        }, 750);
+    };
+
+    const storageHandler = (event) => {
+        if (!event) return;
+        if (event.key !== STORAGE_KEY) return;
+        if (!event.newValue) return;
+        try {
+            const updated = JSON.parse(event.newValue);
+            Object.assign(state, updated || {});
+        } catch {}
+    };
+    try {
+        window.addEventListener("storage", storageHandler);
+    } catch {}
+
+    const dispose = () => {
+        try {
+            if (debounceTimer) clearTimeout(debounceTimer);
+        } catch {}
+        debounceTimer = null;
+        try {
+            window.removeEventListener("storage", storageHandler);
+        } catch {}
+    };
+
+    const proxy = new Proxy(state, {
+        set(target, prop, value) {
+            target[prop] = value;
+            debouncedSave(target);
+            return true;
+        }
+    });
+    
+    // Attach dispose to the proxy for cleanup
+    proxy._mjrDispose = dispose;
+    
+    return proxy;
+}

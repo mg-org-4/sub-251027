@@ -1,8 +1,9 @@
-import torch
-import numpy as np
-from math import copysign
-import logging
 import itertools
+import logging
+from math import copysign
+
+import numpy as np
+import torch
 
 log = logging.getLogger("comfyui-prompt-control")
 
@@ -41,12 +42,18 @@ def weights_like(weights, emb):
 def scale_to_norm(weights, word_ids, w_max):
     top = np.max(weights)
     w_max = min(top, w_max)
-    weights = [[w_max if id == 0 else (w / top) * w_max for w, id in zip(x, y)] for x, y in zip(weights, word_ids)]
+    weights = [
+        [w_max if id == 0 else (w / top) * w_max for w, id in zip(x, y, strict=False)]
+        for x, y in zip(weights, word_ids, strict=False)
+    ]
     return weights
 
 
 def mask_word_id(tokens, word_ids, target_id, mask_token):
-    new_tokens = [[mask_token if wid == target_id else t for t, wid in zip(x, y)] for x, y in zip(tokens, word_ids)]
+    new_tokens = [
+        [mask_token if wid == target_id else t for t, wid in zip(x, y, strict=False)]
+        for x, y in zip(tokens, word_ids, strict=False)
+    ]
     mask = np.array(word_ids) == target_id
     return (new_tokens, mask)
 
@@ -160,7 +167,7 @@ def apply_negpip(encoder, emb, pooled, **kwargs):
 
 def norm_length(encoder, tokens, **kwargs):
     word_ids = encoder.word_ids(tokens)
-    sums = dict(zip(*np.unique(word_ids, return_counts=True)))
+    sums = dict(zip(*np.unique(word_ids, return_counts=True), strict=False))
     sums[0] = 1
     tokens = [[(t, _norm_mag(w, sums[id]) if id != 0 else 1.0, id) for (t, w, id) in x] for x in tokens]
     return tokens
@@ -169,7 +176,9 @@ def norm_length(encoder, tokens, **kwargs):
 def norm_mean(encoder, tokens, **kwargs):
     weights = encoder.weights(tokens)
     word_ids = encoder.word_ids(tokens)
-    delta = 1 - np.mean([w for x, y in zip(weights, word_ids) for w, id in zip(x, y) if id != 0])
+    delta = 1 - np.mean(
+        [w for x, y in zip(weights, word_ids, strict=False) for w, id in zip(x, y, strict=False) if id != 0]
+    )
     tokens = [[(t, w if id == 0 else w + delta, id) for (t, w, id) in x] for x in tokens]
     return tokens
 
@@ -197,6 +206,7 @@ class AdvancedEncoder:
     def add_encoder(cls, name, fn):
         cls.STYLES[name] = fn
 
+    @classmethod
     def add_normalization_op(cls, name, fn):
         cls.NORMALIZATION_OPS[name] = fn
 
@@ -296,7 +306,7 @@ class AdvancedEncoder:
         w_mix = np.diff([0] + w.tolist())
         w_mix = torch.tensor(w_mix, dtype=embs.dtype, device=embs.device).reshape((-1, 1, 1))
 
-        weighted_emb = (w_mix * embs).sum(axis=0, keepdim=True)
+        weighted_emb = (w_mix * embs).sum(dim=0, keepdim=True)
         pooled = pooled_base
         if pooled is not None and self.max_length:
             pooled = weighted_emb[0, self.max_length - 1 : self.max_length, :]
@@ -304,7 +314,9 @@ class AdvancedEncoder:
 
     def from_masked(self, tokens, weights, word_ids, base_emb, pooled_base):
         wids, inds = np.unique(np.array(word_ids).reshape(-1), return_index=True)
-        weight_dict = dict((id, w) for id, w in zip(wids, np.array(weights).reshape(-1)[inds]) if w != 1.0)
+        weight_dict = dict(
+            (id, w) for id, w in zip(wids, np.array(weights).reshape(-1)[inds], strict=False) if w != 1.0
+        )
 
         if len(weight_dict) == 0:
             return torch.zeros_like(base_emb), torch.zeros_like(pooled_base) if pooled_base is not None else None
@@ -328,12 +340,13 @@ class AdvancedEncoder:
         masks = torch.cat(masks)
 
         embs = base_emb.expand(embs.shape) - embs
+        pooled = None
         if pooled_base is not None and self.max_length:
             pooled = embs[0, self.max_length - 1 : self.max_length, :]
             pooled_start = pooled_base.expand(len(ws), -1)
             ws = torch.tensor(ws).reshape(-1, 1).expand(pooled_start.shape)
             pooled = (pooled - pooled_start) * (ws - 1)
-            pooled = pooled.mean(axis=0, keepdim=True)
+            pooled = pooled.mean(dim=0, keepdim=True)
             pooled = pooled_base + pooled
 
         if embs.shape[0] != masks.shape[0]:

@@ -1,21 +1,25 @@
 # vim: sw=4 ts=4
-import lark
+from __future__ import annotations
+
 import logging
+from functools import lru_cache
 from math import ceil
+
+import lark
+
+from .macros import expand_macros
+from .utils import flatten
 
 logging.basicConfig()
 log = logging.getLogger("comfyui-prompt-control")
-import re
-
-from functools import lru_cache
-from .utils import get_function, find_closing_paren
 
 if lark.__version__ == "0.12.0":
     from sys import executable
 
     x = "\n".join(
         [
-            "Your lark package reports an ancient version (0.12.0) and will not work. If you have the 'lark-parser' package in your Python environment, remove that and *reinstall* lark!",
+            "Your lark package reports an ancient version (0.12.0) and will not work.",
+            "If you have the 'lark-parser' package in your Python environment, remove that and *reinstall* lark!",
             f"{executable} -m pip uninstall lark-parser lark",
             f"{executable} -m pip install lark",
         ]
@@ -31,19 +35,19 @@ ESCAPES = [
 ]
 
 
-def escape_specials(string):
+def escape_specials(string: str) -> str:
     for ph, c in ESCAPES:
         string = string.replace(rf"\{c}", ph)
     return string
 
 
-def restore_escaped(string):
+def restore_escaped(string: str) -> str:
     for ph, c in ESCAPES:
         string = string.replace(ph, c)
     return string
 
 
-def remove_comments(string):
+def remove_comments(string: str) -> str:
     r = []
     for line in string.split("\n"):
         comment = line.find("#")
@@ -79,54 +83,6 @@ TAG: /[A-Z_]+/
 """,
     lexer="dynamic",
 )
-
-
-cut_parser = lark.Lark(
-    r"""
-!start: (prompt | /[][:()]/+)*
-prompt: (cut | PLAIN | WHITESPACE)+
-cut: "[CUT:" prompt ":" prompt [":" NUMBER  [ ":" NUMBER [":" NUMBER [ ":" PLAIN ] ] ] ]"]"
-WHITESPACE: /\s+/
-PLAIN: /([^\[\]:])+/
-%import common.SIGNED_NUMBER -> NUMBER
-"""
-)
-
-
-class CutTransform(lark.Transformer):
-    def __default__(self, data, children, meta):
-        return children
-
-    def cut(self, args):
-        prompt, cutout, weight, strict_mask, start_from_masked, mask_token = args
-
-        return ("".join(flatten(prompt)), "".join(flatten(cutout)), weight, strict_mask, start_from_masked, mask_token)
-
-    def start(self, args):
-        prompt = []
-        cuts = []
-        for a in flatten(args):
-            if isinstance(a, str):
-                prompt.append(a)
-            else:
-                prompt.append(a[0])
-                cuts.append(a)
-        return "".join(prompt), cuts
-
-    def PLAIN(self, args):
-        return args
-
-
-def parse_cuts(text):
-    return CutTransform().transform(cut_parser.parse(text))
-
-
-def flatten(x):
-    if type(x) in [str, tuple, int, type(None)] or isinstance(x, dict) and "type" in x:
-        yield x
-    else:
-        for g in x:
-            yield from flatten(g)
 
 
 def clamp(a, b, c):
@@ -173,7 +129,7 @@ def get_steps(tree, num_steps):
 
         def sequence(self, tree):
             steps = tree.children[1::2]
-            for i, steps in enumerate(steps):
+            for i, _ in enumerate(steps):
                 w = tostep(tree.children[i * 2 + 1])
                 tree.children[i * 2 + 1] = w
                 res.append(w)
@@ -230,7 +186,7 @@ def at_step(step, filters, tree):
             previous_step = 0.0
             prompts = args[::2]
             steps = args[1::2]
-            for s, p in zip(steps, prompts):
+            for s, p in zip(steps, prompts, strict=False):
                 if s >= step and step >= previous_step:
                     previous_step = step
                     return p or ""
@@ -301,13 +257,12 @@ def at_step(step, filters, tree):
             return name, params, lbw
 
         def __default__(self, data, children, meta):
-            for child in children:
-                yield child
+            return children
 
     return AtStep().transform(tree)
 
 
-class PromptSchedule(object):
+class PromptSchedule:
     # 0 num_steps means unconfigured
     def __init__(self, prompt, filters="", start=0.0, end=1.0, num_steps=0):
         self.filters = filters
@@ -397,80 +352,6 @@ class PromptSchedule(object):
             if x[0] * total_steps >= step:
                 return i, x
         return len(self.parsed_prompt) - 1, self.parsed_prompt[-1]
-
-
-def parse_search(search):
-    arg_start = search.find("(")
-    args = ""
-    name = search.strip()
-    if arg_start > 0:
-        arg_end = find_closing_paren(search, arg_start + 1)
-        if arg_end < 0:
-            arg_end = len(search)
-        name = search[:arg_start].strip()
-        args = search[arg_start + 1 : arg_end]
-
-    if not name:
-        return None
-    args = args.strip()
-    # If using the form DEF(F()=$1) then the default value of $1 is the empty string
-    if arg_start > 0:
-        args = [a.strip() for a in args.split(";")]
-    else:
-        args = []
-    return name, args
-
-
-def expand_macros(text):
-    text, defs = get_function(text, "DEF", defaults=None)
-    res = text
-    prevres = text
-    replacements = []
-    for d in defs:
-        if not d.args:
-            continue
-        r = d.args[0].split("=", 1)
-        search = parse_search(r[0].strip())
-        if not search or len(r) != 2:
-            log.warning("Ignoring invalid DEF(%s)", d)
-            continue
-        replacements.append((search, r[1].strip()))
-    iterations = 0
-    while True:
-        iterations += 1
-        if iterations > 10:
-            raise ValueError("Unable to resolve DEFs, make sure there are no cycles!")
-            return text
-        for search, replace in replacements:
-            res = substitute_defcall(res, search, replace)
-        if res == prevres:
-            break
-        prevres = res
-    if res.strip() != text.strip():
-        res = res.strip()
-        log.info("DEFs expanded to: %s", res)
-    return res
-
-
-def substitute_defcall(text, search, replace):
-    name, default_args = search
-    text, defns = get_function(text, name, defaults=None, placeholder=f"DEFNCALL{name}", require_args=False)
-    for i, d in enumerate(defns):
-        ph = d.placeholder
-        assert ph is not None, "This is a bug"
-        parameters = d.args
-        paramvals = []
-        if parameters:
-            paramvals = [x.strip() for x in parameters[0].split(";")]
-        r = replace
-        for i, v in enumerate(paramvals):
-            r = re.sub(rf"\${i+1}\b", v, r)
-
-        for i, v in enumerate(default_args):
-            r = re.sub(rf"\${i+1}\b", v, r)
-
-        text = text.replace(ph, r)
-    return text
 
 
 @lru_cache

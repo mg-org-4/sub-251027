@@ -9,7 +9,6 @@ from typing import Any
 
 import torch
 import torch.nn.functional as F
-
 from comfy.hooks import EnumHookScope, HookGroup, TransformerOptionsHook, set_hooks_for_conditioning
 from comfy.model_patcher import ModelPatcher
 
@@ -71,14 +70,13 @@ class AttentionCoupleHook(TransformerOptionsHook):
             }
         }
         self.has_negpip = False
-
         # calculate later. All clones must refer to the same kv dict
-        self.kv = {"k": None, "v": None}
+        self.kv = {"k": [], "v": []}
 
     def initialize_regions(self, base_cond, conds, fill):
         self.num_conds = len(conds) + 1
         self.base_strength = base_cond[1].get("strength", 1.0)
-        self.strengths = [cond[1].get("strength", 1.0) for cond in conds]
+        self.strengths: list[float] = [cond[1].get("strength", 1.0) for cond in conds]
         self.conds: list[torch.Tensor] = [base_cond[0]] + [cond[0] for cond in conds]
         base_mask = base_cond[1].get("mask", None)
         masks = [cond[1].get("mask") * cond[1].get("mask_strength") for cond in conds]
@@ -215,6 +213,7 @@ class AttentionCoupleHook(TransformerOptionsHook):
                         dim=0,
                     )
                 )
+                assert self.num_conds is not None, "this is a bug"
                 cond_or_uncond_couple.extend(itertools.repeat(self.COND, self.num_conds))
 
         q = torch.cat(qs, dim=0)

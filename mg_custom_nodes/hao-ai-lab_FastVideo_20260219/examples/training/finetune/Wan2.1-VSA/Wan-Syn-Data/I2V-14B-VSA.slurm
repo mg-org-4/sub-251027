@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=t2v
+#SBATCH --job-name=i2v
 #SBATCH --partition=main
 #SBATCH --nodes=8
 #SBATCH --ntasks=8
@@ -7,8 +7,8 @@
 #SBATCH --gres=gpu:8
 #SBATCH --cpus-per-task=128
 #SBATCH --mem=1440G
-#SBATCH --output=VSA_t2v_output/t2v_%j.out
-#SBATCH --error=VSA_t2v_output/t2v_%j.err
+#SBATCH --output=VSA_i2v_output/i2v_%j.out
+#SBATCH --error=VSA_i2v_output/i2v_%j.err
 #SBATCH --exclusive
 set -e -x
 
@@ -38,25 +38,29 @@ echo "NODE_RANK: $NODE_RANK"
 
 # Configs
 NUM_GPUS=8
-MODEL_PATH="Wan-AI/Wan2.1-T2V-14B-Diffusers"
+MODEL_PATH="Wan-AI/Wan2.1-I2V-14B-720P-Diffusers"
 DATA_DIR=your_data_dir
 VALIDATION_DATASET_FILE=your_validation_dataset_file
 # export CUDA_VISIBLE_DEVICES=4,5
 # IP=[MASTER NODE IP]
 
-# Training arguments
-training_args=(
-  --tracker_project_name wan_t2v_VSA
-  --output_dir "checkpoints/wan_t2v_finetune_VSA"
+# Core training arguments
+core_training_args=(
+  --tracker_project_name wan_i2v_VSA
+  --output_dir "checkpoints/wan_i2v_finetune_VSA"
   --max_train_steps 4000
   --train_batch_size 1
   --train_sp_batch_size 1
   --gradient_accumulation_steps 1
   --num_latent_t 21
+  --enable_gradient_checkpointing_type "full"
+)
+
+# Validation generation shape arguments (used during training validation)
+validation_generation_shape_args=(
   --num_height 720
   --num_width 1280
   --num_frames 81
-  --enable_gradient_checkpointing_type "full"
 )
 
 # Parallel arguments
@@ -85,7 +89,7 @@ validation_args=(
   --log_validation
   --validation_dataset_file $VALIDATION_DATASET_FILE
   --validation_steps 200
-  --validation_sampling_steps "50"
+  --validation_sampling_steps "40"
   --validation_guidance_scale "5.0"
 )
 
@@ -106,7 +110,7 @@ miscellaneous_args=(
   --training_cfg_rate 0.1
   --dit_precision "fp32"
   --ema_start_step 0
-  --flow_shift 5
+  --flow_shift 3
   --seed 1000
 )
 
@@ -127,7 +131,8 @@ srun torchrun \
     "${parallel_args[@]}" \
     "${model_args[@]}" \
     "${dataset_args[@]}" \
-    "${training_args[@]}" \
+    "${core_training_args[@]}" \
+    "${validation_generation_shape_args[@]}" \
     "${optimizer_args[@]}" \
     "${validation_args[@]}" \
     "${miscellaneous_args[@]}" \

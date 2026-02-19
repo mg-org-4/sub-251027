@@ -747,10 +747,7 @@ class Trellis2ExportMesh:
                 "trimesh": ("TRIMESH",),
                 "filename_prefix": ("STRING", {"default": "3D/Trellis2"}),
                 "file_format": (["glb", "obj", "ply", "stl", "3mf", "dae"],),
-            },
-            "optional": {
-                "save_file": ("BOOLEAN", {"default": True}),
-            },
+            }
         }
 
     RETURN_TYPES = ("STRING",)
@@ -759,17 +756,21 @@ class Trellis2ExportMesh:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, trimesh, filename_prefix, file_format, save_file=True):
-        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, folder_paths.get_output_directory())
+    def process(self, trimesh, filename_prefix, file_format):        
+        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, folder_paths.get_output_directory())                      
         output_glb_path = Path(full_output_folder, f'{filename}_{counter:05}_.{file_format}')
         output_glb_path.parent.mkdir(exist_ok=True)
-        if save_file:
-            trimesh.export(output_glb_path, file_type=file_format)
-            relative_path = Path(subfolder) / f'{filename}_{counter:05}_.{file_format}'
+
+        if file_format=='obj':
+            materialName = f"{filename}_{counter:05}_.mtl"
+            if hasattr(trimesh, 'visual') and hasattr(trimesh.visual, 'material') and trimesh.visual.material is not None:
+                trimesh.visual.material.name = f"{filename}_{counter:05}"
+
+            trimesh.export(output_glb_path, file_type=file_format, mtl_name=materialName)
         else:
-            temp_file = Path(full_output_folder, f'hy3dtemp_.{file_format}')
-            trimesh.export(temp_file, file_type=file_format)
-            relative_path = Path(subfolder) / f'hy3dtemp_.{file_format}'
+            trimesh.export(output_glb_path, file_type=file_format)
+            
+        relative_path = Path(subfolder) / f'{filename}_{counter:05}_.{file_format}'
         
         return (str(relative_path), )        
         
@@ -2993,7 +2994,7 @@ class Trellis2BatchSimplifyMeshAndExport:
 
                 filename_prefix_with_nbfaces = f"{filename_prefix}_{target_nbfaces}"
 
-                full_output_folder, filename, counter, subfolder, filename_prefix_with_nbfaces = folder_paths.get_save_image_path(filename_prefix_with_nbfaces, folder_paths.get_output_directory())
+                full_output_folder, filename, counter, subfolder, filename_prefix_with_nbfaces = folder_paths.get_save_image_path(filename_prefix_with_nbfaces, folder_paths.get_output_directory())                
                 output_glb_path = Path(full_output_folder, f'{filename}_{counter:05}_.{file_format}')
                 output_glb_path.parent.mkdir(exist_ok=True)
                 

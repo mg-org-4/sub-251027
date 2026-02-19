@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.21.6] - 2026-02-19
+
+### Added
+
+- Add Qwen3 integration + ASR example workflow
+- Document ICL mode requires reference audio + transcript for best quality
+- Document X-Vector mode uses audio only, no transcript needed
+
+### Changed
+
+- Add Qwen3-TTS + ASR example workflow and improve Qwen3-TTS documentation
+
+### Fixed
+
+- Clarify that Qwen3-TTS auto-selects and downloads the correct model
+- Fix: style instructions are ignored in Base (voice cloning) model — now clearly noted
+## [4.21.5] - 2026-02-18
+
+### Added
+
+- Qwen3-TTS now correctly regenerates audio when model size changes
+
+### Fixed
+
+- Fix Qwen3-TTS audio cache not invalidating when switching model sizes
+- Fix switching between 0.6B and 1.7B models returning stale cached audio
+## [4.21.4] - 2026-02-18
+
+### Changed
+
+- Update Qwen3-TTS default settings
+- Enable Qwen3 forced aligner by default for better ASR accuracy out-of-the-box
+- Update tooltip to explain VRAM usage and model download implications
 ## [4.21.3] - 2026-02-17
 
 ### Added

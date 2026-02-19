@@ -3,10 +3,16 @@
  * Fixes: Clean code (no window. prefixes), restores refreshIndices, enables Dual Sort
  */
 
+// Threshold for switching to async pipeline processing (used by multiple functions)
+const ASYNC_PIPELINE_THRESHOLD = 500;
+
 // RESTORED: Helper to update index map
+// Maps each item's ID to its sequential position (1-based) when sorted by ID.
+// This provides a stable "original order" number for each card regardless of
+// current sort/filter, used for "Go To Card #" and the #N tag on cards.
 function refreshIndices() {
     if (!activeData) return;
-    const sorted = activeData.slice().sort((a, b) => a.id - b.id);
+    const sorted = activeData.slice().sort((a, b) => (a.gen_index ?? a.id) - (b.gen_index ?? b.id));
     idToIndexMap = new Map(sorted.map((item, index) => [item.id, index + 1]));
 }
 
@@ -14,6 +20,7 @@ function refreshIndices() {
 function getFilterKey() {
     const parts = [
         currentSort,
+        currentSecondarySort,
         topFilters.showFavorites ? '1' : '0',
         topFilters.showNonFavorited ? '1' : '0',
         topFilters.showRejected ? '1' : '0',
@@ -160,8 +167,8 @@ function setSecondarySort(id) {
 // Unified Comparison Helper
 function compareItems(a, b, sortKey) {
     switch (sortKey) {
-        case 'newest': return b.id - a.id;
-        case 'oldest': return a.id - b.id;
+        case 'newest': return (b.gen_index ?? b.id) - (a.gen_index ?? a.id);
+        case 'oldest': return (a.gen_index ?? a.id) - (b.gen_index ?? b.id);
         case 'fastest': return a.duration - b.duration;
         case 'favorited': return (b.favorited ? 1 : 0) - (a.favorited ? 1 : 0);
         case 'cfg': return a.cfg - b.cfg;
@@ -192,9 +199,9 @@ function runMultiSort(list) {
             res = compareItems(a, b, currentSecondarySort);
         }
         
-        // 3. Fallback to ID (Stable sort)
+        // 3. Fallback to gen_index/ID (Stable sort, backwards-compatible)
         if (res === 0) {
-            return a.id - b.id;
+            return (a.gen_index ?? a.id) - (b.gen_index ?? b.id);
         }
         return res;
     });
@@ -254,22 +261,41 @@ function updateDataPipeline() {
     });
 }
 
+// Abort controller for canceling in-progress async pipelines
+let pipelineAbortId = 0;
+
 function executePipeline() {
     const startTime = performance.now();
     const currentFilterKey = getFilterKey();
     const filtersChanged = currentFilterKey !== lastFilterKey;
 
+    // Always filter from activeData to prevent data loss from self-filtering
+    console.log(`[Pipeline] ${filtersChanged ? 'Filters changed, full reprocess' : 'Re-applying filters'}`);
     if (filtersChanged) {
-        console.log('[Pipeline] Filters changed, full reprocess');
         lastFilterKey = currentFilterKey;
+    }
 
-        processedData = activeData.filter(d => {
-            // Apply top-level filters (Favorites/Non-Favorited/Rejected visibility)
-            if (d.favorited && !topFilters.showFavorites) return false;
-            if (!d.favorited && !d.rejected && !topFilters.showNonFavorited) return false;
-            if (d.rejected && !topFilters.showRejected) return false;
+    // Check for button filters once to avoid repeated Set.size lookups
+    const hasButtonFilters = filters.sampler.size > 0 ||
+        filters.scheduler.size > 0 ||
+        filters.denoise.size > 0 ||
+        filters.lora.size > 0 ||
+        filters.model.size > 0 ||
+        filters.positive.size > 0 ||
+        filters.negative.size > 0 ||
+        filters.size.size > 0 ||
+        filters.seed.size > 0;
 
-            // Re-apply all filters
+    const hasSearchFilters = typeof matchesSearchFilters === 'function' && searchFilters.length > 0;
+
+    processedData = activeData.filter(d => {
+        // Apply top-level filters (Favorites/Non-Favorited/Rejected visibility)
+        if (d.favorited && !topFilters.showFavorites) return false;
+        if (!d.favorited && !d.rejected && !topFilters.showNonFavorited) return false;
+        if (d.rejected && !topFilters.showRejected) return false;
+
+        // Apply button filters (skip entirely if none are active)
+        if (hasButtonFilters) {
             if (filters.sampler.size > 0 && !filters.sampler.has(d.sampler)) return false;
             if (filters.scheduler.size > 0 && !filters.scheduler.has(d.scheduler)) return false;
             if (filters.denoise.size > 0 && !filters.denoise.has(d.denoise)) return false;
@@ -279,25 +305,27 @@ function executePipeline() {
             if (filters.negative.size > 0 && !filters.negative.has(d.negative || meta.negative || "")) return false;
             if (filters.size.size > 0 && !filters.size.has(`${d.width}x${d.height}`)) return false;
             if (filters.seed.size > 0 && !filters.seed.has(d.seed)) return false;
-            
-            if (typeof matchesSearchFilters === 'function' && !matchesSearchFilters(d)) return false;
+        }
 
-            return true;
-        });
+        if (hasSearchFilters && !matchesSearchFilters(d)) return false;
+
+        return true;
+    });
+
+    // Apply sorting
+    // Fast path: for oldest/newest with no secondary sort, activeData is stored newest-first
+    // (items are inserted/unshifted at position 0), so processedData after filter() is also newest-first.
+    // For 'oldest' we reverse; for 'newest' it's already correct.
+    if ((currentSort === 'oldest' || currentSort === 'newest') && currentSecondarySort === 'none') {
+        if (currentSort === 'oldest') {
+            processedData.reverse();
+        }
     } else {
-        // When filters haven't changed, just filter by top-level visibility
-        processedData = processedData.filter(d => {
-            if (d.favorited && !topFilters.showFavorites) return false;
-            if (!d.favorited && !d.rejected && !topFilters.showNonFavorited) return false;
-            if (d.rejected && !topFilters.showRejected) return false;
-            return true;
-        });
+        runMultiSort(processedData);
     }
 
-    // Apply Sorting (Multi Sort)
-    runMultiSort(processedData);
-
-    console.log(`[Pipeline] Processed ${processedData.length} items`);
+    const elapsed = (performance.now() - startTime).toFixed(1);
+    console.log(`[Pipeline] Processed ${processedData.length} items in ${elapsed}ms`);
     updateJSONs(processedData);
 
     if (filtersChanged) {
@@ -308,22 +336,29 @@ function executePipeline() {
 }
 
 // OPTIMIZED: Process new data incrementally
+// NOTE: Caller (logic_events.js) already adds newItems to fullManifest.items
+// which IS activeData (same array reference from init). So we must NOT push
+// to activeData again here to avoid duplicate entries.
 function processNewData(newItems) {
     if (!newItems || newItems.length === 0) return;
-    
-    // Update global active data
-    activeData.push(...newItems);
-    
+
     // IMPORTANT: Update indices when new data arrives
-    refreshIndices(); 
+    // (activeData already contains the new items via fullManifest.items reference)
+    refreshIndices();
 
     // Update filter options
     updateFiltersForNewData(newItems);
-    
+
     // Process pipeline
     const filtered = incrementalFilter(newItems);
+    if (filtered.length === 0) {
+        // All new items were filtered out, just update JSONs
+        updateJSONs(processedData);
+        return;
+    }
+
     let prependedToTop = false;
-    
+
     // Logic for Prepend/Append based on Sort Mode
     if (currentSort === 'newest') {
         // Prepend to beginning
@@ -334,18 +369,50 @@ function processNewData(newItems) {
         // Append to end
         processedData.push(...filtered);
     } else {
-        // All other sort modes: add items and re-sort entire array
-        processedData.push(...filtered);
-        runMultiSort(processedData);
+        // For other sort modes with large datasets, use binary insertion instead of full re-sort
+        if (processedData.length > ASYNC_PIPELINE_THRESHOLD && filtered.length < 50) {
+            // Binary insert each new item into already-sorted array (much faster than re-sorting all)
+            for (const item of filtered) {
+                binaryInsert(processedData, item);
+            }
+        } else {
+            // Small dataset or large batch of new items: just append and re-sort
+            processedData.push(...filtered);
+            runMultiSort(processedData);
+        }
     }
-    
+
     updateJSONs(processedData);
-    
+
     if (prependedToTop && typeof forceVisibleRangeUpdate === 'function') {
         forceVisibleRangeUpdate(filtered.length);
     } else if (typeof updateVisibleItems === 'function') {
         updateVisibleItems();
     }
+}
+
+// Binary insert a single item into an already-sorted array
+function binaryInsert(arr, item) {
+    let low = 0;
+    let high = arr.length;
+
+    while (low < high) {
+        const mid = (low + high) >>> 1;
+        let cmp = compareItems(arr[mid], item, currentSort);
+        if (cmp === 0 && currentSecondarySort !== 'none' && currentSecondarySort !== currentSort) {
+            cmp = compareItems(arr[mid], item, currentSecondarySort);
+        }
+        if (cmp === 0) {
+            cmp = (arr[mid].gen_index ?? arr[mid].id) - (item.gen_index ?? item.id); // Stable sort fallback
+        }
+        if (cmp <= 0) {
+            low = mid + 1;
+        } else {
+            high = mid;
+        }
+    }
+
+    arr.splice(low, 0, item);
 }
 
 // Load sort order from localStorage
@@ -373,9 +440,15 @@ function loadSortPreference() {
 }
 
 function updateFiltersForNewData(newItems) {
+    // Track which filter categories actually got new unique values
     let changed = false;
-    ['model', 'sampler', 'scheduler', 'denoise', 'lora', 'positive', 'negative', 'size', 'seed'].forEach(key => {
-        newItems.forEach(d => {
+    const filterKeys = ['model', 'sampler', 'scheduler', 'denoise', 'lora', 'positive', 'negative', 'size', 'seed'];
+
+    // Build a set of new values for each key in a single pass over newItems
+    for (let i = 0; i < newItems.length; i++) {
+        const d = newItems[i];
+        for (let k = 0; k < filterKeys.length; k++) {
+            const key = filterKeys[k];
             let val;
             if (key === 'model') val = d.model || meta.model || "Default";
             else if (key === 'positive') val = d.positive || meta.positive || "";
@@ -383,12 +456,15 @@ function updateFiltersForNewData(newItems) {
             else if (key === 'size') val = `${d.width}x${d.height}`;
             else val = d[key];
 
-            if (val && !filters[key].has(val)) {
+            if (val !== undefined && val !== null && !filters[key].has(val)) {
                 changed = true;
+                // Don't break - we need to continue checking all items/keys
+                // so that initFilters gets a complete picture
             }
-        });
-    });
-    
+        }
+        if (changed) break; // Once we know we need to rebuild, no need to check more items
+    }
+
     if (changed && typeof initFilters === 'function') {
         initFilters(); // Re-render filter buttons
     }

@@ -14,7 +14,9 @@
     <!-- COMPACT SINGLE-LINE HEADER -->
     <div id="header">
         <button class="filter-popup-btn" onclick="toggleFiltersPopup()" title="Open Filters & Info">
-            FILTERS
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
         </button>
 
         <div style="flex-grow: 1;"></div>
@@ -42,6 +44,22 @@
                 </div>
             </div>
         </div>
+
+        <button class="fs-btn" onclick="loadSession()" title="Load Session">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+        </button>
+
+        <button class="fs-btn" onclick="resetZoom();" title="Center Grid (0)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="22" y1="12" x2="18" y2="12"></line>
+                <line x1="6" y1="12" x2="2" y2="12"></line>
+                <line x1="12" y1="6" x2="12" y2="2"></line>
+                <line x1="12" y1="22" x2="12" y2="18"></line>
+            </svg>
+        </button>
 
         <!-- COG WHEEL MENU -->
         <div class="cog-menu-container">
@@ -71,7 +89,6 @@
                     placeholder="Session name...">
                 <div class="session-actions" style="margin-top: 6px;">
                     <button class="session-action-btn save-btn" onclick="saveState()">SAVE</button>
-                    <button class="session-action-btn load-btn" onclick="loadSession()">LOAD</button>
                 </div>
             </div>
 
@@ -87,10 +104,6 @@
                     <span class="meta-label">Number Of Columns In Grid: </span>
                     <input type="text" inputmode="numeric" id="col-count" min="0" placeholder="Auto"
                         title="Set grid columns (0 = Auto)">
-                </div>
-                <div class="cog-menu-item">
-                    <button class="action-btn" onclick="resetZoom();" title="Reset Zoom (0)"
-                        style="width: 100%; justify-content: center;">&#8857; Reset Zoom</button>
                 </div>
             </div>
 
@@ -130,10 +143,48 @@
                     </label>
                 </div>
 
+                <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" id="export-prompt-txt-checkbox"
+                        style="width: 14px; height: 14px; cursor: pointer;">
+                    <label for="export-prompt-txt-checkbox"
+                        style="font-size: 10px; color: #999; cursor: pointer; user-select: none;">
+                        Export positive prompt as .txt file alongside each image
+                    </label>
+                </div>
+
                 <div id="export-status" style="margin-top: 8px; font-size: 10px; color: #666; min-height: 16px;"></div>
             </div>
 
-            <!-- Section 4: Scan External Directory -->
+            <!-- Section 4: Manifest Analytics -->
+            <div class="cog-panel-section">
+                <div class="cog-panel-section-title">MANIFEST ANALYTICS</div>
+                <div style="font-size: 9px; color: #666; margin-bottom: 8px;">
+                    Analyze favorited items in the current session manifest.
+                </div>
+                <button class="session-action-btn"
+                    style="background: #8b5cf6; width: 100%; font-size: 11px; padding: 10px; margin-bottom: 6px;"
+                    onclick="runManifestAnalysis('lora')" title="Count LoRA usage across favorited items">
+                    LORA USAGE STATS
+                </button>
+                <button class="session-action-btn"
+                    style="background: #6366f1; width: 100%; font-size: 11px; padding: 10px; margin-bottom: 6px;"
+                    onclick="runManifestAnalysis('model')" title="Count model/checkpoint usage across favorited items">
+                    MODEL USAGE STATS
+                </button>
+                <button class="session-action-btn"
+                    style="background: #00d1b2; color: #000; width: 100%; font-size: 11px; padding: 10px; margin-bottom: 6px;"
+                    onclick="runManifestAnalysis('prompt')" title="Count full prompts with favorited vs total">
+                    FULL PROMPT STATS
+                </button>
+                <button class="session-action-btn"
+                    style="background: #d0873e; width: 100%; font-size: 11px; padding: 10px; margin-bottom: 6px;"
+                    onclick="runManifestAnalysis('tags')" title="Count individual prompt tags from favorited items">
+                    PROMPT TAG STATS
+                </button>
+                <div id="analytics-status" style="margin-top: 4px; font-size: 10px; color: #666; min-height: 16px;"></div>
+            </div>
+
+            <!-- Section 5: Scan External Directory -->
             <div class="cog-panel-section">
                 <div class="cog-panel-section-title">SCAN EXTERNAL DIRECTORY</div>
                 <div style="font-size: 9px; color: #666; margin-bottom: 8px;">

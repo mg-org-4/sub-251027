@@ -82,6 +82,59 @@ def initialize_remote_vae(remote_vae_endpoint, img_dir, manifest_path, existing_
     return worker
 
 
+REMOTE_VAE_PREFIX = "remote:"
+
+def is_remote_vae(vae_string):
+    """Check if a VAE value is a per-config remote URL (e.g. 'remote:http://...')."""
+    return isinstance(vae_string, str) and vae_string.startswith(REMOTE_VAE_PREFIX)
+
+def extract_remote_vae_url(vae_string):
+    """Extract the URL from a remote VAE string like 'remote:http://...'."""
+    url = vae_string[len(REMOTE_VAE_PREFIX):]
+    if not url:
+        raise ValueError(
+            "[GridTester] Per-config remote VAE URL is empty.\n"
+            "Please provide a valid endpoint URL in the config builder's VAE section."
+        )
+    return url
+
+
+def _flush_pending_batch(pending_batch, current_vae_is_remote, current_remote_vae_url,
+                         per_config_remote_workers, use_remote_vae, remote_vae_worker,
+                         loaded_vae, paths, existing_data, session_name, manifest_path, unique_id):
+    """Flush pending batch using the appropriate VAE decode method.
+
+    Handles three-way dispatch:
+      1. Per-config remote VAE (current_vae_is_remote) — uses per-config worker
+      2. Global remote VAE (use_remote_vae) — uses global remote_vae_worker
+      3. Local VAE — uses loaded_vae for local decode
+    """
+    if not pending_batch:
+        return
+    if current_vae_is_remote and current_remote_vae_url:
+        worker = per_config_remote_workers.get(current_remote_vae_url)
+        if worker:
+            flush_batch_with_remote_vae(pending_batch, worker, existing_data, session_name)
+        else:
+            print(f"[GridTester] ⚠️ No remote worker for {current_remote_vae_url}, falling back to local VAE")
+            flush_batch_with_vae(pending_batch, loaded_vae, paths["images"], existing_data, session_name, manifest_path, unique_id)
+    elif use_remote_vae and remote_vae_worker:
+        flush_batch_with_remote_vae(pending_batch, remote_vae_worker, existing_data, session_name)
+    else:
+        flush_batch_with_vae(pending_batch, loaded_vae, paths["images"], existing_data, session_name, manifest_path, unique_id)
+
+
+def _cleanup_per_config_remote_workers(per_config_remote_workers):
+    """Shut down all per-config remote VAE workers."""
+    for url, worker in per_config_remote_workers.items():
+        try:
+            print(f"[GridTester] 🌐 Waiting for per-config remote VAE ({url})...")
+            worker.wait_completion()
+            worker.stop()
+        except Exception as e:
+            print(f"[GridTester] ⚠️ Error stopping per-config remote worker ({url}): {e}")
+
+
 def calculate_clip_hash(clip_model):
     """Calculate a hash of the CLIP model for cache validation."""
     try:
@@ -143,6 +196,32 @@ def check_if_job_completed(existing_items, conf, seed, width, height, batch_idx,
             item_lora = item.get("lora", "None")
             conf_lora = conf.get("lora_expanded", "None")
             if item_lora != conf_lora: continue
+
+            # Check model_type and text_encoders — different text encoders produce
+            # different conditioning even with the same model file, so they must
+            # NOT be considered duplicate jobs
+            item_model_type = item.get("model_type", "checkpoint")
+            conf_model_type = conf.get("model_type", "checkpoint")
+            if item_model_type != conf_model_type: continue
+
+            item_te = item.get("text_encoders", [])
+            conf_te = conf.get("text_encoders", [])
+            if item_te != conf_te: continue
+
+            # Check clip_type — different clip types produce different conditioning
+            item_clip_type = item.get("clip_type", "stable_diffusion")
+            conf_clip_type = conf.get("clip_type", "stable_diffusion")
+            if item_clip_type != conf_clip_type: continue
+
+            # Check clip_skip — different clip_skip values produce different conditioning
+            item_clip_skip = item.get("clip_skip", 0)
+            conf_clip_skip = conf.get("clip_skip", 0)
+            if item_clip_skip != conf_clip_skip: continue
+
+            # Check VAE — different VAEs produce different decoded images
+            item_vae = item.get("vae", "Default")
+            conf_vae = conf.get("vae", "Default")
+            if item_vae != conf_vae: continue
 
         return idx
 
@@ -343,6 +422,7 @@ def run_generation_loop(
     pending_batch = []
     current_job = 0
     total_generated = 0
+    gen_index_offset = len(existing_data.get("items", []))  # Sequential index for deterministic sort ordering
     skipped_count = 0
     job_durations = []
     eta_start_time = time.time()
@@ -359,6 +439,11 @@ def run_generation_loop(
             unique_id
         )
     
+    # Per-config remote VAE state
+    per_config_remote_workers = {}   # Keyed by URL, reused across configs
+    current_vae_is_remote = False
+    current_remote_vae_url = None
+
     # ==== PRE-ENCODING STAGE ====
     unique_model_keys = set(get_model_cache_key(conf) for conf in expanded)
 
@@ -383,8 +468,21 @@ def run_generation_loop(
         # Per-config VAE: if first config specifies a VAE, load it
         target_vae = first_conf.get("vae", "Default")
         if target_vae != "Default":
-            print(f"[GridTester] 🎨 Loading per-config VAE: {target_vae}")
-            loaded_vae = load_vae_by_name(target_vae)
+            if is_remote_vae(target_vae):
+                url = extract_remote_vae_url(target_vae)
+                current_vae_is_remote = True
+                current_remote_vae_url = url
+                print(f"[GridTester] 🌐 Using per-config remote VAE: {url}")
+                if url not in per_config_remote_workers:
+                    per_config_remote_workers[url] = RemoteVAEDecodeWorker(
+                        endpoint=url, img_dir=paths["images"],
+                        manifest_path=paths["manifest"],
+                        existing_data=existing_data,
+                        session_name=session_name, unique_id=unique_id
+                    )
+            else:
+                print(f"[GridTester] 🎨 Loading per-config VAE: {target_vae}")
+                loaded_vae = load_vae_by_name(target_vae)
             cached_vae_key = target_vae
         else:
             cached_vae_key = "Default"
@@ -402,15 +500,49 @@ def run_generation_loop(
             clip_hash=clip_hash, 
             enable_disk_cache=save_conditioning_cache_to_file)
         
+        # Filter configs to only collect prompts from jobs that actually need to run
+        # This avoids wasting time encoding prompts for jobs that will be skipped in resume mode
         print(f"[GridTester] 🧠 Collecting unique prompts...")
-        unique_positives, unique_negatives = collect_unique_prompts_with_triggers(
-            expanded, lora_triggerwords_mode
-        )
-        
+        if not overwrite_existing and existing_data.get("items"):
+            configs_needing_work = []
+            for conf in expanded:
+                conf_positive, _ = build_prompt_with_triggers(conf, lora_triggerwords_mode)
+                conf_negative = conf["negative"]
+                conf_seed = conf["seed"]
+                # Check if ANY resolution/batch needs this config
+                needs_work = False
+                for job in input_jobs:
+                    if check_if_job_completed(
+                        existing_data["items"], conf, conf_seed,
+                        job["width"], job["height"], job["batch_idx"],
+                        conf_positive, conf_negative,
+                        has_optional_inputs=has_optional_inputs
+                    ) == -1:
+                        needs_work = True
+                        break
+                if needs_work:
+                    configs_needing_work.append(conf)
+
+            skippable = len(expanded) - len(configs_needing_work)
+            if skippable > 0:
+                print(f"[GridTester] ⏭️ {skippable}/{len(expanded)} configs already completed, encoding only {len(configs_needing_work)} needed")
+
+            if not configs_needing_work:
+                print(f"[GridTester] ⏭️ All configs already completed, skipping encoding entirely")
+                unique_positives, unique_negatives = set(), set()
+            else:
+                unique_positives, unique_negatives = collect_unique_prompts_with_triggers(
+                    configs_needing_work, lora_triggerwords_mode
+                )
+        else:
+            unique_positives, unique_negatives = collect_unique_prompts_with_triggers(
+                expanded, lora_triggerwords_mode
+            )
+
         clip_skip = first_conf.get("clip_skip", 0)
         if clip_skip != 0:
             print(f"[GridTester] 🔧 Using clip_skip={clip_skip}")
-        
+
         try:
             conditioning_cache = batch_encode_prompts(
                 patched_clip, unique_positives, unique_negatives, cond_cache, clip_skip, enable_disk_cache=save_conditioning_cache_to_file
@@ -422,8 +554,8 @@ def run_generation_loop(
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            html = get_html_template(session_name, existing_data, unique_id)
-            return (html,)
+            # Re-raise so ComfyUI knows execution was interrupted (not completed)
+            raise
 
         cached_model_key = get_model_cache_key(first_conf)
         cached_lora_key = first_conf["lora_expanded"]
@@ -458,18 +590,18 @@ def run_generation_loop(
                 import comfy.model_management as mm
                 if mm.processing_interrupted():
                     print(f"\n[GridTester] 🛑 INTERRUPTED - Stopping all jobs")
-                    
+
                     if pending_batch:
-                        if use_remote_vae:
-                            flush_batch_with_remote_vae(pending_batch, remote_vae_worker, existing_data, session_name)
-                        else:
-                            flush_batch_with_vae(pending_batch, loaded_vae, paths["images"], existing_data, session_name, paths["manifest"], unique_id)
+                        _flush_pending_batch(pending_batch, current_vae_is_remote, current_remote_vae_url,
+                                             per_config_remote_workers, use_remote_vae, remote_vae_worker,
+                                             loaded_vae, paths, existing_data, session_name, paths["manifest"], unique_id)
                         pending_batch = []
-                    
+
+                    _cleanup_per_config_remote_workers(per_config_remote_workers)
                     if remote_vae_worker:
                         remote_vae_worker.wait_completion()
                         remote_vae_worker.stop()
-                    
+
                     existing_data["meta"] = {
                         "positive": positive_text,
                         "negative": negative_text,
@@ -480,16 +612,18 @@ def run_generation_loop(
                         "resolutions_json": resolutions_json
                     }
                     save_manifest(paths["manifest"], existing_data)
-                    
+
                     loaded_model, loaded_clip, loaded_vae = None, None, None
                     patched_model, patched_clip = None, None
                     conditioning_cache.clear()
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
-                    
-                    html = get_html_template(session_name, existing_data, unique_id)
-                    return (html,)
+
+                    # Re-raise so ComfyUI knows execution was interrupted (not completed)
+                    raise InterruptProcessingException()
+            except InterruptProcessingException:
+                raise
             except:
                 pass
             
@@ -566,6 +700,8 @@ def run_generation_loop(
                 # Remember this model's default VAE for reverting later
                 default_model_vae = loaded_vae
                 cached_vae_key = "Default"
+                current_vae_is_remote = False
+                current_remote_vae_url = None
 
                 cached_model_key = target_model_key
                 cached_lora_key = None
@@ -580,17 +716,33 @@ def run_generation_loop(
             if target_vae != cached_vae_key:
                 # Flush pending batch before switching VAE (they need current VAE for decoding)
                 if pending_batch:
-                    if use_remote_vae:
-                        flush_batch_with_remote_vae(pending_batch, remote_vae_worker, existing_data, session_name)
-                    else:
-                        flush_batch_with_vae(pending_batch, loaded_vae, paths["images"], existing_data, session_name, paths["manifest"], unique_id)
+                    _flush_pending_batch(pending_batch, current_vae_is_remote, current_remote_vae_url,
+                                         per_config_remote_workers, use_remote_vae, remote_vae_worker,
+                                         loaded_vae, paths, existing_data, session_name, paths["manifest"], unique_id)
                     pending_batch = []
 
                 if target_vae == "Default":
                     # Revert to model's bundled/default VAE
                     loaded_vae = default_model_vae
+                    current_vae_is_remote = False
+                    current_remote_vae_url = None
                     print(f"[GridTester] 🎨 Reverting to Default VAE")
+                elif is_remote_vae(target_vae):
+                    url = extract_remote_vae_url(target_vae)
+                    current_vae_is_remote = True
+                    current_remote_vae_url = url
+                    loaded_vae = None  # No local VAE needed
+                    print(f"[GridTester] 🌐 Using per-config remote VAE: {url}")
+                    if url not in per_config_remote_workers:
+                        per_config_remote_workers[url] = RemoteVAEDecodeWorker(
+                            endpoint=url, img_dir=paths["images"],
+                            manifest_path=paths["manifest"],
+                            existing_data=existing_data,
+                            session_name=session_name, unique_id=unique_id
+                        )
                 else:
+                    current_vae_is_remote = False
+                    current_remote_vae_url = None
                     print(f"[GridTester] 🎨 Loading per-config VAE: {target_vae}")
                     loaded_vae = load_vae_by_name(target_vae)
                 cached_vae_key = target_vae
@@ -607,7 +759,7 @@ def run_generation_loop(
             if need_to_load:
                 patched_model, patched_clip, should_skip = load_loras(
                     loaded_model, loaded_clip, current_lora_string,
-                    target_model_name, incompatible_loras, model_cache=model_cache
+                    target_model_key, incompatible_loras, model_cache=model_cache
                 )
                 
                 if should_skip:
@@ -631,6 +783,22 @@ def run_generation_loop(
                             future_positive, _ = build_prompt_with_triggers(
                                 future_conf, lora_triggerwords_mode
                             )
+                            # Skip encoding prompts for configs that are already completed
+                            # (avoids wasting time on prompts only used by skipped jobs)
+                            if not overwrite_existing and existing_data.get("items"):
+                                future_seed = future_conf["seed"]
+                                all_done = True
+                                for fj in input_jobs:
+                                    if check_if_job_completed(
+                                        existing_data["items"], future_conf, future_seed,
+                                        fj["width"], fj["height"], fj["batch_idx"],
+                                        future_positive, future_conf["negative"],
+                                        has_optional_inputs=has_optional_inputs
+                                    ) == -1:
+                                        all_done = False
+                                        break
+                                if all_done:
+                                    continue
                             model_unique_positives.add(future_positive)
                             model_unique_negatives.add(future_conf["negative"])
 
@@ -664,12 +832,12 @@ def run_generation_loop(
                             print(f"\n[GridTester] 🛑 INTERRUPTED during encoding - Stopping all jobs")
 
                             if pending_batch:
-                                if use_remote_vae:
-                                    flush_batch_with_remote_vae(pending_batch, remote_vae_worker, existing_data, session_name)
-                                else:
-                                    flush_batch_with_vae(pending_batch, loaded_vae, paths["images"], existing_data, session_name, paths["manifest"], unique_id)
+                                _flush_pending_batch(pending_batch, current_vae_is_remote, current_remote_vae_url,
+                                                     per_config_remote_workers, use_remote_vae, remote_vae_worker,
+                                                     loaded_vae, paths, existing_data, session_name, paths["manifest"], unique_id)
                                 pending_batch = []
 
+                            _cleanup_per_config_remote_workers(per_config_remote_workers)
                             if remote_vae_worker:
                                 remote_vae_worker.wait_completion()
                                 remote_vae_worker.stop()
@@ -692,8 +860,8 @@ def run_generation_loop(
                             if torch.cuda.is_available():
                                 torch.cuda.empty_cache()
 
-                            html = get_html_template(session_name, existing_data, unique_id)
-                            return (html,)
+                            # Re-raise so ComfyUI knows execution was interrupted (not completed)
+                            raise
 
                         print(f"[GridTester] ✅ Encoded {len(conditioning_cache['positive'])} positive, {len(conditioning_cache['negative'])} negative")
 
@@ -708,14 +876,28 @@ def run_generation_loop(
                 full_positive = actual_positive_prompt
                 final_positive = conditioning_cache["positive"].get(full_positive)
                 if final_positive is None:
-                    raise RuntimeError(f"[GridTester] ❌ BUG: Encoding not found for: {full_positive[:50]}...")
-            
+                    cached_keys = list(conditioning_cache["positive"].keys())
+                    cached_preview = [k[:40] for k in cached_keys[:5]]
+                    raise RuntimeError(
+                        f"[GridTester] ❌ BUG: Encoding not found for positive prompt: {full_positive[:80]}...\n"
+                        f"  model_key={target_model_key}, lora={current_lora_string}\n"
+                        f"  Cache has {len(cached_keys)} entries: {cached_preview}\n"
+                        f"  model_switched={model_switched}, need_to_load={need_to_load}"
+                    )
+
             if optional_negative:
                 final_negative = optional_negative
             else:
                 final_negative = conditioning_cache["negative"].get(conf["negative"])
                 if final_negative is None:
-                    raise RuntimeError(f"[GridTester] ❌ BUG: Encoding not found for: {conf['negative'][:50]}...")
+                    cached_keys = list(conditioning_cache["negative"].keys())
+                    cached_preview = [k[:40] for k in cached_keys[:5]]
+                    raise RuntimeError(
+                        f"[GridTester] ❌ BUG: Encoding not found for negative prompt: {conf['negative'][:80]}...\n"
+                        f"  model_key={target_model_key}, lora={current_lora_string}\n"
+                        f"  Cache has {len(cached_keys)} entries: {cached_preview}\n"
+                        f"  model_switched={model_switched}, need_to_load={need_to_load}"
+                    )
             
             # =========================================================
             # ==== 🚀 ASYNC LOOK-AHEAD PRE-FETCHING (CORRECTED) ====
@@ -839,7 +1021,8 @@ def run_generation_loop(
 
                 meta = create_image_metadata(
                     conf, w, h, duration, current_seed, batch_idx,
-                    actual_positive_prompt, actual_negative_prompt
+                    actual_positive_prompt, actual_negative_prompt,
+                    gen_index=gen_index_offset + total_generated
                 )
                 if pos_hash or neg_hash:
                     meta["conditioning_pos_hash"] = pos_hash
@@ -855,18 +1038,18 @@ def run_generation_loop(
                     if result_latent is not None:
                         del result_latent
                     result_latent = None
-                    
+
                     if pending_batch:
-                        if use_remote_vae:
-                            flush_batch_with_remote_vae(pending_batch, remote_vae_worker, existing_data, session_name)
-                        else:
-                            flush_batch_with_vae(pending_batch, loaded_vae, paths["images"], existing_data, session_name, paths["manifest"], unique_id)
+                        _flush_pending_batch(pending_batch, current_vae_is_remote, current_remote_vae_url,
+                                             per_config_remote_workers, use_remote_vae, remote_vae_worker,
+                                             loaded_vae, paths, existing_data, session_name, paths["manifest"], unique_id)
                         pending_batch = []
-                    
+
+                    _cleanup_per_config_remote_workers(per_config_remote_workers)
                     if remote_vae_worker:
                         remote_vae_worker.wait_completion()
                         remote_vae_worker.stop()
-                            
+
                     existing_data["meta"] = {
                         "positive": positive_text,
                         "negative": negative_text,
@@ -877,16 +1060,16 @@ def run_generation_loop(
                         "resolutions_json": resolutions_json
                     }
                     save_manifest(paths["manifest"], existing_data)
-                    
+
                     loaded_model, loaded_clip, loaded_vae = None, None, None
                     patched_model, patched_clip = None, None
                     conditioning_cache.clear()
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
-                    
-                    html = get_html_template(session_name, existing_data, unique_id)
-                    return (html,)
+
+                    # Re-raise so ComfyUI knows execution was interrupted (not completed)
+                    raise
                 else:
                     print(f"[GridTester] ❌ Generation failed: {e}")
                     if result_latent is not None:
@@ -906,19 +1089,20 @@ def run_generation_loop(
             
             threshold = vae_batch_size if flush_batch_every <= 0 else flush_batch_every
             if len(pending_batch) >= threshold:
-                if use_remote_vae:
-                    flush_batch_with_remote_vae(pending_batch, remote_vae_worker, existing_data, session_name)
-                else:
-                    flush_batch_with_vae(pending_batch, loaded_vae, paths["images"], existing_data, session_name, paths["manifest"], unique_id)
+                _flush_pending_batch(pending_batch, current_vae_is_remote, current_remote_vae_url,
+                                     per_config_remote_workers, use_remote_vae, remote_vae_worker,
+                                     loaded_vae, paths, existing_data, session_name, paths["manifest"], unique_id)
                 pending_batch = []
     
     # ==== FINALIZATION ====
     if pending_batch:
-        if use_remote_vae:
-            flush_batch_with_remote_vae(pending_batch, remote_vae_worker, existing_data, session_name)
-        else:
-            flush_batch_with_vae(pending_batch, loaded_vae, paths["images"], existing_data, session_name, paths["manifest"], unique_id)
-    
+        _flush_pending_batch(pending_batch, current_vae_is_remote, current_remote_vae_url,
+                             per_config_remote_workers, use_remote_vae, remote_vae_worker,
+                             loaded_vae, paths, existing_data, session_name, paths["manifest"], unique_id)
+
+    # Shut down per-config remote VAE workers
+    _cleanup_per_config_remote_workers(per_config_remote_workers)
+
     if remote_vae_worker:
         print(f"[GridTester] 🌐 Waiting for remote VAE...")
         remote_vae_worker.wait_completion()

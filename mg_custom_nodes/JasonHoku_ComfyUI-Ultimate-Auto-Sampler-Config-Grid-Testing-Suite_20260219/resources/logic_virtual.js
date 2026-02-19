@@ -37,18 +37,23 @@ const MAX_CARD_WIDTH = 500;        // Maximum card width
  * This runs once when data is loaded or when images change
  */
 function calculateGridDimensions() {
-    if (!processedData || processedData.length === 0) {
+    // Use activeData (all items) for dimension sampling, not processedData (filtered/sorted)
+    // This prevents dimension changes when filters/sorts change
+    const sourceData = (activeData && activeData.length > 0) ? activeData : processedData;
+    if (!sourceData || sourceData.length === 0) {
         console.log('[Grid Dimensions] No data available, using defaults');
         return;
     }
 
-    // Sample first 20 images to determine average aspect ratio
-    const sampleSize = Math.min(20, processedData.length);
+    // Sample up to 50 images evenly distributed across the dataset for a representative average
+    const totalItems = sourceData.length;
+    const sampleSize = Math.min(50, totalItems);
+    const step = Math.max(1, Math.floor(totalItems / sampleSize));
     let totalAspectRatio = 0;
     let validSamples = 0;
 
-    for (let i = 0; i < sampleSize; i++) {
-        const item = processedData[i];
+    for (let i = 0; i < totalItems && validSamples < sampleSize; i += step) {
+        const item = sourceData[i];
         if (item.width && item.height && item.width > 0 && item.height > 0) {
             totalAspectRatio += item.width / item.height;
             validSamples++;
@@ -237,6 +242,7 @@ function renderVisibleItems(forcePositionUpdate = false) {
 
     itemsToShow.forEach((data, offsetIndex) => {
         const globalIndex = visibleRange.start + offsetIndex;
+        const genOrderNumber = idToIndexMap.get(data.id) || (globalIndex + 1); // Generation order number (backwards-compatible)
 
         const row = Math.floor(globalIndex / columnsCount);
         const col = globalIndex % columnsCount;
@@ -252,6 +258,10 @@ function renderVisibleItems(forcePositionUpdate = false) {
             card.style.top = `${y}px`;
             card.style.width = `${itemWidth - 10}px`;
             card.style.zIndex = globalIndex;
+
+            // Update card number to reflect generation order
+            const indexTag = card.querySelector('.index-tag');
+            if (indexTag) indexTag.textContent = `#${genOrderNumber}`;
 
             nodeMap.set(data.id, card);
             fragment.appendChild(card);
@@ -273,6 +283,10 @@ function renderVisibleItems(forcePositionUpdate = false) {
                 card.style.top = `${y}px`;
                 card.style.zIndex = globalIndex;
                 positionsUpdated++;
+
+                // Update card number when position changes (sort/filter changed)
+                const indexTag = card.querySelector('.index-tag');
+                if (indexTag) indexTag.textContent = `#${genOrderNumber}`;
             }
         }
     });
@@ -297,33 +311,47 @@ function recalculateLayout() {
     if (!viewport) return;
 
     const oldColCount = columnsCount;
-    
+    const oldItemWidth = itemWidth;
+    const oldItemHeight = itemHeight;
+
     // Recalculate dimensions based on current viewport and data
     calculateGridDimensions();
 
-    if (oldColCount !== columnsCount) {
-        console.log(`[Grid] Column count changed: ${oldColCount} → ${columnsCount}, triggering re-render`);
+    if (oldColCount !== columnsCount || oldItemWidth !== itemWidth || oldItemHeight !== itemHeight) {
+        console.log(`[Grid] Layout changed: cols ${oldColCount}→${columnsCount}, w ${oldItemWidth}→${itemWidth}, h ${oldItemHeight}→${itemHeight}`);
         renderDOM();
     }
 }
 
 // --- MAIN RENDER ---
+let isRendering = false; // Guard against recursive renderDOM calls
 function renderDOM() {
+    if (isRendering) return; // Prevent recursive calls from recalculateLayout
+    isRendering = true;
+
     const grid = document.getElementById('grid');
-    if (!grid) return;
+    if (!grid) { isRendering = false; return; }
 
     console.log('[Grid] 🔄 Full re-render');
 
     grid.innerHTML = '';
     nodeMap.clear();
 
-    recalculateLayout();
+    // Recalculate dimensions (may change columnsCount)
+    calculateGridDimensions();
 
-    visibleRange = { start: 0, end: Math.min(MAX_VISIBLE_ITEMS, processedData.length) };
+    // Calculate visible range from current viewport position instead of resetting to 0
+    visibleRange = calculateVisibleRange();
+    // Ensure we have a reasonable range even if viewport position is at origin
+    if (visibleRange.end <= visibleRange.start) {
+        visibleRange = { start: 0, end: Math.min(MAX_VISIBLE_ITEMS, processedData.length) };
+    }
     renderVisibleItems();
 
     viewport.focus();
     viewport.setAttribute('tabindex', '0');
+
+    isRendering = false;
 }
 
 // --- PAN/ZOOM CONTROLS ---
@@ -334,6 +362,8 @@ function updateTransform() {
     if (!canvas) return;
     canvas.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px) scale(${currentScale})`;
     scheduleVisibleUpdate();
+    // Auto-save viewport position on any pan/zoom change
+    if (typeof scheduleViewportSave === 'function') scheduleViewportSave();
 }
 
 function getZoomDelta() {
@@ -413,19 +443,15 @@ function goToImage(imageNumber) {
     let targetItem = null;
     let targetIndex = -1;
 
-    for (let i = 0; i < processedData.length; i++) {
-        const item = processedData[i];
-        const itemIndex = idToIndexMap.get(item.id) || 0;
-        if (itemIndex === imageNumber) {
-            targetItem = item;
-            targetIndex = i;
-            break;
-        }
+    // Card numbers reflect sorted position (1-based), so #N = processedData[N-1]
+    if (imageNumber >= 1 && imageNumber <= processedData.length) {
+        targetIndex = imageNumber - 1;
+        targetItem = processedData[targetIndex];
     }
 
     if (!targetItem || targetIndex === -1) {
         console.log(`[Grid] Image #${imageNumber} not found`);
-        alert(`Image #${imageNumber} not found in current view`);
+        alert(`Image #${imageNumber} not found in current view (${processedData.length} items visible)`);
         return;
     }
 
@@ -685,6 +711,68 @@ function onDataAdded() {
     renderDOM();
 }
 
+// --- VIEWPORT POSITION PERSISTENCE ---
+// Save viewport position to localStorage for persistence across fullscreen toggles and reloads
+function saveViewportPosition() {
+    try {
+        const sessInput = document.getElementById('session-input');
+        const sessionKey = sessInput ? sessInput.value : 'default';
+        const state = {
+            panOffsetX: panOffsetX,
+            panOffsetY: panOffsetY,
+            currentScale: currentScale,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(`ultimate_grid_viewport_${sessionKey}`, JSON.stringify(state));
+    } catch (e) {
+        console.warn('[Viewport] Failed to save position:', e);
+    }
+}
+
+// Restore viewport position from localStorage
+// Returns true if position was restored, false otherwise
+function restoreViewportPosition() {
+    try {
+        const sessInput = document.getElementById('session-input');
+        const sessionKey = sessInput ? sessInput.value : 'default';
+        const saved = localStorage.getItem(`ultimate_grid_viewport_${sessionKey}`);
+        if (!saved) return false;
+
+        const state = JSON.parse(saved);
+
+        // Only restore if saved within the last 24 hours
+        if (Date.now() - state.timestamp > 24 * 60 * 60 * 1000) {
+            localStorage.removeItem(`ultimate_grid_viewport_${sessionKey}`);
+            return false;
+        }
+
+        panOffsetX = state.panOffsetX;
+        panOffsetY = state.panOffsetY;
+        currentScale = state.currentScale;
+
+        updateTransform();
+        updateVisibleItems();
+
+        console.log(`[Viewport] Restored position: panX=${panOffsetX.toFixed(0)}, panY=${panOffsetY.toFixed(0)}, scale=${currentScale.toFixed(2)}`);
+        return true;
+    } catch (e) {
+        console.warn('[Viewport] Failed to restore position:', e);
+        return false;
+    }
+}
+
+// Auto-save viewport position periodically during interaction
+let viewportSaveTimer = null;
+function scheduleViewportSave() {
+    if (viewportSaveTimer) clearTimeout(viewportSaveTimer);
+    viewportSaveTimer = setTimeout(saveViewportPosition, 500);
+}
+
+// Hook into updateTransform to auto-save position on pan/zoom changes
+const _originalUpdateTransform = updateTransform;
+// We can't reassign updateTransform since it's used by reference, so we hook via the scheduleVisibleUpdate path
+// Instead, add save scheduling to mouse/touch/keyboard interactions
+
 // Expose functions
 window.zoomIn = zoomIn;
 window.zoomOut = zoomOut;
@@ -693,6 +781,8 @@ window.autoFitZoom = autoFitZoom;
 window.goToImage = goToImage;
 window.updateVisibleItems = updateVisibleItems;
 window.forceVisibleRangeUpdate = forceVisibleRangeUpdate;
+window.saveViewportPosition = saveViewportPosition;
+window.restoreViewportPosition = restoreViewportPosition;
 
 // --- MOBILE NAVIGATION FUNCTIONS ---
 function scrollDownOneRow() {

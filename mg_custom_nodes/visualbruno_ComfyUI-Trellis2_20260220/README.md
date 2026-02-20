@@ -53,11 +53,9 @@
 Many users reported that their is a bug with mesh generation like on this picture:
 <img width="666" height="752" alt="image" src="https://github.com/user-attachments/assets/ce11c61d-a1c2-40c9-a698-b6330dd19953" />
 
-I don't know yet where is the bug, but I found that it occurs when a parameter is changed in the node "Mesh With Voxel ..."
+I did not find yet the root cause of this problem.
 
-I believe there is a bug with ComfyUI caching system, but I'm not sure.
-
-The only solution for the moment, is to restart ComfyUI.
+For the moment, the only solution is to restart ComfyUI.
 
 ---
 ## REQUIREMENTS ##

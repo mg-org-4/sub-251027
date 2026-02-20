@@ -1338,7 +1338,7 @@ class Trellis2MeshWithVoxelMultiViewGenerator:
                 "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
                 "use_tiled_decoder": ("BOOLEAN", {"default":True}),
                 "front_axis": (["z", "x"], {"default": "z"}),
-                "blend_temperature": ("FLOAT", {"default": 2.0, "min": 0.1, "max": 10.0, "step": 0.1}),
+                "blend_temperature": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1}),
             },
             "optional": {
                 "back_image": ("IMAGE",),
@@ -2177,7 +2177,7 @@ class Trellis2MeshTexturingMultiView:
                 "use_custom_normals": ("BOOLEAN",{"default":False}),
                 "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":60.0,"min":0.0,"max":359.9}),
                 "front_axis": (["z", "x"], {"default": "z"}),
-                "blend_temperature": ("FLOAT", {"default": 2.0, "min": 0.1, "max": 10.0, "step": 0.1}),                
+                "blend_temperature": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1}),                
             },
             "optional": {
                 "back_image": ("IMAGE",),

@@ -35,8 +35,7 @@ def _get_last_version_styles() -> list[list[str]]:
                          [1] category    (str): The category to which the style belongs.
                          [2] description (str): Description of the style (currently empty).
                          [3] tags        (str): Tags associated with the style, comma-separated
-                         [4] template    (str): Template associated with the style.
-                         [5] thumbnail   (str): URL for the style's thumbnail (currently empty).
+                         [4] thumbnail   (str): The filename of the thumbnail image (e.g. "casual_photo.jpg")
     """
     LAST_VERSION_STYLE_GROUPS = PREDEFINED_STYLE_GROUPS
     styles = []
@@ -48,7 +47,6 @@ def _get_last_version_styles() -> list[list[str]]:
             thumbnail   = f"{style.slug}.jpg"
             description = style.description
             tags        = style.comma_separated_tags
-            template    = style.template
             style_data : list[str] = [
                 name,         # 0: name
                 category,     # 1: category

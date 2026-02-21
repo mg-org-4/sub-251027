@@ -29,12 +29,13 @@ let _lastVersionStyles = null;
  * @param {function(Array<Object>)} onResponse
  *     A callback function that receives an array of style objects.
  *     Each style object contains:
+ *       - id         : Unique identifier for the style (the index in the list)
  *       - name       : The name of the style (string)
+ *       - lowerName  : The name of the style, converted to lowercase (string)
  *       - category   : The category of the style (string)
  *       - description: Description of the style (string)
  *       - tags       : Array of tags associated with the style (Array<string>)
- *       - template   : Template information for the style (string)
- *       - thumbnail  : URL or identifier for the style's thumbnail image (string)
+ *       - thumbnail  : URL for the style's thumbnail image (string)
  *
  * @example
  * fetchLastVersionStyles((styles) => {
@@ -54,8 +55,8 @@ async function fetchLastVersionStyles(onResponse) {
         if( typeof styles !== "object" )
         { console.error("The fetching of last version style failed."); return; }
 
-        // prefix to use when requesting thumbnails
-        const requestPrefix = "/zi_power/styles/samples?file=";
+        // prefix used when requesting thumbnails
+        const thumbnailRequestPrefix = "/zi_power/styles/samples?file=";
 
         _lastVersionStyles = styles.map((style, index) => {
             return {
@@ -65,7 +66,7 @@ async function fetchLastVersionStyles(onResponse) {
                 category   : style[1],
                 description: style[2],
                 tags       : style[3].split(","),
-                thumbnail  : requestPrefix + style[4]
+                thumbnail  : thumbnailRequestPrefix + style[4]
             };
         });
         onResponse( _lastVersionStyles );

@@ -112,7 +112,7 @@ class StylePromptEncoder(io.ComfyNode):
     @cache
     def category_names() -> list[str]:
         """Returns all available category names."""
-        return [ group.category for group in PREDEFINED_STYLE_GROUPS ]
+        return [ group.category for group in PREDEFINED_STYLE_GROUPS if group.category ]
 
 
     @staticmethod

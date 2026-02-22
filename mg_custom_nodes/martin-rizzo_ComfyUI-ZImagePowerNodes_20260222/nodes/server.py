@@ -95,9 +95,10 @@ async def get_style_sample(request: web.Request) -> web.StreamResponse:
     #
     file = request.query.get("file")
     file = _sanitize_filename(file) if file else None
+    if file == "none.jpg":
+        file = "00-no-style.jpg"
+
     fullpath = (get_project_root() / "styles" / "samples" / file) if file else None
     if not fullpath or not os.path.isfile(fullpath):
-        notAvailable = get_project_root() / "styles" / "samples" / "00sample-not-available.jpg"
-        return web.FileResponse(notAvailable)
-
+        fullpath = get_project_root() / "styles" / "samples" / "00-sample-not-available.jpg"
     return web.FileResponse(fullpath)

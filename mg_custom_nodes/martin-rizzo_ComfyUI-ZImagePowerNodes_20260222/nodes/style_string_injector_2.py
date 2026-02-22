@@ -14,8 +14,10 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  - https://docs.comfy.org/custom-nodes/v3_migration
 
 """
+from functools                   import cache
 from comfy_api.latest            import io
 from .lib.style_group            import StyleGroup
+from .lib.style_helpers          import get_style_names, get_style_template
 from ..styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
 
 
@@ -38,7 +40,7 @@ class StyleStringInjector2(io.ComfyNode):
                 "according to the selected style"
             ),
             inputs=[
-                io.Combo.Input ("style", options=cls.style_names(), default=cls.default_style_name(),
+                io.Combo.Input ("style", options=cls.style_names(),
                                 tooltip="The visual style you want for your image.",
                                ),
                 io.Custom("ZIPN_STYLE_GALLERY").Input("gallery",
@@ -55,20 +57,13 @@ class StyleStringInjector2(io.ComfyNode):
 
     #__ FUNCTION __________________________________________
     @classmethod
-    def execute(cls,
-                style  : str,
-                string : str,
-                **kwargs
-                ) -> io.NodeOutput:
-        style_to_apply = None
-        prompt         = string
+    def execute(cls, style: str, string: str, **kwargs) -> io.NodeOutput:
+        template = cls.predefined_style_template(style)
 
-        if isinstance(style, str) and style != "none":
-            style_to_apply = cls.get_predefined_style(style)
-
-        # if the style was found, apply it to the prompt
-        if style_to_apply:
-            prompt = StyleGroup.apply_style_template(prompt, style_to_apply, spicy_impact_booster=False)
+        # apply the style template to the prompt
+        prompt = string
+        if template:
+            prompt = StyleGroup.apply_style_template(prompt, template, spicy_impact_booster=False)
 
         return io.NodeOutput( prompt )
 
@@ -82,26 +77,15 @@ class StyleStringInjector2(io.ComfyNode):
 
     #__ internal functions ________________________________
 
-    @classmethod
-    def style_names(cls) -> list[str]:
+    @staticmethod
+    @cache
+    def style_names() -> list[str]:
         """Returns all available style names."""
-        names = ["none"]
-        for style_group in PREDEFINED_STYLE_GROUPS:
-            names.extend( style_group.get_names(quoted=True) )
-        return names
+        return get_style_names( PREDEFINED_STYLE_GROUPS, quoted = True )
 
 
-    @classmethod
-    def default_style_name(cls) -> str:
-        return PREDEFINED_STYLE_GROUPS[0].get_names(quoted=True)[0]
-
-
-    @classmethod
-    def get_predefined_style(cls, style_name: str) -> str:
-        """Returns a predefined style content by its name, searching inside all category groups."""
-        for style_group in PREDEFINED_STYLE_GROUPS:
-            style = style_group.get_style_template(style_name)
-            if style:
-                return style
-        return ""
+    @staticmethod
+    def predefined_style_template(name: str) -> str:
+        """Returns the predefined template for the given style."""
+        return get_style_template( PREDEFINED_STYLE_GROUPS, name, default="" )
 

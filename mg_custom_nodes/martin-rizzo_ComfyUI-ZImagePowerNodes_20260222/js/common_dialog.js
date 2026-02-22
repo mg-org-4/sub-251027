@@ -149,8 +149,9 @@ function makeCustomDialog(dialogId, titleId, title, iconClass, content, onClose)
  * @param {(card: HTMLElement) => void} onCardEnter - Callback function when hovering over a card.
  * @param {(card: HTMLElement) => void} onCardLeave - Callback function when moving the mouse away from a card.
  * @param {(card: HTMLElement) => void} onCardClick - Callback function when clicking on a card.
+ * @param {(container: HTMLElement) => void} [onContainerLeave] - Optional callback function when moving the mouse away from the container.
  */
-function setupCardHoverListeners(containerEl, cardSelector, onCardEnter, onCardLeave, onCardClick) {
+function setupCardHoverListeners(containerEl, cardSelector, onCardEnter, onCardLeave, onCardClick, onContainerLeave) {
 
     const hasPointer = true; //!!window.PointerEvent;
     const events = {
@@ -172,6 +173,10 @@ function setupCardHoverListeners(containerEl, cardSelector, onCardEnter, onCardL
     containerEl.addEventListener('click', (e) => {
         const card = e.target.closest(cardSelector);
         if( card ) { onCardClick?.(card, e); }
+    });
+
+    containerEl.addEventListener(events.leave, (e) => {
+        onContainerLeave?.(containerEl, e);
     });
 }
 

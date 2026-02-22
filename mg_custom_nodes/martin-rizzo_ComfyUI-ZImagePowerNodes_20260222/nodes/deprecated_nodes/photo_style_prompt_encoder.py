@@ -1,7 +1,7 @@
 """
-File    : illustration_style_prompt_encoder.py
+File    : photo_style_prompt_encoder.py
 Purpose : Node that converts a text prompt into an embedding, automatically
-          adapting the prompt to match the selected illustrative style.
+          adapting the prompt to match the selected photographic style.
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Jan 16, 2026
 Repo    : https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes
@@ -18,12 +18,11 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 from comfy_api.latest                  import io
 from ..lib.system                      import logger
 from ..lib.style_group                 import StyleGroup
-from ...styles.predefined_styles_v080  import PREDEFINED_STYLE_GROUPS
-ILLUSTRATION_STYLES = next((style_group for style_group in PREDEFINED_STYLE_GROUPS if style_group.category == "illustration"))
+from ...styles.predefined_styles_0_08  import PREDEFINED_STYLE_GROUPS_0_08 as PREDEFINED_STYLE_GROUPS
+PHOTO_STYLES = next((style_group for style_group in PREDEFINED_STYLE_GROUPS if style_group.category == "photo"))
 
-
-class IllustrationStylePromptEncoder(io.ComfyNode):
-    xTITLE         = "Illustration-Style Prompt Encoder"
+class PhotoStylePromptEncoder(io.ComfyNode):
+    xTITLE         = "Photo-Style Prompt Encoder"
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -37,14 +36,14 @@ class IllustrationStylePromptEncoder(io.ComfyNode):
             node_id       = cls.xCOMFY_NODE_ID,
             is_deprecated = cls.xDEPRECATED,
             description   = (
-                "Transforms a text prompt into an embedding, adapted to the selected illustrative style. "
+                "Transforms a text prompt into an embedding, adapted to the selected photographic style. "
                 "This node takes a prompt, adjusts its visual style according to the chosen option, and "
                 "then encodes it using the provided text encoder to generate an embedding that will guide "
                 "image generation."
             ),
             inputs=[
                 io.Clip.Input  ("clip",
-                                tooltip="The CLIP model used for encoding the text.",
+                                tooltip="The CLIP model used for encoding the text."
                                ),
                 io.String.Input("customization", optional=True, multiline=True, force_input=True,
                                 tooltip=(
@@ -62,7 +61,7 @@ class IllustrationStylePromptEncoder(io.ComfyNode):
             ],
             outputs=[
                 io.Conditioning.Output(tooltip="The encoded text used to guide the image generation."),
-                io.String.Output(tooltip="The prompt after applying the selected illustration style."),
+                io.String.Output(tooltip="The prompt after applying the selected photographic style."),
             ]
         )
 
@@ -76,9 +75,9 @@ class IllustrationStylePromptEncoder(io.ComfyNode):
         # try to find the definition of the style selected by the user,
         # first search inside the custom styles that the user has defined (if any),
         # if not found, then try to find it in the predefined styles
-        style = custom_styles.get_style_template(style_name) if style_name != "none" else None
+        style = custom_styles.get_style_template(style_name) if style_name != "none" else ""
         if not style:
-            style = ILLUSTRATION_STYLES.get_style_template(style_name)
+            style = PHOTO_STYLES.get_style_template(style_name)
 
         # if the style was found, apply it to the prompt
         if style:
@@ -91,5 +90,5 @@ class IllustrationStylePromptEncoder(io.ComfyNode):
 
     @classmethod
     def style_names(cls) -> list[str]:
-        return ["none"] + ILLUSTRATION_STYLES.get_names()
+        return ["none"] + PHOTO_STYLES.get_names()
 

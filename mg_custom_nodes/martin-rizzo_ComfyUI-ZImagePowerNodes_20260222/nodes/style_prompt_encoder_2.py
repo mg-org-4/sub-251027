@@ -17,7 +17,8 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 from functools                   import cache
 from comfy_api.latest            import io
 from .lib.system                 import logger
-from .lib.style_group            import StyleGroup
+from .lib.style_group            import Style, StyleGroup
+from .lib.style_helpers          import get_style_names, get_style_template
 from ..styles.predefined_styles  import PREDEFINED_STYLE_GROUPS
 
 
@@ -52,7 +53,7 @@ class StylePromptEncoder2(io.ComfyNode):
                                   'its description on the next lines. The description should incorporate "{$@}" where the '
                                   'main text prompt will be inserted.'),
                                ),
-                io.Combo.Input ("style", options=cls.style_names(), default=cls.default_style_name(),
+                io.Combo.Input ("style", options=cls.style_names(),
                                 tooltip="The style you want for your image.",
                                ),
                 io.Custom("ZIPN_STYLE_GALLERY").Input("gallery",
@@ -78,21 +79,18 @@ class StylePromptEncoder2(io.ComfyNode):
                 customization : str = "",
                 **kwargs
                 ) -> io.NodeOutput:
-        template      = None
-        prompt        = text
-        custom_styles = StyleGroup.from_string(customization)
+        custom_styles   = StyleGroup.from_string(customization)
+        custom_template = custom_styles.get_style_template(style) if Style.is_valid_name(style) else None
 
-        if isinstance(style, str) and style != "none":
-            # first search inside the custom styles that the user has defined,
-            # if not found, search inside the predefined styles
-            template = custom_styles.get_style_template(style)
-            if not template:
-                template = cls.get_predefined_style_template(style)
+        # if user did not define a custom template for this style, then use the predefined one
+        template = custom_template if custom_template else cls.predefined_style_template(style)
 
-        # if a style template was found, apply it to the prompt
+        # apply the style template to the prompt
+        prompt = text
         if template:
             prompt = StyleGroup.apply_style_template(prompt, template, spicy_impact_booster=False)
 
+        # encode the prompt using the provided text encoder (clip)
         if clip is None:
             raise RuntimeError("ERROR: clip input is invalid: None\n\nIf the clip is from a checkpoint loader node your checkpoint does not contain a valid clip or text encoder model.")
         tokens = clip.tokenize(prompt)
@@ -111,26 +109,12 @@ class StylePromptEncoder2(io.ComfyNode):
     @cache
     def style_names() -> list[str]:
         """Returns all available style names."""
-        names = ["none"]
-        for style_group in PREDEFINED_STYLE_GROUPS:
-            names.extend( style_group.get_names(quoted=True) )
-        number_of_custom_styles=4
-        logger.info(f'"Style & Prompt Encoder" includes support for {len(names)-number_of_custom_styles-1} different styles.')
+        names = get_style_names( PREDEFINED_STYLE_GROUPS, quoted = True )
         return names
 
 
     @staticmethod
-    @cache
-    def default_style_name() -> str:
-        return PREDEFINED_STYLE_GROUPS[0].get_names(quoted=True)[0]
-
-
-    @staticmethod
-    def get_predefined_style_template(style_name: str) -> str:
-        """Returns a predefined style template by its name, searching inside all category groups."""
-        for style_group in PREDEFINED_STYLE_GROUPS:
-            style = style_group.get_style_template(style_name)
-            if style:
-                return style
-        return ""
+    def predefined_style_template(name: str) -> str:
+        """Returns the predefined template for the given style."""
+        return get_style_template( PREDEFINED_STYLE_GROUPS, name, default="" )
 

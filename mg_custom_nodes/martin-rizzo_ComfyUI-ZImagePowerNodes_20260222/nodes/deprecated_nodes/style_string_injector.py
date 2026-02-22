@@ -87,13 +87,13 @@ class StyleStringInjector(io.ComfyNode):
     @classmethod
     def category_names(cls) -> list[str]:
         """Returns all available category names."""
-        return [ group.category for group in PREDEFINED_STYLE_GROUPS ]
+        return [ group.category for group in PREDEFINED_STYLE_GROUPS if group.category ]
 
 
     @classmethod
     def style_names(cls) -> list[str]:
         """Returns all available style names."""
-        names = ["none"]
+        names = []
         for style_group in PREDEFINED_STYLE_GROUPS:
             names.extend( style_group.get_names(quoted=True) )
         return names

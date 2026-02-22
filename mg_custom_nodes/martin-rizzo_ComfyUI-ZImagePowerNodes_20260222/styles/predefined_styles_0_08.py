@@ -1,5 +1,5 @@
 """
-File    : styles/styles_by_category_v080.py
+File    : styles/predefined_styles_0_08.py
 Purpose : Version 0.8.0 of all predefined styles grouped by category.
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Jan 21, 2026
@@ -332,7 +332,7 @@ _CustomStyles = """
 """
 
 
-PREDEFINED_STYLE_GROUPS = [
+PREDEFINED_STYLE_GROUPS_0_08 = [
     StyleGroup.from_string( _PhotoStyles       , category="photo"       , version="0.8.0" ),
     StyleGroup.from_string( _IllustrationStyles, category="illustration", version="0.8.0" ),
     StyleGroup.from_string( _WildStyles        , category="wild"        , version="0.8.0" ),

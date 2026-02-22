@@ -65,6 +65,27 @@ class Style:
         return name
 
 
+    @staticmethod
+    def is_valid_name(name: str) -> bool:
+        """
+        Checks if a given style name is valid.
+
+        This function discards any name that is: "", "-", "none" which
+        are used to mark no style application.
+
+        Args:
+            name (str): The potential style name to validate.
+        Returns:
+            `True` if the name is valid, `False` otherwise.
+        """
+        # discard any name that is not a string
+        if type(name) != str: return False
+
+        # discard any empty string, dash or "none"
+        normalized_name = name.strip().lower()
+        return normalized_name not in ["", "-", "none"]
+
+
 
 #=============================== STYLE GROUP ===============================#
 
@@ -270,8 +291,11 @@ class StyleGroup:
         """
         if not quoted:
             return self._ordered_names
+
+        # only valid style names are quoted
+        # (a style name is not valid if it's an hyphen or is "none")
         quote_char = quoted if isinstance(quoted, str) else '"'
-        return [ f'{quote_char}{x}{quote_char}' for x in self.get_names() ]
+        return [ f'{quote_char}{name}{quote_char}' if Style.is_valid_name(name) else name for name in self.get_names() ]
 
 
     def __len__(self):
@@ -287,3 +311,6 @@ class StyleGroup:
     def __str__(self) -> str:
         return f"StyleGroup({len(self._styles_by_lowername)} styles)"
 
+
+STYLE_GROUP_NONE = StyleGroup(category="")
+STYLE_GROUP_NONE.add_style("none", "{$@}")

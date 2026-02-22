@@ -1,5 +1,5 @@
 """
-File    : styles/styles_by_category_v090.py
+File    : styles/predefined_styles_0_09.py
 Purpose : Version 0.9.0 of all predefined styles grouped by category.
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Jan 25, 2026
@@ -10,7 +10,7 @@ License : MIT
          ComfyUI nodes designed specifically for the "Z-Image" model.
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
-from ..nodes.lib.style_group  import StyleGroup
+from ..nodes.lib.style_group  import StyleGroup, STYLE_GROUP_NONE
 
 
 #============================== PHOTO STYLES ===============================#
@@ -679,7 +679,8 @@ _CustomStyles = """
 """
 
 
-PREDEFINED_STYLE_GROUPS = [
+PREDEFINED_STYLE_GROUPS_0_09 : list[StyleGroup] = [
+    STYLE_GROUP_NONE,
     StyleGroup.from_string( _PhotoStyles       , category="photo"       , version="0.9.0" ),
     StyleGroup.from_string( _IllustrationStyles, category="illustration", version="0.9.0" ),
     StyleGroup.from_string( _WildStyles        , category="wild"        , version="0.9.0" ),

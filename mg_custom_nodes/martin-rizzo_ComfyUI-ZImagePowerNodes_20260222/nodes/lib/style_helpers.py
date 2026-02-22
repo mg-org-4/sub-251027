@@ -11,24 +11,7 @@ License : MIT
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
 from typing       import Any
-from .style_group import StyleGroup
-
-
-
-def is_valid_style_name(name: str) -> bool:
-    """
-    Checks if a given style name is valid.
-    Args:
-        name (str): The potential style name to validate.
-    Returns:
-        bool: True if the name is valid, False otherwise.
-    """
-    # discard any name that is not a string
-    if type(name) != str: return False
-
-    # discard any empty string, dash or "none"
-    normalized_name = name.strip().lower()
-    return normalized_name not in ["", "-", "none"]
+from .style_group import Style, StyleGroup
 
 
 
@@ -38,9 +21,10 @@ def normalize_style_name(name: str) -> str:
     Args:
         name (str): The potential style name to normalize.
     Returns:
-        str: The normalized name if valid, otherwise an empty string.
+        The normalized name if valid, otherwise an empty string.
+        Things like "-" or "none" that represent no-style, return empty string
     """
-    if not is_valid_style_name(name):
+    if not Style.is_valid_name(name):
         return ""
 
     # the name can be quoted with single or double quotes
@@ -51,6 +35,32 @@ def normalize_style_name(name: str) -> str:
 
     return name
 
+
+def get_style_names(source: Any, /,*, quoted: bool | str = False) -> list[str]:
+    """
+    Retrieves a list of style names from a given source.
+
+    This function operates similarly to `StyleGroup.get_names(..)`
+    but allows different types of sources to be provided, including individual
+    `StyleGroups` objects or collections of them (lists or tuples).
+
+    Args:
+    source  (Any): The source to search within. Can be an instance of `StyleGroup`,
+    or a collection like list/tuple containing StyleGroup instances.
+    Returns:
+        A list of strings representing style names found in the source.
+    """
+    if type(source) == StyleGroup:
+        return source.get_names(quoted=quoted)
+
+    if type(source) == list or type(source) == tuple:
+        names = []
+        for style_group in source:
+            if type(style_group) == StyleGroup:
+                names.extend( style_group.get_names(quoted=True) )
+        return names
+
+    return []
 
 
 def get_style_template(source: Any, name: str, default: str = "") -> str:

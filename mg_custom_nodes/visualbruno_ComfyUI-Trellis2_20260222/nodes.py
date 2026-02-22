@@ -779,9 +779,7 @@ class Trellis2PostProcessMesh:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "mesh": ("MESHWITHVOXEL",),                
-                "fill_holes": ("BOOLEAN", {"default":False}),
-                "fill_holes_max_perimeter": ("FLOAT",{"default":0.03,"min":0.001,"max":99.999,"step":0.001}),
+                "mesh": ("MESHWITHVOXEL",),
                 "remove_duplicate_faces": ("BOOLEAN",{"default":False}),
                 "repair_non_manifold_edges": ("BOOLEAN", {"default":False}),
                 "remove_non_manifold_faces": ("BOOLEAN", {"default":False}),
@@ -804,8 +802,6 @@ class Trellis2PostProcessMesh:
 
     def process(self, 
         mesh, 
-        fill_holes, 
-        fill_holes_max_perimeter, 
         remove_duplicate_faces, 
         repair_non_manifold_edges, 
         remove_non_manifold_faces, 
@@ -836,10 +832,6 @@ class Trellis2PostProcessMesh:
         cumesh = CuMesh.CuMesh()
         cumesh.init(vertices, faces)
         print(f"Current vertices: {cumesh.num_vertices}, faces: {cumesh.num_faces}")
-        
-        if fill_holes:
-            cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)
-            print(f"After filling holes: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")
             
         if remove_duplicate_faces:
             print('Removing duplicate faces ...')
@@ -1523,20 +1515,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
         # Initialize CUDA mesh handler
         cumesh = CuMesh.CuMesh()
         cumesh.init(vertices, faces)
-        print(f"Current vertices: {cumesh.num_vertices}, faces: {cumesh.num_faces}")
-        
-        # --- Initial Mesh Cleaning ---
-        # Fills holes as much as we can before processing
-        # if fill_holes:
-            # cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)
-            # print(f"After filling holes: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")
-            # vertices, faces = cumesh.read()
-            
-        # BVH is coming from MeshWithVoxel Generator node
-        # print(f"Building BVH for current mesh...")
-        # bvh = CuMesh.cuBVH(vertices, faces)
-        # bvh.vertices = vertices
-        # bvh.faces = faces
+        print(f"Current vertices: {cumesh.num_vertices}, faces: {cumesh.num_faces}")        
             
         pbar.update(1)
             
@@ -1555,9 +1534,6 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
             cumesh.repair_non_manifold_edges()
             cumesh.remove_small_connected_components(1e-5)
             
-            # if fill_holes:
-                # cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)
-            
             if simplify_method == 'Cumesh':
                 cumesh.simplify(target_face_num, verbose=True)
             elif simplify_method == 'Meshlib':
@@ -1568,10 +1544,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
             
             cumesh.remove_duplicate_faces()
             cumesh.repair_non_manifold_edges()
-            cumesh.remove_small_connected_components(1e-5) 
-
-            # if fill_holes:
-                # cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)            
+            cumesh.remove_small_connected_components(1e-5)         
             
             print(f"After initial cleanup: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")                            
                 
@@ -1899,8 +1872,6 @@ class Trellis2Remesh:
                 "mesh": ("MESHWITHVOXEL",),
                 "remesh_band": ("FLOAT",{"default":1.0}),
                 "remesh_project": ("FLOAT",{"default":0.0}),
-                "fill_holes": ("BOOLEAN", {"default":True}),
-                "fill_holes_max_perimeter": ("FLOAT",{"default":0.03,"min":0.001,"max":99.999,"step":0.001}),
                 "dual_contouring_resolution": (["Auto","128","256","512","1024","2048"],{"default":"Auto"}),
                 "remove_floaters": ("BOOLEAN",{"default":True}),
                 "remove_inner_faces": ("BOOLEAN",{"default":False}),
@@ -1913,7 +1884,7 @@ class Trellis2Remesh:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, remesh_band, remesh_project, fill_holes, fill_holes_max_perimeter, dual_contouring_resolution, remove_floaters, remove_inner_faces):
+    def process(self, mesh, remesh_band, remesh_project, dual_contouring_resolution, remove_floaters, remove_inner_faces):
         reset_cuda()
         
         mesh_copy = copy.deepcopy(mesh)
@@ -1961,13 +1932,7 @@ class Trellis2Remesh:
         # Initialize CUDA mesh handler
         cumesh = CuMesh.CuMesh()
         cumesh.init(vertices, faces)
-        print(f"Current vertices: {cumesh.num_vertices}, faces: {cumesh.num_faces}")
-        
-        # --- Initial Mesh Cleaning ---
-        # Fills holes as much as we can before processing
-        if fill_holes:
-            cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)
-            print(f"After filling holes: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")
+        print(f"Current vertices: {cumesh.num_vertices}, faces: {cumesh.num_faces}")        
         
         vertices, faces = cumesh.read()
         
@@ -2764,8 +2729,6 @@ class Trellis2RemeshWithQuad:
                 "mesh": ("MESHWITHVOXEL",),
                 "remesh_band": ("FLOAT",{"default":1.0}),
                 "remesh_project": ("FLOAT",{"default":0.0}),
-                "fill_holes": ("BOOLEAN", {"default":False}),
-                "fill_holes_max_perimeter": ("FLOAT",{"default":0.03,"min":0.001,"max":99.999,"step":0.001}),
                 "dual_contouring_resolution": (["Auto","128","256","512","1024","2048"],{"default":"Auto"}),
                 "remove_floaters": ("BOOLEAN",{"default":True}),
                 "remove_inner_faces": ("BOOLEAN",{"default":True}),
@@ -2778,7 +2741,7 @@ class Trellis2RemeshWithQuad:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, remesh_band, remesh_project, fill_holes, fill_holes_max_perimeter, dual_contouring_resolution, remove_floaters, remove_inner_faces):
+    def process(self, mesh, remesh_band, remesh_project, dual_contouring_resolution, remove_floaters, remove_inner_faces):
         reset_cuda()
         
         mesh_copy = copy.deepcopy(mesh)
@@ -2827,12 +2790,6 @@ class Trellis2RemeshWithQuad:
         cumesh = CuMesh.CuMesh()
         cumesh.init(vertices, faces)
         print(f"Current vertices: {cumesh.num_vertices}, faces: {cumesh.num_faces}")
-        
-        # --- Initial Mesh Cleaning ---
-        # Fills holes as much as we can before processing
-        if fill_holes:
-            cumesh.fill_holes(max_hole_perimeter=fill_holes_max_perimeter)
-            print(f"After filling holes: {cumesh.num_vertices} vertices, {cumesh.num_faces} faces")
         
         vertices, faces = cumesh.read()
         

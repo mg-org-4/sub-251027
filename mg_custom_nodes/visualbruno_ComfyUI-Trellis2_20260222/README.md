@@ -14,6 +14,7 @@
 
 | Date | Description |
 | --- | --- |
+| **2026-02-21** | Fixed "Vertical lines" bug |
 | **2026-02-17** | Disabled Triton Cache (trying to fix vertical lines bug)<br>Fixed "Weld Vertices"<br>Added "Reconstruct Mesh with Quad" node |
 | **2026-02-13** | Added the node "Weld Vertices"<br>Added the resolution 1536 for "Mesh Texturing" |
 | **2026-02-12** | Added the node "Mesh With Voxel Multi-View Generator" |
@@ -45,19 +46,9 @@
 ||Applied latest fixes from Microsoft|
 | **2026-01-05** |Implemented "Tiled" Decoder|
 ||Updated Cumesh and O_voxel|
-  
----
-
-## WARNING ##
-
-Many users reported that their is a bug with mesh generation like on this picture:
-<img width="666" height="752" alt="image" src="https://github.com/user-attachments/assets/ce11c61d-a1c2-40c9-a698-b6330dd19953" />
-
-I did not find yet the root cause of this problem.
-
-For the moment, the only solution is to restart ComfyUI.
 
 ---
+
 ## REQUIREMENTS ##
 
 You need to have access to facebook dinov3 models in order to use Trellis.2

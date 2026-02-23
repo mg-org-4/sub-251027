@@ -1,5 +1,4 @@
 import os
-from comfy.ldm.modules import attention as comfy_attention
 import logging
 import torch
 import importlib
@@ -10,10 +9,8 @@ import folder_paths
 import comfy.model_management as mm
 from comfy.cli_args import args
 from comfy.ldm.modules.attention import wrap_attn, optimized_attention
-import comfy.model_patcher
 import comfy.utils
 import comfy.sd
-
 
 try:
     from comfy_api.latest import io
@@ -23,20 +20,6 @@ except ImportError:
     logging.warning("ComfyUI v3 node API not available, please update ComfyUI to access latest v3 nodes.")
 
 sageattn_modes = ["disabled", "auto", "sageattn_qk_int8_pv_fp16_cuda", "sageattn_qk_int8_pv_fp16_triton", "sageattn_qk_int8_pv_fp8_cuda", "sageattn_qk_int8_pv_fp8_cuda++", "sageattn3", "sageattn3_per_block_mean"]
-
-_initialized = False
-_original_functions = {}
-
-if not _initialized:
-    _original_functions["orig_attention"] = comfy_attention.optimized_attention
-    _original_functions["original_patch_model"] = comfy.model_patcher.ModelPatcher.patch_model
-    _original_functions["original_load_lora_for_models"] = comfy.sd.load_lora_for_models
-    try:
-        _original_functions["original_qwen_forward"] = comfy.ldm.qwen_image.model.Attention.forward
-    except:
-        pass
-    _initialized = True
-
 
 def get_sage_func(sage_attention, allow_compile=False):
     logging.info(f"Using sage attention mode: {sage_attention}")
@@ -222,8 +205,10 @@ class CheckpointLoaderKJ():
 class DiffusionModelSelector():
     @classmethod
     def INPUT_TYPES(s):
+        ltx2_connector_models = folder_paths.get_filename_list("text_encoders")
+        ltx2_connector_models = [m for m in ltx2_connector_models if "connector" in m.lower()]
         return {"required": {
-            "model_name": (folder_paths.get_filename_list("diffusion_models"), {"tooltip": "The name of the checkpoint (model) to load."}),
+            "model_name": (folder_paths.get_filename_list("diffusion_models") + ltx2_connector_models, {"tooltip": "The name of the checkpoint (model) to load."}),
         },
         }
 
@@ -235,7 +220,10 @@ class DiffusionModelSelector():
     CATEGORY = "KJNodes/experimental"
 
     def get_path(self, model_name):
-        model_path = folder_paths.get_full_path_or_raise("diffusion_models", model_name)
+        if "connector" in model_name.lower():
+            model_path = folder_paths.get_full_path_or_raise("text_encoders", model_name)
+        else:
+            model_path = folder_paths.get_full_path_or_raise("diffusion_models", model_name)
         return (model_path,)
 
 class DiffusionModelLoaderKJ():
@@ -295,6 +283,8 @@ class DiffusionModelLoaderKJ():
 
         sd, metadata = comfy.utils.load_torch_file(unet_path, return_metadata=True)
         if extra_state_dict is not None:
+            extra_sd = comfy.utils.load_torch_file(extra_state_dict)
+            sd.update(extra_sd)
             # If the model is a checkpoint, strip additional non-diffusion model entries before adding extra state dict
             from comfy import model_detection
             diffusion_model_prefix = model_detection.unet_prefix_from_state_dict(sd)
@@ -302,9 +292,6 @@ class DiffusionModelLoaderKJ():
                 temp_sd = comfy.utils.state_dict_prefix_replace(sd, {diffusion_model_prefix: ""}, filter_keys=True)
                 if len(temp_sd) > 0:
                     sd = temp_sd
-
-            extra_sd = comfy.utils.load_torch_file(extra_state_dict)
-            sd.update(extra_sd)
             del extra_sd
 
         model = comfy.sd.load_diffusion_model_state_dict(sd, model_options=model_options, metadata=metadata)
@@ -1560,8 +1547,11 @@ class GGUFLoaderKJ(io.ComfyNode):
         # Get GGUF models safely, fallback to empty list if unet_gguf folder doesn't exist
         try:
             gguf_models = folder_paths.get_filename_list("unet_gguf")
+            ltx2_connector_models = folder_paths.get_filename_list("text_encoders")
+            ltx2_connector_models = [m for m in ltx2_connector_models if "connector" in m.lower()]
         except KeyError:
             gguf_models = []
+            ltx2_connector_models = []
 
         return io.Schema(
             node_id="GGUFLoaderKJ",
@@ -1570,7 +1560,7 @@ class GGUFLoaderKJ(io.ComfyNode):
             is_experimental=True,
             inputs=[
                 io.Combo.Input("model_name", options=gguf_models),
-                io.Combo.Input("extra_model_name", options=gguf_models + ["none"], default="none", tooltip="An extra gguf model to load and merge into the main model, for example VACE module"),
+                io.Combo.Input("extra_model_name", options=gguf_models + ltx2_connector_models + ["none"], default="none", tooltip="An extra gguf model to load and merge into the main model, for example VACE module"),
                 io.Combo.Input("dequant_dtype", options=["default", "target", "float32", "float16", "bfloat16"], default="default"),
                 io.Combo.Input("patch_dtype", options=["default", "target", "float32", "float16", "bfloat16"], default="default"),
                 io.Boolean.Input("patch_on_device", default=False),
@@ -1643,10 +1633,19 @@ class GGUFLoaderKJ(io.ComfyNode):
             sd = gguf_nodes.loader.gguf_sd_loader(model_path)
 
         if extra_model_name is not None and extra_model_name != "none":
-            if not extra_model_name.endswith(".gguf"):
+            if extra_model_name.endswith(".gguf"):
+                extra_model_full_path = folder_paths.get_full_path("unet", extra_model_name)
+                extra_model = gguf_nodes.loader.gguf_sd_loader(extra_model_full_path)
+            elif "connector" in extra_model_name.lower():
+                extra_model_full_path = folder_paths.get_full_path("text_encoders", extra_model_name)
+                extra_model = comfy.utils.load_torch_file(extra_model_full_path)
+                diffusion_model_prefix = comfy.model_detection.unet_prefix_from_state_dict(extra_model)
+                if diffusion_model_prefix == "model.diffusion_model.":
+                    temp_sd = comfy.utils.state_dict_prefix_replace(extra_model, {diffusion_model_prefix: ""}, filter_keys=True)
+                    if len(temp_sd) > 0:
+                        extra_model = temp_sd
+            else:
                 raise ValueError("Extra model must also be a .gguf file")
-            extra_model_full_path = folder_paths.get_full_path("unet", extra_model_name)
-            extra_model = gguf_nodes.loader.gguf_sd_loader(extra_model_full_path)
             sd.update(extra_model)
 
         model = comfy.sd.load_diffusion_model_state_dict(

@@ -1604,7 +1604,6 @@
     "MiniMax": "MiniMax",
     "model_specific": "model_specific",
     "Moonvalley Marey": "Moonvalley Marey",
-    "": "",
     "OpenAI": "OpenAI",
     "Sora": "Sora",
     "cond pair": "cond pair",
@@ -1626,6 +1625,7 @@
     "style_model": "style_model",
     "Tencent": "Tencent",
     "textgen": "textgen",
+    "": "",
     "Topaz": "Topaz",
     "Tripo": "Tripo",
     "Veo": "Veo",
@@ -2459,7 +2459,8 @@
       "placeholderVideo": "Select video...",
       "placeholderMesh": "Select mesh...",
       "placeholderModel": "Select model...",
-      "placeholderUnknown": "Select media..."
+      "placeholderUnknown": "Select media...",
+      "maxSelectionReached": "Maximum selection limit reached"
     },
     "valueControl": {
       "header": {
@@ -2528,6 +2529,14 @@
     "showGroups": "Show Frames/Groups",
     "renderBypassState": "Render Bypass State",
     "renderErrorState": "Render Error State"
+  },
+  "nightlySurvey": {
+    "title": "Help Us Improve",
+    "description": "You've been using this feature. Would you take a moment to share your feedback?",
+    "accept": "Sure, I'll help!",
+    "notNow": "Not Now",
+    "dontAskAgain": "Don't Ask Again",
+    "loadError": "Failed to load survey. Please try again later."
   },
   "cloudOnboarding": {
     "skipToCloudApp": "Skip to the cloud app",
@@ -3151,5 +3160,43 @@
       "duplicateName": "A secret with this name already exists",
       "duplicateProvider": "A secret for this provider already exists"
     }
+  },
+  "essentials": {
+    "loadImage": "Load Image",
+    "saveImage": "Save Image",
+    "loadVideo": "Load Video",
+    "saveVideo": "Save Video",
+    "load3DModel": "Load 3D model",
+    "save3DModel": "Save 3D Model",
+    "text": "Text",
+    "batchImage": "Batch Image",
+    "cropImage": "Crop Image",
+    "resizeImage": "Resize Image",
+    "rotate": "Rotate",
+    "invert": "Invert",
+    "canny": "Canny",
+    "removeBackground": "Remove Background",
+    "imageCompare": "Image compare",
+    "extractFrame": "Extract frame",
+    "loadStyleLora": "Load style (LoRA)",
+    "lipsync": "Lipsync",
+    "textGenerationLLM": "Text generation (LLM)",
+    "textTo3DModel": "Text to 3D model",
+    "imageTo3DModel": "Image to 3D Model",
+    "musicGeneration": "Music generation",
+    "loadAudio": "Load Audio",
+    "saveAudio": "Save Audio",
+    "inpaintImage": "Inpaint image",
+    "outpaintImage": "Outpaint image",
+    "imageToImage": "Image to image",
+    "textToImage": "Text to image",
+    "poseToImage": "Pose to image",
+    "cannyToImage": "Canny to image",
+    "depthToImage": "Depth to image",
+    "textToVideo": "Text to video",
+    "imageToVideo": "Image to video",
+    "poseToVideo": "Pose to video",
+    "cannyToVideo": "Canny to video",
+    "depthToVideo": "Depth to video"
   }
 }

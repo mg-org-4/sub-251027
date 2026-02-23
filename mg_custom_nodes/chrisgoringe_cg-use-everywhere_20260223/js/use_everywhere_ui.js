@@ -169,7 +169,7 @@ export class LinkRenderController extends Pausable {
     disable_all_connected_widgets( ) {
         this.widgets_disabled = []
         app.canvas.graph.extra['ue_links']?.forEach((uel) => {
-            const node = app.canvas.graph._nodes_by_id[uel.downstream]
+            const node = app.canvas.graph.getNodeById(uel.downstream)
             if (node) {
                 const name = node.inputs[uel.downstream_slot]?.name;
                 if (name) {
@@ -271,7 +271,12 @@ export class LinkRenderController extends Pausable {
     }
 
     _relative_connection_pos(node, input, slot) {
-        var pos2 = node.getConnectionPos?.(input, slot, this.slot_pos1) || node.slots[slot].pos;
+        var pos2;
+        if (node.getSlotPosition) {
+            pos2 = node.getSlotPosition(slot, input)
+        } else {
+            pos2 = node.getConnectionPos?.(input, slot, this.slot_pos1) || node.slots[slot].pos;
+        }
         pos2[0] -= node.pos[0];
         pos2[1] -= node.pos[1];
         return pos2
@@ -337,7 +342,7 @@ export class LinkRenderController extends Pausable {
                             graph                    : m.node.graph, 
                             sending_to               : m.node, 
                             input_index              : m.node_index, 
-                            control_node             : m.node.graph._nodes_by_id[m.id],
+                            control_node             : m.node.graph.getNodeById(m.id),
                             control_node_input_index : m.index,
                             type                     : m.type,
                         }, ctx, 0, "#F00")
@@ -386,9 +391,15 @@ export class LinkRenderController extends Pausable {
             const node = get_real_node(ue_connection.sending_to.id, graph);
 
             /* this is the end node; get the position of the input */
-            var pos2 = node.getConnectionPos(true, ue_connection.input_index, this.slot_pos1);
+            var pos2;
 
-            const control_node = graph._nodes_by_id[ue_connection.control_node.id]
+            if (node.getSlotPosition) {
+                pos2 = node.getSlotPosition(ue_connection.input_index, true)
+            } else {
+                pos2 = node.getConnectionPos(true, ue_connection.input_index, this.slot_pos1);
+            }
+            
+            const control_node = graph.getNodeById(ue_connection.control_node.id)
             if (!control_node) {
                 Logger.problem(`Couldn't find position for UE link ${ue_connection}.`,null,true)
                 return;
@@ -403,8 +414,13 @@ export class LinkRenderController extends Pausable {
             */
             const input_source = (ue_connection.control_node_input_index >= 0 && !control_node.properties.ue_convert); 
             const source_index = (ue_connection.control_node_input_index >= 0 ) ? ue_connection.control_node_input_index : -1-ue_connection.control_node_input_index;
-            const pos1 = control_node.getConnectionPos(input_source, source_index, this.slot_pos2);    
-
+            var pos1;
+            
+            if (control_node.getSlotPosition) {
+                pos1 = control_node.getSlotPosition(source_index, input_source)
+            } else {
+                pos1 = control_node.getConnectionPos(input_source, source_index, this.slot_pos2);    
+            }
 
             /* get the direction that we start and end */
             const delta_x = pos2[0] - pos1[0];

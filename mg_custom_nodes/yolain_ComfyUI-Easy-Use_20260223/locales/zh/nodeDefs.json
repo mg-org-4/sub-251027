@@ -6088,7 +6088,7 @@
     "display_name": "ckpt名称列表",
     "inputs": {
       "ckpt_name": {
-        "name": "模型名称"
+        "name": "模型名称" 
       }
     },
     "outputs": {
@@ -6107,6 +6107,23 @@
     "outputs": {
       "0": {
         "name": "ControlNet名称"
+      }
+    }
+  },
+  "easy tableEditor": {
+    "display_name": "表格编辑器",
+    "description": "通过可视化表格或 Markdown 语法编辑数据，输出 Markdown 格式的表格字符串及渲染图像。",
+    "inputs": {
+      "table_data": {
+        "name": "表格数据"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "Markdown"
+      },
+      "1": {
+        "name": "图像"
       }
     }
   },

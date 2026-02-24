@@ -5873,6 +5873,7 @@
   ],
   "fingersmile": [
     "hand",
+    "pose",
     "gesture",
     "expression"
   ],
@@ -5916,7 +5917,8 @@
   "finger_in_own_mouth": [
     "body",
     "hand",
-    "mouth"
+    "mouth",
+    "pose"
   ],
   "shiroko_terror_(blue_archive)": [
     "character",
@@ -10952,7 +10954,8 @@
     "gesture",
     "body",
     "hand",
-    "touch"
+    "touch",
+    "pose"
   ],
   "notebook": [
     "object",
@@ -12117,7 +12120,8 @@
     "action",
     "holding",
     "hand",
-    "hold_in_hand"
+    "hold_in_hand",
+    "pose"
   ],
   "mismatched_sclera": [
     "body",
@@ -15754,7 +15758,6 @@
   ],
   "horn_grab": [
     "action",
-    "pose",
     "hand",
     "horn"
   ],

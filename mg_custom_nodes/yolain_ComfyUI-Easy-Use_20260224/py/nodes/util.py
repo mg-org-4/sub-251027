@@ -137,7 +137,9 @@ def _markdown_table_to_image(markdown: str, font_path: str):
     for line in lines:
         if re.match(r'^\|[\s\-:|]+\|$', line.strip()):
             continue
-        cells = [c.strip() for c in line.strip().strip('|').split('|')]
+        cells = [re.sub(r'\*\*(.+?)\*\*', lambda m: '\x01' + m.group(1) + '\x02',
+                 re.sub(r'<br\s*/?>', '\n', c.strip(), flags=re.IGNORECASE))
+                 for c in line.strip().strip('|').split('|')]
         table_rows.append(cells)
 
     if not table_rows:
@@ -158,11 +160,12 @@ def _markdown_table_to_image(markdown: str, font_path: str):
     max_cell_text_width = 200  # 单元格文字区域最大宽度（像素）
 
     def get_text_width(text):
+        clean = re.sub('[\x01\x02]', '', text)
         try:
-            bbox = font.getbbox(text)
+            bbox = font.getbbox(clean)
             return bbox[2] - bbox[0]
         except Exception:
-            return len(text) * 9
+            return len(clean) * 9
 
     def get_line_height():
         try:
@@ -172,9 +175,16 @@ def _markdown_table_to_image(markdown: str, font_path: str):
             return font_size + 2
 
     def wrap_text(text, max_width):
-        """换行：英文按单词边界换行，CJK 字符逐字换行。"""
+        """换行：先按 \\n 切段，每段再按英文单词边界 / CJK 字符换行。"""
         if not text:
             return ['']
+        # 先按显式换行符切段，再对每段分别软换行
+        hard_lines = text.split('\n')
+        if len(hard_lines) > 1:
+            result = []
+            for hl in hard_lines:
+                result.extend(wrap_text(hl, max_width))
+            return result if result else ['']
 
         # 将文本拆分为：CJK 单字符 / 空白序列 / 非CJK非空白序列（英文单词/标点等）
         tokens = re.findall(
@@ -218,13 +228,40 @@ def _markdown_table_to_image(markdown: str, font_path: str):
 
     line_h = get_line_height()
 
-    # 第一遍：计算各列宽度（不超过 max_cell_text_width）
+    def parse_line_segments(line):
+        """将含 \\x01..\\x02 粗体标记的行拆分为 (text, is_bold) 片段列表。"""
+        result, bold = [], False
+        for part in re.split('([\x01\x02])', line):
+            if part == '\x01':
+                bold = True
+            elif part == '\x02':
+                bold = False
+            elif part:
+                result.append((part, bold))
+        return result or [('', False)]
+
+    def balance_bold_markers(lines):
+        """确保每行粗体标记自成一对：跨行时在行首补开、行尾补关标记。"""
+        result, in_bold = [], False
+        for line in lines:
+            if in_bold:
+                line = '\x01' + line
+            for ch in line:
+                if ch == '\x01':   in_bold = True
+                elif ch == '\x02': in_bold = False
+            if in_bold:
+                line = line + '\x02'
+            result.append(line)
+        return result
+
+    # 第一遍：计算各列宽度（不超过 max_cell_text_width，按子行分别测量）
     col_text_widths = []
     for col_idx in range(num_cols):
         max_w = 0
         for row in table_rows:
             cell = row[col_idx] if col_idx < len(row) else ''
-            max_w = max(max_w, min(get_text_width(cell), max_cell_text_width))
+            for seg_line in cell.split('\n'):
+                max_w = max(max_w, min(get_text_width(seg_line), max_cell_text_width))
         col_text_widths.append(max_w)
     col_widths = [w + pad_x * 2 for w in col_text_widths]
 
@@ -236,7 +273,7 @@ def _markdown_table_to_image(markdown: str, font_path: str):
         max_lines = 1
         for col_idx in range(num_cols):
             cell = row[col_idx] if col_idx < len(row) else ''
-            wrapped = wrap_text(cell, col_text_widths[col_idx])
+            wrapped = balance_bold_markers(wrap_text(cell, col_text_widths[col_idx]))
             wrapped_cells.append(wrapped)
             max_lines = max(max_lines, len(wrapped))
         wrapped_rows.append(wrapped_cells)
@@ -262,6 +299,23 @@ def _markdown_table_to_image(markdown: str, font_path: str):
     img  = Image.new("RGB", (total_width, total_height), border_color)
     draw = ImageDraw.Draw(img)
 
+    def render_line(x, y, line, fg):
+        """逐片段渲染一行文字；粗体通过向右偏移 1px 再描一遍来模拟加粗。"""
+        try:
+            text_offset = -font.getbbox(re.sub('[\x01\x02]', '', line) or 'A')[1]
+        except Exception:
+            text_offset = 0
+        sx = x
+        for seg, is_bold in parse_line_segments(line):
+            draw.text((sx, y + text_offset), seg, font=font, fill=fg)
+            if is_bold:
+                draw.text((sx + 1, y + text_offset), seg, font=font, fill=fg)
+            try:
+                w = font.getbbox(seg)[2] - font.getbbox(seg)[0]
+            except Exception:
+                w = len(seg) * 9
+            sx += w + (1 if is_bold else 0)
+
     row_y = border
     for row_idx, (wrapped_cells, rh) in enumerate(zip(wrapped_rows, row_heights)):
         is_header = row_idx == 0
@@ -277,12 +331,7 @@ def _markdown_table_to_image(markdown: str, font_path: str):
             total_text_h   = len(cell_lines) * line_h
             ty             = row_y + (rh - total_text_h) // 2  # 垂直居中起点
             for line_text in cell_lines:
-                try:
-                    bbox        = font.getbbox(line_text)
-                    text_offset = -bbox[1]  # 修正字体上方留白
-                except Exception:
-                    text_offset = 0
-                draw.text((cx + pad_x, ty + text_offset), line_text, font=font, fill=fg)
+                render_line(cx + pad_x, ty, line_text, fg)
                 ty += line_h
 
         row_y += rh + border

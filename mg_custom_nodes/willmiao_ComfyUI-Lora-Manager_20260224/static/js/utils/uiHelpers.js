@@ -457,6 +457,14 @@ function getWidgetNames(node) {
   return [];
 }
 
+function isNodeEnabled(node) {
+  if (!node) {
+    return false;
+  }
+  // ComfyUI node mode: 0 = Normal/Enabled, others = Always/Never/OnEvent
+  return node.mode === undefined || node.mode === 0;
+}
+
 function isAbsolutePath(path) {
   if (typeof path !== 'string') {
     return false;
@@ -507,7 +515,7 @@ export async function sendLoraToWorkflow(loraSyntax, replaceMode = false, syntax
   }
 
   const loraNodes = filterRegistryNodes(registry.nodes, (node) => {
-    if (!node) {
+    if (!isNodeEnabled(node)) {
       return false;
     }
     if (node.capabilities && typeof node.capabilities === 'object') {
@@ -569,6 +577,9 @@ export async function sendModelPathToWorkflow(modelPath, options) {
   }
 
   const targetNodes = filterRegistryNodes(registry.nodes, (node) => {
+    if (!isNodeEnabled(node)) {
+      return false;
+    }
     const widgetNames = getWidgetNames(node);
     return widgetNames.includes(widgetName);
   });

@@ -1,0 +1,317 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* ============================================================ */
+/* EXPORT DIALOG SLOTS SECTION                                   */
+/* ============================================================ */
+
+.rtx-remix-slots-section {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: var(--border-width-thin) solid var(--border-base);
+}
+
+.rtx-remix-slots-info {
+  margin-bottom: var(--space-4);
+  font-size: var(--font-base);
+  color: var(--text-subtle);
+}
+
+.rtx-remix-table-wrapper {
+  margin-bottom: var(--space-5);
+}
+
+.rtx-remix-table-wrapper:last-of-type {
+  margin-bottom: 0;
+}
+
+.rtx-remix-table-heading {
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--font-md);
+  font-weight: var(--font-semibold);
+  color: var(--remix-color);
+}
+
+/* ============================================================ */
+/* EXPORT DIALOG GRID COLUMNS                                    */
+/* ============================================================ */
+
+/* Columns: drag | chevron | label | export name | type | remix type | details */
+.rtx-remix-export-inputs .rtx-remix-list-row,
+.rtx-remix-export-inputs .rtx-remix-group-header,
+.rtx-remix-export-outputs .rtx-remix-list-row,
+.rtx-remix-export-outputs .rtx-remix-group-header {
+  --grid-columns: var(--drag-column-width) var(--chevron-column-width)
+    minmax(var(--label-column-min-width), var(--label-column-max-width)) minmax(var(--flex-column-min-width), 1fr)
+    var(--type-column-width) var(--remix-type-column-width) var(--details-column-width);
+}
+
+/* Export dialog group content spans label through details (columns 3-7 in 7-column grid) */
+.rtx-remix-export-inputs .rtx-remix-group-content-cell,
+.rtx-remix-export-outputs .rtx-remix-group-content-cell {
+  grid-column: 3 / 8;
+}
+
+/* Hide indicator and menu cells in export dialog (not needed) */
+.rtx-remix-export-inputs .rtx-remix-indicator-cell,
+.rtx-remix-export-inputs .rtx-remix-menu-cell,
+.rtx-remix-export-outputs .rtx-remix-indicator-cell,
+.rtx-remix-export-outputs .rtx-remix-menu-cell {
+  display: none;
+}
+
+/* ============================================================ */
+/* EXPORT DIALOG SCROLL CONTAINER                                */
+/* ============================================================ */
+
+.rtx-remix-export-scroll-wrapper {
+  max-height: 25vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg-darker);
+  border: var(--border-width-thin) solid var(--border-base);
+  border-radius: var(--radius-md);
+}
+
+/* Scrollbar styling */
+.rtx-remix-export-scroll-wrapper::-webkit-scrollbar {
+  width: var(--space-2);
+  height: var(--space-2);
+}
+
+.rtx-remix-export-scroll-wrapper::-webkit-scrollbar-track {
+  background: var(--bg-darker);
+  border-radius: var(--radius-sm);
+}
+
+.rtx-remix-export-scroll-wrapper::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+}
+
+.rtx-remix-export-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}
+
+/* Remove gap between groups in export dialog */
+.rtx-remix-export-scroll-wrapper .rtx-remix-grouped-list {
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.rtx-remix-export-scroll-wrapper .rtx-remix-list-group {
+  border-radius: 0;
+  border-bottom: var(--border-width-thin) solid var(--border-base);
+  background: transparent;
+}
+
+.rtx-remix-export-scroll-wrapper .rtx-remix-list-group:last-child {
+  border-bottom: none;
+}
+
+/* Remove rounded corners from group headers in export dialog */
+.rtx-remix-export-scroll-wrapper .rtx-remix-group-header {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+
+/* Sticky header for export inputs/outputs tables */
+.rtx-remix-export-scroll-wrapper .rtx-remix-list-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--rtx-z-sticky-header);
+  background: var(--bg-medium);
+}
+
+/* ============================================================ */
+/* EXPORT DIALOG SLOT CELL STYLES                                */
+/* ============================================================ */
+
+/* Label cell - stacked slot name + node title */
+.rtx-remix-slot-label-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Slot name - bold, on top */
+.rtx-remix-slot-name {
+  font-size: var(--font-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Node title - muted, below */
+.rtx-remix-slot-node-title {
+  font-size: var(--font-xs);
+  font-weight: var(--font-normal);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Output node title - bold since it's the primary label */
+.rtx-remix-export-outputs .rtx-remix-slot-node-title {
+  font-size: var(--font-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.rtx-remix-slot-name-cell,
+.rtx-remix-slot-primitive-type-cell,
+.rtx-remix-slot-type-cell {
+  min-width: 0;
+}
+
+/* Primitive type badge */
+.rtx-remix-slot-primitive-type {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-base);
+  border: var(--border-width-thin) solid var(--border-base);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-family: monospace;
+  color: var(--accent-blue);
+}
+
+/* Details button cell */
+.rtx-remix-slot-details-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rtx-remix-details-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--rtx-animation-fast) ease,
+    color var(--rtx-animation-fast) ease;
+}
+
+.rtx-remix-details-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.rtx-remix-details-btn.expanded {
+  color: var(--remix-color);
+}
+
+/* ============================================================ */
+/* SHARED INPUT/SELECT STYLES                                    */
+/* ============================================================ */
+
+.rtx-remix-slot-name-input,
+.rtx-remix-slot-type-select {
+  width: 100%;
+  padding: var(--space-2);
+  background: var(--bg-darker);
+  border: var(--border-width-thin) solid var(--border-base);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--font-base);
+  outline: none;
+  transition: all var(--rtx-animation-normal) ease;
+}
+
+.rtx-remix-slot-name-input {
+  min-width: 150px;
+}
+
+.rtx-remix-slot-type-select {
+  cursor: pointer;
+}
+
+.rtx-remix-slot-name-input:focus,
+.rtx-remix-slot-type-select:focus {
+  border-color: var(--remix-color);
+  box-shadow: var(--shadow-focus);
+}
+
+.rtx-remix-slot-type-select:hover {
+  border-color: var(--border-light);
+}
+
+.rtx-remix-slot-name-input::placeholder {
+  color: var(--text-placeholder);
+  font-style: italic;
+}
+
+/* ============================================================ */
+/* WARNING ROW                                                   */
+/* ============================================================ */
+
+.rtx-remix-warning-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-10) var(--space-3);
+  background: var(--status-warning-bg);
+  min-height: 120px;
+  text-align: center;
+  color: var(--status-warning);
+  border-radius: var(--radius-md);
+}
+
+.rtx-remix-warning-icon {
+  font-size: var(--font-xxl);
+  margin-right: var(--space-2);
+}
+
+.rtx-remix-warning-text {
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+}
+
+/* ============================================================ */
+/* EMPTY STATE                                                   */
+/* ============================================================ */
+
+.rtx-remix-slots-empty {
+  display: none;
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--text-subtle);
+  font-style: italic;
+  background: var(--bg-darker);
+  border: var(--border-width-thin) dashed var(--border-base);
+  border-radius: var(--radius-md);
+}
+
+.rtx-remix-slots-empty.show {
+  display: block;
+}

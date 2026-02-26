@@ -27,17 +27,20 @@ from .modules.referenceImages import referenceImages
 from .modules.imageInferenceInputs import imageInferenceInputs
 from .modules.videoInference import txt2vid
 from .modules.videoModelSearch import videoModelSearch
+from .modules.videoSettings import RunwareVideoSettings
 from .modules.frameImages import RunwareFrameImages
 from .modules.providerSettings.pixverseProviderSettings import RunwarePixverseProviderSettings
 from .modules.providerSettings.openaiProviderSettings import RunwareOpenAIProviderSettings
-from .modules.providerSettings.bytedanceImageProviderSettings import RunwareBytedanceProviderSettings
-from .modules.providerSettings.briaImageProviderSettings import RunwareBriaProviderSettings
+from .modules.providerSettings.bytedanceProviderSettings import RunwareBytedanceProviderSettings
+from .modules.providerSettings.briaProviderSettings import RunwareBriaProviderSettings
 from .modules.providerSettings.briaProviderMask import RunwareBriaProviderMask
 from .modules.audioInference import RunwareAudioInference
+from .modules.audioInferenceSpeech import RunwareAudioInferenceSpeech
 from .modules.audioModelSearch import RunwareAudioModelSearch
 from .modules.audioSections import RunwareAudioSections
 from .modules.audioInferenceInputs import audioInferenceInputs
 from .modules.audioSettings import RunwareAudioSettings
+from .modules.audioSettingsVoiceModify import RunwareAudioSettingsVoiceModify
 from .modules.providerSettings.elevenlabsProviderSettings import RunwareElevenLabsProviderSettings
 from .modules.providerSettings.elevenlabsProviderSettingsSections import RunwareElevenLabsProviderSettingsSections
 from .modules.acceleratorOptions import acceleratorOptions
@@ -138,10 +141,12 @@ NODE_CLASS_MAPPINGS = {
     "Runware Bria Provider Settings": RunwareBriaProviderSettings,
     "Runware Bria Provider Mask": RunwareBriaProviderMask,
     "Runware Audio Inference": RunwareAudioInference,
+    "Runware Audio Inference Speech": RunwareAudioInferenceSpeech,
     "Runware Audio Model Search": RunwareAudioModelSearch,
     "Runware Audio Sections": RunwareAudioSections,
     "Runware Audio Inference Inputs": audioInferenceInputs,
-    "Runware Audio Settings": RunwareAudioSettings,
+    "Runware Audio Inference Settings": RunwareAudioSettings,
+    "Runware Audio Inference Settings Voice Modify": RunwareAudioSettingsVoiceModify,
     "Runware ElevenLabs Provider Settings": RunwareElevenLabsProviderSettings,
     "Runware ElevenLabs Provider Settings Sections": RunwareElevenLabsProviderSettingsSections,
     "Runware Accelerator Options": acceleratorOptions,
@@ -155,6 +160,7 @@ NODE_CLASS_MAPPINGS = {
     "Runware Reference Videos": referenceVideos,
     "Runware Reference Voices": referenceVoices,
     "Runware Video Inference Inputs": videoInferenceInputs,
+    "Runware Video Inference Settings": RunwareVideoSettings,
     "Runware Lightricks Provider Settings": RunwareLightricksProviderSettings,
     "Runware MiniMax Provider Settings": RunwareMiniMaxProviderSettings,
     "Runware Luma Provider Settings": RunwareLumaProviderSettings,

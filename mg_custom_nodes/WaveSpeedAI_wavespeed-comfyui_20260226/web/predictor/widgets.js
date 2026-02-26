@@ -1752,6 +1752,31 @@ export function updateRequestJson(node) {
             continue;
         }
 
+        // Check if this is an expanded array item (e.g., image_0, image_1 for "images" array)
+        // These need to be merged back into the parent array, not sent as individual keys.
+        // Without this, widget-uploaded values (no connection) stay as image_0/image_1 in request_json
+        // and never get merged into the "images" array, causing "property images is missing" API errors.
+        if (param.isExpandedArrayItem && param.parentArrayName) {
+            const parentArrayName = param.parentArrayName;
+            if (!objectArrayGroups[parentArrayName]) {
+                objectArrayGroups[parentArrayName] = [];
+            }
+
+            // Check if there is a connection - if connected, backend handles it via kwargs
+            const inputSlot = node.inputs?.find(inp => inp.name === paramName);
+            const hasConnection = inputSlot && inputSlot.link != null;
+            if (hasConnection) {
+                continue;
+            }
+
+            const itemValue = node.wavespeedState.parameterValues[paramName];
+            if (itemValue && typeof itemValue === 'string' && itemValue.trim() !== '') {
+                const arrayIndex = param.arrayIndex !== undefined ? param.arrayIndex : objectArrayGroups[parentArrayName].length;
+                objectArrayGroups[parentArrayName][arrayIndex] = itemValue.trim();
+            }
+            continue;
+        }
+
         // Check if there is a connection
         const inputSlot = node.inputs?.find(inp => inp.name === paramName);
         const hasConnection = inputSlot && inputSlot.link != null;

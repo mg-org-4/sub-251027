@@ -952,7 +952,15 @@ class WaveSpeedAIPredictor:
                 # Pattern matches: image0, image1, image_0, image_1, etc.
                 pattern = re.compile(f'^{re.escape(singular_prefix)}_?(\\d+)$')
 
-                for key, value in kwargs.items():
+                # Search both kwargs (connected inputs) and request_json_dict (widget values)
+                # Widget-uploaded values (no connection) are stored in request_json_dict as image_0, image_1, etc.
+                combined_sources = {}
+                combined_sources.update(request_json_dict)  # Widget values first (lower priority)
+                combined_sources.update(kwargs)  # Connected inputs override (higher priority)
+
+                matched_keys = []  # Track matched keys for cleanup
+
+                for key, value in combined_sources.items():
                     match = pattern.match(key)
                     if match:
                         try:
@@ -965,11 +973,17 @@ class WaveSpeedAIPredictor:
                                 continue
 
                             array_members.append((index, value))
+                            matched_keys.append(key)
                             print(f"[WaveSpeed Predictor] Found array member {key} = {value}")
 
                         except (ValueError, IndexError) as e:
                             print(f"[WaveSpeed Predictor] Failed to parse array member key {key}: {e}")
                             pass
+
+                # Remove individual array member keys from request_json_dict
+                # to avoid sending both "images" and "image_0" in the request
+                for key in matched_keys:
+                    request_json_dict.pop(key, None)
 
                 # Sort by index
                 array_members.sort(key=lambda x: x[0])

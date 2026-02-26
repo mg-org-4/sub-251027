@@ -1,0 +1,144 @@
+{
+  "Gemini": {
+    "Nanobanana": {
+      "provider": "Gemini",
+      "service": "Nanobanana",
+      "possible_parameters": {
+        "resolution": [
+          "1K",
+          "2K",
+          "4K"
+        ],
+        "model": [
+          "gemini-3-pro-image-preview",
+          "gemini-2.5-flash-image"
+        ]
+      },
+      "request": {
+        "method": "SDK",
+        "endpoint": "client.models.generate_content",
+        "sdk_call": {
+          "args": [],
+          "kwargs": {
+            "model": "{{model}}",
+            "contents": [
+              "{{prompt}}",
+              "{{reference_images}}"
+            ],
+            "config": {
+              "$call": "types.GenerateContentConfig",
+              "$args": [],
+              "$kwargs": {
+                "response_modalities": [
+                  "{{config_response_modalities_0}}"
+                ],
+                "image_config": {
+                  "$call": "types.ImageConfig",
+                  "$args": [],
+                  "$kwargs": {
+                    "aspect_ratio": "{{config_image_config_aspect_ratio}}",
+                    "image_size": "{{config_image_config_image_size}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "VEO": {
+      "provider": "Gemini",
+      "service": "VEO",
+      "possible_parameters": {
+        "durationSeconds": [
+          "4",
+          "6",
+          "8"
+        ],
+        "personGeneration": [
+          "allow_all",
+          "allow_adult",
+          "dont_allow"
+        ],
+        "resolution": [
+          "720p",
+          "1080p",
+          "4K"
+        ],
+        "model": [
+          "veo-3.0-generate",
+          "veo-3.0-fast-generate",
+          "veo-3.1-generate-preview",
+          "veo-3.1-generate",
+          "veo-3.1-fast-generate-preview",
+          "veo-3.1-fast-generate"
+        ]
+      },
+      "request": {
+        "method": "SDK",
+        "endpoint": "client.models.generate_videos",
+        "sdk_call": {
+          "args": [],
+          "kwargs": {
+            "model": "{{model}}",
+            "prompt": "{{prompt}}",
+            "image": "{{first_image}}",
+            "config": {
+              "$call": "types.GenerateVideosConfig",
+              "$args": [],
+              "$kwargs": {
+                "aspectRatio": "{{config_aspectRatio}}",
+                "resolution": "{{config_resolution}}",
+                "durationSeconds": "{{config_durationSeconds}}",
+                "personGeneration": "{{config_personGeneration}}",
+                "reference_images": "{{reference_images}}",
+                "last_frame": "{{last_image}}"
+              }
+            }
+          }
+        }
+      }
+    },
+    "Imagen": {
+      "provider": "Gemini",
+      "service": "Imagen",
+      "possible_parameters": {
+        "resolution": [
+          "1K",
+          "2K"
+        ],
+        "model": [
+          "imagen-4.0-generate-001",
+          "imagen-4.0-ultra-generate-001",
+          "imagen-4.0-fast-generate-001"
+        ],
+        "person_generation": [
+          "allow_all",
+          "allow_adult",
+          "dont_allow"
+        ]
+      },
+      "request": {
+        "method": "SDK",
+        "endpoint": "client.models.generate_images",
+        "sdk_call": {
+          "args": [],
+          "kwargs": {
+            "model": "{{model}}",
+            "prompt": "{{prompt}}",
+            "config": {
+              "$call": "types.GenerateImagesConfig",
+              "$args": [],
+              "$kwargs": {
+                "number_of_images": "{{config_number_of_images}}",
+                "aspect_ratio": "{{config_aspect_ratio}}",
+                "image_size": "{{config_image_size}}",
+                "person_generation": "{{config_person_generation}}"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -966,6 +966,7 @@ class VRGDG_GeneralPromptBatcher:
         )
 
 
+
 class VRGDG_PythonCodeRunner:
     RETURN_TYPES = ("STRING", "STRING", "BOOLEAN")
     RETURN_NAMES = ("result_text", "result_json", "has_error")
@@ -1140,17 +1141,20 @@ class VRGDG_PythonCodeRunner:
     def run(self, python_code, input_text="", input_json=""):
         self._validate_code(python_code)
 
-        local_scope = {
+        shared_values = {
             "input_text": input_text or "",
             "input_json": input_json or "",
             "json": json,
             "math": math,
             "re": re,
+        }
+        local_scope = {
+            **shared_values,
             "result": "",
         }
         safe_builtins = dict(self.SAFE_BUILTINS)
         safe_builtins["__import__"] = self._safe_import
-        global_scope = {"__builtins__": safe_builtins}
+        global_scope = {"__builtins__": safe_builtins, **shared_values}
 
         try:
             steps = 0
@@ -1446,7 +1450,9 @@ def _normalize_bool(value):
 
 def _sanitize_text_segment(value, fallback):
     s = str(value or "").strip()
-    s = re.sub(r"[^A-Za-z0-9_\- ]+", "_", s)
+    # Keep this regex simple and explicit to avoid accidental escape/quote issues
+    # when this file is copied between editors/platforms.
+    s = re.sub(r"[^0-9A-Za-z_ -]+", "_", s)
     s = s.strip(" .")
     return s or fallback
 
@@ -2160,6 +2166,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VRGDG_IntToString": "VRGDG_IntToString",
     "VRGDG_ArchiveLlmBatchFolders": "VRGDG_ArchiveLlmBatchFolders",
 }
+
+
 
 
 

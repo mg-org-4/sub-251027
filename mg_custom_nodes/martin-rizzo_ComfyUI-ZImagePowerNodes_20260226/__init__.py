@@ -139,6 +139,9 @@ class ZImagePowerNodesExtension(ComfyExtension):
         from .nodes.my_top_10_styles import MyTop10Styles
         _register_node( MyTop10Styles, nodes, subcategory )
 
+        from .nodes.vae_encode_soft_inpainting import VAEEncodeSoftInpainting
+        _register_node( VAEEncodeSoftInpainting, nodes, subcategory )
+
 
         #--[ __deprecated ]----------------------
         subcategory = "__deprecated"

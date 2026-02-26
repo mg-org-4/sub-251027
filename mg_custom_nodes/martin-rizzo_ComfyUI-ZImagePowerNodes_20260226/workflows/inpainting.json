@@ -1,8 +1,8 @@
 {
   "id": "f14c6566-993e-4413-bd11-9c7f2ca07fd1",
   "revision": 0,
-  "last_node_id": 73,
-  "last_link_id": 112,
+  "last_node_id": 94,
+  "last_link_id": 155,
   "nodes": [
     {
       "id": 35,
@@ -189,163 +189,6 @@
       "shape": 1
     },
     {
-      "id": 71,
-      "type": "Reroute",
-      "pos": [
-        730,
-        820
-      ],
-      "size": [
-        75,
-        26
-      ],
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "",
-          "type": "*",
-          "link": 103
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "LATENT",
-          "links": [
-            111
-          ]
-        }
-      ],
-      "properties": {
-        "showOutputText": false,
-        "horizontal": false
-      }
-    },
-    {
-      "id": 64,
-      "type": "VAEEncodeForInpaint",
-      "pos": [
-        160,
-        820
-      ],
-      "size": [
-        282.0435546875,
-        98
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 91
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 107
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 92
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            103
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEEncodeForInpaint"
-      },
-      "widgets_values": [
-        6
-      ]
-    },
-    {
-      "id": 20,
-      "type": "Reroute",
-      "pos": [
-        1050,
-        930
-      ],
-      "size": [
-        75,
-        26
-      ],
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "",
-          "type": "*",
-          "link": 108
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "VAE",
-          "links": [
-            25
-          ]
-        }
-      ],
-      "properties": {
-        "showOutputText": false,
-        "horizontal": false
-      }
-    },
-    {
-      "id": 54,
-      "type": "LoadImage",
-      "pos": [
-        -340,
-        210
-      ],
-      "size": [
-        440,
-        530
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            91
-          ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            92
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage",
-        "image": "clipspace/clipspace-painted-masked-1771169045280.png [input]"
-      },
-      "widgets_values": [
-        "clipspace/clipspace-painted-masked-1771169045280.png [input]",
-        "image"
-      ]
-    },
-    {
       "id": 38,
       "type": "Reroute",
       "pos": [
@@ -372,42 +215,6 @@
           "type": "CLIP",
           "links": [
             62
-          ]
-        }
-      ],
-      "properties": {
-        "showOutputText": false,
-        "horizontal": false
-      }
-    },
-    {
-      "id": 72,
-      "type": "Reroute",
-      "pos": [
-        -130,
-        930
-      ],
-      "size": [
-        75,
-        26
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "",
-          "type": "*",
-          "link": 105
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "VAE",
-          "links": [
-            107,
-            108
           ]
         }
       ],
@@ -498,7 +305,7 @@
         550
       ],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -510,6 +317,165 @@
       "color": "#223",
       "bgcolor": "#335",
       "shape": 1
+    },
+    {
+      "id": 93,
+      "type": "Reroute",
+      "pos": [
+        730,
+        820
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 154
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "LATENT",
+          "links": [
+            155
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 20,
+      "type": "Reroute",
+      "pos": [
+        1050,
+        950
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 108
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "VAE",
+          "links": [
+            25
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 72,
+      "type": "Reroute",
+      "pos": [
+        -310,
+        950
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 105
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "VAE",
+          "links": [
+            108,
+            148
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 73,
+      "type": "ZSamplerTurbo //ZImagePowerNodes",
+      "pos": [
+        860,
+        150
+      ],
+      "size": [
+        310,
+        620
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 109
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 110
+        },
+        {
+          "name": "latent_input",
+          "type": "LATENT",
+          "link": 155
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent_output",
+          "type": "LATENT",
+          "links": [
+            112
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ZSamplerTurbo //ZImagePowerNodes"
+      },
+      "widgets_values": [
+        1,
+        "fixed",
+        9,
+        0.5,
+        null,
+        "100%",
+        false
+      ]
     },
     {
       "id": 43,
@@ -556,7 +522,7 @@
         "Node name for S&R": "StylePromptEncoder2 //ZImagePowerNodes"
       },
       "widgets_values": [
-        "\"Comic 1\"",
+        "none",
         null,
         null,
         ""
@@ -566,56 +532,91 @@
       "shape": 1
     },
     {
-      "id": 73,
-      "type": "ZSamplerTurbo //ZImagePowerNodes",
+      "id": 54,
+      "type": "LoadImage",
       "pos": [
-        860,
-        150
+        -340,
+        210
       ],
       "size": [
-        310,
-        620
+        440,
+        530
       ],
       "flags": {},
-      "order": 13,
+      "order": 4,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 109
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 110
-        },
-        {
-          "name": "latent_input",
-          "type": "LATENT",
-          "link": 111
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
-          "name": "latent_output",
-          "type": "LATENT",
+          "name": "IMAGE",
+          "type": "IMAGE",
           "links": [
-            112
+            147
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            153
           ]
         }
       ],
       "properties": {
-        "Node name for S&R": "ZSamplerTurbo //ZImagePowerNodes"
+        "Node name for S&R": "LoadImage",
+        "image": "clipspace/clipspace-painted-masked-1772063845342.png [input]"
       },
       "widgets_values": [
-        1,
-        "fixed",
-        9,
-        1,
-        null,
-        "100%",
-        false
+        "example.png",
+        "image"
+      ]
+    },
+    {
+      "id": 92,
+      "type": "VAEEncodeSoftInpainting //ZImagePowerNodes",
+      "pos": [
+        160,
+        820
+      ],
+      "size": [
+        360,
+        122
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 147
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 148
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 153
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            154
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncodeSoftInpainting //ZImagePowerNodes"
+      },
+      "widgets_values": [
+        "medium (recommended)",
+        60
       ]
     }
   ],
@@ -669,43 +670,11 @@
       "CLIP"
     ],
     [
-      91,
-      54,
-      0,
-      64,
-      0,
-      "IMAGE"
-    ],
-    [
-      92,
-      54,
-      1,
-      64,
-      2,
-      "MASK"
-    ],
-    [
-      103,
-      64,
-      0,
-      71,
-      0,
-      "LATENT"
-    ],
-    [
       105,
       40,
       0,
       72,
       0,
-      "VAE"
-    ],
-    [
-      107,
-      72,
-      0,
-      64,
-      1,
       "VAE"
     ],
     [
@@ -733,19 +702,51 @@
       "CONDITIONING"
     ],
     [
-      111,
-      71,
-      0,
-      73,
-      2,
-      "LATENT"
-    ],
-    [
       112,
       73,
       0,
       8,
       0,
+      "LATENT"
+    ],
+    [
+      147,
+      54,
+      0,
+      92,
+      0,
+      "IMAGE"
+    ],
+    [
+      148,
+      72,
+      0,
+      92,
+      1,
+      "VAE"
+    ],
+    [
+      153,
+      54,
+      1,
+      92,
+      2,
+      "MASK"
+    ],
+    [
+      154,
+      92,
+      0,
+      93,
+      0,
+      "LATENT"
+    ],
+    [
+      155,
+      93,
+      0,
+      73,
+      2,
       "LATENT"
     ]
   ],
@@ -767,10 +768,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.6209213230591556,
+      "scale": 0.7513148009015777,
       "offset": [
-        507.1817379012525,
-        172.9096186435646
+        485.5420511199817,
+        80.61533090027757
       ]
     },
     "frontendVersion": "1.37.11",

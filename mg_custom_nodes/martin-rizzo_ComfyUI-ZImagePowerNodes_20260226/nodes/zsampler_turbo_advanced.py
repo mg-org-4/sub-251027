@@ -112,6 +112,9 @@ class ZSamplerTurboAdvanced(io.ComfyNode):
                 **kwargs
                 ) -> io.NodeOutput:
 
+        performing_inpainting = denoise < 0.99
+        denoise = denoise ** 0.074
+
         # calibration level determines the amount of adjustment applied
         noise_bias_scale *= initial_noise_calibration
         noise_overdose   *= initial_noise_calibration
@@ -185,6 +188,13 @@ class ZSamplerTurboAdvanced(io.ComfyNode):
         # sigma0 is used only for estimating the initial noise bias (optional first step)
         # (denoising for that estimation step goes from sigma0 to sigmas1[0])
         sigma0 = 1.000
+
+
+        # if inpainting is being performed, we combine the first two stages into one
+        if performing_inpainting:
+            sigmas1 = sigmas1[:-1]
+            sigmas1.extend( sigmas2 )
+            sigmas2 = None
 
 
         # these parameters determine the bias and amplitude of the initial noise added
@@ -306,9 +316,6 @@ class ZSamplerTurboAdvanced(io.ComfyNode):
         prog2 = prog1 + (sigmas2.shape[-1] - 1 if sigmas2 is not None else 0)
         total = prog2 + (sigmas3.shape[-1] - 1 if sigmas3 is not None else 0)
 
-        # store original values in case the user is doing inpainting with a mask
-        original_mask    = latent_image.get("noise_mask")
-        original_samples = latent_image.get("samples") if original_mask is not None else None
 
 
         #-- THREE-STAGE PROCESS ---------------------------
@@ -321,16 +328,11 @@ class ZSamplerTurboAdvanced(io.ComfyNode):
                                 sigmas           = sigmas1,
                                 noise_bias       = initial_noise_bias,
                                 noise_amplitude  = initial_noise_amplitude if add_noise else 0.0,
+                                keep_masked_area = True,
                                 progress_preview = ProgressPreview( prog1-prog0,
                                         parent=(progress_preview, 100*prog0//total, 100*prog1//total)),
                                 )
-            # when there's an inpainting mask, it seems like comfyui does not merge
-            # the original image at the end of denoising, so we manually merge it here
-            # (this is extremely necessary to be able to continue the next stage as
-            # if it were a single denoising process)
-            if isinstance(original_mask, torch.Tensor) and isinstance(original_samples, torch.Tensor):
-                mask = comfy.sampler_helpers.prepare_mask( original_mask, original_samples.shape, original_samples.device)
-                latent_image["samples"] = latent_image["samples"] * mask + ( 1.0 - mask ) * original_samples
+
 
 
         if sigmas2 is not None:
@@ -345,6 +347,7 @@ class ZSamplerTurboAdvanced(io.ComfyNode):
                                 sigmas           = sigmas2,
                                 noise_bias       = 0,
                                 noise_amplitude  = 1.0 if add_noise else 0.0,
+                                keep_masked_area = True,
                                 progress_preview = ProgressPreview( prog2-prog1,
                                         parent=(progress_preview, 100*prog1//total, 100*prog2//total)),
                                 )
@@ -358,6 +361,7 @@ class ZSamplerTurboAdvanced(io.ComfyNode):
                                 sigmas           = sigmas3,
                                 noise_bias       = 0,
                                 noise_amplitude  = 1.0 if add_noise else 0.0,
+                                keep_masked_area = True,
                                 progress_preview = ProgressPreview( total-prog2,
                                         parent=(progress_preview, 100*prog2//total, 100*total//total)),
                                 )
@@ -367,17 +371,18 @@ class ZSamplerTurboAdvanced(io.ComfyNode):
 
     @classmethod
     def execute_sampler(cls,
-                        latent_image    : dict[str, Any],
-                        model           : Any,
-                        noise_seed      : int,
-                        cfg             : float,
-                        positive        : list,
-                        negative        : list,
+                        latent_image : dict[str, Any],
+                        model        : Any,
+                        noise_seed   : int,
+                        cfg          : float,
+                        positive     : list,
+                        negative     : list,
                         *,
                         sampler         : comfy.samplers.KSAMPLER,
                         sigmas          : list | torch.Tensor,
                         noise_bias      : torch.Tensor | float | int | None,
                         noise_amplitude : torch.Tensor | float | int | None,
+                        keep_masked_area: bool = False,
                         fix_empty_latent: bool = True,
                         progress_preview: ProgressPreview | None = None,
                         ) -> dict[str, Any]:
@@ -397,8 +402,11 @@ class ZSamplerTurboAdvanced(io.ComfyNode):
             noise_bias  : A constant bias applied to the initial noise.
                           If it is a tensor, it must have shape [batch_size, channels, 1, 1].
                           Can also be a scalar value or None.
-            noise_amplitude: The amplitude of noise added to the latent image before denoising.
-                             (0.0 = no noise ; 1.0 = standard deviation)
+            keep_masked_area: If True, the masked area of the latent image will be kept unchanged.
+                              Comfyui tries to keep masked area unchanged when there's a mask active
+                              but activating this flag we're sure that no change will happen at all.
+            noise_amplitude : The amplitude of noise added to the latent image before denoising.
+                              (0.0 = no noise ; 1.0 = standard deviation)
             progress_preview: Optional callback for tracking progress. Defaults to None.
 
         Returns:
@@ -443,6 +451,10 @@ class ZSamplerTurboAdvanced(io.ComfyNode):
         batch_index = latent.get("batch_index")
         steps       = int( sigmas.shape[-1] )
 
+        # store original values in case the user is doing inpainting with a mask
+        original_samples : torch.Tensor | None = samples
+        original_mask    : torch.Tensor | None = noise_mask
+
         # scale initial noise using `noise_amplitude`.
         # (0.0 results in no noise; 1.0 represents standard unit variance)
         if noise_amplitude is None:
@@ -464,6 +476,14 @@ class ZSamplerTurboAdvanced(io.ComfyNode):
         samples = comfy.sample.sample_custom(model, noise, cfg, sampler, sigmas, positive, negative,
                                              samples, noise_mask=noise_mask, callback=progress_wrapper,
                                              disable_pbar=disable_pbar, seed=noise_seed)
+
+        # when there's an inpainting mask, it seems like comfyui does not merge the
+        # original image at the end of `sample_custom(..)`, so we manually merge it here
+        if keep_masked_area and (original_mask is not None) and (original_samples is not None):
+            original_mask = comfy.sampler_helpers.prepare_mask( original_mask, original_samples.shape, original_samples.device)
+            if original_mask is not None:
+                samples = samples * original_mask + ( 1.0 - original_mask ) * original_samples
+
         out = latent_image.copy()
         out["samples"] = samples
         return out

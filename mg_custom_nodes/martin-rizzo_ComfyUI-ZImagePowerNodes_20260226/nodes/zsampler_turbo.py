@@ -55,7 +55,7 @@ class ZSamplerTurbo(io.ComfyNode):
                 io.Int.Input         ("steps", default=9, min=4, max=9, step=1,
                                       tooltip="The number of iterations to be performed during the sampling process.",
                                      ),
-                io.Float.Input       ("denoise", default=1.0, min=0.98, max=1.00, step=0.01,
+                io.Float.Input       ("denoise", default=1.0, min=0.00, max=1.00, step=0.01,
                                       tooltip="The amount of denoising applied, lower values will maintain the structure of the initial image allowing for image to image sampling.",
                                      ),
                 io.Custom            ("ZIPN_DIVIDER").Input("divider"),

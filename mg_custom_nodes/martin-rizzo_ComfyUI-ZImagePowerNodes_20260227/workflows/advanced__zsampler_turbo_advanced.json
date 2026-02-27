@@ -1,7 +1,7 @@
 {
   "id": "86aac45c-36d2-43be-8e53-2afb5f63d889",
   "revision": 0,
-  "last_node_id": 68,
+  "last_node_id": 69,
   "last_link_id": 104,
   "nodes": [
     {
@@ -16,7 +16,7 @@
         26
       ],
       "flags": {},
-      "order": 12,
+      "order": 13,
       "mode": 0,
       "inputs": [
         {
@@ -151,31 +151,6 @@
       "shape": 1
     },
     {
-      "id": 41,
-      "type": "Note",
-      "pos": [
-        -1229.6665859837155,
-        111.33333311298634
-      ],
-      "size": [
-        870,
-        495
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "README",
-      "properties": {},
-      "widgets_values": [
-        "Z-Image Power Nodes\n\n## Workflow Prerequisites ##\n\nThis workflow requires the following custom nodes, which can be obtained via ComfyUI-Manager:\n\n  * Z-Image Power Nodes: https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes\n  * ComfyUI-GGUF       : https://github.com/city96/ComfyUI-GGUF\n\n Additionally, ensure you have the following 3 models downloaded and placed in their respective\n directories within your ComfyUI installation:\n\n  z_image_turbo-Q5_K_S.gguf\n    * Download: https://huggingface.co/jayn7/Z-Image-Turbo-GGUF/blob/main/z_image_turbo-Q5_K_S.gguf\n    * Local Directory: `ComfyUI/models/diffusion_models/`\n\n  Qwen3-4B.i1-Q5_K_S.gguf\n    * Download: https://huggingface.co/mradermacher/Qwen3-4B-i1-GGUF/blob/main/Qwen3-4B.i1-Q5_K_S.gguf\n    * Local Directory: `ComfyUI/models/text_encoders/`\n\n  ae.safetensors\n    * Download: https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors\n    * Local Directory: `Comfyui/models/vae/`\n\n## More Info ##\n\n- https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes\n- https://civitai.com/models/2322533/z-image-power-nodes\n\nCreated by Martin Rizzo\n  GitHub : https://github.com/martin-rizzo\n  CivitAI: https://civitai.com/user/Photographer\n  Reddit : https://www.reddit.com/user/FotografoVirtual\n"
-      ],
-      "color": "#223",
-      "bgcolor": "#335",
-      "shape": 1
-    },
-    {
       "id": 39,
       "type": "Reroute",
       "pos": [
@@ -187,7 +162,7 @@
         26
       ],
       "flags": {},
-      "order": 6,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
@@ -222,7 +197,7 @@
         26
       ],
       "flags": {},
-      "order": 8,
+      "order": 9,
       "mode": 0,
       "inputs": [
         {
@@ -257,7 +232,7 @@
         26
       ],
       "flags": {},
-      "order": 10,
+      "order": 11,
       "mode": 0,
       "inputs": [
         {
@@ -292,7 +267,7 @@
         26
       ],
       "flags": {},
-      "order": 7,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
@@ -327,7 +302,7 @@
         130
       ],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -350,39 +325,6 @@
       ]
     },
     {
-      "id": 45,
-      "type": "PrimitiveStringMultiline",
-      "pos": [
-        -469.6666470188717,
-        741.3333025954082
-      ],
-      "size": [
-        600,
-        450
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            68
-          ]
-        }
-      ],
-      "title": "\"Custom 1\" Style to Test",
-      "properties": {
-        "Node name for S&R": "PrimitiveStringMultiline"
-      },
-      "widgets_values": [
-        "\nYOUR CONTEXT:\nYou are a paparazzi photographer specializing in nighttime shots of celebrities.\nYour photographs are characterized by the harsh, direct flash, combined with a grainy, high-ISO aesthetic. The background is often blurred and indistinct, emphasizing the subject.\nThe composition is often chaotic and dynamic, reflecting the frenetic energy of the scene. Expect red-eye, blown-out highlights, and a sense of intrusion.\nYOUR PHOTO:\n{$@}"
-      ],
-      "shape": 1
-    },
-    {
       "id": 8,
       "type": "VAEDecode",
       "pos": [
@@ -394,7 +336,7 @@
         46
       ],
       "flags": {},
-      "order": 13,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
@@ -437,7 +379,7 @@
         705
       ],
       "flags": {},
-      "order": 14,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
@@ -456,60 +398,6 @@
       ]
     },
     {
-      "id": 43,
-      "type": "StylePromptEncoder2 //ZImagePowerNodes",
-      "pos": [
-        190.33333772233937,
-        211.33333311298637
-      ],
-      "size": [
-        670,
-        570
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 62
-        },
-        {
-          "name": "customization",
-          "shape": 7,
-          "type": "STRING",
-          "link": 68
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            102
-          ]
-        },
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "StylePromptEncoder2 //ZImagePowerNodes"
-      },
-      "widgets_values": [
-        "\"Dramatic Light & Shadow\"",
-        null,
-        null,
-        "On the left side of the image, a young woman is depicted in close-up profile, gazing out a window in a castle corridor. The view is framed by a row of arched windows. She is a striking 18-year-old with long, flowing white hair, sharp cheekbones, and delicate curls. She has full lips and is dressed in a pale red and purple gown with intricate lace detailing, paired with soft moccasins. She appears innocent and is blushing slightly, her dress gently lifted at the hips. Her hands are pressed against the cool glass, her expression one of wistful longing.\n\nBehind her, another woman stands, embracing her warmly from behind, her hands gently circling the other woman’s waist. This woman is of African descent, with dark reddish hair and a fit physique, wearing a flowery summer dress. She gently holds the other woman's neck, a mischievous smile playing on her lips.\n\nOn the right side of the image, receding into the background and slightly out of focus, stands a robust robot constructed entirely of dark, polished wood. It is large and imposing, with visible gears and joints, hinting at complex inner workings. The background is softly blurred, emphasizing the distance.\n\nThe corridor walls are constructed of white stone, intricately carved with mosaic patterns, and lined with elegant columns."
-      ],
-      "color": "#232",
-      "bgcolor": "#353",
-      "shape": 1
-    },
-    {
       "id": 68,
       "type": "ZSamplerTurboAdvanced //ZImagePowerNodes",
       "pos": [
@@ -521,7 +409,7 @@
         630
       ],
       "flags": {},
-      "order": 11,
+      "order": 12,
       "mode": 0,
       "inputs": [
         {
@@ -558,12 +446,148 @@
         9,
         1,
         null,
-        0,
+        1,
         "experimental",
         "image_size",
         0.12,
         0.33
       ]
+    },
+    {
+      "id": 45,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -469.6666470188717,
+        741.3333025954082
+      ],
+      "size": [
+        600,
+        450
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            68
+          ]
+        }
+      ],
+      "title": "\"Custom 1\" Style",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "\nYOUR CONTEXT:\nYou are a visionary comic artist creating dense cosmic odysseys.\nYour illustration features {$spicy-content-with} chaotic aesthetic. The composition emphasizes verticality and deep perspective. The drawing style is rapid and fluid, with a thin contour line that prioritizes clarity and movement. Lighting is flat and overhead. Colors are vibrant and blended, with a painterly quality.\nYOUR IMAGE:\n{$@}"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 43,
+      "type": "StylePromptEncoder2 //ZImagePowerNodes",
+      "pos": [
+        190.33333772233937,
+        211.33333311298637
+      ],
+      "size": [
+        670,
+        570
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 62
+        },
+        {
+          "name": "customization",
+          "shape": 7,
+          "type": "STRING",
+          "link": 68
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            102
+          ]
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StylePromptEncoder2 //ZImagePowerNodes"
+      },
+      "widgets_values": [
+        "\"Selfie\"",
+        null,
+        null,
+        "A woman is seated inside the cockpit of a mecha suit, with her face and upper torso prominently displayed in the foreground. She has short, straight, white hair neatly cut and evenly distributed around her head, ending just above her shoulders. Her facial expression is pronounced, with a sarcastic, knowing smile revealing her vivid, deep red, full lips. She holds a cigarette between her fingers of her right hand, with visible smoke curling upward.\nHer legs are arranged in a neutral posture, with a mechanical component positioned in the lower torso area. With her left hand, she firmly grips a joystick or control stick positioned in front of her, likely used for piloting the mecha. The cockpit interior features angular, metallic surfaces and various control panels. She is wearing a sleek, form-fitting bodysuit with orange and white panels, including a high collar with visible fastening mechanisms, a central chest panel with a small circular emblem, and white accents around the shoulders, chest, and wrists. The suit’s shiny, reflective material and visible seams are clearly visible.\nThe cockpit’s transparent viewport behind her shows a blurred, indistinct external environment, depicting a futuristic setting."
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "shape": 1
+    },
+    {
+      "id": 41,
+      "type": "Note",
+      "pos": [
+        -1229.6665859837155,
+        111.33333311298634
+      ],
+      "size": [
+        870,
+        495
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "REQUIREMENTS",
+      "properties": {},
+      "widgets_values": [
+        "Z-Image Power Nodes\n\n## Workflow Prerequisites ##\n\nThis workflow requires the following custom nodes, which can be obtained via ComfyUI-Manager:\n\n  * Z-Image Power Nodes: https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes\n  * ComfyUI-GGUF       : https://github.com/city96/ComfyUI-GGUF\n\n Additionally, ensure you have the following 3 models downloaded and placed in their respective\n directories within your ComfyUI installation:\n\n  z_image_turbo-Q5_K_S.gguf\n    * Download: https://huggingface.co/jayn7/Z-Image-Turbo-GGUF/blob/main/z_image_turbo-Q5_K_S.gguf\n    * Local Directory: `ComfyUI/models/diffusion_models/`\n\n  Qwen3-4B.i1-Q5_K_S.gguf\n    * Download: https://huggingface.co/mradermacher/Qwen3-4B-i1-GGUF/blob/main/Qwen3-4B.i1-Q5_K_S.gguf\n    * Local Directory: `ComfyUI/models/text_encoders/`\n\n  ae.safetensors\n    * Download: https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors\n    * Local Directory: `Comfyui/models/vae/`\n\n## More Info ##\n\n- https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes\n- https://civitai.com/models/2322533/z-image-power-nodes\n\nCreated by Martin Rizzo\n  GitHub : https://github.com/martin-rizzo\n  CivitAI: https://civitai.com/user/Photographer\n  Reddit : https://www.reddit.com/user/FotografoVirtual\n"
+      ],
+      "color": "#223",
+      "bgcolor": "#335",
+      "shape": 1
+    },
+    {
+      "id": 69,
+      "type": "Note",
+      "pos": [
+        0,
+        -160
+      ],
+      "size": [
+        520,
+        230
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "README",
+      "properties": {},
+      "widgets_values": [
+        "This workflow utilizes the \"Advance\" version of Z-Sampler Turbo, enabling manual control over the initial noise calibration parameters. While typically not required, adjusting these settings can potentially improve image quality or enhance compatibility with different workflow processes.\n\nAdditionally, this workflow lets you customize \"Custom 1\" style by simply entering the style template into the node labeled for that purpose."
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
     }
   ],
   "links": [
@@ -692,8 +716,8 @@
     "ds": {
       "scale": 0.8264462809917354,
       "offset": [
-        8.566520159882304,
-        114.0909693278697
+        171.54352417835656,
+        151.69170816651618
       ]
     },
     "frontendVersion": "1.37.11",

@@ -5,60 +5,6 @@
   "last_link_id": 79,
   "nodes": [
     {
-      "id": 45,
-      "type": "StylePromptEncoder2 //ZImagePowerNodes",
-      "pos": [
-        210,
-        200
-      ],
-      "size": [
-        660,
-        630
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 63
-        },
-        {
-          "name": "customization",
-          "shape": 7,
-          "type": "STRING",
-          "link": 64
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            77
-          ]
-        },
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "StylePromptEncoder2 //ZImagePowerNodes"
-      },
-      "widgets_values": [
-        "\"Custom 1\"",
-        null,
-        null,
-        "A full-lipped Star Trek captain dressed in her signature tight-fitting uniform walks through a dense jungle. Her expression is one of fear. In the background, large cocoon-like structures are revealed to be the terrifying nests of giant spiders."
-      ],
-      "color": "#232",
-      "bgcolor": "#353",
-      "shape": 1
-    },
-    {
       "id": 35,
       "type": "UnetLoaderGGUF",
       "pos": [
@@ -237,31 +183,6 @@
       "shape": 1
     },
     {
-      "id": 44,
-      "type": "Note",
-      "pos": [
-        -150,
-        -200
-      ],
-      "size": [
-        520,
-        300
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "title": "README",
-      "properties": {},
-      "widgets_values": [
-        "This workflow demonstrates how to define custom styles by connecting through the \"customization\" input in the \"Style & Prompt Encoder\" node.\n\nA multi-line string must be defined using the following format:\nEach line starting with \">>>\" (three greater-than signs) defines the name of the style. From there, all subsequent lines until the next \">>>\" define the content of that style. Within this content, the tag \"{$@}\" will be replaced by the prompt.\n\nWhile the example shows all styles being defined as \"Custom <N>\", this method can be used to redefine any of the available styles in the style selector."
-      ],
-      "color": "#223",
-      "bgcolor": "#335",
-      "shape": 1
-    },
-    {
       "id": 43,
       "type": "PrimitiveStringMultiline",
       "pos": [
@@ -273,7 +194,7 @@
         980
       ],
       "flags": {},
-      "order": 3,
+      "order": 2,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -308,7 +229,7 @@
         130
       ],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -342,7 +263,7 @@
         110
       ],
       "flags": {},
-      "order": 5,
+      "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -380,7 +301,7 @@
         550
       ],
       "flags": {},
-      "order": 6,
+      "order": 5,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -467,6 +388,31 @@
       ]
     },
     {
+      "id": 44,
+      "type": "Note",
+      "pos": [
+        -40,
+        -90
+      ],
+      "size": [
+        550,
+        230
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "README",
+      "properties": {},
+      "widgets_values": [
+        "This workflow demonstrates how to define custom styles by connecting through the \"customization\" input in the \"Style & Prompt Encoder\" node.\n\nA multi-line string must be defined using the following format:\nEach line starting with \">>>\" (three greater-than signs) defines the name of the style. From there, all subsequent lines until the next \">>>\" define the content of that style. Within this content, the tag \"{$@}\" will be replaced by the prompt.\n\nWhile the example shows all styles being defined as \"Custom <N>\", this method can be used to redefine any of the available styles in the style selector."
+      ],
+      "color": "#223",
+      "bgcolor": "#335",
+      "shape": 1
+    },
+    {
       "id": 48,
       "type": "ZSamplerTurbo //ZImagePowerNodes",
       "pos": [
@@ -515,9 +461,63 @@
         9,
         1,
         null,
-        "off",
+        "100%",
         false
       ]
+    },
+    {
+      "id": 45,
+      "type": "StylePromptEncoder2 //ZImagePowerNodes",
+      "pos": [
+        210,
+        200
+      ],
+      "size": [
+        660,
+        630
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 63
+        },
+        {
+          "name": "customization",
+          "shape": 7,
+          "type": "STRING",
+          "link": 64
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            77
+          ]
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StylePromptEncoder2 //ZImagePowerNodes"
+      },
+      "widgets_values": [
+        "\"Custom 1\"",
+        null,
+        null,
+        "A full-lipped Star Trek captain dressed in her signature tight-fitting uniform walks through a dense jungle. Her expression is one of fear. In the background, large cocoon-like structures are revealed to be the terrifying nests of giant spiders."
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "shape": 1
     }
   ],
   "links": [
@@ -639,10 +639,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.6830134553650706,
+      "scale": 0.8264462809917354,
       "offset": [
-        521.3135305267331,
-        280.6805143569984
+        505.69341887900555,
+        173.80497444222567
       ]
     },
     "frontendVersion": "1.37.11",

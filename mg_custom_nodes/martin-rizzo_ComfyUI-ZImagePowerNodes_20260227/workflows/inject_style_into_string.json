@@ -39,21 +39,22 @@
       "id": 16,
       "type": "Note",
       "pos": [
-        310,
-        -20
+        350,
+        70
       ],
       "size": [
-        350,
-        200
+        510,
+        150
       ],
       "flags": {},
       "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [],
+      "title": "README",
       "properties": {},
       "widgets_values": [
-        "This workflow illustrates how to inject style directly into a prompt text.\n\nIt is straightforward, the 'Style String Injector' node receives the input prompt as a string and outputs the final text, which combines the original prompt with the selected style."
+        "This workflow demonstrates how to inject predefined styles within your prompt text. This is particularly useful for complex workflows where prompt manipulation is required.\n\nThe 'Style String Injector' node simply takes your input prompt and combines it with the selected style, outputting the final styled text.\n"
       ],
       "color": "#223",
       "bgcolor": "#335",
@@ -83,12 +84,16 @@
           ]
         }
       ],
+      "title": "Prompt",
       "properties": {
         "Node name for S&R": "PrimitiveStringMultiline"
       },
       "widgets_values": [
         "Worn-down computer control panels surrounding an adult woman in dirty clothes sitting in a starship, creating a hyperpunk scene."
-      ]
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "shape": 1
     },
     {
       "id": 17,
@@ -126,7 +131,9 @@
       "widgets_values": [
         "\"Comic 1\"",
         null
-      ]
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
     }
   ],
   "links": [
@@ -151,10 +158,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.75,
+      "scale": 1,
       "offset": [
-        120.2965307317385,
-        267.9383060048679
+        -45.79458184026234,
+        111.72778427152204
       ]
     },
     "frontendVersion": "1.37.11",

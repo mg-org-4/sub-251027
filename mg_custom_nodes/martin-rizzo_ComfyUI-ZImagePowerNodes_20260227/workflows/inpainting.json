@@ -1,7 +1,7 @@
 {
   "id": "f14c6566-993e-4413-bd11-9c7f2ca07fd1",
   "revision": 0,
-  "last_node_id": 94,
+  "last_node_id": 95,
   "last_link_id": 155,
   "nodes": [
     {
@@ -91,7 +91,7 @@
         50
       ],
       "flags": {},
-      "order": 14,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
@@ -134,7 +134,7 @@
         760
       ],
       "flags": {},
-      "order": 15,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
@@ -200,7 +200,7 @@
         26
       ],
       "flags": {},
-      "order": 6,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
@@ -235,7 +235,7 @@
         26
       ],
       "flags": {},
-      "order": 5,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
@@ -270,7 +270,7 @@
         26
       ],
       "flags": {},
-      "order": 7,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
@@ -330,7 +330,7 @@
         26
       ],
       "flags": {},
-      "order": 12,
+      "order": 13,
       "mode": 0,
       "inputs": [
         {
@@ -365,7 +365,7 @@
         26
       ],
       "flags": {},
-      "order": 10,
+      "order": 11,
       "mode": 0,
       "inputs": [
         {
@@ -400,7 +400,7 @@
         26
       ],
       "flags": {},
-      "order": 9,
+      "order": 10,
       "mode": 0,
       "inputs": [
         {
@@ -436,7 +436,7 @@
         620
       ],
       "flags": {},
-      "order": 13,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
@@ -489,7 +489,7 @@
         570
       ],
       "flags": {},
-      "order": 8,
+      "order": 9,
       "mode": 0,
       "inputs": [
         {
@@ -532,11 +532,59 @@
       "shape": 1
     },
     {
+      "id": 92,
+      "type": "VAEEncodeSoftInpainting //ZImagePowerNodes",
+      "pos": [
+        160,
+        820
+      ],
+      "size": [
+        360,
+        122
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 147
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 148
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 153
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            154
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncodeSoftInpainting //ZImagePowerNodes"
+      },
+      "widgets_values": [
+        "medium (recommended)",
+        60
+      ]
+    },
+    {
       "id": 54,
       "type": "LoadImage",
       "pos": [
         -340,
-        210
+        400
       ],
       "size": [
         440,
@@ -572,52 +620,28 @@
       ]
     },
     {
-      "id": 92,
-      "type": "VAEEncodeSoftInpainting //ZImagePowerNodes",
+      "id": 95,
+      "type": "Note",
       "pos": [
-        160,
-        820
+        -590,
+        -160
       ],
       "size": [
-        360,
-        122
+        720,
+        500
       ],
       "flags": {},
-      "order": 11,
+      "order": 5,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 147
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 148
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 153
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            154
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEEncodeSoftInpainting //ZImagePowerNodes"
-      },
+      "inputs": [],
+      "outputs": [],
+      "title": "README",
+      "properties": {},
       "widgets_values": [
-        "medium (recommended)",
-        60
-      ]
+        "\nThis workflow serves as a reference for performing inpainting using Z-Image Turbo and the power nodes.\n\nInpainting Process:\n  1. Load the image into the \"Load Image\" node.\n  2. Right-click inside the node -> \"Open in MaskEditor\"\n  3. Edit the mask - it can have sharp edges since the encoder will apply blur.\n  4. Within the mask editor, press \"Save\" to set the mask.\n  5. Enter a prompt describing how you want the final image to look.\n  6. Run the workflow and the masked area will be modified.\n\nKey Points:\n\n  * In my tests, not using styles works better (style = none)\n\n  * The inpainting process may perform better with \"denoise = 0.50\" in Z-Sampler,\n    though this was a basic adjustment by me, other denoise values might work even better,\n    it's worth trying.\n\n  * VAE Encode settings:\n\n     - \"output_size = medium\" resizes the image to an optimal size for z-image processing.\n       Inpainting should work at any resolution, so there's also an option \"same_as_input\"\n       which maintains the original image size.\n\n     - \"mask_blur_pixels\" specifies the width in pixels of the blur effect applied to the mask.\n       It helps blend the original image smoothly with the model-generated part. Since this\n       value is in pixels, it depends greatly on your specific image. (smaller images may\n       require lower values while very large images might need higher ones)."
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
     }
   ],
   "links": [
@@ -768,10 +792,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7513148009015777,
+      "scale": 0.6830134553650705,
       "offset": [
-        485.5420511199817,
-        80.61533090027757
+        473.8947719548722,
+        281.3584772439182
       ]
     },
     "frontendVersion": "1.37.11",

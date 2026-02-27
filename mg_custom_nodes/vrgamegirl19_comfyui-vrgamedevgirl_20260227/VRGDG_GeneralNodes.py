@@ -1,9 +1,9 @@
+import ast
 import json
 import math
 import os
 import re
 import shutil
-import ast
 import sys
 import time
 
@@ -966,7 +966,6 @@ class VRGDG_GeneralPromptBatcher:
         )
 
 
-
 class VRGDG_PythonCodeRunner:
     RETURN_TYPES = ("STRING", "STRING", "BOOLEAN")
     RETURN_NAMES = ("result_text", "result_json", "has_error")
@@ -1450,9 +1449,7 @@ def _normalize_bool(value):
 
 def _sanitize_text_segment(value, fallback):
     s = str(value or "").strip()
-    # Keep this regex simple and explicit to avoid accidental escape/quote issues
-    # when this file is copied between editors/platforms.
-    s = re.sub(r"[^0-9A-Za-z_ -]+", "_", s)
+    s = re.sub(r"[^A-Za-z0-9_\- ]+", "_", s)
     s = s.strip(" .")
     return s or fallback
 
@@ -1696,6 +1693,38 @@ class VRGDG_LoadTextAdvanced:
                 "text_file": (file_choices,),
             }
         }
+
+    @classmethod
+    def IS_CHANGED(cls, folder_name, use_most_recent, text_file):
+        selected_folder = str(folder_name or "").strip()
+        if not selected_folder or selected_folder == EMPTY_TEXT_FOLDER_OPTION:
+            return "empty-folder"
+
+        files, folder_path, _ = _list_text_files_for_folder(
+            selected_folder,
+            bool(use_most_recent),
+        )
+        if not files:
+            return f"{selected_folder}|no-files"
+
+        if bool(use_most_recent):
+            chosen_name = files[0]
+        else:
+            selected_name = os.path.basename(str(text_file or "").strip())
+            if selected_name in files:
+                chosen_name = selected_name
+            else:
+                return f"{selected_folder}|missing-selection|{selected_name}"
+
+        file_path = os.path.normpath(os.path.join(folder_path, chosen_name))
+        try:
+            stats = os.stat(file_path)
+            return (
+                f"{file_path}|{int(bool(use_most_recent))}|"
+                f"{stats.st_mtime_ns}|{stats.st_size}"
+            )
+        except OSError:
+            return f"{file_path}|missing"
 
     def run(self, folder_name, use_most_recent, text_file):
         selected_folder = str(folder_name or "").strip()

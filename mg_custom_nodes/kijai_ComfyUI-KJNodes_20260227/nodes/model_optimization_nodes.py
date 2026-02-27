@@ -143,7 +143,7 @@ class CheckpointLoaderKJ():
     FUNCTION = "load"
     DESCRIPTION = "Experimental node for patching torch.nn.Linear with CublasLinear."
     EXPERIMENTAL = True
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/model_loaders"
 
     def load(self, ckpt_name, weight_dtype, compute_dtype, patch_cublaslinear, sage_attention, enable_fp16_accumulation):
         DTYPE_MAP = {
@@ -218,7 +218,7 @@ class DiffusionModelSelector():
     FUNCTION = "get_path"
     DESCRIPTION = "Returns the path to the model as a string."
     EXPERIMENTAL = True
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/model_loaders"
 
     def get_path(self, model_name):
         if "connector" in model_name.lower():
@@ -247,7 +247,7 @@ class DiffusionModelLoaderKJ():
     FUNCTION = "patch_and_load"
     DESCRIPTION = "Node for patching torch.nn.Linear with CublasLinear."
     EXPERIMENTAL = True
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/model_loaders"
 
     def patch_and_load(self, model_name, weight_dtype, compute_dtype, patch_cublaslinear, sage_attention, enable_fp16_accumulation, extra_state_dict=None):
         DTYPE_MAP = {
@@ -286,14 +286,10 @@ class DiffusionModelLoaderKJ():
         if extra_state_dict is not None:
             extra_sd = comfy.utils.load_torch_file(extra_state_dict)
             sd.update(extra_sd)
-            # If the model is a checkpoint, strip additional non-diffusion model entries before adding extra state dict
-            from comfy import model_detection
-            diffusion_model_prefix = model_detection.unet_prefix_from_state_dict(sd)
-            if diffusion_model_prefix == "model.diffusion_model.":
-                temp_sd = comfy.utils.state_dict_prefix_replace(sd, {diffusion_model_prefix: ""}, filter_keys=True)
-                if len(temp_sd) > 0:
-                    sd = temp_sd
             del extra_sd
+
+            diffusion_model_prefix = comfy.sd.model_detection.unet_prefix_from_state_dict(sd)
+            sd = comfy.utils.state_dict_prefix_replace(sd, {diffusion_model_prefix: ""}, filter_keys=False)
 
         model = comfy.sd.load_diffusion_model_state_dict(sd, model_options=model_options, metadata=metadata)
         if dtype := DTYPE_MAP.get(compute_dtype):
@@ -360,7 +356,7 @@ class PatchModelPatcherOrder:
                 }}
     RETURN_TYPES = ("MODEL",)
     FUNCTION = "patch"
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/deprecated"
     DESCRIPTION = "NO LONGER NECESSARY OR FUNCTIONAL, keeping node for backwards compatibility. Use the TorchCompileModelAdvanced to use LoRA with torch.compile."
     DEPRECATED = True
 
@@ -883,7 +879,7 @@ class WanVideoTeaCacheKJ:
     RETURN_TYPES = ("MODEL",)
     RETURN_NAMES = ("model",)
     FUNCTION = "patch_teacache"
-    CATEGORY = "KJNodes/teacache"
+    CATEGORY = "KJNodes/deprecated"
     DEPRECATED = True
     DESCRIPTION = """
 Patch WanVideo model to use TeaCache. Speeds up inference by caching the output and  
@@ -1130,7 +1126,7 @@ class WanVideoEnhanceAVideoKJ:
     RETURN_TYPES = ("MODEL",)
     RETURN_NAMES = ("model",)
     FUNCTION = "enhance"
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/wan"
     DESCRIPTION = "https://github.com/NUS-HPC-AI-Lab/Enhance-A-Video"
     EXPERIMENTAL = True
 
@@ -1211,7 +1207,7 @@ class LTXVEnhanceAVideoKJ:
     RETURN_TYPES = ("MODEL",)
     RETURN_NAMES = ("model",)
     FUNCTION = "enhance"
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/ltxv"
     DESCRIPTION = "https://github.com/NUS-HPC-AI-Lab/Enhance-A-Video"
     EXPERIMENTAL = True
 
@@ -1393,7 +1389,7 @@ class WanVideoNAG:
     RETURN_TYPES = ("MODEL",)
     RETURN_NAMES = ("model",)
     FUNCTION = "patch"
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/wan"
     DESCRIPTION = "https://github.com/ChenDarYen/Normalized-Attention-Guidance"
     EXPERIMENTAL = True
 
@@ -1566,7 +1562,7 @@ class GGUFLoaderKJ(io.ComfyNode):
 
         return io.Schema(
             node_id="GGUFLoaderKJ",
-            category="KJNodes/experimental",
+            category="KJNodes/model_loaders",
             description="Loads a GGUF model with advanced options, requires [ComfyUI-GGUF](https://github.com/city96/ComfyUI-GGUF) to be installed.",
             is_experimental=True,
             inputs=[
@@ -1826,7 +1822,7 @@ class StartRecordCUDAMemoryHistory():
     RETURN_TYPES = (IO.ANY, )
     RETURN_NAMES = ("input", "output_path",)
     FUNCTION = "start"
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/memory"
     DESCRIPTION = "THIS NODE ALWAYS RUNS. Starts recording CUDA memory allocation history, can be ended and saved with EndRecordCUDAMemoryHistory. "
 
     def start(self, input, enabled, context, stacks, max_entries):
@@ -1852,7 +1848,7 @@ class EndRecordCUDAMemoryHistory():
     RETURN_TYPES = (IO.ANY, "STRING",)
     RETURN_NAMES = ("input", "output_path",)
     FUNCTION = "end"
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/memory"
     DESCRIPTION = "Records CUDA memory allocation history between start and end, saves to a file that can be analyzed here: https://docs.pytorch.org/memory_viz or with VisualizeCUDAMemoryHistory node"
 
     def end(self, input, output_path):
@@ -1883,7 +1879,7 @@ class VisualizeCUDAMemoryHistory():
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("output_path",)
     FUNCTION = "visualize"
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/memory"
     DESCRIPTION = "Visualizes a CUDA memory allocation history file, opens in browser"
     OUTPUT_NODE = True
 
@@ -1932,7 +1928,7 @@ class ModelMemoryUseReportPatch:
     FUNCTION = "patch"
     DESCRIPTION = "Adds callbacks to model to report memory usage during after sampling"
     EXPERIMENTAL = True
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/memory"
 
     def patch(self, model):
         model_clone = model.clone()
@@ -1980,7 +1976,7 @@ class ModelMemoryUsageFactorOverride:
     FUNCTION = "patch"
     DESCRIPTION = "Overrides the memory usage factor of the model during sampling."
     EXPERIMENTAL = True
-    CATEGORY = "KJNodes/experimental"
+    CATEGORY = "KJNodes/memory"
 
     def patch(self, model, memory_usage_factor):
         model_clone = model.clone()

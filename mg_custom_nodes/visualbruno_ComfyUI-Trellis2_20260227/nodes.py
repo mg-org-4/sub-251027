@@ -37,13 +37,14 @@ import comfy.utils
 
 from .trellis2.pipelines import Trellis2ImageTo3DPipeline
 from .trellis2.representations import Mesh, MeshWithVoxel
+from .trellis2.modules.attention import config
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 comfy_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 BASE_CACHE_DIR = Path(os.path.dirname(os.path.realpath(__file__))) / "triton_caches"
-os.environ["TRITON_ALWAYS_COMPILE"] = "1"
-os.environ["TORCHINDUCTOR_FORCE_DISABLE_CACHES"]="1"
+#os.environ["TRITON_ALWAYS_COMPILE"] = "1"
+#os.environ["TORCHINDUCTOR_FORCE_DISABLE_CACHES"]="1"
 
 to_pil = transforms.ToPILImage()
 
@@ -319,8 +320,8 @@ class Trellis2LoadModel:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "modelname": (["TRELLIS.2-4B"],),
-                "backend": (["flash_attn","xformers"],{"default":"xformers"}),
+                "modelname": (["microsoft/TRELLIS.2-4B","visualbruno/TRELLIS.2-4B-FP8"],{"default":"microsoft/TRELLIS.2-4B"}),
+                "backend": (["flash_attn","xformers","sdpa","flash_attn_3"],{"default":"flash_attn"}),
                 "device": (["cpu","cuda"],{"default":"cuda"}),
                 "low_vram": ("BOOLEAN",{"default":True}),
                 "keep_models_loaded": ("BOOLEAN", {"default":True}),
@@ -340,20 +341,19 @@ class Trellis2LoadModel:
         #os.environ["FLEX_GEMM_AUTOTUNER_VERBOSE"] = '1'        
         os.environ['ATTN_BACKEND'] = backend
         
+        config.set_backend(backend)
+        
         reset_cuda()
         
-        torch.backends.cudnn.benchmark = False
-        
-        download_path = os.path.join(folder_paths.models_dir,"microsoft")
-        model_path = os.path.join(download_path, modelname)
-        
-        hf_model_name = f"microsoft/{modelname}"
+        torch.backends.cudnn.benchmark = False        
+            
+        model_path = os.path.join(folder_paths.models_dir, modelname)
         
         if not os.path.exists(model_path):
             print(f"Downloading model to: {model_path}")
             from huggingface_hub import snapshot_download
             snapshot_download(
-                repo_id=hf_model_name,
+                repo_id=modelname,
                 local_dir=model_path,
                 local_dir_use_symlinks=False,
             )
@@ -390,7 +390,12 @@ class Trellis2LoadModel:
             else:
                 raise Exception("Cannot download Trellis-Image-Large file ss_dec_conv3d_16l8_fp16.safetensors")
         
-        pipeline = Trellis2ImageTo3DPipeline.from_pretrained(model_path, keep_models_loaded = keep_models_loaded)
+        if modelname == "visualbruno/TRELLIS.2-4B-FP8":
+            use_fp8 = True
+        else:
+            use_fp8 = False
+                
+        pipeline = Trellis2ImageTo3DPipeline.from_pretrained(model_path, keep_models_loaded = keep_models_loaded, use_fp8=use_fp8)
         pipeline.low_vram = low_vram
         
         if device=="cuda":
@@ -750,8 +755,8 @@ class Trellis2ExportMesh:
             }
         }
 
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("glb_path",)
+    RETURN_TYPES = ("STRING","STRING",)
+    RETURN_NAMES = ("glb_path","relative_path",)
     FUNCTION = "process"
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
@@ -772,7 +777,7 @@ class Trellis2ExportMesh:
             
         relative_path = Path(subfolder) / f'{filename}_{counter:05}_.{file_format}'
         
-        return (str(relative_path), )        
+        return (str(output_glb_path), str(relative_path), )        
         
 class Trellis2PostProcessMesh:
     @classmethod
@@ -2442,7 +2447,7 @@ class Trellis2PostProcess2:
         trimesh = Trimesh.Trimesh(vertices=vertices_np,faces=faces_np)
         
         print(f"Initial mesh: {len(trimesh.faces)} faces")
-        print(f"Is winding consistent? {trimesh.is_winding_consistent}")        
+        #print(f"Is winding consistent? {trimesh.is_winding_consistent}")        
         
         if fix_normals:
             print('Fixing normals ...')

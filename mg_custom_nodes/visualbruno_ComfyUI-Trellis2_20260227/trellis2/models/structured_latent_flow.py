@@ -5,55 +5,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from ..modules.utils import convert_module_to, manual_cast, str_to_dtype
-from ..modules.transformer import AbsolutePositionEmbedder, ModulatedTransformerCrossBlock
-from ..modules.attention import RotaryPositionEmbedder
+from ..modules.transformer import AbsolutePositionEmbedder
+from ..modules import sparse as sp
+from ..modules.sparse.transformer import ModulatedSparseTransformerCrossBlock
+from .sparse_structure_flow import TimestepEmbedder
+from .sparse_elastic_mixin import SparseTransformerElasticMixin
+    
 
-
-class TimestepEmbedder(nn.Module):
-    """
-    Embeds scalar timesteps into vector representations.
-    """
-    def __init__(self, hidden_size, frequency_embedding_size=256):
-        super().__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(frequency_embedding_size, hidden_size, bias=True),
-            nn.SiLU(),
-            nn.Linear(hidden_size, hidden_size, bias=True),
-        )
-        self.frequency_embedding_size = frequency_embedding_size
-
-    @staticmethod
-    def timestep_embedding(t, dim, max_period=10000):
-        """
-        Create sinusoidal timestep embeddings.
-
-        Args:
-            t: a 1-D Tensor of N indices, one per batch element.
-                These may be fractional.
-            dim: the dimension of the output.
-            max_period: controls the minimum frequency of the embeddings.
-
-        Returns:
-            an (N, D) Tensor of positional embeddings.
-        """
-        # https://github.com/openai/glide-text2im/blob/main/glide_text2im/nn.py
-        half = dim // 2
-        freqs = torch.exp(
-            -np.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half
-        ).to(device=t.device)
-        args = t[:, None].float() * freqs[None]
-        embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
-        if dim % 2:
-            embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
-        return embedding
-
-    def forward(self, t):
-        t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
-        t_emb = self.mlp(t_freq)
-        return t_emb
-
-
-class SparseStructureFlowModel(nn.Module):
+class SLatFlowModel(nn.Module):
     def __init__(
         self,
         resolution: int,
@@ -73,7 +32,6 @@ class SparseStructureFlowModel(nn.Module):
         initialization: str = 'vanilla',
         qk_rms_norm: bool = False,
         qk_rms_norm_cross: bool = False,
-        **kwargs
     ):
         super().__init__()
         self.resolution = resolution
@@ -100,25 +58,12 @@ class SparseStructureFlowModel(nn.Module):
             )
 
         if pe_mode == "ape":
-            pos_embedder = AbsolutePositionEmbedder(model_channels, 3)
-            coords = torch.meshgrid(*[torch.arange(res, device=self.device) for res in [resolution] * 3], indexing='ij')
-            coords = torch.stack(coords, dim=-1).reshape(-1, 3)
-            pos_emb = pos_embedder(coords)
-            self.register_buffer("pos_emb", pos_emb)
-        elif pe_mode == "rope":
-            pos_embedder = RotaryPositionEmbedder(self.model_channels // self.num_heads, 3)
-            coords = torch.meshgrid(*[torch.arange(res, device=self.device) for res in [resolution] * 3], indexing='ij')
-            coords = torch.stack(coords, dim=-1).reshape(-1, 3)
-            rope_phases = pos_embedder(coords)
-            self.register_buffer("rope_phases", rope_phases)
-            
-        if pe_mode != "rope":
-            self.rope_phases = None
+            self.pos_embedder = AbsolutePositionEmbedder(model_channels)
 
-        self.input_layer = nn.Linear(in_channels, model_channels)
+        self.input_layer = sp.SparseLinear(in_channels, model_channels)
             
         self.blocks = nn.ModuleList([
-            ModulatedTransformerCrossBlock(
+            ModulatedSparseTransformerCrossBlock(
                 model_channels,
                 cond_channels,
                 num_heads=self.num_heads,
@@ -127,17 +72,19 @@ class SparseStructureFlowModel(nn.Module):
                 use_checkpoint=self.use_checkpoint,
                 use_rope=(pe_mode == "rope"),
                 rope_freq=rope_freq,
-                share_mod=share_mod,
+                share_mod=self.share_mod,
                 qk_rms_norm=self.qk_rms_norm,
                 qk_rms_norm_cross=self.qk_rms_norm_cross,
             )
             for _ in range(num_blocks)
         ])
-
-        self.out_layer = nn.Linear(model_channels, out_channels)
+            
+        self.out_layer = sp.SparseLinear(model_channels, out_channels)
 
         self.initialize_weights()
         self.convert_to(self.dtype)
+        if self.dtype == torch.float8_e4m3fn:
+            self.dtype = torch.bfloat16
 
     @property
     def device(self) -> torch.device:
@@ -221,27 +168,42 @@ class SparseStructureFlowModel(nn.Module):
             nn.init.constant_(self.out_layer.weight, 0)
             nn.init.constant_(self.out_layer.bias, 0)
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor, cond: torch.Tensor) -> torch.Tensor:
-        assert [*x.shape] == [x.shape[0], self.in_channels, *[self.resolution] * 3], \
-                f"Input shape mismatch, got {x.shape}, expected {[x.shape[0], self.in_channels, *[self.resolution] * 3]}"
+    def forward(
+        self,
+        x: sp.SparseTensor,
+        t: torch.Tensor,
+        cond: Union[torch.Tensor, List[torch.Tensor]],
+        concat_cond: Optional[sp.SparseTensor] = None,
+        **kwargs
+    ) -> sp.SparseTensor:
+        if concat_cond is not None:
+            x = sp.sparse_cat([x, concat_cond], dim=-1)
+        if isinstance(cond, list):
+            cond = sp.VarLenTensor.from_tensor_list(cond)
 
-        h = x.view(*x.shape[:2], -1).permute(0, 2, 1).contiguous()
-
-        h = self.input_layer(h)
-        if self.pe_mode == "ape":
-            h = h + self.pos_emb[None]
+        h = self.input_layer(x)
+        h = manual_cast(h, self.dtype)
         t_emb = self.t_embedder(t)
         if self.share_mod:
             t_emb = self.adaLN_modulation(t_emb)
         t_emb = manual_cast(t_emb, self.dtype)
-        h = manual_cast(h, self.dtype)
         cond = manual_cast(cond, self.dtype)
+
+        if self.pe_mode == "ape":
+            pe = self.pos_embedder(h.coords[:, 1:])
+            h = h + manual_cast(pe, self.dtype)
         for block in self.blocks:
-            h = block(h, t_emb, cond, self.rope_phases)
+            h = block(h, t_emb, cond)
+
         h = manual_cast(h, x.dtype)
-        h = F.layer_norm(h, h.shape[-1:])
+        h = h.replace(F.layer_norm(h.feats, h.feats.shape[-1:]))
         h = self.out_layer(h)
-
-        h = h.permute(0, 2, 1).view(h.shape[0], h.shape[2], *[self.resolution] * 3).contiguous()
-
         return h
+
+
+class ElasticSLatFlowModel(SparseTransformerElasticMixin, SLatFlowModel):
+    """
+    SLat Flow Model with elastic memory management.
+    Used for training with low VRAM.
+    """
+    pass

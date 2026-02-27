@@ -974,6 +974,10 @@ class LTXV(BaseModel):
         if keyframe_idxs is not None:
             out['keyframe_idxs'] = comfy.conds.CONDRegular(keyframe_idxs)
 
+        guide_attention_entries = kwargs.get("guide_attention_entries", None)
+        if guide_attention_entries is not None:
+            out['guide_attention_entries'] = comfy.conds.CONDConstant(guide_attention_entries)
+
         return out
 
     def process_timestep(self, timestep, x, denoise_mask=None, **kwargs):
@@ -1025,6 +1029,10 @@ class LTXAV(BaseModel):
         latent_shapes = kwargs.get("latent_shapes", None)
         if latent_shapes is not None:
             out['latent_shapes'] = comfy.conds.CONDConstant(latent_shapes)
+
+        guide_attention_entries = kwargs.get("guide_attention_entries", None)
+        if guide_attention_entries is not None:
+            out['guide_attention_entries'] = comfy.conds.CONDConstant(guide_attention_entries)
 
         return out
 

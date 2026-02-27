@@ -9,7 +9,8 @@
   "downloadTask": "Download Task",
   "createDownloadTask": "Create Download Task",
   "parseModelUrl": "Parse Model URL",
-  "pleaseInputModelUrl": "Input a URL from civitai.com or huggingface.co",
+  "pleaseInputModelUrl": "Input a URL from civitai.com, huggingface.co, or direct file link (.safetensors, .ckpt, etc.)",
+  "selectModelTypeForDirect": "Select the folder/type for this model",
   "cancel": "Cancel",
   "save": "Save",
   "delete": "Delete",
@@ -73,5 +74,9 @@
     "ui": "UI",
     "cardSize": "Card Size",
     "useFlatUI": "Flat Layout"
-  }
+  },
+  "switchToFolderView": "Switch to Folder View",
+  "switchToFlatView": "Switch to Flat View",
+  "hideHiddenFiles": "Hide hidden files",
+  "showHiddenFiles": "Show hidden files"
 }

@@ -1159,8 +1159,8 @@
   "queue": {
     "initializingAlmostReady": "Initializing - Almost ready",
     "inQueue": "In queue...",
-    "jobAddedToQueue": "Job added to queue",
-    "jobQueueing": "Job queueing",
+    "jobAddedToQueue": "Job queued",
+    "jobQueueing": "Job queuing",
     "completedIn": "Finished in {duration}",
     "jobMenu": {
       "openAsWorkflowNewTab": "Open as workflow in new tab",
@@ -1703,6 +1703,7 @@
     "OPENAI_INPUT_FILES": "OPENAI_INPUT_FILES",
     "PHOTOMAKER": "PHOTOMAKER",
     "PIXVERSE_TEMPLATE": "PIXVERSE_TEMPLATE",
+    "POSE_KEYPOINT": "POSE_KEYPOINT",
     "RECRAFT_COLOR": "RECRAFT_COLOR",
     "RECRAFT_CONTROLS": "RECRAFT_CONTROLS",
     "RECRAFT_V3_STYLE": "RECRAFT_V3_STYLE",
@@ -2996,7 +2997,8 @@
   },
   "linearMode": {
     "linearMode": "App Mode",
-    "beta": "App Mode in Beta - Feedback",
+    "beta": "App mode in beta",
+    "giveFeedback": "Give feedback",
     "graphMode": "Graph Mode",
     "dragAndDropImage": "Click to browse or drag an image",
     "runCount": "Number of runs",
@@ -3039,6 +3041,10 @@
       "noOutputs": "No output nodes added yet",
       "outputsDesc": "Connect at least one output node so users can see results after running.",
       "outputsExample": "Examples: “Save Image” or “Save Video”"
+    },
+    "queue": {
+      "clickToClear": "Click to clear queue",
+      "clear": "Clear queue"
     }
   },
   "missingNodes": {
@@ -3073,7 +3079,14 @@
     "openNodeManager": "Open Node Manager",
     "skipForNow": "Skip for Now",
     "installMissingNodes": "Install Missing Nodes",
-    "replaceWarning": "This will permanently modify the workflow. Save a copy first if unsure."
+    "replaceWarning": "This will permanently modify the workflow. Save a copy first if unsure.",
+    "swapNodesGuide": "The following nodes can be automatically replaced with compatible alternatives.",
+    "willBeReplacedBy": "This node will be replaced by:",
+    "replaceNode": "Replace Node",
+    "replaceAll": "Replace All",
+    "unknownNode": "Unknown",
+    "replaceAllWarning": "Replaces all available nodes in this group.",
+    "swapNodesTitle": "Swap Nodes"
   },
   "rightSidePanel": {
     "togglePanel": "Toggle properties panel",

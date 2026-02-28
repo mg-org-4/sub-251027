@@ -6,6 +6,7 @@ Python reads everything from that widget
 
 import os
 import json
+import time
 import folder_paths
 from typing import List, Dict, Any
 import server
@@ -216,8 +217,8 @@ class UltimateConfigBuilder:
             }
         }
     
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("configs_json", "session_name")
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("configs_json", "session_name", "distribution_config")
     FUNCTION = "generate_config"
     CATEGORY = "sampling/testing"
     OUTPUT_NODE = True
@@ -631,8 +632,18 @@ class UltimateConfigBuilder:
         print(f"  Total Combinations: {total_combinations}")
         print(f"{'='*80}\n")
         
-        # Return just the essentials
-        return (json_output, actual_session_name)
+        # Build distribution config from state if enabled
+        dist_config = ""
+        if state.get("distribution_enabled") and state.get("worker_urls"):
+            dist_config = json.dumps({
+                "enabled": True,
+                "worker_urls": [u for u in state["worker_urls"] if u and u.strip()],
+                "claim_timeout": state.get("claim_timeout", 600),
+                "use_master_encoding": state.get("use_master_encoding", False)
+            })
+
+        # Return configs, session name, and distribution config
+        return (json_output, actual_session_name, dist_config)
 
 
 # API endpoint for trigger word lookup
@@ -685,11 +696,15 @@ async def lookup_lora_metadata_endpoint(request):
             try:
                 cached = load_json_from_file(metadata_file)
                 if cached and cached.get("name"):
-                    print(f"[ConfigBuilder] ✅ Using cached metadata for: {lora_name}")
+                    # Get file modification time for cache date display
+                    cache_mtime = os.path.getmtime(metadata_file)
+                    cache_date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(cache_mtime))
+                    print(f"[ConfigBuilder] ✅ Using cached metadata for: {lora_name} (cached on {cache_date})")
                     return web.json_response({
                         "metadata": cached,
                         "saved_to": metadata_file,
-                        "cached": True
+                        "cached": True,
+                        "cache_date": cache_date
                     })
             except Exception:
                 pass  # Cache miss or corrupt file - fall through to fresh lookup
@@ -795,11 +810,15 @@ async def lookup_model_metadata_endpoint(request):
             try:
                 cached = load_json_from_file(metadata_file)
                 if cached and cached.get("name"):
-                    print(f"[ConfigBuilder] ✅ Using cached metadata for model: {model_name}")
+                    # Get file modification time for cache date display
+                    cache_mtime = os.path.getmtime(metadata_file)
+                    cache_date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(cache_mtime))
+                    print(f"[ConfigBuilder] ✅ Using cached metadata for model: {model_name} (cached on {cache_date})")
                     return web.json_response({
                         "metadata": cached,
                         "saved_to": metadata_file,
-                        "cached": True
+                        "cached": True,
+                        "cache_date": cache_date
                     })
             except Exception:
                 pass  # Cache miss or corrupt file - fall through to fresh lookup

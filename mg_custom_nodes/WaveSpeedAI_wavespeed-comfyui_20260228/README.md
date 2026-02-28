@@ -93,6 +93,8 @@ Restart ComfyUI after installation.
 }
 ```
 
+> 💡 **Prefer node-based API key input?** Switch to the [`feature/client-node-api-key`](https://github.com/WaveSpeedAI/wavespeed-comfyui/tree/feature/client-node-api-key) branch to use a dedicated **WaveSpeed Client** node for API key configuration via node connection instead of Settings.
+
 > ⏱️ **First Load Notice**: The first loading will fetch 600+ models from 25 categories. This takes approximately **2-4 minutes depending on your network**. Subsequent loads use cached data and are instant.
 
 ---

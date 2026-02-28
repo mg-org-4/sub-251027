@@ -78,6 +78,10 @@ SessionManager.configure_limits(
     max_concurrent=getattr(CONFIG, "llm_max_concurrent", None),
     rate_window_seconds=getattr(getattr(CONFIG, "guardrails", None), "RATE_LIMIT_WINDOW_SECONDS", None),
 )
+SessionManager.configure_proxy_policy(
+    config_policy=getattr(CONFIG, "llm_proxy_policy", None),
+    env_policy=os.getenv(SessionManager.ENV_PROXY_POLICY_KEY),
+)
 
 
 def _close_retry_response(result: RetryResult) -> None:
@@ -88,6 +92,12 @@ def _close_retry_response(result: RetryResult) -> None:
         resp.close()
     except Exception:
         pass
+
+
+def _admin_denied_response(code: str, message: str):
+    """Standardized admin denial response payload/status for write-sensitive APIs."""
+    status_code = 401 if code == "unauthorized" else 403
+    return web.json_response({"success": False, "error": code, "message": message}, status=status_code)
 
 # --- LLM Environment Variable Fallbacks ---
 # These can be set in system environment to provide default values
@@ -2401,6 +2411,18 @@ try:
         
         Returns: {"success": bool, "message": str}
         """
+        payload = {}
+        try:
+            if request.can_read_body:
+                payload = await request.json()
+        except Exception:
+            payload = {}
+
+        # CRITICAL: write-sensitive endpoint must remain admin-gated.
+        allowed, code, message = validate_admin_request(request, payload=payload)
+        if not allowed:
+            return _admin_denied_response(code, message)
+
         try:
             success = clear_analysis_history()
             if success:
@@ -2426,15 +2448,24 @@ try:
         """
         try:
             data = await request.json()
+        except Exception:
+            return web.json_response({"success": False, "message": "Invalid JSON"}, status=400)
+
+        # CRITICAL: write-sensitive endpoint must remain admin-gated.
+        allowed, code, message = validate_admin_request(request, payload=data)
+        if not allowed:
+            return _admin_denied_response(code, message)
+
+        try:
             timestamp = data.get("timestamp")
             status = data.get("status", "resolved")
-            
+
             if not timestamp:
                 return web.json_response({"success": False, "message": "Missing timestamp"}, status=400)
-            
+
             if status not in ["resolved", "unresolved", "ignored"]:
                 return web.json_response({"success": False, "message": "Invalid status"}, status=400)
-            
+
             from .logger import update_resolution_status
 
             if update_resolution_status(timestamp, status):
@@ -2442,7 +2473,7 @@ try:
                 return web.json_response({"success": True, "message": f"Error marked as {status}"})
 
             return web.json_response({"success": False, "message": "Timestamp not found"}, status=404)
-                
+
         except Exception as e:
             logger.error(f"Mark resolved API error: {str(e)}")
             return web.json_response({"success": False, "message": str(e)}, status=500)
@@ -2490,8 +2521,7 @@ try:
         # IMPORTANT: write-sensitive endpoint must remain admin-gated.
         allowed, code, message = validate_admin_request(request, payload=data)
         if not allowed:
-            status_code = 401 if code == "unauthorized" else 403
-            return web.json_response({"success": False, "error": code, "message": message}, status=status_code)
+            return _admin_denied_response(code, message)
 
         try:
             result = await submit_feedback(data, github_config=GitHubFeedbackConfig.from_env())
@@ -2543,6 +2573,7 @@ try:
                     "data_dir": get_doctor_data_dir(),
                     "history_size_bytes": getattr(CONFIG, "history_size_bytes", 0),
                 },
+                "outbound_proxy": SessionManager.get_proxy_diagnostics(),
                 "last_analysis": {
                     "timestamp": last_analysis.get("timestamp"),
                     "pipeline_status": analysis_meta.get("pipeline_status"),
@@ -2651,6 +2682,18 @@ try:
         Clear all buffered telemetry events.
         Returns: {"success": bool, "message": str}
         """
+        payload = {}
+        try:
+            if request.can_read_body:
+                payload = await request.json()
+        except Exception:
+            payload = {}
+
+        # CRITICAL: write-sensitive endpoint must remain admin-gated.
+        allowed, code, message = validate_admin_request(request, payload=payload)
+        if not allowed:
+            return _admin_denied_response(code, message)
+
         try:
             store = get_telemetry_store()
             store.clear()
@@ -2689,11 +2732,20 @@ try:
         """
         try:
             data = await request.json()
+        except Exception:
+            return web.json_response({"success": False, "message": "Invalid JSON"}, status=400)
+
+        # CRITICAL: write-sensitive endpoint must remain admin-gated.
+        allowed, code, message = validate_admin_request(request, payload=data)
+        if not allowed:
+            return _admin_denied_response(code, message)
+
+        try:
             enabled = data.get("enabled", False)
-            
+
             store = get_telemetry_store()
             store.enabled = bool(enabled)
-            
+
             return web.json_response({
                 "success": True,
                 "enabled": store.enabled,
@@ -2869,6 +2921,15 @@ try:
         """
         try:
             data = await request.json()
+        except Exception:
+            return web.json_response({"success": False, "error": "Invalid JSON"}, status=400)
+
+        # CRITICAL: write-sensitive endpoint must remain admin-gated.
+        allowed, code, message = validate_admin_request(request, payload=data)
+        if not allowed:
+            return _admin_denied_response(code, message)
+
+        try:
             ack_request = HealthAckRequest.from_dict(data)
 
             if not ack_request.report_id or not ack_request.issue_id:

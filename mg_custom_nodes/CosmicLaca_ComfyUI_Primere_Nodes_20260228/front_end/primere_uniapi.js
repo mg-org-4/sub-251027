@@ -94,43 +94,53 @@ function ensureBooleanWidget(node, widgetName, values) {
     return markDynamicWidget(node, widgetName);
 }
 
-function ensureIntegerWidget(node, widgetName, values, integerSpec = null) {
-    const normalizedValues = Array.isArray(values) && values.length > 0
-        ? values.map((value) => Number(value)).filter((value) => Number.isInteger(value))
-        : [0, 1];
-
-    const sortedValues = [...new Set(normalizedValues)].sort((a, b) => a - b);
-    const min = integerSpec?.min ?? (sortedValues[0] ?? 0);
-    const max = integerSpec?.max ?? (sortedValues[sortedValues.length - 1] ?? min);
-    const step = integerSpec?.step ?? 1;
-    const defaultValue = integerSpec?.defaultValue ?? min;
+function ensureNumberWidget(node, widgetName, valueType) {
+    const isInteger = valueType === "INT";
+    const defaultValue = isInteger ? 1 : 1.0;
+    const expectedStep = isInteger ? 1 : 0.01;
+    const expectedPrecision = isInteger ? 0 : 4;
 
     let widget = getWidget(node, widgetName);
     if (!widget || widget.type !== "number") {
         removeWidgetByName(node, widgetName);
         widget = node.addWidget("number", widgetName, defaultValue, () => {}, {
-            min,
-            max,
-            step,
-            precision: 0,
+            step: expectedStep,
+            precision: expectedPrecision,
         });
     }
 
     widget.options = widget.options || {};
-    widget.options.min = min;
-    widget.options.max = max;
-    widget.options.step = step;
-    widget.options.precision = 0;
+    widget.options.step = expectedStep;
+    widget.options.precision = expectedPrecision;
 
-    const currentValue = Number(widget.value);
-    if (!Number.isInteger(currentValue) || currentValue < min || currentValue > max) {
+    if (typeof widget.value !== "number" || Number.isNaN(widget.value)) {
         widget.value = defaultValue;
+    } else if (isInteger) {
+        widget.value = Math.round(widget.value);
+    }
+
+    return markDynamicWidget(node, widgetName);
+}
+
+function ensureStringWidget(node, widgetName) {
+    let widget = getWidget(node, widgetName);
+    if (!widget || widget.type !== "text") {
+        removeWidgetByName(node, widgetName);
+        widget = node.addWidget("text", widgetName, "", () => {}, {});
+    }
+
+    if (widget.value == null) {
+        widget.value = "";
     }
 
     return markDynamicWidget(node, widgetName);
 }
 
 function detectParameterType(values) {
+    if (values === "INT" || values === "FLOAT" || values === "STRING") {
+        return values;
+    }
+
     if (!Array.isArray(values) || values.length === 0) {
         return "combo";
     }
@@ -139,52 +149,7 @@ function detectParameterType(values) {
         return "boolean";
     }
 
-    if (values.every((value) => Number.isInteger(value))) {
-        return "integer";
-    }
-
     return "combo";
-}
-
-function getUniformIntegerSpec(values) {
-    if (!Array.isArray(values) || values.length === 0) {
-        return null;
-    }
-
-    const uniqueSorted = [...new Set(values.map((value) => Number(value)))]
-        .filter((value) => Number.isInteger(value))
-        .sort((a, b) => a - b);
-
-    if (uniqueSorted.length !== values.length || uniqueSorted.length === 0) {
-        return null;
-    }
-
-    if (uniqueSorted.length === 1) {
-        return {
-            min: uniqueSorted[0],
-            max: uniqueSorted[0],
-            step: 1,
-            defaultValue: uniqueSorted[0],
-        };
-    }
-
-    const step = uniqueSorted[1] - uniqueSorted[0];
-    if (!Number.isInteger(step) || step <= 0) {
-        return null;
-    }
-
-    for (let i = 1; i < uniqueSorted.length; i += 1) {
-        if ((uniqueSorted[i] - uniqueSorted[i - 1]) !== step) {
-            return null;
-        }
-    }
-
-    return {
-        min: uniqueSorted[0],
-        max: uniqueSorted[uniqueSorted.length - 1],
-        step,
-        defaultValue: uniqueSorted[0],
-    };
 }
 
 function removeWidgetByName(node, widgetName) {
@@ -308,13 +273,14 @@ function updateParameterWidgets(node, schemaRegistry) {
                 ensureBooleanWidget(node, paramName, values);
                 continue;
             }
-            /* if (paramType === "integer") {
-                const integerSpec = getUniformIntegerSpec(values);
-                if (integerSpec) {
-                    ensureIntegerWidget(node, paramName, values, integerSpec);
-                    continue;
-                }
-            } */
+            if (paramType === "INT" || paramType === "FLOAT") {
+                ensureNumberWidget(node, paramName, paramType);
+                continue;
+            }
+            if (paramType === "STRING") {
+                ensureStringWidget(node, paramName);
+                continue;
+            }
             ensureComboWidget(node, paramName, values);
         }
     }

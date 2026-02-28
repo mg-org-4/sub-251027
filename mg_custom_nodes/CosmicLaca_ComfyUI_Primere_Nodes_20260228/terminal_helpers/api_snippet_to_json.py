@@ -1,5 +1,5 @@
 """Convert `snippet.py` into grouped provider->service API schema JSON."""
-# python api_snippet_to_json.py --provider Gemini --service Imagen
+# python api_snippet_to_json.py --provider Gemini --service Imagen --replace
 
 
 from __future__ import annotations
@@ -10,7 +10,10 @@ import json
 import re
 from pathlib import Path
 from typing import Any
+import os
 
+COMPONENTS = Path(__file__).parent.absolute()
+PRIMERE_ROOT = COMPONENTS.parent
 
 class SnippetParseError(RuntimeError):
     """Raised when call extraction fails."""
@@ -21,13 +24,14 @@ RESULT_FILENAME = "result.json"
 DEFAULT_PROVIDER = ""
 DEFAULT_SERVICE = ""
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
+PLACEHOLDER_ALIASES = {"number_of_images": "seed", "aspectRatio": "aspect_ratio"}
 
 KNOWN_PARAM_OPTIONS: dict[str, list[str]] = {
     "model": ["example-model-1", "example-model-2"],
     "resolution": ["1K", "2K", "4K"],
 }
 
-EXCLUDED_PARAMETER_KEYS = {"prompt", "response_modalities"}
+EXCLUDED_PARAMETER_KEYS = {"prompt", "response_modalities", "width", "height", "seed", "reference_images", "first_image", "last_image", "negative_prompt"}
 
 
 def dotted_name(node: ast.AST) -> str:
@@ -40,6 +44,7 @@ def dotted_name(node: ast.AST) -> str:
 
 
 def placeholder(name: str) -> str:
+    name = PLACEHOLDER_ALIASES.get(name, name)
     clean = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in name)
     while "__" in clean:
         clean = clean.replace("__", "_")
@@ -48,9 +53,16 @@ def placeholder(name: str) -> str:
 
 def node_to_template(node: ast.AST, path: str) -> Any:
     if isinstance(node, ast.Constant):
+        if node.value is None or isinstance(node.value, bool):
+            return node.value
+        if isinstance(node.value, str) and node.value in {"INT", "FLOAT", "STRING"}:
+            return node.value
         return placeholder(path)
 
     if isinstance(node, ast.Name):
+        special_literals = {"null": None, "true": True, "false": False}
+        if node.id in special_literals:
+            return special_literals[node.id]
         return placeholder(node.id)
 
     if isinstance(node, ast.Dict):
@@ -60,7 +72,7 @@ def node_to_template(node: ast.AST, path: str) -> Any:
                 key = key_node.value
             else:
                 key = ast.unparse(key_node)
-            out[key] = node_to_template(value_node, f"{path}_{key}")
+            out[key] = node_to_template(value_node, key)
         return out
 
     if isinstance(node, ast.List):
@@ -71,9 +83,9 @@ def node_to_template(node: ast.AST, path: str) -> Any:
 
     if isinstance(node, ast.Call):
         call_name = dotted_name(node.func)
-        args = [node_to_template(arg, f"{path}_arg{idx}") for idx, arg in enumerate(node.args)]
+        args = [node_to_template(arg, f"arg{idx}") for idx, arg in enumerate(node.args)]
         kwargs = {
-            kw.arg if kw.arg else f"kw_{idx}": node_to_template(kw.value, f"{path}_{kw.arg if kw.arg else f'kw_{idx}'}")
+            kw.arg if kw.arg else f"kw_{idx}": node_to_template(kw.value, kw.arg if kw.arg else f"kw_{idx}")
             for idx, kw in enumerate(node.keywords)
         }
         return {
@@ -116,7 +128,9 @@ def _collect_placeholders(node: Any) -> set[str]:
 
     def walk(item: Any) -> None:
         if isinstance(item, dict):
-            for v in item.values():
+            for k, v in item.items():
+                if k in {"$args", "args"}:
+                    continue
                 walk(v)
             return
         if isinstance(item, list):
@@ -139,6 +153,8 @@ def _canonical_param_name(name: str) -> str:
         return "resolution"
     if low == "model" or low.endswith("_model"):
         return "model"
+    if low == "number_of_images":
+        return "seed"
     if "prompt" in low or "contents" in low:
         return "prompt"
     if "response_modalities" in low:
@@ -185,10 +201,40 @@ def build_service_schema(snippet: str, provider: str = DEFAULT_PROVIDER, service
     return {
         "provider": provider,
         "service": service,
+        "response_handler": response_handler_filename(provider, service),
         "possible_parameters": build_possible_parameters(request_schema),
         "request": request_schema,
     }
 
+def _sanitize_name(value: str) -> str:
+    clean = re.sub(r"[^A-Za-z0-9_]+", "_", str(value or "").strip())
+    clean = re.sub(r"_+", "_", clean).strip("_")
+    return clean or "default"
+
+
+def response_handler_filename(provider: str, service: str) -> str:
+    return f"{_sanitize_name(provider)}_{_sanitize_name(service)}.py"
+
+
+def _response_handlers_dir() -> Path:
+    return Path(os.path.join(PRIMERE_ROOT, "components", "API", "responses"))
+
+
+def ensure_response_handler_file(filename: str) -> Path:
+    responses_dir = _response_handlers_dir()
+    responses_dir.mkdir(parents=True, exist_ok=True)
+    target = responses_dir / filename
+    if target.exists():
+        return target
+
+    template = (
+        "from __future__ import annotations\n\n"
+        "from typing import Any\n\n\n"
+        "def handle_response(api_result: Any, schema: dict[str, Any] | None = None):\n"
+        "    return None\n"
+    )
+    target.write_text(template, encoding="utf-8")
+    return target
 
 def _ensure_mapping(node: Any) -> dict[str, Any]:
     return node if isinstance(node, dict) else {}
@@ -223,6 +269,7 @@ def convert_default_files(
 
     snippet = snippet_path.read_text(encoding="utf-8")
     service_schema = build_service_schema(snippet, provider=provider, service=service)
+    ensure_response_handler_file(str(service_schema.get("response_handler") or ""))
 
     result_path = root / RESULT_FILENAME
     if append and result_path.exists():

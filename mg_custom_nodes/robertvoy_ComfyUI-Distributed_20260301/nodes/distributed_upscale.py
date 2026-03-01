@@ -1,0 +1,279 @@
+import json
+import math
+from functools import wraps
+
+import comfy.samplers
+
+from ..utils.logging import debug_log, log
+from ..utils.async_helpers import run_async_in_server_loop
+from ..upscale.job_store import ensure_tile_jobs_initialized
+
+from ..upscale.tile_ops import TileOpsMixin
+from ..upscale.result_collector import ResultCollectorMixin
+from ..upscale.worker_comms import WorkerCommsMixin
+from ..upscale.job_state import JobStateMixin
+from ..upscale.modes.single_gpu import SingleGpuModeMixin
+from ..upscale.modes.static import StaticModeMixin
+from ..upscale.modes.dynamic import DynamicModeMixin
+
+def sync_wrapper(async_func):
+    """Decorator to wrap async methods for synchronous execution."""
+    @wraps(async_func)
+    def sync_func(self, *args, **kwargs):
+        # Use run_async_in_server_loop for ComfyUI compatibility
+        return run_async_in_server_loop(
+            async_func(self, *args, **kwargs),
+            timeout=600.0  # 10 minute timeout for long operations
+        )
+    return sync_func
+
+def _parse_enabled_worker_ids(enabled_worker_ids):
+    """Parse enabled worker IDs from either JSON or list input."""
+    if isinstance(enabled_worker_ids, list):
+        return [str(worker_id) for worker_id in enabled_worker_ids]
+    if not enabled_worker_ids:
+        return []
+    if isinstance(enabled_worker_ids, str):
+        try:
+            parsed = json.loads(enabled_worker_ids)
+        except json.JSONDecodeError:
+            log("USDU Dist: Invalid enabled_worker_ids JSON; defaulting to no workers.")
+            return []
+        if isinstance(parsed, list):
+            return [str(wid) for wid in parsed]
+    return []
+
+class UltimateSDUpscaleDistributed(
+    DynamicModeMixin,
+    StaticModeMixin,
+    SingleGpuModeMixin,
+    ResultCollectorMixin,
+    WorkerCommsMixin,
+    JobStateMixin,
+    TileOpsMixin,
+):
+
+    """
+    Distributed version of Ultimate SD Upscale (No Upscale).
+    
+    Supports three processing modes:
+    1. Single GPU: No workers available, process everything locally
+    2. Static Mode: Small batches, distributes tiles across workers (flattened)
+    3. Dynamic Mode: Large batches, assigns whole images to workers dynamically
+    
+    Features:
+    - Multi-mode batch handling for efficient video/image upscaling
+    - Tiled VAE support for memory efficiency
+    - Dynamic load balancing for large batches
+    - Backward compatible with single-image workflows
+    
+    Environment Variables:
+    - COMFYUI_MAX_BATCH: Chunk size for tile sending (default 20)
+    - COMFYUI_MAX_PAYLOAD_SIZE: Max API payload bytes (default 50MB)
+    
+    Threshold: dynamic_threshold input controls mode switch (default 8)
+    """
+
+    def __init__(self):
+        """Initialize the node and ensure persistent storage exists."""
+        # Pre-initialize the persistent storage on node creation
+        ensure_tile_jobs_initialized()
+        debug_log("UltimateSDUpscaleDistributed - Node initialized")
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "upscaled_image": ("IMAGE",),
+                "model": ("MODEL",),
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "vae": ("VAE",),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+                "steps": ("INT", {"default": 20, "min": 1, "max": 10000}),
+                "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0}),
+                "sampler_name": (comfy.samplers.KSampler.SAMPLERS,),
+                "scheduler": (comfy.samplers.KSampler.SCHEDULERS,),
+                "denoise": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "tile_width": ("INT", {"default": 512, "min": 64, "max": 2048, "step": 8}),
+                "tile_height": ("INT", {"default": 512, "min": 64, "max": 2048, "step": 8}),
+                "padding": ("INT", {"default": 32, "min": 0, "max": 256, "step": 8}),
+                "mask_blur": ("INT", {"default": 8, "min": 0, "max": 256}),
+                "force_uniform_tiles": ("BOOLEAN", {"default": True}),
+                "tiled_decode": ("BOOLEAN", {"default": False}),
+            },
+            "hidden": {
+                "multi_job_id": ("STRING", {"default": ""}),
+                "is_worker": ("BOOLEAN", {"default": False}),
+                "master_url": ("STRING", {"default": ""}),
+                "enabled_worker_ids": ("STRING", {"default": "[]"}),
+                "worker_id": ("STRING", {"default": ""}),
+                "tile_indices": ("STRING", {"default": ""}),  # Unused - kept for compatibility
+                "dynamic_threshold": ("INT", {"default": 8, "min": 1, "max": 64}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "run"
+    CATEGORY = "image/upscaling"
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        """Force re-execution."""
+        return float("nan")  # Always re-execute
+
+    def run(self, upscaled_image, model, positive, negative, vae, seed, steps, cfg, 
+            sampler_name, scheduler, denoise, tile_width, tile_height, padding, 
+            mask_blur, force_uniform_tiles, tiled_decode,
+            multi_job_id="", is_worker=False, master_url="", enabled_worker_ids="[]", 
+            worker_id="", tile_indices="", dynamic_threshold=8):
+        """Entry point - runs SYNCHRONOUSLY like Ultimate SD Upscaler."""
+        # Strict WAN/FLOW batching: error if batch is not 4n+1 (except allow 1)
+        try:
+            batch_size = int(getattr(upscaled_image, 'shape', [1])[0])
+        except Exception:
+            batch_size = 1
+        # Enforce 4n+1 batches globally for any model when batch > 1 (master only)
+        if not is_worker and batch_size != 1 and (batch_size % 4 != 1):
+            raise ValueError(
+                f"Batch size {batch_size} is not of the form 4n+1. "
+                "This node requires batch sizes of 1 or 4n+1 (1, 5, 9, 13, ...). "
+                "Please adjust the batch size."
+            )
+        if not multi_job_id:
+            # No distributed processing, run single GPU version
+            return self.process_single_gpu(upscaled_image, model, positive, negative, vae,
+                                          seed, steps, cfg, sampler_name, scheduler, denoise,
+                                          tile_width, tile_height, padding, mask_blur, force_uniform_tiles, tiled_decode)
+        
+        if is_worker:
+            # Worker mode: process tiles synchronously
+            return self.process_worker(upscaled_image, model, positive, negative, vae,
+                                      seed, steps, cfg, sampler_name, scheduler, denoise,
+                                      tile_width, tile_height, padding, mask_blur,
+                                      force_uniform_tiles, tiled_decode, multi_job_id, master_url,
+                                      worker_id, enabled_worker_ids, dynamic_threshold)
+        else:
+            # Master mode: distribute and collect synchronously
+            return self.process_master(upscaled_image, model, positive, negative, vae,
+                                     seed, steps, cfg, sampler_name, scheduler, denoise,
+                                     tile_width, tile_height, padding, mask_blur,
+                                     force_uniform_tiles, tiled_decode, multi_job_id, enabled_worker_ids, 
+                                     dynamic_threshold)
+
+    def process_worker(self, upscaled_image, model, positive, negative, vae,
+                      seed, steps, cfg, sampler_name, scheduler, denoise,
+                      tile_width, tile_height, padding, mask_blur,
+                      force_uniform_tiles, tiled_decode, multi_job_id, master_url,
+                      worker_id, enabled_worker_ids, dynamic_threshold):
+        """Unified worker processing - handles both static and dynamic modes."""
+        # Get batch size to determine mode
+        batch_size = upscaled_image.shape[0]
+        
+        # Ensure mode consistency across master/workers via shared threshold
+        # Determine mode (must match master's logic)
+        enabled_workers = json.loads(enabled_worker_ids)
+        num_workers = len(enabled_workers)
+        # Compute number of tiles for this image to decide if tile distribution makes sense
+        _, height, width, _ = upscaled_image.shape
+        all_tiles = self.calculate_tiles(width, height, self.round_to_multiple(tile_width), self.round_to_multiple(tile_height), force_uniform_tiles)
+        num_tiles_per_image = len(all_tiles)
+
+        mode = self._determine_processing_mode(batch_size, num_workers, dynamic_threshold)
+        # For USDU-style processing, we want tile distribution whenever workers are available
+        # and there is more than one tile to process, even if batch == 1.
+        if num_workers > 0 and num_tiles_per_image > 1:
+            mode = "static"
+            
+        debug_log(f"USDU Dist Worker - Batch size {batch_size}")
+        
+        if mode == "dynamic":
+            return self.process_worker_dynamic(upscaled_image, model, positive, negative, vae,
+                                             seed, steps, cfg, sampler_name, scheduler, denoise,
+                                             tile_width, tile_height, padding, mask_blur,
+                                             force_uniform_tiles, tiled_decode, multi_job_id, master_url,
+                                             worker_id, enabled_worker_ids, dynamic_threshold)
+        
+        # Static mode - enhanced with health monitoring and retry logic
+        return self._process_worker_static_sync(upscaled_image, model, positive, negative, vae,
+                                               seed, steps, cfg, sampler_name, scheduler, denoise,
+                                               tile_width, tile_height, padding, mask_blur,
+                                               force_uniform_tiles, tiled_decode, multi_job_id, master_url,
+                                               worker_id, enabled_workers)
+
+    def process_master(self, upscaled_image, model, positive, negative, vae,
+                      seed, steps, cfg, sampler_name, scheduler, denoise,
+                      tile_width, tile_height, padding, mask_blur,
+                      force_uniform_tiles, tiled_decode, multi_job_id, enabled_worker_ids, 
+                      dynamic_threshold):
+        """Unified master processing with enhanced monitoring and failure handling."""
+        # Round tile dimensions
+        tile_width = self.round_to_multiple(tile_width)
+        tile_height = self.round_to_multiple(tile_height)
+        
+        # Get image dimensions and batch size
+        batch_size, height, width, _ = upscaled_image.shape
+        
+        # Calculate all tiles and grid
+        all_tiles = self.calculate_tiles(width, height, tile_width, tile_height, force_uniform_tiles)
+        num_tiles_per_image = len(all_tiles)
+        rows = math.ceil(height / tile_height)
+        cols = math.ceil(width / tile_width)
+        log(
+            f"USDU Dist: Canvas {width}x{height} | Tile {tile_width}x{tile_height} | Grid {rows}x{cols} ({num_tiles_per_image} tiles/image) | Batch {batch_size}"
+        )
+        
+        # Parse enabled workers
+        enabled_workers = json.loads(enabled_worker_ids)
+        num_workers = len(enabled_workers)
+        
+        # Determine processing mode
+        mode = self._determine_processing_mode(batch_size, num_workers, dynamic_threshold)
+        # Prefer tile-based static distribution when workers are available and there are multiple tiles,
+        # even for batch == 1, to spread tiles across GPUs like the legacy dynamic tile queue.
+        if num_workers > 0 and num_tiles_per_image > 1:
+            mode = "static"
+        
+        log(f"USDU Dist: Workers {num_workers} | Mode {mode} | Threshold {dynamic_threshold}")
+
+        if mode == "single_gpu":
+            # No workers, process all tiles locally
+            return self.process_single_gpu(upscaled_image, model, positive, negative, vae,
+                                         seed, steps, cfg, sampler_name, scheduler, denoise,
+                                         tile_width, tile_height, padding, mask_blur, force_uniform_tiles, tiled_decode)
+        
+        elif mode == "dynamic":
+            # Dynamic mode for large batches
+            return self.process_master_dynamic(upscaled_image, model, positive, negative, vae,
+                                             seed, steps, cfg, sampler_name, scheduler, denoise,
+                                             tile_width, tile_height, padding, mask_blur,
+                                             force_uniform_tiles, tiled_decode, multi_job_id, enabled_workers)
+        
+        # Static mode - enhanced with unified job management
+        return self._process_master_static_sync(upscaled_image, model, positive, negative, vae,
+                                               seed, steps, cfg, sampler_name, scheduler, denoise,
+                                               tile_width, tile_height, padding, mask_blur,
+                                               force_uniform_tiles, tiled_decode, multi_job_id, enabled_workers,
+                                               all_tiles, num_tiles_per_image)
+
+    def _determine_processing_mode(self, batch_size: int, num_workers: int, dynamic_threshold: int) -> str:
+        """Determines processing mode per requested policy:
+        - any workers     => prefer static (tile-based) for USDU
+        - no workers      => single_gpu
+        """
+        if num_workers == 0:
+            return "single_gpu"
+        # Default to static when distributed; master/worker may still override if special cases arise
+        return "static"
+
+# Ensure initialization before registering routes
+ensure_tile_jobs_initialized()
+
+# Node registration
+NODE_CLASS_MAPPINGS = {
+    "UltimateSDUpscaleDistributed": UltimateSDUpscaleDistributed,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "UltimateSDUpscaleDistributed": "Ultimate SD Upscale Distributed (No Upscale)",
+}

@@ -1,16 +1,24 @@
 <div align="center">
 
 # Z-Image Power Nodes <br><sub><sup><i>Pushing the best image generation model to its limits!</i></sup></sub>
+[![Last](https://img.shields.io/badge/CivitAI%3A-Z--Image%3APower%3ANodes-EEE?labelColor=1971C2&logo=c%2B%2B&logoColor=white)](https://civitai.com/models/2322533/z-image-power-nodes)  
 [![Platform](https://img.shields.io/badge/platform%3A-ComfyUI-007BFF)](#)
 [![License](https://img.shields.io/github/license/martin-rizzo/ComfyUI-ZImagePowerNodes?label=license%3A&color=28A745)](#)
 [![Version](https://img.shields.io/github/v/tag/martin-rizzo/ComfyUI-ZImagePowerNodes?label=version%3A&color=D07250)](#)
-[![Last](https://img.shields.io/github/last-commit/martin-rizzo/ComfyUI-ZImagePowerNodes?label=last%20commit%3A)](#)
-
-<img src="banner_readme.jpg" width="66%"></img>
+[![Last](https://img.shields.io/github/last-commit/martin-rizzo/ComfyUI-ZImagePowerNodes?label=last%20commit%3A)](#)  
+<img src="banner_readme.jpg" width="90%"></img>
 
 </div>
 
-**ComfyUI-ZImagePowerNodes** is a collection of custom nodes designed and refined specifically for the [Z-Image model](https://github.com/Tongyi-MAI/Z-Image). They are based on some ideas and discoveries I made while developing the [Amazing Z-Image Workflow](https://github.com/martin-rizzo/AmazingZImageWorkflow).
+**Z-Image Power Nodes** is a collection of nodes designed specifically for the [Z-Image / Z-Image Turbo model](https://github.com/Tongyi-MAI/Z-Image). They are based on some ideas and discoveries I made while developing the [Amazing Z-Image Workflow](https://github.com/martin-rizzo/AmazingZImageWorkflow).
+
+❤️ If you find these nodes useful or they’ve helped you in your projects, please consider supporting my work.
+Your support allows me to continue researching and creating new developments within the open source community.  
+There are several ways to do so:
+  - **Give the repository a star:** if we reach 500 stars, big things could happen!
+  - **Ko-fi:** [https://ko-fi.com/martinrizzo](https://ko-fi.com/martinrizzo)
+
+*Every contribution, no matter how small, is greatly appreciated! Thank you.*
 
 
 ## Table of Contents
@@ -18,44 +26,41 @@
 2. [Examples](#examples)
 3. [Installation](#installation)
 4. [Recommended Checkpoints](#recommended-checkpoints)
-5. [❤️ Support my work](#%EF%B8%8F-support-my-work)
-6. [License](#license)
+5. [License](#license)
 
 ## Nodes
 
-### ⚡ ZSampler Turbo
- * A specialized sampler designed to divide the denoising process into three stages: composition, details, and refinement. It maintains image stability between 4 and 9 steps and achieves sufficient quality and detail starting from step 7, eliminating the need for further refining or post-processing. \
-   **["ZSampler Turbo" node documentation](docs/zsampler_turbo.md)**.
-
-### ⚡ Style & Prompt Encoder
- * Applies a selected visual styles to the prompt and encodes them using a text-encoder model (clip). Enables generating images that follow the desired aesthetic while guiding the diffusion process. \
-   **["Style Prompt Encoder" node documentation](docs/style_prompt_encoder.md)**
-
-### ⚡ Style String Injector
- * Seamlessly integrates a chosen style into your prompt text. It accepts a string as input and modifies it based on the selected style. \
-   **["Style String Injector" node documentation](docs/style_string_injector.md)**
-
-### ⚡ Save Image
- * Saves generated images with the option to embed CivitAI-compatible metadata, making it easy to share generation parameters through that platform. \
-   **["Save Image" node documentation](docs/save_image.md)**.
-
-### ⚡ Empty Z-Image Latent Image
- * Creates an empty latent image of the appropriate size for Z-Image, selecting aspect ratio, scale, and orientation.  \
-   **["Empty Z-Image Latent Image" node documentation](docs/empty_zimage_latent_image.md)**.
-
-### 💀 ~~Photo-Style Prompt Encoder~~
- * Deprecated, use "Style & Prompt Encoder" node.
-
-### 💀 ~~Illustration-Style Prompt Encoder~~
- * Deprecated, use "Style & Prompt Encoder" node.
-
+* __[⚡Z-Sampler Turbo](docs/zsampler_turbo.md)__  
+<sub>A specialized sampler designed to Z-Image Turbo that achieves sufficient quality to eliminate the need for further post-processing.</sub>
+* __[⚡Style Prompt Encoder](docs/style_prompt_encoder.md)__  
+<sub>Applies a selected visual styles to your prompt and encodes both of them using a text-encoder model (clip).
+* __[⚡Style String Injector](docs/style_string_injector.md)__  
+<sub>Seamlessly integrates a chosen style into your prompt text. It accepts a string as input and modifies it based on the selected style.</sub>
+* __[⚡My Top-10 Styles](docs/my_top_10_styles.md)__  
+<sub>Allows you to create a list of favorite styles for quick selection of your most used ones.</sub>
+* __[⚡VAE Encode (for Soft Inpainting)](docs/vae_encode_for_soft_inpainting.md)__  
+<sub>Encodes images into a latent representation, embedding the mask that indicates where inpainting will be applied.</sub>
+* __[⚡Save Image](docs/save_image.md)__  
+<sub>Saves generated images with the option to embed CivitAI-compatible metadata, making it easy to share generation parameters through that platform.</sub>
+* __[⚡Empty Z-Image Latent Image](docs/empty_zimage_latent_image.md)__  
+<sub>Creates an empty latent image of the appropriate size for Z-Image, selecting aspect ratio, scale, and orientation.</sub>
 
 
 ## Examples
 
-A few example workflows demonstrating basic usage of these nodes can be found in the **[/workflows](/workflows)** directory.
+[__/workflows__](/workflows)  
+This folder contains reference workflows demonstrating the use of the Power Nodes across various tasks.
+These are simple yet powerful examples that serve as an excellent resource for understanding how to utilize
+each node.
 
-And hundreds of images generated with Z-Image model and the Power Nodes are available on the **[Z-Image Power Nodes page on CivitAI](https://civitai.com/models/2322533)**. The images posted by me include their prompts and complete generation workflows and you can use them freely as a basis for your own images. Additionally, there are also many users sharing their amazing creations there.
+[__/styles/samples_wf__](/styles/samples_wf)  
+This folder includes all the workflows used to generate the thumbnail images in the styles gallery.
+
+[__Z-Image Power Nodes on CivitAI__](https://civitai.com/models/2322533)  
+Explore hundreds of images generated using the Z-Image model and the Power Nodes. Images posted by me
+come with their prompts and complete generation workflows, which you can freely use as a starting point
+for your own generations. Additionally, many users share their amazing creations in this community.
+
 
 ## Installation
 _Ensure you have the latest version of [ComfyUi](https://github.com/comfyanonymous/ComfyUI)._
@@ -130,17 +135,6 @@ Note: ComfyUI does not natively support GGUF format, so you need to install the 
  - __[ae.safetensors](https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors)__ <sub>(335 MB)</sub>\
    Local Directory: __`ComfyUI/models/vae/`__
 
-## ❤️ Support my work
-
-If you find these nodes useful or it has helped you in your projects, please consider becoming a sponsor. Your support allows me to keep my tools free and accessible for everyone.
-
-- **Ko-fi:** https://ko-fi.com/martinrizzo
-
-<!--
-[![Sponsor](https://img.shields.io/badge/Sponsor-@martin_rizzo-2ea44f?style=for-the-badge&logo=github-sponsors&logoColor=white)](https://github.com/sponsors/martin-rizzo)
--->
-
-*Every contribution, no matter how small, is greatly appreciated!*
 
 ## License
 

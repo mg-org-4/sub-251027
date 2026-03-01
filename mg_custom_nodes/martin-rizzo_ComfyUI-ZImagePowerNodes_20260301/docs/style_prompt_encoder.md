@@ -3,13 +3,16 @@
 
 Encodes the result of fusing a prompt with a visual style, generating embeddings that guide the diffusion process. This node is similar to ComfyUI's native "CLIP Text Encode (Prompt)", but it includes the option to select a visual style for the generated image.
 
+
 ## Inputs
 
 ### clip
 The text encoder model used to encode the prompt and style.
 
 ### customization
-Optional input that can remain disconnected. Allows users to configure styles according to their preferences by connecting a multi-line string that redefines one or more available styles. Each style definition starts with ">>>" followed by the name of the style, then includes lines describing the template for that style. The template must include "{$@}" where the user's prompt will be inserted.
+Optional input that can remain disconnected, allows redefining the internal settings of predefined styles.  
+You can connect either a multi-line string containing the custom configurations or a "My Top-10 Styles" node.  
+If a multi-line string node is connected, its text should follow this format: each style definition starts with ">>>" followed by the name, then includes lines describing the style template. The template must include "{$@}" where the user's prompt will be inserted.
 
 Example:
 ```
@@ -33,13 +36,16 @@ YOUR PHOTO:
 ```
 
 ### style
-Selects the desired style to apply or "none" if you prefer not to use any predefined style.
+Displays the currently active style, or "none" if no style will be applied.
 
-### "Select Style..."
-....
+### \<Select Style button\>
+Opens the style gallery to browse and choose from available styles easily.  
+This includes search functionality, filtering options, and a sample image
+showing what each style would look like.
 
 ### text
 This is where you input your prompt. For better style application, avoid including messages in the prompt that might interfere with the selected style.
+
 
 ## Outputs
 

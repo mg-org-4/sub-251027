@@ -25,6 +25,16 @@ import {
 
 import { renderDistributionSection } from './conf-builder-distribution.js';
 
+// Debounced renderUI to batch rapid state changes and avoid redundant full rebuilds
+let _renderUITimer = null;
+function debouncedRenderUI(node) {
+    if (_renderUITimer) clearTimeout(_renderUITimer);
+    _renderUITimer = setTimeout(() => {
+        _renderUITimer = null;
+        node.renderUI();
+    }, 150);
+}
+
 // --- SESSION SECTION RENDERER ---
 
 export function renderSessionSection(node, container, availableSessions, refreshAllConfigBuilders) {
@@ -112,7 +122,8 @@ export function renderConfigSection(node, container, availableConfigs) {
     saveBtn.style.width = "100%";
     saveBtn.onclick = async () => {
         await node.saveConfigToBackend();
-        const { getAvailableConfigs } = await import('./conf-builder-utilities.js');
+        const { getAvailableConfigs, clearConfigsCache } = await import('./conf-builder-utilities.js');
+        clearConfigsCache();  // Invalidate so getAvailableConfigs fetches fresh list
         await getAvailableConfigs();
         node.renderUI();
     };
@@ -389,7 +400,7 @@ export function createConfigArrayElement(node, configArray, arrayIdx, modelLists
         if (!node.state.config_arrays[arrayIdx].models) node.state.config_arrays[arrayIdx].models = [];
         node.state.config_arrays[arrayIdx].models.push("None");
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     controlsBar.appendChild(addModelBtn);
 
@@ -401,7 +412,7 @@ export function createConfigArrayElement(node, configArray, arrayIdx, modelLists
         if (!node.state.config_arrays[arrayIdx].vaes) node.state.config_arrays[arrayIdx].vaes = [];
         node.state.config_arrays[arrayIdx].vaes.push("None");
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     controlsBar.appendChild(addVaeBtn);
 
@@ -413,7 +424,7 @@ export function createConfigArrayElement(node, configArray, arrayIdx, modelLists
         if (!node.state.config_arrays[arrayIdx].loras) node.state.config_arrays[arrayIdx].loras = [];
         node.state.config_arrays[arrayIdx].loras.push("None");
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     controlsBar.appendChild(addLoraBtn);
 
@@ -548,7 +559,7 @@ export function createModelElement(node, modelEntry, arrayIdx, modelIdx, modelLi
     deleteBtn.onclick = () => {
         node.state.config_arrays[arrayIdx].models.splice(modelIdx, 1);
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     header.appendChild(deleteBtn);
     div.appendChild(header);
@@ -588,7 +599,7 @@ export function createModelElement(node, modelEntry, arrayIdx, modelIdx, modelLi
             ? "None"
             : { path: "None", type: newType };
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     contentDiv.appendChild(modelTypeSelect);
 
@@ -608,7 +619,7 @@ export function createModelElement(node, modelEntry, arrayIdx, modelIdx, modelLi
             node.state.config_arrays[arrayIdx].models[modelIdx] = { path: newVal, type: modelType };
         }
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     contentDiv.appendChild(typeSelect);
 
@@ -643,7 +654,7 @@ export function createModelElement(node, modelEntry, arrayIdx, modelIdx, modelLi
                 node.state.config_arrays[arrayIdx].models[modelIdx] = { path: normalized, type: modelType };
             }
             node.saveState();
-            node.renderUI();
+            debouncedRenderUI(node);
         },
         isFolder ? "Search folders..." : "Search models..."
     );
@@ -666,7 +677,7 @@ export function createModelElement(node, modelEntry, arrayIdx, modelIdx, modelLi
                 const expanded = matchingModels.map(m => modelType === "checkpoint" ? m : { path: m, type: modelType });
                 node.state.config_arrays[arrayIdx].models.splice(modelIdx, 1, ...expanded);
                 node.saveState();
-                node.renderUI();
+                debouncedRenderUI(node);
             } else {
                 alert(`No models found in folder: ${folderPrefix}`);
             }
@@ -817,7 +828,7 @@ export function createLoraElement(node, loraStr, arrayIdx, loraIdx, availableLor
     deleteBtn.onclick = () => {
         node.state.config_arrays[arrayIdx].loras.splice(loraIdx, 1);
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     header.appendChild(deleteBtn);
     div.appendChild(header);
@@ -858,7 +869,7 @@ export function createLoraElement(node, loraStr, arrayIdx, loraIdx, availableLor
         else if (typeSelect.value === "combined") node.state.config_arrays[arrayIdx].loras[loraIdx] = buildLoraString("/*", currentModelStr, currentClipStr);
         else node.state.config_arrays[arrayIdx].loras[loraIdx] = buildLoraString("None", currentModelStr, currentClipStr);
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     contentDiv.appendChild(typeSelect);
 
@@ -877,7 +888,7 @@ export function createLoraElement(node, loraStr, arrayIdx, loraIdx, availableLor
                 : normalizePath(selectedName);
             node.state.config_arrays[arrayIdx].loras[loraIdx] = buildLoraString(finalName, currentModelStr, currentClipStr);
             node.saveState();
-            node.renderUI();
+            debouncedRenderUI(node);
         },
         isFolder ? "Search folders..." : "Search LoRAs..."
     );
@@ -972,7 +983,7 @@ export function createLoraElement(node, loraStr, arrayIdx, loraIdx, availableLor
             }
 
             node.saveState();
-            node.renderUI(); // Re-render to show/hide CLIP slider
+            debouncedRenderUI(node); // Re-render to show/hide CLIP slider
         };
 
         strengthLockLabel.appendChild(strengthLockCheck);
@@ -1055,6 +1066,14 @@ export function createLoraElement(node, loraStr, arrayIdx, loraIdx, availableLor
         metadataBtn.onclick = async () => await showLoraMetadataModal(node, arrayIdx, parsed.name);
         moreOptionsContent.appendChild(metadataBtn);
 
+        // 4. Edit Trigger Words Button
+        const editTriggersBtn = document.createElement("button");
+        editTriggersBtn.className = "cb-button";
+        editTriggersBtn.style.cssText = `width: 100%; background: linear-gradient(135deg, #336633, #446644); border-left: 4px solid #66cc66; margin-top: 4px;`;
+        editTriggersBtn.textContent = "✏️ Edit Trigger Words";
+        editTriggersBtn.onclick = async () => await showEditTriggersModal(node, arrayIdx, parsed.name);
+        moreOptionsContent.appendChild(editTriggersBtn);
+
         moreOptionsSection.appendChild(moreOptionsContent);
         contentDiv.appendChild(moreOptionsSection);
     }
@@ -1077,7 +1096,7 @@ export function createLoraElement(node, loraStr, arrayIdx, loraIdx, availableLor
                 const withStrengths = matchingLoras.map(l => buildLoraString(l, parsed.model_str, parsed.clip_str));
                 node.state.config_arrays[arrayIdx].loras.splice(loraIdx, 1, ...withStrengths);
                 node.saveState();
-                node.renderUI();
+                debouncedRenderUI(node);
             } else {
                 alert(`No LoRAs found in folder: ${cleanName}`);
             }
@@ -1109,7 +1128,7 @@ async function fetchLoraTriggersForOmit(node, arrayIdx, loraName) {
 }
 
 // New modal for LoRA metadata lookup
-async function showLoraMetadataModal(node, arrayIdx, loraName) {
+async function showLoraMetadataModal(node, arrayIdx, loraName, forceRefresh = false) {
     const overlay = document.createElement("div");
     overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; z-index: 10000;`;
 
@@ -1163,7 +1182,7 @@ async function showLoraMetadataModal(node, arrayIdx, loraName) {
         const resp = await fetch("/configbuilder/lookup_lora_metadata", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lora_name: loraName })
+            body: JSON.stringify({ lora_name: loraName, force_refresh: forceRefresh })
         });
 
         if (!resp.ok) {
@@ -1188,9 +1207,20 @@ async function showLoraMetadataModal(node, arrayIdx, loraName) {
             const cacheBanner = document.createElement("div");
             cacheBanner.style.cssText = "background: #553300; border: 2px solid #ffaa00; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px; text-align: center;";
             cacheBanner.innerHTML = `
-                <div style="font-size: 14px; font-weight: bold; color: #ffaa00;">⚠️ READ FROM DISK CACHE</div>
+                <div style="font-size: 16px; font-weight: bold; color: #ffaa00;">⚠️ READ FROM DISK CACHE</div>
                 <div style="font-size: 12px; color: #ccaa66; margin-top: 4px;">Last looked up on: <strong>${data.cache_date || 'Unknown'}</strong></div>
             `;
+            const refetchBtn = document.createElement("button");
+            refetchBtn.className = "cb-button";
+            refetchBtn.style.cssText = "margin-top: 8px; background: #664400; border: 1px solid #ffaa00; color: #ffcc44; font-size: 12px; padding: 6px 16px;";
+            refetchBtn.textContent = "🔄 Re-fetch from CivitAI Now";
+            refetchBtn.onclick = async () => {
+                refetchBtn.disabled = true;
+                refetchBtn.textContent = "🔄 Fetching...";
+                closeModal();
+                await showLoraMetadataModal(node, arrayIdx, loraName, true);
+            };
+            cacheBanner.appendChild(refetchBtn);
             content.appendChild(cacheBanner);
         }
 
@@ -1329,7 +1359,7 @@ async function showLoraMetadataModal(node, arrayIdx, loraName) {
 }
 
 // Modal for Model/Checkpoint metadata lookup from CivitAI
-async function showModelMetadataModal(node, arrayIdx, modelName, modelType) {
+async function showModelMetadataModal(node, arrayIdx, modelName, modelType, forceRefresh = false) {
     const overlay = document.createElement("div");
     overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; z-index: 10000;`;
 
@@ -1384,7 +1414,7 @@ async function showModelMetadataModal(node, arrayIdx, modelName, modelType) {
         const resp = await fetch("/configbuilder/lookup_model_metadata", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model_name: modelName, model_type: modelType })
+            body: JSON.stringify({ model_name: modelName, model_type: modelType, force_refresh: forceRefresh })
         });
 
         if (!resp.ok) {
@@ -1418,9 +1448,20 @@ async function showModelMetadataModal(node, arrayIdx, modelName, modelType) {
             const cacheBanner = document.createElement("div");
             cacheBanner.style.cssText = "background: #553300; border: 2px solid #ffaa00; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px; text-align: center;";
             cacheBanner.innerHTML = `
-                <div style="font-size: 14px; font-weight: bold; color: #ffaa00;">⚠️ READ FROM DISK CACHE</div>
+                <div style="font-size: 16px; font-weight: bold; color: #ffaa00;">⚠️ READ FROM DISK CACHE</div>
                 <div style="font-size: 12px; color: #ccaa66; margin-top: 4px;">Last looked up on: <strong>${data.cache_date || 'Unknown'}</strong></div>
             `;
+            const refetchBtn = document.createElement("button");
+            refetchBtn.className = "cb-button";
+            refetchBtn.style.cssText = "margin-top: 8px; background: #664400; border: 1px solid #ffaa00; color: #ffcc44; font-size: 12px; padding: 6px 16px;";
+            refetchBtn.textContent = "🔄 Re-fetch from CivitAI Now";
+            refetchBtn.onclick = async () => {
+                refetchBtn.disabled = true;
+                refetchBtn.textContent = "🔄 Fetching...";
+                closeModal();
+                await showModelMetadataModal(node, arrayIdx, modelName, modelType, true);
+            };
+            cacheBanner.appendChild(refetchBtn);
             content.appendChild(cacheBanner);
         }
 
@@ -1558,6 +1599,177 @@ async function showModelMetadataModal(node, arrayIdx, modelName, modelType) {
     modal.appendChild(closeBtn);
 }
 
+// ============================================================
+// Trigger Word Editor Modal
+// ============================================================
+async function showEditTriggersModal(node, arrayIdx, loraName) {
+    // Build modal overlay (same pattern as metadata modals)
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 10000; display: flex; align-items: center; justify-content: center;";
+
+    const modal = document.createElement("div");
+    modal.style.cssText = "background: #1a1a1a; border: 2px solid #66cc66; border-radius: 12px; padding: 25px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative;";
+
+    const closeModal = () => { if (document.body.contains(overlay)) document.body.removeChild(overlay); };
+    overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+    document.addEventListener("keydown", function escHandler(e) {
+        if (e.key === "Escape") { closeModal(); document.removeEventListener("keydown", escHandler); }
+    });
+
+    // Close X button
+    const closeX = document.createElement("button");
+    closeX.textContent = "✕";
+    closeX.style.cssText = "position: absolute; top: 10px; right: 15px; background: none; border: none; color: #ff4444; font-size: 20px; cursor: pointer;";
+    closeX.onclick = closeModal;
+    modal.appendChild(closeX);
+
+    // Title
+    const title = document.createElement("h3");
+    title.textContent = "✏️ Edit Trigger Words";
+    title.style.cssText = "margin: 0 0 5px 0; color: #66cc66;";
+    modal.appendChild(title);
+
+    const subtitle = document.createElement("div");
+    subtitle.style.cssText = "font-size: 12px; color: #888; margin-bottom: 15px;";
+    subtitle.textContent = loraName.split('/').pop();
+    modal.appendChild(subtitle);
+
+    const status = document.createElement("div");
+    status.textContent = "🔄 Loading trigger words...";
+    status.style.cssText = "margin-bottom: 15px; color: #aaa; font-size: 12px;";
+    modal.appendChild(status);
+
+    const chipsContainer = document.createElement("div");
+    chipsContainer.style.cssText = "display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; min-height: 30px; padding: 8px; background: #111; border: 1px solid #333; border-radius: 6px;";
+    modal.appendChild(chipsContainer);
+
+    // Input row
+    const inputRow = document.createElement("div");
+    inputRow.style.cssText = "display: flex; gap: 6px; margin-bottom: 15px;";
+    const input = document.createElement("input");
+    input.className = "cb-input";
+    input.type = "text";
+    input.placeholder = "Add new trigger word...";
+    input.style.cssText = "flex: 1; padding: 6px 10px; font-size: 12px;";
+    const addWordBtn = document.createElement("button");
+    addWordBtn.className = "cb-button primary";
+    addWordBtn.textContent = "+ Add";
+    addWordBtn.style.cssText = "padding: 6px 12px; font-size: 12px;";
+    inputRow.appendChild(input);
+    inputRow.appendChild(addWordBtn);
+    modal.appendChild(inputRow);
+
+    // Button row
+    const btnRow = document.createElement("div");
+    btnRow.style.cssText = "display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;";
+
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "cb-button";
+    saveBtn.style.cssText = "background: #336633; border: 1px solid #66cc66; color: #88ff88; padding: 8px 20px;";
+    saveBtn.textContent = "💾 Save";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "cb-button";
+    cancelBtn.style.cssText = "background: #333; color: #aaa; padding: 8px 20px;";
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.onclick = closeModal;
+
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(saveBtn);
+    modal.appendChild(btnRow);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // State
+    let currentTriggers = [];
+
+    function renderTriggerChips() {
+        chipsContainer.innerHTML = "";
+        if (currentTriggers.length === 0) {
+            const empty = document.createElement("span");
+            empty.style.cssText = "color: #666; font-size: 11px; font-style: italic;";
+            empty.textContent = "No trigger words";
+            chipsContainer.appendChild(empty);
+            return;
+        }
+        currentTriggers.forEach((trigger, idx) => {
+            const chip = document.createElement("span");
+            chip.style.cssText = "background: #224422; border: 1px solid #448844; color: #aaffaa; padding: 3px 8px; border-radius: 12px; font-size: 11px; display: flex; align-items: center; gap: 4px;";
+            chip.textContent = trigger;
+            const removeBtn = document.createElement("span");
+            removeBtn.textContent = "×";
+            removeBtn.style.cssText = "cursor: pointer; color: #ff6666; font-weight: bold; margin-left: 2px;";
+            removeBtn.onclick = () => {
+                currentTriggers.splice(idx, 1);
+                renderTriggerChips();
+            };
+            chip.appendChild(removeBtn);
+            chipsContainer.appendChild(chip);
+        });
+    }
+
+    function addTriggerWord() {
+        const word = input.value.trim();
+        if (word && !currentTriggers.includes(word)) {
+            currentTriggers.push(word);
+            renderTriggerChips();
+            input.value = "";
+        }
+        input.focus();
+    }
+
+    addWordBtn.onclick = addTriggerWord;
+    input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); addTriggerWord(); } };
+
+    saveBtn.onclick = async () => {
+        saveBtn.disabled = true;
+        saveBtn.textContent = "💾 Saving...";
+        try {
+            const resp = await fetch("/configbuilder/save_lora_triggers", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ lora_name: loraName, triggers: currentTriggers })
+            });
+            if (resp.ok) {
+                status.textContent = "✅ Trigger words saved!";
+                status.style.color = "#66ff66";
+                setTimeout(closeModal, 800);
+            } else {
+                const err = await resp.json();
+                status.textContent = "❌ Error: " + (err.error || "Save failed");
+                status.style.color = "#ff6666";
+                saveBtn.disabled = false;
+                saveBtn.textContent = "💾 Save";
+            }
+        } catch (e) {
+            status.textContent = "❌ Error: " + e.message;
+            status.style.color = "#ff6666";
+            saveBtn.disabled = false;
+            saveBtn.textContent = "💾 Save";
+        }
+    };
+
+    // Fetch current triggers
+    try {
+        const resp = await fetch(`/configbuilder/get_lora_triggers?lora_name=${encodeURIComponent(loraName)}`);
+        if (resp.ok) {
+            const data = await resp.json();
+            currentTriggers = data.triggers || [];
+            status.textContent = `Loaded ${currentTriggers.length} trigger word(s)`;
+            status.style.color = "#88ff88";
+        } else {
+            status.textContent = "⚠️ No triggers found (you can add new ones)";
+            status.style.color = "#ffaa00";
+        }
+    } catch (e) {
+        status.textContent = "⚠️ Could not load triggers: " + e.message;
+        status.style.color = "#ffaa00";
+    }
+    renderTriggerChips();
+    input.focus();
+}
+
 
 // --- RENDER MODELS AND LORAS SECTIONS ---
 
@@ -1633,7 +1845,7 @@ export function renderModelsSection(node, div, configArray, arrayIdx, modelLists
     addBtn.onclick = () => {
         node.state.config_arrays[arrayIdx].models.push("None");
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     addRow.appendChild(addBtn);
     contentContainer.appendChild(addRow);
@@ -1766,7 +1978,7 @@ function renderTextEncodersSection(node, container, configArray, arrayIdx, model
         delBtn.onclick = () => {
             node.state.config_arrays[arrayIdx].text_encoders.splice(teIdx, 1);
             node.saveState();
-            node.renderUI();
+            debouncedRenderUI(node);
         };
         teRow.appendChild(delBtn);
         section.appendChild(teRow);
@@ -1783,7 +1995,7 @@ function renderTextEncodersSection(node, container, configArray, arrayIdx, model
         }
         node.state.config_arrays[arrayIdx].text_encoders.push("None");
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     section.appendChild(addTeBtn);
 
@@ -1920,13 +2132,356 @@ export function renderVAEsSection(node, div, configArray, arrayIdx, modelLists) 
     addBtn.onclick = () => {
         node.state.config_arrays[arrayIdx].vaes.push("None");
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     addRow.appendChild(addBtn);
     contentContainer.appendChild(addRow);
 
     vaeGrid.appendChild(contentContainer);
     div.appendChild(vaeGrid);
+}
+
+// --- EXTRA MODEL & SAMPLING OPTIONS SECTION ---
+
+export function renderExtraModelSamplingSection(node, div, configArray, arrayIdx) {
+    // Default collapsed per design
+    const isSectionCollapsed = node.uiState.extraOptionsSectionCollapsed?.[arrayIdx] !== false;
+
+    const sectionGrid = document.createElement("div");
+    sectionGrid.className = "cb-list-grid";
+
+    const sectionHeader = document.createElement("div");
+    sectionHeader.className = "cb-section-toggle";
+    sectionHeader.style.cssText = "padding: 8px; background: #3a3a3a; border-radius: 4px; margin-bottom: 8px; font-weight: bold; color: #ffaa00;";
+
+    const titleSpan = document.createElement("span");
+    titleSpan.textContent = "Extra Model & Sampling Options";
+    sectionHeader.appendChild(titleSpan);
+
+    const arrowSpan = document.createElement("span");
+    arrowSpan.textContent = isSectionCollapsed ? "▶" : "▼";
+    sectionHeader.appendChild(arrowSpan);
+
+    sectionGrid.appendChild(sectionHeader);
+
+    const contentContainer = document.createElement("div");
+    contentContainer.style.display = isSectionCollapsed ? "none" : "contents";
+
+    sectionHeader.onclick = () => {
+        const isNowCollapsed = contentContainer.style.display === "none";
+        if (isNowCollapsed) {
+            contentContainer.style.display = "contents";
+            arrowSpan.textContent = "▼";
+            if (!node.uiState.extraOptionsSectionCollapsed) node.uiState.extraOptionsSectionCollapsed = {};
+            node.uiState.extraOptionsSectionCollapsed[arrayIdx] = false;
+        } else {
+            contentContainer.style.display = "none";
+            arrowSpan.textContent = "▶";
+            if (!node.uiState.extraOptionsSectionCollapsed) node.uiState.extraOptionsSectionCollapsed = {};
+            node.uiState.extraOptionsSectionCollapsed[arrayIdx] = true;
+        }
+    };
+
+    const innerWrapper = document.createElement("div");
+    innerWrapper.style.cssText = "padding: 4px 8px; display: flex; flex-direction: column; gap: 12px;";
+
+    // ========== SUB-GROUP 1: Model Sampling Override ==========
+    const group1 = document.createElement("div");
+    group1.style.cssText = "border-left: 3px solid #ffaa00; padding-left: 8px;";
+
+    const group1Header = document.createElement("div");
+    group1Header.style.cssText = "font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #ffaa00;";
+    group1Header.textContent = "MODEL SAMPLING OVERRIDE";
+    group1.appendChild(group1Header);
+
+    const group1Info = document.createElement("div");
+    group1Info.style.cssText = "font-size: 10px; color: #888; font-style: italic; margin-bottom: 6px;";
+    group1Info.textContent = "Patches the model's internal noise schedule for specific model families";
+    group1.appendChild(group1Info);
+
+    // Dropdown: None / AuraFlow / Flux / SD3
+    const overrideRow = document.createElement("div");
+    overrideRow.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 6px;";
+    const overrideLabel = document.createElement("label");
+    overrideLabel.textContent = "Override:";
+    overrideLabel.style.cssText = "color: #aaa; font-size: 11px; white-space: nowrap; min-width: 55px;";
+    overrideRow.appendChild(overrideLabel);
+
+    const overrideSelect = document.createElement("select");
+    overrideSelect.className = "cb-select";
+    overrideSelect.style.cssText = "flex: 1; max-width: 200px;";
+    [["none", "None"], ["aura_flow", "AuraFlow (Qwen Image)"], ["flux", "Flux"], ["sd3", "SD3"]].forEach(([val, label]) => {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = label;
+        if (configArray.model_sampling_override === val) opt.selected = true;
+        overrideSelect.appendChild(opt);
+    });
+    overrideRow.appendChild(overrideSelect);
+    group1.appendChild(overrideRow);
+
+    // Conditional params container
+    const paramsContainer = document.createElement("div");
+    paramsContainer.style.cssText = "margin-top: 4px;";
+
+    function updateParamsVisibility() {
+        paramsContainer.innerHTML = "";
+        const override = configArray.model_sampling_override;
+
+        if (override === "aura_flow" || override === "sd3") {
+            // Single shift param
+            const row = document.createElement("div");
+            row.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 4px;";
+            const lbl = document.createElement("label");
+            lbl.textContent = "Shift:";
+            lbl.style.cssText = "color: #aaa; font-size: 11px; white-space: nowrap; min-width: 55px;";
+            row.appendChild(lbl);
+            const inp = document.createElement("input");
+            inp.type = "text";
+            inp.className = "cb-input";
+            inp.style.cssText = "width: 120px;";
+            inp.value = configArray.model_sampling_shift || (override === "sd3" ? "3.0" : "1.73");
+            inp.placeholder = override === "sd3" ? "3.0" : "1.73";
+            inp.title = "Comma-separated values for grid testing";
+            inp.onchange = () => {
+                configArray.model_sampling_shift = inp.value;
+                node.saveState();
+            };
+            row.appendChild(inp);
+            const hint = document.createElement("span");
+            hint.style.cssText = "font-size: 10px; color: #666;";
+            hint.textContent = override === "sd3" ? "(default: 3.0, multiplier: 1000)" : "(default: 1.73, multiplier: 1.0)";
+            row.appendChild(hint);
+            paramsContainer.appendChild(row);
+        } else if (override === "flux") {
+            // Max shift
+            const row1 = document.createElement("div");
+            row1.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 4px;";
+            const lbl1 = document.createElement("label");
+            lbl1.textContent = "Max Shift:";
+            lbl1.style.cssText = "color: #aaa; font-size: 11px; white-space: nowrap; min-width: 55px;";
+            row1.appendChild(lbl1);
+            const inp1 = document.createElement("input");
+            inp1.type = "text";
+            inp1.className = "cb-input";
+            inp1.style.cssText = "width: 120px;";
+            inp1.value = configArray.model_sampling_flux_max_shift || "1.15";
+            inp1.placeholder = "1.15";
+            inp1.title = "Comma-separated values for grid testing";
+            inp1.onchange = () => {
+                configArray.model_sampling_flux_max_shift = inp1.value;
+                node.saveState();
+            };
+            row1.appendChild(inp1);
+            paramsContainer.appendChild(row1);
+
+            // Base shift
+            const row2 = document.createElement("div");
+            row2.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 4px;";
+            const lbl2 = document.createElement("label");
+            lbl2.textContent = "Base Shift:";
+            lbl2.style.cssText = "color: #aaa; font-size: 11px; white-space: nowrap; min-width: 55px;";
+            row2.appendChild(lbl2);
+            const inp2 = document.createElement("input");
+            inp2.type = "text";
+            inp2.className = "cb-input";
+            inp2.style.cssText = "width: 120px;";
+            inp2.value = configArray.model_sampling_flux_base_shift || "0.5";
+            inp2.placeholder = "0.5";
+            inp2.title = "Comma-separated values for grid testing";
+            inp2.onchange = () => {
+                configArray.model_sampling_flux_base_shift = inp2.value;
+                node.saveState();
+            };
+            row2.appendChild(inp2);
+            paramsContainer.appendChild(row2);
+
+            const hint = document.createElement("div");
+            hint.style.cssText = "font-size: 10px; color: #666;";
+            hint.textContent = "Dynamic shift computed from image dimensions";
+            paramsContainer.appendChild(hint);
+        }
+    }
+
+    overrideSelect.onchange = () => {
+        configArray.model_sampling_override = overrideSelect.value;
+        updateParamsVisibility();
+        node.saveState();
+    };
+    updateParamsVisibility();
+    group1.appendChild(paramsContainer);
+    innerWrapper.appendChild(group1);
+
+    // ========== SUB-GROUP 2: Advanced Sampling Pipeline ==========
+    const group2 = document.createElement("div");
+    group2.style.cssText = "border-left: 3px solid #ffaa00; padding-left: 8px;";
+
+    const group2Header = document.createElement("div");
+    group2Header.style.cssText = "font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #ffaa00;";
+    group2Header.textContent = "ADVANCED SAMPLING PIPELINE";
+    group2.appendChild(group2Header);
+
+    const group2Info = document.createElement("div");
+    group2Info.style.cssText = "font-size: 10px; color: #888; font-style: italic; margin-bottom: 6px;";
+    group2Info.textContent = "Replaces KSampler with explicit SamplerCustomAdvanced flow (Noise + Guider + Sampler + Sigmas)";
+    group2.appendChild(group2Info);
+
+    // Toggle checkbox
+    const toggleRow = document.createElement("div");
+    toggleRow.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 6px;";
+    const toggleLabel = document.createElement("label");
+    toggleLabel.style.cssText = "display: flex; align-items: center; gap: 6px; cursor: pointer;";
+    const toggleCheck = document.createElement("input");
+    toggleCheck.type = "checkbox";
+    toggleCheck.checked = configArray.use_advanced_sampling || false;
+    toggleCheck.style.cssText = "cursor: pointer;";
+    toggleLabel.appendChild(toggleCheck);
+    const toggleText = document.createElement("span");
+    toggleText.textContent = "Enable Advanced Sampling";
+    toggleText.style.cssText = "color: #ccc; font-size: 11px;";
+    toggleLabel.appendChild(toggleText);
+    toggleRow.appendChild(toggleLabel);
+    group2.appendChild(toggleRow);
+
+    // Sub-options container (shown when enabled)
+    const advancedOpts = document.createElement("div");
+    advancedOpts.style.cssText = "margin-left: 12px;";
+    advancedOpts.style.display = configArray.use_advanced_sampling ? "block" : "none";
+
+    // Guider dropdown
+    const guiderRow = document.createElement("div");
+    guiderRow.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 4px;";
+    const guiderLabel = document.createElement("label");
+    guiderLabel.textContent = "Guider:";
+    guiderLabel.style.cssText = "color: #aaa; font-size: 11px; white-space: nowrap; min-width: 55px;";
+    guiderRow.appendChild(guiderLabel);
+    const guiderSelect = document.createElement("select");
+    guiderSelect.className = "cb-select";
+    guiderSelect.style.cssText = "flex: 1; max-width: 200px;";
+    [["cfg_guider", "CFG Guider"], ["basic_guider", "Basic Guider (no CFG)"]].forEach(([val, label]) => {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = label;
+        if (configArray.advanced_guider === val) opt.selected = true;
+        guiderSelect.appendChild(opt);
+    });
+    guiderSelect.onchange = () => {
+        configArray.advanced_guider = guiderSelect.value;
+        node.saveState();
+    };
+    guiderRow.appendChild(guiderSelect);
+    advancedOpts.appendChild(guiderRow);
+
+    // Scheduler dropdown
+    const schedulerRow = document.createElement("div");
+    schedulerRow.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 4px;";
+    const schedulerLabel = document.createElement("label");
+    schedulerLabel.textContent = "Scheduler:";
+    schedulerLabel.style.cssText = "color: #aaa; font-size: 11px; white-space: nowrap; min-width: 55px;";
+    schedulerRow.appendChild(schedulerLabel);
+    const schedulerSelect = document.createElement("select");
+    schedulerSelect.className = "cb-select";
+    schedulerSelect.style.cssText = "flex: 1; max-width: 200px;";
+    [["basic", "Basic Scheduler"], ["flux2", "Flux2 Scheduler"]].forEach(([val, label]) => {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = label;
+        if (configArray.advanced_scheduler === val) opt.selected = true;
+        schedulerSelect.appendChild(opt);
+    });
+    schedulerSelect.onchange = () => {
+        configArray.advanced_scheduler = schedulerSelect.value;
+        node.saveState();
+    };
+    schedulerRow.appendChild(schedulerSelect);
+    advancedOpts.appendChild(schedulerRow);
+
+    const advancedHint = document.createElement("div");
+    advancedHint.style.cssText = "font-size: 10px; color: #666;";
+    advancedHint.textContent = "When ON, creates ON/OFF grid variants. Uses existing seed, sampler, cfg, and steps from config.";
+    advancedOpts.appendChild(advancedHint);
+
+    toggleCheck.onchange = () => {
+        configArray.use_advanced_sampling = toggleCheck.checked;
+        advancedOpts.style.display = toggleCheck.checked ? "block" : "none";
+        node.saveState();
+    };
+
+    group2.appendChild(advancedOpts);
+    innerWrapper.appendChild(group2);
+
+    // ========== SUB-GROUP 3: Flux Guidance ==========
+    const group3 = document.createElement("div");
+    group3.style.cssText = "border-left: 3px solid #ffaa00; padding-left: 8px;";
+
+    const group3Header = document.createElement("div");
+    group3Header.style.cssText = "font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #ffaa00;";
+    group3Header.textContent = "FLUX GUIDANCE";
+    group3.appendChild(group3Header);
+
+    const group3Info = document.createElement("div");
+    group3Info.style.cssText = "font-size: 10px; color: #888; font-style: italic; margin-bottom: 6px;";
+    group3Info.textContent = "Modifies positive conditioning with a guidance value (used by Flux models)";
+    group3.appendChild(group3Info);
+
+    // Toggle checkbox
+    const fluxToggleRow = document.createElement("div");
+    fluxToggleRow.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 6px;";
+    const fluxToggleLabel = document.createElement("label");
+    fluxToggleLabel.style.cssText = "display: flex; align-items: center; gap: 6px; cursor: pointer;";
+    const fluxToggleCheck = document.createElement("input");
+    fluxToggleCheck.type = "checkbox";
+    fluxToggleCheck.checked = configArray.use_flux_guidance || false;
+    fluxToggleCheck.style.cssText = "cursor: pointer;";
+    fluxToggleLabel.appendChild(fluxToggleCheck);
+    const fluxToggleText = document.createElement("span");
+    fluxToggleText.textContent = "Enable Flux Guidance";
+    fluxToggleText.style.cssText = "color: #ccc; font-size: 11px;";
+    fluxToggleLabel.appendChild(fluxToggleText);
+    fluxToggleRow.appendChild(fluxToggleLabel);
+    group3.appendChild(fluxToggleRow);
+
+    // Guidance value input (shown when enabled)
+    const fluxOpts = document.createElement("div");
+    fluxOpts.style.cssText = "margin-left: 12px;";
+    fluxOpts.style.display = configArray.use_flux_guidance ? "block" : "none";
+
+    const guidanceRow = document.createElement("div");
+    guidanceRow.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 4px;";
+    const guidanceLabel = document.createElement("label");
+    guidanceLabel.textContent = "Guidance:";
+    guidanceLabel.style.cssText = "color: #aaa; font-size: 11px; white-space: nowrap; min-width: 55px;";
+    guidanceRow.appendChild(guidanceLabel);
+    const guidanceInput = document.createElement("input");
+    guidanceInput.type = "text";
+    guidanceInput.className = "cb-input";
+    guidanceInput.style.cssText = "width: 120px;";
+    guidanceInput.value = configArray.flux_guidance_value || "3.5";
+    guidanceInput.placeholder = "3.5";
+    guidanceInput.title = "Comma-separated values for grid testing (range 0-100)";
+    guidanceInput.onchange = () => {
+        configArray.flux_guidance_value = guidanceInput.value;
+        node.saveState();
+    };
+    guidanceRow.appendChild(guidanceInput);
+    const guidanceHint = document.createElement("span");
+    guidanceHint.style.cssText = "font-size: 10px; color: #666;";
+    guidanceHint.textContent = "(default: 3.5, range: 0-100)";
+    guidanceRow.appendChild(guidanceHint);
+    fluxOpts.appendChild(guidanceRow);
+
+    fluxToggleCheck.onchange = () => {
+        configArray.use_flux_guidance = fluxToggleCheck.checked;
+        fluxOpts.style.display = fluxToggleCheck.checked ? "block" : "none";
+        node.saveState();
+    };
+
+    group3.appendChild(fluxOpts);
+    innerWrapper.appendChild(group3);
+
+    contentContainer.appendChild(innerWrapper);
+    sectionGrid.appendChild(contentContainer);
+    div.appendChild(sectionGrid);
 }
 
 // --- VAE ELEMENT CREATOR ---
@@ -2024,7 +2579,7 @@ function createVAEElement(node, vaeName, arrayIdx, vaeIdx, vaeList, vFolders) {
             node.state.config_arrays[arrayIdx].vaes = ["None"];
         }
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     header.appendChild(deleteBtn);
     div.appendChild(header);
@@ -2070,7 +2625,7 @@ function createVAEElement(node, vaeName, arrayIdx, vaeIdx, vaeList, vFolders) {
         }
         node.state.config_arrays[arrayIdx].vaes[vaeIdx] = newVal;
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     contentDiv.appendChild(typeSelect);
 
@@ -2110,7 +2665,7 @@ function createVAEElement(node, vaeName, arrayIdx, vaeIdx, vaeList, vFolders) {
             (value) => {
                 node.state.config_arrays[arrayIdx].vaes[vaeIdx] = normalizePath(value);
                 node.saveState();
-                node.renderUI();
+                debouncedRenderUI(node);
             },
             isFolder ? "Search folders..." : "Search VAEs..."
         );
@@ -2129,7 +2684,7 @@ function createVAEElement(node, vaeName, arrayIdx, vaeIdx, vaeList, vFolders) {
                 if (matchingVAEs.length > 0) {
                     node.state.config_arrays[arrayIdx].vaes.splice(vaeIdx, 1, ...matchingVAEs);
                     node.saveState();
-                    node.renderUI();
+                    debouncedRenderUI(node);
                 } else {
                     alert(`No VAEs found in folder: ${folderPrefix}`);
                 }
@@ -2215,7 +2770,7 @@ export function renderLorasSection(node, div, configArray, arrayIdx, availableLo
     addBtn.onclick = () => {
         node.state.config_arrays[arrayIdx].loras.push("None");
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     addRow.appendChild(addBtn);
     contentContainer.appendChild(addRow);
@@ -2475,7 +3030,7 @@ export async function showTriggerLookupModal(node, arrayIdx) {
             selectedTriggers.forEach(t => existing.add(t));
             node.state.config_arrays[arrayIdx].lora_omit_triggers = Array.from(existing);
             node.saveState();
-            node.renderUI();
+            debouncedRenderUI(node);
             document.body.removeChild(overlay);
         };
     } catch (error) {
@@ -2961,7 +3516,7 @@ export function renderConfigPromptsSection(node, div, configArray, arrayIdx) {
     toggleCheck.onchange = () => {
         node.state.config_arrays[arrayIdx].use_custom_prompts = toggleCheck.checked;
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     toggleLabel.appendChild(toggleCheck);
     toggleLabel.appendChild(document.createTextNode("Use Custom Prompts (Override Global/Node)"));
@@ -3164,7 +3719,7 @@ export async function renderUI(node, availableLoras, modelLists, loraFolders, av
     labelModeCheckbox.onchange = () => {
         node.state.label_mode = labelModeCheckbox.checked;
         node.saveState();
-        node.renderUI();
+        debouncedRenderUI(node);
     };
     labelModeLabel.appendChild(labelModeCheckbox);
     labelModeLabel.appendChild(document.createTextNode(" \u{1F3F7}\uFE0F Label Mode"));
@@ -3204,6 +3759,7 @@ export async function renderUI(node, availableLoras, modelLists, loraFolders, av
         const arrayElement = createConfigArrayElement(node, configArray, arrayIdx, modelLists);
         renderConfigPromptsSection(node, arrayElement, configArray, arrayIdx);
         renderModelsSection(node, arrayElement, configArray, arrayIdx, modelLists);
+        renderExtraModelSamplingSection(node, arrayElement, configArray, arrayIdx);
         renderVAEsSection(node, arrayElement, configArray, arrayIdx, modelLists);
         renderLorasSection(node, arrayElement, configArray, arrayIdx, availableLoras, loraFolders);
         arraysContainer.appendChild(arrayElement);

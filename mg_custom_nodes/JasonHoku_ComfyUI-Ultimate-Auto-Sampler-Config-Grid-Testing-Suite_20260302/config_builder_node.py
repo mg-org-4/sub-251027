@@ -531,6 +531,17 @@ class UltimateConfigBuilder:
             omit_triggers = config_array.get("lora_omit_triggers", [])
             lora_triggerwords_append_settings = config_array.get("lora_triggerwords_append_settings", {})
 
+            # Extra Model & Sampling Options
+            model_sampling_override = config_array.get("model_sampling_override", "none")
+            model_sampling_shift = config_array.get("model_sampling_shift", "1.73")
+            model_sampling_flux_max_shift = config_array.get("model_sampling_flux_max_shift", "1.15")
+            model_sampling_flux_base_shift = config_array.get("model_sampling_flux_base_shift", "0.5")
+            use_advanced_sampling = config_array.get("use_advanced_sampling", False)
+            advanced_guider = config_array.get("advanced_guider", "cfg_guider")
+            advanced_scheduler = config_array.get("advanced_scheduler", "basic")
+            use_flux_guidance = config_array.get("use_flux_guidance", False)
+            flux_guidance_value = config_array.get("flux_guidance_value", "3.5")
+
             # Process models - handle both object format {path, type} and legacy string format
             model_strings = []
             model_type = "checkpoint"  # default
@@ -590,6 +601,22 @@ class UltimateConfigBuilder:
             # Add trigger append settings if present
             if lora_triggerwords_append_settings and any(v != "none" for v in lora_triggerwords_append_settings.values()):
                 config["lora_triggerwords_append_settings"] = lora_triggerwords_append_settings
+
+            # Add extra model & sampling options if enabled
+            if model_sampling_override and model_sampling_override != "none":
+                config["model_sampling_override"] = model_sampling_override
+                if model_sampling_override == "flux":
+                    config["model_sampling_flux_max_shift"] = model_sampling_flux_max_shift
+                    config["model_sampling_flux_base_shift"] = model_sampling_flux_base_shift
+                else:
+                    config["model_sampling_shift"] = model_sampling_shift
+            if use_advanced_sampling:
+                config["use_advanced_sampling"] = True
+                config["advanced_guider"] = advanced_guider
+                config["advanced_scheduler"] = advanced_scheduler
+            if use_flux_guidance:
+                config["use_flux_guidance"] = True
+                config["flux_guidance_value"] = flux_guidance_value
 
             # ==== PROMPT HANDLING ====
             # Priority: per-config > global > node inputs (omitted = use node inputs)
@@ -679,7 +706,8 @@ async def lookup_lora_metadata_endpoint(request):
     try:
         data = await request.json()
         lora_name = data.get("lora_name", "")
-        
+        force_refresh = data.get("force_refresh", False)
+
         if not lora_name:
             return web.json_response({
                 "error": "No LoRA name provided"
@@ -692,7 +720,7 @@ async def lookup_lora_metadata_endpoint(request):
         model_data_dir = os.path.join(output_dir, "benchmarks", "model-data", lora_name.replace("/", "_").replace("\\", "_").replace(".safetensors", ""))
         metadata_file = os.path.join(model_data_dir, "metadata.json")
 
-        if os.path.exists(metadata_file):
+        if os.path.exists(metadata_file) and not force_refresh:
             try:
                 cached = load_json_from_file(metadata_file)
                 if cached and cached.get("name"):
@@ -793,6 +821,7 @@ async def lookup_model_metadata_endpoint(request):
         data = await request.json()
         model_name = data.get("model_name", "")
         model_type = data.get("model_type", "checkpoint")
+        force_refresh = data.get("force_refresh", False)
 
         if not model_name:
             return web.json_response({
@@ -806,7 +835,7 @@ async def lookup_model_metadata_endpoint(request):
         model_data_dir = os.path.join(output_dir, "benchmarks", "model-data", model_name.replace("/", "_").replace("\\", "_").replace(".safetensors", "").replace(".ckpt", "").replace(".gguf", ""))
         metadata_file = os.path.join(model_data_dir, "metadata.json")
 
-        if os.path.exists(metadata_file):
+        if os.path.exists(metadata_file) and not force_refresh:
             try:
                 cached = load_json_from_file(metadata_file)
                 if cached and cached.get("name"):
@@ -985,6 +1014,62 @@ async def refresh_models_endpoint(request):
         print(f"[ConfigBuilder] ❌ Error in refresh_models endpoint: {e}")
         import traceback
         traceback.print_exc()
-        return web.json_response({
+        return web.json_response({ 
             "error": str(e)
         }, status=500)
+
+
+@server.PromptServer.instance.routes.get("/configbuilder/get_lora_triggers")
+async def get_lora_triggers_endpoint(request):
+    """Get trigger words for a specific LoRA from loras_tags.json"""
+    try:
+        lora_name = request.query.get("lora_name", "")
+        if not lora_name:
+            return web.json_response({"error": "Missing lora_name"}, status=400)
+
+        json_tags_path = os.path.join(folder_paths.get_output_directory(), "benchmarks/loras_tags.json")
+        triggers = []
+        if os.path.exists(json_tags_path):
+            from .lora_utils import load_json_from_file
+            lora_tags = load_json_from_file(json_tags_path) or {}
+            # Try exact match, normalized, and backslash variants
+            normalized = lora_name.replace("\\", "/")
+            backslash = lora_name.replace("/", "\\")
+            triggers = lora_tags.get(lora_name, lora_tags.get(normalized, lora_tags.get(backslash, [])))
+
+        return web.json_response({"lora_name": lora_name, "triggers": triggers})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.post("/configbuilder/save_lora_triggers")
+async def save_lora_triggers_endpoint(request):
+    """Save edited trigger words for a LoRA to loras_tags.json"""
+    try:
+        data = await request.json()
+        lora_name = data.get("lora_name", "")
+        triggers = data.get("triggers", [])
+
+        if not lora_name:
+            return web.json_response({"error": "Missing lora_name"}, status=400)
+
+        json_tags_path = os.path.join(folder_paths.get_output_directory(), "benchmarks/loras_tags.json")
+        from .lora_utils import load_json_from_file, save_dict_to_json
+        lora_tags = {}
+        if os.path.exists(json_tags_path):
+            lora_tags = load_json_from_file(json_tags_path) or {}
+
+        # Normalize the name for consistent storage
+        normalized = lora_name.replace("\\", "/")
+        lora_tags[normalized] = triggers
+
+        save_dict_to_json(lora_tags, json_tags_path)
+
+        # Clear the trigger word LRU cache so changes take effect immediately
+        from .trigger_words import clear_trigger_caches
+        clear_trigger_caches()
+
+        print(f"[ConfigBuilder] ✏️ Saved {len(triggers)} trigger words for: {normalized}")
+        return web.json_response({"status": "saved", "lora_name": normalized, "triggers": triggers})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)

@@ -160,25 +160,41 @@ class WorkerThread(threading.Thread):
         self._stop_event.set()
 
     def _register(self):
-        """Register with master."""
-        data = json.dumps({
-            "worker_id": self.worker_id,
-            "worker_url": ""
-        }).encode("utf-8")
+        """Register with master. Retries on 503 (master still starting up)."""
+        max_retries = 5
+        retry_delay = 3  # seconds between retries
 
-        req = urllib.request.Request(
-            f"{self.master_url}/distribution/register_worker",
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST"
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                result = json.loads(resp.read().decode("utf-8"))
-                print(f"[Worker {self.worker_id}] 🤝 Registered with master "
-                      f"(session: {result.get('session_name', 'unknown')})")
-        except Exception as e:
-            print(f"[Worker {self.worker_id}] ⚠️ Registration failed: {e}")
+        for attempt in range(1, max_retries + 1):
+            data = json.dumps({
+                "worker_id": self.worker_id,
+                "worker_url": ""
+            }).encode("utf-8")
+
+            req = urllib.request.Request(
+                f"{self.master_url}/distribution/register_worker",
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    result = json.loads(resp.read().decode("utf-8"))
+                    print(f"[Worker {self.worker_id}] 🤝 Registered with master "
+                          f"(session: {result.get('session_name', 'unknown')})")
+                    return  # Success
+            except urllib.error.HTTPError as e:
+                if e.code == 503 and attempt < max_retries:
+                    print(f"[Worker {self.worker_id}] ⏳ Master not ready yet "
+                          f"(attempt {attempt}/{max_retries}), retrying in {retry_delay}s...")
+                    self._stop_event.wait(retry_delay)
+                    if self._stop_event.is_set():
+                        return
+                    continue
+                print(f"[Worker {self.worker_id}] ⚠️ Registration failed: {e}")
+                return
+            except Exception as e:
+                print(f"[Worker {self.worker_id}] ⚠️ Registration failed: {e}")
+                return
 
     def _claim_job(self):
         """Claim next job from master. Returns job dict or None."""
@@ -198,9 +214,20 @@ class WorkerThread(threading.Thread):
             if e.code == 204:
                 return None
             if e.code == 503:
-                # Distribution not active, stop polling
-                print(f"[Worker {self.worker_id}] ℹ️ Distribution not active on master")
-                self.consecutive_empty = self.max_empty_polls
+                # Distribution not active yet — master may still be starting up
+                # (e.g. pre-encoding prompts). Don't immediately stop; let the
+                # normal empty-poll counter handle eventual timeout.
+                if self.jobs_processed == 0 and self.consecutive_empty < 5:
+                    print(f"[Worker {self.worker_id}] ⏳ Master not active yet, "
+                          f"waiting... ({self.consecutive_empty + 1}/5)")
+                elif self.jobs_processed > 0:
+                    # Already processed jobs — master has finished and deactivated.
+                    # Stop immediately to avoid wasting time.
+                    print(f"[Worker {self.worker_id}] ℹ️ Distribution ended on master")
+                    self.consecutive_empty = self.max_empty_polls
+                else:
+                    print(f"[Worker {self.worker_id}] ℹ️ Distribution not active on master")
+                    self.consecutive_empty = self.max_empty_polls
                 return None
             print(f"[Worker {self.worker_id}] ⚠️ Claim failed: HTTP {e.code}")
             return None
@@ -281,14 +308,25 @@ class WorkerThread(threading.Thread):
             print(f"[Worker {self.worker_id}] 📦 Loaded model: {config['model']}")
 
         # --- Per-config VAE loading ---
+        # Supports three modes:
+        #   1. "Default" → use model's bundled VAE
+        #   2. "remote:https://..." → remote HuggingFace VAE endpoint (decoded at decode step)
+        #   3. "ae.safetensors" → load local VAE file
         config_vae = config.get("vae", "Default")
+        _remote_vae_url = None
         if config_vae != "Default":
-            vae = load_vae_by_name(config_vae)
+            if config_vae.startswith("remote:"):
+                _remote_vae_url = config_vae[len("remote:"):]
+                vae = None  # No local VAE needed — will use remote endpoint
+                print(f"[Worker {self.worker_id}] 🌐 Using remote VAE: {_remote_vae_url}")
+            else:
+                vae = load_vae_by_name(config_vae)
         else:
             vae = self._loaded_vae
 
         # Validate VAE is available (non-checkpoint models like GGUF may not bundle a VAE)
-        if vae is None:
+        # Skip this check when using remote VAE — no local VAE object needed.
+        if vae is None and _remote_vae_url is None:
             raise RuntimeError(
                 f"No VAE available for model '{config.get('model', 'unknown')}'. "
                 f"Non-checkpoint models (GGUF/diffusion) require a VAE to be specified "
@@ -314,26 +352,28 @@ class WorkerThread(threading.Thread):
             print(f"[Worker {self.worker_id}] 🔗 Applied LoRA: {lora_key}")
 
         # --- Prompt Encoding ---
-        # Build prompt with trigger words (always needed for metadata even if using master encoding)
-        lora_triggerwords_mode = config.get("_lora_triggerwords_mode", "None")
-        try:
-            actual_positive, _ = build_prompt_with_triggers(config, lora_triggerwords_mode)
-        except Exception:
-            actual_positive = config.get("positive", "")
-        actual_negative = config.get("negative", "")
-
         # Check for master pre-encoded conditionings (skip CLIP encoding if available)
         encoded_pos = job.get("encoded_positive")
         encoded_neg = job.get("encoded_negative")
 
         if encoded_pos is not None and encoded_neg is not None:
-            # Master already encoded these prompts — deserialize and use directly
+            # Master already encoded these prompts — deserialize and use directly.
+            # Use the master's prompt text for metadata (avoids CivitAI trigger lookups
+            # on the worker since the master already applied trigger words during encoding).
             from .generation_orchestrator import _serializable_to_conditioning
             pos_cond = _serializable_to_conditioning(encoded_pos)
             neg_cond = _serializable_to_conditioning(encoded_neg)
+            actual_positive = job.get("actual_positive_text", config.get("positive", ""))
+            actual_negative = job.get("actual_negative_text", config.get("negative", ""))
             print(f"[Worker {self.worker_id}] 🧠 Using master pre-encoded conditionings")
         else:
-            # Fallback: encode locally with CLIP
+            # Fallback: encode locally with CLIP (need to build prompt with trigger words)
+            lora_triggerwords_mode = config.get("_lora_triggerwords_mode", "None")
+            try:
+                actual_positive, _ = build_prompt_with_triggers(config, lora_triggerwords_mode)
+            except Exception:
+                actual_positive = config.get("positive", "")
+            actual_negative = config.get("negative", "")
             clip_skip = config.get("clip_skip", 0)
             pos_cond = encode_prompt_with_combinators(self._patched_clip, actual_positive, clip_skip)
             neg_cond = encode_prompt_with_combinators(self._patched_clip, actual_negative, clip_skip)
@@ -352,7 +392,21 @@ class WorkerThread(threading.Thread):
         )
 
         # --- VAE Decode ---
-        image = decode_latent_with_vae(vae, result_latent["samples"])
+        if _remote_vae_url:
+            # Remote VAE: send latents to HuggingFace endpoint for decoding
+            from .remote_vae import remote_decode_hf
+            from PIL import Image as PILImage
+            import numpy as np
+            latent_samples = result_latent["samples"]
+            if latent_samples.ndim == 3:
+                latent_samples = latent_samples.unsqueeze(0)
+            decoded = remote_decode_hf(_remote_vae_url, latent_samples, h, w)
+            # Denormalize from [-1, 1] → [0, 1] (same as VaeImageProcessor.postprocess)
+            decoded = (decoded / 2 + 0.5).clamp(0, 1)
+            img_data = decoded[0].permute(1, 2, 0).cpu().numpy()
+            image = PILImage.fromarray((img_data * 255).round().astype(np.uint8))
+        else:
+            image = decode_latent_with_vae(vae, result_latent["samples"])
 
         # Free latent tensors ASAP (before image conversion, which is CPU-only)
         del result_latent, latent_in, pos_cond, neg_cond

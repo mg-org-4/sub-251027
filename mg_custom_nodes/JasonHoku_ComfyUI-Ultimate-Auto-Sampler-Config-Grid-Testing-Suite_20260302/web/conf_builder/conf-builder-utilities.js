@@ -23,6 +23,12 @@ let availableSchedulers = [];
 let availableSessions = ["None"];
 let availableConfigs = ["None"];
 
+// Cache-loaded flags for fetchers that can't use null-check
+// (their initial values are already non-null arrays)
+let _modelListsLoaded = false;
+let _sessionsLoaded = false;
+let _configsLoaded = false;
+
 // Track all active ConfigBuilder nodes for refresh
 let activeConfigBuilderNodes = new Set();
 
@@ -46,7 +52,14 @@ export function clearAllCaches() {
     dualClipTypes = [];
     availableSamplers = [];
     availableSchedulers = [];
+    _modelListsLoaded = false;
+    _sessionsLoaded = false;
+    _configsLoaded = false;
 }
+
+// Targeted cache invalidation for when specific data changes
+export function clearConfigsCache() { _configsLoaded = false; }
+export function clearSessionsCache() { _sessionsLoaded = false; }
 
 export async function refreshAllConfigBuilders() {
     console.log("[ConfigBuilder] 🔄 Refreshing all Config Builder nodes...");
@@ -156,6 +169,8 @@ export async function getModelFolders() {
 // --- UNIFIED MODEL LISTS (for GGUF, Diffusion Models, Text Encoders) ---
 
 export async function getModelLists() {
+    // Return cached data if already loaded (cleared by clearAllCaches on explicit refresh)
+    if (_modelListsLoaded) return;
     // Fetch all model lists from the unified endpoint
     try {
         const resp = await fetch("/configbuilder/model_lists", {
@@ -201,6 +216,7 @@ export async function getModelLists() {
         if (availableGGUFModels.length === 0) {
             console.log(`[ConfigBuilder] ℹ️ No GGUF models found. Install ComfyUI-GGUF and place .gguf files in the unet_gguf folder.`);
         }
+        _modelListsLoaded = true;
         return data;
     } catch (e) {
         console.error("[ConfigBuilder] Error fetching model lists:", e);
@@ -222,6 +238,8 @@ export function getAvailableSamplers() { return availableSamplers || []; }
 export function getAvailableSchedulers() { return availableSchedulers || []; }
 
 export async function getAvailableSessions() {
+    // Return cached sessions if already loaded (cleared by clearAllCaches on explicit refresh)
+    if (_sessionsLoaded) return availableSessions;
     try {
         const resp = await fetch("/object_info", { headers: { "X-Config-Builder-Internal": "true" } });
         const objectInfo = await resp.json();
@@ -229,14 +247,18 @@ export async function getAvailableSessions() {
             const nodeDef = objectInfo[nodeType];
             if (nodeType === "UltimateConfigBuilder" && nodeDef.input?.required?.load_session) {
                 availableSessions = nodeDef.input.required.load_session[0];
+                _sessionsLoaded = true;
                 return availableSessions;
             }
         }
     } catch (e) { console.error("[ConfigBuilder] Error fetching sessions:", e); }
+    _sessionsLoaded = true;
     return availableSessions;
 }
 
 export async function getAvailableConfigs() {
+    // Return cached configs if already loaded (use clearConfigsCache() to force refresh)
+    if (_configsLoaded) return availableConfigs;
     try {
         const resp = await fetch("/configbuilder/list_configs");
         if (resp.ok) {
@@ -244,6 +266,7 @@ export async function getAvailableConfigs() {
             availableConfigs = files.length > 0 ? files : ["None"];
         }
     } catch (e) { console.error("[ConfigBuilder] Error fetching configs:", e); }
+    _configsLoaded = true;
     return availableConfigs;
 }
 
@@ -514,6 +537,26 @@ export function convertStateToConfigs(state) {
             config.attention_mode = attentionModes.length > 1 ? attentionModes : attentionModes[0];
         }
 
+        // Add extra model & sampling options if enabled
+        if (configArray.model_sampling_override && configArray.model_sampling_override !== "none") {
+            config.model_sampling_override = configArray.model_sampling_override;
+            if (configArray.model_sampling_override === "flux") {
+                config.model_sampling_flux_max_shift = configArray.model_sampling_flux_max_shift || "1.15";
+                config.model_sampling_flux_base_shift = configArray.model_sampling_flux_base_shift || "0.5";
+            } else {
+                config.model_sampling_shift = configArray.model_sampling_shift || "1.73";
+            }
+        }
+        if (configArray.use_advanced_sampling) {
+            config.use_advanced_sampling = true;
+            config.advanced_guider = configArray.advanced_guider || "cfg_guider";
+            config.advanced_scheduler = configArray.advanced_scheduler || "basic";
+        }
+        if (configArray.use_flux_guidance) {
+            config.use_flux_guidance = true;
+            config.flux_guidance_value = configArray.flux_guidance_value || "3.5";
+        }
+
         // Add VAE if any are selected (not "None")
         if (vaes.length > 0) {
             config.vae = vaes.length > 1 ? vaes : vaes[0];
@@ -563,15 +606,15 @@ export function convertStateToConfigs(state) {
             config.lora_strength_lock = configArray.lora_strength_lock;
         }
 
-        // Add vae_bypass_states if any are set
-        if (configArray.vae_bypass_states && Object.keys(configArray.vae_bypass_states).length > 0) {
-            config.vae_bypass_states = configArray.vae_bypass_states;
-        }
-
-        // Add te_bypass_states if any are set
-        if (configArray.te_bypass_states && Object.keys(configArray.te_bypass_states).length > 0) {
-            config.te_bypass_states = configArray.te_bypass_states;
-        }
+        // vae_bypass_states and te_bypass_states are internal UI state only.
+        // They control filtering (lines 500, 545) but should NOT be in config output.
+        // Bypass state persistence is handled by node.saveState() separately.
+        // if (configArray.vae_bypass_states && Object.keys(configArray.vae_bypass_states).length > 0) {
+        //     config.vae_bypass_states = configArray.vae_bypass_states;
+        // }
+        // if (configArray.te_bypass_states && Object.keys(configArray.te_bypass_states).length > 0) {
+        //     config.te_bypass_states = configArray.te_bypass_states;
+        // }
 
         // Add seed_behavior if set to randomize
         if (configArray.seed_behavior === "randomize") {
@@ -792,7 +835,17 @@ export function convertConfigsToConfigArrays(configs) {
             model_prompt_suffix: config.model_prompt_suffix || "",
             attention_modes: config.attention_mode
                 ? (Array.isArray(config.attention_mode) ? config.attention_mode : [config.attention_mode])
-                : ["default"]
+                : ["default"],
+            // Extra model & sampling options
+            model_sampling_override: config.model_sampling_override || "none",
+            model_sampling_shift: config.model_sampling_shift || "1.73",
+            model_sampling_flux_max_shift: config.model_sampling_flux_max_shift || "1.15",
+            model_sampling_flux_base_shift: config.model_sampling_flux_base_shift || "0.5",
+            use_advanced_sampling: config.use_advanced_sampling || false,
+            advanced_guider: config.advanced_guider || "cfg_guider",
+            advanced_scheduler: config.advanced_scheduler || "basic",
+            use_flux_guidance: config.use_flux_guidance || false,
+            flux_guidance_value: config.flux_guidance_value || "3.5"
         });
     });
 

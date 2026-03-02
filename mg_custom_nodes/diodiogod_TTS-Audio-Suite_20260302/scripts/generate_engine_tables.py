@@ -57,8 +57,8 @@ def generate_engine_comparison(data):
     output.append("")
     output.append("## Engine Comparison")
     output.append("")
-    output.append("| Engine             | Models                                    | Size         | TTS | SRT | VC  | ASR | Special Features                                                                         | Languages                                                                                |")
-    output.append("| ------------------ | ----------------------------------------- | ------------ | --- | --- | --- | --- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |")
+    output.append("| Engine             | Models                                    | Size         | TTS | SRT | VC  | ASR | License                  | Special Features                                                                         | Languages                                                                                |")
+    output.append("| ------------------ | ----------------------------------------- | ------------ | --- | --- | --- | --- | ------------------------ | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |")
 
     for e in engines:
         # Extract flags from languages
@@ -84,6 +84,7 @@ def generate_engine_comparison(data):
             format_support(e["capabilities"]["srt"]),
             format_support(e["capabilities"]["vc"]),
             format_support(e["capabilities"]["asr"]),
+            e.get("license", "Unknown").ljust(24),
             features.ljust(88),
             flags.ljust(88)
         ]
@@ -304,6 +305,75 @@ def generate_feature_comparison(data):
     return "\n".join(output)
 
 
+def generate_license_table(data):
+    """Generate model licenses summary table for LICENSE file (plain text)"""
+    engines = data["engines"]
+
+    commercial_map = {
+        True: "Yes",
+        False: "No",
+        "conditional": "Conditional",
+        "varies": "Varies",
+    }
+
+    rows = []
+    for e in engines:
+        license_str = e.get("license", "Unknown")
+        commercial = e.get("commercial", "varies")
+        commercial_str = commercial_map.get(commercial, "Unknown")
+        rows.append((e["name"], license_str, commercial_str))
+
+    # Calculate column widths
+    col1 = max(len("Engine"), max(len(r[0]) for r in rows))
+    col2 = max(len("License"), max(len(r[1]) for r in rows))
+    col3 = max(len("Commercial Use"), max(len(r[2]) for r in rows))
+
+    sep = f"  {'─' * col1}  {'─' * col2}  {'─' * col3}"
+    header = f"  {'Engine':<{col1}}  {'License':<{col2}}  {'Commercial Use':<{col3}}"
+
+    output = []
+    output.append("Third-Party Model Licenses")
+    output.append("──────────────────────────")
+    output.append("")
+    output.append("The project code is MIT. Model weights carry their own licenses:")
+    output.append("")
+    output.append(sep)
+    output.append(header)
+    output.append(sep)
+    for name, lic, com in rows:
+        output.append(f"  {name:<{col1}}  {lic:<{col2}}  {com:<{col3}}")
+    output.append(sep)
+    output.append("")
+    output.append("Users are responsible for complying with respective model licenses.")
+
+    return "\n".join(output)
+
+
+def inject_into_license(license_table):
+    """Inject license table into LICENSE file after the '---' separator. Returns: True=written, False=unchanged, None=error"""
+    license_path = Path(__file__).parent.parent / "LICENSE"
+
+    with open(license_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    separator = "\n---\n"
+    sep_idx = content.find(separator)
+    if sep_idx == -1:
+        print("⚠️  '---' separator not found in LICENSE")
+        return None
+
+    mit_section = content[: sep_idx + len(separator)]
+    new_content = mit_section + "\n" + license_table + "\n"
+
+    if new_content == content:
+        return False
+
+    with open(license_path, "w", encoding="utf-8") as f:
+        f.write(new_content)
+
+    return True
+
+
 def inject_into_readme(condensed_table):
     """Inject condensed table into README.md between markers. Returns: True=written, False=unchanged, None=error"""
     readme_path = Path(__file__).parent.parent / "README.md"
@@ -403,6 +473,17 @@ def main():
         print(f"✅ Written to {docs_dir / 'MODEL_LAYOUTS.md'}")
     else:
         print(f"⏭️  Skipped {docs_dir / 'MODEL_LAYOUTS.md'} (unchanged)")
+
+    # Generate and inject license table into LICENSE file
+    print("Generating model licenses table...")
+    license_table = generate_license_table(data)
+    result = inject_into_license(license_table)
+    if result is True:
+        print("✅ LICENSE updated successfully!")
+    elif result is False:
+        print("⏭️  Skipped LICENSE (unchanged)")
+    else:
+        print("❌ LICENSE injection failed (markers not found)")
 
     # Generate and inject condensed README table
     print("\nGenerating condensed README table...")

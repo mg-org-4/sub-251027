@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-def handle_response(api_result: Any):
+def handle_response(api_result, schema=None, loaded_client=None, response_url=None):
     result_image = None
     image_list = []
     final_batch_img = []

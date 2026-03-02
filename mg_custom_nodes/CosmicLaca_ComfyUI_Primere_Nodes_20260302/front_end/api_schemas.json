@@ -4,6 +4,10 @@
       "provider": "Gemini",
       "service": "Nanobanana_V1",
       "response_handler": "Gemini_Nanobanana.py",
+      "import_modules": [
+        "from google import genai",
+        "from google.genai import types"
+      ],
       "possible_parameters": {
         "aspect_ratio": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
         "resolution": ["1K", "2K", "4K"],
@@ -45,11 +49,16 @@
       "provider": "Gemini",
       "service": "Nanobanana_V2",
       "response_handler": "Gemini_Nanobanana.py",
+      "import_modules": [
+        "from google import genai",
+        "from google.genai import types"
+      ],
       "possible_parameters": {
         "aspect_ratio": ["1:1","1:4","1:8","2:3","3:2","3:4","4:1","4:3","4:5","5:4","8:1","9:16","16:9","21:9"],
         "resolution": ["512px", "1K", "2K", "4K"],
         "model": ["gemini-3.1-flash-image-preview"],
-        "thinking_level": ["minimal", "high"]
+        "thinking_level": ["minimal", "high"],
+        "include_thoughts": [false, true]
       },
       "request": {
         "method": "SDK",
@@ -76,6 +85,14 @@
                     "aspect_ratio": "{{aspect_ratio}}",
                     "image_size": "{{image_size}}"
                   }
+                },
+                "thinking_config": {
+                  "$call": "types.ThinkingConfig",
+                  "$args": [],
+                  "$kwargs": {
+                    "thinking_level": "{{thinking_level}}",
+                    "include_thoughts": "{{include_thoughts}}"
+                  }
                 }
               }
             }
@@ -86,6 +103,10 @@
     "VEO": {
       "provider": "Gemini",
       "service": "VEO",
+      "import_modules": [
+        "from google import genai",
+        "from google.genai import types"
+      ],
       "possible_parameters": {
         "aspect_ratio": ["9:16", "16:9"],
         "durationSeconds": ["4", "6", "8"],
@@ -121,6 +142,10 @@
     "Imagen": {
       "provider": "Gemini",
       "service": "Imagen",
+      "import_modules": [
+        "from google import genai",
+        "from google.genai import types"
+      ],
       "possible_parameters": {
         "aspect_ratio": ["1:1", "3:4", "4:3", "9:16", "16:9"],
         "resolution": ["1K", "2K"],
@@ -152,17 +177,21 @@
     "Seedream_V5_T2I": {
       "provider": "FAL",
       "service": "Seedream_V5_T2I",
+      "response_handler": "FAL_Image.py",
+      "import_modules": [
+        "import fal_client"
+      ],
       "possible_parameters": {
         "enable_safety_checker": [false, true],
         "with_logs": [false, true],
-        "enhance_prompt_mode": ["fast", "standard"]
+        "enhance_prompt_mode": ["standard", "fast"]
       },
       "request": {
         "method": "SDK",
-        "endpoint": "client.submit",
+        "endpoint": "fal_client.submit",
         "sdk_call": {
           "args": [
-            "{{arg0}}"
+            "fal-ai/bytedance/seedream/v5/lite/text-to-image"
           ],
           "kwargs": {
             "arguments": {
@@ -175,9 +204,9 @@
               "max_images": 1,
               "enable_safety_checker": "{{enable_safety_checker}}",
               "enhance_prompt_mode": "{{enhance_prompt_mode}}",
-              "seed": "{{seed}}"
-            },
-            "with_logs": "{{with_logs}}"
+              "seed": "{{seed}}",
+              "with_logs": "{{with_logs}}"
+            }
           }
         }
       }
@@ -185,24 +214,26 @@
     "Seedream_V5_I2I": {
       "provider": "FAL",
       "service": "Seedream_V5_I2I",
+      "response_handler": "FAL_Image.py",
+      "import_modules": [
+        "import fal_client"
+      ],
       "possible_parameters": {
         "enable_safety_checker": [false, true],
         "with_logs": [false, true],
-        "enhance_prompt_mode": ["fast", "standard"]
+        "enhance_prompt_mode": ["standard", "fast"]
       },
       "request": {
         "method": "SDK",
-        "endpoint": "lient.submit",
+        "endpoint": "fal_client.submit",
         "sdk_call": {
           "args": [
-            "{{arg0}}"
+            "fal-ai/bytedance/seedream/v5/lite/edit"
           ],
           "kwargs": {
             "arguments": {
               "prompt": "{{prompt}}",
-              "img_urls": [
-                "{{reference_images}}"
-              ],
+              "image_urls": "{{reference_images}}",
               "image_size": {
                 "width": "{{width}}",
                 "height": "{{height}}"
@@ -211,9 +242,9 @@
               "max_images": 1,
               "enable_safety_checker": "{{enable_safety_checker}}",
               "enhance_prompt_mode": "{{enhance_prompt_mode}}",
-              "seed": "{{seed}}"
-            },
-            "with_logs": "{{with_logs}}"
+              "seed": "{{seed}}",
+              "with_logs": "{{with_logs}}"
+            }
           }
         }
       }
@@ -221,23 +252,25 @@
     "Seedream_V4.5_I2I": {
       "provider": "FAL",
       "service": "Seedream_V4.5_I2I",
+      "response_handler": "FAL_Image.py",
+      "import_modules": [
+        "import fal_client"
+      ],
       "possible_parameters": {
         "enable_safety_checker": [false, true],
         "with_logs": [false, true]
       },
       "request": {
         "method": "SDK",
-        "endpoint": "lient.submit",
+        "endpoint": "fal_client.submit",
         "sdk_call": {
           "args": [
-            "{{arg0}}"
+            "fal-ai/bytedance/seedream/v4.5/edit"
           ],
           "kwargs": {
             "arguments": {
               "prompt": "{{prompt}}",
-              "img_urls": [
-                "{{reference_images}}"
-              ],
+              "image_urls": "{{reference_images}}",
               "image_size": {
                 "width": "{{width}}",
                 "height": "{{height}}"
@@ -245,9 +278,9 @@
               "num_images": "{{batch}}",
               "max_images": 1,
               "enable_safety_checker": "{{enable_safety_checker}}",
-              "seed": "{{seed}}"
-            },
-            "with_logs": "{{with_logs}}"
+              "seed": "{{seed}}",
+              "with_logs": "{{with_logs}}"
+            }
           }
         }
       }
@@ -255,16 +288,20 @@
     "Seedream_V4.5_T2I": {
       "provider": "FAL",
       "service": "Seedream_V4.5_T2I",
+      "response_handler": "FAL_Image.py",
+      "import_modules": [
+        "import fal_client"
+      ],
       "possible_parameters": {
         "enable_safety_checker": [false, true],
         "with_logs": [false, true]
       },
       "request": {
         "method": "SDK",
-        "endpoint": "client.submit",
+        "endpoint": "fal_client.submit",
         "sdk_call": {
           "args": [
-            "{{arg0}}"
+            "fal-ai/bytedance/seedream/v4.5/text-to-image"
           ],
           "kwargs": {
             "arguments": {
@@ -276,9 +313,9 @@
               "num_images": "{{batch}}",
               "max_images": 1,
               "enable_safety_checker": "{{enable_safety_checker}}",
-              "seed": "{{seed}}"
-            },
-            "with_logs": "{{with_logs}}"
+              "seed": "{{seed}}",
+              "with_logs": "{{with_logs}}"
+            }
           }
         }
       }
@@ -286,6 +323,9 @@
     "Kling_V3PRO_T2V": {
       "provider": "FAL",
       "service": "Kling_V3PRO_T2V",
+      "import_modules": [
+        "import fal_client"
+      ],
       "possible_parameters": {
         "aspect_ratio": ["16:9", "9:16", "1:1"],
         "duration": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
@@ -294,7 +334,7 @@
       },
       "request": {
         "method": "SDK",
-        "endpoint": "client.submit",
+        "endpoint": "fal_client.submit",
         "sdk_call": {
           "args": [
             "{{arg0}}"
@@ -304,9 +344,9 @@
               "prompt": "{{prompt}}",
               "duration": "{{duration}}",
               "aspect_ratio": "{{aspect_ratio}}",
-              "generate_audio": "{{generate_audio}}"
-            },
-            "with_logs": "{{with_logs}}"
+              "generate_audio": "{{generate_audio}}",
+              "with_logs": "{{with_logs}}"
+            }
           }
         }
       }
@@ -314,6 +354,9 @@
     "Kling_V3PRO_I2V": {
       "provider": "FAL",
       "service": "Kling_V3PRO_I2V",
+      "import_modules": [
+        "import fal_client"
+      ],
       "possible_parameters": {
         "aspect_ratio": ["16:9", "9:16", "1:1"],
         "duration": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
@@ -322,7 +365,7 @@
       },
       "request": {
         "method": "SDK",
-        "endpoint": "client.subscribe",
+        "endpoint": "fal_client.subscribe",
         "sdk_call": {
           "args": [
             "{{arg0}}"
@@ -333,9 +376,9 @@
               "start_image_url": "{{reference_images}}",
               "duration": "{{duration}}",
               "aspect_ratio": "{{aspect_ratio}}",
-              "generate_audio": "{{generate_audio}}"
-            },
-            "with_logs": "{{with_logs}}"
+              "generate_audio": "{{generate_audio}}",
+              "with_logs": "{{with_logs}}"
+            }
           }
         }
       }

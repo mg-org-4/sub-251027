@@ -104,6 +104,9 @@ You can edit generated entries directly. Minimal service shape:
       "provider": "Provider",
       "service": "Service",
       "response_handler": "Provider_Service.py",
+      "import_modules": [
+        "import module_name"
+      ],      
       "possible_parameters": {
         "model": ["model-a", "model-b"],
         "quality": ["low", "high"]
@@ -112,7 +115,7 @@ You can edit generated entries directly. Minimal service shape:
         "method": "SDK",
         "endpoint": "client.images.generate",
         "sdk_call": {
-          "args": [],
+          "args": ["access_url"],
           "kwargs": {
             "model": "{{model}}",
             "quality": "{{quality}}",
@@ -133,6 +136,37 @@ You can edit generated entries directly. Minimal service shape:
 - Values are option lists presented/consumed as selectable presets/defaults.
 - Omit keys that are fixed in request body (constants).
 - Keep keys for values you want configurable at runtime.
+
+### `import_modules` required for SDK dependencies
+
+`import_modules` is a **service-level list of Python import lines** loaded before SDK request execution.
+
+This allows each provider/service to define its own runtime dependencies without hardcoding imports in `Uniapi.py`.
+
+Example for Google Gemini services:
+
+```json
+"import_modules": [
+  "from google import genai",
+  "from google.genai import types"
+]
+```
+
+Supported line formats:
+
+- `import module`
+- `import module as alias`
+- `from package import symbol`
+- `from package import symbol as alias`
+
+How it works at runtime:
+
+1. Node selects the schema by `api_provider` + `api_service`.
+2. Uniapi reads `schema["import_modules"]`.
+3. Import lines are loaded into SDK execution context.
+4. Request body (`request.sdk_call`) can safely reference those roots, e.g. `types.GenerateContentConfig`.
+
+If an import line is invalid or module is missing, Uniapi raises an explicit runtime error.
 
 ### Common edit patterns
 
@@ -183,10 +217,53 @@ Example override:
 "response_handler": "BlackForest_FluxExpandPro.py"
 ```
 
+### Reusing one response handler file for multiple services/providers
+
+You can point many different services (even from different providers) to the **same** `response_handler` filename.
+
+This is useful when output formats are similar and you want fewer files under `components/API/responses`.
+
+Example (shared file):
+
+```json
+"response_handler": "Shared_Image_Response.py"
+```
+
+As long as `components/API/responses/Shared_Image_Response.py` exists and exposes `handle_response(...)`, Uniapi can reuse it for all mapped services.
+
+### Universal `handle_response()` signature (recommended)
+
+Uniapi can now forward runtime context to response handlers. Use a universal signature with optional kwargs:
+
+```python
+def handle_response(
+    api_result,
+    schema=None,
+    loaded_client=None,
+    response_url=None,
+    client=None,
+    sdk_context=None,
+):
+    ...
+```
+
+Meaning of parameters:
+
+- `api_result`: raw API SDK/HTTP result returned by the request execution.
+- `schema`: selected service schema from `api_schemas.json`.
+- `loaded_client`: provider root object used for the SDK call (universal; can be module or client object).
+- `response_url`: first SDK positional route argument from `request.sdk_call.args[0]` when present.
+- `client`: base API client from `api_helper.create_api_client(...)`.
+- `sdk_context`: loaded import context dictionary.
+
 ---
 
 ## 6) Runtime expectations
 
+- JSON syntax in `front_end/api_schemas.json` is strictly validated at load time (line/column errors are raised).
+- Provider keys in `api_schemas.json` must exist in `json/apiconfig.example.json`.
+- Service key must match inner `"service"`, and provider key must match inner `"provider"`.
+- `import_modules` must be a list of non-empty strings.
 - `api_provider` and `api_service` must map to an existing registry entry.
 - Schema placeholders must align with node/runtime inputs.
 - Response helper module must exist in `components/API/responses`.

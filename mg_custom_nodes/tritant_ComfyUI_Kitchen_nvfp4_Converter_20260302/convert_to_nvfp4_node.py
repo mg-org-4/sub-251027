@@ -60,7 +60,7 @@ class ConvertToNVFP4:
             BLACKLIST = ["bias", "txt_attn", "img_in", "txt_in", "time_in", "vector_in", "guidance_in", "final_layer", "class_embedding", "single_stream_modulation", "double_stream_modulation_img", "double_stream_modulation_txt"]
             FP8_LAYERS = []
         elif model_type == "Z-Image-Base":
-            BLACKLIST = ["attention.out", "layers.0.", "layers.29.", "adaLN_modulation", "norm", "final_layer", "cap_embedder", "x_embedder", "noise_refiner", "context_refiner", "t_embedder"]
+            BLACKLIST = ["attention", "adaLN_modulation", "norm", "final_layer", "cap_embedder", "x_embedder", "noise_refiner", "context_refiner", "t_embedder"]
             FP8_LAYERS = []
         elif model_type == "Z-Image-Turbo":
             BLACKLIST = ["cap_embedder", "x_embedder", "noise_refiner", "context_refiner", "t_embedder", "final_layer"]
@@ -143,6 +143,9 @@ class ConvertToNVFP4:
 
         final_metadata = OrderedDict()
         final_metadata["_quantization_metadata"] = json.dumps(quant_map)
+        
+        final_metadata["converted_by"] = "ComfyUI Kitchen NVFP4 Converter"
+        final_metadata["converter_url"] = "https://github.com/tritant/ComfyUI_Kitchen_nvfp4_Converter"
         
         if model_type == "LTX-2-19b-dev-or-distilled":
             for k, v in temp_diffusers_meta.items():

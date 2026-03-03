@@ -202,6 +202,85 @@ If an import line is invalid or module is missing, Uniapi raises an explicit run
 
 No `output_format` entry in `possible_parameters` if you want it hard-fixed.
 
+### URL-part placeholders controlled by node inputs
+
+You can make **parts of request URL** configurable from node inputs by using placeholders in `request.sdk_call.args`.
+
+Example:
+
+```json
+"request": {
+  "method": "SDK",
+  "endpoint": "requests.post",
+  "sdk_call": {
+    "args": [
+      "https://{{regions}}/{{version}}/{{model_name}}"
+    ],
+    "kwargs": {
+      "headers": {
+        "x-key": "{{api_key}}",
+        "Content-Type": "application/json"
+      },
+      "json": {
+        "prompt": "{{prompt}}"
+      }
+    }
+  }
+}
+```
+
+Then define runtime-selectable values in `possible_parameters`:
+
+```json
+"possible_parameters": {
+  "regions": ["region_1", "region_2", "region_3"],
+  "version": ["v1", "v2"],
+  "model_name": ["region_1", "model_2"]
+}
+```
+
+How runtime resolves URL placeholders:
+
+1. Uniapi collects selected values from node/workflow inputs.
+2. `render_from_schema(...)` resolves all placeholders (including placeholders inside `sdk_call.args`).
+3. Final SDK call receives rendered URL, e.g. `https://region_1/v1/region_1`.
+
+This is universal and works for any provider/service that uses placeholder-based URL templates.
+
+### Header authentication placeholders (`{{api_key}}`)
+
+For providers that expect auth in headers, you can keep schema portable by using an auth placeholder:
+
+```json
+"headers": {
+  "x-key": "{{api_key}}",
+  "Content-Type": "application/json"
+}
+```
+
+This works in both locations:
+
+1. `request.headers` (non-SDK HTTP mode)
+2. `request.sdk_call.kwargs.headers` (SDK mode, e.g. `endpoint: "requests.post"`)
+
+Runtime resolution order for `{{api_key}}`:
+
+1. explicit node/workflow input value (if provided)
+2. provider API key from `json/apiconfig.json` (with environment overrides)
+3. fallback defaults
+
+You can also use env-token placeholders directly (for call-based schemas), for example:
+
+```json
+"x-key": {
+  "$call": "os.environ.get",
+  "$args": ["{{ENV_API_KEY}}"],
+  "$kwargs": {}
+}
+```
+
+This pattern resolves to `os.environ.get("ENV_API_KEY")` at runtime.
+
 ---
 
 ## 5) `response_handler` selection behavior
@@ -261,11 +340,11 @@ Meaning of parameters:
 ## 6) Runtime expectations
 
 - JSON syntax in `front_end/api_schemas.json` is strictly validated at load time (line/column errors are raised).
-- Provider keys in `api_schemas.json` must exist in `json/apiconfig.example.json`.
+- Provider keys in `api_schemas.json` must exist in `json/apiconfig.json`.
 - Service key must match inner `"service"`, and provider key must match inner `"provider"`.
 - `import_modules` must be a list of non-empty strings.
 - `api_provider` and `api_service` must map to an existing registry entry.
 - Schema placeholders must align with node/runtime inputs.
 - Response helper module must exist in `components/API/responses`.
 
-Response helper implementation is user-owned by design.
+Response helper implementation is user-owned by design. But examples already exist in `components/API/responses`

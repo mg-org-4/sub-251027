@@ -39,7 +39,12 @@ note={}
 
 [Join our Discord](https://discord.gg/yN5wYDE6W4) to share experiences, discuss features, and explore future development.
 
+`v1.5.0` fixes an important hidden bug that reduced performance and could blur images (especially with `z-image-base`) and also boosts overall LanPaint performance across other models. 
+If your inpainting results have wierd (glowing / broken) mask boundary, check this [issue](https://github.com/scraed/LanPaint/issues/80).
+
 **🎬 NEW: LanPaint now supports inpainting and outpainting based on Z-Image!**
+
+
 
 | Original | Masked | Inpainted |
 |:--------:|:------:|:---------:|
@@ -510,6 +515,8 @@ Submit a PR to add your tutorial/video here, or open an [Issue](https://github.c
 [Working togather with crop&stitch](https://github.com/scraed/LanPaint/issues/46)
 
 ## Updates
+- 2026/03/02
+    - `v1.5.0`: Fixed a hidden bug that hurt performance and caused image blur (especially on `z-image-base`), and improved overall LanPaint performance on other models too.
 - 2026/01/30
     - Add Z-image-base documentation and Example_25 workflow images.
 - 2025/08/08

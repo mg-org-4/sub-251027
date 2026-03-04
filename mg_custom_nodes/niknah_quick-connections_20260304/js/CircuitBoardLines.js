@@ -473,10 +473,11 @@ class MapLinks {
 				barea[1] + barea[3],
 			];
 			const linesArea = Array.from(area);
-			linesArea[0] -= 5;
-			linesArea[1] -= 1;
-			linesArea[2] += 3;
-			linesArea[3] += 3;
+			// new layout needs more spacing
+			linesArea[0] -= 8;
+			linesArea[1] -= 4;
+			linesArea[2] += 12;
+			linesArea[3] += 4;
 			const obj = {
 				node,
 				area,
@@ -555,6 +556,21 @@ class MapLinks {
 					if (!inputBlockedByNode && !outputBlockedByNode) {
 						const isBlocked = {};
 						const pathFound = this.mapLink(outputXY, inputXY, nodeInfo, isBlocked, null);
+
+						if (pathFound) {
+							// remove duplicate dot at the end
+							while (pathFound.length >= 2) {
+								const lastPathPoint1 = pathFound[pathFound.length - 1];
+								const lastPathPoint2 = pathFound[pathFound.length - 2];
+								if (lastPathPoint1[0] === lastPathPoint2[0]
+									&& lastPathPoint1[1] === lastPathPoint2[1]
+								) {
+									pathFound.pop();
+								} else {
+									break;
+								}
+							}
+						}
 						// Draw a direct line when it's blocked (isBlocked.blocked)
 						if (!isBlocked.blocked && pathFound && pathFound.length > 2) {
 							// mapLink() may have expanded the linesArea,
@@ -774,7 +790,7 @@ class SubgraphInOutNodeProxy {
 		return this.slots;
 	}
 
-	getSlotPosition(slot, isInput) {
+	getSlotPosition(slot /* , isInput */) {
 		return this.subgraphNode.slots[slot].pos;
 	}
 

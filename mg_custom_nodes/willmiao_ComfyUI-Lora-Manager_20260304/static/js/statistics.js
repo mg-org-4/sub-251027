@@ -10,6 +10,11 @@ export class StatisticsManager {
         this.charts = {};
         this.data = {};
         this.initialized = false;
+        this.listStates = {
+            lora: { offset: 0, limit: 50, sort: 'desc', isLoading: false, hasMore: true },
+            checkpoint: { offset: 0, limit: 50, sort: 'desc', isLoading: false, hasMore: true },
+            embedding: { offset: 0, limit: 50, sort: 'desc', isLoading: false, hasMore: true }
+        };
     }
 
     async initialize() {
@@ -24,7 +29,7 @@ export class StatisticsManager {
         await this.loadAllData();
         
         // Initialize charts and visualizations
-        this.initializeVisualizations();
+        await this.initializeVisualizations();
         
         this.initialized = true;
     }
@@ -97,7 +102,7 @@ export class StatisticsManager {
         return response.json();
     }
 
-    initializeVisualizations() {
+    async initializeVisualizations() {
         // Initialize metrics cards
         this.renderMetricsCards();
         
@@ -105,7 +110,8 @@ export class StatisticsManager {
         this.initializeCharts();
         
         // Initialize lists and other components
-        this.renderTopModelsLists();
+        await this.initializeLists();
+        this.renderLargestModelsList();
         this.renderTagCloud();
         this.renderInsights();
     }
@@ -548,86 +554,87 @@ export class StatisticsManager {
         });
     }
 
-    renderTopModelsLists() {
-        this.renderTopLorasList();
-        this.renderTopCheckpointsList();
-        this.renderTopEmbeddingsList();
-        this.renderLargestModelsList();
+    async initializeLists() {
+        const listTypes = [
+            { type: 'lora', containerId: 'topLorasList' },
+            { type: 'checkpoint', containerId: 'topCheckpointsList' },
+            { type: 'embedding', containerId: 'topEmbeddingsList' }
+        ];
+
+        const promises = listTypes.map(({ type, containerId }) => {
+            const container = document.getElementById(containerId);
+            
+            if (container) {
+                // Handle infinite scrolling
+                container.addEventListener('scroll', () => {
+                    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 50) {
+                        this.fetchAndRenderList(type, container);
+                    }
+                });
+
+                // Initial fetch
+                return this.fetchAndRenderList(type, container);
+            }
+            return Promise.resolve();
+        });
+
+        await Promise.all(promises);
     }
 
-    renderTopLorasList() {
-        const container = document.getElementById('topLorasList');
-        if (!container || !this.data.usage?.top_loras) return;
+    async fetchAndRenderList(type, container) {
+        const state = this.listStates[type];
+        if (state.isLoading || !state.hasMore) return;
 
-        const topLoras = this.data.usage.top_loras;
+        state.isLoading = true;
         
-        if (topLoras.length === 0) {
-            container.innerHTML = '<div class="loading-placeholder">No usage data available</div>';
-            return;
+        // Show loading indicator on initial load
+        if (state.offset === 0) {
+            container.innerHTML = '<div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
         }
 
-        container.innerHTML = topLoras.map(lora => `
-            <div class="model-item">
-                <img src="${lora.preview_url || '/loras_static/images/no-preview.png'}" 
-                     alt="${lora.name}" class="model-preview" 
-                     onerror="this.src='/loras_static/images/no-preview.png'">
-                <div class="model-info">
-                    <div class="model-name" title="${lora.name}">${lora.name}</div>
-                    <div class="model-meta">${lora.base_model} • ${lora.folder}</div>
-                </div>
-                <div class="model-usage">${lora.usage_count}</div>
-            </div>
-        `).join('');
-    }
+        try {
+            const url = `/api/lm/stats/model-usage-list?type=${type}&sort=${state.sort}&offset=${state.offset}&limit=${state.limit}`;
+            const result = await this.fetchData(url);
+            
+            if (result.success) {
+                const items = result.data.items;
+                
+                // Remove loading indicator if it's the first page
+                if (state.offset === 0) {
+                    container.innerHTML = '';
+                }
 
-    renderTopCheckpointsList() {
-        const container = document.getElementById('topCheckpointsList');
-        if (!container || !this.data.usage?.top_checkpoints) return;
+                if (items.length === 0 && state.offset === 0) {
+                    container.innerHTML = '<div class="loading-placeholder">No models found</div>';
+                    state.hasMore = false;
+                } else if (items.length < state.limit) {
+                    state.hasMore = false;
+                }
 
-        const topCheckpoints = this.data.usage.top_checkpoints;
-        
-        if (topCheckpoints.length === 0) {
-            container.innerHTML = '<div class="loading-placeholder">No usage data available</div>';
-            return;
+                const html = items.map(model => `
+                    <div class="model-item">
+                        <img src="${model.preview_url || '/loras_static/images/no-preview.png'}" 
+                             alt="${model.name}" class="model-preview" 
+                             onerror="this.src='/loras_static/images/no-preview.png'">
+                        <div class="model-info">
+                            <div class="model-name" title="${model.name}">${model.name}</div>
+                            <div class="model-meta">${model.base_model} • ${model.folder || 'Root'}</div>
+                        </div>
+                        <div class="model-usage">${model.usage_count}</div>
+                    </div>
+                `).join('');
+
+                container.insertAdjacentHTML('beforeend', html);
+                state.offset += state.limit;
+            }
+        } catch (error) {
+            console.error(`Error loading ${type} list:`, error);
+            if (state.offset === 0) {
+                container.innerHTML = '<div class="loading-placeholder">Error loading data</div>';
+            }
+        } finally {
+            state.isLoading = false;
         }
-
-        container.innerHTML = topCheckpoints.map(checkpoint => `
-            <div class="model-item">
-                <img src="${checkpoint.preview_url || '/loras_static/images/no-preview.png'}" 
-                     alt="${checkpoint.name}" class="model-preview"
-                     onerror="this.src='/loras_static/images/no-preview.png'">
-                <div class="model-info">
-                    <div class="model-name" title="${checkpoint.name}">${checkpoint.name}</div>
-                    <div class="model-meta">${checkpoint.base_model} • ${checkpoint.folder}</div>
-                </div>
-                <div class="model-usage">${checkpoint.usage_count}</div>
-            </div>
-        `).join('');
-    }
-
-    renderTopEmbeddingsList() {
-        const container = document.getElementById('topEmbeddingsList');
-        if (!container || !this.data.usage?.top_embeddings) return;
-
-        const topEmbeddings = this.data.usage.top_embeddings;
-        
-        if (topEmbeddings.length === 0) {
-            container.innerHTML = '<div class="loading-placeholder">No usage data available</div>';
-            return;
-        }
-
-        container.innerHTML = topEmbeddings.map(embedding => `
-            <div class="model-item">
-                <img src="${embedding.preview_url || '/loras_static/images/no-preview.png'}" 
-                     alt="${embedding.name}" class="model-preview"
-                     onerror="this.src='/loras_static/images/no-preview.png'">
-                <div class="model-info">
-                    <div class="model-name" title="${embedding.name}">${embedding.name}</div>
-                    <div class="model-meta">${embedding.base_model} • ${embedding.folder}</div>
-                </div>
-                <div class="model-usage">${embedding.usage_count}</div>
-            </div>
-        `).join('');
     }
 
     renderLargestModelsList() {

@@ -4,20 +4,6 @@ import os
 from . import external_api_backend
 from . import api_helper
 
-def _canonical_param_name(name: str) -> str:
-    low = name.lower()
-    if "aspect_ratio" in low:
-        return "aspect_ratio"
-    if "resolution" in low or "image_size" in low:
-        return "resolution"
-    if low == "model" or low.endswith("_model"):
-        return "model"
-    if low in {"prompt", "contents"} or low.endswith("_prompt"):
-        return "prompt"
-    if "response_modalities" in low:
-        return "response_modalities"
-    return name
-
 def _provider_api_key(spec: dict[str, Any]) -> Any:
     provider = str(spec.get("provider") or "").strip()
     if not provider:
@@ -102,7 +88,7 @@ def _build_values(spec: dict[str, Any], values: dict[str, Any] | None = None) ->
 
     resolved: dict[str, Any] = {}
     for key in placeholders:
-        canonical = _canonical_param_name(key)
+        canonical = external_api_backend.canonical_param_name(key)
         selected = None
 
         if key in user_values and user_values[key] not in (None, ""):
@@ -129,4 +115,6 @@ def _build_values(spec: dict[str, Any], values: dict[str, Any] | None = None) ->
 
 def render_from_schema(spec: dict[str, Any], values: dict[str, Any] | None = None):
     used_values = _build_values(spec, values)
-    return external_api_backend.build_request(spec, used_values), used_values
+    request_exclusions = spec.get("request_exclusions") if isinstance(spec, dict) else None
+    filtered_used_values = external_api_backend.remove_excluded_used_values(used_values, request_exclusions)
+    return external_api_backend.build_request(spec, used_values), filtered_used_values

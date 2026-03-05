@@ -1,0 +1,62 @@
+{
+  "Gemini": {
+    "Nano2": {
+      "provider": "Gemini",
+      "service": "Nano2",
+      "response_handler": "Gemini_Nano2.py",
+      "import_modules": [
+        "import your_provider_sdk",
+        "from your_provider_sdk import types"
+      ],
+      "possible_parameters": {
+        "aspect_ratio": [
+          "fake_aspect_ratio_value_1",
+          "fake_aspect_ratio_value_2"
+        ],
+        "resolution": [
+          "512px",
+          "1K",
+          "2K",
+          "4K"
+        ]
+      },
+      "request": {
+        "method": "SDK",
+        "endpoint": "client.models.generate_content",
+        "sdk_call": {
+          "args": [],
+          "kwargs": {
+            "model": "gemini-3.1-flash-image-preview",
+            "contents": "{{prompt}}",
+            "config": {
+              "$call": "types.GenerateContentConfig",
+              "$args": [],
+              "$kwargs": {
+                "response_modalities": [
+                  "TEXT",
+                  "IMAGE"
+                ],
+                "image_config": {
+                  "$call": "types.ImageConfig",
+                  "$args": [],
+                  "$kwargs": {
+                    "aspect_ratio": "{{aspect_ratio}}",
+                    "image_size": "{{resolution}}"
+                  }
+                },
+                "thinking_config": {
+                  "$call": "types.ThinkingConfig",
+                  "$args": [],
+                  "$kwargs": {
+                    "thinking_level": "High",
+                    "include_thoughts": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

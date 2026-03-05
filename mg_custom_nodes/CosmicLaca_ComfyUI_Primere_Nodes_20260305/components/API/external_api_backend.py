@@ -11,12 +11,16 @@ from typing import Any
 from pathlib import Path
 import importlib.util
 import inspect
+import dataclasses
 
 from PIL import Image
 from io import BytesIO
 import numpy as np
 import torch
 import comfy.utils
+import types
+
+from . import request_exceptions
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
 
@@ -32,6 +36,7 @@ class RenderResult:
     query: dict[str, Any]
     body: dict[str, Any] | list[Any] | None
     sdk_call: dict[str, Any] | None
+    request_exclusions: list[dict[str, Any]] | None
 
 
 def _replace_string_template(template: str, values: dict[str, Any]) -> Any:
@@ -92,8 +97,75 @@ def build_request(spec: dict[str, Any], values: dict[str, Any]) -> RenderResult:
         query=render_template(request.get("query", {}), values),
         body=render_template(request.get("body"), values) if request.get("body") is not None else None,
         sdk_call=render_template(request.get("sdk_call"), values) if request.get("sdk_call") is not None else None,
+        request_exclusions=spec.get("request_exclusions") if isinstance(spec.get("request_exclusions"), list) else []
     )
 
+def _canonical_used_value_name(name: str) -> str:
+    low = str(name or "").lower()
+    if "aspect_ratio" in low:
+        return "aspect_ratio"
+    if "resolution" in low or "image_size" in low:
+        return "resolution"
+    if low == "model" or low.endswith("_model"):
+        return "model"
+    if low in {"prompt", "contents"} or low.endswith("_prompt"):
+        return "prompt"
+    if "response_modalities" in low:
+        return "response_modalities"
+    return str(name)
+
+
+def _prepare_used_value_exclusions(exclusions: Any) -> list[dict[str, Any]]:
+    if not isinstance(exclusions, list):
+        return []
+
+    prepared: list[dict[str, Any]] = []
+    for rule in exclusions:
+        if not isinstance(rule, dict):
+            continue
+
+        normalized_rule = dict(rule)
+        condition = normalized_rule.get("when") if isinstance(normalized_rule.get("when"), dict) else normalized_rule.get("if")
+        if isinstance(condition, dict):
+            normalized_condition = dict(condition)
+            path = normalized_condition.get("path") or normalized_condition.get("key")
+            if isinstance(path, str):
+                leaf = [part for part in path.split(".") if part]
+                if len(leaf) > 0:
+                    normalized_condition["path"] = leaf[-1]
+            if isinstance(normalized_rule.get("when"), dict):
+                normalized_rule["when"] = normalized_condition
+            else:
+                normalized_rule["if"] = normalized_condition
+
+        remove_spec = normalized_rule.get("remove")
+        normalized_remove: list[str] = []
+        if isinstance(remove_spec, str):
+            remove_spec = [remove_spec]
+        if isinstance(remove_spec, list):
+            for path in remove_spec:
+                if not isinstance(path, str):
+                    continue
+                leaf = [part for part in path.split(".") if part]
+                if len(leaf) > 0:
+                    normalized_remove.append(leaf[-1])
+
+        normalized_rule["remove"] = normalized_remove
+        prepared.append(normalized_rule)
+
+    return prepared
+
+
+def remove_excluded_used_values(used_values: dict[str, Any], exclusions: Any) -> dict[str, Any]:
+    filtered = dict(used_values) if isinstance(used_values, dict) else {}
+    prepared_exclusions = _prepare_used_value_exclusions(exclusions)
+
+    return request_exceptions.apply_exclusions_to_payload(
+        filtered,
+        prepared_exclusions,
+        use_kwargs_fallback=False,
+        canonicalize_key=canonical_param_name,
+    )
 
 def normalize_sdk_call(sdk_call: dict[str, Any] | None) -> tuple[list[Any], dict[str, Any]]:
     if sdk_call is None:
@@ -250,8 +322,9 @@ def execute_sdk_request(rendered: RenderResult, context: dict[str, Any], allowed
     roots = allowed_roots or set(context.keys())
     fn = _resolve_dotted_from_context(str(rendered.endpoint), context, roots)
     args, kwargs = normalize_sdk_call(rendered.sdk_call)
-    safe_args = [_materialize_sdk_value(a, context, roots) for a in args]
-    safe_kwargs = {k: _materialize_sdk_value(v, context, roots) for k, v in kwargs.items()}
+    filtered_args, filtered_kwargs = request_exceptions.apply_sdk_request_exclusions(args=list(args), kwargs=dict(kwargs), exclusions=rendered.request_exclusions)
+    safe_args = [_materialize_sdk_value(a, context, roots) for a in filtered_args]
+    safe_kwargs = {k: _materialize_sdk_value(v, context, roots) for k, v in filtered_kwargs.items()}
     _apply_auth_header_fallback(safe_kwargs, context)
     return fn(*safe_args, **safe_kwargs)
 
@@ -465,12 +538,22 @@ def _load_response_handler(filename: str):
     if not Path(module_path).exists():
         raise ExternalAPIError(f"Response handler file not found: {safe_name}")
 
-    module_name = f"{safe_name[:-3].replace('.', '_').replace('-', '_')}"
+    # module_name = f"{safe_name[:-3].replace('.', '_').replace('-', '_')}"
+    package_name = "primere_response_handlers"
+    package = sys.modules.get(package_name)
+    if package is None:
+        package = types.ModuleType(package_name)
+        package.__path__ = [base_dir]
+        sys.modules[package_name] = package
+
+    module_stem = safe_name[:-3].replace('.', '_').replace('-', '_')
+    module_name = f"{package_name}.{module_stem}"
     spec = importlib.util.spec_from_file_location(module_name, str(module_path))
     if spec is None or spec.loader is None:
         raise ExternalAPIError(f"Cannot import response handler: {safe_name}")
 
     module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
     spec.loader.exec_module(module)
     handler = getattr(module, "handle_response", None)
     if not callable(handler):
@@ -503,3 +586,63 @@ def apply_response_handler(schema: dict[str, Any] | None, api_result: Any, provi
             kwargs[key] = value
 
     return handler(api_result, **kwargs)
+
+def sanitize_debug_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        sanitized_dict = {}
+        for k, v in value.items():
+            key_name = str(k or "").lower()
+            if key_name == "b64_json":
+                encoded_size = len(v) if isinstance(v, (str, bytes, bytearray, memoryview)) else 0
+                sanitized_dict[k] = f"[base64 omitted: {encoded_size} chars]"
+                continue
+            sanitized_dict[k] = sanitize_debug_value(v)
+        return sanitized_dict
+    if isinstance(value, list):
+        return [sanitize_debug_value(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(sanitize_debug_value(v) for v in value)
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return f"[binary data omitted: {len(value)} bytes]"
+    if isinstance(value, Image.Image):
+        return f"[PIL.Image omitted: mode={value.mode}, size={value.size}]"
+    if isinstance(value, np.ndarray):
+        return f"[numpy.ndarray omitted: shape={value.shape}, dtype={value.dtype}]"
+
+    if dataclasses.is_dataclass(value):
+        return {
+            "_type": value.__class__.__name__,
+            **{field.name: sanitize_debug_value(getattr(value, field.name)) for field in dataclasses.fields(value)},
+        }
+
+    if hasattr(value, "__dict__") and not isinstance(value, (str, int, float, bool)):
+        safe_fields = {}
+        for key, field_value in vars(value).items():
+            if key.startswith("_"):
+                continue
+            key_name = str(key or "").lower()
+            if key_name == "b64_json":
+                encoded_size = len(field_value) if isinstance(field_value, (str, bytes, bytearray, memoryview)) else 0
+                safe_fields[key] = f"[base64 omitted: {encoded_size} chars]"
+                continue
+            safe_fields[key] = sanitize_debug_value(field_value)
+        if len(safe_fields) > 0:
+            return {"_type": value.__class__.__name__, **safe_fields}
+
+    return value
+
+def canonical_param_name(name: str, *, number_of_images_as_seed: bool = False) -> str:
+    low = str(name or "").lower()
+    if "aspect_ratio" in low:
+        return "aspect_ratio"
+    if "resolution" in low or "image_size" in low:
+        return "resolution"
+    if low == "model" or low.endswith("_model"):
+        return "model"
+    if number_of_images_as_seed and low == "number_of_images":
+        return "seed"
+    if low in {"prompt", "contents"} or low.endswith("_prompt"):
+        return "prompt"
+    if "response_modalities" in low:
+        return "response_modalities"
+    return str(name)

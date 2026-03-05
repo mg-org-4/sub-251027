@@ -422,9 +422,10 @@ class Trellis2MeshWithVoxelGenerator:
                 "texture_steps": ("INT",{"default":12, "min":1, "max":100},),
                 "max_num_tokens": ("INT",{"default":49152,"min":0,"max":999999}),
                 "max_views": ("INT", {"default": 4, "min": 1, "max": 16}),
-                "sparse_structure_resolution": ("INT", {"default":32,"min":8,"max":128,"step":8}),
+                "sparse_structure_resolution": ("INT", {"default":32,"min":32,"max":128,"step":4}),
                 "generate_texture_slat": ("BOOLEAN", {"default":True}),
                 "use_tiled_decoder": ("BOOLEAN", {"default":True}),
+                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
             },
         }
 
@@ -434,7 +435,7 @@ class Trellis2MeshWithVoxelGenerator:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, pipeline, image, seed, pipeline_type, sparse_structure_steps, shape_steps, texture_steps, max_num_tokens, max_views, sparse_structure_resolution, generate_texture_slat, use_tiled_decoder):
+    def process(self, pipeline, image, seed, pipeline_type, sparse_structure_steps, shape_steps, texture_steps, max_num_tokens, max_views, sparse_structure_resolution, generate_texture_slat, use_tiled_decoder, sampler):
         reset_cuda()
         
         images = tensor_batch_to_pil_list(image, max_views=max_views)
@@ -451,7 +452,7 @@ class Trellis2MeshWithVoxelGenerator:
 
         pbar = ProgressBar(num_steps)        
         
-        mesh = pipeline.run(image=image_in, seed=seed, pipeline_type=pipeline_type, sparse_structure_sampler_params = sparse_structure_sampler_params, shape_slat_sampler_params = shape_slat_sampler_params, tex_slat_sampler_params = tex_slat_sampler_params, max_num_tokens = max_num_tokens, sparse_structure_resolution = sparse_structure_resolution, max_views = max_views, generate_texture_slat = generate_texture_slat, use_tiled=use_tiled_decoder, pbar=pbar)[0]
+        mesh = pipeline.run(image=image_in, seed=seed, pipeline_type=pipeline_type, sparse_structure_sampler_params = sparse_structure_sampler_params, shape_slat_sampler_params = shape_slat_sampler_params, tex_slat_sampler_params = tex_slat_sampler_params, max_num_tokens = max_num_tokens, sparse_structure_resolution = sparse_structure_resolution, max_views = max_views, generate_texture_slat = generate_texture_slat, use_tiled=use_tiled_decoder, pbar=pbar, sampler=sampler)[0]
         
         vertices = mesh.vertices.cuda()
         faces = mesh.faces.cuda()        
@@ -1224,7 +1225,7 @@ class Trellis2MeshWithVoxelAdvancedGenerator:
                 "texture_rescale_t": ("FLOAT",{"default":3.00,"min":0.00,"max":9.99,"step":0.01}),                
                 "max_num_tokens": ("INT",{"default":999999,"min":0,"max":999999}),
                 "max_views": ("INT", {"default": 4, "min": 1, "max": 16}),
-                "sparse_structure_resolution": ("INT", {"default":32,"min":8,"max":128,"step":8}),
+                "sparse_structure_resolution": ("INT", {"default":32,"min":32,"max":128,"step":4}),
                 "generate_texture_slat": ("BOOLEAN", {"default":True}),
                 "sparse_structure_guidance_interval_start": ("FLOAT",{"default":0.10,"min":0.00,"max":1.00,"step":0.01}),
                 "sparse_structure_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
@@ -1233,6 +1234,7 @@ class Trellis2MeshWithVoxelAdvancedGenerator:
                 "texture_guidance_interval_start": ("FLOAT",{"default":0.00,"min":0.00,"max":1.00,"step":0.01}),
                 "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
                 "use_tiled_decoder": ("BOOLEAN", {"default":True}),
+                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
             },
         }
 
@@ -1265,6 +1267,7 @@ class Trellis2MeshWithVoxelAdvancedGenerator:
         texture_guidance_interval_start,
         texture_guidance_interval_end,
         use_tiled_decoder,
+        sampler
         ):
         reset_cuda()
         
@@ -1286,7 +1289,7 @@ class Trellis2MeshWithVoxelAdvancedGenerator:
 
         pbar = ProgressBar(num_steps)
         
-        mesh = pipeline.run(image=image_in, seed=seed, pipeline_type=pipeline_type, sparse_structure_sampler_params = sparse_structure_sampler_params, shape_slat_sampler_params = shape_slat_sampler_params, tex_slat_sampler_params = tex_slat_sampler_params, max_num_tokens = max_num_tokens, sparse_structure_resolution = sparse_structure_resolution, max_views = max_views, generate_texture_slat=generate_texture_slat, use_tiled=use_tiled_decoder, pbar=pbar)[0]         
+        mesh = pipeline.run(image=image_in, seed=seed, pipeline_type=pipeline_type, sparse_structure_sampler_params = sparse_structure_sampler_params, shape_slat_sampler_params = shape_slat_sampler_params, tex_slat_sampler_params = tex_slat_sampler_params, max_num_tokens = max_num_tokens, sparse_structure_resolution = sparse_structure_resolution, max_views = max_views, generate_texture_slat=generate_texture_slat, use_tiled=use_tiled_decoder, pbar=pbar, sampler=sampler)[0]         
         
         vertices = mesh.vertices.cuda()
         faces = mesh.faces.cuda()                
@@ -1325,7 +1328,7 @@ class Trellis2MeshWithVoxelMultiViewGenerator:
                 "texture_guidance_rescale": ("FLOAT",{"default":0.20,"min":0.00,"max":1.00,"step":0.01}),
                 "texture_rescale_t": ("FLOAT",{"default":3.00,"min":0.00,"max":9.99,"step":0.01}),                 
                 "max_num_tokens": ("INT",{"default":999999,"min":0,"max":999999}),
-                "sparse_structure_resolution": ("INT", {"default":32,"min":8,"max":128,"step":8}),
+                "sparse_structure_resolution": ("INT", {"default":32,"min":32,"max":128,"step":4}),
                 "generate_texture_slat": ("BOOLEAN", {"default":True}),
                 "sparse_structure_guidance_interval_start": ("FLOAT",{"default":0.10,"min":0.00,"max":1.00,"step":0.01}),
                 "sparse_structure_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
@@ -1336,6 +1339,7 @@ class Trellis2MeshWithVoxelMultiViewGenerator:
                 "use_tiled_decoder": ("BOOLEAN", {"default":True}),
                 "front_axis": (["z", "x"], {"default": "z"}),
                 "blend_temperature": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1}),
+                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
             },
             "optional": {
                 "back_image": ("IMAGE",),
@@ -1374,6 +1378,7 @@ class Trellis2MeshWithVoxelMultiViewGenerator:
         use_tiled_decoder,
         front_axis,
         blend_temperature,
+        sampler,
         back_image=None,
         left_image=None,
         right_image=None):
@@ -1420,6 +1425,7 @@ class Trellis2MeshWithVoxelMultiViewGenerator:
             pbar=pbar,
             front_axis=front_axis,
             blend_temperature=blend_temperature,
+            sampler=sampler
         )[0]         
         
         vertices = mesh.vertices.cuda()
@@ -2029,7 +2035,7 @@ class Trellis2ReconstructMeshWithQuad:
                 "remesh_band": ("FLOAT",{"default":1.0}),
                 "resolution": ([128,256,512,1024,2048],{"default":512}),
                 "remove_floaters": ("BOOLEAN",{"default":True}),
-                "remove_inner_faces": ("BOOLEAN",{"default":False}),                  
+                "remove_inner_faces": ("BOOLEAN",{"default":False}),
             }
         }
 
@@ -2086,6 +2092,7 @@ class Trellis2MeshTexturing:
                 "bake_on_vertices": ("BOOLEAN",{"default":False}),
                 "use_custom_normals": ("BOOLEAN",{"default":False}),
                 "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":60.0,"min":0.0,"max":359.9}),
+                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
             },
         }
 
@@ -2095,7 +2102,7 @@ class Trellis2MeshTexturing:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material, texture_guidance_interval_start, texture_guidance_interval_end, max_views,bake_on_vertices,use_custom_normals,mesh_cluster_threshold_cone_half_angle_rad):
+    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material, texture_guidance_interval_start, texture_guidance_interval_end, max_views,bake_on_vertices,use_custom_normals,mesh_cluster_threshold_cone_half_angle_rad, sampler):
         images = tensor_batch_to_pil_list(image, max_views=max_views)
         image_in = images[0] if len(images) == 1 else images
 
@@ -2116,7 +2123,8 @@ class Trellis2MeshTexturing:
             max_views = max_views,
             bake_on_vertices = bake_on_vertices,
             use_custom_normals = use_custom_normals,
-            mesh_cluster_threshold_cone_half_angle_rad = mesh_cluster_threshold_cone_half_angle_rad
+            mesh_cluster_threshold_cone_half_angle_rad = mesh_cluster_threshold_cone_half_angle_rad,
+            sampler = sampler
         )            
 
         baseColorTexture = pil2tensor(baseColorTexture_np)
@@ -2147,7 +2155,8 @@ class Trellis2MeshTexturingMultiView:
                 "use_custom_normals": ("BOOLEAN",{"default":False}),
                 "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":60.0,"min":0.0,"max":359.9}),
                 "front_axis": (["z", "x"], {"default": "z"}),
-                "blend_temperature": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1}),                
+                "blend_temperature": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1}),
+                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
             },
             "optional": {
                 "back_image": ("IMAGE",),
@@ -2182,6 +2191,7 @@ class Trellis2MeshTexturingMultiView:
         mesh_cluster_threshold_cone_half_angle_rad,
         front_axis,
         blend_temperature,
+        sampler,
         back_image = None,
         left_image = None,
         right_image = None):
@@ -2215,7 +2225,8 @@ class Trellis2MeshTexturingMultiView:
             use_custom_normals = use_custom_normals,
             mesh_cluster_threshold_cone_half_angle_rad = mesh_cluster_threshold_cone_half_angle_rad,
             front_axis = front_axis,
-            blend_temperature = blend_temperature
+            blend_temperature = blend_temperature,
+            sampler = sampler
         )            
 
         baseColorTexture = pil2tensor(baseColorTexture_np)
@@ -2361,6 +2372,7 @@ class Trellis2MeshRefiner:
                 "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
                 "use_tiled_decoder": ("BOOLEAN", {"default":True}),
                 "max_views": ("INT", {"default": 4, "min": 1, "max": 16}),
+                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
             },
         }
 
@@ -2387,7 +2399,8 @@ class Trellis2MeshRefiner:
         texture_guidance_interval_start,
         texture_guidance_interval_end,
         use_tiled_decoder,
-        max_views):
+        max_views,
+        sampler):
 
         reset_cuda()
 
@@ -2400,7 +2413,7 @@ class Trellis2MeshRefiner:
         shape_slat_sampler_params = {"steps":shape_steps,"guidance_strength":shape_guidance_strength,"guidance_rescale":shape_guidance_rescale,"guidance_interval":shape_guidance_interval,"rescale_t":shape_rescale_t}       
         tex_slat_sampler_params = {"steps":texture_steps,"guidance_strength":texture_guidance_strength,"guidance_rescale":texture_guidance_rescale,"guidance_interval":texture_guidance_interval,"rescale_t":texture_rescale_t}
         
-        mesh = pipeline.refine_mesh(mesh = trimesh, image=image_in, seed=seed, shape_slat_sampler_params = shape_slat_sampler_params, tex_slat_sampler_params = tex_slat_sampler_params, resolution = resolution, max_num_tokens = max_num_tokens, generate_texture_slat=generate_texture_slat, downsampling=downsampling, use_tiled=use_tiled_decoder, max_views = max_views)[0]         
+        mesh = pipeline.refine_mesh(mesh = trimesh, image=image_in, seed=seed, shape_slat_sampler_params = shape_slat_sampler_params, tex_slat_sampler_params = tex_slat_sampler_params, resolution = resolution, max_num_tokens = max_num_tokens, generate_texture_slat=generate_texture_slat, downsampling=downsampling, use_tiled=use_tiled_decoder, max_views = max_views, sampler = sampler)[0]         
         
         vertices = mesh.vertices.cuda()
         faces = mesh.faces.cuda()        
@@ -2429,6 +2442,10 @@ class Trellis2PostProcess2:
                 "remove_duplicate_faces": ("BOOLEAN",{"default":True}),
                 "weld_vertices": ("BOOLEAN",{"default":True}),
                 "weld_vertices_digits": ("INT",{"default":4,"min":1,"max":8}),
+                "smooth": ("BOOLEAN",{"default":False}),
+                "smooth_iterations": ("INT",{"default":10,"min":1,"max":99,"step":1}),
+                "subdivide": ("BOOLEAN",{"default":False}),
+                "subdivide_iterations": ("INT",{"default":1,"min":1,"max":10}),
             },
         }
 
@@ -2438,7 +2455,7 @@ class Trellis2PostProcess2:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, fill_holes, fix_normals, fix_face_orientation, remove_duplicate_faces, weld_vertices, weld_vertices_digits,):
+    def process(self, mesh, fill_holes, fix_normals, fix_face_orientation, remove_duplicate_faces, weld_vertices, weld_vertices_digits,smooth,smooth_iterations,subdivide,subdivide_iterations):
         mesh_copy = copy.deepcopy(mesh)
         
         vertices_np = mesh_copy.vertices.cpu().numpy()
@@ -2480,8 +2497,18 @@ class Trellis2PostProcess2:
             nb_faces_removed = faces_count - new_faces_count
             print(f"Weld Vertices: Removed {nb_vertices_removed} vertices / {nb_faces_removed} faces")
         
+        if smooth:
+            print('Smoothing ...')
+            Trimesh.smoothing.filter_taubin(trimesh, lamb=0.5, nu=-0.53, iterations=smooth_iterations)
+            
+        if subdivide:
+            print('Subdividing ...')
+            trimesh = trimesh.subdivide_loop(iterations=subdivide_iterations)
+        
         new_vertices = torch.from_numpy(trimesh.vertices).float()
-        new_faces = torch.from_numpy(trimesh.faces).int()                
+        new_faces = torch.from_numpy(trimesh.faces).int()
+
+        print(f"After postprocessing: {len(new_faces)} faces")
         
         mesh_copy.vertices = new_vertices.to(mesh_copy.device)
         mesh_copy.faces = new_faces.to(mesh_copy.device) 
@@ -2736,7 +2763,7 @@ class Trellis2RemeshWithQuad:
                 "remesh_project": ("FLOAT",{"default":0.0}),
                 "dual_contouring_resolution": (["Auto","128","256","512","1024","2048"],{"default":"Auto"}),
                 "remove_floaters": ("BOOLEAN",{"default":True}),
-                "remove_inner_faces": ("BOOLEAN",{"default":True}),
+                "remove_inner_faces": ("BOOLEAN",{"default":True})
             }
         }
 
@@ -3055,6 +3082,49 @@ class Trellis2FillHolesWithCuMesh:
         mesh_copy.fill_holes(max_hole_perimeter = max_permieters)
         
         return (mesh_copy,)         
+
+class Trellis2LaplacianSmoothingWithOpen3d:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "mesh": ("MESHWITHVOXEL",),
+                "iterations": ("INT",{"default":10, "min":1, "max":100}),
+                "method": (["Laplacian", "Taubin"],{"default":"Laplacian"}),
+            },
+        }
+
+    RETURN_TYPES = ("MESHWITHVOXEL", )
+    RETURN_NAMES = ("mesh", )
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, mesh, iterations, method):
+        import open3d
+        mesh_copy = copy.deepcopy(mesh)
+        vertices = mesh_copy.vertices.cpu().numpy()
+        faces = mesh_copy.faces.cpu().numpy().astype(np.int32)
+        
+        open3d_mesh = open3d.geometry.TriangleMesh()
+        open3d_mesh.vertices = open3d.utility.Vector3dVector(vertices)
+        open3d_mesh.triangles = open3d.utility.Vector3iVector(faces)
+        
+        if method == "Laplacian":
+            open3d_mesh = open3d_mesh.filter_smooth_laplacian(number_of_iterations=iterations)
+        elif method == "Taubin":
+            open3d_mesh = open3d_mesh.filter_smooth_taubin(number_of_iterations=iterations)
+            
+        open3d_mesh.compute_vertex_normals()
+        
+        new_vertices = np.asarray(open3d_mesh.vertices)
+        new_faces = np.asarray(open3d_mesh.triangles)
+        
+        mesh_copy.vertices = torch.from_numpy(new_vertices).float().to(mesh_copy.device)
+        mesh_copy.faces = torch.from_numpy(new_faces).int().to(mesh_copy.device)
+        
+        return (mesh_copy,)       
+
         
 NODE_CLASS_MAPPINGS = {
     "Trellis2LoadModel": Trellis2LoadModel,
@@ -3090,6 +3160,7 @@ NODE_CLASS_MAPPINGS = {
     "Trellis2ReconstructMeshWithQuad": Trellis2ReconstructMeshWithQuad,
     "Trellis2StringSelector": Trellis2StringSelector,
     "Trellis2FillHolesWithCuMesh": Trellis2FillHolesWithCuMesh,
+    "Trellis2LaplacianSmoothingWithOpen3d": Trellis2LaplacianSmoothingWithOpen3d,
     }
     
 
@@ -3127,4 +3198,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2ReconstructMeshWithQuad": "Trellis2 - Reconstruct Mesh With Quad",
     "Trellis2StringSelector": "Trellis2 - String Selector",
     "Trellis2FillHolesWithCuMesh": "Trellis2 - Fill Holes with CuMesh",
+    "Trellis2LaplacianSmoothingWithOpen3d": "Trellis2 - Laplacian Smoothing (using open3d)",
     }

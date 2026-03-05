@@ -99,18 +99,6 @@ class UpsampleBlock3d(nn.Module):
         
 
 class SparseStructureEncoder(nn.Module):
-    """
-    Encoder for Sparse Structure (\mathcal{E}_S in the paper Sec. 3.3).
-    
-    Args:
-        in_channels (int): Channels of the input.
-        latent_channels (int): Channels of the latent representation.
-        num_res_blocks (int): Number of residual blocks at each resolution.
-        channels (List[int]): Channels of the encoder blocks.
-        num_res_blocks_middle (int): Number of residual blocks in the middle.
-        norm_type (Literal["group", "layer"]): Type of normalization layer.
-        use_fp16 (bool): Whether to use FP16.
-    """
     def __init__(
         self,
         in_channels: int,
@@ -222,18 +210,6 @@ class SparseStructureEncoder(nn.Module):
         
 
 class SparseStructureDecoder(nn.Module):
-    """
-    Decoder for Sparse Structure (\mathcal{D}_S in the paper Sec. 3.3).
-    
-    Args:
-        out_channels (int): Channels of the output.
-        latent_channels (int): Channels of the latent representation.
-        num_res_blocks (int): Number of residual blocks at each resolution.
-        channels (List[int]): Channels of the decoder blocks.
-        num_res_blocks_middle (int): Number of residual blocks in the middle.
-        norm_type (Literal["group", "layer"]): Type of normalization layer.
-        use_fp16 (bool): Whether to use FP16.
-    """ 
     def __init__(
         self,
         out_channels: int,

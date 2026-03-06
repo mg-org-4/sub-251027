@@ -14,10 +14,6 @@ import os
 
 COMPONENTS = Path(__file__).parent.absolute()
 PRIMERE_ROOT = COMPONENTS.parent
-if str(PRIMERE_ROOT) not in sys.path:
-    sys.path.insert(0, str(PRIMERE_ROOT))
-
-from components.API.external_api_backend import canonical_param_name
 
 class SnippetParseError(RuntimeError):
     """Raised when call extraction fails."""
@@ -33,11 +29,12 @@ KNOWN_PARAM_OPTIONS: dict[str, list[str]] = {
     "model": ["example-model-1", "example-model-2"],
     "resolution": ["1K", "2K", "4K"],
     "regions": ["api.bfl.ai", "api.eu.bfl.ai", "api.us.bfl.ai"],
+    "gen_method": ["generate", "edit"],
 }
 
 TYPE_MARKERS = {"INT", "FLOAT", "STRING", "BOOLEAN"}
 INLINE_PLACEHOLDER_RE = re.compile(r"(?<!\{)\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}(?!\})")
-EXCLUDED_PARAMETER_KEYS = {"prompt", "response_modalities", "width", "height", "seed", "reference_images", "first_image", "last_image", "negative_prompt"}
+EXCLUDED_PARAMETER_KEYS = {"prompt", "batch", "response_modalities", "width", "height", "seed", "reference_images", "first_image", "last_image", "negative_prompt"}
 
 DEFAULT_IMPORT_MODULES: dict[str, list[str]] = {
     "generic": [
@@ -157,21 +154,21 @@ def _collect_placeholders(node: Any) -> set[str]:
     walk(node)
     return found
 
-'''def _canonical_param_name(name: str) -> str:
-    low = name.lower()
+def canonical_param_name(name: str, *, number_of_images_as_seed: bool = False) -> str:
+    low = str(name or "").lower()
     if "aspect_ratio" in low:
         return "aspect_ratio"
     if "resolution" in low or "image_size" in low:
         return "resolution"
     if low == "model" or low.endswith("_model"):
         return "model"
-    if low == "number_of_images":
+    if number_of_images_as_seed and low == "number_of_images":
         return "seed"
     if low in {"prompt", "contents"} or low.endswith("_prompt"):
         return "prompt"
     if "response_modalities" in low:
         return "response_modalities"
-    return name'''
+    return str(name)
 
 def _collect_type_markers(node: ast.AST) -> dict[str, str]:
     marked: dict[str, str] = {}
@@ -285,6 +282,7 @@ def build_service_schema(snippet: str, provider: str = DEFAULT_PROVIDER, service
         "provider": provider,
         "service": service,
         "response_handler": response_handler_filename(provider, service),
+        "reference_images_handler": reference_images_handler_filename(provider),
         "import_modules": build_import_modules(snippet, provider=provider),
         "possible_parameters": build_possible_parameters(request_schema, type_markers=type_markers),
         "request": request_schema,
@@ -301,10 +299,14 @@ def _sanitize_name(value: str) -> str:
 def response_handler_filename(provider: str, service: str) -> str:
     return f"{_sanitize_name(provider)}_{_sanitize_name(service)}.py"
 
+def reference_images_handler_filename(provider: str) -> str:
+    return f"{_sanitize_name(provider)}.py"
 
 def _response_handlers_dir() -> Path:
     return Path(os.path.join(PRIMERE_ROOT, "components", "API", "responses"))
 
+def _reference_handlers_dir() -> Path:
+    return Path(os.path.join(PRIMERE_ROOT, "components", "API", "references"))
 
 def ensure_response_handler_file(filename: str) -> Path:
     responses_dir = _response_handlers_dir()
@@ -318,6 +320,25 @@ def ensure_response_handler_file(filename: str) -> Path:
         "from typing import Any\n\n\n"
         "def handle_response(api_result: Any, schema: dict[str, Any] | None = None):\n"
         "    return None\n"
+    )
+    target.write_text(template, encoding="utf-8")
+    return target
+
+def ensure_reference_images_handler_file(filename: str) -> Path:
+    references_dir = _reference_handlers_dir()
+    references_dir.mkdir(parents=True, exist_ok=True)
+    target = references_dir / filename
+    if target.exists():
+        return target
+
+    template = (
+        "from __future__ import annotations\n\n"
+        "from typing import Any\n\n\n"
+        "def handle_reference_images(img_binary_api: Any = None, temp_file_ref: str = '', loaded_client_for_upload: Any = None, **_: Any):\n"
+        "    output = img_binary_api if isinstance(img_binary_api, list) else []\n"
+        "    if temp_file_ref:\n"
+        "        output.append(temp_file_ref)\n"
+        "    return output\n"
     )
     target.write_text(template, encoding="utf-8")
     return target
@@ -356,6 +377,7 @@ def convert_default_files(
     snippet = snippet_path.read_text(encoding="utf-8")
     service_schema = build_service_schema(snippet, provider=provider, service=service)
     ensure_response_handler_file(str(service_schema.get("response_handler") or ""))
+    ensure_reference_images_handler_file(str(service_schema.get("reference_images_handler") or ""))
 
     result_path = root / RESULT_FILENAME
     if append and result_path.exists():

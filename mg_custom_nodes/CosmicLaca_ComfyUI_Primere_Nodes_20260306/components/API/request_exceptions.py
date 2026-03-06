@@ -81,6 +81,8 @@ def _remove_by_path(
             return True
 
     if not use_kwargs_fallback:
+        if "." not in path:
+            return _remove_key_anywhere(payload, path, canonicalize_key=canonicalize_key)
         return False
 
     expanded_parts: list[str] = []
@@ -96,8 +98,45 @@ def _remove_by_path(
             del parent[resolved_last]
             return True
 
+    if "." not in path:
+        return _remove_key_anywhere(payload, path, canonicalize_key=canonicalize_key)
+
     return False
 
+def _remove_key_anywhere(
+    payload: Any,
+    key: str,
+    *,
+    canonicalize_key: Callable[[str], str] | None = None,
+) -> bool:
+    removed = False
+
+    if isinstance(payload, dict):
+        resolved = _resolve_key(payload, key, canonicalize_key)
+        if resolved is not None:
+            del payload[resolved]
+            removed = True
+
+        for child in payload.values():
+            if isinstance(child, (dict, list, tuple)):
+                if _remove_key_anywhere(child, key, canonicalize_key=canonicalize_key):
+                    removed = True
+        return removed
+
+    if isinstance(payload, list):
+        for item in payload:
+            if isinstance(item, (dict, list, tuple)):
+                if _remove_key_anywhere(item, key, canonicalize_key=canonicalize_key):
+                    removed = True
+        return removed
+
+    if isinstance(payload, tuple):
+        for item in payload:
+            if isinstance(item, (dict, list, tuple)):
+                if _remove_key_anywhere(item, key, canonicalize_key=canonicalize_key):
+                    removed = True
+        return removed
+    return False
 
 def _condition_match(
     payload: dict[str, Any],
@@ -105,6 +144,7 @@ def _condition_match(
     *,
     use_kwargs_fallback: bool,
     canonicalize_key: Callable[[str], str] | None = None,
+    match_context: dict[str, Any] | None = None,
 ) -> bool:
     path = condition.get("path") or condition.get("key")
     if not isinstance(path, str) or path.strip() == "":
@@ -117,6 +157,16 @@ def _condition_match(
         use_kwargs_fallback=use_kwargs_fallback,
         canonicalize_key=canonicalize_key,
     )
+    if current is None and isinstance(match_context, dict):
+        direct = match_context.get(path)
+        if direct is not None:
+            current = direct
+        elif canonicalize_key is not None:
+            expected_key = canonicalize_key(path)
+            for mk, mv in match_context.items():
+                if canonicalize_key(str(mk)) == expected_key:
+                    current = mv
+                    break
     return current == expected
 
 
@@ -126,9 +176,37 @@ def apply_exclusions_to_payload(
     *,
     use_kwargs_fallback: bool,
     canonicalize_key: Callable[[str], str] | None = None,
+    match_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return payload
+
+    remove_paths = collect_matching_remove_paths(
+        payload,
+        exclusions,
+        use_kwargs_fallback=use_kwargs_fallback,
+        canonicalize_key=canonicalize_key,
+        match_context=match_context,
+    )
+    apply_remove_paths(
+        payload,
+        remove_paths,
+        use_kwargs_fallback=use_kwargs_fallback,
+        canonicalize_key=canonicalize_key,
+    )
+
+    return payload
+
+
+def collect_matching_remove_paths(
+    payload: dict[str, Any],
+    exclusions: list[dict[str, Any]] | None,
+    *,
+    use_kwargs_fallback: bool,
+    canonicalize_key: Callable[[str], str] | None = None,
+    match_context: dict[str, Any] | None = None,
+) -> list[str]:
+    paths: list[str] = []
 
     for rule in exclusions or []:
         if not isinstance(rule, dict):
@@ -141,30 +219,41 @@ def apply_exclusions_to_payload(
                 condition,
                 use_kwargs_fallback=use_kwargs_fallback,
                 canonicalize_key=canonicalize_key,
+                match_context=match_context,
             ):
                 continue
 
         remove_spec = rule.get("remove")
-        remove_paths: list[str] = []
         if isinstance(remove_spec, str):
-            remove_paths = [remove_spec]
+            paths.append(remove_spec)
         elif isinstance(remove_spec, list):
-            remove_paths = [item for item in remove_spec if isinstance(item, str)]
+            paths.extend([item for item in remove_spec if isinstance(item, str)])
 
-        for remove_path in remove_paths:
-            _remove_by_path(
-                payload,
-                remove_path,
-                use_kwargs_fallback=use_kwargs_fallback,
-                canonicalize_key=canonicalize_key,
-            )
+    return paths
 
+
+def apply_remove_paths(
+    payload: dict[str, Any],
+    remove_paths: list[str],
+    *,
+    use_kwargs_fallback: bool,
+    canonicalize_key: Callable[[str], str] | None = None,
+) -> dict[str, Any]:
+    for remove_path in remove_paths:
+        _remove_by_path(
+            payload,
+            remove_path,
+            use_kwargs_fallback=use_kwargs_fallback,
+            canonicalize_key=canonicalize_key,
+        )
     return payload
+
 
 def apply_sdk_request_exclusions(
     args: list[Any],
     kwargs: dict[str, Any],
     exclusions: list[dict[str, Any]] | None,
+    match_context: dict[str, Any] | None = None,
 ) -> tuple[list[Any], dict[str, Any]]:
     """Apply schema-driven exclusion rules to SDK kwargs."""
     if not isinstance(kwargs, dict):
@@ -175,5 +264,6 @@ def apply_sdk_request_exclusions(
         exclusions,
         use_kwargs_fallback=True,
         canonicalize_key=None,
+        match_context=match_context,
     )
     return args, filtered_kwargs

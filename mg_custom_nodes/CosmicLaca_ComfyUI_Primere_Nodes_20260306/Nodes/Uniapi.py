@@ -24,8 +24,8 @@ from ..components.API import api_schema_registry
 
 class PrimereApiProcessor:
     CATEGORY = TREE_API
-    RETURN_TYPES = ("IMAGE", "APICLIENT", "STRING", "TUPLE", "TUPLE", "TUPLE", "TUPLE", "TUPLE")
-    RETURN_NAMES = ("RESULT", "CLIENT", "PROVIDER", "SCHEMA", "RENDERED", "REQUEST_BODY", "API_SCHEMAS", "API_RESULT")
+    RETURN_TYPES = ("IMAGE", "APICLIENT", "STRING", "TUPLE", "TUPLE", "TUPLE", "TUPLE", "TUPLE", "TUPLE")
+    RETURN_NAMES = ("RESULT", "CLIENT", "PROVIDER", "SCHEMA", "RENDERED", "RAW_PAYLOAD", "REQUEST_BODY", "API_SCHEMAS", "API_RESULT")
     FUNCTION = "process_uniapi"
 
     API_RESULT = api_helper.get_api_config("apiconfig.json")
@@ -66,22 +66,24 @@ class PrimereApiProcessor:
         API_CONFIG_PATH = os.path.join(PRIMERE_ROOT, 'json', 'apiconfig.json')
         API_SCHEMA_REGISTRY = api_schema_registry.load_and_validate_api_schema_registry(API_SCHEMAS_PATH, API_CONFIG_PATH)
 
-        img_binary_api = []
+        img_binary_api = None
 
         WORKFLOWDATA = kwargs['extra_pnginfo']['workflow']['nodes']
         custom_values = utility.getInputsFromWorkflowByNode(WORKFLOWDATA, 'PrimereApiProcessor', kwargs['prompt_extra'])
 
         custom_user_inputs = {k: v for k, v in custom_values.items() if k not in self.required_inputs}
         custom_user_inputs = {k: v for k, v in custom_user_inputs.items() if k not in self.optional_inputs}
-        # return (None, api_provider, None, custom_user_inputs, None, None, None)
         del kwargs['extra_pnginfo']
         del kwargs['prompt_extra']
 
         if not processor:
-            return (None, api_provider, None, None, None, None, reference_images)
+            return (None, None, api_provider, None, None, None, None, None, None)
 
         config_json = self.API_RESULT
+        _requested_provider = api_provider
         client, api_provider = api_helper.create_api_client(api_provider, config_json)
+        if client is None:
+            raise RuntimeError(f"Unknown or unconfigured API provider '{_requested_provider}'. Check apiconfig.json.")
 
         schema, selected_service = api_schema_registry.get_schema(API_SCHEMA_REGISTRY, api_provider, api_service)
         if schema is None:
@@ -103,60 +105,46 @@ class PrimereApiProcessor:
             raise RuntimeError("Schema key 'import_modules' must be a list of import statements.")
         schema["import_modules"] = schema_import_modules
 
-        if not debug_mode:
-            imported_context, imported_roots = external_api_backend.load_import_modules(schema_import_modules)
-            endpoint_value = (((schema.get("request") or {}).get("endpoint")) if isinstance(schema, dict) else "") or ""
-            endpoint_root = endpoint_value.split(".", 1)[0] if isinstance(endpoint_value, str) and "." in endpoint_value else "client"
-            loaded_client_for_upload = imported_context.get(endpoint_root, client)
+        imported_context, imported_roots = external_api_backend.load_import_modules(schema_import_modules)
+        endpoint_value = (((schema.get("request") or {}).get("endpoint")) if isinstance(schema, dict) else "") or ""
+        endpoint_root = endpoint_value.split(".", 1)[0] if isinstance(endpoint_value, str) and "." in endpoint_value else "client"
+        loaded_client_for_upload = imported_context.get(endpoint_root, client)
 
-            if reference_images is not None:
-                if (type(reference_images).__name__ == "list" or type(reference_images).__name__ == "Tensor") and len(reference_images) > 0:
-                    source_images = []
-                    if type(reference_images).__name__ == "list":
-                        source_images = reference_images
+        ref_type_name = type(reference_images).__name__ if reference_images is not None else ""
+        if ref_type_name in {"list", "Tensor"} and len(reference_images) > 0:
+            source_images = reference_images if ref_type_name == "list" else [reference_images]
+            img_binary_api = []
+
+            for single_image in source_images:
+                r1 = random.randint(1000, 9999)
+                if single_image is not None and type(single_image).__name__ == "Tensor":
+                    ref_image = (single_image[0].numpy() * 255).astype(np.uint8)
+                    ref_file = Image.fromarray(ref_image)
+                    TEMP_FILE_REF = os.path.join(folder_paths.temp_directory, f"{api_provider}_edit_{r1}.png")
+                    ref_file.save(TEMP_FILE_REF, format="PNG")
+                    handler_context = {
+                        "img_binary_api": img_binary_api,
+                        "single_image": single_image,
+                        "source_images": source_images,
+                        "temp_file_ref": TEMP_FILE_REF,
+                        "loaded_client_for_upload": loaded_client_for_upload,
+                    }
+                    if not debug_mode:
+                        img_binary_api = external_api_backend.apply_reference_images_handler(schema, api_provider, handler_context)
+                        if not isinstance(img_binary_api, list):
+                            break
                     else:
-                        source_images.append(reference_images)
-
-                    for single_image in source_images:
-                        r1 = random.randint(1000, 9999)
-                        if single_image is not None and type(single_image).__name__ == "Tensor":
-                            ref_image = (single_image[0].numpy() * 255).astype(np.uint8)
-                            ref_file = Image.fromarray(ref_image)
-                            TEMP_FILE_REF = os.path.join(folder_paths.temp_directory, f"{api_provider}_edit_{r1}.png")
-                            ref_file.save(TEMP_FILE_REF, format="PNG")
-                            if api_provider == "Gemini":
-                                gemini_image_data = Image.open(TEMP_FILE_REF)
-                                img_binary_api.append(gemini_image_data)
-                            if api_provider == "BlackForest":
-                                encoded_image = None
-                                single_image = source_images[0]
-                                width_original = single_image.shape[2]
-                                height_original = single_image.shape[1]
-                                image_np_bf = (single_image.numpy() * 255).astype(np.uint8)
-                                img_bf = Image.fromarray(image_np_bf)
-                                img_byte_arr_bf = io.BytesIO()
-                                img_bf.save(img_byte_arr_bf, format="PNG")
-                                img_byte_arr_bf.seek(0)
-                                encoded_string = base64.b64encode(img_byte_arr_bf.read())
-                                img_binary_api = encoded_string.decode('ascii')
-                                break
-
-                            elif hasattr(loaded_client_for_upload, "upload_file"):
-                                uploaded_reference = loaded_client_for_upload.upload_file(TEMP_FILE_REF)
-                                img_binary_api.append(uploaded_reference)
-                            else:
-                                img_binary_api.append(TEMP_FILE_REF)
+                        img_binary_api = f'Debug mode, data or view of [{len(reference_images)}] reference images ignored.'
         else:
-            img_binary_api = 'Debug mode, reference images ignored.'
+            if debug_mode:
+                img_binary_api = 'Reference images off. Please check the source.'
 
-        selected_parameters = {"prompt": prompt}
-        selected_parameters = {"width": width}
-        selected_parameters = {"height": height}
+        selected_parameters = {"prompt": prompt, "width": width, "height": height}
 
         local_inputs = locals()
         required_keys = set(self.required_inputs.keys()) if isinstance(getattr(self, "required_inputs", None), dict) else set()
         optional_keys = set(self.optional_inputs.keys()) if isinstance(getattr(self, "optional_inputs", None), dict) else set()
-        reserved_keys = {"processor", "api_provider", "api_service"}
+        reserved_keys = {"processor", "api_provider", "api_service", "reference_images"}
 
         for key in (required_keys | optional_keys):
             if key in reserved_keys:
@@ -176,7 +164,9 @@ class PrimereApiProcessor:
                 selected_aspect_ratio = external_api_backend.closest_valid_ratio(aspect_ratio, schema_aspect_ratios)
             selected_parameters["aspect_ratio"] = selected_aspect_ratio
 
-        if len(img_binary_api) > 0:
+        if isinstance(img_binary_api, dict) and len(img_binary_api) > 0:
+            selected_parameters.update(img_binary_api)
+        elif img_binary_api not in (None, "") and (not isinstance(img_binary_api, list) or len(img_binary_api) > 0):
             selected_parameters["reference_images"] = img_binary_api
 
         possible_parameters = schema.get("possible_parameters", {}) if isinstance(schema, dict) else {}
@@ -186,10 +176,9 @@ class PrimereApiProcessor:
                     selected_parameters[key] = kwargs[key]
 
         rendered, used_values = api_json_to_requestbody.render_from_schema(schema, selected_parameters)
-        # rendered_payload = rendered.__dict__
         rendered_payload = copy.deepcopy(rendered.__dict__)
-        if len(img_binary_api) > 0:
-            rendered_payload = external_api_backend.redact_reference_images(rendered_payload)
+        if img_binary_api not in (None, "") and (not isinstance(img_binary_api, list) or len(img_binary_api) > 0):
+            rendered_payload = external_api_backend.sanitize_api_debug_payload(rendered_payload)
             sdk_call = rendered_payload.get("sdk_call")
             if isinstance(sdk_call, dict):
                 sdk_kwargs = sdk_call.get("kwargs")
@@ -203,6 +192,15 @@ class PrimereApiProcessor:
                             else:
                                 sanitized_contents.append(content_item)
                         sdk_kwargs["contents"] = sanitized_contents
+
+        used_values_output = external_api_backend.sanitize_api_debug_payload(used_values)
+
+        if isinstance(rendered.sdk_call, dict):
+            raw_payload = external_api_backend.sanitize_api_debug_payload(copy.deepcopy(rendered.sdk_call.get("kwargs", {})))
+        elif rendered.body is not None:
+            raw_payload = external_api_backend.sanitize_api_debug_payload(copy.deepcopy(rendered.body))
+        else:
+            raw_payload = {}
 
         api_result = None
         api_error = None
@@ -238,11 +236,9 @@ class PrimereApiProcessor:
                 loaded_client = context.get(endpoint_root, client)
 
                 if debug_mode:
-                    return (reference_images, loaded_client, api_provider, schema, rendered_payload, used_values, api_result, None)
-                api_result = external_api_backend.execute_sdk_request(rendered, context, allowed_roots)
+                    return (reference_images, loaded_client, api_provider, schema, rendered_payload, raw_payload, used_values_output, api_result, None)
+                api_result = external_api_backend.execute_sdk_request(rendered, context, allowed_roots, match_context=used_values)
             else:
-                import requests
-
                 response = requests.request(
                     method=rendered.method,
                     url=rendered.endpoint,
@@ -260,17 +256,16 @@ class PrimereApiProcessor:
             api_error = str(e)
 
         selected_parameters_output = {k: v for k, v in selected_parameters.items() if k != "reference_images"}
+        selected_parameters_output = external_api_backend.sanitize_api_debug_payload(selected_parameters_output)
 
         api_result_debug = external_api_backend.sanitize_debug_value(api_result)
         api_schemas = (
             {
                 "schema": schema,
                 "selected_parameters": selected_parameters_output,
-                "used_values": used_values,
+                "used_values": used_values_output,
                 "selected_service": selected_service,
-                # "rendered": rendered.__dict__,
                 "rendered": rendered_payload,
-                # "api_result": api_result,
                 "api_result": api_result_debug,
                 "api_error": api_error,
             },
@@ -280,8 +275,7 @@ class PrimereApiProcessor:
             raise RuntimeError(f"API call failed for {api_provider}/{selected_service}: {api_error}")
 
         if api_error is None:
-            # result_image = external_api_backend.apply_response_handler(schema, api_result, provider=api_provider, service=(selected_service or api_service))
             response_context = {"response_url": response_url, "call_url": response_url, "loaded_client": loaded_client, "client": client, "sdk_context": sdk_context}
             result_image = external_api_backend.apply_response_handler(schema, api_result, provider=api_provider, service=(selected_service or api_service), response_context=response_context)
 
-        return (result_image, client, api_provider, schema, rendered_payload, used_values, api_schemas, api_result_debug)
+        return (result_image, client, api_provider, schema, rendered_payload, raw_payload, used_values_output, api_schemas, api_result_debug)

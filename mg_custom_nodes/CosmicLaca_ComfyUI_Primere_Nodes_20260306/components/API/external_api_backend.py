@@ -68,7 +68,13 @@ def render_template(template: Any, values: dict[str, Any]) -> Any:
 
 
 def list_placeholders(template: Any) -> list[str]:
-    found: set[str] = set()
+    found_order: list[str] = []
+    found_set: set[str] = set()
+    def add_placeholder(name: str) -> None:
+        if name in found_set:
+            return
+        found_set.add(name)
+        found_order.append(name)
 
     def walk(node: Any) -> None:
         if isinstance(node, dict):
@@ -81,10 +87,10 @@ def list_placeholders(template: Any) -> list[str]:
             return
         if isinstance(node, str):
             for m in PLACEHOLDER_RE.finditer(node):
-                found.add(m.group(1))
+                add_placeholder(m.group(1))
 
     walk(template)
-    return sorted(found)
+    return found_order
 
 
 def build_request(spec: dict[str, Any], values: dict[str, Any]) -> RenderResult:
@@ -99,21 +105,6 @@ def build_request(spec: dict[str, Any], values: dict[str, Any]) -> RenderResult:
         sdk_call=render_template(request.get("sdk_call"), values) if request.get("sdk_call") is not None else None,
         request_exclusions=spec.get("request_exclusions") if isinstance(spec.get("request_exclusions"), list) else []
     )
-
-def _canonical_used_value_name(name: str) -> str:
-    low = str(name or "").lower()
-    if "aspect_ratio" in low:
-        return "aspect_ratio"
-    if "resolution" in low or "image_size" in low:
-        return "resolution"
-    if low == "model" or low.endswith("_model"):
-        return "model"
-    if low in {"prompt", "contents"} or low.endswith("_prompt"):
-        return "prompt"
-    if "response_modalities" in low:
-        return "response_modalities"
-    return str(name)
-
 
 def _prepare_used_value_exclusions(exclusions: Any) -> list[dict[str, Any]]:
     if not isinstance(exclusions, list):
@@ -316,13 +307,13 @@ def _apply_auth_header_fallback(kwargs: dict[str, Any], context: dict[str, Any])
         if headers.get(auth_key) in (None, "", "null"):
             headers[auth_key] = provider_api_key
 
-def execute_sdk_request(rendered: RenderResult, context: dict[str, Any], allowed_roots: set[str] | None = None) -> Any:
+def execute_sdk_request(rendered: RenderResult, context: dict[str, Any], allowed_roots: set[str] | None = None, match_context: dict[str, Any] | None = None) -> Any:
     if rendered.method.upper() != "SDK":
         raise ExternalAPIError("execute_sdk_request expects SDK method")
     roots = allowed_roots or set(context.keys())
     fn = _resolve_dotted_from_context(str(rendered.endpoint), context, roots)
     args, kwargs = normalize_sdk_call(rendered.sdk_call)
-    filtered_args, filtered_kwargs = request_exceptions.apply_sdk_request_exclusions(args=list(args), kwargs=dict(kwargs), exclusions=rendered.request_exclusions)
+    filtered_args, filtered_kwargs = request_exceptions.apply_sdk_request_exclusions(args=list(args), kwargs=dict(kwargs), exclusions=rendered.request_exclusions, match_context=match_context)
     safe_args = [_materialize_sdk_value(a, context, roots) for a in filtered_args]
     safe_kwargs = {k: _materialize_sdk_value(v, context, roots) for k, v in filtered_kwargs.items()}
     _apply_auth_header_fallback(safe_kwargs, context)
@@ -428,7 +419,8 @@ def redact_reference_images(node):
     if isinstance(node, dict):
         sanitized = {}
         for key, value in node.items():
-            if key == "reference_images":
+            key_name = str(key or "").lower()
+            if key_name == "reference_images" or key_name == "input_image" or key_name.startswith("input_image_"):
                 sanitized[key] = "[reference_images omitted]"
             else:
                 sanitized[key] = redact_reference_images(value)
@@ -561,6 +553,49 @@ def _load_response_handler(filename: str):
 
     return handler
 
+def _load_reference_images_handler(filename: str):
+    safe_name = _safe_response_handler_filename(filename)
+    base_dir = os.path.join(PRIMERE_ROOT, 'components', 'API', 'references')
+    module_path = os.path.join(base_dir, safe_name)
+    if not Path(module_path).exists():
+        return None
+
+    package_name = "primere_reference_handlers"
+    package = sys.modules.get(package_name)
+    if package is None:
+        package = types.ModuleType(package_name)
+        package.__path__ = [base_dir]
+        sys.modules[package_name] = package
+
+    module_stem = safe_name[:-3].replace('.', '_').replace('-', '_')
+    module_name = f"{package_name}.{module_stem}"
+    spec = importlib.util.spec_from_file_location(module_name, str(module_path))
+    if spec is None or spec.loader is None:
+        raise ExternalAPIError(f"Cannot import reference images handler: {safe_name}")
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    handler = getattr(module, "handle_reference_images", None)
+    if not callable(handler):
+        raise ExternalAPIError(f"Reference images handler '{safe_name}' must define callable handle_reference_images(**kwargs)")
+
+    return handler
+
+
+def apply_reference_images_handler(schema: dict[str, Any] | None, provider: str, handler_context: dict[str, Any] | None = None) -> Any:
+    safe_provider = str(provider or "").strip()
+    configured_handler = schema.get("reference_images_handler") if isinstance(schema, dict) else None
+    handler_file = str(configured_handler).strip() if configured_handler not in (None, "") else f"{safe_provider}.py"
+    handler = _load_reference_images_handler(handler_file)
+    if handler is None:
+        handler = _load_reference_images_handler("default.py")
+    if handler is None:
+        raise ExternalAPIError("Reference images handler file not found: default.py")
+
+    context = handler_context if isinstance(handler_context, dict) else {}
+    return handler(**context)
+
 def apply_response_handler(schema: dict[str, Any] | None, api_result: Any, provider: str = "", service: str = "", response_context: dict[str, Any] | None = None) -> Any:
     if api_result is None:
         return None
@@ -588,6 +623,9 @@ def apply_response_handler(schema: dict[str, Any] | None, api_result: Any, provi
     return handler(api_result, **kwargs)
 
 def sanitize_debug_value(value: Any) -> Any:
+    if isinstance(value, torch.Tensor):
+        return f"[torch.Tensor omitted: shape={tuple(value.shape)}, dtype={value.dtype}]"
+
     if isinstance(value, dict):
         sanitized_dict = {}
         for k, v in value.items():
@@ -596,11 +634,29 @@ def sanitize_debug_value(value: Any) -> Any:
                 encoded_size = len(v) if isinstance(v, (str, bytes, bytearray, memoryview)) else 0
                 sanitized_dict[k] = f"[base64 omitted: {encoded_size} chars]"
                 continue
+            if key_name in {"reference_images", "input_image"} or key_name.startswith("input_image_"):
+                if isinstance(v, str):
+                    sanitized_dict[k] = f"[image payload omitted: {len(v)} chars]"
+                elif isinstance(v, list):
+                    sanitized_dict[k] = f"[image payload list omitted: {len(v)} items]"
+                elif isinstance(v, tuple):
+                    sanitized_dict[k] = f"[image payload tuple omitted: {len(v)} items]"
+                elif isinstance(v, dict):
+                    sanitized_dict[k] = f"[image payload object omitted: {len(v)} keys]"
+                else:
+                    sanitized_dict[k] = "[image payload omitted]"
+                continue
             sanitized_dict[k] = sanitize_debug_value(v)
         return sanitized_dict
     if isinstance(value, list):
+        tensor_count = sum(1 for item in value if isinstance(item, torch.Tensor))
+        if tensor_count == len(value) and tensor_count > 0:
+            return f"[tensor list omitted: {tensor_count} tensors]"
         return [sanitize_debug_value(v) for v in value]
     if isinstance(value, tuple):
+        tensor_count = sum(1 for item in value if isinstance(item, torch.Tensor))
+        if tensor_count == len(value) and tensor_count > 0:
+            return f"[tensor tuple omitted: {tensor_count} tensors]"
         return tuple(sanitize_debug_value(v) for v in value)
     if isinstance(value, (bytes, bytearray, memoryview)):
         return f"[binary data omitted: {len(value)} bytes]"
@@ -631,6 +687,8 @@ def sanitize_debug_value(value: Any) -> Any:
 
     return value
 
+def sanitize_api_debug_payload(value: Any) -> Any:
+    return redact_reference_images(sanitize_debug_value(value))
 def canonical_param_name(name: str, *, number_of_images_as_seed: bool = False) -> str:
     low = str(name or "").lower()
     if "aspect_ratio" in low:

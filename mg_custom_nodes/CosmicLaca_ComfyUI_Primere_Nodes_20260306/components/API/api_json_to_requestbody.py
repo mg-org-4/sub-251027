@@ -3,6 +3,7 @@ from typing import Any
 import os
 from . import external_api_backend
 from . import api_helper
+from . import request_exceptions
 
 def _provider_api_key(spec: dict[str, Any]) -> Any:
     provider = str(spec.get("provider") or "").strip()
@@ -70,6 +71,14 @@ def _default_value(name: str) -> Any:
         return 1
     return f"default_{name}"
 
+def _is_optional_image_input(name: str) -> bool:
+    low = str(name or "").lower()
+    if low in {"reference_images", "first_image", "last_image"}:
+        return True
+    if low == "input_image" or low.startswith("input_image_"):
+        return True
+    return False
+
 def _build_values(spec: dict[str, Any], values: dict[str, Any] | None = None) -> dict[str, Any]:
     user_values = values or {}
     request = spec.get("request", {})
@@ -100,6 +109,9 @@ def _build_values(spec: dict[str, Any], values: dict[str, Any] | None = None) ->
         elif canonical in possible_parameters and isinstance(possible_parameters[canonical], list) and len(possible_parameters[canonical]) > 0:
             selected = possible_parameters[canonical][0]
         else:
+            if _is_optional_image_input(canonical) or _is_optional_image_input(key):
+                resolved[key] = None
+                continue
             secret_selected = _secret_placeholder_default(key, spec)
             if secret_selected is not None:
                 selected = secret_selected
@@ -113,8 +125,89 @@ def _build_values(spec: dict[str, Any], values: dict[str, Any] | None = None) ->
 
     return resolved
 
+def _filter_used_values_from_template(
+    spec: dict[str, Any],
+    used_values: dict[str, Any],
+    remove_paths: list[str],
+) -> dict[str, Any]:
+    request = spec.get("request", {}) if isinstance(spec, dict) else {}
+    request_template = {
+        "endpoint": request.get("endpoint", ""),
+        "method": request.get("method", "POST"),
+        "headers": request.get("headers", {}),
+        "query": request.get("query", {}),
+        "body": request.get("body"),
+        "sdk_call": request.get("sdk_call"),
+    }
+
+    sdk_call_template = request_template.get("sdk_call")
+    template_args, template_kwargs = external_api_backend.normalize_sdk_call(sdk_call_template if isinstance(sdk_call_template, dict) else None)
+    template_kwargs_copy = dict(template_kwargs)
+    request_exceptions.apply_remove_paths(
+        template_kwargs_copy,
+        remove_paths,
+        use_kwargs_fallback=True,
+    )
+    request_template["sdk_call"] = {"args": list(template_args), "kwargs": template_kwargs_copy}
+
+    remaining_placeholders = external_api_backend.list_placeholders(request_template)
+    canonical_allowed = {external_api_backend.canonical_param_name(name) for name in remaining_placeholders}
+
+    filtered: dict[str, Any] = {}
+    for key, value in used_values.items():
+        if external_api_backend.canonical_param_name(key) in canonical_allowed:
+            filtered[key] = value
+    return filtered
+
+def _remove_none_values(value: Any) -> Any:
+    if isinstance(value, dict):
+        cleaned: dict[str, Any] = {}
+        for key, child in value.items():
+            if child is None:
+                continue
+            cleaned[key] = _remove_none_values(child)
+        return cleaned
+    if isinstance(value, list):
+        cleaned_list = []
+        for child in value:
+            if child is None:
+                continue
+            cleaned_list.append(_remove_none_values(child))
+        return cleaned_list
+    if isinstance(value, tuple):
+        cleaned_tuple = []
+        for child in value:
+            if child is None:
+                continue
+            cleaned_tuple.append(_remove_none_values(child))
+        return tuple(cleaned_tuple)
+    return value
+
 def render_from_schema(spec: dict[str, Any], values: dict[str, Any] | None = None):
     used_values = _build_values(spec, values)
-    request_exclusions = spec.get("request_exclusions") if isinstance(spec, dict) else None
-    filtered_used_values = external_api_backend.remove_excluded_used_values(used_values, request_exclusions)
-    return external_api_backend.build_request(spec, used_values), filtered_used_values
+    rendered = external_api_backend.build_request(spec, used_values)
+
+    request_exclusions = rendered.request_exclusions if isinstance(rendered.request_exclusions, list) else []
+    sdk_call_data = rendered.sdk_call if isinstance(rendered.sdk_call, dict) else {}
+    _, rendered_kwargs = external_api_backend.normalize_sdk_call(sdk_call_data)
+    matched_remove_paths = request_exceptions.collect_matching_remove_paths(
+        dict(rendered_kwargs),
+        request_exclusions,
+        use_kwargs_fallback=True,
+        match_context=used_values,
+    )
+
+    filtered_used_values = _filter_used_values_from_template(spec, used_values, matched_remove_paths)
+    filtered_used_values = {k: v for k, v in filtered_used_values.items() if v is not None}
+
+    if matched_remove_paths and isinstance(rendered.sdk_call, dict):
+        sdk_kwargs = rendered.sdk_call.get("kwargs")
+        if isinstance(sdk_kwargs, dict):
+            request_exceptions.apply_remove_paths(sdk_kwargs, matched_remove_paths, use_kwargs_fallback=True)
+
+    rendered.headers = _remove_none_values(rendered.headers) if isinstance(rendered.headers, dict) else rendered.headers
+    rendered.query = _remove_none_values(rendered.query) if isinstance(rendered.query, dict) else rendered.query
+    rendered.body = _remove_none_values(rendered.body)
+    rendered.sdk_call = _remove_none_values(rendered.sdk_call)
+
+    return rendered, filtered_used_values

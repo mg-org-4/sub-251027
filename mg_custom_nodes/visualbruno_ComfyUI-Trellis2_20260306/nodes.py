@@ -425,7 +425,7 @@ class Trellis2MeshWithVoxelGenerator:
                 "sparse_structure_resolution": ("INT", {"default":32,"min":32,"max":128,"step":4}),
                 "generate_texture_slat": ("BOOLEAN", {"default":True}),
                 "use_tiled_decoder": ("BOOLEAN", {"default":True}),
-                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
+                "sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),
             },
         }
 
@@ -1234,7 +1234,7 @@ class Trellis2MeshWithVoxelAdvancedGenerator:
                 "texture_guidance_interval_start": ("FLOAT",{"default":0.00,"min":0.00,"max":1.00,"step":0.01}),
                 "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
                 "use_tiled_decoder": ("BOOLEAN", {"default":True}),
-                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
+                "sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),
             },
         }
 
@@ -1339,7 +1339,7 @@ class Trellis2MeshWithVoxelMultiViewGenerator:
                 "use_tiled_decoder": ("BOOLEAN", {"default":True}),
                 "front_axis": (["z", "x"], {"default": "z"}),
                 "blend_temperature": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1}),
-                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
+                "sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),
             },
             "optional": {
                 "back_image": ("IMAGE",),
@@ -2092,7 +2092,7 @@ class Trellis2MeshTexturing:
                 "bake_on_vertices": ("BOOLEAN",{"default":False}),
                 "use_custom_normals": ("BOOLEAN",{"default":False}),
                 "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":60.0,"min":0.0,"max":359.9}),
-                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
+                "sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),
             },
         }
 
@@ -2156,7 +2156,7 @@ class Trellis2MeshTexturingMultiView:
                 "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":60.0,"min":0.0,"max":359.9}),
                 "front_axis": (["z", "x"], {"default": "z"}),
                 "blend_temperature": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1}),
-                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
+                "sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),
             },
             "optional": {
                 "back_image": ("IMAGE",),
@@ -2372,7 +2372,7 @@ class Trellis2MeshRefiner:
                 "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
                 "use_tiled_decoder": ("BOOLEAN", {"default":True}),
                 "max_views": ("INT", {"default": 4, "min": 1, "max": 16}),
-                "sampler": (["euler", "rk4", "rk5"], {"default": "euler"}),
+                "sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),
             },
         }
 

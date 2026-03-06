@@ -14,5 +14,9 @@ from .flow_euler import (
     FlowRK4MultiViewSampler,
     FlowRK5MultiViewSampler,
     FlowRK4MultiViewGuidanceIntervalSampler,
-    FlowRK5MultiViewGuidanceIntervalSampler
+    FlowRK5MultiViewGuidanceIntervalSampler,
+    FlowHeunSampler,
+    FlowHeunGuidanceIntervalSampler,
+    FlowHeunMultiViewSampler,
+    FlowHeunMultiViewGuidanceIntervalSampler
 )

@@ -113,6 +113,8 @@ class Trellis2ImageTo3DPipeline(Pipeline):
             self._sampler_prefix = "RK4"
         elif sampler_type == "rk5":
             self._sampler_prefix = "RK5"
+        elif sampler_type == "heun":
+            self._sampler_prefix = "Heun"
             
         args = self._pretrained_args
         self.sparse_structure_sampler = getattr(samplers, f"Flow{self._sampler_prefix}GuidanceIntervalSampler")(**args['sparse_structure_sampler']['args'])

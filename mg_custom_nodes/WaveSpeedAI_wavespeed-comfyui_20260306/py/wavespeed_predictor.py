@@ -565,16 +565,24 @@ def convert_parameter_value(value, param_type):
                 if value.strip():
                     pairs = [pair.strip() for pair in value.split(',') if pair.strip()]
                     for pair in pairs:
+                        # Use rsplit to handle URLs containing ':' (e.g., https://example.com/model.safetensors:1.0)
+                        # rsplit(':', 1) splits from the right, so the URL stays intact
                         if ':' in pair:
-                            path, scale_str = pair.split(':', 1)
+                            path, scale_str = pair.rsplit(':', 1)
                             try:
                                 scale = float(scale_str.strip())
                                 loras.append({"path": path.strip(), "scale": scale})
                             except ValueError:
-                                print(f"[WaveSpeed] Invalid scale value in LoRA pair: {pair}")
+                                # scale part is not a number, treat entire string as path
+                                loras.append({"path": pair.strip(), "scale": 1.0})
                         else:
                             loras.append({"path": pair.strip(), "scale": 1.0})
-                result = loras
+                # Return single object (not wrapped in list) to avoid double-nesting
+                # when the caller appends the result into an array
+                if len(loras) == 1:
+                    result = loras[0]
+                else:
+                    result = loras
         else:
             result = {}
         print(f"[WaveSpeed] lora-weight conversion result: {result}")
@@ -592,6 +600,23 @@ def convert_parameter_value(value, param_type):
         return result
 
     else:
+        # Fallback: Auto-detect LoRA format (URL:scale) for generic string inputs
+        # This handles cases where external nodes pass LoRA values but param_type is "string"
+        if isinstance(value, str) and value.strip():
+            # Try to detect "URL:scale" pattern — use rsplit to preserve URL's own colons
+            stripped = value.strip()
+            if '://' in stripped:
+                # Looks like a URL, check if it ends with :number (scale)
+                path, _, maybe_scale = stripped.rpartition(':')
+                if path and maybe_scale:
+                    try:
+                        scale = float(maybe_scale)
+                        result = {"path": path, "scale": scale}
+                        print(f"[WaveSpeed] Auto-detected LoRA format in fallback. Result: {result}")
+                        return result
+                    except ValueError:
+                        pass
+
         result = str(value) if value is not None else ""
         print(f"[WaveSpeed] string conversion result: {result}")
         return result
@@ -1028,7 +1053,11 @@ class WaveSpeedAIPredictor:
                             continue
                     else:
                         # Type conversion for non-tensor values
+                        # Auto-detect LoRA parameters by name and force lora-weight type
                         item_type = array_info.get('itemType', 'string')
+                        if item_type == 'string' and array_param_name.lower().replace('_', '').replace('-', '').find('lora') >= 0:
+                            item_type = 'lora-weight'
+                            print(f"[WaveSpeed Predictor] Auto-detected LoRA parameter '{array_param_name}', using lora-weight type")
                         converted = convert_parameter_value(value, item_type)
                         if converted:
                             array_values.append(converted)

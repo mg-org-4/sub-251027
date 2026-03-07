@@ -68,16 +68,17 @@
     "VEO": {
       "provider": "Gemini",
       "service": "VEO",
+      "reference_images_handler": "Gemini_VEO.py",
       "import_modules": [
         "from google import genai",
         "from google.genai import types"
       ],
       "possible_parameters": {
-        "aspect_ratio": ["9:16", "16:9"],
-        "durationSeconds": ["4", "6", "8"],
-        "personGeneration": ["allow_all", "allow_adult", "dont_allow"],
-        "resolution": ["720p", "1080p", "4K"],
-        "model": ["veo-3.0-generate", "veo-3.0-fast-generate", "veo-3.1-generate-preview", "veo-3.1-generate", "veo-3.1-fast-generate-preview", "veo-3.1-fast-generate"]
+        "model": ["veo-2.0-generate-001", "veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
+        "aspect_ratio": ["16:9", "16:10", "9:16", "10:16"],
+        "duration_seconds": [4, 5, 6, 7, 8],
+        "person_generation": ["allow_adult", "allow_all", "dont_allow"],
+        "resolution": ["720p", "1080p", "4K"]
       },
       "request": {
         "method": "SDK",
@@ -93,11 +94,13 @@
               "$args": [],
               "$kwargs": {
                 "aspectRatio": "{{aspect_ratio}}",
+                "number_of_videos": "{{batch}}",
                 "resolution": "{{config_resolution}}",
-                "durationSeconds": "{{durationSeconds}}",
-                "personGeneration": "{{personGeneration}}",
+                "durationSeconds": "{{duration_seconds}}",
+                "personGeneration": "{{person_generation}}",
                 "reference_images": "{{reference_images}}",
-                "last_frame": "{{last_image}}"
+                "last_frame": "{{last_image}}",
+                "negative_prompt": "{{negative_prompt}}"
               }
             }
           }
@@ -278,8 +281,12 @@
       },
       "request_exclusions": [
         {
+          "when": {"path": "model_name", "equals": "flux-pro"},
+          "remove": ["steps", "guidance", "aspect_ratio", "image", "mask", "reference_mask", "image_prompt_strength", "input_image", "input_image_2", "input_image_3", "input_image_4", "input_image_5", "input_image_6", "input_image_7", "input_image_8"]
+        },
+        {
           "when": {"path": "model_name", "equals": "flux-pro-1.1"},
-          "remove": ["aspect_ratio", "image", "mask", "reference_mask", "image_prompt_strength", "input_image", "input_image_2", "input_image_3", "input_image_4", "input_image_5", "input_image_6", "input_image_7", "input_image_8"]
+          "remove": ["steps", "guidance", "aspect_ratio", "image", "mask", "reference_mask", "image_prompt_strength", "input_image", "input_image_2", "input_image_3", "input_image_4", "input_image_5", "input_image_6", "input_image_7", "input_image_8"]
         },
         {
           "when": {"path": "model_name", "equals": "flux-dev"},
@@ -287,7 +294,7 @@
         },
         {
           "when": {"path": "model_name", "equals": "flux-pro-1.1-ultra"},
-          "remove": ["width", "height", "image", "mask", "reference_mask", "input_image", "input_image_2", "input_image_3", "input_image_4", "input_image_5", "input_image_6", "input_image_7", "input_image_8"]
+          "remove": ["steps", "guidance", "width", "height", "image", "mask", "reference_mask", "input_image", "input_image_2", "input_image_3", "input_image_4", "input_image_5", "input_image_6", "input_image_7", "input_image_8"]
         },
         {
           "when": {"path": "model_name", "equals": "flux-pro-1.0-fill"},
@@ -307,29 +314,41 @@
         },
         {
           "when": {"path": "model_name", "equals": "flux-2-max"},
-          "remove": ["aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
         },
         {
           "when": {"path": "model_name", "equals": "flux-2-klein-9b"},
-          "remove": ["aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "input_image_5", "input_image_6", "input_image_7", "input_image_8", "image_prompt_strength"]
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "input_image_5", "input_image_6", "input_image_7", "input_image_8", "image_prompt_strength"]
         },
         {
           "when": {"path": "model_name", "equals": "flux-2-klein-4b"},
-          "remove": ["aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "input_image_5", "input_image_6", "input_image_7", "input_image_8", "image_prompt_strength"]
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "input_image_5", "input_image_6", "input_image_7", "input_image_8", "image_prompt_strength"]
         },
         {
           "when": {"path": "model_name", "equals": "flux-2-pro-preview"},
-          "remove": ["aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
         },
         {
           "when": {"path": "model_name", "equals": "flux-2-pro"},
-          "remove": ["aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
         },
         {
           "when": {"path": "model_name", "equals": "flux-2-flex"},
-          "remove": ["aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
         }
       ],
+      "parameter_constraints": {
+        "width":  {"min": 256, "max": 1440, "step": 32},
+        "height": {"min": 256, "max": 1440, "step": 32},
+        "safety_tolerance": [
+          {"when": {"path": "model_name", "equals": "flux-2-max"}, "max": 5},
+          {"when": {"path": "model_name", "equals": "flux-2-klein-9b"}, "max": 5},
+          {"when": {"path": "model_name", "equals": "flux-2-klein-4b"}, "max": 5},
+          {"when": {"path": "model_name", "equals": "flux-2-pro-preview"}, "max": 5},
+          {"when": {"path": "model_name", "equals": "flux-2-pro"}, "max": 5},
+          {"when": {"path": "model_name", "equals": "flux-2-flex"}, "max": 5}
+        ]
+      },
       "request": {
         "method": "SDK",
         "endpoint": "requests.post",

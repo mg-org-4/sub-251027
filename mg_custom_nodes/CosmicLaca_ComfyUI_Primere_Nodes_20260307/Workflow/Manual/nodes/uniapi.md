@@ -9,6 +9,9 @@
 1. [Setup — provider config](#1-setup--provider-config)
 2. [How it works — operating model](#2-how-it-works--operating-model)
 3. [Schema workflow — snippet to JSON](#3-schema-workflow--snippet-to-json)
+   - 3.1 [Write modes](#31-write-modes)
+   - 3.2 [All parameters](#32-all-parameters)
+   - 3.3 [What the helper extracts](#33-what-the-helper-extracts)
 4. [Schema reference — editing `api_schemas.json`](#4-schema-reference--editing-api_schemasjson)
    - 4.1 [Minimal schema structure](#41-minimal-schema-structure)
    - 4.2 [Placeholders — `{{key}}` syntax](#42-placeholders--key-syntax)
@@ -17,11 +20,13 @@
    - 4.5 [`request_exclusions`](#45-request_exclusions)
    - 4.6 [URL-part and endpoint placeholders](#46-url-part-and-endpoint-placeholders)
    - 4.7 [Header authentication placeholders](#47-header-authentication-placeholders)
+   - 4.8 [`parameter_constraints`](#48-parameter_constraints)
 5. [Handlers](#5-handlers)
    - 5.1 [`response_handler`](#51-response_handler)
    - 5.2 [`reference_images_handler`](#52-reference_images_handler)
 6. [Runtime rules and validation](#6-runtime-rules-and-validation)
 7. [Debug outputs — understanding and using them](#7-debug-outputs--understanding-and-using-them)
+8. [File save settings](#8-file-save-settings)
 
 ---
 
@@ -69,6 +74,8 @@ All four of these must be the same string. If they are not aligned exactly, prov
 4. Run the node using `api_provider` + `api_service` matching the registry entry.
 5. Response parsing is delegated to `components/API/responses/<handler>.py`.
 
+After editing `api_schemas.json`, use the **↺ Reload API Schema** button at the top of the node to apply changes immediately — no browser reload or ComfyUI restart needed. A confirmation alert shows how many providers and services were loaded.
+
 ---
 
 ## 3) Schema workflow — snippet to JSON
@@ -79,14 +86,119 @@ Run from `terminal_helpers/`:
 python api_snippet_to_json.py --provider <ProviderName> --service <ServiceName>
 ```
 
-### Modes
+If `--provider` or `--service` are omitted, the script will prompt you to type them interactively instead of failing immediately.
 
-| Mode | Command | Behavior |
-|---|---|---|
-| Upsert (default) | *(no flag)* | Merges/updates only the specified provider/service into `result.json` |
-| Replace | `--replace` | Rewrites `result.json` with only the generated entry |
+---
 
-### What the helper extracts
+### 3.1 Write modes
+
+| Flag | Behavior |
+|---|---|
+| *(no flag)* | Upsert — merges/updates only the specified provider/service into `result.json` |
+| `--replace` | Rewrites `result.json` from scratch with only the generated entry |
+
+---
+
+### 3.2 All parameters
+
+#### `--provider <name>`
+
+Top-level provider key (e.g. `Gemini`, `OpenAI`). Must match the key in `apiconfig.json` and `api_schemas.json`. Prompted interactively if omitted.
+
+#### `--service <name>`
+
+Service name nested under the provider (e.g. `Imagen`, `text2image`). Prompted interactively if omitted.
+
+#### `--replace`
+
+Replaces `result.json` entirely with only the newly generated entry. Without this flag, the script upserts — existing entries for other providers/services are preserved.
+
+#### `--snippet <path>`
+
+Path to a custom snippet file. By default the script looks for `snippet.py` in the current directory. Use this to point to any file anywhere:
+
+```bash
+python api_snippet_to_json.py --provider Gemini --service Imagen --snippet /path/to/my_call.py
+```
+
+`result.json` is always written to the current working directory regardless of where the snippet file is.
+
+#### `--dry-run`
+
+Builds and prints the generated schema to the terminal without writing `result.json` or creating any handler files. Use this to preview the output before committing:
+
+```bash
+python api_snippet_to_json.py --provider Gemini --service Imagen --dry-run
+```
+
+Can be combined with `--validate` — validation runs first, then the schema is printed without writing.
+
+#### `--validate`
+
+Checks the generated schema for issues before writing. Runs two types of checks:
+
+**Non-blocking warnings** (printed, writing continues):
+
+- Missing or empty required fields (`provider`, `service`, `response_handler`, `import_modules`, `possible_parameters`, `request`, `request.method`, `request.endpoint`)
+- Conflicts — if the same `provider/service` already exists in `front_end/api_schemas.json`
+
+**Hard error — cancels writing** (no `result.json` is touched):
+
+- Provider name not found in `json/apiconfig.json` — because every provider used by the node must have credentials registered there. If the provider is missing, the schema would be unusable at runtime anyway.
+
+```bash
+python api_snippet_to_json.py --provider Gemini --service Imagen --validate
+```
+
+Example hard error output when provider is missing from `apiconfig.json`:
+
+```
+[VALIDATE] Schema looks good.
+ERROR: Provider 'Gemini' not found in apiconfig.json.
+  Registered providers: BlackForest, OpenAI
+  Add 'Gemini' to json/apiconfig.json before writing this schema.
+```
+
+Validation output is printed to the terminal. Writing `result.json` is cancelled only on the provider hard error — non-blocking warnings do not stop the write. Combine with `--dry-run` to preview without writing regardless.
+
+#### `--list`
+
+Lists all `provider / service` pairs currently registered in `result.json` (the local working output file). No snippet or provider/service arguments needed:
+
+```bash
+python api_snippet_to_json.py --list
+```
+
+Example output:
+
+```
+Registered services in result.json:
+  Gemini / Imagen
+  OpenAI / DallE
+```
+
+#### `--prodlist`
+
+Lists all `provider / service` pairs currently registered in `front_end/api_schemas.json` (the production schema file loaded by the node). No snippet or provider/service arguments needed:
+
+```bash
+python api_snippet_to_json.py --prodlist
+```
+
+Example output:
+
+```
+Registered services in front_end/api_schemas.json:
+  BlackForest / FluxPro
+  Gemini / Imagen
+  OpenAI / DallE
+```
+
+Use `--list` to see your local draft entries and `--prodlist` to see what is actually live in the node.
+
+---
+
+### 3.3 What the helper extracts from the snippet
 
 - `request.endpoint` from the call target.
 - `request.sdk_call.args/kwargs` from snippet args/kwargs.
@@ -326,7 +438,7 @@ Then define selectable values in `possible_parameters`:
 "possible_parameters": {
   "regions": ["region_1", "region_2", "region_3"],
   "version": ["v1", "v2"],
-  "model_name": ["region_1", "model_2"]
+  "model_name": ["model_1", "model_2"]
 }
 ```
 
@@ -391,6 +503,75 @@ You can also use env-token placeholders via a `$call` pattern for call-based sch
 ```
 
 This resolves to `os.environ.get("ENV_API_KEY")` at runtime.
+
+---
+
+### 4.8 `parameter_constraints`
+
+`parameter_constraints` is an optional service-level block that automatically corrects numeric parameter values before they reach the API. It runs after all inputs are resolved and before the request is rendered — so corrected values appear in debug outputs too.
+
+Use it when a provider enforces numeric limits that differ from what ComfyUI nodes produce (e.g. resolution from an upstream node, or a safety setting that varies by model).
+
+#### Unconditional constraint
+
+Applies to every call regardless of other parameter values:
+
+```json
+"parameter_constraints": {
+  "width":  {"min": 256, "max": 1440, "step": 32},
+  "height": {"min": 256, "max": 1440, "step": 32}
+}
+```
+
+| Field | Description |
+|---|---|
+| `min` | Lower bound. Value is raised to this if below it. Optional. |
+| `max` | Upper bound. Value is capped to this if above it. Optional. |
+| `step` | Snap to nearest lower multiple of this value after clamping. Then re-clamp to `min` if needed. Optional. |
+
+Processing order: clamp to `max` → clamp to `min` → snap down to `step` multiple → re-clamp to `min`.
+
+Example: input `width = 1500` → capped to `1440` → already a multiple of 32 → result `1440`.
+Example: input `width = 260` → within range → snapped down to `256` (nearest multiple of 32) → re-clamped to `256` → result `256`.
+
+#### Conditional constraint
+
+A list of rules, each with a `when` condition using the same syntax as `request_exclusions`. The first matching rule is applied; if no rule matches, the value passes through unchanged.
+
+```json
+"parameter_constraints": {
+  "safety_tolerance": [
+    {"when": {"path": "model_name", "equals": "flux-pro-1.1"},       "max": 5},
+    {"when": {"path": "model_name", "equals": "flux-pro-1.1-ultra"}, "max": 6}
+  ]
+}
+```
+
+Each rule can include `min`, `max`, and/or `step`. The `when` condition checks the resolved value of `path` against `equals` (string comparison).
+
+If none of the rules match (e.g. a model not listed), no constraint is applied.
+
+#### Combining both in one block
+
+Unconditional and conditional constraints can coexist in the same `parameter_constraints` block:
+
+```json
+"parameter_constraints": {
+  "width":            {"min": 256, "max": 1440, "step": 32},
+  "height":           {"min": 256, "max": 1440, "step": 32},
+  "safety_tolerance": [
+    {"when": {"path": "model_name", "equals": "flux-2-pro"}, "max": 5},
+    {"when": {"path": "model_name", "equals": "flux-2-max"}, "max": 5}
+  ]
+}
+```
+
+#### Notes
+
+- The block is fully optional. If absent, all values pass through unchanged.
+- Only numeric values are constrained (integers and floats). Non-numeric values are skipped.
+- String values from COMBO widgets (dropdown lists) are automatically converted to numbers before the constraint is applied.
+- Corrected values flow into `used_values` and `RAW_PAYLOAD` debug outputs, so you can verify the correction without reading source code.
 
 ---
 
@@ -504,6 +685,10 @@ def handle_reference_images(
         output.append(temp_file_ref)
     return output
 ```
+
+**`first_image` input routing (for video and single-image models):**
+
+If `first_image` is connected, it is used exclusively and `reference_images` is ignored. If `first_image` is empty, the node falls back to `reference_images` — using the first item from the list, or the Tensor directly if no list is attached.
 
 **Notes:**
 
@@ -619,3 +804,69 @@ When writing a new service schema from scratch or adapting an existing one, the 
 4. **Use `debug_mode = ON`** during the design phase — the API call is never made, so there is no cost and no rate limit risk. Iterate on the schema until all three payload outputs look correct, then switch to production mode.
 
 5. **Read `API_SCHEMAS`** after a failed production call. The `api_error` field contains the provider error message. Combined with `rendered` and `api_result` in the same object, you can diagnose whether the error is a structural problem (wrong key, wrong nesting, wrong type) or a credential/quota problem.
+
+---
+
+## 8) File save settings
+
+File saving only runs when `auto_save_result` is ON and the API returned a valid result. If the response is `None` (no API error but no result), nothing is written.
+
+### Output path
+
+| Input | Default | Description |
+|---|---|---|
+| `output_path` | `[time(%Y-%m-%d)]` | Base output directory. Supports `[time(...)]` tokens. Relative paths are anchored to the ComfyUI output directory. Absolute paths are used as-is — e.g. `e:\!Works\AI\AIPICS\ComfyAPI\[time(%Y-%m-Week-%W)]` saves outside ComfyUI to any location on disk. |
+| `subpath` | `Project` | Fixed subdirectory appended after provider/service/model dirs. Select `None` to skip. |
+| `add_provider_to_path` | OFF | Adds the API provider name as a subdirectory (e.g. `Gemini`). |
+| `add_service_to_path` | OFF | Adds the selected service name as a subdirectory (e.g. `Imagen`). |
+| `add_model_to_path` | OFF | Adds the model identifier as a subdirectory. Reads `model_name` first, then `model`, then `version` from service parameters. |
+
+Directory structure example with all path options enabled:
+
+```
+<output_path> / <provider> / <service> / <model> / <subpath> / <filename>
+```
+
+User-supplied strings (provider, service, model, subpath, output_path) are automatically sanitized before use as path components: spaces and special characters (` / \ . , ; - `) are replaced with `_`, consecutive underscores collapsed to one.
+
+### Filename
+
+| Input | Default | Description |
+|---|---|---|
+| `filename_prefix` | `API` | Base name for the saved file. |
+| `filename_delimiter` | `_` | Separator between prefix, date, time, and counter parts. |
+| `add_date_to_filename` | ON | Appends current date (`YYYY-MM-DD`) to filename. |
+| `add_time_to_filename` | ON | Appends current time (`HHMMSS`) to filename. |
+| `filename_number_padding` | `2` | Zero-padding width for the auto-increment counter. |
+| `filename_number_start` | OFF | If ON, counter is placed before the prefix instead of after. |
+
+### Image format
+
+| Input | Default | Description |
+|---|---|---|
+| `image_extension` | `jpg` | Target image format. Options: `jpeg jpg png tiff gif bmp webp`. |
+| `image_quality` | `95` | Compression quality for JPEG and WEBP. PNG, TIFF, GIF ignore this. |
+
+### Non-image results
+
+The actual file type is detected from the API response bytes (MIME detection), not assumed from `image_extension`. If the API returns audio, video, or text, the correct extension is used automatically:
+
+| MIME type | Saved extension |
+|---|---|
+| `image/*` | uses `image_extension` input |
+| `audio/*` | `.mp3` |
+| `video/*` | `.mp4` |
+| `text/*` | `.txt` (UTF-8) |
+| other / unknown | extension from `image_extension` |
+
+> **Important — non-image results have no display or player.**
+> Video, audio, and text results are saved to disk only. There is no preview, no image output, and no playback inside ComfyUI. When the file is saved successfully, a toast notification appears on the node with the saved file path. If `auto_save_result` is **OFF**, the result is permanently lost — it exists only in memory for the duration of that execution and is not recoverable afterward.
+
+### Metadata files
+
+| Input | Default | Description |
+|---|---|---|
+| `save_data_to_json` | OFF | Saves a `.json` file alongside the result containing provider, service, selected parameters, used values, and raw payload. |
+| `save_data_to_txt` | OFF | Saves a `.txt` file alongside the result containing provider, service, and all used parameter values (flattened key: value lines). |
+
+Both files share the same base path and filename as the saved result, only the extension differs.

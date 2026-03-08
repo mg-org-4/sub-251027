@@ -301,6 +301,7 @@
     "1x": "1x",
     "2x": "2x",
     "beta": "BETA",
+    "comfyCloud": "Comfy Cloud",
     "nightly": "NIGHTLY",
     "profile": "Profile",
     "noItems": "No items",
@@ -968,7 +969,6 @@
     "customNodesManager": "Custom Nodes Manager",
     "settings": "Settings",
     "help": "Help",
-    "helpAndFeedback": "Help & Feedback",
     "queue": "Queue Panel",
     "fullscreen": "Fullscreen"
   },
@@ -1330,7 +1330,6 @@
     "Rename": "Rename",
     "Save": "Save",
     "Save As": "Save As",
-    "Share": "Share",
     "Show Settings Dialog": "Show Settings Dialog",
     "Set Subgraph Description": "Set Subgraph Description",
     "Set Subgraph Search Aliases": "Set Subgraph Search Aliases",
@@ -1597,6 +1596,7 @@
     "kandinsky5": "kandinsky5",
     "hooks": "hooks",
     "combine": "combine",
+    "math": "math",
     "logic": "logic",
     "cond single": "cond single",
     "context": "context",
@@ -3178,6 +3178,8 @@
     "backToWorkflow": "Back to workflow",
     "loadTemplate": "Load a template",
     "cancelThisRun": "Cancel this run",
+    "deleteAllAssets": "Delete all assets from this run",
+    "hasCreditCost": "Requires additional credits",
     "welcome": {
       "title": "App Mode",
       "message": "A simplified view that hides the node graph so you can focus on creating.",
@@ -3404,14 +3406,11 @@
     "retryDownload": "Retry download"
   },
   "workspace": {
-    "unsavedChanges": {
-      "title": "Unsaved Changes",
-      "message": "You have unsaved changes. Do you want to discard them and switch workspaces?"
-    },
     "inviteAccepted": "Invite Accepted",
     "addedToWorkspace": "You have been added to:",
     "inviteFailed": "Failed to Accept Invite",
-    "viewWorkspace": "View workspace"
+    "viewWorkspace": "View workspace",
+    "switchFailed": "Failed to switch workspace. Please try again."
   },
   "workspaceAuth": {
     "errors": {

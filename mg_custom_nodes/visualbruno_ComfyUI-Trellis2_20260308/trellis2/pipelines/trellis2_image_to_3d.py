@@ -118,7 +118,6 @@ class Trellis2ImageTo3DPipeline(Pipeline):
             
         args = self._pretrained_args
         self.sparse_structure_sampler = getattr(samplers, f"Flow{self._sampler_prefix}GuidanceIntervalSampler")(**args['sparse_structure_sampler']['args'])
-        # Re-instantiate the samplers using the new prefix but keeping original args
         self.shape_slat_sampler = getattr(samplers, f"Flow{self._sampler_prefix}GuidanceIntervalSampler")(**args['shape_slat_sampler']['args'])
         self.tex_slat_sampler = getattr(samplers, f"Flow{self._sampler_prefix}GuidanceIntervalSampler")(**args['tex_slat_sampler']['args'])        
 
@@ -1181,6 +1180,354 @@ class Trellis2ImageTo3DPipeline(Pipeline):
                 return out_mesh, (shape_slat, None, res)
         else:
             return out_mesh
+            
+    def GetSamplerName(self, sampler):
+        if sampler == 'euler':
+            return 'Euler'
+        elif sampler == 'rk4':
+            return 'RK4'
+        elif sampler == 'rk5':
+            return 'RK5'
+        elif sampler == 'heun':
+            return 'Heun'
+        else:
+            return 'Euler'       
+            
+    def sample_shape_slat_cascade_advanced(
+        self,
+        lr_cond: dict,
+        cond: dict,
+        flow_model_lr,
+        flow_model,
+        lr_resolution: int,
+        resolution: int,
+        coords: torch.Tensor,
+        low_res_sampler_params: dict = {},
+        high_res_sampler_params: dict = {},
+        max_num_tokens: int = 999999,
+        sparse_structure_resolution: int = 32,
+        low_res_sampler_name: str = 'euler',
+        high_res_sampler_name: str = 'euler',
+    ) -> SparseTensor:
+        """
+        Sample structured latent with the given conditioning.
+        
+        Args:
+            cond (dict): The conditioning information.
+            coords (torch.Tensor): The coordinates of the sparse structure.
+            sampler_params (dict): Additional parameters for the sampler.
+        """
+        # LR
+
+        if self.low_vram:
+            lr_cond = self._cond_to(lr_cond, self.device)
+            cond = self._cond_to(cond, self.device)
+
+        coords_dev = coords.to(self.device)                         
+        # Sample structured latent
+        noise = SparseTensor(
+            feats=torch.randn(coords.shape[0], flow_model.in_channels, device=self.device),
+            coords=coords_dev,
+        )
+        sampler_params = {**self.shape_slat_sampler_params, **low_res_sampler_params}
+        if self.low_vram:
+            flow_model_lr.to(self.device)            
+        
+        args = self._pretrained_args
+        sparse_sampler_prefix = self.GetSamplerName(low_res_sampler_name)
+        self.shape_slat_sampler = getattr(samplers, f"Flow{sparse_sampler_prefix}GuidanceIntervalSampler")(**args['shape_slat_sampler']['args'])
+            
+        slat = self.shape_slat_sampler.sample(
+            flow_model_lr,
+            noise,
+            **lr_cond,
+            **sampler_params,
+            verbose=True,
+            tqdm_desc="Sampling shape SLat (LR)",
+        ).samples
+        if self.low_vram:
+            flow_model_lr.cpu()
+            self._cleanup_cuda()                                
+        std = torch.tensor(self.shape_slat_normalization['std'])[None].to(slat.device)
+        mean = torch.tensor(self.shape_slat_normalization['mean'])[None].to(slat.device)
+        slat = slat * std + mean
+        
+        del coords_dev
+        if self.low_vram:
+            lr_cond = self._cond_cpu(lr_cond)
+            self._cleanup_cuda()
+
+        # Upsample       
+        self.load_shape_slat_decoder()
+        if self.low_vram:
+            self.models['shape_slat_decoder'].to(self.device)
+            self.models['shape_slat_decoder'].low_vram = True
+        hr_coords = self.models['shape_slat_decoder'].upsample(slat, upsample_times=4)
+        if self.low_vram:
+            self.models['shape_slat_decoder'].cpu()
+            self.models['shape_slat_decoder'].low_vram = False
+        hr_resolution = resolution
+        
+        if not self.keep_models_loaded:
+            self.unload_shape_slat_decoder()
+            
+        ratio = (sparse_structure_resolution / 32)
+        
+        while True:
+            quant_coords = torch.cat([
+                hr_coords[:, :1],
+                ((hr_coords[:, 1:] + 0.5) / (lr_resolution * ratio) * (hr_resolution // 16)).int(),
+            ], dim=1)
+            coords = quant_coords.unique(dim=0)
+            num_tokens = coords.shape[0]
+            if num_tokens < max_num_tokens:
+                if hr_resolution != resolution:
+                    print(f"Due to the limited number of tokens, the resolution is reduced to {hr_resolution}.")
+                print(f"Num Tokens: {num_tokens}")
+                break
+            hr_resolution -= 128
+            if hr_resolution < 1024 and resolution >= 1024:
+                print(f"Num Tokens: {num_tokens}")
+                hr_resolution = 1024
+                break
+            if hr_resolution < 512:
+                print(f"Num Tokens: {num_tokens}")
+                hr_resolution = 512
+                break
+        
+        coords_dev = coords.to(self.device)                                           
+        # Sample structured latent
+        noise = SparseTensor(
+            feats=torch.randn(coords.shape[0], flow_model.in_channels, device=self.device),
+            coords=coords_dev,
+        )        
+        
+        sampler_params = {**self.shape_slat_sampler_params, **high_res_sampler_params}
+        
+        sparse_sampler_prefix = self.GetSamplerName(high_res_sampler_name)
+        self.shape_slat_sampler = getattr(samplers, f"Flow{sparse_sampler_prefix}GuidanceIntervalSampler")(**args['shape_slat_sampler']['args'])        
+        
+        if self.low_vram:
+            flow_model.to(self.device)
+        slat = self.shape_slat_sampler.sample(
+            flow_model,
+            noise,
+            **cond,
+            **sampler_params,
+            verbose=True,
+            tqdm_desc="Sampling shape SLat (HR)",
+        ).samples
+        if self.low_vram:
+            flow_model.cpu()
+            self._cleanup_cuda()                                
+
+        std = torch.tensor(self.shape_slat_normalization['std'])[None].to(slat.device)
+        mean = torch.tensor(self.shape_slat_normalization['mean'])[None].to(slat.device)
+        slat = slat * std + mean
+        
+        del coords_dev
+        if self.low_vram:
+            cond = self._cond_cpu(cond)
+            self._cleanup_cuda()
+
+        return slat, hr_resolution   
+
+    def sample_tex_slat_advanced(
+        self,
+        cond: dict,
+        flow_model,
+        shape_slat: SparseTensor,
+        sampler_params: dict = {},
+        sampler_name: str = 'euler',
+    ) -> SparseTensor:
+        """
+        Sample structured latent with the given conditioning.
+        
+        Args:
+            cond (dict): The conditioning information.
+            shape_slat (SparseTensor): The structured latent for shape
+            sampler_params (dict): Additional parameters for the sampler.
+        """
+        if self.low_vram:
+            cond = self._cond_to(cond, self.device)                                                   
+        # Sample structured latent
+        std = torch.tensor(self.shape_slat_normalization['std'])[None].to(shape_slat.device)
+        mean = torch.tensor(self.shape_slat_normalization['mean'])[None].to(shape_slat.device)
+        shape_slat = (shape_slat - mean) / std
+
+        in_channels = flow_model.in_channels if isinstance(flow_model, nn.Module) else flow_model[0].in_channels
+        noise = shape_slat.replace(feats=torch.randn(shape_slat.coords.shape[0], in_channels - shape_slat.feats.shape[1]).to(self.device))
+        sampler_params = {**self.tex_slat_sampler_params, **sampler_params}
+        
+        args = self._pretrained_args
+        sparse_sampler_prefix = self.GetSamplerName(sampler_name)
+        self.tex_slat_sampler = getattr(samplers, f"Flow{sparse_sampler_prefix}GuidanceIntervalSampler")(**args['tex_slat_sampler']['args'])        
+        
+        if self.low_vram:
+            flow_model.to(self.device)
+        slat = self.tex_slat_sampler.sample(
+            flow_model,
+            noise,
+            concat_cond=shape_slat,
+            **cond,
+            **sampler_params,
+            verbose=True,
+            tqdm_desc="Sampling texture SLat",
+        ).samples
+        if self.low_vram:
+            flow_model.cpu()
+            self._cleanup_cuda()                    
+
+        std = torch.tensor(self.tex_slat_normalization['std'])[None].to(slat.device)
+        mean = torch.tensor(self.tex_slat_normalization['mean'])[None].to(slat.device)
+        slat = slat * std + mean
+        
+        if self.low_vram:
+            cond = self._cond_cpu(cond)
+            self._cleanup_cuda()                         
+        return slat        
+            
+    @torch.no_grad()
+    def run_cascade(
+        self,
+        image: Image.Image,
+        num_samples: int = 1,
+        seed: int = 42,
+        sparse_structure_sampler_params: dict = {},
+        low_res_shape_slat_sampler_params: dict = {},
+        high_res_shape_slat_sampler_params: dict = {},
+        tex_slat_sampler_params: dict = {},
+        pipeline_type: str = '1024_cascade',
+        max_num_tokens: int = 999999,
+        sparse_structure_resolution: int = 32,
+        generate_texture_slat = True,
+        use_tiled: bool = True,
+        pbar = None,
+        sparse_structure_sampler = 'euler',
+        low_res_shape_sampler = 'euler',
+        high_res_shape_sampler = 'euler',
+        tex_sampler = 'euler',
+        max_views: int = 4
+    ) -> List[MeshWithVoxel]:
+        
+        if isinstance(image, (list, tuple)):
+            images = list(image)
+        else:
+            images = [image]
+            
+        seed_all(seed)
+        
+        # Get Image Cond
+        self.load_image_cond_model()        
+        # Multi-view conditioning happens inside get_cond()              
+        cond_512  = self.get_cond(images, 512, max_views = max_views)        
+        cond_1024 = self.get_cond(images, 1024, max_views = max_views) if pipeline_type != '512' else None
+        
+        if pbar is not None:
+            pbar.update(1)
+        
+        if not self.keep_models_loaded:
+            self.unload_image_cond_model()       
+        
+        args = self._pretrained_args
+        
+        #
+        #self.shape_slat_sampler = getattr(samplers, f"Flow{self._sampler_prefix}GuidanceIntervalSampler")(**args['shape_slat_sampler']['args'])
+        #self.tex_slat_sampler = getattr(samplers, f"Flow{self._sampler_prefix}GuidanceIntervalSampler")(**args['tex_slat_sampler']['args'])        
+        
+        # Sampling Sparse Structure
+        sparse_sampler_prefix = self.GetSamplerName(sparse_structure_sampler)
+        self.sparse_structure_sampler = getattr(samplers, f"Flow{sparse_sampler_prefix}GuidanceIntervalSampler")(**args['sparse_structure_sampler']['args'])
+        self.load_sparse_structure_model()        
+        coords = self.sample_sparse_structure(
+            cond_512, sparse_structure_resolution,
+            num_samples, sparse_structure_sampler_params
+        )
+        
+        if pbar is not None:
+            pbar.update(1)
+        
+        if not self.keep_models_loaded:
+            self.unload_sparse_structure_model()
+        
+        # Sampling Shape
+        if pipeline_type == '1024_cascade':
+            self.load_shape_slat_flow_model_512()
+            self.load_shape_slat_flow_model_1024()            
+            shape_slat, res = self.sample_shape_slat_cascade_advanced(
+                cond_512, cond_1024,
+                self.models['shape_slat_flow_model_512'], self.models['shape_slat_flow_model_1024'],
+                512, 1024,
+                coords, low_res_shape_slat_sampler_params, high_res_shape_slat_sampler_params,
+                max_num_tokens,
+                sparse_structure_resolution,
+                low_res_shape_sampler, high_res_shape_sampler
+            )
+            
+            if pbar is not None:
+                pbar.update(1)
+            
+            if not self.keep_models_loaded:
+                self.unload_shape_slat_flow_model_512()
+                self.unload_shape_slat_flow_model_1024()
+            
+            if generate_texture_slat:
+                self.unload_tex_slat_flow_model_512()
+                self.load_tex_slat_flow_model_1024()
+                tex_slat = self.sample_tex_slat_advanced(
+                    cond_1024, self.models['tex_slat_flow_model_1024'],
+                    shape_slat, tex_slat_sampler_params, tex_sampler
+                )
+                
+            if pbar is not None:
+                pbar.update(1)
+            
+            if not self.keep_models_loaded:
+                self.unload_tex_slat_flow_model_1024()
+        elif pipeline_type == '1536_cascade':
+            self.load_shape_slat_flow_model_512()
+            self.load_shape_slat_flow_model_1024()            
+            shape_slat, res = self.sample_shape_slat_cascade_advanced(
+                cond_512, cond_1024,
+                self.models['shape_slat_flow_model_512'], self.models['shape_slat_flow_model_1024'],
+                512, 1536,
+                coords, low_res_shape_slat_sampler_params, high_res_shape_slat_sampler_params,
+                max_num_tokens,
+                sparse_structure_resolution,
+                low_res_shape_sampler, high_res_shape_sampler
+            )
+            
+            if pbar is not None:
+                pbar.update(1)
+            
+            if not self.keep_models_loaded:
+                self.unload_shape_slat_flow_model_512()
+                self.unload_shape_slat_flow_model_1024()
+            
+            if generate_texture_slat:
+                self.unload_tex_slat_flow_model_512()
+                self.load_tex_slat_flow_model_1024()
+                tex_slat = self.sample_tex_slat_advanced(
+                    cond_1024, self.models['tex_slat_flow_model_1024'],
+                    shape_slat, tex_slat_sampler_params, tex_sampler
+                )
+                
+            if pbar is not None:
+                pbar.update(1)
+            
+            if not self.keep_models_loaded:
+                self.unload_tex_slat_flow_model_1024()         
+            
+        torch.cuda.empty_cache()
+        if generate_texture_slat:
+            out_mesh = self.decode_latent(shape_slat, tex_slat, res, use_tiled=use_tiled)
+        else:
+            out_mesh = self.decode_latent(shape_slat, None, res, use_tiled=use_tiled)
+        torch.cuda.empty_cache()
+        pbar.update(1)              
+
+        return out_mesh 
+                       
 
     @torch.no_grad()
     def run_multiview(

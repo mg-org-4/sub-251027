@@ -107,12 +107,12 @@ class DinoV3FeatureExtractor:
         elif isinstance(image, list):
             assert all(isinstance(i, Image.Image) for i in image), "Image list should be list of PIL images"
             # We resize the images only if they are bigger than self.image_size
-            image = [
-                i.resize((self.image_size, self.image_size), Image.LANCZOS) 
-                if max(i.size) > self.image_size else i 
-                for i in image
-            ]            
-            #image = [i.resize((self.image_size, self.image_size), Image.LANCZOS) for i in image]
+            # image = [
+                # i.resize((self.image_size, self.image_size), Image.LANCZOS) 
+                # if max(i.size) > self.image_size else i 
+                # for i in image
+            # ]            
+            image = [i.resize((self.image_size, self.image_size), Image.LANCZOS) for i in image]
             image = [np.array(i.convert('RGB')).astype(np.float32) / 255 for i in image]
             image = [torch.from_numpy(i).permute(2, 0, 1).float() for i in image]
             image = torch.stack(image).cuda()

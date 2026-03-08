@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import asyncio
+import re
 from typing import Any, Dict, List, Optional, Type, TYPE_CHECKING
 import logging
 import os
@@ -383,7 +384,9 @@ class BaseModelService(ABC):
         # Check user setting for hiding early access updates
         hide_early_access = False
         try:
-            hide_early_access = bool(self.settings.get("hide_early_access_updates", False))
+            hide_early_access = bool(
+                self.settings.get("hide_early_access_updates", False)
+            )
         except Exception:
             hide_early_access = False
 
@@ -413,7 +416,11 @@ class BaseModelService(ABC):
             bulk_method = getattr(self.update_service, "has_updates_bulk", None)
             if callable(bulk_method):
                 try:
-                    resolved = await bulk_method(self.model_type, ordered_ids, hide_early_access=hide_early_access)
+                    resolved = await bulk_method(
+                        self.model_type,
+                        ordered_ids,
+                        hide_early_access=hide_early_access,
+                    )
                 except Exception as exc:
                     logger.error(
                         "Failed to resolve update status in bulk for %s models (%s): %s",
@@ -426,7 +433,9 @@ class BaseModelService(ABC):
 
         if resolved is None:
             tasks = [
-                self.update_service.has_update(self.model_type, model_id, hide_early_access=hide_early_access)
+                self.update_service.has_update(
+                    self.model_type, model_id, hide_early_access=hide_early_access
+                )
                 for model_id in ordered_ids
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -588,13 +597,19 @@ class BaseModelService(ABC):
             normalized_type = normalize_sub_type(resolve_sub_type(entry))
             if not normalized_type:
                 continue
-            
+
             # Filter by valid sub-types based on scanner type
-            if self.model_type == "lora" and normalized_type not in VALID_LORA_SUB_TYPES:
+            if (
+                self.model_type == "lora"
+                and normalized_type not in VALID_LORA_SUB_TYPES
+            ):
                 continue
-            if self.model_type == "checkpoint" and normalized_type not in VALID_CHECKPOINT_SUB_TYPES:
+            if (
+                self.model_type == "checkpoint"
+                and normalized_type not in VALID_CHECKPOINT_SUB_TYPES
+            ):
                 continue
-            
+
             type_counts[normalized_type] = type_counts.get(normalized_type, 0) + 1
 
         sorted_types = sorted(
@@ -808,37 +823,60 @@ class BaseModelService(ABC):
         return include_terms, exclude_terms
 
     @staticmethod
+    def _remove_model_extension(path: str) -> str:
+        """Remove model file extension (.safetensors, .ckpt, .pt, .bin) for cleaner matching."""
+        return re.sub(r"\.(safetensors|ckpt|pt|bin)$", "", path, flags=re.IGNORECASE)
+
+    @staticmethod
     def _relative_path_matches_tokens(
         path_lower: str, include_terms: List[str], exclude_terms: List[str]
     ) -> bool:
-        """Determine whether a relative path string satisfies include/exclude tokens."""
-        if any(term and term in path_lower for term in exclude_terms):
+        """Determine whether a relative path string satisfies include/exclude tokens.
+
+        Matches against the path without extension to avoid matching .safetensors
+        when searching for 's'.
+        """
+        # Use path without extension for matching
+        path_for_matching = BaseModelService._remove_model_extension(path_lower)
+
+        if any(term and term in path_for_matching for term in exclude_terms):
             return False
 
         for term in include_terms:
-            if term and term not in path_lower:
+            if term and term not in path_for_matching:
                 return False
 
         return True
 
     @staticmethod
     def _relative_path_sort_key(relative_path: str, include_terms: List[str]) -> tuple:
-        """Sort paths by how well they satisfy the include tokens."""
-        path_lower = relative_path.lower()
+        """Sort paths by how well they satisfy the include tokens.
+
+        Sorts based on path without extension for consistent ordering.
+        """
+        # Use path without extension for sorting
+        path_for_sorting = BaseModelService._remove_model_extension(
+            relative_path.lower()
+        )
         prefix_hits = sum(
-            1 for term in include_terms if term and path_lower.startswith(term)
+            1 for term in include_terms if term and path_for_sorting.startswith(term)
         )
         match_positions = [
-            path_lower.find(term)
+            path_for_sorting.find(term)
             for term in include_terms
-            if term and term in path_lower
+            if term and term in path_for_sorting
         ]
         first_match_index = min(match_positions) if match_positions else 0
 
-        return (-prefix_hits, first_match_index, len(relative_path), path_lower)
+        return (
+            -prefix_hits,
+            first_match_index,
+            len(path_for_sorting),
+            path_for_sorting,
+        )
 
     async def search_relative_paths(
-        self, search_term: str, limit: int = 15
+        self, search_term: str, limit: int = 15, offset: int = 0
     ) -> List[str]:
         """Search model relative file paths for autocomplete functionality"""
         cache = await self.scanner.get_cached_data()
@@ -849,6 +887,7 @@ class BaseModelService(ABC):
         # Get model roots for path calculation
         model_roots = self.scanner.get_model_roots()
 
+        # Collect all matching paths first (needed for proper sorting and offset)
         for model in cache.raw_data:
             file_path = model.get("file_path", "")
             if not file_path:
@@ -877,12 +916,12 @@ class BaseModelService(ABC):
             ):
                 matching_paths.append(relative_path)
 
-                if len(matching_paths) >= limit * 2:  # Get more for better sorting
-                    break
-
         # Sort by relevance (prefix and earliest hits first, then by length and alphabetically)
         matching_paths.sort(
             key=lambda relative: self._relative_path_sort_key(relative, include_terms)
         )
 
-        return matching_paths[:limit]
+        # Apply offset and limit
+        start = min(offset, len(matching_paths))
+        end = min(start + limit, len(matching_paths))
+        return matching_paths[start:end]

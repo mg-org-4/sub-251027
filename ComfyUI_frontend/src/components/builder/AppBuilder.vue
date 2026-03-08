@@ -10,7 +10,6 @@ import PropertiesAccordionItem from '@/components/rightSidePanel/layout/Properti
 import WidgetItem from '@/components/rightSidePanel/parameters/WidgetItem.vue'
 import { LiteGraph } from '@/lib/litegraph/src/litegraph'
 import type { LGraphNode, NodeId } from '@/lib/litegraph/src/LGraphNode'
-import type { INodeInputSlot } from '@/lib/litegraph/src/interfaces'
 import type { LGraphCanvas } from '@/lib/litegraph/src/LGraphCanvas'
 import {
   LGraphEventMode,
@@ -25,9 +24,9 @@ import { useCanvasInteractions } from '@/renderer/core/canvas/useCanvasInteracti
 import TransformPane from '@/renderer/core/layout/transform/TransformPane.vue'
 import { app } from '@/scripts/app'
 import { DOMWidgetImpl } from '@/scripts/domWidget'
-import { useDialogService } from '@/services/dialogService'
+import { promptRenameWidget } from '@/utils/widgetUtil'
 import { useAppMode } from '@/composables/useAppMode'
-import { useAppModeStore } from '@/stores/appModeStore'
+import { nodeTypeValidForApp, useAppModeStore } from '@/stores/appModeStore'
 import { resolveNode } from '@/utils/litegraphUtil'
 import { cn } from '@/utils/tailwindUtil'
 import { HideLayoutFieldKey } from '@/types/widgetTypes'
@@ -73,15 +72,12 @@ const inputsWithState = computed(() =>
       }
     }
 
-    const input = node.inputs.find((i) => i.widget?.name === widget.name)
-    const rename = input && (() => renameWidget(widget, input))
-
     return {
       nodeId,
       widgetName,
       label: widget.label,
       subLabel: node.title,
-      rename
+      rename: () => promptRenameWidget(widget, node, t)
     }
   })
 )
@@ -91,20 +87,6 @@ const outputsWithState = computed<[NodeId, string][]>(() =>
     app.rootGraph.getNodeById(nodeId)?.title ?? String(nodeId)
   ])
 )
-
-async function renameWidget(widget: IBaseWidget, input: INodeInputSlot) {
-  const newLabel = await useDialogService().prompt({
-    title: t('g.rename'),
-    message: t('g.enterNewNamePrompt'),
-    defaultValue: widget.label,
-    placeholder: widget.name
-  })
-  if (newLabel === null) return
-  widget.label = newLabel || undefined
-  input.label = newLabel || undefined
-  widget.callback?.(widget.value)
-  useCanvasStore().canvas?.setDirty(true)
-}
 
 function getHovered(
   e: MouseEvent
@@ -162,7 +144,11 @@ function handleDown(e: MouseEvent) {
 }
 function handleClick(e: MouseEvent) {
   const [node, widget] = getHovered(e) ?? []
-  if (node?.mode !== LGraphEventMode.ALWAYS)
+  if (
+    node?.mode !== LGraphEventMode.ALWAYS ||
+    !nodeTypeValidForApp(node.type) ||
+    node.has_errors
+  )
     return canvasInteractions.forwardEventToCanvas(e)
 
   if (!widget) {
@@ -198,7 +184,9 @@ const renderedOutputs = computed(() => {
   return canvas
     .graph!.nodes.filter(
       (n) =>
-        n.constructor.nodeData?.output_node && n.mode === LGraphEventMode.ALWAYS
+        n.constructor.nodeData?.output_node &&
+        n.mode === LGraphEventMode.ALWAYS &&
+        !n.has_errors
     )
     .map(nodeToDisplayTuple)
 })
@@ -260,7 +248,7 @@ const renderedInputs = computed<[string, MaybeRef<BoundStyle> | undefined][]>(
         <template #label>
           <div class="flex gap-3">
             {{ t('nodeHelpPage.inputs') }}
-            <i class="icon-[lucide--circle-alert] bg-muted-foreground" />
+            <i class="icon-[lucide--info] bg-muted-foreground" />
           </div>
         </template>
         <template #empty>
@@ -315,7 +303,7 @@ const renderedInputs = computed<[string, MaybeRef<BoundStyle> | undefined][]>(
         <template #label>
           <div class="flex gap-3">
             {{ t('nodeHelpPage.outputs') }}
-            <i class="icon-[lucide--circle-alert] bg-muted-foreground" />
+            <i class="icon-[lucide--info] bg-muted-foreground" />
           </div>
         </template>
         <template #empty>

@@ -61,6 +61,11 @@ Explore hundreds of images generated using the Z-Image model and the Power Nodes
 come with their prompts and complete generation workflows, which you can freely use as a starting point
 for your own generations. Additionally, many users share their amazing creations in this community.
 
+Each image features a sidebar information panel. To easily extract the workflow from an image, click on
+the "COMFY: X Nodes" button located within the "Other metadata" section of the panel. You can then press
+CTRL+V (paste) directly into ComfyUI to obtain the full workflow for your own projects or generations.
+
+<img src="image-civitai.jpg" width="60%"></img>
 
 ## Installation
 _Ensure you have the latest version of [ComfyUi](https://github.com/comfyanonymous/ComfyUI)._

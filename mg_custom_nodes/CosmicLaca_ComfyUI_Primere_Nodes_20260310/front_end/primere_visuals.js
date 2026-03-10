@@ -43,7 +43,11 @@ const state = {
 
 function apiPost(endpoint, eventName, params = {}) {
     return new Promise((resolve) => {
-        api.addEventListener(eventName, (event) => resolve(event.detail), true);
+        const timer = setTimeout(() => resolve(null), 10000);
+        api.addEventListener(eventName, (event) => {
+            clearTimeout(timer);
+            resolve(event.detail);
+        }, { once: true });
         const body = new FormData();
         for (const [key, value] of Object.entries(params)) body.append(key, value);
         api.fetchApi(endpoint, { method: "POST", body });
@@ -107,6 +111,12 @@ app.registerExtension({
                 onNodeCreated ? onNodeCreated.apply(this, []) : undefined;
                 new ModalControl(this);
             }
+        }
+    },
+
+    loadedGraphNode(node) {
+        if (validClasses.includes(node.type)) {
+            new ModalControl(node);
         }
     },
 });
@@ -361,6 +371,7 @@ class ModalControl {
                     if (contextMenu) contextMenu.style.display = 'none';
 
                     state.nodeHelper = state.hiddenWidgets[state.currentClass];
+                    if (!state.nodeHelper) return;
                     state.source_subdirname = state.nodeHelper['subdir'];
                     state.cache_key = state.nodeHelper['cache_key'];
 

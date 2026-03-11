@@ -1,0 +1,8 @@
+# Extra dependencies for direct model loading that are not bundled with ComfyUI
+bitsandbytes>=0.41.0
+huggingface-hub>=0.16.0
+
+# Optional: enables fast downloads when HF_HUB_ENABLE_HF_TRANSFER=1 is set
+# hf_transfer>=0.1.4
+
+# ComfyUI already provides torch, transformers, and accelerate.

@@ -1,0 +1,22 @@
+[project]
+name = "z-image-utilities"
+description = "Collection of utility nodes for ComfyUI designed specifically for the Z-Image model with vision model support and LLM-powered prompt enhancement."
+version = "1.0.7"
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "bitsandbytes>=0.41.0",
+    "huggingface-hub>=0.16.0",
+]
+
+[project.urls]
+Repository = "https://github.com/Koko-boya/Comfyui-Z-Image-Utilities"
+Documentation = "https://github.com/Koko-boya/Comfyui-Z-Image-Utilities/wiki"
+"Bug Tracker" = "https://github.com/Koko-boya/Comfyui-Z-Image-Utilities/issues"
+
+[tool.comfy]
+PublisherId = "kokoboy"
+DisplayName = "Comfyui-Z-Image-Utilities"
+Icon = ""
+includes = []

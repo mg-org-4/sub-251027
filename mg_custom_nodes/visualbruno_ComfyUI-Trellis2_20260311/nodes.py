@@ -38,6 +38,8 @@ import comfy.utils
 from .trellis2.pipelines import Trellis2ImageTo3DPipeline
 from .trellis2.representations import Mesh, MeshWithVoxel
 from .trellis2.modules.attention import config
+from .trellis2.pipelines import samplers
+from .trellis2.modules.sparse import SparseTensor
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 comfy_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -571,6 +573,10 @@ class Trellis2SimplifyMesh:
     def process(self, mesh, target_face_num, method):        
         mesh_copy = copy.deepcopy(mesh)
         if method=="Cumesh":
+            # internal testing future release
+            # options = {
+                # 'method': 'legacy'
+            # }             
             mesh_copy.simplify_with_cumesh(target = target_face_num)
         elif method=="Meshlib":
             mesh_copy.simplify_with_meshlib(target = target_face_num)
@@ -599,6 +605,10 @@ class Trellis2SimplifyTrimesh:
     def process(self, trimesh, target_face_num, method):        
         mesh_copy = copy.deepcopy(trimesh)
         if method=="Cumesh":
+            # internal testing future release
+            # options = {
+                # 'options': 'legacy'
+            # }            
             cumesh = CuMesh.CuMesh()
             cumesh.init(torch.from_numpy(mesh_copy.vertices).float().cuda(), torch.from_numpy(mesh_copy.faces).int().cuda())
             cumesh.simplify(target_face_num, verbose=True)
@@ -2906,6 +2916,9 @@ class Trellis2BatchSimplifyMeshAndExport:
                 
                 if method=="Cumesh":
                     cumesh.init(torch.from_numpy(vertices).float().cuda(), torch.from_numpy(faces).int().cuda())
+                    # options = {
+                        # 'method': 'legacy'
+                    # }                       
                     cumesh.simplify(target_nbfaces, verbose=True)
                     vertices, faces = cumesh.read()
                     vertices = vertices.cpu().numpy()
@@ -3320,7 +3333,492 @@ class Trellis2MeshWithVoxelCascadeGenerator:
             print("Not building BVH : only used for texturing")
             bvh = None
         
-        return (mesh,bvh,)             
+        return (mesh,bvh,)      
+        
+class Trellis2ImageCondGenerator:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "pipeline": ("TRELLIS2PIPELINE",),
+                "image": ("IMAGE",),
+                "max_views": ("INT", {"default": 4, "min": 1, "max": 16}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE_COND", "IMAGE_COND", "TRELLIS2PIPELINE",)
+    RETURN_NAMES = ("cond_512", "cond_1024", "pipeline",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, pipeline, image, max_views,):   
+        images = tensor_batch_to_pil_list(image, max_views=max_views)
+        image_in = images[0] if len(images) == 1 else images        
+        
+        if isinstance(image_in, (list, tuple)):
+            images = list(image_in)
+        else:
+            images = [image_in]
+            
+        pipeline.load_image_cond_model()        
+        
+        cond_512  = pipeline.get_cond(images, 512, max_views = max_views)        
+        cond_1024 = pipeline.get_cond(images, 1024, max_views = max_views)
+        
+        if not pipeline.keep_models_loaded:
+            pipeline.unload_image_cond_model()            
+
+        return (cond_512, cond_1024, pipeline,)        
+
+class Trellis2SparseGenerator:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "pipeline": ("TRELLIS2PIPELINE",),
+                "image_cond": ("IMAGE_COND",),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
+                "sparse_structure_steps": ("INT",{"default":12, "min":1, "max":100},),
+                "sparse_structure_guidance_strength": ("FLOAT",{"default":6.50,"min":0.00,"max":99.99,"step":0.01}),
+                "sparse_structure_guidance_rescale": ("FLOAT",{"default":0.05,"min":0.00,"max":1.00,"step":0.01}),
+                "sparse_structure_rescale_t": ("FLOAT",{"default":4.00,"min":0.00,"max":9.99,"step":0.01}),
+                "sparse_structure_sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),
+                "sparse_structure_resolution": ("INT", {"default":32,"min":32,"max":128,"step":4}),
+                "sparse_structure_guidance_interval_start": ("FLOAT",{"default":0.10,"min":0.00,"max":1.00,"step":0.01}),
+                "sparse_structure_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
+            },
+        }
+
+    RETURN_TYPES = ("COORDS", "INT", "TRELLIS2PIPELINE",)
+    RETURN_NAMES = ("coords", "sparse_structure_resolution", "pipeline",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, pipeline, image_cond, seed, 
+        # sparse
+        sparse_structure_steps, 
+        sparse_structure_guidance_strength, 
+        sparse_structure_guidance_rescale,
+        sparse_structure_rescale_t,
+        sparse_structure_sampler,
+        sparse_structure_resolution,
+        sparse_structure_guidance_interval_start,
+        sparse_structure_guidance_interval_end,
+        ):
+        
+        self.seed_all(seed)
+        
+        sparse_structure_guidance_interval = [sparse_structure_guidance_interval_start,sparse_structure_guidance_interval_end]        
+        sparse_structure_sampler_params = {"steps":sparse_structure_steps,"guidance_strength":sparse_structure_guidance_strength,"guidance_rescale":sparse_structure_guidance_rescale,"guidance_interval":sparse_structure_guidance_interval,"rescale_t":sparse_structure_rescale_t}                    
+
+        args = pipeline._pretrained_args
+        sparse_sampler_prefix = pipeline.GetSamplerName(sparse_structure_sampler)
+        pipeline.sparse_structure_sampler = getattr(samplers, f"Flow{sparse_sampler_prefix}GuidanceIntervalSampler")(**args['sparse_structure_sampler']['args'])
+        pipeline.load_sparse_structure_model()        
+        coords = pipeline.sample_sparse_structure(
+            image_cond, sparse_structure_resolution,
+            1, sparse_structure_sampler_params
+        )
+        
+        if not pipeline.keep_models_loaded:
+            pipeline.unload_sparse_structure_model()            
+
+        return (coords, sparse_structure_resolution, pipeline,)
+        
+    def seed_all(self, seed: int = 0):
+        import random
+        """
+        Set random seeds of all components.
+        """
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)         
+        
+class Trellis2ShapeGenerator:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "pipeline": ("TRELLIS2PIPELINE",),
+                "image_cond": ("IMAGE_COND",),
+                "coords": ("COORDS",),
+                "resolution": ([512,1024],{"default":1024}),                
+                "shape_steps": ("INT",{"default":12, "min":1, "max":100},),
+                "shape_guidance_strength": ("FLOAT",{"default":6.50,"min":0.00,"max":99.99,"step":0.01}),
+                "shape_guidance_rescale": ("FLOAT",{"default":0.05,"min":0.00,"max":1.00,"step":0.01}),
+                "shape_rescale_t": ("FLOAT",{"default":4.00,"min":0.00,"max":9.99,"step":0.01}),                
+                "shape_sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),
+                "shape_guidance_interval_start": ("FLOAT",{"default":0.10,"min":0.00,"max":1.00,"step":0.01}),
+                "shape_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
+            },
+        }
+
+    RETURN_TYPES = ("SHAPE_SLAT", "INT", "TRELLIS2PIPELINE",)
+    RETURN_NAMES = ("shape_slat", "resolution", "pipeline",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, pipeline, image_cond, coords, resolution,      
+        # shape
+        shape_steps, 
+        shape_guidance_strength, 
+        shape_guidance_rescale,
+        shape_rescale_t,
+        shape_sampler,
+        shape_guidance_interval_start,
+        shape_guidance_interval_end,
+        ):
+            
+        shape_guidance_interval = [shape_guidance_interval_start, shape_guidance_interval_end]        
+        shape_slat_sampler_params = {"steps":shape_steps,"guidance_strength":shape_guidance_strength,"guidance_rescale":shape_guidance_rescale,"guidance_interval":shape_guidance_interval,"rescale_t":shape_rescale_t}            
+        
+        args = pipeline._pretrained_args
+        sparse_sampler_prefix = pipeline.GetSamplerName(shape_sampler)
+        pipeline.shape_slat_sampler = getattr(samplers, f"Flow{sparse_sampler_prefix}GuidanceIntervalSampler")(**args['shape_slat_sampler']['args'])                    
+        
+        if resolution == 512:
+            pipeline.unload_shape_slat_flow_model_1024()
+            pipeline.load_shape_slat_flow_model_512()            
+            shape_slat = pipeline.sample_shape_slat(
+                image_cond, pipeline.models['shape_slat_flow_model_512'],
+                coords, shape_slat_sampler_params
+            )
+            
+            if not pipeline.keep_models_loaded:
+                pipeline.unload_shape_slat_flow_model_512()
+        elif resolution == 1024:
+            pipeline.unload_shape_slat_flow_model_512()
+            pipeline.load_shape_slat_flow_model_1024()
+            shape_slat = pipeline.sample_shape_slat(
+                image_cond, pipeline.models['shape_slat_flow_model_1024'],
+                coords, shape_slat_sampler_params
+            )
+            
+            if not pipeline.keep_models_loaded:
+                pipeline.unload_shape_slat_flow_model_1024()
+        
+        return (shape_slat, resolution, pipeline,)      
+
+class Trellis2ShapeCascadeGenerator:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "pipeline": ("TRELLIS2PIPELINE",),
+                "image_cond": ("IMAGE_COND",),
+                "shape_slat": ("SHAPE_SLAT",),
+                "from_resolution": ("INT",),
+                "to_resolution": ([1024,1536,2048,2560,3072,3584,4096],{"default":1024}),
+                "sparse_structure_resolution": ("INT", {"default":32,"min":32,"max":128,"step":4}),
+                "max_num_tokens": ("INT",{"default":999999,"min":0,"max":999999}),
+                "shape_steps": ("INT",{"default":12, "min":1, "max":100},),
+                "shape_guidance_strength": ("FLOAT",{"default":6.50,"min":0.00,"max":99.99,"step":0.01}),
+                "shape_guidance_rescale": ("FLOAT",{"default":0.05,"min":0.00,"max":1.00,"step":0.01}),
+                "shape_rescale_t": ("FLOAT",{"default":4.00,"min":0.00,"max":9.99,"step":0.01}),                
+                "shape_sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),
+                "shape_guidance_interval_start": ("FLOAT",{"default":0.10,"min":0.00,"max":1.00,"step":0.01}),
+                "shape_guidance_interval_end": ("FLOAT",{"default":1.00,"min":0.00,"max":1.00,"step":0.01}),
+            },
+        }
+
+    RETURN_TYPES = ("SHAPE_SLAT","INT","TRELLIS2PIPELINE",)
+    RETURN_NAMES = ("shape_slat","resolution","pipeline",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, pipeline, image_cond, shape_slat, from_resolution, to_resolution, sparse_structure_resolution, max_num_tokens,      
+        # shape
+        shape_steps, 
+        shape_guidance_strength, 
+        shape_guidance_rescale,
+        shape_rescale_t,
+        shape_sampler,
+        shape_guidance_interval_start,
+        shape_guidance_interval_end,
+        ):
+            
+        shape_guidance_interval = [shape_guidance_interval_start, shape_guidance_interval_end]        
+        shape_slat_sampler_params = {"steps":shape_steps,"guidance_strength":shape_guidance_strength,"guidance_rescale":shape_guidance_rescale,"guidance_interval":shape_guidance_interval,"rescale_t":shape_rescale_t}                    
+        
+        args = pipeline._pretrained_args
+        sparse_sampler_prefix = pipeline.GetSamplerName(shape_sampler)
+        pipeline.shape_slat_sampler = getattr(samplers, f"Flow{sparse_sampler_prefix}GuidanceIntervalSampler")(**args['shape_slat_sampler']['args'])
+        pipeline.load_shape_slat_flow_model_1024()           
+        slat, hr_resolution = self.sample(pipeline, shape_slat, from_resolution, to_resolution, sparse_structure_resolution, max_num_tokens, image_cond, shape_slat_sampler_params, pipeline.models['shape_slat_flow_model_1024'])
+        
+        if not pipeline.keep_models_loaded:
+            pipeline.unload_shape_slat_flow_model_1024()              
+        
+        return (slat, hr_resolution, pipeline,)         
+        
+    def sample(self, pipeline, slat, lr_resolution, resolution, sparse_structure_resolution, max_num_tokens, cond, sampler_params, flow_model):
+        # Upsample       
+        pipeline.load_shape_slat_decoder()
+        if pipeline.low_vram:
+            pipeline.models['shape_slat_decoder'].to(pipeline.device)
+            pipeline.models['shape_slat_decoder'].low_vram = True
+        hr_coords = pipeline.models['shape_slat_decoder'].upsample(slat, upsample_times=4)
+        if pipeline.low_vram:
+            pipeline.models['shape_slat_decoder'].cpu()
+            pipeline.models['shape_slat_decoder'].low_vram = False
+        
+        if not pipeline.keep_models_loaded:
+            pipeline.unload_shape_slat_decoder()
+        
+        hr_resolution = resolution
+        ratio = (sparse_structure_resolution / 32)
+        
+        while True:
+            quant_coords = torch.cat([
+                hr_coords[:, :1],
+                ((hr_coords[:, 1:] + 0.5) / (lr_resolution * ratio) * (hr_resolution // 16)).int(),
+            ], dim=1)
+            coords = quant_coords.unique(dim=0)
+            num_tokens = coords.shape[0]
+            if num_tokens < max_num_tokens:
+                if hr_resolution != resolution:
+                    print(f"Due to the limited number of tokens, the resolution is reduced to {hr_resolution}.")
+                print(f"Num Tokens: {num_tokens}")
+                break
+            hr_resolution -= 128
+            if hr_resolution < 1024 and resolution >= 1024:
+                print(f"Num Tokens: {num_tokens}")
+                hr_resolution = 1024
+                break
+            if hr_resolution < 512:
+                print(f"Num Tokens: {num_tokens}")
+                hr_resolution = 512
+                break
+        
+        coords_dev = coords.to(pipeline.device)                                           
+        # Sample structured latent
+        noise = SparseTensor(
+            feats=torch.randn(coords.shape[0], flow_model.in_channels, device=pipeline.device),
+            coords=coords_dev,
+        )
+        sampler_params = {**pipeline.shape_slat_sampler_params, **sampler_params}
+        if pipeline.low_vram:
+            flow_model.to(pipeline.device)
+        slat = pipeline.shape_slat_sampler.sample(
+            flow_model,
+            noise,
+            **cond,
+            **sampler_params,
+            verbose=True,
+            tqdm_desc="Sampling shape SLat (HR)",
+        ).samples
+        if pipeline.low_vram:
+            flow_model.cpu()
+            pipeline._cleanup_cuda()                                
+
+        std = torch.tensor(pipeline.shape_slat_normalization['std'])[None].to(slat.device)
+        mean = torch.tensor(pipeline.shape_slat_normalization['mean'])[None].to(slat.device)
+        slat = slat * std + mean
+        
+        del coords_dev
+        if pipeline.low_vram:
+            cond = pipeline._cond_cpu(cond)
+            pipeline._cleanup_cuda()
+
+        return slat, hr_resolution 
+
+class Trellis2TexSlatGenerator:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "pipeline": ("TRELLIS2PIPELINE",),
+                "image_cond": ("IMAGE_COND",),
+                "shape_slat": ("SHAPE_SLAT",),
+                "resolution": ([512,1024],{"default":1024}),                
+                "texture_steps": ("INT",{"default":12, "min":1, "max":100},),
+                "texture_guidance_strength": ("FLOAT",{"default":6.50,"min":0.00,"max":99.99,"step":0.01}),
+                "texture_guidance_rescale": ("FLOAT",{"default":0.05,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_rescale_t": ("FLOAT",{"default":4.00,"min":0.00,"max":9.99,"step":0.01}),         
+                "texture_sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),                                                               
+                "texture_guidance_interval_start": ("FLOAT",{"default":0.00,"min":0.00,"max":1.00,"step":0.01}),
+                "texture_guidance_interval_end": ("FLOAT",{"default":0.90,"min":0.00,"max":1.00,"step":0.01}),
+            },
+        }
+
+    RETURN_TYPES = ("TEXTURE_SLAT", "TRELLIS2PIPELINE",)
+    RETURN_NAMES = ("texture_slat", "pipeline",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, pipeline, image_cond, shape_slat, resolution,      
+        # shape
+        texture_steps, 
+        texture_guidance_strength, 
+        texture_guidance_rescale,
+        texture_rescale_t,
+        texture_sampler,
+        texture_guidance_interval_start,
+        texture_guidance_interval_end,
+        ):
+
+        texture_guidance_interval = [texture_guidance_interval_start,texture_guidance_interval_end]
+        tex_slat_sampler_params = {"steps":texture_steps,"guidance_strength":texture_guidance_strength,"guidance_rescale":texture_guidance_rescale,"guidance_interval":texture_guidance_interval,"rescale_t":texture_rescale_t}
+        
+        if resolution == 512:
+            pipeline.unload_tex_slat_flow_model_1024()
+            pipeline.load_tex_slat_flow_model_512()
+            tex_slat = pipeline.sample_tex_slat_advanced(
+                image_cond, pipeline.models['tex_slat_flow_model_512'],
+                shape_slat, tex_slat_sampler_params, texture_sampler
+            )
+            if not pipeline.keep_models_loaded:
+                pipeline.unload_tex_slat_flow_model_512()
+                
+        elif resolution == 1024:
+            pipeline.unload_tex_slat_flow_model_512()
+            pipeline.load_tex_slat_flow_model_1024()
+            tex_slat = pipeline.sample_tex_slat_advanced(
+                image_cond, pipeline.models['tex_slat_flow_model_1024'],
+                shape_slat, tex_slat_sampler_params, texture_sampler
+            )
+            
+            if not pipeline.keep_models_loaded:
+                pipeline.unload_tex_slat_flow_model_1024()
+        
+        return (tex_slat, pipeline,)      
+        
+class Trellis2DecodeLatents:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "pipeline": ("TRELLIS2PIPELINE",),
+                "shape_slat": ("SHAPE_SLAT",),
+                "resolution": ("INT",),
+                "use_tiled_decoder": ("BOOLEAN", {"default":True}),
+            },
+            "optional": {
+                "texture_slat": ("TEXTURE_SLAT",),
+            }
+        }
+
+    RETURN_TYPES = ("MESHWITHVOXEL", "BVH", "TRELLIS2PIPELINE",)
+    RETURN_NAMES = ("mesh", "bvh", "pipeline",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, pipeline, shape_slat, resolution, use_tiled_decoder, texture_slat = None):
+        mesh = pipeline.decode_latent(shape_slat, texture_slat, resolution, use_tiled=use_tiled_decoder)[0]
+        
+        if texture_slat == None:
+            print("Not building BVH : only used for texturing")
+            bvh = None            
+        else:
+            # Build BVH for the current mesh to guide remeshing
+            vertices = mesh.vertices.cuda()
+            faces = mesh.faces.cuda()   
+            
+            print("Building BVH for current mesh...")
+            bvh = CuMesh.cuBVH(vertices.detach().clone(), faces.detach().clone())           
+            bvh.vertices = vertices.detach().clone()
+            bvh.faces = faces.detach().clone()            
+        
+        
+        return (mesh, bvh, pipeline,)    
+
+class Trellis2SimplifyMeshAdvanced:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "mesh": ("MESHWITHVOXEL",),
+                "target_face_num": ("INT",{"default":1000000,"min":1,"max":30000000}),
+                "thresh":("FLOAT",{"default":1e-8,"min":1e-12,"max":1e-2,"step":0.000000000001}),
+                "lambda_edge_length": ("FLOAT",{"default":0.01,"min":0.00,"max":1.00,"step":0.01}),
+                "lambda_skinny": ("FLOAT",{"default":0.001,"min":0.000,"max":0.100,"step":0.001}),
+                "lambda_curvature": ("FLOAT",{"default":0.050,"min":0.000,"max":0.500,"step":0.001}),
+                "lambda_boundary": ("FLOAT",{"default":0.050,"min":0.000,"max":0.500,"step":0.001}),
+                "lambda_area": ("FLOAT",{"default":0.010,"min":0.000,"max":0.100,"step":0.001}),
+                "qem_regularization": ("FLOAT",{"default":1e-8,"min":1e-10,"max":1e-5,"step":0.0000000001}),
+            },
+        }
+
+    RETURN_TYPES = ("MESHWITHVOXEL", )
+    RETURN_NAMES = ("mesh", )
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, mesh, target_face_num, thresh, lambda_edge_length, lambda_skinny, lambda_curvature, lambda_boundary, lambda_area, qem_regularization):        
+        mesh_copy = copy.deepcopy(mesh)
+
+        options = {
+            'method': 'advanced',
+            'thresh': thresh,
+            'lambda_edge_length': lambda_edge_length,
+            'lambda_skinny': lambda_skinny,
+            'lambda_curvature': lambda_curvature,
+            'lambda_boundary': lambda_boundary,            
+            'lambda_area': lambda_area,     
+            'qem_regularization': qem_regularization,     
+        }         
+
+        mesh_copy.simplify_with_cumesh(target = target_face_num, options = options)
+        
+        return (mesh_copy,)  
+
+class Trellis2SimplifyTrimeshAdvanced:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "trimesh": ("TRIMESH",),
+                "target_face_num": ("INT",{"default":1000000,"min":1,"max":30000000}),
+                "thresh":("FLOAT",{"default":1e-8,"min":1e-12,"max":1e-2,"step":0.000000000001}),
+                "lambda_edge_length": ("FLOAT",{"default":0.01,"min":0.00,"max":1.00,"step":0.01}),
+                "lambda_skinny": ("FLOAT",{"default":0.001,"min":0.000,"max":0.100,"step":0.001}),
+                "lambda_curvature": ("FLOAT",{"default":0.050,"min":0.000,"max":0.500,"step":0.001}),
+                "lambda_boundary": ("FLOAT",{"default":0.050,"min":0.000,"max":0.500,"step":0.001}),
+                "lambda_area": ("FLOAT",{"default":0.010,"min":0.000,"max":0.100,"step":0.001}),
+                "qem_regularization": ("FLOAT",{"default":1e-8,"min":1e-10,"max":1e-5,"step":0.0000000001}),
+            },
+        }
+
+    RETURN_TYPES = ("TRIMESH", )
+    RETURN_NAMES = ("trimesh", )
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, trimesh, target_face_num, thresh, lambda_edge_length, lambda_skinny, lambda_curvature, lambda_boundary, lambda_area, qem_regularization):
+        mesh_copy = copy.deepcopy(trimesh)
+        
+        cumesh = CuMesh.CuMesh()
+        cumesh.init(torch.from_numpy(mesh_copy.vertices).float().cuda(), torch.from_numpy(mesh_copy.faces).int().cuda())
+        
+        options = {
+            'method': 'advanced',
+            'thresh': thresh,
+            'lambda_edge_length': lambda_edge_length,
+            'lambda_skinny': lambda_skinny,
+            'lambda_curvature': lambda_curvature,
+            'lambda_boundary': lambda_boundary,            
+            'lambda_area': lambda_area,     
+            'qem_regularization': qem_regularization,     
+        }        
+
+        cumesh.simplify(target_face_num, verbose=True, options = options)
+        
+        new_vertices, new_faces = cumesh.read()
+        mesh_copy.vertices = new_vertices.cpu().numpy()
+        mesh_copy.faces = new_faces.cpu().numpy()
+            
+        del cumesh        
+        
+        return (mesh_copy,)         
 
         
 NODE_CLASS_MAPPINGS = {
@@ -3360,6 +3858,14 @@ NODE_CLASS_MAPPINGS = {
     "Trellis2LaplacianSmoothingWithOpen3d": Trellis2LaplacianSmoothingWithOpen3d,
     "Trellis2UnWrapTrimesh": Trellis2UnWrapTrimesh,
     "Trellis2MeshWithVoxelCascadeGenerator": Trellis2MeshWithVoxelCascadeGenerator,
+    "Trellis2ImageCondGenerator": Trellis2ImageCondGenerator,
+    "Trellis2SparseGenerator": Trellis2SparseGenerator,
+    "Trellis2ShapeGenerator": Trellis2ShapeGenerator,
+    "Trellis2ShapeCascadeGenerator": Trellis2ShapeCascadeGenerator,
+    "Trellis2TexSlatGenerator": Trellis2TexSlatGenerator,
+    "Trellis2DecodeLatents": Trellis2DecodeLatents,
+    "Trellis2SimplifyMeshAdvanced": Trellis2SimplifyMeshAdvanced,
+    "Trellis2SimplifyTrimeshAdvanced": Trellis2SimplifyTrimeshAdvanced,
     }
     
 
@@ -3399,5 +3905,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2FillHolesWithCuMesh": "Trellis2 - Fill Holes with CuMesh",
     "Trellis2LaplacianSmoothingWithOpen3d": "Trellis2 - Laplacian Smoothing (using open3d)",
     "Trellis2UnWrapTrimesh": "Trellis2 - UnWrap Trimesh",
-    "Trellis2MeshWithVoxelCascadeGenerator": "Trellis2 - Mesh With Voxel Cascade Generator"
+    "Trellis2MeshWithVoxelCascadeGenerator": "Trellis2 - Mesh With Voxel Cascade Generator",
+    "Trellis2ImageCondGenerator": "Trellis2 - ImageCond Generator",
+    "Trellis2SparseGenerator": "Trellis2 - Sparse Generator",
+    "Trellis2ShapeGenerator": "Trellis2 - Shape Generator",
+    "Trellis2ShapeCascadeGenerator": "Trellis2 - Shape Cascade Generator",
+    "Trellis2TexSlatGenerator": "Trellis2 - Tex Slat Generator",
+    "Trellis2DecodeLatents": "Trellis2 - Decode Latents",
+    "Trellis2SimplifyMeshAdvanced": "Trellis2 - Simplify Mesh Advanced",
+    "Trellis2SimplifyTrimeshAdvanced": "Trellis2 - Simplify Trimesh Advanced",
     }

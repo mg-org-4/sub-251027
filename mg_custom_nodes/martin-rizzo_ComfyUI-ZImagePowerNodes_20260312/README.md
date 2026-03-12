@@ -57,15 +57,14 @@ each node.
 This folder includes all the workflows used to generate the thumbnail images in the styles gallery.
 
 [__Z-Image Power Nodes on CivitAI__](https://civitai.com/models/2322533)  
-Explore hundreds of images generated using the Z-Image model and the Power Nodes. Images posted by me
-come with their prompts and complete generation workflows, which you can freely use as a starting point
-for your own generations. Additionally, many users share their amazing creations in this community.
+This page contains hundreds of images created using the Z-Image model and the Power Nodes.
+Images posted by me always include the prompt and complete workflow (*), which you can use as a
+starting point for your own generation. Many users share their amazing creations in this community.
 
-Each image features a sidebar information panel. To easily extract the workflow from an image, click on
-the "COMFY: X Nodes" button located within the "Other metadata" section of the panel. You can then press
-CTRL+V (paste) directly into ComfyUI to obtain the full workflow for your own projects or generations.
+<img alt="How to extract CivitAI workflow into ComfyUI" src="image-civitai2.jpg" width="60%"></img>  
+<sub>(*) On CivitAI, each image includes a sidebar panel with metadata. To easily extract the workflow,  
+click the "COMFY: N Nodes" button in the Other Metadata section and paste it (CTRL+V) directly into ComfyUI.</sub>
 
-<img src="image-civitai.jpg" width="60%"></img>
 
 ## Installation
 _Ensure you have the latest version of [ComfyUi](https://github.com/comfyanonymous/ComfyUI)._

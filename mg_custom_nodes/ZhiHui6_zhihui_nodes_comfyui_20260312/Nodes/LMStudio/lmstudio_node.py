@@ -13,10 +13,9 @@ import requests
 
 LMSTUDIO_PROMPT_PRESETS = {
     "Ignore": "",
-    "[Backtrack]Tags": "Your task is to generate a clean list of comma-separated tags for a text-to-image AI, based *only* on the visual information in the image. Limit the output to a maximum of 50 unique tags. Strictly describe visual elements like subject, clothing, environment, colors, lighting, and composition. Do not include abstract concepts, interpretations, marketing terms, or technical jargon (e.g., no 'SEO', 'brand-aligned', 'viral potential'). The goal is a concise list of visual descriptors. Avoid repeating tags.",
-    "[Backtrack]Extreme Detailed": "Generate an extremely detailed and descriptive text-to-image prompt from the image. Create a rich paragraph that elaborates on the subject's appearance, textures of clothing, specific background elements, the quality and color of light, shadows, and the overall atmosphere. Aim for a highly descriptive and immersive prompt.",
-    "[Creative]Illustrated Writing": "Describe this image as if writing the beginning of a short story.",
-    "[Creative]Short Story": "Write a short, imaginative story inspired by this image or video.",
+    "Tags": "Your task is to generate a clean list of comma-separated tags for a text-to-image AI, based *only* on the visual information in the image. Limit the output to a maximum of 50 unique tags. Strictly describe visual elements like subject, clothing, environment, colors, lighting, and composition. Do not include abstract concepts, interpretations, marketing terms, or technical jargon (e.g., no 'SEO', 'brand-aligned', 'viral potential'). The goal is a concise list of visual descriptors. Avoid repeating tags.",
+    "Extreme Detailed": "Generate an extremely detailed and descriptive text-to-image prompt from the image. Create a rich paragraph that elaborates on the subject's appearance, textures of clothing, specific background elements, the quality and color of light, shadows, and the overall atmosphere. Aim for a highly descriptive and immersive prompt.",
+    "Short Story": "Write a short, imaginative story inspired by this image or video.",
 }
 
 def _normalise_base(endpoint: str) -> str:
@@ -441,11 +440,14 @@ class LMStudioNode:
 
         full_user_text = self._apply_output_language(full_user_text, output_language)
 
+        # When a preset is selected (not "Ignore"), the system_prompt input should be disabled
+        effective_system_prompt = system_prompt if preset_prompt == "Ignore" else ""
+
         if not batch_mode:
             if image is None:
                 messages = []
-                if system_prompt.strip():
-                    messages.append({"role": "system", "content": system_prompt})
+                if effective_system_prompt.strip():
+                    messages.append({"role": "system", "content": effective_system_prompt})
                 messages.append({"role": "user", "content": full_user_text})
 
                 try:
@@ -466,8 +468,8 @@ class LMStudioNode:
             ]
 
             messages = []
-            if system_prompt.strip():
-                messages.append({"role": "system", "content": system_prompt})
+            if effective_system_prompt.strip():
+                messages.append({"role": "system", "content": effective_system_prompt})
             messages.append({"role": "user", "content": user_content})
 
             try:
@@ -511,8 +513,8 @@ class LMStudioNode:
                             ]
 
                             messages = []
-                            if system_prompt.strip():
-                                messages.append({"role": "system", "content": system_prompt})
+                            if effective_system_prompt.strip():
+                                messages.append({"role": "system", "content": effective_system_prompt})
                             messages.append({"role": "user", "content": user_content})
 
                             result = self._call_api(endpoint, model, messages, max_tokens, temperature, top_p, top_k, repetition_penalty)
@@ -550,8 +552,8 @@ class LMStudioNode:
                         ]
 
                         messages = []
-                        if system_prompt.strip():
-                            messages.append({"role": "system", "content": system_prompt})
+                        if effective_system_prompt.strip():
+                            messages.append({"role": "system", "content": effective_system_prompt})
                         messages.append({"role": "user", "content": user_content})
 
                         result = self._call_api(endpoint, model, messages, max_tokens, temperature, top_p, top_k, repetition_penalty)

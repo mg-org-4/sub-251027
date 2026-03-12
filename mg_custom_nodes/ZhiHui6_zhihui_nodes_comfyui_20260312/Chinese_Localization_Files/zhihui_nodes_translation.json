@@ -46,6 +46,30 @@
             "merged_text": "合并文本"
         }
     },
+    "PromptDelete": {
+        "title": "提示词删除",
+        "description": "提示词删除：搜索并删除文本中匹配的内容，支持最多10个搜索字符串。可选择启用自动格式化功能，自动清理标点符号和空格。",
+        "inputs": {
+            "text_input": "文本输入"
+        },
+        "widgets": {
+            "inputcount": "输入数量",
+            "auto_format": "自动格式化",
+            "find_1": "查找1",
+            "find_2": "查找2",
+            "find_3": "查找3",
+            "find_4": "查找4",
+            "find_5": "查找5",
+            "find_6": "查找6",
+            "find_7": "查找7",
+            "find_8": "查找8",
+            "find_9": "查找9",
+            "find_10": "查找10"
+        },
+        "outputs": {
+            "text_output": "文本输出"
+        }
+    },
     "TextModifier": {
         "title": "文本修改器",
         "description": "文本修改器：提取指定起始文本和结束文本之间的文本内容。可以删除指定字符串及其前后的所有文本，实现精确的文本提取功能。",
@@ -126,10 +150,11 @@
     },
     "ImageAspectRatio": {
         "title": "图像宽高比",
-        "description": "智能图像宽高比设置节点，支持为诸如 Qwen、Flux、Wan、SDXL 等多种模型预设尺寸，还能快速选择常见的比例或自定义尺寸。", 
+        "description": "智能图像宽高比设置节点，支持为诸如 Qwen、Flux、Wan、SDXL 等多种模型预设尺寸，还能快速选择常见的比例或自定义尺寸。",
         "widgets": {
             "preset_mode": "预设模式",
-            "aspect_ratio": "宽高比",
+            "aspect_category": "比例类别",
+            "aspect_size": "尺寸选项",
             "custom_width": "自定义宽度",
             "custom_height": "自定义高度",
             "aspect_lock": "宽高比锁定"
@@ -1034,7 +1059,7 @@
     },
     "LMStudioNode": {
         "title": "LM工作室节点",
-        "description": "连接本地 LM Studio 服务器进行图像分析和文本生成。支持多种预设模板、输出语言控制以及自动模型发现。需要已运行 LM Studio 软件并加载具备视觉能力的模型。",
+        "description": "连接本地 LM Studio 服务器进行图像分析和文本生成。支持多种预设模板（Tags、Extreme Detailed、Short Story）、输出语言控制以及自动模型发现。选择预设后系统提示词将自动失效。需要已运行 LM Studio 软件并加载具备视觉能力的模型。",
         "inputs": {
             "image": "图像"
         },
@@ -1057,8 +1082,7 @@
             "unload_model": "卸载模型"
         },
         "outputs": {
-            "result": "结果",
-            "status": "状态"
+            "result": "结果"
         }
     }
 }

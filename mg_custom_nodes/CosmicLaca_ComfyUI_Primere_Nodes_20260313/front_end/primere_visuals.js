@@ -341,7 +341,9 @@ class ModalControl {
 
             let nx = i;
             node.widgets[i].mouse = async function (event, pos, node) {
+                if (event.type == 'pointerup' && (pos[0] < 35 || pos[0] > node.size[0] - 35)) return false;
                 if (event.type == 'pointermove' && validClasses.includes(node.type)) return false;
+                if (event.type == 'pointerdown' && (pos[0] < 35 || pos[0] > node.size[0] - 35)) return false;
 
                 const isnumeric_end = stackedClasses.includes(node.type);
 
@@ -574,7 +576,7 @@ async function setup_visual_modal(combo_name, AllModels, ShowHidden, SelectedMod
         }
     }
 
-    subdir_tabs.innerHTML = menu_html + type_html + version_html + ' <input type="text" name="ckptfilter" placeholder="filter"> <button type="button" class="filter_clear">Clear filter</button>';
+    subdir_tabs.innerHTML = menu_html + type_html + version_html + ' <input type="text" name="ckptfilter" placeholder="filter" class="filter_input"> <button type="button" class="filter_clear">Clear filter</button>';
 
     var sortbuttons = state.nodeHelper['sortbuttons'];
     var sort_string = "";
@@ -821,7 +823,7 @@ async function createCardElement(checkpoint, container, SelectedModel, ModelType
 }
 
 function createSortButtons(buttondata) {
-    var sort_html = '<label class="sort_by_label"><br> Sort by: </label>';
+    var sort_html = '<label class="sort_by_label"> | Sort by: </label>';
     for (const buttonName of buttondata) {
         sort_html += '<button type="button" class="preview_sort" data-sortsource="' + buttonName.toLowerCase() + '">' + buttonName + '</button>';
     }
@@ -840,7 +842,7 @@ function createTypeMenu(ModelsByVersion, supportedModels, LastCat, LastCatType) 
             }
         }
     }
-    version_html += '<label> | </label>';
+    version_html += '<label> <hr> </label>';
     return version_html;
 }
 
@@ -856,7 +858,7 @@ function createPathMenu(AllPath, ShowHidden, LastCat, LastCatType) {
             menu_html += '<button type="button" data-ckptsubdir="' + subdir + '" class="subdirfilter' + addWhiteClass + '">' + subdirName + '</button>';
         }
     }
-    return menu_html + '<label> <br> </label>';
+    return menu_html + '<label> <hr> </label>';
 }
 
 function sleep(ms) {

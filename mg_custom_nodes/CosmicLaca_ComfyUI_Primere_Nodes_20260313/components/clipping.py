@@ -7,6 +7,8 @@ import comfy
 import comfy_extras.nodes_sd3 as nodes_sd3
 import comfy_extras.nodes_flux as nodes_flux
 from . import utility
+import nodes
+from ..Nodes.modules import long_clip as long_clip_module
 
 class SDLongClipModel(torch.nn.Module, ClipTokenWeightEncoder):
     LAYERS = [
@@ -550,6 +552,37 @@ def build_prompt_context(
     return positive_text, negative_text, t5xxl_prompt, positive_l, negative_l
 
 
+SDXL_CONCEPTS = {'SDXL', 'Illustrious', 'Pony', 'Playground'}
+
+def apply_clip_overrides(loader_self, clip, workflow_tuple):
+    if not workflow_tuple:
+        return clip
+    encoder_1 = workflow_tuple.get('encoder_1', None)
+    last_layer = int(workflow_tuple.get('last_layer', 0))
+    baked_clip = clip
+
+    if encoder_1 and encoder_1 != 'None' and not workflow_tuple.get('clip_selection', False):
+        try:
+            model_concept = workflow_tuple.get('model_concept', 'SD1')
+            is_longclip = 'longclip' in encoder_1.lower() or encoder_1.lower().endswith('.pt')
+            if is_longclip:
+                if model_concept in SDXL_CONCEPTS:
+                    clip = long_clip_module.SDXLLongClip.sdxl_longclip(loader_self, encoder_1, baked_clip)[0]
+                else:
+                    clip = long_clip_module.SDLongClip.sd_longclip(loader_self, encoder_1)[0]
+            else:
+                clip = nodes.CLIPLoader.load_clip(loader_self, encoder_1, 'stable_diffusion')[0]
+        except Exception:
+            if baked_clip is None:
+                raise RuntimeError(f"Clip model '{encoder_1}' is incompatible with this checkpoint and no baked CLIP is available.")
+            clip = baked_clip
+
+    if last_layer < 0:
+        clip = nodes.CLIPSetLastLayer.set_last_layer(loader_self, clip, last_layer)[0]
+
+    return clip
+
+
 def encode_standard(clip, positive_text, negative_text, t5xxl_prompt, adv_encode, token_normalization, weight_interpretation, positive_l, negative_l, width, height, workflow_tuple, advanced_encode_fn):
     if adv_encode:
         tokens_p = clip.tokenize(positive_text)
@@ -617,6 +650,32 @@ def encode_stable_cascade(clip, positive_text, negative_text, workflow_tuple):
     cond_pos, pooled_pos = clip.encode_from_tokens(tokens_pos, return_pooled=True)
     cond_neg, pooled_neg = clip.encode_from_tokens(tokens_neg, return_pooled=True)
     return ([[cond_pos, {"pooled_output": pooled_pos}]], [[cond_neg, {"pooled_output": pooled_neg}]], positive_text, negative_text, "", "", "", workflow_tuple)
+
+
+def encode_pixart_sigma(clip, positive_text, negative_text, workflow_tuple):
+    positive_text = utility.DiT_cleaner(positive_text)
+    negative_text = utility.DiT_cleaner(negative_text)
+
+    cond_pos_ref = cond_neg_ref = out_pos_ref = out_neg_ref = None
+
+    if clip['refiner'] is not None:
+        clipRef = clip['refiner']
+        tokens_pos_ref = clipRef.tokenize(positive_text)
+        tokens_neg_ref = clipRef.tokenize(negative_text)
+        out_pos_ref = clipRef.encode_from_tokens(tokens_pos_ref, return_pooled=True, return_dict=True)
+        out_neg_ref = clipRef.encode_from_tokens(tokens_neg_ref, return_pooled=True, return_dict=True)
+        cond_pos_ref = out_pos_ref.pop("cond")
+        cond_neg_ref = out_neg_ref.pop("cond")
+
+    clipMain = clip['main']
+    tokens_pos_main = clipMain.tokenize(positive_text)
+    tokens_neg_main = clipMain.tokenize(negative_text)
+    out_pos_main = clipMain.encode_from_tokens(tokens_pos_main, return_pooled=True, return_dict=True)
+    out_neg_main = clipMain.encode_from_tokens(tokens_neg_main, return_pooled=True, return_dict=True)
+    cond_pos_main = out_pos_main.pop("cond")
+    cond_neg_main = out_neg_main.pop("cond")
+
+    return ({'refiner': [[cond_pos_ref, out_pos_ref]], 'main': [[cond_pos_main, out_pos_main]]}, {'refiner': [[cond_neg_ref, out_neg_ref]], 'main': [[cond_neg_main, out_neg_main]]}, positive_text, negative_text, "", "", "", workflow_tuple)
 
 
 def encode_flux(clip, positive_text, negative_text, t5xxl_prompt, concept_data, workflow_tuple):

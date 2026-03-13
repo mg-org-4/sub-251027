@@ -10,7 +10,7 @@ function modelNameToKey(modelPath) {
     return base.replace(/\.[^/.]+$/, "");
 }
 
-function collectNodeData(node) {
+function collectNodeData(node, includeLoraToggles = false) {
     const SKIP_KEYS = new Set(["concepts", "models", "runtime_concept"]);
     const widgets = node.widgets || [];
 
@@ -29,7 +29,7 @@ function collectNodeData(node) {
     const data = {};
     for (const w of widgets) {
         if (!w.name || SKIP_KEYS.has(w.name)) continue;
-        if (loraBooleans.has(w.name)) continue;
+        if (!includeLoraToggles && loraBooleans.has(w.name)) continue;
         if (w.value === null || w.value === undefined) continue;
         if (suppressedPrefixes.some((p) => w.name.startsWith(p))) continue;
         data[w.name] = w.value;
@@ -113,7 +113,7 @@ function initializeSamplerNode(node) {
             return;
         }
 
-        const data = collectNodeData(node);
+        const data = collectNodeData(node, modelVal && modelVal !== "Auto");
 
         try {
             const response = await fetch("/primere_model_concept_save", {
@@ -142,8 +142,6 @@ function initializeSamplerNode(node) {
         originalOnWidgetChanged?.call(this, name, value, oldValue, widget);
         if (name === "concepts" && value !== "Auto") {
             loadConceptValues(this, value);
-        } else if (name === "models" && value !== "Auto") {
-            loadConceptValues(this, modelNameToKey(value));
         }
     };
 

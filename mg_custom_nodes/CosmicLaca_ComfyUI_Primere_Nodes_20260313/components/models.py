@@ -5,11 +5,16 @@ import comfy.utils
 import folder_paths
 import nodes
 import comfy_extras.nodes_sd3 as nodes_sd3
+import comfy_extras.nodes_model_advanced as nodes_model_advanced
 from pathlib import Path
 from .tree import PRIMERE_ROOT
 from . import utility
 from . import nf4_helper
 from .gguf import nodes as gguf_nodes
+import difflib
+import numpy as np
+from ComfyUI_ExtraModels.PixArt.loader import load_pixart
+from ComfyUI_ExtraModels.PixArt.conf import pixart_conf
 
 
 def resolve_symlink(ckpt_name):
@@ -100,7 +105,9 @@ def load_sd3_model(loader_self, ckpt_name, concept_data):
         OUTPUT_VAE = LOADED_CHECKPOINT[2]
     lora_name, lora_strength = pick_lora(concept_data)
     if lora_name:
-        OUTPUT_MODEL = apply_lora(loader_self, OUTPUT_MODEL, os.path.join(PRIMERE_ROOT, 'Nodes', 'Downloads', lora_name), lora_strength)
+        lora_path = folder_paths.get_full_path('loras', lora_name)
+        if lora_path:
+            OUTPUT_MODEL = apply_lora(loader_self, OUTPUT_MODEL, lora_path, lora_strength)
     return OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE
 
 
@@ -178,5 +185,120 @@ def load_flux_model(loader_self, ckpt_name, concept_data):
     OUTPUT_VAE = utility.vae_loader_class.load_vae(concept_data.get('vae', None))[0]
     lora_name, lora_strength = pick_lora(concept_data)
     if lora_name:
-        OUTPUT_MODEL = apply_lora(loader_self, OUTPUT_MODEL, os.path.join(PRIMERE_ROOT, 'Nodes', 'Downloads', lora_name), lora_strength)
+        lora_path = folder_paths.get_full_path('loras', lora_name)
+        if lora_path:
+            OUTPUT_MODEL = apply_lora(loader_self, OUTPUT_MODEL, lora_path, lora_strength)
+    return OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE
+
+
+def load_auraflow_model(loader_self, ckpt_name, concept_data):
+    File_link, linkedFileName, model_ext = resolve_symlink(ckpt_name)
+    if File_link:
+        if model_ext == '.gguf':
+            OUTPUT_MODEL = gguf_nodes.UnetLoaderGGUF.load_unet(loader_self, linkedFileName)[0]
+        else:
+            OUTPUT_MODEL = nodes.UNETLoader.load_unet(loader_self, linkedFileName, 'default')[0]
+    else:
+        OUTPUT_MODEL = nodes.CheckpointLoaderSimple.load_checkpoint(loader_self, ckpt_name)[0]
+    encoder_1 = concept_data.get('encoder_1', None)
+    OUTPUT_CLIP = nodes.CLIPLoader.load_clip(loader_self, encoder_1, 'stable_diffusion')[0]
+    OUTPUT_VAE = utility.vae_loader_class.load_vae(concept_data.get('vae', None))[0]
+    return OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE
+
+
+def load_pixart_model(loader_self, ckpt_name, concept_data):
+    ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
+
+    pixart_model_name = Path(ckpt_name).stem
+    pixart_types = list(pixart_conf.keys())
+    cutoff_list = list(np.around(np.arange(0.1, 1.01, 0.01).tolist(), 2))[::-1]
+    is_found = []
+    trycut = 0
+    for trycut in cutoff_list:
+        is_found = difflib.get_close_matches(pixart_model_name, pixart_types, cutoff=trycut)
+        if len(is_found) > 0:
+            break
+    pixart_model_type = 'PixArtMS_Sigma_XL_2' if trycut <= 0.35 else is_found[0]
+    model_conf = pixart_conf[pixart_model_type]
+
+    OUTPUT_MODEL_MAIN = load_pixart(model_path=ckpt_path, model_conf=model_conf)
+
+    encoder_1 = concept_data.get('encoder_1', None)
+    OUTPUT_CLIP_MAIN = nodes.CLIPLoader.load_clip(loader_self, encoder_1, 'sd3')[0]
+
+    refiner_model = concept_data.get('refiner_model', None)
+    OUTPUT_MODEL_REFINER = None
+    OUTPUT_CLIP_REFINER = None
+    if concept_data.get('refiner') == True and refiner_model and refiner_model != 'None':
+        REFINER_CHECKPOINT = nodes.CheckpointLoaderSimple.load_checkpoint(loader_self, refiner_model)
+        OUTPUT_MODEL_REFINER = REFINER_CHECKPOINT[0]
+        OUTPUT_CLIP_REFINER = REFINER_CHECKPOINT[1]
+        OUTPUT_VAE = REFINER_CHECKPOINT[2]
+    else:
+        OUTPUT_VAE = utility.vae_loader_class.load_vae(concept_data.get('vae', None))[0]
+
+    return {'main': OUTPUT_MODEL_MAIN, 'refiner': OUTPUT_MODEL_REFINER}, {'main': OUTPUT_CLIP_MAIN, 'refiner': OUTPUT_CLIP_REFINER}, OUTPUT_VAE
+
+
+def load_playground_model(loader_self, ckpt_name, use_yaml, model_config_full_path, concept_data):
+    OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE = load_sd_model(loader_self, ckpt_name, use_yaml, model_config_full_path, concept_data)
+    sigma_max = concept_data.get('sigma_max', 120)
+    sigma_min = concept_data.get('sigma_min', 0.002)
+    OUTPUT_MODEL = nodes_model_advanced.ModelSamplingContinuousEDM.patch(loader_self, OUTPUT_MODEL, 'edm_playground_v2.5', sigma_max, sigma_min)[0]
+    return OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE
+
+
+def load_lightning_hyper_model(loader_self, ckpt_name, concept_data):
+    model_concept = concept_data.get('model_concept')
+    lora_path = None
+    lora_strength = 1.0
+    if concept_data.get('speed_lora') == True:
+        lora_name = concept_data.get('speed_lora_name')
+        if lora_name:
+            lora_path = folder_paths.get_full_path('loras', lora_name)
+            lora_strength = concept_data.get('speed_lora_strength', 1.0)
+
+    if model_concept == 'Hyper':
+        _, unet_name, _ = resolve_symlink(ckpt_name)
+        if unet_name is not None:
+            checkpoint_result = utility.BDanceConceptHelper(loader_self, model_concept, True, 'UNET', None, None, None, unet_name, None, lora_strength)
+            OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE = checkpoint_result[0], checkpoint_result[1], checkpoint_result[2]
+        else:
+            LOADED_CHECKPOINT = nodes.CheckpointLoaderSimple.load_checkpoint(loader_self, ckpt_name)
+            OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE = LOADED_CHECKPOINT[0], LOADED_CHECKPOINT[1], LOADED_CHECKPOINT[2]
+        if lora_path:
+            OUTPUT_MODEL = utility.BDanceConceptHelper(loader_self, model_concept, True, 'LORA', None, OUTPUT_MODEL, lora_path, None, None, lora_strength)
+    else:
+        LOADED_CHECKPOINT = nodes.CheckpointLoaderSimple.load_checkpoint(loader_self, ckpt_name)
+        OUTPUT_MODEL = LOADED_CHECKPOINT[0]
+        OUTPUT_CLIP = LOADED_CHECKPOINT[1]
+        OUTPUT_VAE = LOADED_CHECKPOINT[2]
+        if lora_path:
+            OUTPUT_MODEL = utility.BDanceConceptHelper(loader_self, model_concept, True, 'LORA', None, OUTPUT_MODEL, lora_path, None, None, lora_strength)
+
+    return OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE
+
+
+def load_lcm_model(loader_self, ckpt_name, concept_data):
+    LOADED_CHECKPOINT = nodes.CheckpointLoaderSimple.load_checkpoint(loader_self, ckpt_name)
+    OUTPUT_MODEL = LOADED_CHECKPOINT[0]
+    OUTPUT_CLIP = LOADED_CHECKPOINT[1]
+    OUTPUT_VAE = LOADED_CHECKPOINT[2]
+
+    MODEL_VERSION = utility.getModelType(ckpt_name, 'checkpoints')
+
+    if concept_data.get('lcm_lora') == True:
+        lora_name = concept_data.get('lcm_lora_name', None)
+        if lora_name:
+            lora_path = folder_paths.get_full_path('loras', lora_name)
+            if lora_path:
+                OUTPUT_MODEL = apply_lora(loader_self, OUTPUT_MODEL, lora_path, concept_data.get('lcm_lora_strength', 1.0))
+
+    class ModelSamplingAdvanced(utility.ModelSamplingDiscreteLCM, nodes_model_advanced.LCM):
+        pass
+
+    m = OUTPUT_MODEL.clone()
+    m.add_object_patch("model_sampling", ModelSamplingAdvanced())
+    OUTPUT_MODEL = m
+
     return OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE

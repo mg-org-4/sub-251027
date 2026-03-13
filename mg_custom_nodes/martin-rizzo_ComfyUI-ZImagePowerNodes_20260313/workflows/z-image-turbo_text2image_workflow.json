@@ -422,6 +422,59 @@
       "bgcolor": "#653"
     },
     {
+      "id": 54,
+      "type": "ZSamplerTurbo //ZImagePowerNodes",
+      "pos": [
+        1080,
+        160
+      ],
+      "size": [
+        330,
+        630
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 73
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 74
+        },
+        {
+          "name": "latent_input",
+          "type": "LATENT",
+          "link": 72
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent_output",
+          "type": "LATENT",
+          "links": [
+            75
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ZSamplerTurbo //ZImagePowerNodes"
+      },
+      "widgets_values": [
+        3,
+        "fixed",
+        9,
+        1,
+        null,
+        "100%",
+        false
+      ]
+    },
+    {
       "id": 43,
       "type": "StylePromptEncoder2 //ZImagePowerNodes",
       "pos": [
@@ -466,67 +519,14 @@
         "Node name for S&R": "StylePromptEncoder2 //ZImagePowerNodes"
       },
       "widgets_values": [
-        "\"Exposed Film Set\"",
+        "\"Casual Photo\"",
         null,
         null,
-        "The interior of a bar features architecture with rounded, modular forms. A bar counter extends horizontally along the frame, showcasing a strip of acrylic. In the center-right, a man in his mid-thirties stands at the bar, resting one hand on the surface while holding a tall glass in the other. He turns his head to look directly at the camera, a playful, knowing smile spreading across his face. The glass contains a drink with small floating spheres that reflect the light. He wears a form-fitting uniform with a short, high collar and a single vertical stripe on the jacket. His brown hair is neatly styled with a clean, mid-century part. In the center, tending the bar, is a rather peculiar alien bartender, a colossal and terrifying humanoid figure resembling an octopus. He is a mass of tissue from whose torso emerges a network of thick tentacles. He is wearing black dress pants. And on its head, a set of multifaceted insectoid eyes constantly moves, scanning the room. The tentacles, with delicate pads at their tips, manipulate the glassware with unsettling grace. Behind the bartender, a mirrored wall reflects rows of liquor bottles with geometric labels. Above the bar floats a neon sign made of curved glass tubes that reads 'COSMIC LOUNGE' in tall, rounded letters, emitting light with a soft, glowing halo. An illuminated menu board reads 'SIGNATURE DRINKS' with three items: 'ORBITAL HIGHBALL,' 'NEBULA SOUR,' and 'ROCKET MARTINI,' each displayed on glowing horizontal bars. To the right, a cylindrical column features a vertical neon panel that reads 'OPEN 24 HOURS' in condensed letters within a translucent strip. To the left, a curved booth sits beneath a domed ceiling light. An illuminated sign reading 'GALAXY BAR SERVICE' encircles the inner rim of the dome in capitals and dominates the left side of the frame. Soft lighting reflects off the glass and acrylic surfaces, highlighting the structural design."
+        "The interior of a bar features an architecture of rounded, modular forms. A bar extends horizontally along the frame, displaying a strip of acrylic. To the left, an elegant black xenomorph, her biomechanical form glowing in a dim light, sits on a bar stool. She wears a tight crimson corset and a leather skirt, holding a tall glass in one hand, raised in a toast as she looks to the right. Her elongated, angular features are accentuated with a subtle bioluminescence. To the right, a cylindrical column supports a vertical neon panel that reads \"OPEN 24 HOURS.\" To the right, a man in his thirties stands at the bar, turning to look at the camera with a playful smile; his glass is reflected in the xenomorph's in a silent, interstellar toast. Behind the bar, in the center of the image, an imposing, octopus-like alien bartender twitches his tentacles, wearing smart black trousers, his octopus eyes glareing in displeasure. Behind the bartender, a mirrored wall reflects rows of liquor bottles with geometric labels. Above the bar floats a neon sign made of curved glass tubes that reads 'COSMIC LOUNGE' in tall, rounded letters, emitting light with a soft, glowing halo. An illuminated menu board reads 'SIGNATURE DRINKS' with three items: 'ORBITAL HIGHBALL,' 'NEBULA SOUR,' and 'ROCKET MARTINI,' each displayed on glowing horizontal bars. To the right, a cylindrical column features a vertical neon panel that reads 'OPEN 24 HOURS' in condensed letters within a translucent strip. To the left, a curved booth sits beneath a domed ceiling light. An illuminated sign reading 'GALAXY BAR SERVICE' encircles the inner rim of the dome in capitals and dominates the left side of the frame. Soft lighting reflects off the glass and acrylic surfaces, highlighting the structural design."
       ],
       "color": "#232",
       "bgcolor": "#353",
       "shape": 1
-    },
-    {
-      "id": 54,
-      "type": "ZSamplerTurbo //ZImagePowerNodes",
-      "pos": [
-        1080,
-        160
-      ],
-      "size": [
-        330,
-        630
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 73
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 74
-        },
-        {
-          "name": "latent_input",
-          "type": "LATENT",
-          "link": 72
-        }
-      ],
-      "outputs": [
-        {
-          "name": "latent_output",
-          "type": "LATENT",
-          "links": [
-            75
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ZSamplerTurbo //ZImagePowerNodes"
-      },
-      "widgets_values": [
-        2,
-        "fixed",
-        9,
-        1,
-        null,
-        "100%",
-        false
-      ]
     }
   ],
   "links": [
@@ -651,7 +651,7 @@
         89.60632136459573
       ]
     },
-    "frontendVersion": "1.37.11",
+    "frontendVersion": "1.39.19",
     "workflowRendererVersion": "LG"
   },
   "version": 0.4

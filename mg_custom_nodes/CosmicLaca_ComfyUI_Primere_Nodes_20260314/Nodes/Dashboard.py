@@ -693,6 +693,7 @@ class PrimereAutoSamplerSettings:
                 "steps": ("INT", {"default": 12, "min": 1, "max": 1000, "step": 1}),
                 "override_steps": ("BOOLEAN", {"default": False, "label_off": "Set by sampler settings", "label_on": "Set by model filename"}),
                 "cfg": ("FLOAT", {"default": 7, "min": 0.1, "max": 100, "step": 0.01}),
+                "rescale_cfg": ("FLOAT", {"default": 1, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "last_layer": ("INT", {"default": 0, "min": -24, "max": 0, "step": 1}),
                 "sigma_max": ("FLOAT", {"default": 120, "min": 1, "max": 200, "step": 0.001}),
                 "sigma_min": ("FLOAT", {"default": 1, "min": 0.001, "max": 100, "step": 0.001}),
@@ -716,6 +717,7 @@ class PrimereAutoSamplerSettings:
                 # "speed_lora_step": ([4, 6, 8, 10, 12, 16], {"default": 8}),
                 "speed_lora_strength": ("FLOAT", {"default": 1.00, "min": -20.00, "max": 20.00, "step": 0.01}),
                 "speed_lora_cfg": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 100, "step": 0.01}),
+                "speed_lora_steps_offset": ("INT", {"default": 0, "min": -5, "max": 5, "step": 1}),
                 "srpo_lora": ("BOOLEAN", {"default": False, "label_on": "Use SRPO Lora", "label_off": "Ignore SRPO Lora"}),
                 "srpo_lora_name": (cls.SRPO_LORAS,),
                 # "srpo_lora_type": (["R&Q", "RockerBOO", "oficial", "adaptive"], {"default": "oficial"}),
@@ -787,6 +789,9 @@ class PrimereAutoSamplerSettings:
                 found = re.findall(r"(?i)(\d+)step", speed_lora_name_val.lower())
                 if found:
                     steps = int(found[0])
+                    offset = int(kwargs.get('speed_lora_steps_offset', 0))
+                    if offset:
+                        steps = max(1, steps + offset)
             speed_lora_cfg_val = kwargs.get('speed_lora_cfg')
             if speed_lora_cfg_val is not None:
                 cfg = float(speed_lora_cfg_val)
@@ -895,6 +900,16 @@ class PrimereCKPTLoader:
                 OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE = model_loaders.load_pixart_model(self, ckpt_name, concept_data)
             case 'AuraFlow':
                 OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE = model_loaders.load_auraflow_model(self, ckpt_name, concept_data)
+            case 'SANA1024' | 'SANA512':
+                OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE = model_loaders.load_sana_model(self, ckpt_name, concept_data)
+            case 'KwaiKolors':
+                OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE = model_loaders.load_kolors_model(self, ckpt_name, concept_data)
+            case 'Hunyuan':
+                OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE = model_loaders.load_hunyuan_model(self, ckpt_name, concept_data)
+            case 'QwenGen' | 'QwenEdit':
+                OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE = model_loaders.load_qwen_model(self, ckpt_name, concept_data)
+            case 'Chroma':
+                OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE = model_loaders.load_chroma_model(self, ckpt_name, concept_data)
 
         return (OUTPUT_MODEL, OUTPUT_CLIP, OUTPUT_VAE, MODEL_VERSION_ORIGINAL)
 
@@ -1196,7 +1211,7 @@ class PrimereCLIP:
     def clip_encode(self, clip, concept_data, negative_strength, int_style_pos_strength, int_style_neg_strength, opt_pos_strength, opt_neg_strength, style_pos_strength, style_neg_strength, style_handling, style_swap, enhanced_prompt_strength, int_style_pos, int_style_neg, adv_encode, token_normalization, weight_interpretation, l_strength, extra_pnginfo, prompt, copy_prompt_to_l=True, width=1024, height=1024, positive_prompt="", negative_prompt="", enhanced_prompt="", enhanced_prompt_usage="T5-XXL", clip_model='Default', longclip_model='Default', model_keywords=None, lora_keywords=None, lycoris_keywords=None, embedding_pos=None, embedding_neg=None, opt_pos_prompt="", opt_neg_prompt="", style_position=False, style_neg_prompt="", style_pos_prompt="", positive_l="", negative_l="", use_int_style=False, edit_image_list=None, edit_vae=None, workflow_tuple=None):
         model_concept = concept_data.get('model_concept', 'SD1')
 
-        advanced_default = ['StableCascade', 'KwaiKolors', 'Flux', "Z-Image", 'Pony', 'SD1', 'SD2', 'SD3', 'Lightning', 'Hunyuan', 'QwenGen', 'QwenEdit', 'AuraFlow']
+        advanced_default = ['StableCascade', 'Chroma', 'KwaiKolors', 'Flux', "Z-Image", 'Pony', 'SD1', 'SD2', 'SD3', 'Lightning', 'Hunyuan', 'QwenGen', 'QwenEdit', 'AuraFlow']
         if model_concept in advanced_default:
             adv_encode = False
 
@@ -1221,9 +1236,19 @@ class PrimereCLIP:
             case 'StableCascade':
                 return clipping.encode_stable_cascade(clip, positive_text, negative_text, workflow_tuple)
             case 'Flux':
-                return clipping.encode_flux(clip, positive_text, negative_text, t5xxl_prompt, concept_data, workflow_tuple)
+                return clipping.encode_flux(clip, positive_text, negative_text, t5xxl_prompt, workflow_tuple)
             case 'PixartSigma':
                 return clipping.encode_pixart_sigma(clip, positive_text, negative_text, workflow_tuple)
+            case 'SANA1024' | 'SANA512':
+                return clipping.encode_sana(clip, positive_text, negative_text, t5xxl_prompt, workflow_tuple)
+            case 'KwaiKolors':
+                return clipping.encode_kolors(clip, positive_text, negative_text, t5xxl_prompt, workflow_tuple)
+            case 'Hunyuan':
+                return clipping.encode_hunyuan(self, clip, positive_text, negative_text, t5xxl_prompt, workflow_tuple)
+            case 'QwenEdit':
+                return clipping.encode_qwen_edit(self, clip, positive_text, negative_text, t5xxl_prompt, edit_vae, edit_image_list, workflow_tuple)
+            # case 'Chroma':
+            #    return clipping.encode_chroma(clip, positive_text, negative_text, workflow_tuple)
             case _:
                 clip = clipping.apply_clip_overrides(self, clip, workflow_tuple)
                 return clipping.encode_standard(clip, positive_text, negative_text, t5xxl_prompt, adv_encode, token_normalization, weight_interpretation, positive_l, negative_l, width, height, workflow_tuple, advanced_encode)

@@ -1,4 +1,5 @@
 import torch
+import gc
 from .long_clip_model import longclip
 from comfy.sd1_clip import load_embed, ClipTokenWeightEncoder
 from comfy.sd1_clip import token_weights, escape_important, unescape_important
@@ -9,6 +10,8 @@ import comfy_extras.nodes_flux as nodes_flux
 from . import utility
 import nodes
 from ..Nodes.modules import long_clip as long_clip_module
+from .sana.diffusion.model.utils import prepare_prompt_ar
+from .sana.diffusion.data.datasets.utils import ASPECT_RATIO_1024_TEST
 
 class SDLongClipModel(torch.nn.Module, ClipTokenWeightEncoder):
     LAYERS = [
@@ -678,16 +681,157 @@ def encode_pixart_sigma(clip, positive_text, negative_text, workflow_tuple):
     return ({'refiner': [[cond_pos_ref, out_pos_ref]], 'main': [[cond_pos_main, out_pos_main]]}, {'refiner': [[cond_neg_ref, out_neg_ref]], 'main': [[cond_neg_main, out_neg_main]]}, positive_text, negative_text, "", "", "", workflow_tuple)
 
 
-def encode_flux(clip, positive_text, negative_text, t5xxl_prompt, concept_data, workflow_tuple):
-    flux_sampler = concept_data.get('sampler', 'ksampler') if concept_data else 'ksampler'
-    flux_guidance = float(concept_data.get('guidance', 2.0)) if concept_data else 2.0
-    if flux_sampler == 'ksampler':
-        cond_pos = nodes_flux.CLIPTextEncodeFlux.execute(clip, positive_text, t5xxl_prompt, flux_guidance)[0]
-        if concept_data is not None and float(concept_data.get('cfg', 2.0)) < 1.2:
-            cond_neg = cond_pos
-        else:
-            cond_neg = nodes_flux.CLIPTextEncodeFlux.execute(clip, negative_text, negative_text, flux_guidance)[0]
-        return (cond_pos, cond_neg, positive_text, negative_text, t5xxl_prompt, "", "", workflow_tuple)
+def encode_chroma(clip, positive_text, negative_text, workflow_tuple):
+    tokens_pos = clip.tokenize(positive_text)
+    tokens_neg = clip.tokenize(negative_text)
+    out_pos = clip.encode_from_tokens(tokens_pos, return_pooled=True, return_dict=True)
+    out_neg = clip.encode_from_tokens(tokens_neg, return_pooled=True, return_dict=True)
+    cond_pos = out_pos.pop("cond")
+    cond_neg = out_neg.pop("cond")
+    return ([[cond_pos, out_pos]], [[cond_neg, out_neg]], positive_text, negative_text, "", "", "", workflow_tuple)
+
+
+def encode_flux(clip, positive_text, negative_text, t5xxl_prompt, workflow_tuple):
+    FLUX_SAMPLER = workflow_tuple.get('sampler', 'ksampler')
+    FLUX_GUIDANCE = workflow_tuple.get('guidance', 2)
+    if FLUX_SAMPLER == 'custom_advanced' and len(t5xxl_prompt) > 5:
+        CONDITIONING_POS = nodes_flux.CLIPTextEncodeFlux.execute(clip, positive_text, t5xxl_prompt, FLUX_GUIDANCE)[0]
+        return (CONDITIONING_POS, CONDITIONING_POS, positive_text, negative_text, t5xxl_prompt, "", "", workflow_tuple)
+    tokens_pos = clip.tokenize(positive_text)
+    tokens_neg = clip.tokenize(negative_text)
+    out_pos = clip.encode_from_tokens(tokens_pos, return_pooled=True, return_dict=True)
+    out_neg = clip.encode_from_tokens(tokens_neg, return_pooled=True, return_dict=True)
+    cond_pos = out_pos.pop("cond")
+    cond_neg = out_neg.pop("cond")
+    return ([[cond_pos, out_pos]], [[cond_neg, out_neg]], positive_text, negative_text, t5xxl_prompt, "", "", workflow_tuple)
+
+
+_SANA_MAX_TOKENS = 300
+_SANA_CHI_PROMPT = "\n".join([
+    'Create one detailed perfect prompt from given User Prompt for stable diffusion text-to-image text2image modern DiT models.',
+    'Generate only the one enhanced description for the prompt below, avoid including any additional questions comments or evaluations.',
+    'User Prompt: ',
+])
+
+
+def _sana_encode_text(tokenizer, text_encoder, text, device):
+    full_prompt = _SANA_CHI_PROMPT + text
+    num_chi_tokens = len(tokenizer.encode(_SANA_CHI_PROMPT))
+    max_length = num_chi_tokens + _SANA_MAX_TOKENS - 2
+    tokens = tokenizer([full_prompt], max_length=max_length, padding="max_length", truncation=True, return_tensors="pt").to(device)
+    select_idx = [0] + list(range(-_SANA_MAX_TOKENS + 1, 0))
+    embs = text_encoder(tokens.input_ids, tokens.attention_mask)[0][:, None][:, :, select_idx]
+    masks = tokens.attention_mask[:, select_idx]
+    return embs * masks.unsqueeze(-1)
+
+
+def encode_sana(clip, positive_text, negative_text, t5xxl_prompt, workflow_tuple):
+    scheduler_name = workflow_tuple.get('scheduler_name', 'flow_dpm-solver') if workflow_tuple else 'flow_dpm-solver'
+    device = model_management.get_torch_device()
+
+    if scheduler_name == 'flow_dpm-solver' and hasattr(clip, 'text_encoder'):
+        clip.text_encoder.to(device)
+        null_token = clip.tokenizer(negative_text, max_length=_SANA_MAX_TOKENS, padding="max_length", truncation=True, return_tensors="pt").to(device)
+        null_embs = clip.text_encoder(null_token.input_ids, null_token.attention_mask)[0]
+        with torch.no_grad():
+            prompts = [prepare_prompt_ar(positive_text, ASPECT_RATIO_1024_TEST, device=device, show=False)[0].strip()]
+            num_chi_tokens = len(clip.tokenizer.encode(_SANA_CHI_PROMPT))
+            max_length_all = num_chi_tokens + _SANA_MAX_TOKENS - 2
+            caption_token = clip.tokenizer([_SANA_CHI_PROMPT + positive_text], max_length=max_length_all, padding="max_length", truncation=True, return_tensors="pt").to(device)
+            select_index = [0] + list(range(-_SANA_MAX_TOKENS + 1, 0))
+            caption_embs = clip.text_encoder(caption_token.input_ids, caption_token.attention_mask)[0][:, None][:, :, select_index]
+            emb_masks = caption_token.attention_mask[:, select_index]
+            null_y = null_embs.repeat(len(prompts), 1, 1)[:, None]
+        clip.text_encoder.to(model_management.text_encoder_offload_device())
+        comfy.model_management.soft_empty_cache(True)
+        return ([[caption_embs, {"emb_masks": emb_masks}]], [[null_y, {}]], positive_text, negative_text, t5xxl_prompt, "", "", workflow_tuple)
     else:
-        cond_pos = nodes_flux.CLIPTextEncodeFlux.execute(clip, positive_text, t5xxl_prompt, flux_guidance)[0]
-        return (cond_pos, cond_pos, positive_text, negative_text, t5xxl_prompt, "", "", workflow_tuple)
+        tokenizer = clip["tokenizer"]
+        text_encoder = clip["text_encoder"]
+        enc_device = text_encoder.device
+        with torch.no_grad():
+            sana_embs_pos = _sana_encode_text(tokenizer, text_encoder, positive_text, enc_device)
+            sana_embs_neg = _sana_encode_text(tokenizer, text_encoder, negative_text, enc_device)
+        return ([[sana_embs_pos, {}]], [[sana_embs_neg, {}]], positive_text, negative_text, t5xxl_prompt, "", "", workflow_tuple)
+
+
+def encode_qwen_edit(loader_self, clip, positive_text, negative_text, t5xxl_prompt, edit_vae, edit_image_list, workflow_tuple):
+    if type(edit_image_list).__name__ == "Tensor":
+        edit_image_list = [edit_image_list]
+    positive_text = utility.DiT_cleaner(positive_text)
+    negative_text = utility.DiT_cleaner(negative_text)
+    conditioning = utility.edit_encoder(clip, positive_text, edit_vae, edit_image_list)
+    tokens_neg = clip.tokenize(negative_text, images=[])
+    conditioning_neg = clip.encode_from_tokens_scheduled(tokens_neg)
+    return (conditioning, conditioning_neg, positive_text, negative_text, t5xxl_prompt, "", "", workflow_tuple)
+
+
+def encode_kolors(clip, positive_text, negative_text, t5xxl_prompt, workflow_tuple):
+    positive_text = utility.DiT_cleaner(positive_text)
+    negative_text = utility.DiT_cleaner(negative_text)
+    device = model_management.text_encoder_device()
+
+    try:
+        model_management.unload_all_models()
+        model_management.soft_empty_cache()
+    except Exception:
+        pass
+
+    tokenizer = clip['tokenizer']
+    text_encoder = clip['text_encoder']
+    model_management.soft_empty_cache()
+
+    prompt_embeds_dtype = text_encoder.dtype if text_encoder is not None else torch.float16
+    try:
+        text_encoder.to(dtype=prompt_embeds_dtype, device=device)
+    except Exception:
+        pass
+
+    text_inputs = tokenizer(positive_text, padding="max_length", max_length=256, truncation=True, return_tensors="pt").to(device)
+    output = text_encoder(input_ids=text_inputs['input_ids'], attention_mask=text_inputs['attention_mask'], position_ids=text_inputs['position_ids'], output_hidden_states=True)
+    prompt_embeds = output.hidden_states[-2].permute(1, 0, 2).clone()
+    text_proj = output.hidden_states[-1][-1, :, :].clone()
+    bs_embed, seq_len, _ = prompt_embeds.shape
+    prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
+
+    uncond_input = tokenizer([negative_text], padding="max_length", max_length=prompt_embeds.shape[1], truncation=True, return_tensors="pt").to(device)
+    output = text_encoder(input_ids=uncond_input['input_ids'], attention_mask=uncond_input['attention_mask'], position_ids=uncond_input['position_ids'], output_hidden_states=True)
+    negative_prompt_embeds = output.hidden_states[-2].permute(1, 0, 2).clone()
+    negative_text_proj = output.hidden_states[-1][-1, :, :].clone()
+    negative_prompt_embeds = negative_prompt_embeds.to(dtype=text_encoder.dtype, device=device).view(1, negative_prompt_embeds.shape[1], -1)
+
+    text_proj = text_proj.view(text_proj.shape[0], -1)
+    negative_text_proj = negative_text_proj.view(negative_text_proj.shape[0], -1)
+
+    try:
+        model_management.soft_empty_cache()
+    except Exception:
+        pass
+    gc.collect()
+
+    kolors_embeds = {
+        'prompt_embeds': prompt_embeds.half(),
+        'negative_prompt_embeds': negative_prompt_embeds.half(),
+        'pooled_prompt_embeds': text_proj.half(),
+        'negative_pooled_prompt_embeds': negative_text_proj.half(),
+    }
+    return (kolors_embeds, None, positive_text, negative_text, t5xxl_prompt, "", "", workflow_tuple)
+
+
+def encode_hunyuan(loader_self, clip, positive_text, negative_text, t5xxl_prompt, workflow_tuple):
+    if clip['t5'] is not None:
+        positive_text = utility.DiT_cleaner(positive_text)
+        negative_text = utility.DiT_cleaner(negative_text)
+        t5xxl_prompt = utility.DiT_cleaner(t5xxl_prompt)
+        pos_out = HunyuanClipping(loader_self, positive_text, t5xxl_prompt, clip['clip'], clip['t5'])
+        neg_out = HunyuanClipping(loader_self, negative_text, "", clip['clip'], clip['t5'])
+        return (pos_out[0], neg_out[0], positive_text, negative_text, t5xxl_prompt, "", "", workflow_tuple)
+    else:
+        clip_model = clip['clip']
+        positive_text = utility.DiT_cleaner(positive_text, 512)
+        negative_text = utility.DiT_cleaner(negative_text, 512)
+        out_pos = clip_model.encode_from_tokens(clip_model.tokenize(positive_text), return_pooled=True, return_dict=True)
+        out_neg = clip_model.encode_from_tokens(clip_model.tokenize(negative_text), return_pooled=True, return_dict=True)
+        cond_pos = out_pos.pop("cond")
+        cond_neg = out_neg.pop("cond")
+        return ([[cond_pos, out_pos]], [[cond_neg, out_neg]], positive_text, negative_text, t5xxl_prompt, "", "", workflow_tuple)

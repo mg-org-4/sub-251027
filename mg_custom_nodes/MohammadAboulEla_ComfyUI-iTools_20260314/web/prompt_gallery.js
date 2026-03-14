@@ -20,7 +20,10 @@ export function exportHistoryToFile(history) {
 
   // Create temporary link element
   const element = document.createElement("a");
-  element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(content));
+  element.setAttribute(
+    "href",
+    "data:text/plain;charset=utf-8," + encodeURIComponent(content),
+  );
 
   // Get current date for filename
   const date = new Date();
@@ -38,6 +41,70 @@ export function exportHistoryToFile(history) {
 
   // Cleanup
   document.body.removeChild(element);
+}
+
+export function importHistoryFromNodeTimeLineData(targetInputs) {
+  // Check if targetInputs exists to avoid errors
+  if (!targetInputs || !Array.isArray(targetInputs)) {
+    if (allow_debug) console.error("iTools: targetInputs is missing or not an array");
+    return;
+  }
+
+  if (allow_debug)
+    console.log("iTools: Starting import from Node Timeline Data only");
+
+  // 1. Find the specific nodes
+  const nodes = app.graph.findNodesByType("iToolsPromptRecord");
+  if (!nodes || nodes.length === 0) {
+    if (allow_debug) console.log("iTools: No iToolsPromptRecord nodes found");
+    return;
+  }
+
+  let addedCount = 0;
+
+  // 2. Loop through each node to extract timeline_data
+  for (const node of nodes) {
+    const timelineWidget = node.widgets?.find(
+      (w) => w.name === "timeline_data",
+    );
+    
+    let timelineValue = timelineWidget
+      ? timelineWidget.value
+      : node.widgets_values?.[1];
+
+    if (timelineValue) {
+      let data = timelineValue;
+
+      // Parse if it's a JSON string
+      if (typeof timelineValue === "string" && timelineValue.trim().startsWith("[")) {
+        try {
+          data = JSON.parse(timelineValue);
+        } catch (e) {
+          if (allow_debug) console.error(`iTools: Failed to parse node ${node.id}`, e);
+          continue; // Skip this node if parsing fails
+        }
+      }
+
+      // 3. Add prompts to targetInputs if they are valid and not already there
+      if (Array.isArray(data)) {
+        for (const item of data) {
+          if (item && typeof item === "string" && item.trim()) {
+            const trimmed = item.trim();
+            
+            // Check for duplicates in the current targetInputs array
+            if (!targetInputs.includes(trimmed)) {
+              targetInputs.push(trimmed);
+              addedCount++;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (allow_debug) {
+    console.log(`iTools: Import finished. Added ${addedCount} new prompts to the view.`);
+  }
 }
 
 export function importHistoryFromFile(callback) {
@@ -99,6 +166,7 @@ export function getUserHistoryFile() {
 
 // MAIN FUNCTION
 export function inputsHistoryShow(inputs, inputWidget) {
+  importHistoryFromNodeTimeLineData(inputs);
   // Create modal container
   const modal = document.createElement("div");
   modal.style.cssText = `
@@ -166,7 +234,9 @@ export function inputsHistoryShow(inputs, inputWidget) {
 
   // Create export button
   const exportButton = document.createElement("button");
-  exportButton.textContent = "Export";
+  exportButton.textContent = "Export" || "💾";
+  // add tooltip
+  exportButton.title = "Export current season to .txt File";
   exportButton.style.cssText = buttonStyle;
   exportButton.onmouseover = () => (exportButton.style.background = "#444");
   exportButton.onmouseout = () => (exportButton.style.background = "#333");
@@ -174,7 +244,9 @@ export function inputsHistoryShow(inputs, inputWidget) {
 
   // Create import button
   const importButton = document.createElement("button");
-  importButton.textContent = "Import";
+  importButton.textContent = "Import" || "📥";
+  // add tooltip
+  importButton.title = "Import prompts from .txt file to the Timeline";
   importButton.style.cssText = buttonStyle;
   importButton.onmouseover = () => (importButton.style.background = "#444");
   importButton.onmouseout = () => (importButton.style.background = "#333");
@@ -203,7 +275,9 @@ export function inputsHistoryShow(inputs, inputWidget) {
 
   // Create load button
   const loadButton = document.createElement("button");
-  loadButton.textContent = "🪶" || "Favorites ⭐" || "Load";
+  loadButton.textContent = "🪶" || "Favorites ⭐" || "Favorites 🪶" || "Load";
+  // add tooltip
+  loadButton.title = "Load my favorite prompts to the Timeline";
   loadButton.style.cssText = buttonStyle;
   loadButton.onmouseover = () => (loadButton.style.background = "#444");
   loadButton.onmouseout = () => (loadButton.style.background = "#333");
@@ -217,7 +291,8 @@ export function inputsHistoryShow(inputs, inputWidget) {
     if (needsConfirmation) {
       shouldProceed = await app.extensionManager.dialog.confirm({
         title: "Load Favorites 🪶",
-        message: "This will load your saved favorites, current prompts here will be lost.\nDo you want to continue?",
+        message:
+          "This will load your saved favorites, current prompts here will be lost.\nDo you want to continue?",
       });
     }
 
@@ -256,6 +331,8 @@ export function inputsHistoryShow(inputs, inputWidget) {
   // Create save button
   const saveButton = document.createElement("button");
   saveButton.textContent = "Save" || "Save";
+  // add tooltip
+  saveButton.title = "Save current season to my favorite prompts";
   // saveButton.style.cssText = buttonStyle;
   // saveButton.onmouseover = () => (saveButton.style.background = "#444");
   // saveButton.onmouseout = () => (saveButton.style.background = "#333");
@@ -281,7 +358,8 @@ export function inputsHistoryShow(inputs, inputWidget) {
     try {
       const confirmed = await app.extensionManager.dialog.confirm({
         title: "Save As New Favorites 🪶",
-        message: "This will overwrite your saved favorites with current season prompts.\nDo you want to continue?",
+        message:
+          "This will overwrite your saved favorites with current season prompts.\nDo you want to continue?",
         type: "overwrite",
       });
 
@@ -307,6 +385,8 @@ export function inputsHistoryShow(inputs, inputWidget) {
   // Create add button
   const addButton = document.createElement("button");
   addButton.textContent = "↩" || "Add";
+  // add tooltip
+  addButton.title = "Append current season to my favorite prompts";
   addButton.style.cssText = buttonStyle;
   addButton.onmouseover = () => (addButton.style.background = "#444");
   addButton.onmouseout = () => (addButton.style.background = "#333");
@@ -323,7 +403,8 @@ export function inputsHistoryShow(inputs, inputWidget) {
     try {
       const confirmed = await app.extensionManager.dialog.confirm({
         title: "Add New Prompts To Favorites 🪶",
-        message: "This will append only new prompts here to your saved favorites.\nDo you want to continue?",
+        message:
+          "This will append only new prompts here to your saved favorites.\nDo you want to continue?",
       });
 
       if (confirmed) {
@@ -333,7 +414,10 @@ export function inputsHistoryShow(inputs, inputWidget) {
             ? [...new Set([...savedHistory.prompts, ...inputs])] // Merge and remove duplicates
             : inputs;
 
-        localStorage.setItem("iTools_userHistory", JSON.stringify({ prompts: mergedPrompts }));
+        localStorage.setItem(
+          "iTools_userHistory",
+          JSON.stringify({ prompts: mergedPrompts }),
+        );
         app.extensionManager.toast.add({
           severity: "success",
           summary: "Success",
@@ -354,6 +438,8 @@ export function inputsHistoryShow(inputs, inputWidget) {
   // Create clear button
   const clearButton = document.createElement("button");
   clearButton.textContent = "Clear";
+  // add tooltip
+  clearButton.title = "Clear current Timeline";
   clearButton.style.cssText = buttonStyle + "background: #662222;"; // Slightly reddish background
   clearButton.onmouseover = () => (clearButton.style.background = "#882222");
   clearButton.onmouseout = () => (clearButton.style.background = "#662222");
@@ -363,7 +449,8 @@ export function inputsHistoryShow(inputs, inputWidget) {
 
     const confirmed = await app.extensionManager.dialog.confirm({
       title: "Clear Current Season",
-      message: "This will remove all current season prompts.\nSaved favorites will not be affected.",
+      message:
+        "This will remove all current season prompts.\nSaved favorites will not be affected.",
       type: "delete",
     });
 
@@ -454,7 +541,8 @@ export function inputsHistoryShow(inputs, inputWidget) {
   // Add resize observer to update padding when content changes
   const resizeObserver = new ResizeObserver((entries) => {
     for (let entry of entries) {
-      const hasScrollbar = entry.target.scrollHeight > entry.target.clientHeight;
+      const hasScrollbar =
+        entry.target.scrollHeight > entry.target.clientHeight;
       entry.target.style.paddingRight = hasScrollbar ? "10px" : "0";
     }
   });
@@ -544,8 +632,10 @@ export function inputsHistoryShow(inputs, inputWidget) {
                 cursor: pointer;
                 transition: background 0.2s;
             `;
-        insertButton.onmouseover = () => (insertButton.style.background = "#444");
-        insertButton.onmouseout = () => (insertButton.style.background = "#333");
+        insertButton.onmouseover = () =>
+          (insertButton.style.background = "#444");
+        insertButton.onmouseout = () =>
+          (insertButton.style.background = "#333");
         insertButton.onclick = async () => {
           try {
             await navigator.clipboard.writeText(text);
@@ -584,8 +674,10 @@ export function inputsHistoryShow(inputs, inputWidget) {
                 cursor: pointer;
                 transition: background 0.2s;
             `;
-        deleteButton.onmouseover = () => (deleteButton.style.background = "#882222");
-        deleteButton.onmouseout = () => (deleteButton.style.background = "#662222");
+        deleteButton.onmouseover = () =>
+          (deleteButton.style.background = "#882222");
+        deleteButton.onmouseout = () =>
+          (deleteButton.style.background = "#662222");
         deleteButton.onclick = () => {
           const index = inputs.indexOf(text);
           if (index > -1) {
@@ -626,7 +718,9 @@ export function inputsHistoryShow(inputs, inputWidget) {
                 font-style: italic;
             `;
       // Different message based on whether we're filtering or just have no history
-      noResults.textContent = filterText ? "No matching prompts found" : "No prompts in current season";
+      noResults.textContent = filterText
+        ? "No matching prompts found"
+        : "No prompts in current season";
       list.appendChild(noResults);
     }
   }

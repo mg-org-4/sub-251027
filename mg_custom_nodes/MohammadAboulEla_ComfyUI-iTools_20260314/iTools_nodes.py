@@ -3,17 +3,16 @@ import os
 import time
 from pathlib import Path
 import random
-from PIL.PngImagePlugin import PngInfo # type: ignore
-import comfy.samplers # type: ignore
-import folder_paths # type: ignore
-import node_helpers # type: ignore
-import numpy as np # type: ignore
-import torch # type: ignore
-from PIL import Image, ImageSequence, ImageOps # type: ignore
+from PIL.PngImagePlugin import PngInfo  # type: ignore
+import comfy.samplers  # type: ignore
+import folder_paths  # type: ignore
+import node_helpers  # type: ignore
+import numpy as np  # type: ignore
+import torch  # type: ignore
+from PIL import Image, ImageSequence, ImageOps  # type: ignore
 from .backend.checker_board import ChessTensor, ChessPattern
-from nodes import common_ksampler, SaveImage, PreviewImage # type: ignore
+from nodes import common_ksampler, SaveImage, PreviewImage  # type: ignore
 import json
-from .backend.file_handeler import FileHandler
 from .backend.grid_filler import (
     fill_grid_with_images_new,
     tensor_to_images,
@@ -29,8 +28,20 @@ from .backend.prompter_multi import (
     templates_extra2,
     templates_extra3,
 )
-from .backend.shared import styles, tensor2pil, pil2tensor, project_dir, FlexibleOptionalInputType, any_type
+from .backend.shared import (
+    FileHandler,
+    styles,
+    tensor2pil,
+    pil2tensor,
+    project_dir,
+    FlexibleOptionalInputType,
+    any_type,
+    get_user_node_display_name_preferences,
+    get_user_dev_mode,
+    get_user_dev_mode2,
+)
 from comfy.cli_args import args  # type: ignore
+from .backend import iserver
 import re
 
 
@@ -297,6 +308,7 @@ class IToolsLoadImages:
                 ),
                 "start_index": ("INT", {"default": 0, "min": 0, "max": 200}),
                 "load_limit": ("INT", {"default": 4, "min": 2, "max": 200}),
+                "output_mode": (["list", "batch"], {"default": "list"}),
             }
         }
 
@@ -311,7 +323,9 @@ class IToolsLoadImages:
         "names."
     )
 
-    def load_images(self, images_directory, load_limit, start_index):
+    def load_images(
+        self, images_directory, load_limit, start_index, output_mode="list"
+    ):
         image_extensions = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
         images_path = Path(images_directory.replace('"', ""))
 
@@ -333,7 +347,11 @@ class IToolsLoadImages:
                 if len(images) >= load_limit:
                     break
 
-        return images, images_names, len(images)
+        count = len(images)
+        if output_mode == "batch" and images:
+            images = [torch.cat(images, dim=0)]
+
+        return images, images_names, count
 
 
 class IToolsPromptStylerExtra:
@@ -817,9 +835,11 @@ class IToolsVaePreview:
 
         def decode(vae, samples):
             images = vae.decode(samples["samples"])
-            if len(images.shape) == 5: #Combine batches
-                images = images.reshape(-1, images.shape[-3], images.shape[-2], images.shape[-1])
-            return (images, )
+            if len(images.shape) == 5:  # Combine batches
+                images = images.reshape(
+                    -1, images.shape[-3], images.shape[-2], images.shape[-1]
+                )
+            return (images,)
 
         return_options = decode(vae, samples)
         images = return_options[0]
@@ -902,7 +922,6 @@ class IToolsCheckerBoard:
 
 
 class IToolsLoadRandomImage:
-
     @classmethod
     def INPUT_TYPES(s):
         default_dir = folder_paths.output_directory
@@ -1068,7 +1087,8 @@ class IToolsPromptRecord:
                     "STRING",
                     {"default": "", "multiline": True, "placeholder": "text"},
                 ),
-            }
+                "timeline_data": ("STRING", {"default": ""}),
+            },
         }
 
     RETURN_TYPES = ("STRING",)
@@ -1082,7 +1102,7 @@ class IToolsPromptRecord:
         "Includes a history system that saves your favorite prompts."
     )
 
-    def text_entry(self, text):
+    def text_entry(self, text, timeline_data=""):
         return {"ui": {"text": text}, "result": (text,)}
 
 
@@ -1106,9 +1126,63 @@ class IToolsInstructorNode:
             data = kwargs["InstructorWidget"]
             # Use the pre-assembled text from JS
             final_text = data.get("finalText", "")
-        
+
         return (final_text,)
-        
+
+
+class IToolsPromptBuilder:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {},
+            "optional": FlexibleOptionalInputType(any_type),
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("prompt", "negative")
+    FUNCTION = "process"
+    CATEGORY = "iTools"
+    OUTPUT_NODE = True
+
+    def process(self, **kwargs):
+        final_text = ""
+        negative_text = ""
+        if "PromptBuilderWidget" in kwargs:
+            data = kwargs["PromptBuilderWidget"]
+            prompt = data.get("prompt", "")
+            negative = data.get("negative", "")
+            category = data.get("category")
+            style = data.get("style", "none")
+
+            if style != "none" and category:
+                # Merge if style is selected
+                final_text, negative_text, _ = read_replace_and_combine(
+                    style, prompt, negative, category
+                )
+                return {
+                    "ui": {
+                        "prompt": final_text,
+                        "negative": negative_text,
+                        "style": "none",
+                    },
+                    "result": (final_text, negative_text),
+                }
+            else:
+                final_text = prompt
+                negative_text = negative
+        return {
+            "ui": {"prompt": final_text, "negative": negative_text},
+            "result": (final_text, negative_text),
+        }
+
+    def IS_CHANGED(self, **kwargs):
+        if "PromptBuilderWidget" in kwargs:
+            data = kwargs["PromptBuilderWidget"]
+            style = data.get("style", "none")
+            if style != "none":
+                return float("nan")  # Force re-execution if template is "random"
+
+
 # A dictionary that contains all nodes you want to export with their names
 # NOTE: names should be globally unique
 NODE_CLASS_MAPPINGS = {
@@ -1132,28 +1206,112 @@ NODE_CLASS_MAPPINGS = {
     "iToolsCompareImage": IToolsCompareImage,
     "iToolsPromptRecord": IToolsPromptRecord,
     "iToolsInstructorNode": IToolsInstructorNode,
+    "iToolsPromptBuilder": IToolsPromptBuilder,
 }
 
-# A dictionary that contains the friendly/humanly readable titles for the nodes
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "iToolsLoadImagePlus": "iTools Load Image 🏕️",
-    "iToolsPromptLoader": "iTools Prompt Loader",
-    "iToolsPromptSaver": "iTools Prompt Saver",
-    "iToolsAddOverlay": "iTools Add Text Overlay",
-    "iToolsLoadImages": "iTools Load Images 📦",
-    "iToolsPromptStyler": "iTools Prompt Styler 🖌️",
-    "iToolsPromptStylerExtra": "iTools Prompt Styler Extra 🖌️",
-    "iToolsGridFiller": "iTools Grid Filler 📲",
-    "iToolsLineLoader": "iTools Line Loader",
-    "iToolsTextReplacer": "iTools Text Replacer",
-    "iToolsKSampler": "iTools KSampler",
-    "iToolsVaePreview": "iTools Preview Bridge ⛳",
-    "iToolsCheckerBoard": "iTools Checkerboard 🏁",
-    "iToolsLoadRandomImage": "iTools Load Random Image 🎲",
-    "iToolsPreviewText": "iTools Text Preview",
-    "iToolsRegexNode": "iTools Regex Editor",
-    "iToolsPreviewImage": "iTools Image Preview 🍿",
-    "iToolsCompareImage": "iTools Image Compare 🔍",
-    "iToolsPromptRecord": "iTools Prompt Record 🪶",
-    "iToolsInstructorNode": "iTools Instructor 👨🏻‍🏫",
+BASE_MAPPINGS = {
+    "iToolsLoadImagePlus": "Load Image 🏕️",
+    "iToolsPromptLoader": "Prompt Loader",
+    "iToolsPromptSaver": "Prompt Saver",
+    "iToolsAddOverlay": "Add Text Overlay",
+    "iToolsLoadImages": "Load Images 📦",
+    "iToolsPromptStyler": "Prompt Styler 🖌️",
+    "iToolsPromptStylerExtra": "Prompt Styler Extra 🖌️",
+    "iToolsGridFiller": "Grid Filler 📲",
+    "iToolsLineLoader": "Line Loader",
+    "iToolsTextReplacer": "Text Replacer",
+    "iToolsKSampler": "KSampler",
+    "iToolsVaePreview": "Preview Bridge ⛳",
+    "iToolsCheckerBoard": "Checkerboard 🏁",
+    "iToolsLoadRandomImage": "Load Random Image 🎲",
+    "iToolsPreviewText": "Text Preview",
+    "iToolsRegexNode": "Regex Editor",
+    "iToolsPreviewImage": "Image Preview 🍿",
+    "iToolsCompareImage": "Image Compare 🔍",
+    "iToolsPromptRecord": "Prompt Record 🪶",
+    "iToolsInstructorNode": "Instructor 👨🏻‍🏫",
+    "iToolsPromptBuilder": "Prompt Builder 🛖",
 }
+
+use_simple_names = get_user_node_display_name_preferences()
+allow_beta_nodes = get_user_dev_mode()
+allow_dev_nodes = get_user_dev_mode2()
+allow_experimental_nodes = False
+
+
+# INIT NODE DISPLAY NAME MAPPINGS
+def get_node_display_name_mappings():
+    if use_simple_names:
+        return BASE_MAPPINGS
+
+    # Add "iTools " prefix dynamically if simple names are not preferred
+    return {k: f"iTools {v}" for k, v in BASE_MAPPINGS.items()}
+
+
+# A dictionary that contains the friendly/humanly readable titles for the nodes
+NODE_DISPLAY_NAME_MAPPINGS = get_node_display_name_mappings()
+
+
+def append_extra_nodes():
+    if allow_beta_nodes:
+        try:
+            from .experimental.experimental_nodes import (
+                IToolsPaintNode,
+                IToolsCropImage,
+            )
+
+            NODE_CLASS_MAPPINGS["iToolsPaintNode"] = IToolsPaintNode
+            NODE_DISPLAY_NAME_MAPPINGS["iToolsPaintNode"] = (
+                "Paint Node (Beta)" if use_simple_names else "iTools Paint Node (Beta)"
+            )
+
+            NODE_CLASS_MAPPINGS["iToolsCropImage"] = IToolsCropImage
+            NODE_DISPLAY_NAME_MAPPINGS["iToolsCropImage"] = (
+                "Crop Image (Beta)" if use_simple_names else "iTools Crop Image (Beta)"
+            )
+
+        except ModuleNotFoundError as e:
+            pass
+            # print(e)
+
+    if allow_dev_nodes:
+        try:
+            from .experimental.experimental_nodes import IToolsTestNode, IToolsDomNode
+
+            NODE_CLASS_MAPPINGS["iToolsTestNode"] = IToolsTestNode
+            NODE_DISPLAY_NAME_MAPPINGS["iToolsTestNode"] = (
+                "Test Node (Dev)" if use_simple_names else "iTools Test Node (Dev)"
+            )
+
+            NODE_CLASS_MAPPINGS["iToolsDomNode"] = IToolsDomNode
+            NODE_DISPLAY_NAME_MAPPINGS["iToolsDomNode"] = (
+                "Dom Node (Dev)" if use_simple_names else "iTools Dom Node (Dev)"
+            )
+
+        except ModuleNotFoundError as e:
+            pass
+
+    if allow_experimental_nodes:
+        try:
+            from .experimental.experimental_nodes import (
+                IToolsFreeChat,
+                IToolsFreeSchnell,
+            )
+
+            NODE_CLASS_MAPPINGS["iToolsFreeChat"] = IToolsFreeChat
+            NODE_DISPLAY_NAME_MAPPINGS["iToolsFreeChat"] = (
+                "Free Chat (API)" if use_simple_names else "iTools Free Chat (API)"
+            )
+
+            NODE_CLASS_MAPPINGS["iToolsFreeSchnell"] = IToolsFreeSchnell
+            NODE_DISPLAY_NAME_MAPPINGS["iToolsFreeSchnell"] = (
+                "Free Schnell (API)"
+                if use_simple_names
+                else "iTools Free Schnell (API)"
+            )
+
+        except ModuleNotFoundError as e:
+            pass
+
+
+append_extra_nodes()

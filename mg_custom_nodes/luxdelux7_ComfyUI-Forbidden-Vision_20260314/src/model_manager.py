@@ -214,26 +214,37 @@ class ForbiddenVisionModelManager:
             if not os.path.exists(local_path):
                 use_onnx = False
 
-        if not use_onnx:
-            local_path = os.path.join(self.models_dir, model_name_pt)
-            if not os.path.exists(local_path):
-                self._download_model('face_detect')
+        # Try loading ONNX with a smoke test
+        if use_onnx:
+            local_path_onnx = os.path.join(self.models_dir, model_name_onnx)
+            try:
+                model = YOLO(local_path_onnx, task='detect')
+                # Smoke test: run a tiny dummy inference to catch runtime errors early
+                dummy = np.zeros((64, 64, 3), dtype=np.uint8)
+                device_str = "0" if is_cuda else "cpu"
+                model.predict(dummy, conf=0.9, verbose=False, device=device_str)
+                self._models[model_name_onnx] = model
+                print("ForbiddenVision: Loaded face detection model [ONNX]")
+                return model
+            except Exception as e:
+                print(f"ForbiddenVision: ONNX runtime failed smoke test ({e}), falling back to PyTorch")
+                self._models.pop(model_name_onnx, None)
+                use_onnx = False
 
-        if not os.path.exists(local_path):
+        # PyTorch fallback
+        local_path_pt = os.path.join(self.models_dir, model_name_pt)
+        if not os.path.exists(local_path_pt):
+            self._download_model('face_detect')
+
+        if not os.path.exists(local_path_pt):
             return None
 
         try:
-            model = YOLO(local_path, task='detect')
-
-            if not use_onnx:
-                model.to(device)
-
-            cache_key = model_name_onnx if use_onnx else model_name_pt
-            self._models[cache_key] = model
-            fmt = "ONNX" if use_onnx else "PyTorch"
-            print(f"ForbiddenVision: Loaded face detection model [{fmt}]")
+            model = YOLO(local_path_pt, task='detect')
+            model.to(device)
+            self._models[model_name_pt] = model
+            print("ForbiddenVision: Loaded face detection model [PyTorch]")
             return model
-
         except Exception as e:
             print(f"ForbiddenVision: Error loading face detection model: {e}")
             return None

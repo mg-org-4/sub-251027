@@ -694,6 +694,8 @@ class PrimereAutoSamplerSettings:
                 "override_steps": ("BOOLEAN", {"default": False, "label_off": "Set by sampler settings", "label_on": "Set by model filename"}),
                 "cfg": ("FLOAT", {"default": 7, "min": 0.1, "max": 100, "step": 0.01}),
                 "rescale_cfg": ("FLOAT", {"default": 1, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "align_your_steps": ("BOOLEAN", {"default": False, "label_on": "Use AlignYourSteps", "label_off": "Ignore AlignYourSteps"}),
+                "model_sampling": ("FLOAT", {"default": 2.5, "min": 0.0, "max": 10.0, "step": 0.01}),
                 "last_layer": ("INT", {"default": 0, "min": -24, "max": 0, "step": 1}),
                 "sigma_max": ("FLOAT", {"default": 120, "min": 1, "max": 200, "step": 0.001}),
                 "sigma_min": ("FLOAT", {"default": 1, "min": 0.001, "max": 100, "step": 0.001}),
@@ -703,6 +705,11 @@ class PrimereAutoSamplerSettings:
                 "encoder_1": (list(dict.fromkeys(["None"] + cls.TEXT_ENCODERS + cls.CLIPLIST + cls.UNETLIST + cls.TEXT_ENCODERS_PATHS)),),
                 "encoder_2": (list(dict.fromkeys(["None"] + cls.TEXT_ENCODERS + cls.CLIPLIST + cls.UNETLIST + cls.TEXT_ENCODERS_PATHS)),),
                 "encoder_3": (list(dict.fromkeys(["None"] + cls.TEXT_ENCODERS + cls.CLIPLIST + cls.UNETLIST + cls.TEXT_ENCODERS_PATHS)),),
+                "clip_attn": (["Custom"] + list(clipping.CLIP_ATTN_PRESETS.keys()), {"default": "Natural"}),
+                "clip_attn_mult_query": ('FLOAT', {"default": 1.00, "min": 0.80, "max": 1.20, "step": 0.01}),
+                "clip_attn_mult_key": ('FLOAT', {"default": 1.00, "min": 0.80, "max": 1.20, "step": 0.01}),
+                "clip_attn_mult_value": ('FLOAT', {"default": 1.00, "min": 0.80, "max": 1.20, "step": 0.01}),
+                "clip_attn_mult_output": ('FLOAT', {"default": 1.00, "min": 0.80, "max": 1.20, "step": 0.01}),
                 "sampler": (["custom_advanced", "ksampler"], {"default": "ksampler"}),
                 "guidance": ('FLOAT', {"default": 3.5, "min": 0.0, "max": 100.0, "step": 0.1}),
                 "weight_dtype": (["None"] + ["Auto", "default", "fp16", "bf16", "fp32", "fp8_e4m3fn", "fp8_e5m2"], {"default": "default"}),
@@ -795,6 +802,15 @@ class PrimereAutoSamplerSettings:
             speed_lora_cfg_val = kwargs.get('speed_lora_cfg')
             if speed_lora_cfg_val is not None:
                 cfg = float(speed_lora_cfg_val)
+        clip_attn = kwargs.pop('clip_attn', 'Natural')
+        clip_attn_mult_query = kwargs.pop('clip_attn_mult_query', 1.0)
+        clip_attn_mult_key = kwargs.pop('clip_attn_mult_key', 1.0)
+        clip_attn_mult_value = kwargs.pop('clip_attn_mult_value', 1.0)
+        clip_attn_mult_output = kwargs.pop('clip_attn_mult_output', 1.0)
+        if clip_attn == 'Custom':
+            attn_q, attn_k, attn_v, attn_out = clip_attn_mult_query, clip_attn_mult_key, clip_attn_mult_value, clip_attn_mult_output
+        else:
+            attn_q, attn_k, attn_v, attn_out = clipping.CLIP_ATTN_PRESETS.get(clip_attn, (1.0, 1.0, 1.0, 1.0))
         suppressed = [k + "_" for k, v in kwargs.items() if v == "None" or v is False]
         kwargs = {k: v for k, v in kwargs.items() if v != "None" and not any(k.startswith(p) for p in suppressed)}
         kwargs['encoders'] = [kwargs[k] for k in ('encoder_1', 'encoder_2', 'encoder_3') if kwargs.get(k) not in (None, 'None')]
@@ -803,6 +819,10 @@ class PrimereAutoSamplerSettings:
         kwargs['scheduler_name'] = scheduler_name
         kwargs['steps'] = steps
         kwargs['cfg'] = round(cfg, 2)
+        kwargs['clip_attn_q'] = attn_q
+        kwargs['clip_attn_k'] = attn_k
+        kwargs['clip_attn_v'] = attn_v
+        kwargs['clip_attn_out'] = attn_out
         return {"ui": {"active_concept": [active_display]}, "result": (kwargs, sampler_name, scheduler_name, steps, round(cfg, 2), active_concept,)}
 
 class PrimereConceptDataTuple:
@@ -1230,6 +1250,7 @@ class PrimereCLIP:
             embedding_pos, embedding_neg,
         )
 
+        clip = clipping.apply_clip_attention_multiply(clip, workflow_tuple)
         match model_concept:
             case 'SD3':
                 return clipping.encode_sd3(clip, positive_text, negative_text, t5xxl_prompt, workflow_tuple)

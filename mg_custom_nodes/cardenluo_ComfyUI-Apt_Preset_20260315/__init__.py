@@ -281,8 +281,9 @@ NODE_CLASS_MAPPINGS= {
 
 
 "IO_LoadImgList": IO_LoadImgList,
-"IO_LoadTextList": IO_LoadTextList,
-"IO_LoadShotList": IO_LoadShotList,
+"IO_LoadImgBatch": IO_LoadImgBatch,
+"IO_LoadTextBatch": IO_LoadTextBatch,
+"IO_LoadShotBatch": IO_LoadShotBatch,
 "IO_ShotCreate": IO_ShotCreate,
 
 

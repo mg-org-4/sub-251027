@@ -1470,6 +1470,346 @@ class IO_save_image:
 
 
 
+class IO_LoadTextBatch:
+    INPUT_IS_LIST = True
+    _last_pushed_hash_by_node: dict = {}
+
+    def _first_scalar(self, v, default=None):
+        if isinstance(v, list):
+            return v[0] if len(v) > 0 else default
+        return v
+
+    def _parse_text_list(self, raw):
+        if raw is None:
+            return []
+        if isinstance(raw, list):
+            out = []
+            for e in raw:
+                out.extend(self._parse_text_list(e))
+            return out
+        s = str(raw)
+        st = s.strip()
+        if st == "":
+            return []
+        if st.startswith("[") and st.endswith("]"):
+            try:
+                v = json.loads(s)
+                if isinstance(v, list):
+                    out = []
+                    for x in v:
+                        if x is None:
+                            continue
+                        line = str(x).strip()
+                        if line != "":
+                            out.append(line)
+                    return out
+            except Exception:
+                pass
+        out = []
+        for line in s.splitlines():
+            t = str(line).strip()
+            if t != "":
+                out.append(t)
+        return out
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "text_list": ("STRING", {"multiline": True, "default": ""}),
+                "card_size": ("INT", {"default": 120, "min": 120, "max": 520, "step": 20}),
+                "index": ("INT", {"default": 0, "min": 0, "max": 9999, "step": 1}),
+            },
+            "optional": {
+                "text_list_in": ("STRING", {"forceInput": True}),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    NAME = "IO_LoadTextBatch"
+    CATEGORY = "Apt_Preset/IO_Port"
+    RETURN_TYPES = ("STRING", "STRING", "INT")
+    RETURN_NAMES = ("text_list", "text_index", "index")
+    FUNCTION = "load_text_list"
+    OUTPUT_IS_LIST = (True, False, False)
+    OUTPUT_NODE = True
+
+    def load_text_list(self, text_list: str, card_size: int = 120, index: int = 0, text_list_in=None, unique_id: str = ""):
+        text_list = self._first_scalar(text_list, "")
+        card_size = self._first_scalar(card_size, 120)
+        index = self._first_scalar(index, 0)
+        unique_id = self._first_scalar(unique_id, "")
+
+        texts = self._parse_text_list(text_list)
+        if text_list_in is not None:
+            texts.extend(self._parse_text_list(text_list_in))
+
+        total = len(texts)
+        if total == 0:
+            return ([], "", 0)
+
+        try:
+            i = int(index)
+        except Exception:
+            i = 0
+        if i < 0:
+            i = 0
+        if i >= total:
+            i = total - 1
+
+        if unique_id:
+            try:
+                uid = str(unique_id)
+                payload = {"items": texts, "index": int(i), "card_size": int(card_size)}
+                h = hashlib.sha256(
+                    json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                ).hexdigest()
+                if self._last_pushed_hash_by_node.get(uid) != h:
+                    self._last_pushed_hash_by_node[uid] = h
+                    ps = getattr(PromptServer, "instance", None)
+                    if ps is not None and hasattr(ps, "send_sync"):
+                        ps.send_sync("IO_LoadTextBatch_set", {"node": uid, **payload})
+            except Exception:
+                pass
+
+        return (texts, str(texts[i]), int(i))
+
+    @classmethod
+    def IS_CHANGED(s, text_list: str, card_size: int = 120, index: int = 0, text_list_in=None):
+        m = hashlib.sha256()
+        if isinstance(text_list, list):
+            text_list = text_list[0] if len(text_list) > 0 else ""
+        if isinstance(index, list):
+            index = index[0] if len(index) > 0 else 0
+        if isinstance(card_size, list):
+            card_size = card_size[0] if len(card_size) > 0 else 120
+        if isinstance(text_list_in, list):
+            text_list_in = text_list_in[0] if len(text_list_in) > 0 else None
+
+        m.update((str(text_list) if text_list is not None else "").encode("utf-8"))
+        if text_list_in is not None:
+            m.update((str(text_list_in) if text_list_in is not None else "").encode("utf-8"))
+        m.update(str(index).encode("utf-8"))
+        m.update(str(card_size).encode("utf-8"))
+        return m.digest().hex()
+
+    @classmethod
+    def VALIDATE_INPUTS(s, text_list: str, card_size: int = 120, index: int = 0, text_list_in=None):
+        return True
+
+
+class IO_LoadImgBatch:
+    INPUT_IS_LIST = True
+    _last_pushed_hash_by_node: dict = {}
+
+    def _first_scalar(self, v, default=None):
+        if isinstance(v, list):
+            return v[0] if len(v) > 0 else default
+        return v
+
+    def _split_image_tensor(self, t):
+        if not isinstance(t, torch.Tensor):
+            return []
+        try:
+            if t.dim() == 4 and int(t.shape[0]) > 1:
+                return [t[i : i + 1] for i in range(int(t.shape[0]))]
+            if t.dim() == 3:
+                return [t.unsqueeze(0)]
+            return [t]
+        except Exception:
+            return [t]
+
+    def _import_from_image(self, import_image, existing_names: list):
+        if import_image is None:
+            return []
+        tensors = []
+        try:
+            if isinstance(import_image, list):
+                for e in import_image:
+                    if isinstance(e, torch.Tensor):
+                        tensors.extend(self._split_image_tensor(e))
+                if len(tensors) == 0:
+                    return []
+            elif isinstance(import_image, torch.Tensor):
+                tensors = self._split_image_tensor(import_image)
+        except Exception:
+            tensors = []
+        if len(tensors) == 0:
+            return []
+
+        input_dir = folder_paths.get_input_directory()
+        existing_set = {str(x).lower() for x in (existing_names or [])}
+        imported = []
+        for t in tensors:
+            try:
+                img = t.detach().cpu()
+            except Exception:
+                img = t
+            try:
+                if img.dim() == 4:
+                    img = img[0]
+                frame_np = np.clip(255.0 * img.numpy(), 0, 255).astype(np.uint8)
+                h = hashlib.sha256(frame_np.tobytes()).hexdigest()[:12]
+                base = f"io_loadimg_{h}.png"
+                if base.lower() in existing_set:
+                    continue
+                dst_path = os.path.join(input_dir, base)
+                if not os.path.exists(dst_path):
+                    Image.fromarray(frame_np).save(dst_path, format="PNG", optimize=True)
+                imported.append(base)
+                existing_set.add(base.lower())
+            except Exception:
+                continue
+        return imported
+
+    def _load_tensor_from_name(self, name: str):
+        if not name or not folder_paths.exists_annotated_filepath(name):
+            return None
+        try:
+            image_path = folder_paths.get_annotated_filepath(name)
+            img = node_helpers.pillow(Image.open, image_path)
+        except Exception:
+            return None
+
+        w, h = None, None
+        frames = []
+        excluded_formats = ["MPO"]
+        try:
+            for i in ImageSequence.Iterator(img):
+                i = node_helpers.pillow(ImageOps.exif_transpose, i)
+                if i.mode == "I":
+                    i = i.point(lambda p: p * (1 / 255))
+                pil_image = i.convert("RGB")
+                if len(frames) == 0:
+                    w = pil_image.size[0]
+                    h = pil_image.size[1]
+                if pil_image.size[0] != w or pil_image.size[1] != h:
+                    continue
+                arr = np.array(pil_image).astype(np.float32) / 255.0
+                tensor = torch.from_numpy(arr)[None,]
+                frames.append(tensor)
+        except Exception:
+            frames = []
+        if len(frames) == 0:
+            return None
+        if len(frames) > 1 and getattr(img, "format", None) not in excluded_formats:
+            return torch.cat(frames, dim=0)
+        return frames[0]
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image_list": ("STRING", {"multiline": True, "default": ""}),
+                "card_size": ("INT", {"default": 120, "min": 120, "max": 520, "step": 20}),
+                "index": ("INT", {"default": 0, "min": 0, "max": 9999, "step": 1}),
+            },
+            "optional": {
+                "image_list_in": ("IMAGE", {"forceInput": True}),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    NAME = "IO_LoadImgBatch"
+    CATEGORY = "Apt_Preset/IO_Port"
+    RETURN_TYPES = ("IMAGE", "IMAGE", "INT")
+    RETURN_NAMES = ("image_list", "img_index", "index")
+    FUNCTION = "load_img_batch"
+    OUTPUT_IS_LIST = (True, False, False)
+    OUTPUT_NODE = True
+
+    def load_img_batch(self, image_list: str, card_size: int = 120, index: int = 0, image_list_in=None, unique_id: str = ""):
+        image_list = self._first_scalar(image_list, "")
+        card_size = self._first_scalar(card_size, 120)
+        index = self._first_scalar(index, 0)
+        unique_id = self._first_scalar(unique_id, "")
+
+        names = [x.strip() for x in str(image_list or "").splitlines()]
+        names = [x for x in names if x]
+
+        if image_list_in is not None:
+            imported = self._import_from_image(image_list_in, existing_names=names)
+            if imported:
+                names.extend(imported)
+
+        valid_names = []
+        for n in names:
+            try:
+                if folder_paths.exists_annotated_filepath(n):
+                    valid_names.append(n)
+            except Exception:
+                continue
+        names = valid_names
+
+        total = len(names)
+        blank = torch.zeros((1, 64, 64, 3), dtype=torch.float32)
+        if total == 0:
+            return ([], blank, 0)
+
+        try:
+            i = int(index)
+        except Exception:
+            i = 0
+        if i < 0:
+            i = 0
+        if i >= total:
+            i = total - 1
+
+        output_images = []
+        for n in names:
+            t = self._load_tensor_from_name(n)
+            output_images.append(t if isinstance(t, torch.Tensor) else blank)
+
+        output_image = output_images[i] if i < len(output_images) else blank
+
+        if unique_id:
+            try:
+                uid = str(unique_id)
+                payload = {"items": names, "index": int(i), "card_size": int(card_size)}
+                h = hashlib.sha256(
+                    json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                ).hexdigest()
+                if self._last_pushed_hash_by_node.get(uid) != h:
+                    self._last_pushed_hash_by_node[uid] = h
+                    ps = getattr(PromptServer, "instance", None)
+                    if ps is not None and hasattr(ps, "send_sync"):
+                        ps.send_sync("IO_LoadImgBatch_set", {"node": uid, **payload})
+            except Exception:
+                pass
+
+        return (output_images, output_image, int(i))
+
+    @classmethod
+    def IS_CHANGED(s, image_list: str, card_size: int = 120, index: int = 0, image_list_in=None):
+        m = hashlib.sha256()
+        if isinstance(image_list, list):
+            image_list = image_list[0] if len(image_list) > 0 else ""
+        if isinstance(index, list):
+            index = index[0] if len(index) > 0 else 0
+        if isinstance(card_size, list):
+            card_size = card_size[0] if len(card_size) > 0 else 120
+
+        m.update((str(image_list) if image_list is not None else "").encode("utf-8"))
+        m.update(str(index).encode("utf-8"))
+        m.update(str(card_size).encode("utf-8"))
+        if image_list_in is not None:
+            try:
+                if isinstance(image_list_in, list):
+                    m.update(str(len(image_list_in)).encode("utf-8"))
+                else:
+                    m.update(b"1")
+            except Exception:
+                pass
+        return m.digest().hex()
+
+    @classmethod
+    def VALIDATE_INPUTS(s, image_list: str, card_size: int = 120, index: int = 0, image_list_in=None):
+        return True
+
 
 
 
@@ -2884,6 +3224,14 @@ class IO_LoadImgList:
 
 
 
+
+
+
+
+
+
+
+
 #endregion----------------load_image_list---------------------------
 
 
@@ -3120,155 +3468,8 @@ class IO_RegexPreset:
 
 
 
-class IO_LoadTextList:
-    _last_in_hash_by_node: dict = {}
-    _last_index_sync_by_node: dict = {}
 
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "text_list": ("STRING", {"multiline": True, "default": "[]"}),
-            },
-            "optional": {
-                "text_list_in": ("STRING", {"forceInput": True}),
-                "card_size": ("INT", {"default": 100, "min": 100, "max": 400, "step": 10}),
-                "file_split_rule": ("STRING", {"default": "\\n", "multiline": False}),
-                "index": ("INT", {"default": 1, "min": 0, "max": 100000, "step": 1}),
-            },
-            "hidden": {
-                "unique_id": "UNIQUE_ID",
-            },
-        }
-
-    NAME = "IO_LoadTextList"
-    CATEGORY = "Apt_Preset/IO_Port"
-    RETURN_TYPES = ("STRING", "STRING", "INT")
-    RETURN_NAMES = ("text_list", "text_index", "index")
-    FUNCTION = "load_texts"
-    OUTPUT_IS_LIST = (True, False, False)
-    OUTPUT_NODE = True
-
-    def _parse_text_items(self, text_list: str):
-        raw = "" if text_list is None else str(text_list)
-        s = raw.strip()
-        if s.startswith("[") and s.endswith("]"):
-            try:
-                v = json.loads(raw)
-                if isinstance(v, list):
-                    return ["" if x is None else str(x) for x in v]
-            except Exception:
-                pass
-        lines = [x.rstrip("\r") for x in raw.splitlines()]
-        lines = [x for x in (ln.strip() for ln in lines) if x]
-        return lines
-
-    def _normalize_incoming(self, text_list_in):
-        if text_list_in is None:
-            return []
-        if isinstance(text_list_in, list):
-            items = ["" if x is None else str(x) for x in text_list_in]
-        else:
-            items = [str(text_list_in)]
-        items = [x for x in (t.strip() for t in items) if x]
-        return items
-
-    def _should_append(self, unique_id: str, incoming_items: list):
-        if not unique_id or not incoming_items:
-            return False
-        try:
-            s = json.dumps(incoming_items, ensure_ascii=False, separators=(",", ":"))
-            h = hashlib.sha256(s.encode("utf-8")).hexdigest()
-        except Exception:
-            return True
-        last = self._last_in_hash_by_node.get(unique_id)
-        if last == h:
-            return False
-        self._last_in_hash_by_node[unique_id] = h
-        return True
-
-    def load_texts(
-        self,
-        text_list: str,
-        text_list_in=None,
-        card_size: int = 100,
-        file_split_rule: str = "",
-        index: int = 1,
-        unique_id: str = "",
-    ):
-        items = self._parse_text_items(text_list)
-
-        try:
-            cs = int(card_size)
-        except Exception:
-            cs = 100
-        if cs <= 0:
-            cs = 100
-        card_size = cs
-
-        incoming_items = self._normalize_incoming(text_list_in)
-        if self._should_append(unique_id, incoming_items):
-            items = items + incoming_items
-            try:
-                ps = getattr(PromptServer, "instance", None)
-                if ps is not None and hasattr(ps, "send_sync"):
-                    ps.send_sync("IO_LoadTextList_append", {"node": unique_id, "items": incoming_items})
-            except Exception:
-                pass
-
-        idx = 0
-        text = ""
-        try:
-            if isinstance(index, list):
-                index = index[0] if len(index) > 0 else 0
-            i = int(index)
-        except Exception:
-            i = 0
-        if i >= 1 and i <= len(items):
-            idx = i
-            text = items[i - 1]
-        else:
-            idx = 0
-            text = ""
-
-        if unique_id:
-            try:
-                last = self._last_index_sync_by_node.get(unique_id, None)
-                if last != int(idx):
-                    self._last_index_sync_by_node[unique_id] = int(idx)
-                    ps = getattr(PromptServer, "instance", None)
-                    if ps is not None and hasattr(ps, "send_sync"):
-                        ps.send_sync("IO_LoadTextList_set_index", {"node": unique_id, "index": int(idx)})
-            except Exception:
-                pass
-
-        return (items, text, int(idx))
-
-    @classmethod
-    def IS_CHANGED(s, text_list: str, text_list_in=None, card_size: int = 100, file_split_rule: str = "", index: int = 0):
-        m = hashlib.sha256()
-        m.update((text_list or "").encode("utf-8"))
-        if text_list_in is not None:
-            try:
-                if isinstance(text_list_in, list):
-                    m.update(json.dumps(text_list_in, ensure_ascii=False).encode("utf-8"))
-                else:
-                    m.update(str(text_list_in).encode("utf-8"))
-            except Exception:
-                pass
-        m.update((file_split_rule or "").encode("utf-8"))
-        m.update(str(card_size).encode("utf-8"))
-        m.update(str(index).encode("utf-8"))
-        return m.digest().hex()
-
-    @classmethod
-    def VALIDATE_INPUTS(s, text_list: str, text_list_in=None, card_size: int = 100, file_split_rule: str = "", index: int = 0):
-        return True
-
-
-
-
-class IO_LoadShotList:
+class IO_LoadShotBatch:
     _last_preview_hash_by_node: dict = {}
     INPUT_IS_LIST = True
 
@@ -3289,14 +3490,14 @@ class IO_LoadShotList:
                 "shot": ("SHOTINFO", {"forceInput": True}),
                 "img_list": ("IMAGE", {"forceInput": True}),
                 "text_list": ("STRING", {"forceInput": True}),
-                "index": ("INT", {"default": 1, "min": 1, "max": 9999, "step": 1}),
+                "index": ("INT", {"default": 0, "min": 0, "max": 9999, "step": 1}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
             },
         }
 
-    NAME = "IO_LoadShotList"
+    NAME = "IO_LoadShotBatch"
     CATEGORY = "Apt_Preset/IO_Port"
     RETURN_TYPES = ("IMAGE", "STRING", "INT")
     RETURN_NAMES = ("img_index", "text_index", "index")
@@ -3456,7 +3657,7 @@ class IO_LoadShotList:
         try:
             ps = getattr(PromptServer, "instance", None)
             if ps is not None and hasattr(ps, "send_sync"):
-                ps.send_sync("IO_LoadShotList_set", {"node": unique_id, "items": items, "card_size": size})
+                ps.send_sync("IO_LoadShotBatch_set", {"node": unique_id, "items": items, "card_size": size})
         except Exception:
             pass
 
@@ -3467,13 +3668,13 @@ class IO_LoadShotList:
         shot=None,
         img_list=None,
         text_list=None,
-        index: int = 1,
+        index: int = 0,
         card_size: int = 120,
         unique_id: str = "",
     ):
         shot_state = self._first_scalar(shot_state, "[]")
         shot_preview = self._first_scalar(shot_preview, "[]")
-        index = self._first_scalar(index, 1)
+        index = self._first_scalar(index, 0)
         card_size = self._first_scalar(card_size, 120)
         unique_id = self._first_scalar(unique_id, "")
         if unique_id is None:
@@ -3601,15 +3802,15 @@ class IO_LoadShotList:
         try:
             i = int(index)
         except Exception:
-            i = 1
-        if i < 1:
-            i = 1
+            i = 0
+        if i < 0:
+            i = 0
         if total == 0:
             return (torch.zeros((1, 64, 64, 3), dtype=torch.float32), "", 0)
-        if i > total:
-            i = total
+        if i >= total:
+            i = total - 1
 
-        row = ordered[i - 1]
+        row = ordered[i]
         shot_item = row.get("shot", {}) if isinstance(row, dict) else {}
         img = shot_item.get("image", None) if isinstance(shot_item, dict) else None
         if isinstance(img, torch.Tensor):
@@ -3629,7 +3830,7 @@ class IO_LoadShotList:
         shot=None,
         img_list=None,
         text_list=None,
-        index: int = 1,
+        index: int = 0,
         card_size: int = 120,
     ):
         m = hashlib.sha256()
@@ -3638,7 +3839,7 @@ class IO_LoadShotList:
         if isinstance(shot_preview, list):
             shot_preview = shot_preview[0] if len(shot_preview) > 0 else "[]"
         if isinstance(index, list):
-            index = index[0] if len(index) > 0 else 1
+            index = index[0] if len(index) > 0 else 0
         if isinstance(card_size, list):
             card_size = card_size[0] if len(card_size) > 0 else 120
 
@@ -3844,12 +4045,6 @@ class IO_ShotCreate:
         if not folder_paths.exists_annotated_filepath(image):
             return "Invalid image file: {}".format(image)
         return True
-
-
-
-
-
-
 
 
 

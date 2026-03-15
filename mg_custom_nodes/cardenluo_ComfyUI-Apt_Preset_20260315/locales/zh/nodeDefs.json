@@ -12060,8 +12060,8 @@
   },
 
 
-  "IO_LoadTextList": {
-      "display_name": "IO_加载文本列表",
+  "IO_LoadTextBatch": {
+      "display_name": "IO_加载文本批次",
       "inputs": {
           "text_list": {
               "name": "文本列表"
@@ -12076,7 +12076,7 @@
               "name": "卡片大小"
           },
           "index": {
-              "name": "索引"
+              "name": "编号"
           }
       },
       "outputs": {
@@ -12084,16 +12084,16 @@
               "name": "文本列表"
           },
           "1": {
-              "name": "文本_按索引"
+              "name": "编号_文本"
           },
           "2": {
-              "name": "索引"
+              "name": "编号"
           }
       }
   },
 
-  "IO_LoadShotList": {
-      "display_name": "IO_加载分镜列表",
+  "IO_LoadShotBatch": {
+      "display_name": "IO_加载分镜批次",
       "inputs": {
           "shot": {
               "name": "分镜信息"
@@ -12105,18 +12105,18 @@
               "name": "文本列表"
           },
           "index": {
-              "name": "索引"
+              "name": "编号"
           }
       },
       "outputs": {
           "0": {
-              "name": "图像_按索引"
+              "name": "编号_图像"
           },
           "1": {
-              "name": "文本_按索引"
+              "name": "编号_文本"
           },
           "2": {
-              "name": "索引"
+              "name": "编号"
           }
       }
   },
@@ -12188,6 +12188,42 @@
       }
     }
   },
+
+
+
+  "IO_LoadImgBatch": {
+    "display_name": "IO_加载图像批次",
+    "inputs": {
+      "image_list_in": {
+        "name": "图像列表"
+      },
+      "import_image": {
+        "name": "导入图片"
+      },
+      "index": {
+        "name": "编号"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "图像列表"
+      },
+      "1": {
+        "name": "编号_图像"
+      },
+      "2": {
+        "name": "编号"
+      }
+    }
+  },
+
+
+
+
+
+
+
+
   "IO_PathProcessor": {
     "display_name": "IO_路径处理器",
     "inputs": {

@@ -227,7 +227,7 @@ function isAnyImportConnected(node) {
 function clearShotUI(node) {
     setShotPreviewItems(node, []);
     setShotStateItems(node, []);
-    setIndex(node, 1);
+    setIndex(node, 0);
     try {
         node._ioLoadShotListHistory = [];
     } catch {}
@@ -408,13 +408,13 @@ function createShotListUI(node) {
         for (let i = 0; i < visibleItems.length; i++) {
             const item = visibleItems[i];
             const card = document.createElement("div");
-            const isSel = i + 1 === selected;
+            const isSel = i === selected;
             card.style.cssText =
                 `position:relative;height:${Math.max(240, Math.floor(size * 1.55))}px;display:flex;flex-direction:column;gap:6px;padding:6px;background:var(--comfy-menu-bg);border:2px solid ${isSel ? "#fff" : "var(--border-color)"};border-radius:6px;user-select:none;cursor:pointer;overflow:hidden;`;
 
             card.addEventListener("click", (e) => {
                 e.preventDefault();
-                setIndex(node, i + 1);
+                setIndex(node, i);
                 redraw();
             });
 
@@ -475,13 +475,13 @@ function createShotListUI(node) {
                 }
                 const curIdx = getIndex(node);
                 const nextTotal = Math.max(0, total - 1);
-                if (nextTotal <= 0) setIndex(node, 1);
+                if (nextTotal <= 0) setIndex(node, 0);
                 else if (curIdx > nextTotal) setIndex(node, nextTotal);
                 redraw();
             });
 
             const seq = document.createElement("div");
-            seq.textContent = `#${i + 1}`;
+            seq.textContent = `#${i}`;
             seq.style.cssText = "position:absolute;top:6px;left:6px;font-size:12px;font-weight:800;color:#000;white-space:nowrap;z-index:3;background:rgba(255,255,255,0.92);padding:0 3px;border-radius:2px;line-height:1.2;";
 
             const imgWrap = document.createElement("div");
@@ -641,7 +641,7 @@ function createShotListUI(node) {
         pushHistory();
         setShotPreviewItems(node, []);
         setShotStateItems(node, []);
-        setIndex(node, 1);
+        setIndex(node, 0);
         redraw();
     };
 
@@ -669,9 +669,9 @@ function createShotListUI(node) {
 }
 
 app.registerExtension({
-    name: "IO_LoadShotList.Extension",
+    name: "IO_LoadShotBatch.Extension",
     async setup() {
-        api.addEventListener("IO_LoadShotList_append", function (event) {
+        api.addEventListener("IO_LoadShotBatch_append", function (event) {
             const nodeId = parseInt(event.detail.node);
             const node = app.graph.nodes.find((n) => n.id === nodeId);
             if (!node) return;
@@ -696,7 +696,7 @@ app.registerExtension({
             node._ioLoadShotListUI?.redraw?.();
         });
 
-        api.addEventListener("IO_LoadShotList_set", function (event) {
+        api.addEventListener("IO_LoadShotBatch_set", function (event) {
             const nodeId = parseInt(event.detail.node);
             const node = app.graph.nodes.find((n) => n.id === nodeId);
             if (!node) return;
@@ -721,7 +721,7 @@ app.registerExtension({
         });
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name !== "IO_LoadShotList") return;
+        if (nodeData.name !== "IO_LoadShotBatch") return;
 
         const origOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {

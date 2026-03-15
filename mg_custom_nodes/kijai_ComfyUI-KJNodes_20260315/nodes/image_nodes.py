@@ -4493,17 +4493,16 @@ class EncodeVideoComponents(io.ComfyNode):
 
         t = vae.encode(s)
 
-
         # --- Extract audio in a separate pass ---
         audio = None
         if isinstance(source, BytesIO):
             source.seek(0)
         with av.open(source, mode='r') as container:
-            video_stream = container.streams.video[0]
-            start_pts = int(start_time / video_stream.time_base)
-            container.seek(start_pts, stream=video_stream)
             if len(container.streams.audio):
                 audio_stream = container.streams.audio[-1]
+                if start_time > 0:
+                    audio_start_pts = int(start_time / audio_stream.time_base)
+                    container.seek(audio_start_pts, stream=audio_stream)
                 audio_frames = []
                 resample = av.audio.resampler.AudioResampler(format='fltp').resample
                 aframes = itertools.chain.from_iterable(
@@ -4511,7 +4510,7 @@ class EncodeVideoComponents(io.ComfyNode):
                 )
                 has_first_frame = False
                 for aframe in aframes:
-                    offset_seconds = start_time - aframe.pts * audio_stream.time_base
+                    offset_seconds = start_time - aframe.time
                     to_skip = int(offset_seconds * audio_stream.sample_rate)
                     if to_skip < aframe.samples:
                         has_first_frame = True
@@ -4519,7 +4518,7 @@ class EncodeVideoComponents(io.ComfyNode):
                 if has_first_frame:
                     audio_frames.append(aframe.to_ndarray()[..., to_skip:])
                     for aframe in aframes:
-                        if aframe.time > start_time + duration:
+                        if duration and aframe.time > start_time + duration:
                             break
                         audio_frames.append(aframe.to_ndarray())
                 if audio_frames:
@@ -4702,4 +4701,28 @@ class DecodeAndSaveVideo(io.ComfyNode):
             metadata=saved_metadata
         )
         return file, subfolder
+
+
+class PreviewImageOrMask(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="PreviewImageOrMask",
+            display_name="Preview Image Or Mask",
+            category="image",
+            essentials_category="Basics",
+            description="Previews the input images or masks.",
+            search_aliases=["output"],
+            inputs=[
+                io.MultiType.Input("input", [io.Image, io.Mask], tooltip="The image or mask to preview."),
+            ],
+            hidden=[io.Hidden.prompt, io.Hidden.extra_pnginfo],
+            is_output_node=True,
+        )
+
+    @classmethod
+    def execute(cls, input) -> io.NodeOutput:
+        if input.ndim == 3:
+            return io.NodeOutput(ui=ui.PreviewMask(input, cls=cls))
+        return io.NodeOutput(ui=ui.PreviewImage(input, cls=cls))
 

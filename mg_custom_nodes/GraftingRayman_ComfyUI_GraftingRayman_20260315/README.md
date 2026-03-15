@@ -30,6 +30,29 @@ If you use these, follow my YouTube channel where I create ComfyUI workflows fro
 
 Hope this stuff is helpful
 
+# GR Live Group Controller
+
+This is a node created out of frustration, have been using "Fast Group Muter" for ages but it got tedious so had to improve it and here we are
+
+
+
+1: Click here to add a new Header Section
+
+2: Click here to go to the group itself
+
+3: Currently executing group is highlighted
+
+4: Header Sections
+
+5: Edit the names of the Groups or Headers, changes the actual Groups title 
+
+6: Click and move to reorder - order is kept on refresh
+
+7: Number of nodes in the group
+
+8: Shows if the Group is enabled/disabled
+
+
 # GR Sigma Preset Selector
 
 Select preset sigmas for your generations, change your Comp, Mid and Detail amounts in the graph.

@@ -1,5 +1,6 @@
 import os
 import torch
+import torch.nn.functional as F
 import torchvision.transforms as transforms
 from PIL import Image, ImageSequence, ImageOps
 from pathlib import Path
@@ -1158,10 +1159,10 @@ class Trellis2UnWrapAndRasterizer:
         
         # Inpainting: fill gaps (dilation) to prevent black seams at UV boundaries
         mask_inv = (~mask).astype(np.uint8)
-        base_color = cv2.inpaint(base_color, mask_inv, 1, cv2.INPAINT_TELEA)
-        metallic = cv2.inpaint(metallic, mask_inv, 1, cv2.INPAINT_TELEA)[..., None]
-        roughness = cv2.inpaint(roughness, mask_inv, 1, cv2.INPAINT_TELEA)[..., None]
-        alpha = cv2.inpaint(alpha, mask_inv, 1, cv2.INPAINT_TELEA)[..., None]
+        base_color = cv2.inpaint(base_color, mask_inv, 3, cv2.INPAINT_NS)
+        metallic = cv2.inpaint(metallic, mask_inv, 1, cv2.INPAINT_NS)[..., None]
+        roughness = cv2.inpaint(roughness, mask_inv, 1, cv2.INPAINT_NS)[..., None]
+        alpha = cv2.inpaint(alpha, mask_inv, 1, cv2.INPAINT_NS)[..., None]
         
         # Create PBR material
         # Standard PBR packs Metallic and Roughness into Blue and Green channels
@@ -1830,10 +1831,10 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
         
         # Inpainting: fill gaps (dilation) to prevent black seams at UV boundaries
         mask_inv = (~mask).astype(np.uint8)
-        base_color = cv2.inpaint(base_color, mask_inv, 1, cv2.INPAINT_TELEA)
-        metallic = cv2.inpaint(metallic, mask_inv, 1, cv2.INPAINT_TELEA)[..., None]
-        roughness = cv2.inpaint(roughness, mask_inv, 1, cv2.INPAINT_TELEA)[..., None]
-        alpha = cv2.inpaint(alpha, mask_inv, 1, cv2.INPAINT_TELEA)[..., None]
+        base_color = cv2.inpaint(base_color, mask_inv, 3, cv2.INPAINT_NS)
+        metallic = cv2.inpaint(metallic, mask_inv, 1, cv2.INPAINT_NS)[..., None]
+        roughness = cv2.inpaint(roughness, mask_inv, 1, cv2.INPAINT_NS)[..., None]
+        alpha = cv2.inpaint(alpha, mask_inv, 1, cv2.INPAINT_NS)[..., None]
         
         # Create PBR material
         # Standard PBR packs Metallic and Roughness into Blue and Green channels
@@ -2276,6 +2277,7 @@ class Trellis2PreProcessImage:
                 "image": ("IMAGE",),
                 "padding": ("INT",{"default":0,"min":0,"max":1024}),
                 "remove_background": ("BOOLEAN",{"default":False}),
+                "max_size": ("INT",{"default":2048,"min":512,"max":8192,"step":128}),
             }
         }
     RETURN_TYPES = ("IMAGE",)
@@ -2284,14 +2286,14 @@ class Trellis2PreProcessImage:
     FUNCTION = "process"
     CATEGORY = "Trellis2Wrapper"
 
-    def process(self, image, padding, remove_background):
+    def process(self, image, padding, remove_background, max_size):
         image = tensor2pil(image)
         
         if remove_background:
             from rembg import remove
             image = remove(image)
         
-        image = self.preprocess_image(image)
+        image = self.preprocess_image(image, max_size)
         
         if padding>0:
             border = (int(padding), int(padding), int(padding), int(padding))
@@ -2317,7 +2319,7 @@ class Trellis2PreProcessImage:
         raise ValueError(f"Unsupported image mode: {img.mode}")         
 
 
-    def preprocess_image(self, input: Image.Image) -> Image.Image:
+    def preprocess_image(self, input: Image.Image, max_res) -> Image.Image:
         """
         Preprocess the input image.
         """
@@ -2328,7 +2330,7 @@ class Trellis2PreProcessImage:
             if not np.all(alpha == 255):
                 has_alpha = True
         max_size = max(input.size)
-        scale = min(1, 2048 / max_size)
+        scale = min(1, max_res / max_size)
         if scale < 1:
             input = input.resize((int(input.width * scale), int(input.height * scale)), Image.Resampling.LANCZOS)
         # if has_alpha:
@@ -3182,8 +3184,9 @@ class Trellis2UnWrapTrimesh:
         del cumesh
                 
         mesh_copy.vertices = out_vertices.cpu().numpy()
-        mesh_copy.faces = out_faces.cpu().numpy()
-        mesh_copy.visual.uv = out_uvs.cpu().numpy()
+        mesh_copy.faces = out_faces.cpu().numpy()       
+        #mesh_copy.visual.uv = out_uvs.cpu().numpy()
+        mesh_copy.visual = Trimesh.visual.TextureVisuals(uv=out_uvs.cpu().numpy())
         
         return (mesh_copy,)          
         
@@ -3477,8 +3480,8 @@ class Trellis2ShapeGenerator:
         shape_slat_sampler_params = {"steps":shape_steps,"guidance_strength":shape_guidance_strength,"guidance_rescale":shape_guidance_rescale,"guidance_interval":shape_guidance_interval,"rescale_t":shape_rescale_t}            
         
         args = pipeline._pretrained_args
-        sparse_sampler_prefix = pipeline.GetSamplerName(shape_sampler)
-        pipeline.shape_slat_sampler = getattr(samplers, f"Flow{sparse_sampler_prefix}GuidanceIntervalSampler")(**args['shape_slat_sampler']['args'])                    
+        shape_sampler_prefix = pipeline.GetSamplerName(shape_sampler)
+        pipeline.shape_slat_sampler = getattr(samplers, f"Flow{shape_sampler_prefix}GuidanceIntervalSampler")(**args['shape_slat_sampler']['args'])                    
         
         if resolution == 512:
             pipeline.unload_shape_slat_flow_model_1024()
@@ -3546,8 +3549,8 @@ class Trellis2ShapeCascadeGenerator:
         shape_slat_sampler_params = {"steps":shape_steps,"guidance_strength":shape_guidance_strength,"guidance_rescale":shape_guidance_rescale,"guidance_interval":shape_guidance_interval,"rescale_t":shape_rescale_t}                    
         
         args = pipeline._pretrained_args
-        sparse_sampler_prefix = pipeline.GetSamplerName(shape_sampler)
-        pipeline.shape_slat_sampler = getattr(samplers, f"Flow{sparse_sampler_prefix}GuidanceIntervalSampler")(**args['shape_slat_sampler']['args'])
+        shape_sampler_prefix = pipeline.GetSamplerName(shape_sampler)
+        pipeline.shape_slat_sampler = getattr(samplers, f"Flow{shape_sampler_prefix}GuidanceIntervalSampler")(**args['shape_slat_sampler']['args'])
         pipeline.load_shape_slat_flow_model_1024()           
         slat, hr_resolution = self.sample(pipeline, shape_slat, from_resolution, to_resolution, sparse_structure_resolution, max_num_tokens, image_cond, shape_slat_sampler_params, pipeline.models['shape_slat_flow_model_1024'])
         
@@ -3818,7 +3821,174 @@ class Trellis2SimplifyTrimeshAdvanced:
             
         del cumesh        
         
-        return (mesh_copy,)         
+        return (mesh_copy,)
+
+class Trellis2MultiViewTexturing:
+    """
+    Apply texture to mesh by projecting multiple view images.
+    
+    Uses angle-weighted blending: each surface receives texture from all views
+    that can "see" it, weighted by how directly the surface faces each camera.
+    
+    Camera angles (Y-up coordinate system):
+    - Azimuth: rotation around Y axis
+      - 0° = front (looking in -Z direction)
+      - 90° = left (looking in -X direction)  
+      - 180° = back (looking in +Z direction)
+      - 270° = right (looking in +X direction)
+    - Elevation: rotation around X axis
+      - 0° = horizontal
+      - 90° = top (looking in -Y direction, from above)
+      - -90° = bottom (looking in +Y direction, from below)
+    """
+    
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "trimesh": ("TRIMESH",),
+                "texture_size": ("INT", {"default": 4096, "min": 512, "max": 8192}),
+                "blend_texture": ("BOOLEAN", {"default":True}),
+                "blend_exponent": ("FLOAT", {"default": 2.0, "min": 0.5, "max": 8.0, "step": 0.5}),
+                "ortho_scale": ("FLOAT", {"default": 1.0, "min": 0.05, "max": 10.0, "step": 0.01}),
+                "norm_size": ("FLOAT",{"default":1.15, "min":0.0, "max":9.99, "step":0.01}),
+                "fill_holes": ("BOOLEAN",{"default":True}),
+                "max_hole_size": ("INT",{"default":10,"min":0,"max":99999,"step":1}),
+            },
+            "optional": {
+                # Standard views
+                "front_image": ("IMAGE",),   # az=0, el=0
+                "back_image": ("IMAGE",),    # az=180, el=0
+                "left_image": ("IMAGE",),    # az=90, el=0
+                "right_image": ("IMAGE",),   # az=270, el=0
+                "top_image": ("IMAGE",),     # az=0, el=90
+                "bottom_image": ("IMAGE",),  # az=0, el=-90
+                # Custom views
+                "custom_images": ("IMAGE",),
+                "custom_azimuths": ("STRING", {"default": ""}),
+                "custom_elevations": ("STRING", {"default": ""}),
+                "camera_config": ("HY3DCAMERA",),
+            }
+        }
+    
+    RETURN_TYPES = ("TRIMESH", "IMAGE", "IMAGE",)
+    RETURN_NAMES = ("trimesh", "base_color", "metallic_roughness",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+    
+    def process(
+        self,
+        trimesh,
+        texture_size,
+        blend_texture,
+        blend_exponent,
+        ortho_scale,
+        norm_size,
+        fill_holes,
+        max_hole_size,
+        baseColorTexture = None,
+        front_image=None,
+        back_image=None,
+        left_image=None,
+        right_image=None,
+        top_image=None,
+        bottom_image=None,
+        custom_images=None,
+        custom_azimuths="",
+        custom_elevations="",
+        camera_config = None
+    ):
+        from .texture_projection_multiview import texture_mesh_with_multiview
+        
+        reset_cuda()
+        
+        # Collect views
+        images = []
+        azimuths = []
+        elevations = []
+        
+        # Standard views with their camera angles
+        standard_views = [
+            (front_image, 0, 0, "front"),
+            (back_image, 180, 0, "back"),
+            (left_image, 90, 0, "left"),
+            (right_image, 270, 0, "right"),
+            (top_image, 0, 90, "top"),
+            (bottom_image, 0, -90, "bottom"),
+        ]
+        
+        for img, az, el, name in standard_views:
+            if img is not None:
+                images.append(self._tensor_to_pil(img))
+                azimuths.append(az)
+                elevations.append(el)
+                print(f"[MultiView] Added {name} view (az={az}, el={el})")
+        
+        # Custom views
+        if custom_images is not None:
+            custom_az_list = self._parse_angles(custom_azimuths)
+            custom_el_list = self._parse_angles(custom_elevations)
+            
+            if custom_az_list and custom_el_list:
+                num_custom = min(len(custom_az_list), len(custom_el_list), int(custom_images.shape[0]))
+                for i in range(num_custom):
+                    images.append(self._tensor_to_pil(custom_images[i:i+1]))
+                    azimuths.append(custom_az_list[i])
+                    elevations.append(custom_el_list[i])
+                    print(f"[MultiView] Added custom view {i+1} (az={custom_az_list[i]}, el={custom_el_list[i]})")
+            elif camera_config:
+                selected_camera_azims = camera_config["selected_camera_azims"]
+                selected_camera_elevs = camera_config["selected_camera_elevs"]
+                #ortho_scale = camera_config["ortho_scale"]             
+
+                num_custom = min(len(selected_camera_azims), len(selected_camera_elevs), int(custom_images.shape[0]))
+                for i in range(num_custom):
+                    images.append(self._tensor_to_pil(custom_images[i:i+1]))
+                    azimuths.append(selected_camera_azims[i])
+                    elevations.append(selected_camera_elevs[i])
+                    print(f"[MultiView] Added custom view {i+1} (az={selected_camera_azims[i]}, el={selected_camera_elevs[i]})")                
+        
+        if len(images) == 0:
+            raise ValueError("No input images provided! Please connect at least one image.")
+        
+        print(f"[MultiView] Total views: {len(images)}")
+        print(f"[MultiView] Azimuths: {azimuths}")
+        print(f"[MultiView] Elevations: {elevations}")
+
+        trimesh_obj, base_color, mr = texture_mesh_with_multiview(
+            trimesh,
+            images,
+            azimuths,
+            elevations,
+            texture_size=texture_size,
+            blend_exponent=blend_exponent,
+            ortho_scale=ortho_scale,
+            blend_texture=blend_texture,
+            fill_holes=fill_holes,
+            norm_size=norm_size,
+            max_hole_size=max_hole_size
+        )
+        
+        return (trimesh_obj, pil2tensor(base_color), pil2tensor(mr))
+    
+    def _tensor_to_pil(self, tensor):
+        """Convert ComfyUI IMAGE tensor to PIL."""
+        if len(tensor.shape) == 4:
+            arr = (tensor[0].cpu().numpy() * 255).astype(np.uint8)
+        else:
+            arr = (tensor.cpu().numpy() * 255).astype(np.uint8)
+        return Image.fromarray(arr)
+    
+    def _parse_angles(self, angle_string):
+        """Parse comma-separated angles into list of floats."""
+        if not angle_string or angle_string.strip() == "":
+            return []
+        try:
+            return [float(x.strip()) for x in angle_string.split(",") if x.strip()]
+        except ValueError:
+            print(f"[MultiView] Warning: Could not parse angles: {angle_string}")
+            return []
 
         
 NODE_CLASS_MAPPINGS = {
@@ -3866,6 +4036,7 @@ NODE_CLASS_MAPPINGS = {
     "Trellis2DecodeLatents": Trellis2DecodeLatents,
     "Trellis2SimplifyMeshAdvanced": Trellis2SimplifyMeshAdvanced,
     "Trellis2SimplifyTrimeshAdvanced": Trellis2SimplifyTrimeshAdvanced,
+    "Trellis2MultiViewTexturing": Trellis2MultiViewTexturing,
     }
     
 
@@ -3914,4 +4085,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2DecodeLatents": "Trellis2 - Decode Latents",
     "Trellis2SimplifyMeshAdvanced": "Trellis2 - Simplify Mesh Advanced",
     "Trellis2SimplifyTrimeshAdvanced": "Trellis2 - Simplify Trimesh Advanced",
+    "Trellis2MultiViewTexturing": "Trellis2 - Projection MultiView Texturing",
     }

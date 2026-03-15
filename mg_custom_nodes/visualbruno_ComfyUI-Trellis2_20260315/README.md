@@ -14,6 +14,7 @@
 
 | Date | Description |
 | --- | --- |
+| **2026-03-14** | Added Experimental node "Projection MultiView Texturing"<br>Check in example_workflows folder |
 | **2026-03-08** | Updated CuMesh wheels for Torch 2.7, 2.8 and Linux<br>You can use the node "Fill Holes with Cumesh" |
 | **2026-03-07** | Added "Heun" sampler<br>Added the node "Mesh with Voxel Cascade Generator" |
 | **2026-03-05** | Added "RK4" and "RK5" samplers<br>Processing is much slower, so reduce the number of steps |

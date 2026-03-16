@@ -1,5 +1,15 @@
->># Este es un archivo de configuracion para la generacion mediante el script xxx
->># 
+>># File    : bulkgen-config-example.txt
+>># Purpose : File example for batch image generation with parameter variation,
+>>#           (this config file is used by `bulkgen.py` script)
+>># Author  : Martin Rizzo | <martinrizzo@gmail.com>
+>># Date    : Mar 14, 2026
+>># Repo    : https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes
+>># License : MIT
+>>#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+>>#                          ComfyUI-ZImagePowerNodes
+>>#         ComfyUI nodes designed specifically for the "Z-Image" model.
+>>#_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
 
 >>>Custom Style
 YOUR CONTEXT:
@@ -19,7 +29,7 @@ YOUR ANIME ILLUSTRATION:
 
 
 >>#### BAR WITH ALIEN BARTENDER
->>>Prompt{ $steps = 1,2 ; $incalibration=%75 }
+>>>Prompt{ $steps = 5,9 ; $incalibration=%75 }
 The interior of a bar features architecture with rounded, modular forms. A bar counter extends horizontally along the frame, showcasing a strip of acrylic. In the center-right, a man in his mid-thirties stands at the bar, resting one hand on the surface while holding a tall glass in the other. He turns his head to look directly at the camera, a playful, knowing smile spreading across his face. The glass contains a drink with small floating spheres that reflect the light. He wears a form-fitting uniform with a short, high collar and a single vertical stripe on the jacket. His brown hair is neatly styled with a clean, mid-century part. In the center, tending the bar, is a rather peculiar alien bartender, a colossal and terrifying humanoid figure resembling an octopus. He is a mass of tissue from whose torso emerges a network of thick tentacles. He is wearing black dress pants. And on its head, a set of multifaceted insectoid eyes constantly moves, scanning the room. The tentacles, with delicate pads at their tips, manipulate the glassware with unsettling grace. Behind the bartender, a mirrored wall reflects rows of liquor bottles with geometric labels. Above the bar floats a neon sign made of curved glass tubes that reads 'COSMIC LOUNGE' in tall, rounded letters, emitting light with a soft, glowing halo. An illuminated menu board reads 'SIGNATURE DRINKS' with three items: 'ORBITAL HIGHBALL,' 'NEBULA SOUR,' and 'ROCKET MARTINI,' each displayed on glowing horizontal bars. To the right, a cylindrical column features a vertical neon panel that reads 'OPEN 24 HOURS' in condensed letters within a translucent strip. To the left, a curved booth sits beneath a domed ceiling light. An illuminated sign reading 'GALAXY BAR SERVICE' encircles the inner rim of the dome in capitals and dominates the left side of the frame. Soft lighting reflects off the glass and acrylic surfaces, highlighting the structural design. At the top right there is a large sign with "v1.0" painted on it.
 
 

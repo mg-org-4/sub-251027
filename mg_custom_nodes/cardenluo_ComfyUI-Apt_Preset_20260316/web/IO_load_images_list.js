@@ -480,7 +480,7 @@ function openFolderSelect(node, { replace = false } = {}) {
 function createBrowserUI(node) {
     const container = document.createElement("div");
     container.style.cssText =
-        "width:100%;padding:8px;background:var(--comfy-menu-bg);border:1px solid var(--border-color);border-radius:6px;margin:5px 0;pointer-events:none;display:flex;flex-direction:row;gap:8px;";
+        "width:100%;height:100%;min-width:0;box-sizing:border-box;overflow:hidden;padding:6px;background:var(--comfy-menu-bg);border:1px solid var(--border-color);border-radius:6px;margin:5px 0;pointer-events:none;display:flex;flex-direction:row;gap:6px;";
 
     const sidebar = document.createElement("div");
     sidebar.style.cssText = "display:flex;flex-direction:column;gap:2px;min-width:56px;width:56px;pointer-events:auto;";
@@ -489,7 +489,7 @@ function createBrowserUI(node) {
         const b = document.createElement("button");
         b.textContent = label;
         b.style.cssText =
-            "padding:4px;background:var(--comfy-input-bg);color:var(--input-text);border:1px solid var(--border-color);border-radius:4px;cursor:pointer;font-size:10px;width:100%;text-align:center;";
+            "padding:3px;background:var(--comfy-input-bg);color:var(--input-text);border:1px solid var(--border-color);border-radius:4px;cursor:pointer;font-size:10px;width:100%;text-align:center;";
         return b;
     };
 
@@ -590,11 +590,11 @@ function createBrowserUI(node) {
     };
 
     const mainContent = document.createElement("div");
-    mainContent.style.cssText = "flex:1;display:flex;flex-direction:column;pointer-events:auto;";
+    mainContent.style.cssText = "flex:1;display:flex;flex-direction:column;pointer-events:auto;min-width:0;min-height:0;";
 
     const grid = document.createElement("div");
     grid.style.cssText =
-        "display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--thumb-size,64px),1fr));gap:6px;flex:1;overflow-y:auto;background:var(--comfy-input-bg);padding:6px;border-radius:4px;";
+        "display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--thumb-size,64px),1fr));gap:4px;flex:1;min-width:0;min-height:0;overflow:hidden;background:var(--comfy-input-bg);padding:4px;border-radius:4px;";
 
     const hiddenOverlay = document.createElement("div");
     hiddenOverlay.style.cssText =
@@ -656,7 +656,7 @@ function createBrowserUI(node) {
             const isSelected = indexInSelection > -1;
             
             const cell = document.createElement("div");
-            cell.style.cssText = `display:flex;flex-direction:column;gap:3px;cursor:pointer;${isSelected ? 'opacity:0.7;' : ''}`;
+            cell.style.cssText = `display:flex;flex-direction:column;cursor:pointer;${isSelected ? 'opacity:0.7;' : ''}`;
             
             cell.onclick = (e) => {
                 e.preventDefault();
@@ -671,22 +671,22 @@ function createBrowserUI(node) {
 
             const thumb = document.createElement("div");
             thumb.style.cssText =
-                `position:relative;aspect-ratio:1;border-radius:4px;overflow:hidden;border:2px solid ${isSelected ? '#4a6' : 'var(--border-color)'};;background:#000;`;
+                `position:relative;aspect-ratio:1;border-radius:4px;overflow:hidden;border:2px solid ${isSelected ? '#4a6' : 'var(--border-color)'};;background:transparent;`;
 
             const badgeScale = Math.max(0.25, Math.min(2.4, Math.sqrt(thumbSize / 64))) * 0.5;
-            const badgePadY = Math.max(2, Math.round(4 * badgeScale));
-            const badgePadX = Math.max(4, Math.round(8 * badgeScale));
-            const badgeFont = Math.max(7, Math.round(16 * badgeScale));
-            const badgeRadius = Math.max(2, Math.round(4 * badgeScale));
-            const cornerSize = Math.max(9, Math.round(20 * badgeScale));
-            const cornerFont = Math.max(6, Math.round(14 * badgeScale));
+            const badgePadY = Math.max(1, Math.round(3 * badgeScale));
+            const badgePadX = Math.max(3, Math.round(6 * badgeScale));
+            const badgeFont = Math.max(6, Math.round(14 * badgeScale));
+            const badgeRadius = Math.max(2, Math.round(3 * badgeScale));
+            const cornerSize = Math.max(8, Math.round(18 * badgeScale));
+            const cornerFont = Math.max(5, Math.round(12 * badgeScale));
 
             // 仅手动选中时显示标记，默认无标记
             if (isSelected) {
                 const checkmark = document.createElement("div");
                 checkmark.textContent = "✓";
                 checkmark.style.cssText =
-                    `position:absolute;top:2px;left:2px;width:${cornerSize}px;height:${cornerSize}px;background:rgba(74,170,102,0.9);color:#fff;border-radius:${badgeRadius}px;display:flex;align-items:center;justify-content:center;font-size:${cornerFont}px;z-index:2;`;
+                    `position:absolute;top:1px;left:1px;width:${cornerSize}px;height:${cornerSize}px;background:rgba(74,170,102,0.9);color:#fff;border-radius:${badgeRadius}px;display:flex;align-items:center;justify-content:center;font-size:${cornerFont}px;z-index:2;`;
                 thumb.appendChild(checkmark);
                 
                 const orderNumber = document.createElement("div");
@@ -698,13 +698,13 @@ function createBrowserUI(node) {
 
             const img = document.createElement("img");
             img.src = getViewUrl(name, thumbSize);
-            img.style.cssText = "width:100%;height:100%;object-fit:contain;display:block;background:#000;";
+            img.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;background:transparent;";
 
             const del = document.createElement("button");
             del.textContent = "×";
             del.title = "删除";
             del.style.cssText =
-                "position:absolute;top:2px;right:2px;width:10px;height:10px;background:rgba(255,0,0,0.75);color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:8px;display:flex;align-items:center;justify-content:center;z-index:1;";
+                "position:absolute;top:1px;right:1px;width:10px;height:10px;background:rgba(255,0,0,0.75);color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:8px;display:flex;align-items:center;justify-content:center;z-index:1;";
             del.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -718,7 +718,7 @@ function createBrowserUI(node) {
             label.textContent = name;
             label.title = name;
             label.style.cssText =
-                "font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0.9;";
+                "font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0.9;line-height:1.2;margin-top:2px;";
 
             thumb.appendChild(img);
             thumb.appendChild(del);
@@ -837,8 +837,8 @@ app.registerExtension({
 
             const imageListWidget = getImageListWidget(this);
             if (imageListWidget) {
-                imageListWidget.type = "hidden";
-                imageListWidget.computeSize = () => [0, -4];
+                imageListWidget.type = "textarea";
+                imageListWidget.computeSize = () => [300, 48];
             }
             const thumbSizeWidget = getThumbSizeWidget(this);
             if (thumbSizeWidget) {
@@ -851,12 +851,16 @@ app.registerExtension({
 
             const ui = createBrowserUI(this);
             this._batchLoadImagesUI = ui;
-            this.addDOMWidget("batch_load_images", "customwidget", ui.container);
             const minW = 420;
             const minH = 360;
             if (!this.size || this.size[0] < minW || this.size[1] < minH) {
                 this.setSize([Math.max(this.size?.[0] || 0, minW), Math.max(this.size?.[1] || 0, minH)]);
             }
+            // Set minimum node size to prevent button overflow
+            this.minWidth = Math.max(this.minWidth || 0, 420);
+            this.minHeight = Math.max(this.minHeight || 0, 360);
+
+            this.addDOMWidget("batch_load_images", "customwidget", ui.container);
 
             _batchLoadImagesDomUIs.add({ node: this, container: ui.container, redraw: ui.redraw, setDragging: ui.setDragging });
 
@@ -902,8 +906,8 @@ app.registerExtension({
             const r = origOnConfigure?.apply(this, arguments);
             const imageListWidget = getImageListWidget(this);
             if (imageListWidget) {
-                imageListWidget.type = "hidden";
-                imageListWidget.computeSize = () => [0, -4];
+                imageListWidget.type = "textarea";
+                imageListWidget.computeSize = () => [300, 48];
             }
             const thumbSizeWidget = getThumbSizeWidget(this);
             if (thumbSizeWidget) {

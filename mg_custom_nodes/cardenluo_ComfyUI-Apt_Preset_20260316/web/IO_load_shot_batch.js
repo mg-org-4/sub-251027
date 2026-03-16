@@ -237,7 +237,7 @@ function createShotListUI(node) {
     const container = document.createElement("div");
     container.dataset.ioLoadshotlist = "1";
     container.style.cssText =
-        "width:100%;padding:8px;background:var(--comfy-menu-bg);border:1px solid var(--border-color);border-radius:6px;margin:10px 0 6px 0;pointer-events:none;display:flex;flex-direction:row;gap:8px;";
+        "width:100%;height:100%;min-width:0;box-sizing:border-box;overflow:hidden;padding:8px;background:var(--comfy-menu-bg);border:1px solid var(--border-color);border-radius:6px;margin:10px 0 6px 0;pointer-events:none;display:flex;flex-direction:row;gap:8px;";
 
     const sidebar = document.createElement("div");
     sidebar.style.cssText = "display:flex;flex-direction:column;gap:2px;min-width:56px;width:56px;pointer-events:auto;";
@@ -275,11 +275,11 @@ function createShotListUI(node) {
     sidebar.appendChild(sizeVal);
 
     const mainContent = document.createElement("div");
-    mainContent.style.cssText = "flex:1;display:flex;flex-direction:column;gap:6px;pointer-events:auto;";
+    mainContent.style.cssText = "flex:1;display:flex;flex-direction:column;gap:6px;pointer-events:auto;min-width:0;min-height:0;";
 
     const grid = document.createElement("div");
     grid.style.cssText =
-        "display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-size,120px),1fr));gap:6px;flex:1;overflow-y:auto;background:var(--comfy-input-bg);padding:6px;border-radius:4px;";
+        "display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-size,120px),1fr));gap:6px;flex:1;min-width:0;min-height:0;overflow-y:auto;background:var(--comfy-input-bg);padding:6px;border-radius:4px;";
 
     const hiddenOverlay = document.createElement("div");
     hiddenOverlay.style.cssText =
@@ -410,7 +410,7 @@ function createShotListUI(node) {
             const card = document.createElement("div");
             const isSel = i === selected;
             card.style.cssText =
-                `position:relative;height:${Math.max(240, Math.floor(size * 1.55))}px;display:flex;flex-direction:column;gap:6px;padding:6px;background:var(--comfy-menu-bg);border:2px solid ${isSel ? "#fff" : "var(--border-color)"};border-radius:6px;user-select:none;cursor:pointer;overflow:hidden;`;
+                `position:relative;min-height:${Math.max(180, Math.floor(size * 1.3))}px;max-height:${Math.max(180, Math.floor(size * 1.3))}px;display:flex;flex-direction:column;gap:2px;padding:2px;background:var(--comfy-menu-bg);border:2px solid ${isSel ? "#fff" : "var(--border-color)"};border-radius:6px;user-select:none;cursor:pointer;overflow:hidden;`;
 
             card.addEventListener("click", (e) => {
                 e.preventDefault();
@@ -456,7 +456,7 @@ function createShotListUI(node) {
             const del = document.createElement("button");
             del.textContent = "×";
             del.style.cssText =
-                "position:absolute;top:6px;right:6px;width:20px;height:20px;background:rgba(255,0,0,0.75);color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:16px;line-height:1;z-index:3;";
+                "position:absolute;top:3px;right:3px;width:18px;height:18px;background:rgba(255,0,0,0.75);color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:14px;line-height:1;z-index:3;";
             del.addEventListener("click", (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -482,14 +482,14 @@ function createShotListUI(node) {
 
             const seq = document.createElement("div");
             seq.textContent = `#${i}`;
-            seq.style.cssText = "position:absolute;top:6px;left:6px;font-size:12px;font-weight:800;color:#000;white-space:nowrap;z-index:3;background:rgba(255,255,255,0.92);padding:0 3px;border-radius:2px;line-height:1.2;";
+            seq.style.cssText = "position:absolute;top:3px;left:3px;font-size:10px;font-weight:800;color:#000;white-space:nowrap;z-index:3;background:rgba(255,255,255,0.92);padding:0 3px;border-radius:2px;line-height:1.2;";
 
             const imgWrap = document.createElement("div");
             imgWrap.style.cssText =
-                `width:100%;flex:0 0 ${Math.max(120, Math.floor(size * 0.6))}px;border:1px solid var(--border-color);border-radius:4px;overflow:hidden;background:var(--comfy-input-bg);display:flex;align-items:center;justify-content:center;`;
+                `width:100%;aspect-ratio:1/1;border:1px solid var(--border-color);border-radius:4px;overflow:hidden;background:var(--comfy-input-bg);display:flex;align-items:center;justify-content:center;`;
             const img = document.createElement("img");
             img.draggable = false;
-            img.style.cssText = "width:100%;height:100%;object-fit:contain;display:block;";
+            img.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;";
             img.addEventListener("dragstart", (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -512,17 +512,17 @@ function createShotListUI(node) {
 
             const textWrap = document.createElement("div");
             textWrap.style.cssText =
-                "flex:1;display:flex;flex-direction:column;gap:4px;padding:6px;background:var(--comfy-input-bg);border:1px solid var(--border-color);border-radius:4px;overflow:hidden;";
+                "flex:1;display:flex;flex-direction:column;gap:2px;padding:3px;background:var(--comfy-input-bg);border:1px solid var(--border-color);border-radius:4px;overflow:hidden;min-height:0;";
 
             const title = document.createElement("div");
             title.textContent = item.title || "";
             title.style.cssText =
-                "font-size:12px;font-weight:600;opacity:0.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#00ff4b;";
+                "font-size:10px;font-weight:600;opacity:0.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#00ff4b;line-height:1.2;";
 
             const content = document.createElement("div");
             content.textContent = item.content || "";
             content.style.cssText =
-                "flex:1;font-size:11px;opacity:0.85;white-space:pre-wrap;word-break:break-word;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:12;overflow:hidden;line-height:1.35;";
+                "flex:1;font-size:9px;opacity:0.85;white-space:pre-wrap;word-break:break-word;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:6;overflow:hidden;line-height:1.2;min-height:0;";
 
             textWrap.appendChild(title);
             textWrap.appendChild(content);
@@ -729,8 +729,8 @@ app.registerExtension({
 
             const wState = getShotStateWidget(this);
             if (wState) {
-                wState.type = "hidden";
-                wState.computeSize = () => [0, -4];
+                wState.type = "textarea";
+                wState.computeSize = () => [300, 48];
                 if (!wState.value || String(wState.value).trim() === "") {
                     wState.value = "[]";
                     wState.callback?.(wState.value);
@@ -739,7 +739,8 @@ app.registerExtension({
 
             const wPreview = getShotPreviewWidget(this);
             if (wPreview) {
-                wPreview.type = "hidden";
+                wPreview.hidden = true;
+                wPreview.type = "converted-widget:shot_preview";
                 wPreview.computeSize = () => [0, -4];
                 if (!wPreview.value || String(wPreview.value).trim() === "") {
                     wPreview.value = "[]";
@@ -749,8 +750,8 @@ app.registerExtension({
 
             const wSize = getCardSizeWidget(this);
             if (wSize) {
-                wSize.type = "hidden";
-                wSize.computeSize = () => [0, -4];
+                wSize.type = "number";
+                wSize.computeSize = () => [120, 24];
                 const v = Number(wSize.value);
                 if (!Number.isFinite(v) || v < 120) {
                     wSize.value = 120;
@@ -770,12 +771,16 @@ app.registerExtension({
             const ui = createShotListUI(this);
             if (ui) {
                 this._ioLoadShotListUI = ui;
-                this.addDOMWidget("io_load_shot_list", "customwidget", ui.container);
                 const minW = 520;
                 const minH = 420;
                 if (!this.size || this.size[0] < minW || this.size[1] < minH) {
                     this.setSize([Math.max(this.size?.[0] || 0, minW), Math.max(this.size?.[1] || 0, minH)]);
                 }
+                // Set minimum node size to prevent button overflow
+                this.minWidth = Math.max(this.minWidth || 0, 520);
+                this.minHeight = Math.max(this.minHeight || 0, 420);
+
+                this.addDOMWidget("io_load_shot_list", "customwidget", ui.container);
             }
 
             return r;
@@ -796,25 +801,40 @@ app.registerExtension({
         };
 
         const origOnConfigure = nodeType.prototype.onConfigure;
-        nodeType.prototype.onConfigure = function () {
-            const r = origOnConfigure?.apply(this, arguments);
+    nodeType.prototype.onConfigure = function () {
+        const r = origOnConfigure?.apply(this, arguments);
 
-            // 确保 widget 的值正确设置（只在无效时才设置默认值）
-            const wSize = getCardSizeWidget(this);
-            if (wSize) {
-                const v = Number(wSize.value);
-                // 只在值为 NaN、null 或 undefined 时才设置默认值
-                if (wSize.value == null || !Number.isFinite(v) || v < 120) {
-                    wSize.value = 120;
-                    wSize.callback?.(wSize.value);
-                }
+        // 确保 widget 的值正确设置（只在无效时才设置默认值）
+        const wSize = getCardSizeWidget(this);
+        if (wSize) {
+            wSize.type = "number";
+            wSize.computeSize = () => [120, 24];
+            const v = Number(wSize.value);
+            // 只在值为 NaN、null 或 undefined 时才设置默认值
+            if (wSize.value == null || !Number.isFinite(v) || v < 120) {
+                wSize.value = 120;
+                wSize.callback?.(wSize.value);
             }
+        }
 
-            if (!isAnyImportConnected(this)) {
-                clearShotUI(this);
-            }
-            this._ioLoadShotListUI?.redraw?.();
-            return r;
-        };
+        const wState = getShotStateWidget(this);
+        if (wState) {
+            wState.type = "textarea";
+            wState.computeSize = () => [300, 48];
+        }
+
+        const wPreview = getShotPreviewWidget(this);
+        if (wPreview) {
+            wPreview.hidden = true;
+            wPreview.type = "converted-widget:shot_preview";
+            wPreview.computeSize = () => [0, -4];
+        }
+
+        if (!isAnyImportConnected(this)) {
+            clearShotUI(this);
+        }
+        this._ioLoadShotListUI?.redraw?.();
+        return r;
+    };
     },
 });

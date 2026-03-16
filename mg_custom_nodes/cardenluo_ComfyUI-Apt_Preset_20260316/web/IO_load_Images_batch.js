@@ -175,7 +175,7 @@ async function _copyToClipboard(text) {
 function createImgBatchUI(node) {
     const container = document.createElement("div");
     container.style.cssText =
-        "width:100%;padding:8px;background:var(--comfy-menu-bg);border:1px solid var(--border-color);border-radius:6px;margin:5px 0;pointer-events:none;display:flex;flex-direction:row;gap:8px;";
+        "width:100%;height:100%;min-width:0;box-sizing:border-box;overflow:hidden;padding:8px;background:var(--comfy-menu-bg);border:1px solid var(--border-color);border-radius:6px;margin:5px 0;display:flex;flex-direction:row;gap:8px;z-index:10;";
     container.style.userSelect = "none";
     container.style.webkitUserSelect = "none";
 
@@ -261,13 +261,13 @@ function createImgBatchUI(node) {
     };
 
     const mainContent = document.createElement("div");
-    mainContent.style.cssText = "flex:1;display:flex;flex-direction:column;pointer-events:auto;";
+    mainContent.style.cssText = "flex:1;display:flex;flex-direction:column;pointer-events:auto;min-width:0;min-height:0;";
     mainContent.style.userSelect = "none";
     mainContent.style.webkitUserSelect = "none";
 
     const grid = document.createElement("div");
     grid.style.cssText =
-        "display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-size,220px),1fr));gap:6px;flex:1;overflow-y:auto;background:var(--comfy-input-bg);padding:6px;border-radius:4px;";
+        "display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-size,220px),1fr));gap:6px;flex:1;min-width:0;min-height:0;overflow-y:auto;background:var(--comfy-input-bg);padding:6px;border-radius:4px;";
     grid.style.userSelect = "none";
     grid.style.webkitUserSelect = "none";
     grid.style.touchAction = "none";
@@ -299,7 +299,7 @@ function createImgBatchUI(node) {
             const isSelected = idx0 === idx;
 
             const cell = document.createElement("div");
-            cell.style.cssText = `display:flex;flex-direction:column;gap:6px;cursor:pointer;`;
+            cell.style.cssText = `display:flex;flex-direction:column;cursor:pointer;`;
             cell.dataset.ioImgCard = "1";
             cell.dataset.ioImgIndex0 = String(idx0);
 
@@ -312,24 +312,26 @@ function createImgBatchUI(node) {
             const card = document.createElement("div");
             card.style.cssText = `position:relative;border-radius:6px;border:2px solid ${
                 isSelected ? "#4a6" : "var(--border-color)"
-            };background:var(--comfy-menu-bg);padding:6px;display:flex;flex-direction:column;gap:6px;min-height:${Math.max(
-                120,
+            };background:var(--comfy-menu-bg);padding:2px;display:flex;flex-direction:column;gap:2px;min-height:${Math.max(
+                100,
                 Math.floor(cardSize)
-            )}px;max-height:${Math.max(120, Math.floor(cardSize))}px;overflow:hidden;`;
+            )}px;max-height:${Math.max(100, Math.floor(cardSize))}px;overflow:hidden;`;
 
-            const head = document.createElement("div");
-            head.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;";
+            const img = document.createElement("img");
+            img.src = getViewUrl(name, cardSize);
+            img.style.cssText = "width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:transparent;border-radius:4px;min-height:0;";
+            img.draggable = false;
 
             const badge = document.createElement("div");
             badge.textContent = `#${idx0}`;
             badge.style.cssText =
-                "font-size:11px;opacity:0.9;background:var(--comfy-input-bg);border:1px solid var(--border-color);border-radius:999px;padding:2px 8px;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                "position:absolute;top:3px;left:3px;font-size:10px;opacity:0.9;background:rgba(0,0,0,0.7);color:#fff;border-radius:999px;padding:2px 6px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;z-index:2;";
 
             const del = document.createElement("button");
             del.textContent = "×";
             del.title = "删除";
             del.style.cssText =
-                "width:20px;height:20px;background:rgba(255,0,0,0.75);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;";
+                "position:absolute;top:3px;right:3px;width:18px;height:18px;background:rgba(255,0,0,0.75);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;z-index:2;";
             del.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -341,21 +343,15 @@ function createImgBatchUI(node) {
                 redraw();
             };
 
-            const img = document.createElement("img");
-            img.src = getViewUrl(name, cardSize);
-            img.style.cssText = "width:100%;height:100%;object-fit:contain;display:block;background:#000;border-radius:4px;";
-            img.draggable = false;
-
             const label = document.createElement("div");
             label.textContent = name;
             label.title = name;
             label.style.cssText =
-                "font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0.9;";
+                "font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0.9;line-height:1.2;";
 
-            head.appendChild(badge);
-            head.appendChild(del);
-            card.appendChild(head);
             card.appendChild(img);
+            card.appendChild(badge);
+            card.appendChild(del);
             card.appendChild(label);
             cell.appendChild(card);
             frag.appendChild(cell);
@@ -500,7 +496,7 @@ function createImgBatchUI(node) {
             const x = e?.clientX;
             const y = e?.clientY;
             if (typeof x === "number" && typeof y === "number") {
-                if (_isInsideContainerPoint(container, x, y)) {
+                if (_isInsideContainerPoint(grid, x, y)) {
                     if (dragState.toIndex0 != null) {
                         _swap(dragState.fromIndex0, dragState.toIndex0);
                     } else {
@@ -508,8 +504,20 @@ function createImgBatchUI(node) {
                         redraw();
                     }
                 } else {
+                    // Copy to clipboard
                     const ok = await _copyImageToClipboard(dragState.startName);
-                    if (!ok) void _copyToClipboard(_sanitizeSingleLineText(dragState.startName));
+                    if (!ok) {
+                        const text = _sanitizeSingleLineText(dragState.startName);
+                        void _copyToClipboard(text);
+                    }
+                    
+                    // Try to paste into input element at cursor position
+                    const el = document.elementFromPoint(x, y);
+                    const target = el?.closest?.("textarea,input,[contenteditable='true']") || el;
+                    if (target) {
+                        const text = _sanitizeSingleLineText(dragState.startName);
+                        _insertIntoInput(target, text);
+                    }
                 }
             }
         }
@@ -655,24 +663,28 @@ app.registerExtension({
 
             const listWidget = getImageListWidget(this);
             if (listWidget) {
-                listWidget.type = "hidden";
-                listWidget.computeSize = () => [0, -4];
+                listWidget.type = "textarea";
+                listWidget.computeSize = () => [300, 48];
             }
             const sizeWidget = getCardSizeWidget(this);
             if (sizeWidget) {
-                sizeWidget.type = "hidden";
-                sizeWidget.computeSize = () => [0, -4];
+                sizeWidget.type = "number";
+                sizeWidget.computeSize = () => [120, 24];
             }
 
             const ui = createImgBatchUI(this);
             this._ioLoadImgBatchUI = ui;
-            this.addDOMWidget("io_load_img_batch", "customwidget", ui.container);
 
             const minW = 420;
             const minH = 360;
             if (!this.size || this.size[0] < minW || this.size[1] < minH) {
                 this.setSize([Math.max(this.size?.[0] || 0, minW), Math.max(this.size?.[1] || 0, minH)]);
             }
+            // Set minimum node size to prevent button overflow
+            this.minWidth = Math.max(this.minWidth || 0, 420);
+            this.minHeight = Math.max(this.minHeight || 0, 360);
+
+            this.addDOMWidget("io_load_img_batch", "customwidget", ui.container);
 
             const wIndex = getIndexWidget(this);
             const wList = getImageListWidget(this);
@@ -698,13 +710,13 @@ app.registerExtension({
             const r = origOnConfigure?.apply(this, arguments);
             const listWidget = getImageListWidget(this);
             if (listWidget) {
-                listWidget.type = "hidden";
-                listWidget.computeSize = () => [0, -4];
+                listWidget.type = "textarea";
+                listWidget.computeSize = () => [300, 48];
             }
             const sizeWidget = getCardSizeWidget(this);
             if (sizeWidget) {
-                sizeWidget.type = "hidden";
-                sizeWidget.computeSize = () => [0, -4];
+                sizeWidget.type = "number";
+                sizeWidget.computeSize = () => [120, 24];
             }
             this._ioLoadImgBatchUI?.redraw?.();
             return r;

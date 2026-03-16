@@ -324,12 +324,13 @@ async function _readTxtFiles(files) {
 function createTextListUI(node) {
     const container = document.createElement("div");
     container.style.cssText =
-        "width:100%;padding:8px;background:var(--comfy-menu-bg);border:1px solid var(--border-color);border-radius:6px;margin:5px 0;pointer-events:none;display:flex;flex-direction:row;gap:8px;";
+        "width:100%;height:100%;min-width:0;box-sizing:border-box;overflow:hidden;padding:8px;background:var(--comfy-menu-bg);border:1px solid var(--border-color);border-radius:6px;margin:5px 0;pointer-events:auto;display:flex;flex-direction:row;gap:8px;";
     container.style.userSelect = "none";
     container.style.webkitUserSelect = "none";
+    container.style.zIndex = "10";
 
     const sidebar = document.createElement("div");
-    sidebar.style.cssText = "display:flex;flex-direction:column;gap:2px;min-width:56px;width:56px;pointer-events:auto;";
+    sidebar.style.cssText = "display:flex;flex-direction:column;gap:2px;min-width:56px;width:56px;pointer-events:auto;z-index:15;";
 
     const mkBtn = (label) => {
         const b = document.createElement("button");
@@ -416,16 +417,18 @@ function createTextListUI(node) {
     };
 
     const mainContent = document.createElement("div");
-    mainContent.style.cssText = "flex:1;display:flex;flex-direction:column;pointer-events:auto;";
+    mainContent.style.cssText = "flex:1;display:flex;flex-direction:column;pointer-events:auto;min-width:0;min-height:0;";
     mainContent.style.userSelect = "none";
     mainContent.style.webkitUserSelect = "none";
+    mainContent.style.zIndex = "8";
 
     const grid = document.createElement("div");
     grid.style.cssText =
-        "display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-size,220px),1fr));gap:6px;flex:1;overflow-y:auto;background:var(--comfy-input-bg);padding:6px;border-radius:4px;";
+        "display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-size,220px),1fr));gap:6px;flex:1;min-width:0;min-height:0;overflow-y:auto;background:var(--comfy-input-bg);padding:6px;border-radius:4px;";
     grid.style.userSelect = "none";
     grid.style.webkitUserSelect = "none";
     grid.style.touchAction = "none";
+    grid.style.pointerEvents = "auto";
 
     const hiddenOverlay = document.createElement("div");
     hiddenOverlay.style.cssText =
@@ -467,29 +470,27 @@ function createTextListUI(node) {
             const card = document.createElement("div");
             card.style.cssText = `position:relative;border-radius:6px;border:2px solid ${
                 isSelected ? "#4a6" : "var(--border-color)"
-            };background:var(--comfy-menu-bg);padding:8px;display:flex;flex-direction:column;gap:6px;min-height:${Math.max(
-                120,
+            };background:var(--comfy-menu-bg);padding:2px;display:flex;flex-direction:column;gap:2px;min-height:${Math.max(
+                100,
                 Math.floor(cardSize)
-            )}px;max-height:${Math.max(120, Math.floor(cardSize))}px;overflow:hidden;`;
+            )}px;max-height:${Math.max(100, Math.floor(cardSize))}px;overflow:hidden;`;
             card.style.userSelect = "none";
             card.style.webkitUserSelect = "none";
+            card.style.zIndex = "5";
 
             const head = document.createElement("div");
-            head.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;";
+            head.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 4px;";
 
             const badge = document.createElement("div");
             badge.textContent = `#${idx0}`;
             badge.style.cssText =
-                "font-size:11px;opacity:0.9;background:var(--comfy-input-bg);border:1px solid var(--border-color);border-radius:999px;padding:2px 8px;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-
-            const headBtns = document.createElement("div");
-            headBtns.style.cssText = "display:flex;gap:6px;align-items:center;";
+                "font-size:10px;opacity:0.9;background:var(--comfy-input-bg);border:1px solid var(--border-color);border-radius:999px;padding:2px 6px;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
 
             const del = document.createElement("button");
             del.textContent = "×";
             del.title = "删除";
             del.style.cssText =
-                "width:20px;height:20px;background:rgba(255,0,0,0.75);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;";
+                "width:18px;height:18px;background:rgba(255,0,0,0.75);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;";
             del.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -507,13 +508,12 @@ function createTextListUI(node) {
             const body = document.createElement("div");
             body.textContent = text;
             body.style.cssText =
-                "flex:1;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.35;opacity:0.95;padding-right:2px;";
+                "flex:1;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:10px;line-height:1.2;opacity:0.95;padding:4px;min-height:0;";
             body.style.userSelect = "none";
             body.style.webkitUserSelect = "none";
 
-            headBtns.appendChild(del);
             head.appendChild(badge);
-            head.appendChild(headBtns);
+            head.appendChild(del);
             card.appendChild(head);
             card.appendChild(body);
             cell.appendChild(card);
@@ -913,23 +913,27 @@ app.registerExtension({
 
             const textListWidget = getTextListWidget(this);
             if (textListWidget) {
-                textListWidget.type = "hidden";
-                textListWidget.computeSize = () => [0, -4];
+                textListWidget.type = "textarea";
+                textListWidget.computeSize = () => [300, 48];
             }
             const cardSizeWidget = getCardSizeWidget(this);
             if (cardSizeWidget) {
-                cardSizeWidget.type = "hidden";
-                cardSizeWidget.computeSize = () => [0, -4];
+                cardSizeWidget.type = "number";
+                cardSizeWidget.computeSize = () => [120, 24];
             }
 
             const ui = createTextListUI(this);
             this._ioLoadTextListUI = ui;
-            this.addDOMWidget("io_load_text_list", "customwidget", ui.container);
             const minW = 420;
             const minH = 360;
             if (!this.size || this.size[0] < minW || this.size[1] < minH) {
                 this.setSize([Math.max(this.size?.[0] || 0, minW), Math.max(this.size?.[1] || 0, minH)]);
             }
+            // Set minimum node size to prevent button overflow
+            this.minWidth = Math.max(this.minWidth || 0, 420);
+            this.minHeight = Math.max(this.minHeight || 0, 360);
+
+            this.addDOMWidget("io_load_text_list", "customwidget", ui.container);
 
             const wIndex = getIndexWidget(this);
             const wList = getTextListWidget(this);
@@ -957,13 +961,13 @@ app.registerExtension({
             const r = origOnConfigure?.apply(this, arguments);
             const textListWidget = getTextListWidget(this);
             if (textListWidget) {
-                textListWidget.type = "hidden";
-                textListWidget.computeSize = () => [0, -4];
+                textListWidget.type = "textarea";
+                textListWidget.computeSize = () => [300, 48];
             }
             const cardSizeWidget = getCardSizeWidget(this);
             if (cardSizeWidget) {
-                cardSizeWidget.type = "hidden";
-                cardSizeWidget.computeSize = () => [0, -4];
+                cardSizeWidget.type = "number";
+                cardSizeWidget.computeSize = () => [120, 24];
             }
             this._ioLoadTextListUI?.redraw?.();
             return r;

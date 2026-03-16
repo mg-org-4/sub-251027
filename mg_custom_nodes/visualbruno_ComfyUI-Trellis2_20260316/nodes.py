@@ -2652,6 +2652,47 @@ class Trellis2Continue:
     def process(self, input_1, input_2):        
         return (input_1, input_2,)
         
+class Trellis2Continue3:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "input_1": (any,),
+                "input_2": (any,),
+                "input_3": (any,),
+            },
+        }
+
+    RETURN_TYPES = (any, any, any)
+    RETURN_NAMES = ("output_1", "output_2", "output_3")
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, input_1, input_2, input_3):        
+        return (input_1, input_2, input_3)      
+
+class Trellis2Continue4:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "input_1": (any,),
+                "input_2": (any,),
+                "input_3": (any,),
+                "input_4": (any,),
+            },
+        }
+
+    RETURN_TYPES = (any, any, any, any)
+    RETURN_NAMES = ("output_1", "output_2", "output_3", "output_4")
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+
+    def process(self, input_1, input_2, input_3, input_4):        
+        return (input_1, input_2, input_3, input_4)         
+        
 class Trellis2MeshWithVoxelToMeshlibMesh:
     @classmethod
     def INPUT_TYPES(s):
@@ -3854,6 +3895,7 @@ class Trellis2MultiViewTexturing:
                 "norm_size": ("FLOAT",{"default":1.15, "min":0.0, "max":9.99, "step":0.01}),
                 "fill_holes": ("BOOLEAN",{"default":True}),
                 "max_hole_size": ("INT",{"default":10,"min":0,"max":99999,"step":1}),
+                "use_metallic": ("BOOLEAN",{"default":True}),
             },
             "optional": {
                 # Standard views
@@ -3887,6 +3929,7 @@ class Trellis2MultiViewTexturing:
         norm_size,
         fill_holes,
         max_hole_size,
+        use_metallic,
         baseColorTexture = None,
         front_image=None,
         back_image=None,
@@ -3967,7 +4010,8 @@ class Trellis2MultiViewTexturing:
             blend_texture=blend_texture,
             fill_holes=fill_holes,
             norm_size=norm_size,
-            max_hole_size=max_hole_size
+            max_hole_size=max_hole_size,
+            use_metallic=use_metallic
         )
         
         return (trimesh_obj, pil2tensor(base_color), pil2tensor(mr))
@@ -4037,6 +4081,8 @@ NODE_CLASS_MAPPINGS = {
     "Trellis2SimplifyMeshAdvanced": Trellis2SimplifyMeshAdvanced,
     "Trellis2SimplifyTrimeshAdvanced": Trellis2SimplifyTrimeshAdvanced,
     "Trellis2MultiViewTexturing": Trellis2MultiViewTexturing,
+    "Trellis2Continue3": Trellis2Continue3,
+    "Trellis2Continue4": Trellis2Continue4,
     }
     
 
@@ -4086,4 +4132,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2SimplifyMeshAdvanced": "Trellis2 - Simplify Mesh Advanced",
     "Trellis2SimplifyTrimeshAdvanced": "Trellis2 - Simplify Trimesh Advanced",
     "Trellis2MultiViewTexturing": "Trellis2 - Projection MultiView Texturing",
+    "Trellis2Continue3": "Trellis2 - Continue 3",
+    "Trellis2Continue4": "Trellis2 - Continue 4",
     }

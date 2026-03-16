@@ -140,6 +140,7 @@ def texture_mesh_with_multiview(
     fill_holes: bool = False,
     blend_texture: bool = True,
     max_hole_size: int = 10,
+    use_metallic: bool = True,
 ):
     if not (len(images) == len(azimuths) == len(elevations)):
         raise ValueError("images, azimuths, and elevations must have the same length")
@@ -443,7 +444,7 @@ def texture_mesh_with_multiview(
         if mesh.visual.material.metallicRoughnessTexture:
             metallicRoughnessTexture = mesh.visual.material.metallicRoughnessTexture
             
-    if metallicRoughnessTexture is None:
+    if metallicRoughnessTexture is None or not use_metallic:
         mr_np = np.zeros((texture_size, texture_size, 3), dtype=np.uint8)
         mr_np[..., 1] = 230
         metallicRoughnessTexture = Image.fromarray(mr_np)

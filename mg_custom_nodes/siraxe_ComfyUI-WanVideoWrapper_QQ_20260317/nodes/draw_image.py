@@ -14,7 +14,6 @@ from ..config.constants import BOX_BASE_RADIUS
 # Supersampling factor for smooth scaling
 SUPERSAMPLE = 4
 
-
 class DrawImageOnPath:
     RETURN_TYPES = ("IMAGE", "MASK",)
     RETURN_NAMES = ("image", "mask",)
@@ -249,6 +248,92 @@ Draws an input image along a coordinate path for each frame, returning the rende
             padded.append(dict(last))
         return padded
 
+    def _get_interpolated_point(self, coords, target_frame):
+        """
+        Get interpolated coordinates for a target frame using the 'frame' property.
+        This matches the Power Spline Editor's box timeline interpolation logic.
+        """
+        if not coords:
+            return None
+
+        # Filter out coords without a frame property
+        valid_coords = [c for c in coords if isinstance(c.get("frame"), (int, float))]
+        if not valid_coords:
+            # Fall back to first coordinate
+            return coords[0] if coords else None
+
+        # Sort by frame number
+        sorted_coords = sorted(valid_coords, key=lambda c: float(c.get("frame", 0)))
+
+        first = sorted_coords[0]
+        last = sorted_coords[-1]
+        first_frame = float(first.get("frame", 1))
+        last_frame = float(last.get("frame", 1))
+
+        # Clamp target frame to keyframe range
+        if target_frame <= first_frame:
+            return first
+        if target_frame >= last_frame:
+            return last
+
+        # Find the two keyframes that bracket our target frame
+        for i in range(len(sorted_coords) - 1):
+            curr = sorted_coords[i]
+            next_c = sorted_coords[i + 1]
+            curr_frame = float(curr.get("frame", 0))
+            next_frame = float(next_c.get("frame", 0))
+
+            if curr_frame <= target_frame <= next_frame:
+                # Exact match on current frame
+                if target_frame == curr_frame:
+                    return curr
+
+                # Interpolate between curr and next_c
+                if next_frame == curr_frame:
+                    return curr
+
+                t = (target_frame - curr_frame) / (next_frame - curr_frame)
+
+                # Interpolate all numeric properties
+                result = {}
+
+                # Copy non-numeric properties as-is from curr
+                for key, value in curr.items():
+                    if key not in ("x", "y", "scale", "pointScale", "boxScale", "rotation", "boxR", "h_scale", "v_scale", "frame"):
+                        result[key] = value
+
+                # Interpolate numeric properties
+                for prop in ("x", "y", "scale", "pointScale", "boxScale", "rotation", "boxR", "h_scale", "v_scale"):
+                    curr_val = curr.get(prop)
+                    next_val = next_c.get(prop)
+
+                    if isinstance(curr_val, (int, float)) and isinstance(next_val, (int, float)):
+                        # Special handling for rotation properties to maintain direction
+                        if prop in ("rotation", "boxR"):
+                            # Detect if we should continue rotation in same direction
+                            diff = next_val - curr_val
+                            # If the difference is more than π, take the other way around
+                            # This handles cases like 3.0 → -3.0 (should continue forward, not reverse)
+                            if diff > math.pi:
+                                next_val -= 2 * math.pi
+                            elif diff < -math.pi:
+                                next_val += 2 * math.pi
+                            result[prop] = curr_val + (next_val - curr_val) * t
+                        else:
+                            result[prop] = curr_val + (next_val - curr_val) * t
+                    elif isinstance(curr_val, (int, float)):
+                        result[prop] = curr_val
+                    elif isinstance(next_val, (int, float)):
+                        result[prop] = next_val
+
+                # Copy frame from target
+                result["frame"] = target_frame
+
+                return result
+
+        # Shouldn't reach here, but return last as fallback
+        return last
+
     def create(self, bg_image, ref_images, coordinates, ref_masks=None, use_box_rotation=True, use_box_scale_size=True,
                fallback_scale=1.0, overlay_opacity=1.0, frames=0, add_shadows=False, mask_fill=0.0, use_gpu=True, gpu_batch=8):
         try:
@@ -376,10 +461,14 @@ Draws an input image along a coordinate path for each frame, returning the rende
 
                 # Process each layer for this frame (reversed so top layers in list draw on top)
                 for reversed_idx, layer_coords in enumerate(reversed(coords)):
-                    if frame_idx >= len(layer_coords):
+                    if not layer_coords:
                         continue
 
-                    point = layer_coords[frame_idx]
+                    # Use interpolation to get the correct point for this frame
+                    # Coordinates already have per-frame data, so use frame index directly
+                    point = self._get_interpolated_point(layer_coords, frame_idx + 1)
+                    if point is None:
+                        continue
 
                     # Get original layer index (before reversal) for ref_selections
                     layer_idx = len(coords) - 1 - reversed_idx
@@ -455,22 +544,79 @@ Draws an input image along a coordinate path for each frame, returning the rende
                     if use_box_rotation:
                         try:
                             rotation_rad = float(point.get("boxR", 0.0) or 0.0)
+                            # For continuous rotation, we don't normalize to [-π, π]
+                            # Instead, we let the angle grow/shrink to maintain direction
                         except (TypeError, ValueError):
                             rotation_rad = 0.0
                     rotation_deg = -math.degrees(rotation_rad)
 
-                    if abs(rotation_deg) > 1e-4:
-                        ref_img = ref_img.rotate(rotation_deg, resample=Image.Resampling.BICUBIC, expand=True)
+                    # Get horizontal and vertical scale values
+                    # h_scale: -1.0 to 1.0 (negative = flip), 1.0 = normal width, 0 = collapsed
+                    # v_scale: 0.0 to 1.0, 1.0 = full height (bottom-anchored), 0 = collapsed
+                    h_scale = 1.0
+                    v_scale = 1.0
+                    try:
+                        h_scale = float(point.get("h_scale", 1.0) or 1.0)
+                        v_scale = float(point.get("v_scale", 1.0) or 1.0)
+                    except (TypeError, ValueError):
+                        pass
+
+                    # Check if flip is needed BEFORE rotation
+                    needs_flip = h_scale < 0
+
+                    # Apply rotation first (to establish the rotated coordinate system)
+                    # When flipped, negate the rotation to maintain visual rotation direction
+                    effective_rotation = rotation_deg
+                    if needs_flip:
+                        effective_rotation = -rotation_deg
+
+                    if abs(effective_rotation) > 1e-4:
+                        ref_img = ref_img.rotate(effective_rotation, resample=Image.Resampling.BICUBIC, expand=True)
                         if mask_img is not None:
-                            mask_img = mask_img.rotate(rotation_deg, resample=Image.Resampling.BICUBIC, expand=True)
+                            mask_img = mask_img.rotate(effective_rotation, resample=Image.Resampling.BICUBIC, expand=True)
+
+                    # Capture dimensions AFTER rotation (before scaling)
+                    post_rotate_w = ref_img.width
+                    post_rotate_h = ref_img.height
+
+                    # Apply horizontal scaling (from center, in rotated space)
+                    # Handle flipping when h_scale is negative
+                    h_scale_abs = abs(h_scale)
+
+                    if abs(h_scale_abs - 1.0) > 1e-4:
+                        new_w = int(round(post_rotate_w * max(0.01, h_scale_abs)))
+                        ref_img = ref_img.resize((new_w, ref_img.height), Image.LANCZOS)
+                        if mask_img is not None:
+                            mask_img = mask_img.resize((new_w, mask_img.height), Image.LANCZOS)
+
+                    # Apply flip if needed (after scaling, in the rotated coordinate system)
+                    if needs_flip:
+                        ref_img = ref_img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                        if mask_img is not None:
+                            mask_img = mask_img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+
+                    # Apply vertical scaling (from bottom edge, in rotated space)
+                    # v_scale: 1.0 = full height, < 1.0 = shrink towards bottom
+                    paste_y_offset = 0
+                    if abs(v_scale - 1.0) > 1e-4:
+                        new_h = int(round(post_rotate_h * max(0.01, v_scale)))
+                        ref_img = ref_img.resize((ref_img.width, new_h), Image.LANCZOS)
+                        if mask_img is not None:
+                            mask_img = mask_img.resize((mask_img.width, new_h), Image.LANCZOS)
+                        # Adjust paste position to scale from bottom edge
+                        # When image grows (v_scale > 1), bottom stays same, center moves up
+                        # When image shrinks (v_scale < 1), bottom stays same, center moves down
+                        paste_y_offset = (post_rotate_h - new_h) / 2
 
                     # Use float positions at supersampled resolution for subpixel precision
                     paste_x = int(round(pos_x * SUPERSAMPLE - ref_img.width / 2))
-                    paste_y = int(round(pos_y * SUPERSAMPLE - ref_img.height / 2))
+                    paste_y = int(round(pos_y * SUPERSAMPLE - ref_img.height / 2 + paste_y_offset))
 
                     # Add shadow if enabled (before ref_img, behind it)
                     if add_shadows:
-                        shadow_result = self._create_shadow(new_w, new_h, pos_x * SUPERSAMPLE, pos_y * SUPERSAMPLE, scale_factor)
+                        shadow_w = ref_img.width
+                        shadow_h = ref_img.height
+                        shadow_result = self._create_shadow(shadow_w, shadow_h, pos_x * SUPERSAMPLE, (pos_y + paste_y_offset / SUPERSAMPLE) * SUPERSAMPLE, scale_factor)
                         if shadow_result is not None:
                             shadow_img, shadow_paste_x, shadow_paste_y = shadow_result
                             bg_rgba.alpha_composite(shadow_img, dest=(shadow_paste_x, shadow_paste_y))
@@ -580,20 +726,77 @@ Draws an input image along a coordinate path for each frame, returning the rende
                         rotation_rad = 0.0
                 rotation_deg = -math.degrees(rotation_rad)
 
-                if abs(rotation_deg) > 1e-4:
-                    ref_img = ref_img.rotate(rotation_deg, resample=Image.Resampling.BICUBIC, expand=True)
+                # Get horizontal and vertical scale values
+                # h_scale: -1.0 to 1.0 (negative = flip), 1.0 = normal width, 0 = collapsed
+                # v_scale: 0.0 to 1.0, 1.0 = full height (bottom-anchored), 0 = collapsed
+                h_scale = 1.0
+                v_scale = 1.0
+                try:
+                    h_scale = float(point.get("h_scale", 1.0) or 1.0)
+                    v_scale = float(point.get("v_scale", 1.0) or 1.0)
+                except (TypeError, ValueError):
+                    pass
+
+                # Check if flip is needed BEFORE rotation
+                needs_flip = h_scale < 0
+
+                # Apply rotation first (to establish the rotated coordinate system)
+                # When flipped, negate the rotation to maintain visual rotation direction
+                effective_rotation = rotation_deg
+                if needs_flip:
+                    effective_rotation = -rotation_deg
+
+                if abs(effective_rotation) > 1e-4:
+                    ref_img = ref_img.rotate(effective_rotation, resample=Image.Resampling.BICUBIC, expand=True)
                     if mask_img is not None:
-                        mask_img = mask_img.rotate(rotation_deg, resample=Image.Resampling.BICUBIC, expand=True)
+                        mask_img = mask_img.rotate(effective_rotation, resample=Image.Resampling.BICUBIC, expand=True)
+
+                # Capture dimensions AFTER rotation (before scaling)
+                # This is important because rotation with expand=True changes dimensions
+                post_rotate_w = ref_img.width
+                post_rotate_h = ref_img.height
+
+                # Apply horizontal scaling (from center, in rotated space)
+                # Handle flipping when h_scale is negative
+                h_scale_abs = abs(h_scale)
+                needs_flip = h_scale < 0
+
+                if abs(h_scale_abs - 1.0) > 1e-4:
+                    new_w = int(round(post_rotate_w * max(0.01, h_scale_abs)))
+                    ref_img = ref_img.resize((new_w, ref_img.height), Image.LANCZOS)
+                    if mask_img is not None:
+                        mask_img = mask_img.resize((new_w, mask_img.height), Image.LANCZOS)
+
+                # Apply flip if needed (after scaling, in the rotated coordinate system)
+                if needs_flip:
+                    ref_img = ref_img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                    if mask_img is not None:
+                        mask_img = mask_img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+
+                # Apply vertical scaling (from bottom edge, in rotated space)
+                # v_scale: 1.0 = full height, < 1.0 = shrink towards bottom
+                paste_y_offset = 0
+                if abs(v_scale - 1.0) > 1e-4:
+                    new_h = int(round(post_rotate_h * max(0.01, v_scale)))
+                    ref_img = ref_img.resize((ref_img.width, new_h), Image.LANCZOS)
+                    if mask_img is not None:
+                        mask_img = mask_img.resize((mask_img.width, new_h), Image.LANCZOS)
+                    # Adjust paste position to scale from bottom edge
+                    # When image grows (v_scale > 1), bottom stays same, center moves up
+                    # When image shrinks (v_scale < 1), bottom stays same, center moves down
+                    paste_y_offset = (post_rotate_h - new_h) / 2
 
                 # Use float positions at supersampled resolution for subpixel precision
                 paste_x = int(round(pos_x * SUPERSAMPLE - ref_img.width / 2))
-                paste_y = int(round(pos_y * SUPERSAMPLE - ref_img.height / 2))
+                paste_y = int(round(pos_y * SUPERSAMPLE - ref_img.height / 2 + paste_y_offset))
 
                 frame_image = bg_rgba.copy()
 
                 # Add shadow if enabled (before ref_img, behind it)
                 if add_shadows:
-                    shadow_result = self._create_shadow(new_w, new_h, pos_x * SUPERSAMPLE, pos_y * SUPERSAMPLE, scale_factor)
+                    shadow_w = ref_img.width
+                    shadow_h = ref_img.height
+                    shadow_result = self._create_shadow(shadow_w, shadow_h, pos_x * SUPERSAMPLE, (pos_y + paste_y_offset / SUPERSAMPLE) * SUPERSAMPLE, scale_factor)
                     if shadow_result is not None:
                         shadow_img, shadow_paste_x, shadow_paste_y = shadow_result
                         frame_image.alpha_composite(shadow_img, dest=(shadow_paste_x, shadow_paste_y))
@@ -624,7 +827,7 @@ Draws an input image along a coordinate path for each frame, returning the rende
         return output_tensor, mask_tensor
 
     def _create_gpu(self, bg_image, ref_images, coordinates, ref_masks, use_box_rotation, use_box_scale_size,
-                    fallback_scale, overlay_opacity, frames, add_shadows, mask_fill, gpu_batch=8):
+                    fallback_scale, overlay_opacity, frames, add_shadows=False, mask_fill=0.0, gpu_batch=8):
         """GPU-accelerated rendering using torch operations with batched processing to avoid OOM."""
         device = torch.device('cuda')
 
@@ -751,13 +954,18 @@ Draws an input image along a coordinate path for each frame, returning the rende
                 bg_batch = bg_cpu[batch_start:batch_end].to(device)
 
             # Extract coordinate batch for each layer
+            # Use interpolation to get correct coordinates for each frame in the batch
             coords_batch = []
             for layer_coords in coords:
-                batch_coords = layer_coords[batch_start:batch_end]
-                # Extend if needed to match batch size
-                if len(batch_coords) < current_batch_size and layer_coords:
-                    last_coord = dict(layer_coords[-1])
-                    batch_coords = list(batch_coords) + [dict(last_coord)] * (current_batch_size - len(batch_coords))
+                batch_coords = []
+                for i in range(current_batch_size):
+                    actual_frame = batch_start + i + 1  # Frames are 1-indexed
+                    # Coordinates already have per-frame data, so use frame directly
+                    point = self._get_interpolated_point(layer_coords, actual_frame)
+                    if point is None:
+                        # Create a default point if interpolation fails
+                        point = {"x": 0.5, "y": 0.5, "scale": 1, "frame": actual_frame}
+                    batch_coords.append(point)
                 coords_batch.append(batch_coords)
 
             # Render this batch using the existing GPU method
@@ -890,13 +1098,70 @@ Draws an input image along a coordinate path for each frame, returning the rende
                     except (TypeError, ValueError):
                         pass
 
-                if abs(rotation_rad) > 1e-4:
-                    ref_resized = self._rotate_image_gpu(ref_resized, rotation_rad)
+                # Get horizontal and vertical scale values
+                # h_scale: -1.0 to 1.0 (negative = flip), 1.0 = normal width, 0 = collapsed
+                # v_scale: 0.0 to 1.0, 1.0 = full height (bottom-anchored), 0 = collapsed
+                h_scale = 1.0
+                v_scale = 1.0
+                try:
+                    h_scale = float(point.get("h_scale", 1.0) or 1.0)
+                    v_scale = float(point.get("v_scale", 1.0) or 1.0)
+                except (TypeError, ValueError):
+                    pass
 
-                # Composite onto canvas with supersampled positions
+                # Check if flip is needed BEFORE rotation
+                needs_flip = h_scale < 0
+
+                # Apply rotation first (to establish the rotated coordinate system)
+                # When flipped, negate the rotation to maintain visual rotation direction
+                effective_rotation = rotation_rad
+                if needs_flip:
+                    effective_rotation = -rotation_rad
+
+                if abs(effective_rotation) > 1e-4:
+                    ref_resized = self._rotate_image_gpu(ref_resized, effective_rotation)
+
+                # Capture dimensions AFTER rotation (before scaling)
+                post_rotate_h = ref_resized.shape[0]
+                post_rotate_w = ref_resized.shape[1]
+
+                # Apply horizontal scaling (from center, in rotated space)
+                # Handle flipping when h_scale is negative
+                h_scale_abs = abs(h_scale)
+
+                if abs(h_scale_abs - 1.0) > 1e-4:
+                    new_w = int(round(post_rotate_w * max(0.01, h_scale_abs)))
+                    ref_resized = F.interpolate(
+                        ref_resized.permute(2, 0, 1).unsqueeze(0),  # [1, 4, H, W]
+                        size=(ref_resized.shape[0], new_w),
+                        mode='bilinear',
+                        align_corners=False
+                    ).squeeze(0).permute(1, 2, 0)  # [H, W, 4]
+
+                # Apply flip if needed (after scaling, in the rotated coordinate system)
+                if needs_flip:
+                    ref_resized = torch.flip(ref_resized, dims=[1])  # Flip horizontally (width dimension)
+
+                # Apply vertical scaling (from bottom edge, in rotated space)
+                # v_scale: 1.0 = full height, < 1.0 = shrink towards bottom
+                paste_y_offset = 0
+                if abs(v_scale - 1.0) > 1e-4:
+                    new_h = int(round(post_rotate_h * max(0.01, v_scale)))
+                    ref_resized = F.interpolate(
+                        ref_resized.permute(2, 0, 1).unsqueeze(0),  # [1, 4, H, W]
+                        size=(new_h, ref_resized.shape[1]),
+                        mode='bilinear',
+                        align_corners=False
+                    ).squeeze(0).permute(1, 2, 0)  # [H, W, 4]
+                    # Adjust paste position to scale from bottom edge
+                    # When image grows (v_scale > 1), bottom stays same, center moves up
+                    # When image shrinks (v_scale < 1), bottom stays same, center moves down
+                    paste_y_offset = (post_rotate_h - new_h) / 2
+
+                # Composite onto canvas with adjusted positions for bottom-anchored vertical scaling
                 composite_rgba[frame_idx] = self._composite_image_gpu(
                     composite_rgba[frame_idx], ref_resized,
-                    pos_x * SUPERSAMPLE, pos_y * SUPERSAMPLE,
+                    pos_x * SUPERSAMPLE, pos_y * SUPERSAMPLE + paste_y_offset,
                     hi_width, hi_height
                 )
 
@@ -937,7 +1202,9 @@ Draws an input image along a coordinate path for each frame, returning the rende
 
     def _rotate_image_gpu(self, img_tensor, angle_rad):
         """Rotate image tensor by angle (radians) on GPU."""
-        angle_deg = -math.degrees(angle_rad)
+        # Negate angle to match PIL rotate behavior (clockwise positive)
+        angle_rad = -angle_rad
+        angle_deg = math.degrees(angle_rad)
 
         # Simple rotation using torch (for small angles, approximation)
         # For proper rotation, we'd use grid_sample with rotation matrix

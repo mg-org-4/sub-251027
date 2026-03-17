@@ -200,7 +200,7 @@ function createImgBatchUI(node) {
     const sizeSlider = document.createElement("input");
     sizeSlider.type = "range";
     sizeSlider.min = "0";
-    sizeSlider.max = "3";
+    sizeSlider.max = "2";
     sizeSlider.step = "1";
     sizeSlider.style.cssText = "width:100%;margin:2px 0 0 0;cursor:pointer;";
     const sizeVal = document.createElement("div");
@@ -218,21 +218,25 @@ function createImgBatchUI(node) {
 
     let previewsHidden = false;
     let nextSortIsAsc = true;
-    const SIZE_PRESETS = [120, 220, 320, 420];
+    const SIZE_PRESETS = [64, 128, 384];
 
     const syncSizeUIFromWidget = () => {
         const current = getCardSize(node);
-        const idx = SIZE_PRESETS.indexOf(current);
-        sizeSlider.value = String(idx >= 0 ? idx : 0);
-        sizeVal.textContent = String(current);
+        let idx = SIZE_PRESETS.indexOf(current);
+        if (idx < 0) {
+            setCardSize(node, 64);
+            idx = 0;
+        }
+        sizeSlider.value = String(idx);
+        sizeVal.textContent = String(getCardSize(node));
     };
 
     const applyCardSizeFromSlider = () => {
         const idx = Math.max(0, Math.min(SIZE_PRESETS.length - 1, Math.floor(Number(sizeSlider.value))));
-        const size = SIZE_PRESETS[idx] ?? 120;
+        const size = SIZE_PRESETS[idx] ?? 64;
         setCardSize(node, size);
         sizeVal.textContent = String(size);
-        redraw();
+        redraw(true); // 尺寸变化需要完整重绘
     };
 
     sizeBtn.onclick = () => applyCardSizeFromSlider();
@@ -245,7 +249,7 @@ function createImgBatchUI(node) {
         setNameList(node, sorted);
         nextSortIsAsc = !nextSortIsAsc;
         sortBtn.textContent = nextSortIsAsc ? "顺序" : "逆序";
-        redraw();
+        redraw(true); // 强制完整重绘
     };
 
     deleteBtn.onclick = () => {
@@ -257,7 +261,7 @@ function createImgBatchUI(node) {
         setNameList(node, next);
         if (next.length === 0) setIndex(node, 0);
         else setIndex(node, Math.max(0, Math.min(next.length - 1, idx)));
-        redraw();
+        redraw(true); // 强制完整重绘
     };
 
     const mainContent = document.createElement("div");
@@ -276,9 +280,12 @@ function createImgBatchUI(node) {
     hiddenOverlay.style.cssText =
         "flex:1;display:none;align-items:center;justify-content:center;background:var(--comfy-input-bg);border-radius:4px;color:var(--input-text);font-size:12px;opacity:0.75;";
 
-    const redraw = () => {
+    // 缓存上次的图片列表，用于增量更新
+    let lastNames = null;
+    let lastCardSize = null;
+
+    const redraw = (forceFull = false) => {
         const names = parseNameList(getImageListWidget(node)?.value);
-        grid.innerHTML = "";
         const cardSize = getCardSize(node);
         grid.style.setProperty("--card-size", `${cardSize}px`);
 
@@ -293,8 +300,34 @@ function createImgBatchUI(node) {
         grid.style.display = "grid";
         hiddenOverlay.style.display = "none";
 
-        const frag = document.createDocumentFragment();
         const idx = getIndex(node);
+
+        // 检查是否可以增量更新（只更新选中状态）
+        const namesUnchanged = lastNames && names.length === lastNames.length &&
+            names.every((n, i) => n === lastNames[i]);
+        const sizeUnchanged = lastCardSize === cardSize;
+
+        if (!forceFull && namesUnchanged && sizeUnchanged) {
+            // 增量更新：只更新选中状态的样式
+            const cards = grid.querySelectorAll("[data-io-img-card]");
+            cards.forEach((cell, idx0) => {
+                const card = cell.querySelector(":scope > div");
+                if (card) {
+                    const isSelected = idx0 === idx;
+                    card.style.borderColor = isSelected ? "#4a6" : "var(--border-color)";
+                }
+                cell.dataset.ioImgIndex0 = String(idx0);
+            });
+            app.graph.setDirtyCanvas(true);
+            return;
+        }
+
+        // 完整重绘
+        lastNames = [...names];
+        lastCardSize = cardSize;
+        grid.innerHTML = "";
+
+        const frag = document.createDocumentFragment();
         names.forEach((name, idx0) => {
             const isSelected = idx0 === idx;
 
@@ -306,7 +339,7 @@ function createImgBatchUI(node) {
             cell.onclick = (e) => {
                 e.preventDefault();
                 setIndex(node, idx0);
-                redraw();
+                redraw(false); // 增量更新
             };
 
             const card = document.createElement("div");
@@ -340,7 +373,7 @@ function createImgBatchUI(node) {
                 setNameList(node, next);
                 if (next.length === 0) setIndex(node, 0);
                 else setIndex(node, Math.max(0, Math.min(next.length - 1, idx)));
-                redraw();
+                redraw(true); // 强制完整重绘
             };
 
             const label = document.createElement("div");
@@ -400,7 +433,7 @@ function createImgBatchUI(node) {
         next[to0] = t;
         setNameList(node, next);
         setIndex(node, to0);
-        redraw();
+        redraw(true); // 强制完整重绘
     };
 
     const _beginDrag = (e, idx0) => {
@@ -413,7 +446,7 @@ function createImgBatchUI(node) {
             dragState.startName = idx0 >= 0 && idx0 < all.length ? String(all[idx0] ?? "") : "";
         }
         setIndex(node, idx0);
-        redraw();
+        redraw(false); // 增量更新选中状态
         try {
             grid.setPointerCapture?.(e.pointerId);
         } catch {}
@@ -480,7 +513,7 @@ function createImgBatchUI(node) {
             if (to0 === dragState.fromIndex0) return;
             dragState.toIndex0 = to0;
             setIndex(node, to0);
-            redraw();
+            redraw(false); // 增量更新选中状态
         },
         { capture: true }
     );
@@ -501,21 +534,19 @@ function createImgBatchUI(node) {
                         _swap(dragState.fromIndex0, dragState.toIndex0);
                     } else {
                         setIndex(node, dragState.fromIndex0);
-                        redraw();
+                        redraw(false); // 增量更新
                     }
                 } else {
-                    // Copy to clipboard
-                    const ok = await _copyImageToClipboard(dragState.startName);
-                    if (!ok) {
-                        const text = _sanitizeSingleLineText(dragState.startName);
-                        void _copyToClipboard(text);
-                    }
+                    const text = _sanitizeSingleLineText(dragState.startName);
+                    void _copyToClipboard(text);
+                    try {
+                        await _copyImageToClipboard(dragState.startName);
+                    } catch {}
                     
                     // Try to paste into input element at cursor position
                     const el = document.elementFromPoint(x, y);
                     const target = el?.closest?.("textarea,input,[contenteditable='true']") || el;
                     if (target) {
-                        const text = _sanitizeSingleLineText(dragState.startName);
                         _insertIntoInput(target, text);
                     }
                 }
@@ -545,7 +576,7 @@ function createImgBatchUI(node) {
                 all.push(...uploaded);
                 setNameList(node, all);
                 setIndex(node, all.length);
-                redraw();
+                redraw(true); // 强制完整重绘
             } finally {
                 try {
                     document.body.removeChild(input);
@@ -577,7 +608,7 @@ function createImgBatchUI(node) {
                 all.push(...uploaded);
                 setNameList(node, all);
                 setIndex(node, all.length);
-                redraw();
+                redraw(true); // 强制完整重绘
             } finally {
                 try {
                     document.body.removeChild(input);
@@ -591,13 +622,13 @@ function createImgBatchUI(node) {
     clearBtn.onclick = () => {
         setNameList(node, []);
         setIndex(node, 0);
-        redraw();
+        redraw(true); // 强制完整重绘
     };
 
     hideBtn.onclick = () => {
         previewsHidden = !previewsHidden;
         hideBtn.textContent = previewsHidden ? "显示" : "隐藏";
-        redraw();
+        redraw(); // 隐藏/显示可以增量更新
     };
 
     mainContent.appendChild(grid);
@@ -651,7 +682,7 @@ app.registerExtension({
                 }
             }
 
-            node._ioLoadImgBatchUI?.redraw?.();
+            node._ioLoadImgBatchUI?.redraw?.(true); // 后端推送数据需要完整重绘
         });
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
@@ -689,19 +720,44 @@ app.registerExtension({
             const wIndex = getIndexWidget(this);
             const wList = getImageListWidget(this);
             const wSize = getCardSizeWidget(this);
-            for (const w of [wIndex, wList, wSize]) {
-                if (!w) continue;
-                const origCallback = w.callback;
-                let lastValue = w.value;
-                w.callback = function (value) {
+
+            // index 变化只需增量更新
+            if (wIndex) {
+                const origCallback = wIndex.callback;
+                let lastValue = wIndex.value;
+                wIndex.callback = function (value) {
                     origCallback?.call(this, value);
                     if (value === lastValue) return;
                     lastValue = value;
-                    ui.redraw();
+                    ui.redraw(false); // 增量更新
                 };
             }
 
-            ui.redraw();
+            // list 变化需要完整重绘
+            if (wList) {
+                const origCallback = wList.callback;
+                let lastValue = wList.value;
+                wList.callback = function (value) {
+                    origCallback?.call(this, value);
+                    if (value === lastValue) return;
+                    lastValue = value;
+                    ui.redraw(true); // 强制完整重绘
+                };
+            }
+
+            // size 变化需要完整重绘
+            if (wSize) {
+                const origCallback = wSize.callback;
+                let lastValue = wSize.value;
+                wSize.callback = function (value) {
+                    origCallback?.call(this, value);
+                    if (value === lastValue) return;
+                    lastValue = value;
+                    ui.redraw(true); // 强制完整重绘
+                };
+            }
+
+            ui.redraw(true); // 首次创建需要完整重绘
             return r;
         };
 
@@ -718,7 +774,7 @@ app.registerExtension({
                 sizeWidget.type = "number";
                 sizeWidget.computeSize = () => [120, 24];
             }
-            this._ioLoadImgBatchUI?.redraw?.();
+            this._ioLoadImgBatchUI?.redraw?.(true); // 从工作流加载需要完整重绘
             return r;
         };
     },

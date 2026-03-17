@@ -316,7 +316,7 @@ function createShotListUI(node) {
         setShotPreviewItems(node, Array.isArray(snap.preview) ? snap.preview : []);
         setShotStateItems(node, Array.isArray(snap.state) ? snap.state : []);
         setIndex(node, Number.isFinite(Number(snap.index)) ? Number(snap.index) : 1);
-        redraw();
+        redraw(true); // 强制完整重绘
     };
 
     const syncSizeUIFromWidget = () => {
@@ -329,14 +329,18 @@ function createShotListUI(node) {
         const v = Number(sizeSlider.value);
         setCardSize(node, v);
         sizeVal.textContent = String(v);
-        redraw();
+        redraw(true); // 尺寸变化需要完整重绘
     };
 
     sizeBtn.onclick = () => applyCardSizeFromSlider();
     sizeSlider.addEventListener("input", applyCardSizeFromSlider);
     syncSizeUIFromWidget();
 
-    const redraw = () => {
+    // 缓存用于增量更新
+    let lastVisibleItemsSig = null;
+    let lastCardSize = null;
+
+    const redraw = (forceFull = false) => {
         if (!isAnyImportConnected(node)) {
             clearShotUI(node);
         }
@@ -381,6 +385,28 @@ function createShotListUI(node) {
 
         grid.style.display = "grid";
         hiddenOverlay.style.display = "none";
+
+        const selected = getIndex(node);
+
+        // 计算签名用于增量更新判断
+        const sig = visibleItems.map(x => `${x.orig_index}:${x.title}:${x.content}`).join("|");
+        const sigUnchanged = lastVisibleItemsSig === sig;
+        const sizeUnchanged = lastCardSize === size;
+
+        if (!forceFull && sigUnchanged && sizeUnchanged) {
+            // 增量更新：只更新选中状态
+            const cards = grid.querySelectorAll(":scope > div[data-orig-index]");
+            cards.forEach((card, i) => {
+                const isSel = i === selected;
+                card.style.borderColor = isSel ? "#fff" : "var(--border-color)";
+            });
+            app.graph.setDirtyCanvas(true);
+            return;
+        }
+
+        // 完整重绘
+        lastVisibleItemsSig = sig;
+        lastCardSize = size;
         grid.innerHTML = "";
 
         const frag = document.createDocumentFragment();
@@ -403,19 +429,18 @@ function createShotListUI(node) {
             return;
         }
 
-        const selected = getIndex(node);
-
         for (let i = 0; i < visibleItems.length; i++) {
             const item = visibleItems[i];
             const card = document.createElement("div");
             const isSel = i === selected;
             card.style.cssText =
                 `position:relative;min-height:${Math.max(180, Math.floor(size * 1.3))}px;max-height:${Math.max(180, Math.floor(size * 1.3))}px;display:flex;flex-direction:column;gap:2px;padding:2px;background:var(--comfy-menu-bg);border:2px solid ${isSel ? "#fff" : "var(--border-color)"};border-radius:6px;user-select:none;cursor:pointer;overflow:hidden;`;
+            card.dataset.origIndex = String(item.orig_index);
 
             card.addEventListener("click", (e) => {
                 e.preventDefault();
                 setIndex(node, i);
-                redraw();
+                redraw(false); // 增量更新
             });
 
             card.setAttribute("draggable", "true");
@@ -450,7 +475,7 @@ function createShotListUI(node) {
                 const orderSet = new Set(order);
                 for (const st of state) if (!orderSet.has(st.orig_index)) nextState.push(st);
                 setShotStateItems(node, nextState);
-                redraw();
+                redraw(true); // 强制完整重绘
             });
 
             const del = document.createElement("button");
@@ -477,7 +502,7 @@ function createShotListUI(node) {
                 const nextTotal = Math.max(0, total - 1);
                 if (nextTotal <= 0) setIndex(node, 0);
                 else if (curIdx > nextTotal) setIndex(node, nextTotal);
-                redraw();
+                redraw(true); // 强制完整重绘
             });
 
             const seq = document.createElement("div");
@@ -596,7 +621,7 @@ function createShotListUI(node) {
                     const k = prev.findIndex((x) => x.orig_index === item.orig_index);
                     if (k >= 0) prev[k] = { ...prev[k], title: nextTitle, content: nextContent };
                     setShotPreviewItems(node, prev);
-                    redraw();
+                    redraw(true); // 强制完整重绘
                     close();
                 };
 
@@ -633,7 +658,7 @@ function createShotListUI(node) {
         const previewOrigs = new Set(preview.map((x) => x.orig_index));
         for (const st of state) if (!previewOrigs.has(st.orig_index)) nextState.push(st);
         setShotStateItems(node, nextState);
-        redraw();
+        redraw(true); // 强制完整重绘
     };
 
     clearBtn.onclick = (e) => {
@@ -642,7 +667,7 @@ function createShotListUI(node) {
         setShotPreviewItems(node, []);
         setShotStateItems(node, []);
         setIndex(node, 0);
-        redraw();
+        redraw(true); // 强制完整重绘
     };
 
     undoBtn.onclick = (e) => {
@@ -656,7 +681,7 @@ function createShotListUI(node) {
         e.preventDefault();
         previewsHidden = !previewsHidden;
         hideBtn.textContent = previewsHidden ? "显示" : "隐藏";
-        redraw();
+        redraw(); // 隐藏/显示可以增量更新
     };
 
     mainContent.appendChild(grid);
@@ -664,7 +689,7 @@ function createShotListUI(node) {
     container.appendChild(sidebar);
     container.appendChild(mainContent);
 
-    redraw();
+    redraw(true); // 首次创建需要完整重绘
     return { container, redraw };
 }
 
@@ -693,7 +718,7 @@ app.registerExtension({
             const { mergedState, mergedPreview } = mergeIncomingIntoStateAndPreview({ incomingItems: curPreview.concat(incoming), stateItems: curState });
             setShotPreviewItems(node, mergedPreview);
             setShotStateItems(node, mergedState);
-            node._ioLoadShotListUI?.redraw?.();
+            node._ioLoadShotListUI?.redraw?.(true); // 后端推送数据需要完整重绘
         });
 
         api.addEventListener("IO_LoadShotBatch_set", function (event) {
@@ -717,7 +742,7 @@ app.registerExtension({
             const { mergedState, mergedPreview } = mergeIncomingIntoStateAndPreview({ incomingItems: incoming, stateItems: curState });
             setShotStateItems(node, mergedState);
             setShotPreviewItems(node, mergedPreview);
-            node._ioLoadShotListUI?.redraw?.();
+            node._ioLoadShotListUI?.redraw?.(true); // 后端推送数据需要完整重绘
         });
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
@@ -793,7 +818,7 @@ app.registerExtension({
                 if (ioSlot === "INPUT" && !connected) {
                     if (!isAnyImportConnected(this)) {
                         clearShotUI(this);
-                        this._ioLoadShotListUI?.redraw?.();
+                        this._ioLoadShotListUI?.redraw?.(true); // 连接变化需要完整重绘
                     }
                 }
             } catch {}
@@ -833,7 +858,7 @@ app.registerExtension({
         if (!isAnyImportConnected(this)) {
             clearShotUI(this);
         }
-        this._ioLoadShotListUI?.redraw?.();
+        this._ioLoadShotListUI?.redraw?.(true); // 从工作流加载需要完整重绘
         return r;
     };
     },

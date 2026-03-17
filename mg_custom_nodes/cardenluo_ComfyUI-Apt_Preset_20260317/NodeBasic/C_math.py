@@ -958,7 +958,7 @@ class type_AnyIndex:
         return {
             "required": {
                 "any": (any_type, ),
-                "index": ("INT", {"default": 1, "min": 1, "max": 1000000, "step": 1, "tooltip":"从1开始，1对应第一个元素，以此类推"}),
+                "index": ("INT", {"default": 0, "min": -999990, "max": 1000000, "step": 1, "tooltip":"从1开始，1对应第一个元素，以此类推"}),
             },
             "hidden":{
                 "prompt": "PROMPT",

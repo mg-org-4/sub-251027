@@ -1242,12 +1242,14 @@ class IO_save_image:
     def INPUT_TYPES(cls):
         return {
             "required": {
+
+            },
+            "optional": {
                 "image": ("IMAGE", ),
                 "file_format": (["png", "webp", "jpg", "tif"],),
                 "output_path": ("STRING", {"default": "./output/Apt", "multiline": False}),
                 "filename_mid": ("STRING", {"default": "Apt"}),
-            },
-            "optional": {
+
                 "file_names": ("STRING", {"forceInput": True}),
                 "naming_format": (
                     [
@@ -1603,6 +1605,7 @@ class IO_LoadTextBatch:
 class IO_LoadImgBatch:
     INPUT_IS_LIST = True
     _last_pushed_hash_by_node: dict = {}
+    _tensor_cache_by_node: dict = {}
 
     def _first_scalar(self, v, default=None):
         if isinstance(v, list):
@@ -1698,12 +1701,41 @@ class IO_LoadImgBatch:
             return torch.cat(frames, dim=0)
         return frames[0]
 
+    def _load_tensor_cached(self, node_uid: str, name: str):
+        if not node_uid:
+            return self._load_tensor_from_name(name)
+        try:
+            image_path = folder_paths.get_annotated_filepath(name)
+            mtime = os.path.getmtime(image_path)
+            fsize = os.path.getsize(image_path)
+        except Exception:
+            return self._load_tensor_from_name(name)
+
+        cache = self._tensor_cache_by_node.setdefault(str(node_uid), {})
+        key = str(image_path)
+        try:
+            ent = cache.get(key)
+            if ent and ent[0] == mtime and ent[1] == fsize and isinstance(ent[2], torch.Tensor):
+                return ent[2]
+        except Exception:
+            ent = None
+
+        t = self._load_tensor_from_name(name)
+        if isinstance(t, torch.Tensor):
+            cache[key] = (mtime, fsize, t)
+            while len(cache) > 8:
+                try:
+                    cache.pop(next(iter(cache)))
+                except Exception:
+                    break
+        return t
+
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
                 "image_list": ("STRING", {"multiline": True, "default": ""}),
-                "card_size": ("INT", {"default": 120, "min": 120, "max": 520, "step": 20}),
+                "card_size": ("INT", {"default": 64, "min": 64, "max": 384, "step": 1}),
                 "index": ("INT", {"default": 0, "min": 0, "max": 9999, "step": 1}),
             },
             "optional": {
@@ -1716,15 +1748,15 @@ class IO_LoadImgBatch:
 
     NAME = "IO_LoadImgBatch"
     CATEGORY = "Apt_Preset/IO_Port"
-    RETURN_TYPES = ("IMAGE", "IMAGE", "INT")
-    RETURN_NAMES = ("image_list", "img_index", "index")
+    RETURN_TYPES = ("IMAGE", "STRING", "INT")
+    RETURN_NAMES = ("img_index", "name_index", "index")
     FUNCTION = "load_img_batch"
-    OUTPUT_IS_LIST = (True, False, False)
+    OUTPUT_IS_LIST = (False, False, False)
     OUTPUT_NODE = True
 
     def load_img_batch(self, image_list: str, card_size: int = 120, index: int = 0, image_list_in=None, unique_id: str = ""):
         image_list = self._first_scalar(image_list, "")
-        card_size = self._first_scalar(card_size, 120)
+        card_size = self._first_scalar(card_size, 64)
         index = self._first_scalar(index, 0)
         unique_id = self._first_scalar(unique_id, "")
 
@@ -1748,7 +1780,7 @@ class IO_LoadImgBatch:
         total = len(names)
         blank = torch.zeros((1, 64, 64, 3), dtype=torch.float32)
         if total == 0:
-            return ([], blank, 0)
+            return (blank, "", 0)
 
         try:
             i = int(index)
@@ -1759,12 +1791,8 @@ class IO_LoadImgBatch:
         if i >= total:
             i = total - 1
 
-        output_images = []
-        for n in names:
-            t = self._load_tensor_from_name(n)
-            output_images.append(t if isinstance(t, torch.Tensor) else blank)
-
-        output_image = output_images[i] if i < len(output_images) else blank
+        t = self._load_tensor_cached(str(unique_id), names[i]) if unique_id else self._load_tensor_from_name(names[i])
+        output_image = t if isinstance(t, torch.Tensor) else blank
 
         if unique_id:
             try:
@@ -1781,7 +1809,11 @@ class IO_LoadImgBatch:
             except Exception:
                 pass
 
-        return (output_images, output_image, int(i))
+        # 获取当前索引对应的文件名（不含扩展名）
+        current_name = names[i] if i < len(names) else ""
+        name_without_ext = os.path.splitext(current_name)[0] if current_name else ""
+
+        return (output_image, name_without_ext, int(i))
 
     @classmethod
     def IS_CHANGED(s, image_list: str, card_size: int = 120, index: int = 0, image_list_in=None):
@@ -1809,7 +1841,6 @@ class IO_LoadImgBatch:
     @classmethod
     def VALIDATE_INPUTS(s, image_list: str, card_size: int = 120, index: int = 0, image_list_in=None):
         return True
-
 
 
 
@@ -3471,6 +3502,7 @@ class IO_RegexPreset:
 
 class IO_LoadShotBatch:
     _last_preview_hash_by_node: dict = {}
+    _thumb_cache_by_node: dict = {}
     INPUT_IS_LIST = True
 
     def _first_scalar(self, v, default=None):
@@ -3535,11 +3567,62 @@ class IO_LoadShotBatch:
             if max_dim and max_dim > 0:
                 img.thumbnail((int(max_dim), int(max_dim)), Image.BILINEAR)
             buf = io.BytesIO()
-            img.save(buf, format="PNG", optimize=True)
+            if int(max_dim or 0) > 256:
+                img.save(buf, format="JPEG", quality=85, optimize=False)
+                b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+                return "data:image/jpeg;base64," + b64
+            img.save(buf, format="PNG", optimize=False)
             b64 = base64.b64encode(buf.getvalue()).decode("ascii")
             return "data:image/png;base64," + b64
         except Exception:
             return ""
+
+    def _thumb_fingerprint(self, image_tensor) -> str:
+        if image_tensor is None or not isinstance(image_tensor, torch.Tensor):
+            return ""
+        t = image_tensor
+        try:
+            if t.dim() == 4:
+                t = t[0]
+            if t.dim() != 3:
+                return ""
+            c = int(t.shape[-1]) if t.shape[-1] is not None else 0
+            if c < 1:
+                return ""
+            hh = min(8, int(t.shape[0]))
+            ww = min(8, int(t.shape[1]))
+            cc = min(3, c)
+            patch = t[:hh, :ww, :cc]
+            if patch.device.type != "cpu":
+                patch = patch.detach().cpu()
+            patch = patch.clamp(0, 1)
+            arr = (patch.numpy() * 255.0).astype(np.uint8)
+            return hashlib.sha256(arr.tobytes()).hexdigest()[:12]
+        except Exception:
+            return ""
+
+    def _thumb_cached(self, node_uid: str, fp: str, image_tensor, max_dim: int) -> str:
+        if not node_uid:
+            return self._tensor_to_data_url(image_tensor, max_dim)
+        if not fp:
+            return self._tensor_to_data_url(image_tensor, max_dim)
+        cache = self._thumb_cache_by_node.setdefault(str(node_uid), {})
+        key = (str(fp), int(max_dim or 0))
+        try:
+            v = cache.get(key)
+            if isinstance(v, str) and v.startswith("data:image/"):
+                return v
+        except Exception:
+            pass
+        v = self._tensor_to_data_url(image_tensor, max_dim)
+        if v:
+            cache[key] = v
+            while len(cache) > 64:
+                try:
+                    cache.pop(next(iter(cache)))
+                except Exception:
+                    break
+        return v
 
     def _apply_state(self, shots: list, shot_state_raw):
         state = self._safe_json_list(shot_state_raw)
@@ -3633,13 +3716,15 @@ class IO_LoadShotBatch:
                     shape = list(img.shape)
             except Exception:
                 shape = None
-            hash_items.append([oi, title, content, shape])
+            fp = self._thumb_fingerprint(img) if isinstance(img, torch.Tensor) else ""
+            hash_items.append([oi, title, content, shape, fp])
             items.append(
                 {
                     "orig_index": oi,
                     "title": title,
                     "content": content,
-                    "thumb": self._tensor_to_data_url(img, max_dim),
+                    "thumb": self._thumb_cached(unique_id, fp, img, max_dim),
+                    "fp": fp,
                 }
             )
 
@@ -4045,6 +4130,4 @@ class IO_ShotCreate:
         if not folder_paths.exists_annotated_filepath(image):
             return "Invalid image file: {}".format(image)
         return True
-
-
 

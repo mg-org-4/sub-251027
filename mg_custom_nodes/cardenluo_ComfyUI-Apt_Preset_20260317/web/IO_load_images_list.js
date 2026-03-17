@@ -592,9 +592,42 @@ function createBrowserUI(node) {
     const mainContent = document.createElement("div");
     mainContent.style.cssText = "flex:1;display:flex;flex-direction:column;pointer-events:auto;min-width:0;min-height:0;";
 
+    const jumpSelect = document.createElement("select");
+    jumpSelect.style.cssText =
+        "width:100%;margin:0 0 6px 0;padding:4px 6px;background:var(--comfy-input-bg);color:var(--input-text);border:1px solid var(--border-color);border-radius:4px;font-size:11px;outline:none;";
+    jumpSelect.addEventListener("change", () => {
+        const v = Number(jumpSelect.value);
+        if (!Number.isFinite(v)) return;
+        const idx = Math.max(0, Math.floor(v));
+        selectedIndices.length = 0;
+        selectedIndices.push(idx);
+        redraw();
+    });
+
+    let _jumpCacheLen = -1;
+    let _jumpCacheFirst = "";
+    let _jumpCacheLast = "";
+    const _refreshJumpSelect = (names) => {
+        const first = names.length ? String(names[0] ?? "") : "";
+        const last = names.length ? String(names[names.length - 1] ?? "") : "";
+        if (_jumpCacheLen === names.length && _jumpCacheFirst === first && _jumpCacheLast === last) return;
+        _jumpCacheLen = names.length;
+        _jumpCacheFirst = first;
+        _jumpCacheLast = last;
+        jumpSelect.innerHTML = "";
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < names.length; i++) {
+            const opt = document.createElement("option");
+            opt.value = String(i);
+            opt.textContent = `#${i} ${names[i]}`;
+            frag.appendChild(opt);
+        }
+        jumpSelect.appendChild(frag);
+    };
+
     const grid = document.createElement("div");
     grid.style.cssText =
-        "display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--thumb-size,64px),1fr));gap:4px;flex:1;min-width:0;min-height:0;overflow:hidden;background:var(--comfy-input-bg);padding:4px;border-radius:4px;";
+        "display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--thumb-size,64px),1fr));gap:4px;flex:1;min-width:0;min-height:0;overflow-y:auto;background:var(--comfy-input-bg);padding:4px;border-radius:4px;";
 
     const hiddenOverlay = document.createElement("div");
     hiddenOverlay.style.cssText =
@@ -605,6 +638,7 @@ function createBrowserUI(node) {
         grid.innerHTML = "";
         const thumbSize = getThumbSize(node);
         grid.style.setProperty("--thumb-size", `${thumbSize}px`);
+        _refreshJumpSelect(names);
 
         if (!didHydrateSelectionFromWidget) {
             didHydrateSelectionFromWidget = true;
@@ -630,6 +664,13 @@ function createBrowserUI(node) {
                 if (typeof idx !== "number" || idx < 0 || idx >= names.length) {
                     selectedIndices.splice(i, 1);
                 }
+            }
+        }
+        if (names.length > 0) {
+            const primary = selectedIndices.length ? selectedIndices[0] : 0;
+            const v = Number.isFinite(Number(primary)) ? Math.max(0, Math.min(names.length - 1, Math.floor(Number(primary)))) : 0;
+            if (jumpSelect.value !== String(v)) {
+                jumpSelect.value = String(v);
             }
         }
 
@@ -782,6 +823,7 @@ function createBrowserUI(node) {
 
     mainContent.appendChild(grid);
     mainContent.appendChild(hiddenOverlay);
+    mainContent.insertBefore(jumpSelect, grid);
     container.appendChild(sidebar);
     container.appendChild(mainContent);
 

@@ -384,7 +384,7 @@ function createTextListUI(node) {
         const size = SIZE_PRESETS[idx] ?? 120;
         setCardSize(node, size);
         sizeVal.textContent = String(size);
-        redraw();
+        redraw(true); // 尺寸变化需要完整重绘
     };
 
     sizeSlider.max = String(Math.max(0, SIZE_PRESETS.length - 1));
@@ -398,7 +398,7 @@ function createTextListUI(node) {
         setTextList(node, sorted);
         nextSortIsAsc = !nextSortIsAsc;
         sortBtn.textContent = nextSortIsAsc ? "顺序" : "逆序";
-        redraw();
+        redraw(true); // 强制完整重绘
     };
 
     deleteBtn.onclick = () => {
@@ -413,7 +413,7 @@ function createTextListUI(node) {
         } else {
             setIndex(node, Math.max(0, Math.min(next.length - 1, idx)));
         }
-        redraw();
+        redraw(true); // 强制完整重绘
     };
 
     const mainContent = document.createElement("div");
@@ -434,9 +434,12 @@ function createTextListUI(node) {
     hiddenOverlay.style.cssText =
         "flex:1;display:none;align-items:center;justify-content:center;background:var(--comfy-input-bg);border-radius:4px;color:var(--input-text);font-size:12px;opacity:0.75;";
 
-    const redraw = () => {
+    // 缓存上次的列表，用于增量更新
+    let lastItems = null;
+    let lastCardSize = null;
+
+    const redraw = (forceFull = false) => {
         const items = parseTextList(getTextListWidget(node)?.value);
-        grid.innerHTML = "";
         const cardSize = getCardSize(node);
         grid.style.setProperty("--card-size", `${cardSize}px`);
 
@@ -451,8 +454,34 @@ function createTextListUI(node) {
         grid.style.display = "grid";
         hiddenOverlay.style.display = "none";
 
-        const frag = document.createDocumentFragment();
         const idx = getIndex(node);
+
+        // 检查是否可以增量更新
+        const itemsUnchanged = lastItems && items.length === lastItems.length &&
+            items.every((n, i) => n === lastItems[i]);
+        const sizeUnchanged = lastCardSize === cardSize;
+
+        if (!forceFull && itemsUnchanged && sizeUnchanged) {
+            // 增量更新：只更新选中状态
+            const cards = grid.querySelectorAll("[data-io-text-card]");
+            cards.forEach((cell, idx0) => {
+                const card = cell.querySelector(":scope > div");
+                if (card) {
+                    const isSelected = idx0 === idx;
+                    card.style.borderColor = isSelected ? "#4a6" : "var(--border-color)";
+                }
+                cell.dataset.ioTextIndex0 = String(idx0);
+            });
+            app.graph.setDirtyCanvas(true);
+            return;
+        }
+
+        // 完整重绘
+        lastItems = [...items];
+        lastCardSize = cardSize;
+        grid.innerHTML = "";
+
+        const frag = document.createDocumentFragment();
         items.forEach((text, idx0) => {
             const isSelected = idx0 === idx;
 
@@ -464,7 +493,7 @@ function createTextListUI(node) {
             cell.onclick = (e) => {
                 e.preventDefault();
                 setIndex(node, idx0);
-                redraw();
+                redraw(false); // 增量更新
             };
 
             const card = document.createElement("div");
@@ -502,7 +531,7 @@ function createTextListUI(node) {
                 } else {
                     setIndex(node, Math.max(0, Math.min(next.length - 1, idx)));
                 }
-                redraw();
+                redraw(true); // 强制完整重绘
             };
 
             const body = document.createElement("div");
@@ -532,7 +561,7 @@ function createTextListUI(node) {
                         all[idx0] = nextLine;
                         setTextList(node, all);
                         setIndex(node, idx0);
-                        redraw();
+                        redraw(true); // 强制完整重绘
                     },
                 });
             };
@@ -581,7 +610,7 @@ function createTextListUI(node) {
         next[to0] = t;
         setTextList(node, next);
         setIndex(node, to0);
-        redraw();
+        redraw(true); // 强制完整重绘
     };
 
     const _beginDrag = (e, idx0) => {
@@ -594,7 +623,7 @@ function createTextListUI(node) {
             dragState.startText = idx0 >= 0 && idx0 < all.length ? String(all[idx0] ?? "") : "";
         }
         setIndex(node, idx0);
-        redraw();
+        redraw(false); // 增量更新
         try {
             grid.setPointerCapture?.(e.pointerId);
         } catch {}
@@ -723,7 +752,7 @@ function createTextListUI(node) {
             if (to0 === dragState.fromIndex0) return;
             dragState.toIndex0 = to0;
             setIndex(node, to0);
-            redraw();
+            redraw(false); // 增量更新
         },
         { capture: true }
     );
@@ -744,7 +773,7 @@ function createTextListUI(node) {
                         _swap(dragState.fromIndex0, dragState.toIndex0);
                     } else {
                         setIndex(node, dragState.fromIndex0);
-                        redraw();
+                        redraw(false); // 增量更新
                     }
                 } else {
                     const el = document.elementFromPoint(x, y);
@@ -773,7 +802,7 @@ function createTextListUI(node) {
                 all.push(line);
                 setTextList(node, all);
                 setIndex(node, all.length - 1);
-                redraw();
+                redraw(true); // 强制完整重绘
             },
         });
     };
@@ -796,7 +825,7 @@ function createTextListUI(node) {
                 all.push(...lines);
                 setTextList(node, all);
                 setIndex(node, all.length - 1);
-                redraw();
+                redraw(true); // 强制完整重绘
             } finally {
                 try {
                     document.body.removeChild(input);
@@ -828,7 +857,7 @@ function createTextListUI(node) {
                 all.push(...lines);
                 setTextList(node, all);
                 setIndex(node, all.length - 1);
-                redraw();
+                redraw(true); // 强制完整重绘
             } finally {
                 try {
                     document.body.removeChild(input);
@@ -842,12 +871,12 @@ function createTextListUI(node) {
     clearBtn.onclick = () => {
         setTextList(node, []);
         setIndex(node, 0);
-        redraw();
+        redraw(true); // 强制完整重绘
     };
     hideBtn.onclick = () => {
         previewsHidden = !previewsHidden;
         hideBtn.textContent = previewsHidden ? "显示" : "隐藏";
-        redraw();
+        redraw(); // 隐藏/显示可以增量更新
     };
 
     mainContent.appendChild(grid);
@@ -901,7 +930,7 @@ app.registerExtension({
                 }
             }
 
-            node._ioLoadTextListUI?.redraw?.();
+            node._ioLoadTextListUI?.redraw?.(true); // 后端推送数据需要完整重绘
         });
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
@@ -939,19 +968,43 @@ app.registerExtension({
             const wList = getTextListWidget(this);
             const wSize = getCardSizeWidget(this);
 
-            for (const w of [wIndex, wList, wSize]) {
-                if (!w) continue;
-                const origCallback = w.callback;
-                let lastValue = w.value;
-                w.callback = function (value) {
+            // index 变化只需增量更新
+            if (wIndex) {
+                const origCallback = wIndex.callback;
+                let lastValue = wIndex.value;
+                wIndex.callback = function (value) {
                     origCallback?.call(this, value);
                     if (value === lastValue) return;
                     lastValue = value;
-                    ui.redraw();
+                    ui.redraw(false);
                 };
             }
 
-            ui.redraw();
+            // list 变化需要完整重绘
+            if (wList) {
+                const origCallback = wList.callback;
+                let lastValue = wList.value;
+                wList.callback = function (value) {
+                    origCallback?.call(this, value);
+                    if (value === lastValue) return;
+                    lastValue = value;
+                    ui.redraw(true);
+                };
+            }
+
+            // size 变化需要完整重绘
+            if (wSize) {
+                const origCallback = wSize.callback;
+                let lastValue = wSize.value;
+                wSize.callback = function (value) {
+                    origCallback?.call(this, value);
+                    if (value === lastValue) return;
+                    lastValue = value;
+                    ui.redraw(true);
+                };
+            }
+
+            ui.redraw(true); // 首次创建需要完整重绘
 
             return r;
         };
@@ -969,7 +1022,7 @@ app.registerExtension({
                 cardSizeWidget.type = "number";
                 cardSizeWidget.computeSize = () => [120, 24];
             }
-            this._ioLoadTextListUI?.redraw?.();
+            this._ioLoadTextListUI?.redraw?.(true); // 从工作流加载需要完整重绘
             return r;
         };
     },

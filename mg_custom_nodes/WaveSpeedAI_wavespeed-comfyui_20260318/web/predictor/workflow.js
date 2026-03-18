@@ -5,6 +5,8 @@
  * It manages serialization of node state and restoration of connections and parameter values.
  */
 
+import { updateRequestJson } from './widgets.js';
+
 /**
  * Restore input connections after model parameters are fully loaded
  * 
@@ -226,7 +228,47 @@ export function configureWorkflowSupport(node, app) {
             this._userSaving = false;
         }
 
+        // Ensure hidden widgets have latest values before serialization
+        // This is critical for API workflow export (graphToPrompt reads widgets_values)
+        try {
+            updateRequestJson(this);
+        } catch (e) {
+            // updateRequestJson may fail during early serialization before widgets are ready
+        }
+
         const data = originalSerialize ? originalSerialize.call(this) : {};
+
+        // Ensure widgets_values contains correct hidden widget values
+        // ComfyUI API export (graphToPrompt) reads hidden input values from widgets_values
+        // LiteGraph's default serialize may produce incorrect indices if dynamic widgets
+        // are mixed in, so we explicitly sync the hidden widget values here.
+        if (data.widgets_values && Array.isArray(data.widgets_values)) {
+            // Find hidden widget indices in the serialized widgets_values array
+            // LiteGraph serializes widgets in order, skipping serialize:false widgets
+            if (this.widgets) {
+                let serializableIndex = 0;
+                for (const widget of this.widgets) {
+                    // Skip widgets with serialize: false (DOMWidgets created with that option)
+                    if (widget.options?.serialize === false) continue;
+                    
+                    if (widget.name === 'model_id') {
+                        data.widgets_values[serializableIndex] = this.modelIdWidget?.value || "";
+                    } else if (widget.name === 'request_json') {
+                        data.widgets_values[serializableIndex] = this.requestJsonWidget?.value || "{}";
+                    } else if (widget.name === 'param_map') {
+                        data.widgets_values[serializableIndex] = this.paramMapWidget?.value || "{}";
+                    }
+                    serializableIndex++;
+                }
+            }
+        } else {
+            // If widgets_values doesn't exist or isn't an array, create it with hidden widget values
+            data.widgets_values = [
+                this.modelIdWidget?.value || "",
+                this.requestJsonWidget?.value || "{}",
+                this.paramMapWidget?.value || "{}"
+            ];
+        }
 
         // Sync data.inputs with actual UI connection state
         if (this.inputs && this.inputs.length > 0) {

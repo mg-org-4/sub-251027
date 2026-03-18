@@ -942,7 +942,8 @@ class Trellis2UnWrapAndRasterizer:
                 "double_side_material": ("BOOLEAN",{"default":False}),
                 "bake_on_vertices": ("BOOLEAN",{"default":False}),
                 "use_custom_normals": ("BOOLEAN",{"default":False}),
-                "bvh": ("BVH",),                
+                "bvh": ("BVH",),
+                "inpainting": (["telea","ns"],{"default":"telea"}),
             }
         }
 
@@ -952,7 +953,7 @@ class Trellis2UnWrapAndRasterizer:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, mesh_cluster_threshold_cone_half_angle_rad, mesh_cluster_refine_iterations, mesh_cluster_global_iterations, mesh_cluster_smooth_strength, texture_size, texture_alpha_mode, double_side_material, bake_on_vertices,use_custom_normals,bvh):
+    def process(self, mesh, mesh_cluster_threshold_cone_half_angle_rad, mesh_cluster_refine_iterations, mesh_cluster_global_iterations, mesh_cluster_smooth_strength, texture_size, texture_alpha_mode, double_side_material, bake_on_vertices,use_custom_normals,bvh,inpainting):
         mesh_copy = copy.deepcopy(mesh)
         
         aabb = [[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]
@@ -1157,12 +1158,17 @@ class Trellis2UnWrapAndRasterizer:
         alpha = np.clip(attrs[..., attr_layout['alpha']].cpu().numpy() * 255, 0, 255).astype(np.uint8)
         alpha_mode = texture_alpha_mode
         
+        if inpainting == 'telea':
+            inpainting = cv2.INPAINT_TELEA
+        else:
+            inpainting = cv2.INPAINT_NS
+        
         # Inpainting: fill gaps (dilation) to prevent black seams at UV boundaries
         mask_inv = (~mask).astype(np.uint8)
-        base_color = cv2.inpaint(base_color, mask_inv, 3, cv2.INPAINT_NS)
-        metallic = cv2.inpaint(metallic, mask_inv, 1, cv2.INPAINT_NS)[..., None]
-        roughness = cv2.inpaint(roughness, mask_inv, 1, cv2.INPAINT_NS)[..., None]
-        alpha = cv2.inpaint(alpha, mask_inv, 1, cv2.INPAINT_NS)[..., None]
+        base_color = cv2.inpaint(base_color, mask_inv, 3, inpainting)
+        metallic = cv2.inpaint(metallic, mask_inv, 1, inpainting)[..., None]
+        roughness = cv2.inpaint(roughness, mask_inv, 1, inpainting)[..., None]
+        alpha = cv2.inpaint(alpha, mask_inv, 1, inpainting)[..., None]
         
         # Create PBR material
         # Standard PBR packs Metallic and Roughness into Blue and Green channels
@@ -1479,6 +1485,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
                 "use_custom_normals":("BOOLEAN",{"default":False}),
                 "bvh": ("BVH",),
                 "remove_inner_faces": ("BOOLEAN",{"default":True}),
+                "inpainting": (["telea","ns"],{"default":"telea"}),
             }
         }
 
@@ -1488,7 +1495,7 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, mesh, mesh_cluster_threshold_cone_half_angle_rad, mesh_cluster_refine_iterations, mesh_cluster_global_iterations, mesh_cluster_smooth_strength, texture_size, remesh, remesh_band, remesh_project, target_face_num, simplify_method, fill_holes, texture_alpha_mode, dual_contouring_resolution, double_side_material, remove_floaters, bake_on_vertices,use_custom_normals,bvh,remove_inner_faces):
+    def process(self, mesh, mesh_cluster_threshold_cone_half_angle_rad, mesh_cluster_refine_iterations, mesh_cluster_global_iterations, mesh_cluster_smooth_strength, texture_size, remesh, remesh_band, remesh_project, target_face_num, simplify_method, fill_holes, texture_alpha_mode, dual_contouring_resolution, double_side_material, remove_floaters, bake_on_vertices,use_custom_normals,bvh,remove_inner_faces,inpainting):
         pbar = ProgressBar(5 if not bake_on_vertices else 4)
         mesh_copy = copy.deepcopy(mesh)
         
@@ -1830,11 +1837,16 @@ class Trellis2PostProcessAndUnWrapAndRasterizer:
         alpha_mode = texture_alpha_mode
         
         # Inpainting: fill gaps (dilation) to prevent black seams at UV boundaries
+        if inpainting == 'telea':
+            inpainting = cv2.INPAINT_TELEA
+        else:
+            inpainting = cv2.INPAINT_NS
+        
         mask_inv = (~mask).astype(np.uint8)
-        base_color = cv2.inpaint(base_color, mask_inv, 3, cv2.INPAINT_NS)
-        metallic = cv2.inpaint(metallic, mask_inv, 1, cv2.INPAINT_NS)[..., None]
-        roughness = cv2.inpaint(roughness, mask_inv, 1, cv2.INPAINT_NS)[..., None]
-        alpha = cv2.inpaint(alpha, mask_inv, 1, cv2.INPAINT_NS)[..., None]
+        base_color = cv2.inpaint(base_color, mask_inv, 3, inpainting)
+        metallic = cv2.inpaint(metallic, mask_inv, 1, inpainting)[..., None]
+        roughness = cv2.inpaint(roughness, mask_inv, 1, inpainting)[..., None]
+        alpha = cv2.inpaint(alpha, mask_inv, 1, inpainting)[..., None]
         
         # Create PBR material
         # Standard PBR packs Metallic and Roughness into Blue and Green channels
@@ -2104,6 +2116,7 @@ class Trellis2MeshTexturing:
                 "use_custom_normals": ("BOOLEAN",{"default":False}),
                 "mesh_cluster_threshold_cone_half_angle_rad": ("FLOAT",{"default":60.0,"min":0.0,"max":359.9}),
                 "sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),
+                "inpainting": (["telea","ns"],{"default":"telea"}),
             },
         }
 
@@ -2113,7 +2126,7 @@ class Trellis2MeshTexturing:
     CATEGORY = "Trellis2Wrapper"
     OUTPUT_NODE = True
 
-    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material, texture_guidance_interval_start, texture_guidance_interval_end, max_views,bake_on_vertices,use_custom_normals,mesh_cluster_threshold_cone_half_angle_rad, sampler):
+    def process(self, pipeline, image, trimesh, seed, texture_steps, texture_guidance_strength, texture_guidance_rescale, texture_rescale_t, resolution, texture_size, texture_alpha_mode, double_side_material, texture_guidance_interval_start, texture_guidance_interval_end, max_views,bake_on_vertices,use_custom_normals,mesh_cluster_threshold_cone_half_angle_rad, sampler, inpainting):
         images = tensor_batch_to_pil_list(image, max_views=max_views)
         image_in = images[0] if len(images) == 1 else images
 
@@ -2135,7 +2148,8 @@ class Trellis2MeshTexturing:
             bake_on_vertices = bake_on_vertices,
             use_custom_normals = use_custom_normals,
             mesh_cluster_threshold_cone_half_angle_rad = mesh_cluster_threshold_cone_half_angle_rad,
-            sampler = sampler
+            sampler = sampler,
+            inpainting = inpainting
         )            
 
         baseColorTexture = pil2tensor(baseColorTexture_np)
@@ -2168,6 +2182,7 @@ class Trellis2MeshTexturingMultiView:
                 "front_axis": (["z", "x"], {"default": "z"}),
                 "blend_temperature": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1}),
                 "sampler": (["euler", "heun", "rk4", "rk5"], {"default": "euler"}),
+                "inpainting": (["telea","ns"],{"default":"telea"}),
             },
             "optional": {
                 "back_image": ("IMAGE",),
@@ -2203,6 +2218,7 @@ class Trellis2MeshTexturingMultiView:
         front_axis,
         blend_temperature,
         sampler,
+        inpainting,
         back_image = None,
         left_image = None,
         right_image = None):
@@ -2237,7 +2253,8 @@ class Trellis2MeshTexturingMultiView:
             mesh_cluster_threshold_cone_half_angle_rad = mesh_cluster_threshold_cone_half_angle_rad,
             front_axis = front_axis,
             blend_temperature = blend_temperature,
-            sampler = sampler
+            sampler = sampler,
+            inpainting = inpainting
         )            
 
         baseColorTexture = pil2tensor(baseColorTexture_np)
@@ -3890,12 +3907,13 @@ class Trellis2MultiViewTexturing:
                 "trimesh": ("TRIMESH",),
                 "texture_size": ("INT", {"default": 4096, "min": 512, "max": 8192}),
                 "blend_texture": ("BOOLEAN", {"default":True}),
-                "blend_exponent": ("FLOAT", {"default": 2.0, "min": 0.5, "max": 8.0, "step": 0.5}),
-                "ortho_scale": ("FLOAT", {"default": 1.0, "min": 0.05, "max": 10.0, "step": 0.01}),
+                "blend_exponent": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 8.0, "step": 0.5}),
+                "ortho_scale": ("FLOAT", {"default": 1.1, "min": 0.05, "max": 10.0, "step": 0.01}),
                 "norm_size": ("FLOAT",{"default":1.15, "min":0.0, "max":9.99, "step":0.01}),
                 "fill_holes": ("BOOLEAN",{"default":True}),
-                "max_hole_size": ("INT",{"default":10,"min":0,"max":99999,"step":1}),
+                "max_hole_size": ("INT",{"default":20,"min":0,"max":99999,"step":1}),
                 "use_metallic": ("BOOLEAN",{"default":True}),
+                "depth_eps": ("FLOAT",{"default":0.0100,"min":0.0001,"max":1.0000,"step":0.0001}),
             },
             "optional": {
                 # Standard views
@@ -3905,10 +3923,17 @@ class Trellis2MultiViewTexturing:
                 "right_image": ("IMAGE",),   # az=270, el=0
                 "top_image": ("IMAGE",),     # az=0, el=90
                 "bottom_image": ("IMAGE",),  # az=0, el=-90
+                "front_weight": ("FLOAT",{"default":1.000,"min":0.001,"max":1.000,"step":0.001}),
+                "back_weight": ("FLOAT",{"default":1.000,"min":0.001,"max":1.000,"step":0.001}),
+                "left_weight": ("FLOAT",{"default":0.010,"min":0.001,"max":1.000,"step":0.001}),
+                "right_weight": ("FLOAT",{"default":0.010,"min":0.001,"max":1.000,"step":0.001}),
+                "top_weight": ("FLOAT",{"default":0.010,"min":0.001,"max":1.000,"step":0.001}),
+                "bottom_weight": ("FLOAT",{"default":0.010,"min":0.001,"max":1.000,"step":0.001}),
                 # Custom views
                 "custom_images": ("IMAGE",),
                 "custom_azimuths": ("STRING", {"default": ""}),
                 "custom_elevations": ("STRING", {"default": ""}),
+                "custom_weights": ("STRING", {"default": ""}),
                 "camera_config": ("HY3DCAMERA",),
             }
         }
@@ -3930,6 +3955,7 @@ class Trellis2MultiViewTexturing:
         fill_holes,
         max_hole_size,
         use_metallic,
+        depth_eps,
         baseColorTexture = None,
         front_image=None,
         back_image=None,
@@ -3937,9 +3963,16 @@ class Trellis2MultiViewTexturing:
         right_image=None,
         top_image=None,
         bottom_image=None,
+        front_weight=None,
+        back_weight=None,
+        left_weight=None,
+        right_weight=None,
+        top_weight=None,
+        bottom_weight=None,
         custom_images=None,
         custom_azimuths="",
         custom_elevations="",
+        custom_weights="",
         camera_config = None
     ):
         from .texture_projection_multiview import texture_mesh_with_multiview
@@ -3950,39 +3983,44 @@ class Trellis2MultiViewTexturing:
         images = []
         azimuths = []
         elevations = []
+        weights = []
         
         # Standard views with their camera angles
         standard_views = [
-            (front_image, 0, 0, "front"),
-            (back_image, 180, 0, "back"),
-            (left_image, 90, 0, "left"),
-            (right_image, 270, 0, "right"),
-            (top_image, 0, 90, "top"),
-            (bottom_image, 0, -90, "bottom"),
+            (front_image, 0, 0, "front", front_weight),
+            (back_image, 180, 0, "back", back_weight),
+            (left_image, 90, 0, "left", left_weight),
+            (right_image, 270, 0, "right", right_weight),
+            (top_image, 0, 90, "top", top_weight),
+            (bottom_image, 0, -90, "bottom", bottom_weight),
         ]
         
-        for img, az, el, name in standard_views:
+        for img, az, el, name, w in standard_views:
             if img is not None:
                 images.append(self._tensor_to_pil(img))
                 azimuths.append(az)
                 elevations.append(el)
-                print(f"[MultiView] Added {name} view (az={az}, el={el})")
+                weights.append(w)
+                print(f"[MultiView] Added {name} view (az={az}, el={el}, w={w})")
         
         # Custom views
         if custom_images is not None:
             custom_az_list = self._parse_angles(custom_azimuths)
             custom_el_list = self._parse_angles(custom_elevations)
+            custom_w_list = self._parse_angles(custom_weights)
             
             if custom_az_list and custom_el_list:
-                num_custom = min(len(custom_az_list), len(custom_el_list), int(custom_images.shape[0]))
+                num_custom = min(len(custom_az_list), len(custom_el_list), int(custom_images.shape[0]), len(custom_w_list))
                 for i in range(num_custom):
                     images.append(self._tensor_to_pil(custom_images[i:i+1]))
                     azimuths.append(custom_az_list[i])
                     elevations.append(custom_el_list[i])
+                    weights.append(custom_w_list[i])
                     print(f"[MultiView] Added custom view {i+1} (az={custom_az_list[i]}, el={custom_el_list[i]})")
             elif camera_config:
                 selected_camera_azims = camera_config["selected_camera_azims"]
                 selected_camera_elevs = camera_config["selected_camera_elevs"]
+                selected_view_weights = camera_config["selected_view_weights"]
                 #ortho_scale = camera_config["ortho_scale"]             
 
                 num_custom = min(len(selected_camera_azims), len(selected_camera_elevs), int(custom_images.shape[0]))
@@ -3990,7 +4028,8 @@ class Trellis2MultiViewTexturing:
                     images.append(self._tensor_to_pil(custom_images[i:i+1]))
                     azimuths.append(selected_camera_azims[i])
                     elevations.append(selected_camera_elevs[i])
-                    print(f"[MultiView] Added custom view {i+1} (az={selected_camera_azims[i]}, el={selected_camera_elevs[i]})")                
+                    weights.append(selected_view_weights[i])
+                    print(f"[MultiView] Added custom view {i+1} (az={selected_camera_azims[i]}, el={selected_camera_elevs[i]}, w={selected_view_weights[i]})")                
         
         if len(images) == 0:
             raise ValueError("No input images provided! Please connect at least one image.")
@@ -4004,6 +4043,7 @@ class Trellis2MultiViewTexturing:
             images,
             azimuths,
             elevations,
+            weights,
             texture_size=texture_size,
             blend_exponent=blend_exponent,
             ortho_scale=ortho_scale,
@@ -4011,7 +4051,8 @@ class Trellis2MultiViewTexturing:
             fill_holes=fill_holes,
             norm_size=norm_size,
             max_hole_size=max_hole_size,
-            use_metallic=use_metallic
+            use_metallic=use_metallic,
+            depth_eps=depth_eps
         )
         
         return (trimesh_obj, pil2tensor(base_color), pil2tensor(mr))

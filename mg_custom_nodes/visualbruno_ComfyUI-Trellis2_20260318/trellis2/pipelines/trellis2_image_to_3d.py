@@ -2199,7 +2199,8 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         double_side_material = True,
         bake_on_vertices = False,
         use_custom_normals = False,
-        mesh_cluster_threshold_cone_half_angle_rad = 60.0
+        mesh_cluster_threshold_cone_half_angle_rad = 60.0,
+        inpainting = 'telea',
     ):        
         vertices = mesh.vertices
         faces = mesh.faces
@@ -2372,11 +2373,16 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         alpha = np.clip(attrs[..., self.pbr_attr_layout['alpha']].cpu().numpy() * 255, 0, 255).astype(np.uint8)
         
         # extend
+        if inpainting == 'telea':
+            inpainting = cv2.INPAINT_TELEA
+        else:
+            inpainting = cv2.INPAINT_NS
+        
         mask = (~mask).astype(np.uint8)
-        base_color = cv2.inpaint(base_color, mask, 3, cv2.INPAINT_TELEA)
-        metallic = cv2.inpaint(metallic, mask, 1, cv2.INPAINT_TELEA)[..., None]
-        roughness = cv2.inpaint(roughness, mask, 1, cv2.INPAINT_TELEA)[..., None]
-        alpha = cv2.inpaint(alpha, mask, 1, cv2.INPAINT_TELEA)[..., None]
+        base_color = cv2.inpaint(base_color, mask, 3, inpainting)
+        metallic = cv2.inpaint(metallic, mask, 1, inpainting)[..., None]
+        roughness = cv2.inpaint(roughness, mask, 1, inpainting)[..., None]
+        alpha = cv2.inpaint(alpha, mask, 1, inpainting)[..., None]
         
         baseColorTexture = Image.fromarray(np.concatenate([base_color, alpha], axis=-1))
         metallicRoughnessTexture = Image.fromarray(np.concatenate([np.zeros_like(metallic), roughness, metallic], axis=-1))
@@ -2429,7 +2435,8 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         bake_on_vertices = False,
         use_custom_normals = False,
         mesh_cluster_threshold_cone_half_angle_rad=60.0,
-        sampler: str = 'euler'
+        sampler: str = 'euler',
+        inpainting: str = 'telea',
     ):
         self.switch_samplers(sampler)
         
@@ -2483,7 +2490,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         pbr_voxel = self.decode_tex_slat(tex_slat)
         torch.cuda.empty_cache()
         
-        out_mesh, baseColorTexture, metallicRoughnessTexture = self.postprocess_mesh(mesh, pbr_voxel, resolution, texture_size, texture_alpha_mode, double_side_material, bake_on_vertices, use_custom_normals, mesh_cluster_threshold_cone_half_angle_rad)
+        out_mesh, baseColorTexture, metallicRoughnessTexture = self.postprocess_mesh(mesh, pbr_voxel, resolution, texture_size, texture_alpha_mode, double_side_material, bake_on_vertices, use_custom_normals, mesh_cluster_threshold_cone_half_angle_rad, inpainting)
         return out_mesh, baseColorTexture, metallicRoughnessTexture
         
     @torch.no_grad()
@@ -2505,7 +2512,8 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         mesh_cluster_threshold_cone_half_angle_rad=60.0,
         front_axis: str = 'z',
         blend_temperature: float = 2.0,
-        sampler: str = 'euler'
+        sampler: str = 'euler',
+        inpainting: str = 'telea',
     ):
         self.switch_samplers(sampler)
         
@@ -2578,7 +2586,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         pbr_voxel = self.decode_tex_slat(tex_slat)
         torch.cuda.empty_cache()
         
-        out_mesh, baseColorTexture, metallicRoughnessTexture = self.postprocess_mesh(mesh, pbr_voxel, resolution, texture_size, texture_alpha_mode, double_side_material, bake_on_vertices, use_custom_normals, mesh_cluster_threshold_cone_half_angle_rad)
+        out_mesh, baseColorTexture, metallicRoughnessTexture = self.postprocess_mesh(mesh, pbr_voxel, resolution, texture_size, texture_alpha_mode, double_side_material, bake_on_vertices, use_custom_normals, mesh_cluster_threshold_cone_half_angle_rad, inpainting)
         return out_mesh, baseColorTexture, metallicRoughnessTexture        
     
     def get_coords_from_trimesh(self, mesh, resolution):

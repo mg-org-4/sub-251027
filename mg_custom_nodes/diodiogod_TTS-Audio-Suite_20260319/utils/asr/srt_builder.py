@@ -3,15 +3,17 @@ SRT builder for ASR outputs with smart readability defaults.
 """
 
 from functools import lru_cache
-from typing import List, Tuple
+from typing import Dict, List, Optional, Tuple
 import re
 
 from utils.asr.types import ASRSegment, ASRWord
+from utils.asr.tagged_text import TaggedTextProfile, parse_tagged_text
 
 
 SENTENCE_END_CHARS = {".", "!", "?", "…"}
 SOFT_BREAK_CHARS = {",", ";", ":"}
 DEFAULT_CONNECTOR_ALLOWLIST = "a,an,the,to,of,and,or,im,i'm,you,you're,we,they,he,she,it"
+ALIGNMENT_TOKEN_RE = re.compile(r"[^\W_]+(?:[-'][^\W_]+)*|[^\w\s]", flags=re.UNICODE)
 
 
 def _format_timestamp(seconds: float) -> str:
@@ -95,6 +97,76 @@ def _group_items_into_lines(items, max_chars_per_line: int):
     if current_line:
         lines.append(current_line)
     return lines
+
+
+def _render_control_block(controls) -> str:
+    return "".join(control.text for control in controls if getattr(control, "text", ""))
+
+
+def _append_render_token(parts: List[str], token: str):
+    if not token:
+        return
+    if parts and not parts[-1].endswith((" ", "\n")):
+        parts.append(" ")
+    parts.append(token)
+
+
+def _render_tagged_segment(seg: ASRSegment,
+                           max_chars_per_line: int,
+                           max_lines: int,
+                           tagged_profile: TaggedTextProfile,
+                           word_index_map: Dict[int, int],
+                           global_last_word_idx: int) -> str:
+    if not seg.words:
+        return _wrap_text(seg.text, max_chars_per_line, max_lines)
+
+    line_groups = _group_items_into_lines(seg.words, max_chars_per_line)
+    if len(line_groups) > max_lines:
+        line_groups = line_groups[:max_lines]
+
+    if not line_groups:
+        return ""
+
+    rendered_lines: List[str] = []
+
+    for line_words in line_groups:
+        first_word_idx = word_index_map.get(id(line_words[0]))
+        if first_word_idx is None:
+            rendered_lines.append(" ".join(word.text for word in line_words).strip())
+            continue
+
+        parts: List[str] = []
+        anchor_controls = tagged_profile.controls_for_anchor(first_word_idx)
+        if any(control.kind == "state" for control in anchor_controls):
+            prefix_block = _render_control_block(anchor_controls)
+        else:
+            carried_state = tagged_profile.active_state_for_word(first_word_idx) or ""
+            carried_controls = [control for control in anchor_controls if control.kind != "state"]
+            prefix_block = f"{carried_state}{_render_control_block(carried_controls)}"
+        if prefix_block:
+            _append_render_token(parts, prefix_block)
+
+        for word_pos, word in enumerate(line_words):
+            word_idx = word_index_map.get(id(word))
+            if word_pos > 0 and word_idx is not None:
+                inline_controls = tagged_profile.controls_for_anchor(word_idx)
+                inline_block = _render_control_block(inline_controls)
+                if inline_block:
+                    _append_render_token(parts, inline_block)
+            _append_render_token(parts, word.text)
+
+        line_last_word_idx = word_index_map.get(id(line_words[-1]))
+        if line_last_word_idx is not None and line_last_word_idx == global_last_word_idx:
+            trailing_controls = tagged_profile.controls_for_anchor(global_last_word_idx + 1)
+            trailing_block = _render_control_block(trailing_controls)
+            if trailing_block:
+                _append_render_token(parts, trailing_block)
+
+        rendered_line = "".join(parts).strip()
+        if rendered_line:
+            rendered_lines.append(rendered_line)
+
+    return "\n".join(rendered_lines)
 
 
 def _items_text(items) -> str:
@@ -700,15 +772,21 @@ def _segments_from_words(words: List[ASRWord],
     return merged
 
 
+def segments_from_words(words: List[ASRWord], **kwargs) -> List[ASRSegment]:
+    return _segments_from_words(words, **kwargs)
+
+
 def _apply_punctuation(words: List[ASRWord], full_text: str):
     if not words or not full_text:
         return words, 0, 0, []
 
     # Tokenize text into words and punctuation
-    # Split into word/punct tokens (keeps apostrophes for contractions)
-    tokens = re.findall(r"[A-Za-z0-9]+(?:'[A-Za-z0-9]+)?|[^\w\s]", full_text, flags=re.UNICODE)
+    # Keep apostrophes and hyphens inside compounds so they do not get
+    # mis-attached as free punctuation during alignment.
+    tokens = ALIGNMENT_TOKEN_RE.findall(full_text)
     word_idx = 0
     last_word_idx = -1
+    skipped_word_indices = set()
 
     def normalize(w: str) -> str:
         return re.sub(r"[^\w]+", "", w, flags=re.UNICODE).lower()
@@ -721,6 +799,11 @@ def _apply_punctuation(words: List[ASRWord], full_text: str):
                 return [parts[0], parts[1]]
         return [token]
 
+    def expand_compound(token: str) -> List[str]:
+        if "-" in token:
+            return [part for part in token.split("-") if part]
+        return [token]
+
     total_word_tokens = 0
     matched_word_tokens = 0
 
@@ -731,6 +814,8 @@ def _apply_punctuation(words: List[ASRWord], full_text: str):
         nonlocal word_idx, last_word_idx, matched_word_tokens
         lookahead = 4
         for j in range(word_idx, min(len(words), word_idx + lookahead)):
+            if j in skipped_word_indices:
+                continue
             if normalize(words[j].text) == norm_tok:
                 words[j].text = replacement
                 last_word_idx = j
@@ -739,22 +824,69 @@ def _apply_punctuation(words: List[ASRWord], full_text: str):
                 return True
         return False
 
+    def try_match_compound(token: str, parts: List[str], credit: int) -> bool:
+        nonlocal word_idx, last_word_idx, matched_word_tokens
+        if len(parts) <= 1:
+            return False
+
+        lookahead = max(4, len(parts) + 2)
+        for j in range(word_idx, min(len(words), word_idx + lookahead)):
+            if j in skipped_word_indices:
+                continue
+
+            matched_indices: List[int] = []
+            cursor = j
+            for part in parts:
+                while cursor < len(words) and cursor in skipped_word_indices:
+                    cursor += 1
+                if cursor >= len(words) or normalize(words[cursor].text) != normalize(part):
+                    matched_indices = []
+                    break
+                matched_indices.append(cursor)
+                cursor += 1
+
+            if not matched_indices:
+                continue
+
+            first_idx = matched_indices[0]
+            last_idx = matched_indices[-1]
+            words[first_idx].text = token
+            words[first_idx].end = words[last_idx].end
+            for idx in matched_indices[1:]:
+                skipped_word_indices.add(idx)
+            last_word_idx = first_idx
+            matched_word_tokens += credit
+            word_idx = last_idx + 1
+            return True
+        return False
+
     for tok in tokens:
         # Word token
-        if re.match(r"[A-Za-z0-9]", tok, flags=re.UNICODE):
-            sub_tokens = expand_contraction(tok)
-            total_word_tokens += len(sub_tokens)
+        if re.match(r"[^\W_]", tok, flags=re.UNICODE):
+            compound_parts = expand_compound(tok)
+            apostrophe_parts = expand_contraction(tok)
+            total_word_tokens += len(compound_parts if "-" in tok else apostrophe_parts)
             if word_idx >= len(words):
                 if len(missed_tokens) < 3:
                     missed_tokens.append(tok)
                 break
+
+            if "-" in tok:
+                if try_match(normalize(tok), tok, len(compound_parts)):
+                    continue
+                if try_match_compound(tok, compound_parts, len(compound_parts)):
+                    continue
+                if len(missed_tokens) < 3:
+                    missed_tokens.append(tok)
+                continue
+
             # Prefer matching the full contraction first (e.g. "I'll" -> "i'll").
-            if "'" in tok and try_match(normalize(tok), tok, len(sub_tokens)):
+            if "'" in tok and try_match(normalize(tok), tok, len(apostrophe_parts)):
                 continue
 
             # Fall back to aligning each contraction part separately when the
             # timing stream splits them into multiple words.
-            for sub in sub_tokens:
+            for sub in apostrophe_parts:
                 if not try_match(normalize(sub), sub, 1) and len(missed_tokens) < 3:
                     missed_tokens.append(sub)
         else:
@@ -792,6 +924,9 @@ def _apply_punctuation(words: List[ASRWord], full_text: str):
                     "end": None,
                     "fallback": True,
                 })
+
+    if skipped_word_indices:
+        words = [word for idx, word in enumerate(words) if idx not in skipped_word_indices]
 
     return words, matched_word_tokens, total_word_tokens, missed_tokens, punct_events
 
@@ -899,6 +1034,9 @@ def build_srt(segments: List[ASRSegment],
     if not segments:
         return ("", {"matched": 0, "total": 0}) if return_stats else ""
 
+    tagged_profile = parse_tagged_text(full_text)
+    alignment_text = tagged_profile.spoken_text if tagged_profile.has_control_tags else full_text
+
     if mode == "words":
         flat_words = [w for s in segments for w in (s.words or [])]
         if dedupe_overlaps:
@@ -911,7 +1049,7 @@ def build_srt(segments: List[ASRSegment],
         else:
             removed = 0
             dedupe_events = []
-        flat_words, matched, total, missed, punct_events = _apply_punctuation(flat_words, full_text)
+        flat_words, matched, total, missed, punct_events = _apply_punctuation(flat_words, alignment_text)
         segments_to_use = [ASRSegment(start=w.start, end=w.end, text=w.text, words=[w]) for w in flat_words]
     elif mode == "engine_segments":
         segments_to_use = segments
@@ -927,7 +1065,7 @@ def build_srt(segments: List[ASRSegment],
         else:
             removed = 0
             dedupe_events = []
-        flat_words, matched, total, missed, punct_events = _apply_punctuation(flat_words, full_text)
+        flat_words, matched, total, missed, punct_events = _apply_punctuation(flat_words, alignment_text)
         if flat_words:
             segments_to_use = _segments_from_words(
                 flat_words,
@@ -978,6 +1116,8 @@ def build_srt(segments: List[ASRSegment],
             continue
         if nxt.text and nxt.text[:1].isupper() and (nxt.start - cur.end) >= min_gap:
             cur.text = f"{cur.text}."
+            if cur.words:
+                cur.words[-1].text = f"{cur.words[-1].text}."
 
     display_segments: List[ASRSegment] = []
     for seg in segments_to_use:
@@ -997,16 +1137,36 @@ def build_srt(segments: List[ASRSegment],
                 trimmed = _trim_trailing_soft_punctuation(seg.text)
                 stripped_soft_punct = trimmed != seg.text
                 seg.text = trimmed
+                if seg.words:
+                    seg.words[-1].text = _trim_trailing_soft_punctuation(seg.words[-1].text)
                 if stripped_soft_punct and idx + 1 < len(display_segments):
                     next_seg = display_segments[idx + 1]
                     if next_seg.text:
                         next_seg.text = _capitalize_segment_start(next_seg.text)
+                        if next_seg.words:
+                            next_seg.words[0].text = _capitalize_segment_start(next_seg.words[0].text)
+
+    tagged_word_index_map: Optional[Dict[int, int]] = None
+    if tagged_profile.has_control_tags:
+        ordered_words = [word for segment in display_segments for word in (segment.words or [])]
+        if ordered_words:
+            tagged_word_index_map = {id(word): index for index, word in enumerate(ordered_words)}
 
     lines: List[str] = []
     for idx, seg in enumerate(display_segments, start=1):
         start_ts = _format_timestamp(seg.start)
         end_ts = _format_timestamp(seg.end)
-        text = _wrap_text(seg.text, max_chars_per_line, max_lines)
+        if tagged_word_index_map and seg.words:
+            text = _render_tagged_segment(
+                seg,
+                max_chars_per_line=max_chars_per_line,
+                max_lines=max_lines,
+                tagged_profile=tagged_profile,
+                word_index_map=tagged_word_index_map,
+                global_last_word_idx=len(tagged_word_index_map) - 1,
+            )
+        else:
+            text = _wrap_text(seg.text, max_chars_per_line, max_lines)
         if not text:
             continue
         lines.append(str(idx))

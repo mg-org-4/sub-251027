@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.24.3] - 2026-03-18
+
+### Changed
+
+- Improve Portuguese language tag parsing for ChatterBox subtitle generation
+
+### Fixed
+
+- Fix ChatterBox SRT multiline subtitle handling and 23-Lang language tag switching
+- Fix Classic ChatterBox and ChatterBox Official 23-Lang skipping later lines in multiline SRT subtitles
+- Fix ChatterBox Official 23-Lang language-only tags like [pt:] not switching the tagged subtitle line
+## [4.24.2] - 2026-03-18
+
+### Added
+
+- Document control-tag-safe SRT building for TTS workflows
+
+### Changed
+
+- Improve Text to SRT Builder subtitle generation and documentation
+- Improve subtitle generation from edited transcripts and plain text workflows in the README
+
+### Fixed
+
+- Fix hyphenated words being formatted incorrectly in generated subtitles
 ## [4.24.1] - 2026-03-17
 
 ### Changed

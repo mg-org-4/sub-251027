@@ -123,12 +123,11 @@ class RegexWeightsMechaHyper:
                 continue
             weights[key] = weight
 
+        recipe = sd_mecha.literal(default, config=model_config, merge_space="param")
         if weights:
-            recipe = sd_mecha.literal(weights, model_config) | default
-        else:
-            recipe = sd_mecha.literal(default, model_config)
+            recipe = sd_mecha.literal(weights, config=model_config, merge_space="param") | recipe
 
-        return ComfyMechaRecipe(recipe), sd_mecha.serialize(recipe)
+        return ComfyMechaRecipe(recipe), sd_mecha.serialize(recipe, finalize=False)
 
 
 class KeyMatcher:

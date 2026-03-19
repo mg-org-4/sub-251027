@@ -303,7 +303,7 @@ class MechaMerger:
         model_management.unload_all_models()
         state_dict = sd_mecha.merge(
             recipe=recipe,
-            fallback_model=fallback_model if fallback_model != "none" else None,
+            fallback_model=sd_mecha.model(fallback_model) if fallback_model != "none" else None,
             merge_device=default_merge_device if default_merge_device != "none" else None,
             merge_dtype=DTYPE_MAPPING[default_merge_dtype] if default_merge_dtype != "none" else None,
             output_device=output_device if output_device != "none" else None,
@@ -319,7 +319,11 @@ class MechaMerger:
             tqdm=ComfyTqdm,
             cache=cache,
         )
-        res = load_state_dict_guess_config(state_dict, embedding_directory=folder_paths.get_folder_paths("embeddings"), output_vae=not omit_vae)[:3]
+        res = load_state_dict_guess_config(state_dict, embedding_directory=folder_paths.get_folder_paths("embeddings"), output_vae=not omit_vae)
+        if res is None:
+            raise RuntimeError("Could not merge recipe: Comfy did not recognize this diffusion model.")
+
+        res = res[: 3]
         if temporary_merge:
             temporary_merged_recipes.append((recipe_txt, res))
         return *res, recipe_txt
@@ -739,7 +743,7 @@ def get_method_node_execute(method: merge_methods.MergeMethod):
                 new_k = k.split(" ")[0]
                 kwargs[new_k] = kwargs.pop(k)
 
-        cache_all = functools.reduce(operator.or_, (v.cache for v in kwargs.values()), {})
+        cache_all = functools.reduce(operator.or_, (collect_cache(v) for v in kwargs.values()), {})
         args = [
             kwargs.pop(k).node
             if i < num_mandatory_args else
@@ -767,6 +771,13 @@ def get_method_node_execute(method: merge_methods.MergeMethod):
             cache_all[node] = {}
 
         return ComfyMechaRecipe(node, cache_all),
+
+    def collect_cache(recipe):
+        if isinstance(recipe, ComfyMechaRecipe):
+            return recipe.cache
+        if isinstance(recipe, list):
+            return functools.reduce(operator.or_, (collect_cache(v) for v in recipe), {})
+        return {}
 
     return execute
 

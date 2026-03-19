@@ -1,10 +1,10 @@
 """
-PromptManagerText: A text-only version of PromptManager that outputs STRING
-without CLIP encoding, while maintaining all database and search features.
+PromptManager: Main custom node implementation that extends CLIPTextEncode
+with persistent prompt storage and search capabilities.
 """
 
 import time
-from typing import Tuple
+from typing import Any, Tuple
 
 try:
     from comfy.comfy_types import IO, ComfyNodeABC, InputTypeDict
@@ -30,19 +30,17 @@ except ImportError:
     from prompt_manager_base import PromptManagerBase
 
 
-class PromptManagerText(PromptManagerBase, ComfyNodeABC):
+class PromptManager(PromptManagerBase, ComfyNodeABC):
     """
-    A ComfyUI custom node that provides all PromptManager features but outputs
-    only a STRING without CLIP encoding. Includes:
+    A ComfyUI custom node that functions like CLIPTextEncode but adds:
     - Persistent storage of all prompts in SQLite database
     - Search and retrieval capabilities
     - Metadata management (categories, tags, ratings, notes)
     - Duplicate detection via SHA256 hashing
-    - Text concatenation with prepend/append functionality
     """
 
     def __init__(self):
-        super().__init__(logger_name="prompt_manager_text.node")
+        super().__init__(logger_name="prompt_manager.node")
 
     @classmethod
     def INPUT_TYPES(cls) -> InputTypeDict:
@@ -53,9 +51,13 @@ class PromptManagerText(PromptManagerBase, ComfyNodeABC):
                     {
                         "multiline": True,
                         "dynamicPrompts": True,
-                        "tooltip": "The text prompt to be processed and saved to database.",
+                        "tooltip": "The text prompt to be encoded and saved to database.",
                     },
-                )
+                ),
+                "clip": (
+                    IO.CLIP,
+                    {"tooltip": "The CLIP model used for encoding the text."},
+                ),
             },
             "optional": {
                 "category": (
@@ -82,47 +84,48 @@ class PromptManagerText(PromptManagerBase, ComfyNodeABC):
                 "prepend_text": (
                     IO.STRING,
                     {
-                        "default": "",
-                        "tooltip": "Text to prepend to the main prompt (connected STRING nodes will be added before the main text)",
+                        "tooltip": "Text to prepend to the main prompt (connected STRING nodes will be added before the main text)"
                     },
                 ),
                 "append_text": (
                     IO.STRING,
                     {
-                        "default": "",
-                        "tooltip": "Text to append to the main prompt (connected STRING nodes will be added after the main text)",
+                        "tooltip": "Text to append to the main prompt (connected STRING nodes will be added after the main text)"
                     },
                 ),
             },
         }
 
-    RETURN_TYPES = (IO.STRING,)
+    RETURN_TYPES = (IO.CONDITIONING, IO.STRING)
     OUTPUT_TOOLTIPS = (
-        "The final combined text string (with prepend/append applied) ready for use in other nodes.",
+        "A conditioning containing the embedded text used to guide the diffusion model.",
+        "The final combined text string (with prepend/append applied) that was encoded.",
     )
-    FUNCTION = "process_text"
+    FUNCTION = "encode_prompt"
     OUTPUT_NODE = True
     CATEGORY = "🫶 ComfyAssets/🧠 Prompts"
     DESCRIPTION = (
-        "Processes and manages text prompts with database storage and search capabilities. "
-        "Outputs a plain STRING that can be used with any node that accepts text input. "
-        "Includes all PromptManager features: categorization, tagging, search, and prepend/append functionality."
+        "Encodes a text prompt using a CLIP model into an embedding that can be used to guide "
+        "the diffusion model towards generating specific images. Additionally saves all prompts "
+        "to a local SQLite database with optional metadata for search and retrieval."
     )
 
-    def process_text(
+    def encode_prompt(
         self,
+        clip,
         text: str,
         category: str = "",
         tags: str = "",
         search_text: str = "",
         prepend_text: str = "",
         append_text: str = "",
-    ) -> Tuple[str]:
+    ) -> Tuple[Any]:
         """
-        Process the text prompt and save it to the database.
+        Encode the text prompt and save it to the database.
 
         Args:
-            text: The text prompt to process
+            clip: The CLIP model for encoding
+            text: The text prompt to encode
             category: Optional category for organization
             tags: Comma-separated tags
             search_text: Text to search for in past prompts
@@ -130,21 +133,40 @@ class PromptManagerText(PromptManagerBase, ComfyNodeABC):
             append_text: Text to append to the main prompt
 
         Returns:
-            Tuple containing the final processed text string
+            Tuple containing the conditioning for the diffusion model and the final text string
+
+        Raises:
+            RuntimeError: If clip input is invalid
         """
         # Combine prepend, main text, and append text
-        final_text = ""
+        parts = []
         if prepend_text and prepend_text.strip():
-            final_text += prepend_text.strip() + " "
-        final_text += text
+            parts.append(prepend_text.strip())
+        if text:
+            parts.append(text)
         if append_text and append_text.strip():
-            final_text += " " + append_text.strip()
+            parts.append(append_text.strip())
+        final_text = " ".join(parts)
+
+        # Use the combined text for encoding
+        encoding_text = final_text
 
         # For database storage, save the original main text with metadata about prepend/append
         storage_text = text
 
+        # Validate CLIP model
+        if clip is None:
+            error_msg = (
+                "ERROR: clip input is invalid: None\n\n"
+                "If the clip is from a checkpoint loader node your checkpoint does not "
+                "contain a valid clip or text encoder model."
+            )
+            self.logger.error("CLIP validation failed: clip input is None")
+            raise RuntimeError(error_msg)
+
         # Save prompt to database and set execution context for gallery tracking
         prompt_id = None
+        extended_tags = []
         if storage_text and storage_text.strip():
             self.logger.debug(f"Processing prompt text: {storage_text[:100]}...")
 
@@ -165,7 +187,7 @@ class PromptManagerText(PromptManagerBase, ComfyNodeABC):
                 # Set current prompt for image tracking
                 if prompt_id:
                     execution_id = self.prompt_tracker.set_current_prompt(
-                        prompt_text=final_text.strip(),
+                        prompt_text=encoding_text.strip(),
                         additional_data={
                             "category": category.strip() if category else None,
                             "tags": extended_tags,
@@ -174,6 +196,7 @@ class PromptManagerText(PromptManagerBase, ComfyNodeABC):
                                 prepend_text.strip() if prepend_text else None
                             ),
                             "append_text": append_text.strip() if append_text else None,
+                            "final_text": encoding_text.strip(),
                         },
                     )
                     self.logger.debug(
@@ -181,14 +204,21 @@ class PromptManagerText(PromptManagerBase, ComfyNodeABC):
                     )
 
             except Exception as e:
-                # Log error but don't fail the processing
+                # Log error but don't fail the encoding
                 self.logger.warning(f"Failed to save prompt to database: {e}")
 
+        # Perform standard CLIP text encoding using the combined text
+        self.logger.debug(
+            f"Performing CLIP text encoding on combined text: {encoding_text[:100]}..."
+        )
+        tokens = clip.tokenize(encoding_text)
+        conditioning = clip.encode_from_tokens_scheduled(tokens)
+
         # Register with ComfyUI integration for standard metadata compatibility
-        node_id = f"promptmanagertext_{int(time.time() * 1000)}"
+        node_id = f"promptmanager_{int(time.time() * 1000)}"
         self.comfyui_integration.register_prompt(
             node_id,
-            final_text.strip(),
+            encoding_text.strip(),
             {
                 "category": category.strip() if category else None,
                 "tags": extended_tags,
@@ -198,12 +228,13 @@ class PromptManagerText(PromptManagerBase, ComfyNodeABC):
             },
         )
 
-        self.logger.debug(f"Text processing completed: {final_text[:100]}...")
-        return (final_text,)
+        self.logger.info(f"CLIP encoding completed, text: {repr(encoding_text)[:80]}")
+        return (conditioning, encoding_text)
 
     @classmethod
     def IS_CHANGED(
         cls,
+        clip,
         text="",
         category="",
         tags="",
@@ -215,7 +246,7 @@ class PromptManagerText(PromptManagerBase, ComfyNodeABC):
         """
         ComfyUI method to determine if node needs re-execution.
 
-        Returns a hash of input values that affect the text output.
+        Returns a hash of input values that affect the conditioning output.
         This enables proper branch execution - only re-execute when inputs change.
         """
         import hashlib

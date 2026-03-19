@@ -1165,10 +1165,11 @@
                             flipVertical: 1,
                         },
                         navbar: true,
+                        button: true,
                         title: true,
                         transition: true,
                         keyboard: true,
-                        backdrop: 'static',
+                        backdrop: true,
                         loading: true,
                         loop: true,
                         tooltip: true,
@@ -1185,6 +1186,10 @@
                         },
                         viewed: (event) => {
                             this.loadMetadataForImage(event.detail.image);
+                        },
+                        hidden: () => {
+                            const sidebar = document.getElementById('metadata-sidebar');
+                            if (sidebar) sidebar.remove();
                         }
                     });
                 }, 100);
@@ -2986,7 +2991,15 @@ Seed: ${this.currentMetadata.seed || 'Unknown'}`;
             }
 
             addMetadataSidebar() {
-                const viewerContainer = document.querySelector('.viewer-container');
+                // Find the active (visible) viewer container — there may be stale
+                // hidden ones from previously opened viewers still in the DOM
+                const containers = document.querySelectorAll('.viewer-container');
+                let viewerContainer = null;
+                for (const c of containers) {
+                    if (c.style.display !== 'none') {
+                        viewerContainer = c;
+                    }
+                }
                 if (!viewerContainer || document.getElementById('metadata-sidebar')) return;
 
                 const sidebar = document.createElement('div');
@@ -3629,6 +3642,8 @@ Seed: ${this.currentMetadata.seed || 'Unknown'}`;
                 // Initialize ViewerJS
                 const viewer = new Viewer(container, {
                     inline: false,
+                    button: true,
+                    backdrop: true,
                     navbar: true,
                     toolbar: {
                         zoomIn: 1,
@@ -3644,7 +3659,15 @@ Seed: ${this.currentMetadata.seed || 'Unknown'}`;
                         flipVertical: 1
                     },
                     title: [1, (image, imageData) => image.alt || 'Image'],
+                    shown: () => {
+                        this.addMetadataSidebar();
+                    },
+                    viewed: (event) => {
+                        this.loadMetadataForImage(event.detail.image);
+                    },
                     hidden: () => {
+                        const sidebar = document.getElementById('metadata-sidebar');
+                        if (sidebar) sidebar.remove();
                         viewer.destroy();
                         container.remove();
                     },

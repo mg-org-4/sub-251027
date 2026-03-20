@@ -1,6 +1,6 @@
  # !/usr/bin/env python
 # -*- coding: UTF-8 -*-
-
+from einops import rearrange
 import numpy as np
 import torch
 import os
@@ -254,8 +254,9 @@ class LucidFlux_SM_KSampler(io.ComfyNode):
             if not wavelet:
                 hq=vae.decode(i)
             else:
-                image=vae.decode(i).squeeze(0)#torch.Size([1024, 1024, 3])
-                x1 = image.clamp(-1, 1).to(device)
+                x1=vae.decode(i) #torch.Size([1,1024, 1024, 3])
+                x1 = x1.clamp(-1, 1).permute(0, 3, 1, 2).to(device) #--> torch.Size([1, 3, 1024, 1024])
+                x1=rearrange(x1[-1], "c h w -> h w c")
                 hq = wavelet_reconstruction((x1.permute(2, 0, 1) + 1.0) / 2, j.get("ci_pre_origin").squeeze(0).to(device))
                 hq = hq.clamp(0, 1)
                 hq=hq.unsqueeze(0).permute(0, 2, 3, 1)

@@ -1,0 +1,15 @@
+[project]
+name = "sd-webui-prompt-postprocessor"
+description = "Stable Diffusion WebUI & ComfyUI extension to post-process the prompt, including sending content from the prompt to the negative prompt and wildcards."
+version = "2.13.2"
+license = { file = "LICENSE.txt" }
+dependencies = ["lark", "numpy", "pyyaml"]
+
+[project.urls]
+Repository = "https://github.com/acorderob/sd-webui-prompt-postprocessor"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "acorderob"
+DisplayName = "sd-webui-prompt-postprocessor"
+Icon = "ppp_icon.png"

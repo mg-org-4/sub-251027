@@ -1,9 +1,23 @@
 import math
+import time
 import torch
 import torchvision
 from .. import RyanOnTheInside
 from abc import ABC
 from ..tooltips import apply_tooltips
+
+
+class AlwaysEqualProxy(str):
+    """Allows connecting any output type to a single input."""
+
+    def __eq__(self, _):
+        return True
+
+    def __ne__(self, _):
+        return False
+
+
+_lazy_condition_states = {}
  
 class UtilityNode(RyanOnTheInside, ABC):
     #NOTE: for forward compatibility
@@ -283,6 +297,85 @@ class SwapDevice(UtilityNode):
     RETURN_TYPES = ("IMAGE", "MASK")
     FUNCTION = "swap_device"
 
+@apply_tooltips
+class LazyCondition(UtilityNode):
+    DESCRIPTION = (
+        "Uses lazy evaluation to truly skip execution of unused paths. "
+        "Maintains state of the last value to circumvent feedback loops."
+    )
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "use_fallback": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "When False, uses last successful if_true result (if one exists). When True, uses fallback value",
+                    },
+                ),
+                "always_execute": (
+                    "BOOLEAN",
+                    {"default": True, "tooltip": "When enabled, the node updates every execution"},
+                ),
+            },
+            "optional": {
+                "condition": (
+                    AlwaysEqualProxy("*"),
+                    {
+                        "tooltip": "When truthy (non-zero, non-empty, non-None), evaluates and returns if_true path. When falsy or unconnected, returns either fallback or previous state of if_true.",
+                        "forceInput": True,
+                    },
+                ),
+                "if_true": (
+                    AlwaysEqualProxy("*"),
+                    {"lazy": True, "tooltip": "The path that should only be evaluated when condition is truthy"},
+                ),
+                "fallback": (
+                    AlwaysEqualProxy("*"),
+                    {"tooltip": "Alternative value to use when condition is falsy or no previous state of if_true"},
+                ),
+            },
+            "hidden": {
+                "unique_id": ("UNIQUE_ID",),
+            },
+        }
+
+    RETURN_TYPES = (AlwaysEqualProxy("*"),)
+    FUNCTION = "update"
+    CATEGORY = "RyanOnTheInside/Utility"
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        if kwargs.get("always_execute", True):
+            return float(time.time())
+        return False
+
+    def check_lazy_status(self, use_fallback, always_execute=True, condition=None, if_true=None, fallback=None, unique_id=None):
+        needed = []
+        if fallback is None:
+            needed.append("fallback")
+        if condition:
+            needed.append("if_true")
+        return needed
+
+    def update(self, use_fallback, always_execute=True, condition=None, if_true=None, fallback=None, unique_id=None):
+        state = _lazy_condition_states.get(unique_id, {"prev_output": None})
+
+        if condition:
+            state["prev_output"] = if_true if if_true is not None else fallback
+            if hasattr(if_true, "detach"):
+                state["prev_output"] = if_true.detach().clone()
+            _lazy_condition_states[unique_id] = state
+            return (if_true,)
+        else:
+            if use_fallback or state["prev_output"] is None:
+                return (fallback,)
+            else:
+                return (state["prev_output"],)
+
+
 NODE_CLASS_MAPPINGS = {
     "ImageChunk": ImageChunks,
     "ImageInterval": ImageIntervalSelect,
@@ -292,6 +385,7 @@ NODE_CLASS_MAPPINGS = {
     "SwapDevice": SwapDevice,
     "ImageIntervalSelectPercentage": ImageIntervalSelectPercentage,
     "ImageIndexSelect": ImageIndexSelect,
+    "LazyCondition": LazyCondition,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {

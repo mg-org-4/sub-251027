@@ -64,7 +64,8 @@ app.registerExtension({
                 this._ifpCreateWidget();
             }
 
-            this._ifpData = { series, title };
+            const bpm = message?.bpm?.[0] || 0;
+            this._ifpData = { series, title, bpm };
 
             // Handle audio
             if (audioFile) {
@@ -695,6 +696,31 @@ app.registerExtension({
                 ctx.moveTo(x, graphY);
                 ctx.lineTo(x, graphY + graphH);
                 ctx.stroke();
+            }
+
+            // Beat markers
+            if (data.bpm > 0 && this._ifpAudioDuration > 0) {
+                const secPerBeat = 60 / data.bpm;
+                const totalBeats = Math.floor(this._ifpAudioDuration / secPerBeat);
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(graphX, graphY, graphW, graphH);
+                ctx.clip();
+                for (let beat = 1; beat <= totalBeats; beat++) {
+                    const beatTime = beat * secPerBeat;
+                    const frac = beatTime / this._ifpAudioDuration;
+                    const bx = graphX + frac * graphW;
+                    const isBar = beat % 4 === 0;
+                    ctx.strokeStyle = isBar ? "rgba(255, 200, 80, 0.4)" : "rgba(255, 200, 80, 0.15)";
+                    ctx.lineWidth = isBar ? 1.5 : 0.75;
+                    ctx.setLineDash(isBar ? [] : [3, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(bx, graphY);
+                    ctx.lineTo(bx, graphY + graphH);
+                    ctx.stroke();
+                }
+                ctx.setLineDash([]);
+                ctx.restore();
             }
 
             // Border

@@ -883,7 +883,7 @@ class InstantFloatPreview(RyanOnTheInside):
             },
             "optional": {
                 "audio": ("AUDIO", {"tooltip": "Optional audio input with synced playhead"}),
-                "rewind_seconds": ("FLOAT", {"default": 2.0, "min": 0.0, "max": 30.0, "step": 0.5,
+                "rewind_seconds": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 30.0, "step": 0.5,
                     "tooltip": "Seconds to rewind audio on re-execution (0 = continue from same position)"}),
                 "float_1": ("FLOAT", {"default": 0.0, "forceInput": True}),
                 "label_1": ("STRING", {"default": "Float 1"}),
@@ -957,6 +957,15 @@ class InstantFloatPreview(RyanOnTheInside):
             duration = float(audio["waveform"].shape[-1]) / audio["sample_rate"]
             ui_data["ifp_audio"] = [audio_result]
             ui_data["ifp_audio_duration"] = [duration]
+
+            try:
+                from ..audio import librosa_replacements as lr
+                audio_mono = audio["waveform"].squeeze(0).mean(axis=0).cpu().numpy()
+                tempo, _ = lr.beat_track(y=audio_mono, sr=audio["sample_rate"])
+                bpm = float(tempo.item() if hasattr(tempo, 'item') else tempo)
+                ui_data["bpm"] = [bpm]
+            except Exception:
+                pass
 
         return {"ui": ui_data}
 

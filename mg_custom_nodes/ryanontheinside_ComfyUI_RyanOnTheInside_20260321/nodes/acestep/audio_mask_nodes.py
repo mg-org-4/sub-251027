@@ -428,4 +428,4 @@ AUDIO_MASK_NODE_DISPLAY_NAME_MAPPINGS = {
     "AudioRegionMask15": "Audio Region Mask (ACE 1.5)",
     "MaskToAudioMask15": "Mask to Audio Mask (ACE 1.5)",
     "AudioLatentStretch": "Audio Latent Stretch",
-} 
+}

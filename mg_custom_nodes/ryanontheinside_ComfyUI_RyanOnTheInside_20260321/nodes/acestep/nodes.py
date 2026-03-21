@@ -3,6 +3,10 @@ import numpy as np
 import comfy.model_management
 import comfy.model_sampling
 import comfy.samplers
+try:
+    from comfy.ldm.ace.ace_step15 import get_silence_latent
+except ImportError:
+    get_silence_latent = None
 
 # Import patches module to apply ACE-Step 1.5 patches
 from . import patches
@@ -808,6 +812,7 @@ class ACEStep15NativeCoverGuiderNode:
     def get_guider(self, model, positive, negative, cfg, source_latents, semantic_hints=None, reference_latent=None):
         patches.apply_acestep_patches()
         source_tensor = source_latents["samples"]
+        noise_mask = source_latents.get("noise_mask", None)
 
         # Validate v1.5 shape: (batch, 64, length)
         if len(source_tensor.shape) != 3 or source_tensor.shape[1] != 64:
@@ -818,6 +823,8 @@ class ACEStep15NativeCoverGuiderNode:
 
         logger.debug(f"[ACE15_COVER_NODE] Creating guider")
         logger.debug(f"[ACE15_COVER_NODE]   source_tensor.shape: {source_tensor.shape}")
+        if noise_mask is not None:
+            logger.debug(f"[ACE15_COVER_NODE]   noise_mask found: {noise_mask.shape}")
         if semantic_hints is not None:
             logger.debug(f"[ACE15_COVER_NODE]   semantic_hints provided externally: {semantic_hints.shape}")
         else:
@@ -826,7 +833,8 @@ class ACEStep15NativeCoverGuiderNode:
             logger.debug(f"[ACE15_COVER_NODE]   reference_latent provided: {ref_tensor.shape}")
 
         guider = ACEStep15NativeCoverGuider(
-            model, positive, negative, cfg, source_tensor, semantic_hints, reference_latent=ref_tensor
+            model, positive, negative, cfg, source_tensor, semantic_hints,
+            reference_latent=ref_tensor, noise_mask=noise_mask
         )
 
         return (guider,)
@@ -1015,9 +1023,9 @@ class ACEStep15TaskTextEncodeNode:
                              {"tooltip": "text2music/repaint use LM audio code generation (cfg_scale, temperature, top_p, top_k apply). cover/extract/lego use precomputed semantic hints from source audio instead."}),
             },
             "optional": {
-                "track_name": (["", "vocals", "drums", "bass", "guitar", "keyboard", "strings",
+                "track_name": (["None", "vocals", "drums", "bass", "guitar", "keyboard", "strings",
                                "percussion", "synth", "fx", "brass", "woodwinds", "backing_vocals"],
-                              {"default": ""}),
+                              {"default": "None"}),
                 "lyrics": ("STRING", {"multiline": True, "default": ""}),
                 "bpm": ("INT", {"default": 120, "min": 10, "max": 300}),
                 "duration": ("FLOAT", {"default": 60.0, "min": 1.0, "max": 2000.0, "step": 0.1}),
@@ -1044,13 +1052,13 @@ class ACEStep15TaskTextEncodeNode:
     FUNCTION = "encode"
     CATEGORY = "conditioning"
 
-    def encode(self, clip, text, task_type, track_name="", lyrics="", bpm=120,
+    def encode(self, clip, text, task_type, track_name="None", lyrics="", bpm=120,
                duration=60.0, keyscale="C major", timesignature="4", language="en", seed=0,
                cfg_scale=2.0, temperature=0.85, top_p=0.9, top_k=0, min_p=0.0):
         patches.apply_acestep_patches()
 
         # Validate track_name for extract/lego tasks
-        if task_type in ["extract", "lego"] and not track_name:
+        if task_type in ["extract", "lego"] and track_name == "None":
             logger.debug(f"[ACE15_TEXT_ENCODE] Warning: track_name not specified for {task_type} task, using default instruction")
 
         # Convert timesignature from string to int
@@ -1066,7 +1074,7 @@ class ACEStep15TaskTextEncodeNode:
             "language": language,
             "seed": seed,
             "task_type": task_type,
-            "track_name": track_name if track_name else None,
+            "track_name": track_name if track_name != "None" else None,
             "cfg_scale": cfg_scale,
             "temperature": temperature,
             "top_p": top_p,
@@ -1074,12 +1082,12 @@ class ACEStep15TaskTextEncodeNode:
             "min_p": min_p,
         }
 
-        logger.debug(f"[ACE15_TEXT_ENCODE] Encoding with task_type={task_type}, track_name={track_name or 'N/A'}")
+        logger.debug(f"[ACE15_TEXT_ENCODE] Encoding with task_type={task_type}, track_name={'N/A' if track_name == 'None' else track_name}")
         logger.debug(f"[ACE15_TEXT_ENCODE] LM params: cfg_scale={cfg_scale}, temperature={temperature}, top_p={top_p}, top_k={top_k}")
 
         # Import to get task instruction for verification
         from .patches import get_task_instruction, is_patched
-        instruction = get_task_instruction(task_type, track_name if track_name else None)
+        instruction = get_task_instruction(task_type, track_name if track_name != "None" else None)
         logger.debug(f"[ACE15_TEXT_ENCODE]   patches applied: {is_patched()}")
         logger.debug(f"[ACE15_TEXT_ENCODE]   task instruction: {instruction}")
 
@@ -1106,54 +1114,55 @@ class ACEStep15TaskTextEncodeNode:
 class ACEStep15KeystoneConfig:
     """Configuration node for ACE-Step 1.5 keystone channel gains.
 
-    Keystone channels are the 5 individual latent channels with outsized impact on
-    audio generation. Each controls a distinct timbral quality. Connect the output
-    to the Generation Steering or Latent Channel EQ node's keystone_config input.
+    The 6 individual latent channels with the largest impact scores from Phase 1
+    perturbation experiments. Connect output to Generation Steering or Latent
+    Channel EQ's keystone_config input.
 
-    Redesigned based on Phase 1+2 multi-seed statistical validation.
-    ch14 and ch23 dropped (not statistically significant across seeds).
-    ch2 added (significant weight control). Inverse channels (ch56, ch13)
-    now have negative sensitivity so the UI works intuitively.
+    Sensitivity factors scale user input: internal = 1.0 + sensitivity * (user - 1.0).
+    Negative sensitivity = inverted (user boost attenuates the channel).
     """
 
     DESCRIPTION = (
-        "[Experimental] Configures gains for 5 keystone latent channels with outsized individual impact.\n\n"
-        "- presence (ch19): +8% RMS, +3% centroid. Late-stage dominant. "
-        "Most impactful single channel for timbral character.\n"
-        "- spectral_tilt (ch29): -13% centroid, +8% RMS. Late-stage. "
-        "Shifts the entire spectrum brighter or darker.\n"
-        "- energy (ch56): +13% RMS, +7% centroid, +3% onset. INVERSE: "
-        "boosting this slider attenuates ch56, which adds energy/shimmer.\n"
-        "- brilliance (ch13): +18.5% centroid. INVERSE: boosting adds brilliance. "
-        "Late-stage dominant.\n"
-        "- weight (ch2): -4.3% RMS, spectrally neutral. Late-stage bass weight control.\n\n"
+        "[Experimental] Configures gains for 6 individual latent channels with outsized impact.\n\n"
+        "These are the 6 channels identified in Phase 1 as having the largest individual effect "
+        "when perturbed. Perceptual effects are content-dependent and under active investigation.\n\n"
+        "- ch19: Highest impact score (107). Sensitivity: 1.2.\n"
+        "- ch29: Second highest impact (99). Largest single-channel spectral flatness shift. Sensitivity: 1.2.\n"
+        "- ch56: Impact 91. INVERTED (sensitivity: -1.0).\n"
+        "- ch13: Impact 74. INVERTED (sensitivity: -0.7).\n"
+        "- ch23: Impact 27. Effects observed at all gain levels. Sensitivity: 1.0.\n"
+        "- ch14: Impact 32. Subtle; primarily noticeable at extreme gains. Sensitivity: 1.5.\n\n"
         "Connect output to Generation Steering or Latent Channel EQ's keystone_config input."
     )
 
     # Sensitivity factors: internal_gain = 1.0 + factor * (user_gain - 1.0)
-    # Negative = INVERTED (user "UP" → internal gain < 1 → attenuates channel → more of named quality)
+    # Negative = INVERTED (user "UP" -> internal gain < 1 -> attenuates channel)
+    # Updated from Phase 3 Raw + perceptual validation.
     KEYSTONE_SENSITIVITY = {
-        "presence": 1.8,        # ch19: partial compensation, push harder
-        "spectral_tilt": 1.2,   # ch29: partial compensation
-        "energy": -1.0,         # ch56: INVERTED — attenuating adds energy
-        "brilliance": -0.7,     # ch13: INVERTED — attenuating adds brilliance
-        "weight": 1.0,          # ch2: near-linear
+        "ch19": 1.2,        # Highest impact channel. Only noticeable at extremes (0.5/1.5).
+        "ch29": 1.2,        # Largest single-channel spectral flatness shift.
+        "ch56": -1.0,       # INVERTED.
+        "ch13": -0.7,       # INVERTED.
+        "ch23": 1.0,        # Effects observed at all gain levels.
+        "ch14": 1.5,        # Subtle; pushed harder to compensate.
     }
 
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
-                "presence": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                    "tooltip": "Channel 19: Presence/definition. Most impactful channel. +8% RMS, +3% centroid at gs=1."}),
-                "spectral_tilt": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                    "tooltip": "Channel 29: Spectral brightness. -13% centroid, +8% RMS. Reducing shifts darker."}),
-                "energy": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                    "tooltip": "Channel 56: Energy/shimmer. Inverse: boosting adds +13% RMS, +7% centroid, +3% onset."}),
-                "brilliance": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                    "tooltip": "Channel 13: Brilliance. Inverse: boosting adds +18.5% centroid. Late-stage dominant."}),
-                "weight": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                    "tooltip": "Channel 2: Bass weight. -4.3% RMS, spectrally neutral. Late-stage."}),
+                "ch19": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                    "tooltip": "Channel 19. Impact score: 107 (highest). Sensitivity: 1.2."}),
+                "ch29": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                    "tooltip": "Channel 29. Impact score: 99. Largest spectral flatness shift. Sensitivity: 1.2."}),
+                "ch56": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                    "tooltip": "Channel 56. Impact score: 91. INVERTED (sensitivity: -1.0)."}),
+                "ch13": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                    "tooltip": "Channel 13. Impact score: 74. INVERTED (sensitivity: -0.7)."}),
+                "ch23": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                    "tooltip": "Channel 23. Impact score: 27. Effects at all gain levels. Sensitivity: 1.0."}),
+                "ch14": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                    "tooltip": "Channel 14. Impact score: 32. Subtle; primarily noticeable at extreme gains. Sensitivity: 1.5."}),
             },
         }
 
@@ -1164,21 +1173,23 @@ class ACEStep15KeystoneConfig:
 
     # Channel index mapping for each keystone parameter
     KEYSTONE_CHANNELS = {
-        "presence": 19,
-        "spectral_tilt": 29,
-        "energy": 56,
-        "brilliance": 13,
-        "weight": 2,
+        "ch19": 19,
+        "ch29": 29,
+        "ch56": 56,
+        "ch13": 13,
+        "ch23": 23,
+        "ch14": 14,
     }
 
-    def build_config(self, presence, spectral_tilt, energy, brilliance, weight):
+    def build_config(self, ch19, ch29, ch56, ch13, ch23, ch14):
         config = {}
         params = {
-            "presence": presence,
-            "spectral_tilt": spectral_tilt,
-            "energy": energy,
-            "brilliance": brilliance,
-            "weight": weight,
+            "ch19": ch19,
+            "ch29": ch29,
+            "ch56": ch56,
+            "ch13": ch13,
+            "ch23": ch23,
+            "ch14": ch14,
         }
         for name, value in params.items():
             sensitivity = self.KEYSTONE_SENSITIVITY[name]
@@ -1212,33 +1223,33 @@ class _LatentChannelBandMixin:
     }
 
     # Per-band sensitivity factors: internal_gain = 1.0 + factor * (user_gain - 1.0)
-    # Derived from Phase 2 guidance compensation ratios across multi-seed grid.
-    # Negative = INVERTED (attenuating increases the named quality).
+    # Negative = INVERTED (user boost attenuates the channels).
+    # Updated from Phase 3 Raw (1140 experiments) + perceptual validation.
     BAND_SENSITIVITY = {
-        0: 0.9,     # bass — near-linear (G0=SIMILAR 1.10, G4=SIMILAR 1.16)
-        1: -0.7,    # brightness — INVERTED, amplifies (G1=EMERGENT 1.30)
-        2: 1.0,     # body — direct, G5=SIMILAR 0.83, G6=COMPENSATE 0.31, blended ~1.0
-        3: 0.5,     # texture — direct, conservative (G2=EMERGENT 0.18, very unpredictable)
-        4: 1.5,     # tilt — direct, compensated (G3=SIMILAR 0.55)
-        5: -1.0,    # air — INVERTED, near-linear (G7=SIMILAR 0.87)
+        0: 0.9,     # G0+G4 — near-linear.
+        1: -0.5,    # G1 — INVERTED. Reduced from -0.7: user 1.5→0.75 internal.
+        2: 1.0,     # G5+G6 — direct.
+        3: 0.5,     # G2 — conservative. Largest perceptual distance of any group.
+        4: 1.0,     # G3 — reduced from 1.5. Raw gain >1.5 reported to cause pitch shifting.
+        5: -1.0,    # G7 — INVERTED.
     }
 
     # Shared band input definitions for INPUT_TYPES
     @staticmethod
     def _band_inputs():
         return {
-            "bass_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                "tooltip": "Channels 0-7, 32-39: Low-frequency energy and overall volume."}),
-            "brightness_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                "tooltip": "Channels 8-15: Spectral brightness. Strongest spectral control."}),
-            "body_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                "tooltip": "Channels 40-55: Broadband fullness."}),
-            "texture_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                "tooltip": "Channels 16-23: Mid-range timbral character. Effects vary by genre."}),
-            "tilt_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                "tooltip": "Channels 24-31: Spectral balance. Higher = brighter spectrum."}),
-            "air_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                "tooltip": "Channels 56-63: High-frequency shimmer, energy, and rhythmic activity."}),
+            "g0g4_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                "tooltip": "Channels 0-7 + 32-39. Sensitivity: 0.9 (near-linear)."}),
+            "g1_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                "tooltip": "Channels 8-15. INVERTED (sensitivity: -0.5). Strongest spectral centroid shift of any group."}),
+            "g5g6_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                "tooltip": "Channels 40-55. Sensitivity: 1.0 (direct)."}),
+            "g2_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                "tooltip": "Channels 16-23. Sensitivity: 0.5 (conservative). Largest perceptual distance of any group."}),
+            "g3_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                "tooltip": "Channels 24-31. Sensitivity: 1.0. Strongest overall group by avg effect. Boost >1.5 reported to cause pitch shifting."}),
+            "g7_gain": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                "tooltip": "Channels 56-63. INVERTED (sensitivity: -1.0)."}),
         }
 
     @staticmethod
@@ -1323,8 +1334,8 @@ class _LatentChannelBandMixin:
         return False
 
     @staticmethod
-    def _collect_gains(bass_gain, brightness_gain, body_gain, texture_gain, tilt_gain, air_gain):
-        return [bass_gain, brightness_gain, body_gain, texture_gain, tilt_gain, air_gain]
+    def _collect_gains(g0g4_gain, g1_gain, g5g6_gain, g2_gain, g3_gain, g7_gain):
+        return [g0g4_gain, g1_gain, g5g6_gain, g2_gain, g3_gain, g7_gain]
 
     @staticmethod
     def _gains_are_neutral(all_gains):
@@ -1340,23 +1351,18 @@ class ACEStep15GenerationSteering(_LatentChannelBandMixin):
     """
 
     DESCRIPTION = (
-        "[Experimental] Steers audio generation by running the model twice per diffusion step — "
-        "once normally, once with channel-scaled input — and steering along the difference.\n\n"
-        "This is NOT post-processing EQ. It changes what the model generates: timbral character, "
-        "spectral balance, rhythmic activity, and harmonic content. The 64 channels are grouped "
-        "into 6 semantically meaningful bands based on Phase 1+2 multi-seed validation. "
-        "All sliders range 0-2 with 1.0 as neutral. Brightness and air bands are INVERTED "
-        "(boosting the slider attenuates those channels, which increases brightness/air).\n\n"
+        "[Experimental] Steers audio generation by running the model twice per diffusion step "
+        "and steering along the difference. Changes what the model generates, not just how it sounds.\n\n"
+        "All sliders 0-2, neutral at 1.0. G1 and G7 are INVERTED.\n\n"
         "BANDS:\n"
-        "- bass (ch 0-7, 32-39): Low-frequency energy and overall volume.\n"
-        "- brightness (ch 8-15): Spectral brightness. Strongest spectral control. INVERTED.\n"
-        "- body (ch 40-55): Broadband fullness.\n"
-        "- texture (ch 16-23): Mid-range timbral character. Effects vary by genre.\n"
-        "- tilt (ch 24-31): Spectral balance. Higher = brighter spectrum.\n"
-        "- air (ch 56-63): High-frequency shimmer, energy, and rhythmic activity. INVERTED.\n\n"
-        "OPTIONAL: Connect a Keystone Config node to fine-tune the 5 most impactful individual channels.\n\n"
-        "guidance_scale controls strength. Positive steers toward the emphasis, negative steers away. "
-        "Each step runs an extra model forward pass."
+        "- G0+G4 (ch 0-7, 32-39): Sensitivity 0.9.\n"
+        "- G1 (ch 8-15): INVERTED. Sensitivity -0.5. Strongest centroid shift.\n"
+        "- G5+G6 (ch 40-55): Sensitivity 1.0.\n"
+        "- G2 (ch 16-23): Sensitivity 0.5. Largest perceptual distance.\n"
+        "- G3 (ch 24-31): Sensitivity 1.0. Strongest overall group. Boost >1.5 may pitch-shift.\n"
+        "- G7 (ch 56-63): INVERTED. Sensitivity -1.0.\n\n"
+        "OPTIONAL: Connect a Keystone Config for fine control of 6 high-impact individual channels.\n\n"
+        "guidance_scale controls strength. Each step runs an extra model forward pass."
     )
 
     @classmethod
@@ -1379,11 +1385,11 @@ class ACEStep15GenerationSteering(_LatentChannelBandMixin):
     CATEGORY = "audio/acestep"
 
     def apply(self, model, guidance_scale,
-              bass_gain, brightness_gain, body_gain, texture_gain, tilt_gain, air_gain,
+              g0g4_gain, g1_gain, g5g6_gain, g2_gain, g3_gain, g7_gain,
               effect_start_pct, effect_end_pct, temporal_mask=None, keystone_config=None):
         m = model.clone()
 
-        all_gains = self._collect_gains(bass_gain, brightness_gain, body_gain, texture_gain, tilt_gain, air_gain)
+        all_gains = self._collect_gains(g0g4_gain, g1_gain, g5g6_gain, g2_gain, g3_gain, g7_gain)
         gains_neutral = self._gains_are_neutral(all_gains)
         has_keystone = keystone_config is not None and len(keystone_config) > 0
 
@@ -1433,17 +1439,15 @@ class ACEStep15LatentChannelEQ(_LatentChannelBandMixin):
 
     DESCRIPTION = (
         "[Experimental] Multiplicative 6-band EQ for ACE-Step 1.5 latent channels.\n\n"
-        "Scales model output at a chosen pipeline point. This is equivalent to post-processing "
-        "EQ — it shapes the frequency balance of the output but does not change what the model "
-        "generates. For creative control over the generation process itself, use the Generation "
-        "Steering node instead.\n\n"
+        "Scales model output at a chosen pipeline point. This is post-processing EQ; "
+        "for creative steering of generation, use the Generation Steering node instead.\n\n"
         "BANDS:\n"
-        "- bass (ch 0-7, 32-39): Low-frequency energy and overall volume.\n"
-        "- brightness (ch 8-15): Spectral brightness. Strongest spectral control. INVERTED.\n"
-        "- body (ch 40-55): Broadband fullness.\n"
-        "- texture (ch 16-23): Mid-range timbral character. Effects vary by genre.\n"
-        "- tilt (ch 24-31): Spectral balance. Higher = brighter spectrum.\n"
-        "- air (ch 56-63): High-frequency shimmer, energy, and rhythmic activity. INVERTED.\n\n"
+        "- G0+G4 (ch 0-7, 32-39): Sensitivity 0.9.\n"
+        "- G1 (ch 8-15): INVERTED. Sensitivity -0.5.\n"
+        "- G5+G6 (ch 40-55): Sensitivity 1.0.\n"
+        "- G2 (ch 16-23): Sensitivity 0.5.\n"
+        "- G3 (ch 24-31): Sensitivity 1.0.\n"
+        "- G7 (ch 56-63): INVERTED. Sensitivity -1.0.\n\n"
         "MODES:\n"
         "- post_cfg: scales final denoised output (most common)\n"
         "- pre_cfg_cond_only: scales conditional prediction only\n"
@@ -1473,11 +1477,11 @@ class ACEStep15LatentChannelEQ(_LatentChannelBandMixin):
     CATEGORY = "audio/acestep"
 
     def apply(self, model, hook_mode,
-              bass_gain, brightness_gain, body_gain, texture_gain, tilt_gain, air_gain,
+              g0g4_gain, g1_gain, g5g6_gain, g2_gain, g3_gain, g7_gain,
               effect_start_pct, effect_end_pct, temporal_mask=None, keystone_config=None):
         m = model.clone()
 
-        all_gains = self._collect_gains(bass_gain, brightness_gain, body_gain, texture_gain, tilt_gain, air_gain)
+        all_gains = self._collect_gains(g0g4_gain, g1_gain, g5g6_gain, g2_gain, g3_gain, g7_gain)
         gains_neutral = self._gains_are_neutral(all_gains)
         has_keystone = keystone_config is not None and len(keystone_config) > 0
 
@@ -1536,100 +1540,95 @@ class ACEStep15LatentChannelEQ(_LatentChannelBandMixin):
 
 
 class ACEStep15MusicalControls(_LatentChannelBandMixin):
-    """High-level musical controls for ACE-Step 1.5, derived from Phase 3 research.
+    """Hypothesized musical control recipes for ACE-Step 1.5.
 
-    Translates intuitive musical properties into the specific band+keystone recipes
-    that Phase 3 proved reliably control those properties across seeds and genres.
-    Wraps Generation Steering internally — connect MODEL in, get MODEL out.
+    Combines multiple channel groups and keystones into single sliders.
+    Labels are working names, not empirically validated descriptions.
+    Wraps Generation Steering internally. Connect MODEL in, get MODEL out.
     """
 
     DESCRIPTION = (
-        "[Experimental — NEEDS PHASE 3 RE-VALIDATION] Musical-level steering for ACE-Step 1.5.\n\n"
-        "Each slider controls a musically meaningful property. Band/keystone definitions were "
-        "redesigned in Phase 1+2 validation. These recipes reference the NEW band/keystone names "
-        "but the specific gain values need re-tuning after Phase 3 experiments with the new "
-        "groupings. Use with caution — results may not match descriptions until re-validated.\n\n"
-        "- rhythmic_density: Sparse (0) ↔ Dense (2). Controls how many rhythmic events occur.\n"
-        "- rhythmic_regularity: Loose/syncopated (0) ↔ Locked/metronomic (2).\n"
-        "- harmonic_complexity: Simple/tonal (0) ↔ Rich/chromatic (2).\n"
-        "- instrument_independence: Unified hits (0) ↔ Independent layers (2).\n"
-        "- tonality: Tonal/clean (0) ↔ Noisy/breathy (2).\n"
-        "- dynamics: Compressed/flat (0) ↔ Dynamic/breathing (2).\n\n"
-        "These map to specific combinations of latent channel bands and keystone channels "
-        "identified through systematic experimentation."
+        "[Experimental] High-level recipes combining multiple channel groups and keystones.\n\n"
+        "These are hypothesized musical abstractions. The labels are working names, not "
+        "empirically validated descriptions. Perceptual effects are content-dependent.\n\n"
+        "- brightness: G1 + G7 + ch13. All inverted groups.\n"
+        "- articulation: G3 + ch29. Conservative; G3 boost >1.5 causes pitch shifting.\n"
+        "- energy: G0+G4 + G5+G6 + ch56.\n"
+        "- density: G5+G6 (inverted) + G7. Subtle.\n\n"
+        "Safe zone: 0.75-1.25 for most controls. Beyond 1.5 risks artifacts."
     )
 
-    # Recipe definitions: each musical control maps to band gains and keystone gains.
-    # Values represent the gain at slider=0 and slider=2 (slider=1 is neutral).
-    # Format: {param_name: (value_at_0, value_at_2)}
-    # The slider linearly interpolates between these.
-    # WARNING: These recipes were ported from old band/keystone names to new Phase 1+2
-    # names but have NOT been re-validated with Phase 3 experiments. The specific gain
-    # values need re-tuning after Phase 3 runs with the new groupings.
+    # Recipe definitions validated by Phase 3 Raw + Shaj perceptual listening.
+    #
+    # Each recipe maps a musical slider to band+keystone gains.
+    # Format: {param_name: (value_at_0, value_at_2)}  -- slider=1 is neutral.
+    #
+    # Perceptual validation (Shaj listening notes, neo_soul seed 31):
+    #
+    # brightness: G1 at 0.75 = "brighter and fuller" (better). G7 at 0.5-0.75 =
+    #   "brighter, warmer, better spread" (better). ch13 at 0.5 = "brighter,
+    #   clarity, more enhanced" (better). All three inversions validated.
+    #   Widened from 0.8-1.2 to 0.75-1.25 since all components rated "better."
+    #
+    # articulation: G3 at 0.5 = "brighter, more defined textures, longer decay"
+    #   (better). G3 at 1.25 = "tighter center, uneven spread" (worse).
+    #   G3 at 1.5 = pitch shifted up an octave (broken). ch29 at 0.5 = "warmer,
+    #   scooped snare" (better). Kept conservative due to pitch-shift risk.
+    #
+    # energy: G0 at 0.5 = "warmer, vocals sitting better" (better). G4 at 0.5 =
+    #   "fuller" (better). ch56 at 0.5 = "brighter, extra bass hits" (better).
+    #   Attenuation consistently rated better than boost for energy bands.
+    #   Asymmetric range: attenuation side wider than boost.
+    #
+    # density: body attenuation = "brighter, clearer mix" (G5 at 0.5).
+    #   air boost (inverted, so attenuation) = "brighter, warmer" (G7 at 0.5-0.75).
+    #   Combined = condensed, articulate output.
     RECIPES = {
-        "rhythmic_density": {
-            # NEEDS PHASE 3 RE-VALIDATION
-            # Old recipe used all 6 keystones. New config has 5 keystones.
-            "keystones": {
-                "presence": (1.3, 0.7),
-                "spectral_tilt": (1.3, 0.7),
-                "energy": (1.3, 0.7),
-                "brilliance": (1.3, 0.7),
-                "weight": (1.3, 0.7),
-            },
-            "bands": {},
-        },
-        "rhythmic_regularity": {
-            # NEEDS PHASE 3 RE-VALIDATION
-            # Old: texture↑+balance↓. New: texture↑+tilt↓ (balance→tilt)
+        "brightness": {
+            # G1 attenuation at 0.75: "brighter and fuller" (better)
+            # G7 attenuation at 0.5-0.75: "brighter, warmer, better spread" (better)
+            # ch13 attenuation at 0.5: "brighter, clarity, enhanced" (better)
+            # Widened from 0.8-1.2: all components perceptually validated as improvements.
             "bands": {
-                "texture": (0.5, 1.5),
-                "tilt": (1.5, 0.5),
+                "g1": (0.75, 1.25),
+                "g7": (0.8, 1.2),
+            },
+            "keystones": {
+                "ch13": (0.8, 1.2),
+            },
+        },
+        "articulation": {
+            # G3 at 0.5: listener reported defined textures, longer decay
+            # G3 at 1.5: pitch shifted up an octave (BROKEN)
+            # ch29 at 0.5: listener reported tonal shift
+            # Conservative on boost side due to G3 pitch-shift risk.
+            "bands": {
+                "g3": (1.15, 0.9),  # asymmetric: attenuation safer than boost
+            },
+            "keystones": {
+                "ch29": (1.1, 0.9),
+            },
+        },
+        "energy": {
+            # G0+G4 at 0.5: listener reported fuller/warmer
+            # ch56 at 0.5: listener reported extra bass hits
+            # G0+G4 at 1.5: listener reported thinner/weaker
+            # Asymmetric: attenuation side is the sweet spot.
+            "bands": {
+                "g0g4": (0.85, 1.1),
+                "g5g6": (0.85, 1.1),
+            },
+            "keystones": {
+                "ch56": (0.85, 1.15),
+            },
+        },
+        "density": {
+            # G5+G6 attenuation + G7 boost (inverted) combination
+            "bands": {
+                "g5g6": (1.1, 0.9),
+                "g7": (0.9, 1.1),
             },
             "keystones": {},
-        },
-        "harmonic_complexity": {
-            # NEEDS PHASE 3 RE-VALIDATION
-            # Old: foundation+weight bands. New: bass+body (foundation→bass, weight→body)
-            "bands": {
-                "bass": (1.3, 0.7),
-                "body": (1.5, 0.5),
-            },
-            "keystones": {},
-        },
-        "instrument_independence": {
-            # NEEDS PHASE 3 RE-VALIDATION
-            # Old: balance band + body keystone. New: tilt band + weight keystone
-            "bands": {
-                "tilt": (0.5, 1.25),
-            },
-            "keystones": {
-                "weight": (1.3, 0.7),
-            },
-        },
-        "tonality": {
-            # NEEDS PHASE 3 RE-VALIDATION
-            # Old: weight+foundation bands + spectral_tilt keystone.
-            # New: body+bass bands + spectral_tilt keystone
-            "bands": {
-                "body": (1.3, 0.7),
-                "bass": (1.3, 0.7),
-            },
-            "keystones": {
-                "spectral_tilt": (0.7, 1.3),
-            },
-        },
-        "dynamics": {
-            # NEEDS PHASE 3 RE-VALIDATION
-            # Old: body band + air band + body keystone.
-            # New: body band + air band + weight keystone
-            "bands": {
-                "body": (1.3, 0.7),
-                "air": (0.7, 1.3),
-            },
-            "keystones": {
-                "weight": (0.7, 1.3),
-            },
         },
     }
 
@@ -1640,18 +1639,14 @@ class ACEStep15MusicalControls(_LatentChannelBandMixin):
                 "model": ("MODEL",),
                 "guidance_scale": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.1,
                     "tooltip": "Guidance strength. Accepts list of floats for temporal scheduling."}),
-                "rhythmic_density": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                    "tooltip": "Sparse (0) ↔ Dense (2). Controls number of rhythmic events."}),
-                "rhythmic_regularity": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                    "tooltip": "Loose/syncopated (0) ↔ Locked/metronomic (2). Emergent groove lock at high values."}),
-                "harmonic_complexity": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                    "tooltip": "Simple/tonal (0) ↔ Rich/chromatic (2). Controls chord movement and pitch diversity."}),
-                "instrument_independence": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                    "tooltip": "Unified hits (0) ↔ Independent layers (2). Controls whether instruments trigger together or independently."}),
-                "tonality": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                    "tooltip": "Tonal/clean (0) ↔ Noisy/breathy (2). Shifts between pitched and noise-like character."}),
-                "dynamics": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
-                    "tooltip": "Compressed/flat (0) ↔ Dynamic/breathing (2). Controls loudness variation over time."}),
+                "brightness": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                    "tooltip": "Recipe: G1 + G7 + ch13 (all inverted groups). Working label; perceptual effect is content-dependent."}),
+                "articulation": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                    "tooltip": "Recipe: G3 + ch29. Working label; perceptual effect is content-dependent. G3 boost >1.5 risks pitch shift."}),
+                "energy": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                    "tooltip": "Recipe: G0+G4 + G5+G6 + ch56. Working label; perceptual effect is content-dependent."}),
+                "density": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05,
+                    "tooltip": "Recipe: G5+G6 (down) + G7 (up). Working label; perceptual effect is content-dependent. Subtle."}),
                 "effect_start_pct": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.05,
                     "tooltip": "Denoising progress to start applying effect (0=from start)"}),
                 "effect_end_pct": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05,
@@ -1673,26 +1668,22 @@ class ACEStep15MusicalControls(_LatentChannelBandMixin):
         if isinstance(slider, list):
             return [ACEStep15MusicalControls._interpolate_recipe_value(s, val_at_0, val_at_2) for s in slider]
         if slider <= 1.0:
-            # Interpolate between val_at_0 and 1.0
-            t = slider  # 0→0, 1→1
+            t = slider
             return val_at_0 + t * (1.0 - val_at_0)
         else:
-            # Interpolate between 1.0 and val_at_2
-            t = slider - 1.0  # 0→0, 1→1
+            t = slider - 1.0
             return 1.0 + t * (val_at_2 - 1.0)
 
     def _compose_gains(self, **musical_params):
         """Compose all musical sliders into band gains and keystone gains."""
-        # Accumulate deviations from neutral for each band and keystone
-        band_accum = {b: [] for b in ["bass", "brightness", "body", "texture", "tilt", "air"]}
-        ks_accum = {k: [] for k in ["presence", "spectral_tilt", "energy", "brilliance", "weight"]}
+        band_accum = {b: [] for b in ["g0g4", "g1", "g5g6", "g2", "g3", "g7"]}
+        ks_accum = {k: [] for k in ["ch19", "ch29", "ch56", "ch13", "ch23", "ch14"]}
 
         for control_name, slider_value in musical_params.items():
             recipe = self.RECIPES.get(control_name)
             if not recipe:
                 continue
 
-            # Skip neutral sliders
             if not isinstance(slider_value, list) and abs(slider_value - 1.0) < 1e-6:
                 continue
 
@@ -1704,17 +1695,13 @@ class ACEStep15MusicalControls(_LatentChannelBandMixin):
                 val = self._interpolate_recipe_value(slider_value, v0, v2)
                 ks_accum[ks_name].append(val)
 
-        # Combine multiple contributions: multiply deviations from 1.0
-        # final = 1.0 + sum(deviation_i) where deviation_i = (val_i - 1.0)
         band_gains = {}
-        band_name_to_idx = {"bass": 0, "brightness": 1, "body": 2, "texture": 3, "tilt": 4, "air": 5}
         for band_name, contributions in band_accum.items():
             if not contributions:
                 band_gains[band_name] = 1.0
             elif len(contributions) == 1:
                 band_gains[band_name] = contributions[0]
             else:
-                # Sum deviations from neutral
                 band_gains[band_name] = self._sum_deviations(contributions)
 
         ks_gains = {}
@@ -1736,7 +1723,6 @@ class ACEStep15MusicalControls(_LatentChannelBandMixin):
     def _sum_deviations(contributions):
         """Sum deviations from 1.0 across multiple contributions. Handles lists."""
         if any(isinstance(c, list) for c in contributions):
-            # Find max length
             max_len = max(len(c) if isinstance(c, list) else 1 for c in contributions)
             result = []
             for i in range(max_len):
@@ -1754,17 +1740,14 @@ class ACEStep15MusicalControls(_LatentChannelBandMixin):
             return 1.0 + total_dev
 
     def apply(self, model, guidance_scale,
-              rhythmic_density, rhythmic_regularity, harmonic_complexity,
-              instrument_independence, tonality, dynamics,
+              brightness, articulation, energy, density,
               effect_start_pct, effect_end_pct):
 
         musical_params = {
-            "rhythmic_density": rhythmic_density,
-            "rhythmic_regularity": rhythmic_regularity,
-            "harmonic_complexity": harmonic_complexity,
-            "instrument_independence": instrument_independence,
-            "tonality": tonality,
-            "dynamics": dynamics,
+            "brightness": brightness,
+            "articulation": articulation,
+            "energy": energy,
+            "density": density,
         }
 
         # Check if everything is neutral
@@ -1792,7 +1775,7 @@ class ACEStep15MusicalControls(_LatentChannelBandMixin):
                     keystone_config[ch_idx] = 1.0 + sensitivity * (value - 1.0)
 
         # Collect band gains in order
-        band_order = ["bass", "brightness", "body", "texture", "tilt", "air"]
+        band_order = ["g0g4", "g1", "g5g6", "g2", "g3", "g7"]
         all_gains = [band_gains.get(b, 1.0) for b in band_order]
 
         # Apply via Generation Steering's guidance mechanism
@@ -1864,6 +1847,36 @@ class ModelSamplingACEStep:
         return (m,)
 
 
+class ACEStep15SilenceLatentNode:
+    """Load the ACE-Step 1.5 learned silence latent.
+
+    This is the same learned tensor that the model uses internally when no
+    reference audio is provided.  Useful for blending with a reference latent
+    to control timbre strength before feeding into the Cover Guider.
+    """
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "seconds": ("FLOAT", {"default": 30.0, "min": 0.1, "max": 400.0, "step": 0.01,
+                                       "tooltip": "Duration in seconds. Converted to latent frames at 25 fps."}),
+            },
+        }
+
+    RETURN_TYPES = ("LATENT",)
+    FUNCTION = "load"
+    CATEGORY = "sampling/custom_sampling/guiders"
+    DESCRIPTION = "Load the ACE-Step 1.5 learned silence latent. Blend with a reference latent to control timbre strength."
+
+    def load(self, seconds):
+        if get_silence_latent is None:
+            raise RuntimeError("get_silence_latent not available in this comfyui version")
+        length = round(seconds * 25)  # 48000 / 1920 = 25 fps
+        silence = get_silence_latent(length, "cpu")  # [1, 64, length]
+        return ({"samples": silence},)
+
+
 # Node class mappings for ComfyUI
 NODE_CLASS_MAPPINGS = {
     # ACE-Step 1.0 guiders (latent-level ODE blending)
@@ -1892,6 +1905,8 @@ NODE_CLASS_MAPPINGS = {
     "ACEStep15KeystoneConfig": ACEStep15KeystoneConfig,
     # ACE-Step 1.5 model sampling override
     "ModelSamplingACEStep": ModelSamplingACEStep,
+    # ACE-Step 1.5 silence latent loader
+    "ACEStep15SilenceLatent": ACEStep15SilenceLatentNode,
     **AUDIO_MASK_NODE_CLASS_MAPPINGS,  # Add audio mask nodes
 }
 
@@ -1923,5 +1938,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ACEStep15KeystoneConfig": "ACE-Step 1.5 Keystone Config (Experimental)",
     # ACE-Step 1.5 model sampling override
     "ModelSamplingACEStep": "ACE-Step Model Sampling",
+    # ACE-Step 1.5 silence latent loader
+    "ACEStep15SilenceLatent": "ACE-Step 1.5 Silence Latent",
     **AUDIO_MASK_NODE_DISPLAY_NAME_MAPPINGS,
 } 

@@ -125,7 +125,7 @@ def project_texels_to_image(tex_pos, right, up, ortho_scale):
 # ---------------------------------------------------------------------------
 
 def texture_mesh_with_multiview(
-    mesh: trimesh.Trimesh,
+    high_poly_mesh: trimesh.Trimesh,
     images:     list,
     azimuths:   list,
     elevations: list,
@@ -143,6 +143,7 @@ def texture_mesh_with_multiview(
     max_hole_size: int = 10,
     use_metallic: bool = True,
     depth_eps: float = 0.002,
+    low_poly_mesh: trimesh.Trimesh = None
 ):
     if not (len(images) == len(azimuths) == len(elevations)):
         raise ValueError("images, azimuths, and elevations must have the same length")
@@ -161,6 +162,11 @@ def texture_mesh_with_multiview(
     num_views = len(images)
     print(f"[MultiView] {num_views} views | texture={texture_size} | ortho_scale={ortho_scale}")
 
+    if low_poly_mesh is not None:
+        mesh = low_poly_mesh
+    else:
+        mesh = high_poly_mesh
+        
     # =========================================================================
     # STEP 1 – UV unwrap
     # =========================================================================
@@ -428,7 +434,7 @@ def texture_mesh_with_multiview(
     #-- Load and resample the existing PBR base color texture ----------------
     existing_base = None
     try:
-        mat = mesh.visual.material
+        mat = high_poly_mesh.visual.material
         existing_base = getattr(mat, 'baseColorTexture', None)
         if existing_base is None:
             # Fallback: try accessing via image attribute (SimpleMaterial / PBRMaterial variants)
@@ -528,49 +534,7 @@ def texture_mesh_with_multiview(
         if (n_holes + n_pad) > 0:
             for c in range(3):
                 color_np[..., c] = cv2.inpaint(color_np[..., c], final_inpaint_mask, 3, cv2.INPAINT_NS)
-            alpha_np = cv2.inpaint(alpha_np, final_inpaint_mask, 3, cv2.INPAINT_NS)
-            
-    # if fill_holes:
-        # print('Filling holes ...')
-        
-        # # 1. Get the raw mask of all holes (1 for hole, 0 for valid)
-        # raw_hole_mask = (~valid_mask.cpu().numpy()).astype(np.uint8)
-        
-        # # 2. Filter by size if a limit is set
-        # if max_hole_size > 0:
-            # filtered_hole_mask = np.zeros_like(raw_hole_mask)
-            # # Find connected components (connectivity=8 handles diagonals)
-            # num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(raw_hole_mask, connectivity=8)
-            
-            # print(f"Num Labels: {num_labels}")
-            # # Label 0 is the background (non-holes), so we start checking from Label 1
-            
-            # if num_labels>0:
-                # progress_bar = tqdm(total=num_labels, desc="Filling holes")
-                
-                # for label_id in range(1, num_labels):
-                    # area = stats[label_id, cv2.CC_STAT_AREA]
-                    # if area <= max_hole_size:
-                        # # If the hole is small enough, add it to our filtered mask
-                        # filtered_hole_mask[labels == label_id] = 1
-                    # progress_bar.update(1)
-                
-                # progress_bar.close()
-                
-                # print(f"Number of filtered holes: {len(filtered_hole_mask)}")
-                
-            # hole_mask = filtered_hole_mask
-        # else:
-            # hole_mask = raw_hole_mask
-
-        # n_holes = int(hole_mask.sum())
-        # print(f"  Inpainting {n_holes} hole texels ({100.0*n_holes/hole_mask.size:.1f}%)...")
-
-        # if n_holes > 0:
-            # for c in range(3):
-                # color_np[..., c] = cv2.inpaint(color_np[..., c], hole_mask, 3, cv2.INPAINT_NS)
-            # alpha_np = cv2.inpaint(alpha_np, hole_mask, 3, cv2.INPAINT_NS)          
-        
+            alpha_np = cv2.inpaint(alpha_np, final_inpaint_mask, 3, cv2.INPAINT_NS)      
 
     # =========================================================================
     # STEP 5 – Build output textures and trimesh
@@ -578,9 +542,9 @@ def texture_mesh_with_multiview(
     baseColorTexture = Image.fromarray(np.dstack([color_np, alpha_np]))
     metallicRoughnessTexture = None
     
-    if hasattr(mesh, 'visual') and hasattr(mesh.visual, 'material') and isinstance(mesh.visual.material, trimesh.visual.material.PBRMaterial):
-        if mesh.visual.material.metallicRoughnessTexture:
-            metallicRoughnessTexture = mesh.visual.material.metallicRoughnessTexture
+    if hasattr(high_poly_mesh, 'visual') and hasattr(high_poly_mesh.visual, 'material') and isinstance(high_poly_mesh.visual.material, trimesh.visual.material.PBRMaterial):
+        if high_poly_mesh.visual.material.metallicRoughnessTexture:
+            metallicRoughnessTexture = high_poly_mesh.visual.material.metallicRoughnessTexture
             
     if metallicRoughnessTexture is None or not use_metallic:
         mr_np = np.zeros((texture_size, texture_size, 3), dtype=np.uint8)

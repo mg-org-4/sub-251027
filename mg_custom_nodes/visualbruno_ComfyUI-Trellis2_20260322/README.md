@@ -14,6 +14,7 @@
 
 | Date | Description |
 | --- | --- |
+| **2026-03-21** | Added node "Projection HighPoly to LowPoly"<br>Added node "Render MultiView" |
 | **2026-03-17** | Added Inpainting Choice NS and TELEA |
 | **2026-03-14** | Added Experimental node "Projection MultiView Texturing"<br>Check in example_workflows folder |
 | **2026-03-08** | Updated CuMesh wheels for Torch 2.7, 2.8 and Linux<br>You can use the node "Fill Holes with Cumesh" |

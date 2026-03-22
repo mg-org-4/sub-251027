@@ -4020,7 +4020,7 @@ class Trellis2MultiViewTexturing:
         custom_weights="",
         camera_config = None
     ):
-        from .texture_projection_multiview import texture_mesh_with_multiview
+        from .projection.texture_projection_multiview import texture_mesh_with_multiview
         
         reset_cuda()
         
@@ -4120,6 +4120,374 @@ class Trellis2MultiViewTexturing:
             print(f"[MultiView] Warning: Could not parse angles: {angle_string}")
             return []
             
+class Trellis2ProjectHighPolyToLowPoly:
+    """
+    Apply texture to mesh by projecting multiple view images.
+    
+    Uses angle-weighted blending: each surface receives texture from all views
+    that can "see" it, weighted by how directly the surface faces each camera.
+    
+    Camera angles (Y-up coordinate system):
+    - Azimuth: rotation around Y axis
+      - 0° = front (looking in -Z direction)
+      - 90° = left (looking in -X direction)  
+      - 180° = back (looking in +Z direction)
+      - 270° = right (looking in +X direction)
+    - Elevation: rotation around X axis
+      - 0° = horizontal
+      - 90° = top (looking in -Y direction, from above)
+      - -90° = bottom (looking in +Y direction, from below)
+    """
+    
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "high_poly_trimesh": ("TRIMESH",),
+                "low_poly_trimesh": ("TRIMESH",),
+                "texture_size": ("INT", {"default": 4096, "min": 512, "max": 8192}),
+                "blend_texture": ("BOOLEAN", {"default":True}),
+                "blend_exponent": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 8.0, "step": 0.5}),
+                "ortho_scale": ("FLOAT", {"default": 1.1, "min": 0.05, "max": 10.0, "step": 0.01}),
+                "norm_size": ("FLOAT",{"default":1.15, "min":0.0, "max":9.99, "step":0.01}),
+                "fill_holes": ("BOOLEAN",{"default":True}),
+                "max_hole_size": ("INT",{"default":20,"min":0,"max":99999,"step":1}),
+                "use_metallic": ("BOOLEAN",{"default":True}),
+                "depth_eps": ("FLOAT",{"default":0.0100,"min":0.0001,"max":1.0000,"step":0.0001}),
+            },
+            "optional": {
+                # Standard views
+                "front_image": ("IMAGE",),   # az=0, el=0
+                "back_image": ("IMAGE",),    # az=180, el=0
+                "left_image": ("IMAGE",),    # az=90, el=0
+                "right_image": ("IMAGE",),   # az=270, el=0
+                "top_image": ("IMAGE",),     # az=0, el=90
+                "bottom_image": ("IMAGE",),  # az=0, el=-90
+                "front_weight": ("FLOAT",{"default":1.000,"min":0.001,"max":1.000,"step":0.001}),
+                "back_weight": ("FLOAT",{"default":1.000,"min":0.001,"max":1.000,"step":0.001}),
+                "left_weight": ("FLOAT",{"default":0.010,"min":0.001,"max":1.000,"step":0.001}),
+                "right_weight": ("FLOAT",{"default":0.010,"min":0.001,"max":1.000,"step":0.001}),
+                "top_weight": ("FLOAT",{"default":0.010,"min":0.001,"max":1.000,"step":0.001}),
+                "bottom_weight": ("FLOAT",{"default":0.010,"min":0.001,"max":1.000,"step":0.001}),
+                # Custom views
+                "custom_images": ("IMAGE",),
+                "custom_azimuths": ("STRING", {"default": ""}),
+                "custom_elevations": ("STRING", {"default": ""}),
+                "custom_weights": ("STRING", {"default": ""}),
+                "camera_config": ("HY3DCAMERA",),
+            }
+        }
+    
+    RETURN_TYPES = ("TRIMESH", "IMAGE", "IMAGE",)
+    RETURN_NAMES = ("trimesh", "base_color", "metallic_roughness",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+    
+    def process(
+        self,
+        high_poly_trimesh,
+        low_poly_trimesh,
+        texture_size,
+        blend_texture,
+        blend_exponent,
+        ortho_scale,
+        norm_size,
+        fill_holes,
+        max_hole_size,
+        use_metallic,
+        depth_eps,
+        baseColorTexture = None,
+        front_image=None,
+        back_image=None,
+        left_image=None,
+        right_image=None,
+        top_image=None,
+        bottom_image=None,
+        front_weight=None,
+        back_weight=None,
+        left_weight=None,
+        right_weight=None,
+        top_weight=None,
+        bottom_weight=None,
+        custom_images=None,
+        custom_azimuths="",
+        custom_elevations="",
+        custom_weights="",
+        camera_config = None,
+    ):
+        from .projection.texture_projection_multiview import texture_mesh_with_multiview
+        
+        reset_cuda()
+        
+        # Collect views
+        images = []
+        azimuths = []
+        elevations = []
+        weights = []
+        
+        # Standard views with their camera angles
+        standard_views = [
+            (front_image, 0, 0, "front", front_weight),
+            (back_image, 180, 0, "back", back_weight),
+            (left_image, 90, 0, "left", left_weight),
+            (right_image, 270, 0, "right", right_weight),
+            (top_image, 0, 90, "top", top_weight),
+            (bottom_image, 0, -90, "bottom", bottom_weight),
+        ]
+        
+        for img, az, el, name, w in standard_views:
+            if img is not None:
+                images.append(self._tensor_to_pil(img))
+                azimuths.append(az)
+                elevations.append(el)
+                weights.append(w)
+                print(f"[MultiView] Added {name} view (az={az}, el={el}, w={w})")        
+                    
+        # Custom views
+        if custom_images is not None:
+            custom_az_list = self._parse_angles(custom_azimuths)
+            custom_el_list = self._parse_angles(custom_elevations)
+            custom_w_list = self._parse_angles(custom_weights)
+            
+            if custom_az_list and custom_el_list:
+                num_custom = min(len(custom_az_list), len(custom_el_list), int(custom_images.shape[0]), len(custom_w_list))
+                for i in range(num_custom):
+                    images.append(self._tensor_to_pil(custom_images[i:i+1]))
+                    azimuths.append(custom_az_list[i])
+                    elevations.append(custom_el_list[i])
+                    weights.append(custom_w_list[i])
+                    print(f"[MultiView] Added custom view {i+1} (az={custom_az_list[i]}, el={custom_el_list[i]})")
+            elif camera_config:
+                selected_camera_azims = camera_config["selected_camera_azims"]
+                selected_camera_elevs = camera_config["selected_camera_elevs"]
+                selected_view_weights = camera_config["selected_view_weights"]
+                #ortho_scale = camera_config["ortho_scale"]             
+
+                num_custom = min(len(selected_camera_azims), len(selected_camera_elevs), int(custom_images.shape[0]))
+                for i in range(num_custom):
+                    images.append(self._tensor_to_pil(custom_images[i:i+1]))
+                    azimuths.append(selected_camera_azims[i])
+                    elevations.append(selected_camera_elevs[i])
+                    weights.append(selected_view_weights[i])
+                    print(f"[MultiView] Added custom view {i+1} (az={selected_camera_azims[i]}, el={selected_camera_elevs[i]}, w={selected_view_weights[i]})")                
+        
+        if len(images) == 0:
+            raise ValueError("No input images provided! Please connect at least one image.")
+        
+        print(f"[MultiView] Total views: {len(images)}")
+        print(f"[MultiView] Azimuths: {azimuths}")
+        print(f"[MultiView] Elevations: {elevations}")
+
+        trimesh_obj, base_color, mr = texture_mesh_with_multiview(
+            high_poly_trimesh,
+            images,
+            azimuths,
+            elevations,
+            weights,
+            texture_size=texture_size,
+            blend_exponent=blend_exponent,
+            ortho_scale=ortho_scale,
+            blend_texture=blend_texture,
+            fill_holes=fill_holes,
+            norm_size=norm_size,
+            max_hole_size=max_hole_size,
+            use_metallic=use_metallic,
+            depth_eps=depth_eps,
+            low_poly_mesh=low_poly_trimesh
+        )
+        
+        return (trimesh_obj, pil2tensor(base_color), pil2tensor(mr))
+    
+    def _tensor_to_pil(self, tensor):
+        """Convert ComfyUI IMAGE tensor to PIL."""
+        if len(tensor.shape) == 4:
+            arr = (tensor[0].cpu().numpy() * 255).astype(np.uint8)
+        else:
+            arr = (tensor.cpu().numpy() * 255).astype(np.uint8)
+        return Image.fromarray(arr)
+    
+    def _parse_angles(self, angle_string):
+        """Parse comma-separated angles into list of floats."""
+        if not angle_string or angle_string.strip() == "":
+            return []
+        try:
+            return [float(x.strip()) for x in angle_string.split(",") if x.strip()]
+        except ValueError:
+            print(f"[MultiView] Warning: Could not parse angles: {angle_string}")
+            return [] 
+
+class Trellis2RenderMultiView:
+    
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "trimesh": ("TRIMESH",),
+                "render_size": ("INT", {"default": 4096, "min": 512, "max": 8192}),
+                "ortho_scale": ("FLOAT", {"default": 1.1, "min": 0.05, "max": 10.0, "step": 0.01}),
+                "blender_exec_path": ("STRING",),
+                "azimuths": ("STRING",{"default":"0,90,180,270,0,0"}),
+                "elevations": ("STRING",{"default":"0,0,0,0,90,-90"}),
+            },
+        }
+    
+    RETURN_TYPES = ("IMAGE","FLOAT", "STRING", "STRING",)
+    RETURN_NAMES = ("images","ortho_scale", "azimuths", "elevations",)
+    FUNCTION = "process"
+    CATEGORY = "Trellis2Wrapper"
+    OUTPUT_NODE = True
+    
+    def process(
+        self,
+        trimesh,
+        render_size,
+        ortho_scale,
+        blender_exec_path,
+        azimuths,
+        elevations
+    ):
+        reset_cuda()
+        
+        if not hasattr(trimesh.visual, 'material'):
+            raise Exception("Trimesh does not have a material")
+                    
+        custom_az_list = self._parse_angles(azimuths)
+        custom_el_list = self._parse_angles(elevations)                    
+                    
+        if custom_az_list and custom_el_list:
+            if len(custom_az_list) != len(custom_el_list):
+                raise Exception("azimuths and elevations must have the same amount of values")
+                
+            textured_maps = self.render_textured_multiview(
+                custom_el_list, custom_az_list, ortho_scale, render_size, blender_exec_path, trimesh)
+            custom_images = torch.stack(textured_maps, dim=0)
+
+            return (custom_images, ortho_scale, azimuths, elevations,)
+        else:
+            raise Exception("azimuths and elevations are required")
+    
+    def _parse_angles(self, angle_string):
+        """Parse comma-separated angles into list of floats."""
+        if not angle_string or angle_string.strip() == "":
+            return []
+        try:
+            return [float(x.strip()) for x in angle_string.split(",") if x.strip()]
+        except ValueError:
+            print(f"[MultiView] Warning: Could not parse angles: {angle_string}")
+            return []         
+
+    def render_textured_multiview(self, camera_elevs, camera_azims, ortho_scale, resolution, blender_exec_path, mesh):
+        from .projection.camera_utils import get_orthographic_projection_matrix
+        
+        proj = get_orthographic_projection_matrix(
+            left=-ortho_scale * 0.5, right=ortho_scale * 0.5,
+            bottom=-ortho_scale * 0.5, top=ortho_scale * 0.5,
+            near=0.1, far=100
+        )        
+        textured_maps = []
+        for elev, azim in zip(camera_elevs, camera_azims):
+            textured_map = self.render(
+                elev, azim, filter_mode='linear', return_type='th', scale=ortho_scale, resolution=resolution, blender_exec_path=blender_exec_path,proj=proj,mesh=mesh)
+            textured_maps.append(textured_map)
+            
+        return textured_maps
+
+    def render(
+        self,
+        elev,
+        azim,
+        camera_distance=None,
+        center=None,
+        resolution=None,
+        tex=None,
+        keep_alpha=False,
+        bgcolor=None,
+        filter_mode=None,
+        return_type='th',
+        scale=1.0,
+        blender_exec_path=None,
+        proj=None,
+        mesh=None,
+    ):
+        from .projection.camera_utils import get_mv_matrix
+        
+        r_mv = get_mv_matrix(
+            elev=elev,
+            azim=azim,
+            camera_distance=1.1,
+            center=center)
+        r_mvp = np.matmul(proj, r_mv).astype(np.float32)
+        if tex is not None:
+            if isinstance(tex, Image.Image):
+                tex = torch.tensor(np.array(tex) / 255.0)
+            elif isinstance(tex, np.ndarray):
+                tex = torch.tensor(tex)
+            if tex.dim() == 2:
+                tex = tex.unsqueeze(-1)
+            tex = tex.float().to(self.device)
+        # image = self._render(r_mvp, self.vtx_pos, self.pos_idx, self.vtx_uv, self.uv_idx,
+                             # self.tex if tex is None else tex,
+                             # self.default_resolution if resolution is None else resolution,
+                             # self.max_mip_level, True, filter_mode if filter_mode else self.filter_mode,
+                             # elev=elev, azim=azim, camera_distance=camera_distance,scale=scale,blender_exec_path=blender_exec_path)
+        image = self.raster_texture(tex, mesh.visual.uv, elev=elev, azim=azim, camera_distance=camera_distance, resolution=resolution, scale=scale, blender_exec_path=blender_exec_path,mesh=mesh)
+        mask = (image[..., [-1]] == 1).float()
+        if bgcolor is None:
+            bgcolor = [0 for _ in range(image.shape[-1] - 1)]
+        image = image * mask + (1 - mask) * \
+                torch.tensor(bgcolor + [0])
+        if keep_alpha == False:
+            image = image[..., :-1]
+        if return_type == 'np':
+            image = image.cpu().numpy()
+        elif return_type == 'pl':
+            image = image.squeeze(-1).cpu().numpy() * 255
+            image = Image.fromarray(image.astype(np.uint8))
+        return image      
+
+    def raster_texture(self, tex, uv, uv_da=None, mip_level_bias=None, mip=None, filter_mode='auto',
+                       boundary_mode='wrap', max_mip_level=None, elev=None, azim=None, camera_distance=None, resolution=None, scale=1.0,
+                       blender_exec_path=None,mesh=None):
+        import tempfile
+        import subprocess
+        
+        with tempfile.NamedTemporaryFile(suffix=".obj", delete=False) as tmp_mesh:
+            mesh_path = tmp_mesh.name
+            tmp_mesh.close()
+        
+        mesh.export(mesh_path)
+        
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_out:
+            output_path = tmp_out.name
+            tmp_out.close()
+            
+        blender_script = os.path.join(os.path.dirname(__file__), 'projection', 'blender_render.py')
+        
+        res = resolution[0] if isinstance(resolution, (list, tuple)) else resolution
+        
+        cmd = [
+            blender_exec_path, '-b', '-P', blender_script, '--',
+            '--mesh', mesh_path,
+            '--output', output_path,
+            '--elev', str(elev),
+            '--azim', str(azim),
+            '--scale', str(scale),
+            '--resolution', str(res)
+        ]
+        
+        subprocess.run(cmd, check=True)
+        
+        image = Image.open(output_path)
+        image = torch.tensor(np.array(image) / 255.0).float()
+        
+        if os.path.exists(mesh_path):
+            os.remove(mesh_path)
+        if os.path.exists(output_path):
+            os.remove(output_path)
+            
+        return image          
+            
 class Trellis2CudaReset:
     @classmethod
     def INPUT_TYPES(s):
@@ -4190,6 +4558,8 @@ NODE_CLASS_MAPPINGS = {
     "Trellis2Continue5": Trellis2Continue5,
     "Trellis2Continue6": Trellis2Continue6,
     "Trellis2CudaReset": Trellis2CudaReset,
+    "Trellis2ProjectHighPolyToLowPoly": Trellis2ProjectHighPolyToLowPoly,
+    "Trellis2RenderMultiView": Trellis2RenderMultiView,
     }
     
 
@@ -4244,4 +4614,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Trellis2Continue5": "Trellis2 - Continue 5",
     "Trellis2Continue6": "Trellis2 - Continue 6",
     "Trellis2CudaReset": "Trellis2 - Cuda Reset",
+    "Trellis2ProjectHighPolyToLowPoly": "Trellis2 - Projection HighPoly To LowPoly",
+    "Trellis2RenderMultiView": "Trellis2 - Render MultiView",
     }

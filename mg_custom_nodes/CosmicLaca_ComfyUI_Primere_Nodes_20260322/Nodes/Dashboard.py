@@ -2261,7 +2261,7 @@ class PrimereRasterix:
 
                 "use_film_rendering": ("BOOLEAN", {"default": False, "label_off": "Ignore film rendering", "label_on": "Apply film rendering"}),
                 "film_rendering": (list(FILM_PRESETS.keys()), {"default": "kodak_kodachrome_64_CF"}),
-                "film_rendering_intensity": ("FLOAT", {"default": 100, "min": 0, "max": 100, "step": 1}),
+                "film_rendering_intensity": ("FLOAT", {"default": 100, "min": 0, "max": 200, "step": 1}),
 
                 "use_selective_tone": ("BOOLEAN", {"default": False, "label_off": "Ignore selective tone", "label_on": "Apply selective tone"}),
                 "selective_tone_value":      ("FLOAT", {"default": 0,   "min": -100, "max": 100, "step": 1}),
@@ -2353,8 +2353,8 @@ class PrimereRasterix:
                     rad = vals.get('shade_radius', 0)
                     pil_img = img_shade_level.img_shade_level(image=pil_img, shade_level=lvl, radius=rad, strength=shade_strength)
 
-        if normalize_gaps or normalize_midpeaks:
-            pil_img = img_levels_auto.img_levels_auto(image=pil_img, auto_normalize=auto_normalize, threshold=0, normalize_gaps=normalize_gaps, normalize_midpeaks=normalize_midpeaks, auto_gamma=False, gamma_target=128)
+        # if normalize_gaps or normalize_midpeaks:
+        #  pil_img = img_levels_auto.img_levels_auto(image=pil_img, auto_normalize=auto_normalize, threshold=0, normalize_gaps=normalize_gaps, normalize_midpeaks=normalize_midpeaks, auto_gamma=False, gamma_target=128)
 
         if use_ai_detection_bypasser:
             pil_img = isgen_detect_ext_full.bypass_ai_detector(image=pil_img, freq_strength=adb_freq_strength, variance_strength=adb_variance_strength, unsharp_percent=adb_unsharp_percent, jpeg_cycles=adb_jpeg_cycles)

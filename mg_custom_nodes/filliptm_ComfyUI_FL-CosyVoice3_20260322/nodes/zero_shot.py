@@ -107,7 +107,7 @@ class FL_CosyVoice3_ZeroShot:
                     "default": 1.0,
                     "min": 0.5,
                     "max": 2.0,
-                    "step": 0.1,
+                    "step": 0.05,
                     "description": "Speech speed multiplier"
                 }),
             },

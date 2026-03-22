@@ -1,5 +1,7 @@
 # Python
 __pycache__/
+.claude/
+.github/
 *.py[cod]
 *$py.class
 *.so

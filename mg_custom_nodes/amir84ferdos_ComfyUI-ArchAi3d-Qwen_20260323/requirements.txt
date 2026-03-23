@@ -1,0 +1,49 @@
+# ArchAi3D Qwen ComfyUI Custom Nodes - Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core dependencies (torch/torchvision provided by ComfyUI - never list here or pip will downgrade)
+PyYAML>=6.0
+numpy
+Pillow
+requests
+
+# For SAM3 Segment node
+sam3
+einops
+ftfy
+typing_extensions
+regex
+iopath
+pycocotools
+scikit-image
+scikit-learn
+pandas
+tqdm
+
+# For Metric3D Depth/Normal nodes
+huggingface_hub>=0.19.0
+hf_transfer  # Multi-connection fast downloads
+opencv-python>=4.7.0
+matplotlib
+timm
+scipy
+addict
+yapf
+
+# For Color Correction BT709 node
+colour-science
+
+# For Gemini API node
+google-genai>=1.0.0
+
+# For Panorama Conversion nodes
+py360convert
+
+# For Google Drive Download node
+gdown>=5.0.0
+
+# For SPZ export (SaveSplatScene node)
+# These are OPTIONAL - the node has a built-in SPZ v3 converter that works without them
+# Uncomment below for faster conversion (requires ZLIB dev libraries and C++ compiler):
+# spz @ git+https://github.com/nianticlabs/spz.git
+# gsconverter @ git+https://github.com/francescofugazzi/3dgsconverter.git

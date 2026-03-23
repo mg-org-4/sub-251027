@@ -185,13 +185,20 @@ function findGettersByName(graph, name) {
 // because the values getter and getOptionLabel run in the same synchronous render pass.
 let _setNameSourceMap = new Map();
 
-function getVisibleSetNames(graph) {
+function getVisibleSetNames(graph, filterType) {
 	const sourceMap = new Map();
 	const ancestors = getGraphAncestors(graph);
 	const entries = collectNodesOfType(ancestors, 'SetNode');
 	for (const e of entries) {
 		const name = e.node.widgets[0].value;
 		if (!name) continue;
+		if (filterType && filterType !== '*') {
+			const setType = e.node.inputs[0]?.type;
+			if (setType && setType !== '*') {
+				const filterTypes = String(filterType).split(",");
+				if (!filterTypes.some(ft => ft === setType || setType.split(",").includes(ft))) continue;
+			}
+		}
 		if (!sourceMap.has(name)) {
 			sourceMap.set(name, e.graph === graph ? "local" : "parent");
 		}
@@ -623,6 +630,7 @@ app.registerExtension({
 						}
 
 						this.validateName(this.graph);
+						this.properties.previousName = this.widgets[0].value;
 						this.inputs[0].type = type;
 						this.inputs[0].name = type;
 						this.outputs[0].type = type;
@@ -746,6 +754,7 @@ app.registerExtension({
 						getter.setName(this.widgets[0].value);
 					});
 				}
+				app.canvas?.setDirty(true, true);
 			}
 
 			findGetters(graph, checkForPreviousName) {
@@ -877,7 +886,17 @@ app.registerExtension({
 				Object.defineProperty(comboOptions, 'values', {
 					get: () => {
 						if (!this.graph) return [];
-						return getVisibleSetNames(this.graph);
+						let filterType = null;
+						if (app.ui.settings.getSettingValue("KJNodes.filterGetNodeOptions") !== false
+							&& this.outputs[0]?.links?.length) {
+							const linkId = this.outputs[0].links[0];
+							const link = getLink(this.graph, linkId);
+							if (link) {
+								const targetNode = this.graph.getNodeById(link.target_id);
+								filterType = targetNode?.inputs?.[link.target_slot]?.type || null;
+							}
+						}
+						return getVisibleSetNames(this.graph, filterType);
 					},
 					enumerable: true,
 					configurable: true
@@ -920,7 +939,16 @@ app.registerExtension({
 				if (this.outputs[0].type !== '*' && this.outputs[0].links && this.graph) {
 					this.outputs[0].links.filter(linkId => {
 						const link = getLink(this.graph, linkId);
-						return link && link.type && (!link.type.split(",").includes(this.outputs[0].type) && link.type !== '*');
+						if (!link || !link.type) return false;
+						if (link.type === '*') return false;
+						const targetNode = this.graph.getNodeById(link.target_id);
+						const targetType = targetNode?.inputs?.[link.target_slot]?.type;
+						if (targetType === '*') return false;
+						if (targetType) {
+							const targetTypes = String(targetType).split(",");
+							if (targetTypes.includes(this.outputs[0].type)) return false;
+						}
+						return !link.type.split(",").includes(this.outputs[0].type);
 					}).forEach(linkId => {
 						this.graph.removeLink(linkId);
 					});
@@ -1219,7 +1247,9 @@ app.registerExtension({
 	},
 	setup() {
 		// Double-click GetNode to jump to its SetNode (works in both legacy and Vue modes)
-		document.addEventListener("dblclick", () => {
+		document.addEventListener("dblclick", (e) => {
+			// Don't interfere when a ContextMenu (e.g. combo dropdown) is open
+			if (document.querySelector(".litecontextmenu")) return;
 			const canvas = app.canvas;
 			if (!canvas) return;
 			const selected = Object.values(canvas.selected_nodes || {});
@@ -1349,6 +1379,14 @@ app.registerExtension({
 			}
 		};
 
+		app.ui.settings.addSetting({
+			id: "KJNodes.filterGetNodeOptions",
+			name: "Filter Get node options by type",
+			category: ["KJNodes", "Set & Get", "Filter Get node options by type"],
+			tooltip: "When a Get node is connected, only show Set nodes with compatible types in the dropdown",
+			type: "boolean",
+			defaultValue: true,
+		});
 		app.ui.settings.addSetting({
 			id: "KJNodes.convertAllSetGet",
 			name: "Convert ALL Set/Get to links",

@@ -314,6 +314,131 @@ function getViewUrl(filename, size = 64) {
     return api.apiURL(`/Apt_Preset_IO_LoadImgList_thumb?filename=${encodeURIComponent(filename)}&size=${encodeURIComponent(size)}`);
 }
 
+function getOriginalViewPath(filename) {
+    return `/view?filename=${encodeURIComponent(filename)}`;
+}
+
+function getOriginalViewPathForDrop(filename) {
+    return `/view?filename=${encodeURIComponent(filename)}&type=input&subfolder=`;
+}
+
+function getOriginalViewUrl(filename) {
+    return api.apiURL(getOriginalViewPath(filename));
+}
+
+function getOriginalViewUrlForDrop(filename) {
+    return api.apiURL(getOriginalViewPathForDrop(filename));
+}
+
+function guessMimeType(filename) {
+    const name = String(filename || "").toLowerCase();
+    if (name.endsWith(".png")) return "image/png";
+    if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+    if (name.endsWith(".webp")) return "image/webp";
+    if (name.endsWith(".gif")) return "image/gif";
+    if (name.endsWith(".bmp")) return "image/bmp";
+    if (name.endsWith(".tif") || name.endsWith(".tiff")) return "image/tiff";
+    return "application/octet-stream";
+}
+
+function getDownloadFilename(annotatedName) {
+    let base = String(annotatedName || "");
+    base = base.split(/[\\/]/).pop() || base;
+    base = base.replace(/\s*\[[^\]]+\]\s*$/, "");
+    return base || "image";
+}
+
+const _APT_LOADIMAGE_DRAG_MIME = "application/x-apt-preset-loadimage";
+let _canvasLoadImageDropInstalled = false;
+
+function _graphPosFromEvent(e) {
+    const c = app?.canvas;
+    const canvas = c?.canvas;
+    const ds = c?.ds;
+    const rect = canvas?.getBoundingClientRect?.();
+    if (!rect) return null;
+    const scale = typeof ds?.scale === "number" && ds.scale !== 0 ? ds.scale : 1;
+    const off = Array.isArray(ds?.offset) ? ds.offset : [0, 0];
+    const x = (e.clientX - rect.left) / scale - (off[0] || 0);
+    const y = (e.clientY - rect.top) / scale - (off[1] || 0);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return [x, y];
+}
+
+function _setLoadImageNodeFilename(node, filename) {
+    const w = node?.widgets?.find((w) => w?.name === "image");
+    if (!w) return false;
+    w.value = filename;
+    w.callback?.(filename);
+    return true;
+}
+
+async function _uploadOriginalToInputByAnnotatedName(annotatedName) {
+    const name = String(annotatedName ?? "").trim();
+    if (!name) return null;
+    let resp = null;
+    for (const p of [getOriginalViewPath(name), getOriginalViewPathForDrop(name), `/view?filename=${encodeURIComponent(name)}&type=output&subfolder=`, `/view?filename=${encodeURIComponent(name)}&type=temp&subfolder=`]) {
+        const r = await api.fetchApi(p, { cache: "no-store" });
+        if (r.ok) {
+            resp = r;
+            break;
+        }
+    }
+    if (!resp) throw new Error("view image failed");
+    const blob = await resp.blob();
+    const downloadName = getDownloadFilename(name);
+    const mime = blob?.type && blob.type !== "" ? blob.type : guessMimeType(downloadName);
+    const file = new File([blob], downloadName, { type: mime });
+    return await uploadOneImage(file);
+}
+
+function ensureCanvasLoadImageDrop() {
+    if (_canvasLoadImageDropInstalled) return;
+    const canvasEl = app?.canvas?.canvas;
+    if (!canvasEl) {
+        setTimeout(ensureCanvasLoadImageDrop, 300);
+        return;
+    }
+    _canvasLoadImageDropInstalled = true;
+
+    canvasEl.addEventListener(
+        "dragover",
+        (e) => {
+            const dt = e?.dataTransfer;
+            if (!dt) return;
+            if (!Array.from(dt.types || []).includes(_APT_LOADIMAGE_DRAG_MIME)) return;
+            e.preventDefault();
+            dt.dropEffect = "copy";
+        },
+        { capture: true }
+    );
+
+    canvasEl.addEventListener(
+        "drop",
+        async (e) => {
+            const dt = e?.dataTransfer;
+            if (!dt) return;
+            if (!Array.from(dt.types || []).includes(_APT_LOADIMAGE_DRAG_MIME)) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            const annotatedName = dt.getData(_APT_LOADIMAGE_DRAG_MIME);
+            const pos = _graphPosFromEvent(e);
+            const uploaded = await _uploadOriginalToInputByAnnotatedName(annotatedName);
+            if (!uploaded) return;
+
+            const n = LiteGraph.createNode("LoadImage");
+            if (!n) return;
+            app.graph.add(n);
+            if (pos) n.pos = pos;
+            _setLoadImageNodeFilename(n, uploaded);
+            app.canvas.selectNode(n, false);
+            app.graph.setDirtyCanvas(true);
+        },
+        { capture: true }
+    );
+}
+
 function isFilesDragEvent(e) {
     const dt = e?.dataTransfer;
     if (!dt) return false;
@@ -713,6 +838,24 @@ function createBrowserUI(node) {
             const thumb = document.createElement("div");
             thumb.style.cssText =
                 `position:relative;aspect-ratio:1;border-radius:4px;overflow:hidden;border:2px solid ${isSelected ? '#4a6' : 'var(--border-color)'};;background:transparent;`;
+            thumb.draggable = true;
+            thumb.addEventListener("dragstart", (e) => {
+                const dt = e?.dataTransfer;
+                if (!dt) return;
+                const originalUrl = getOriginalViewUrlForDrop(name);
+                const downloadName = getDownloadFilename(name);
+                const mime = guessMimeType(downloadName);
+                try {
+                    dt.clearData();
+                } catch {}
+                dt.effectAllowed = "copy";
+                dt.setData(_APT_LOADIMAGE_DRAG_MIME, String(name ?? ""));
+                dt.setData("text/uri-list", originalUrl);
+                dt.setData("text/plain", originalUrl);
+                dt.setData("text/html", `<img src="${originalUrl}">`);
+                dt.setData("DownloadURL", `${mime}:${downloadName}:${originalUrl}`);
+                dt.setData("text/x-moz-url", `${originalUrl}\n${downloadName}`);
+            });
 
             const badgeScale = Math.max(0.25, Math.min(2.4, Math.sqrt(thumbSize / 64))) * 0.5;
             const badgePadY = Math.max(1, Math.round(3 * badgeScale));
@@ -740,6 +883,7 @@ function createBrowserUI(node) {
             const img = document.createElement("img");
             img.src = getViewUrl(name, thumbSize);
             img.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;background:transparent;";
+            img.draggable = false;
 
             const del = document.createElement("button");
             del.textContent = "×";
@@ -833,6 +977,7 @@ function createBrowserUI(node) {
 app.registerExtension({
     name: "IO_LoadImgList.Extension",
     async setup() {
+        ensureCanvasLoadImageDrop();
         api.addEventListener("IO_LoadImgList_append", function (event) {
             const nodeId = parseInt(event.detail.node);
             const node = app.graph.nodes.find((n) => n.id === nodeId);

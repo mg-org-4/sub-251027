@@ -1,10 +1,6 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-// import { app } from "../../../scripts/app.js";
-// import { api } from "../../../scripts/api.js";
-const { app } = window.comfyAPI.app;
-const { api } = window.comfyAPI.api;
 /**
  * @license
  * Copyright 2010-2024 Three.js Authors
@@ -20084,6 +20080,7 @@ const WIDGET_STYLES = `
     width: 100%;
     height: 100%;
     display: block;
+    position: relative;
   }
 
   .qwen-multiangle-prompt {
@@ -20111,24 +20108,29 @@ const WIDGET_STYLES = `
     background: rgba(10, 10, 15, 0.9);
     border: 1px solid rgba(233, 61, 130, 0.3);
     border-radius: 6px;
-    padding: 8px 12px;
+    padding: 6px 10px;
     font-size: 11px;
     color: #e0e0e0;
     display: flex;
+    flex-direction: column;
+    gap: 4px;
+    backdrop-filter: blur(4px);
+  }
+
+  .qwen-multiangle-info-row {
+    display: flex;
     justify-content: space-around;
     align-items: center;
-    backdrop-filter: blur(4px);
+  }
+
+  .qwen-multiangle-control {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   .qwen-multiangle-param {
     text-align: center;
-  }
-
-  .qwen-multiangle-param-label {
-    color: #888;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
   }
 
   .qwen-multiangle-param-value {
@@ -20173,29 +20175,11 @@ const WIDGET_STYLES = `
     transform: scale(0.95);
   }
 
-  .qwen-multiangle-dropdowns {
-    position: absolute;
-    top: 40px;
-    left: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    z-index: 10;
-  }
-
-  .qwen-multiangle-dropdown {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
   .qwen-multiangle-dropdown-label {
     font-size: 9px;
     color: #888;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    min-width: 28px;
-    text-align: right;
     white-space: nowrap;
   }
 
@@ -20215,12 +20199,13 @@ const WIDGET_STYLES = `
     background: rgba(10, 10, 15, 0.9);
     border: 1px solid rgba(100, 100, 120, 0.4);
     border-radius: 4px;
-    padding: 3px 6px;
-    font-size: 10px;
+    padding: 2px 4px;
+    font-size: 9px;
     color: #e0e0e0;
     cursor: pointer;
     outline: none;
-    min-width: 120px;
+    min-width: 0;
+    max-width: 90px;
     backdrop-filter: blur(4px);
   }
 
@@ -20258,6 +20243,7 @@ function injectStyles() {
   style.textContent = WIDGET_STYLES;
   document.head.appendChild(style);
 }
+const { app: app$1 } = window.comfyAPI.app;
 const translations = {
   en: {
     // Dropdown labels
@@ -20385,7 +20371,7 @@ function detectLocale() {
   var _a, _b, _c;
   console.log("[QwenMultiangle i18n] Detecting locale...");
   try {
-    const comfyLocale = (_c = (_b = (_a = app.ui) == null ? void 0 : _a.settings) == null ? void 0 : _b.getSettingValue) == null ? void 0 : _c.call(_b, "Comfy.Locale");
+    const comfyLocale = (_c = (_b = (_a = app$1.ui) == null ? void 0 : _a.settings) == null ? void 0 : _b.getSettingValue) == null ? void 0 : _c.call(_b, "Comfy.Locale");
     console.log("[QwenMultiangle i18n] ComfyUI locale from app.ui.settings:", comfyLocale);
     if (comfyLocale) {
       const localeStr = String(comfyLocale).toLowerCase();
@@ -20436,13 +20422,11 @@ class CameraWidget {
     __publicField(this, "container");
     __publicField(this, "state");
     __publicField(this, "onStateChange");
-    // Three.js objects
     __publicField(this, "scene");
     __publicField(this, "camera");
     __publicField(this, "previewCamera");
     __publicField(this, "renderer");
     __publicField(this, "activeCamera");
-    // Scene objects
     __publicField(this, "cameraIndicator");
     __publicField(this, "camGlow");
     __publicField(this, "azimuthHandle");
@@ -20456,37 +20440,29 @@ class CameraWidget {
     __publicField(this, "imageFrame");
     __publicField(this, "planeMat");
     __publicField(this, "distanceTube", null);
-    // Control objects
     __publicField(this, "azimuthRing");
     __publicField(this, "elevationArc");
     __publicField(this, "gridHelper");
-    // Constants
     __publicField(this, "CENTER", new Vector3(0, 0.5, 0));
     __publicField(this, "AZIMUTH_RADIUS", 1.8);
     __publicField(this, "ELEVATION_RADIUS", 1.4);
     __publicField(this, "ELEV_ARC_X", -0.8);
-    // Live values for smooth updates
     __publicField(this, "liveAzimuth", 0);
     __publicField(this, "liveElevation", 0);
     __publicField(this, "liveDistance", 5);
-    // Interaction state
     __publicField(this, "isDragging", false);
     __publicField(this, "dragTarget", null);
     __publicField(this, "hoveredHandle", null);
     __publicField(this, "raycaster", new Raycaster());
     __publicField(this, "mouse", new Vector2());
-    // Camera view mode
     __publicField(this, "useCameraView", false);
-    // Orbit control state (for camera_view mode)
     __publicField(this, "isOrbitDragging", false);
     __publicField(this, "orbitStartX", 0);
     __publicField(this, "orbitStartY", 0);
     __publicField(this, "orbitStartAzimuth", 0);
     __publicField(this, "orbitStartElevation", 0);
-    // Animation
     __publicField(this, "animationId", null);
     __publicField(this, "time", 0);
-    // DOM elements
     __publicField(this, "canvasContainer");
     __publicField(this, "promptEl");
     __publicField(this, "hValueEl");
@@ -20495,7 +20471,6 @@ class CameraWidget {
     __publicField(this, "azimuthSelect");
     __publicField(this, "elevationSelect");
     __publicField(this, "distanceSelect");
-    // Dropdown options mapping (key is i18n key, promptKey is for output)
     __publicField(this, "AZIMUTH_OPTIONS", [
       { key: "frontView", promptKey: "front view", value: 0 },
       { key: "frontRightQuarterView", promptKey: "front-right quarter view", value: 45 },
@@ -20545,34 +20520,33 @@ class CameraWidget {
       <div class="qwen-multiangle-container">
         <div class="qwen-multiangle-canvas"></div>
         <div class="qwen-multiangle-prompt">&lt;sks&gt; front view eye-level shot medium shot</div>
-        <div class="qwen-multiangle-dropdowns">
-          <div class="qwen-multiangle-dropdown">
-            <span class="qwen-multiangle-dropdown-label azimuth">${t("horizontal")}</span>
-            <select class="qwen-multiangle-select azimuth">${azimuthOptionsHtml}</select>
-          </div>
-          <div class="qwen-multiangle-dropdown">
-            <span class="qwen-multiangle-dropdown-label elevation">${t("vertical")}</span>
-            <select class="qwen-multiangle-select elevation">${elevationOptionsHtml}</select>
-          </div>
-          <div class="qwen-multiangle-dropdown">
-            <span class="qwen-multiangle-dropdown-label distance">${t("zoom")}</span>
-            <select class="qwen-multiangle-select distance">${distanceOptionsHtml}</select>
-          </div>
-        </div>
         <div class="qwen-multiangle-info">
-          <div class="qwen-multiangle-param">
-            <div class="qwen-multiangle-param-label">${t("horizontalFull")}</div>
-            <div class="qwen-multiangle-param-value azimuth">0°</div>
+          <div class="qwen-multiangle-info-row">
+            <div class="qwen-multiangle-control">
+              <span class="qwen-multiangle-dropdown-label azimuth">${t("horizontal")}</span>
+              <select class="qwen-multiangle-select azimuth">${azimuthOptionsHtml}</select>
+            </div>
+            <div class="qwen-multiangle-control">
+              <span class="qwen-multiangle-dropdown-label elevation">${t("vertical")}</span>
+              <select class="qwen-multiangle-select elevation">${elevationOptionsHtml}</select>
+            </div>
+            <div class="qwen-multiangle-control">
+              <span class="qwen-multiangle-dropdown-label distance">${t("zoom")}</span>
+              <select class="qwen-multiangle-select distance">${distanceOptionsHtml}</select>
+            </div>
           </div>
-          <div class="qwen-multiangle-param">
-            <div class="qwen-multiangle-param-label">${t("verticalFull")}</div>
-            <div class="qwen-multiangle-param-value elevation">0°</div>
+          <div class="qwen-multiangle-info-row">
+            <div class="qwen-multiangle-param">
+              <div class="qwen-multiangle-param-value azimuth">0°</div>
+            </div>
+            <div class="qwen-multiangle-param">
+              <div class="qwen-multiangle-param-value elevation">0°</div>
+            </div>
+            <div class="qwen-multiangle-param">
+              <div class="qwen-multiangle-param-value zoom">5.0</div>
+            </div>
+            <button class="qwen-multiangle-reset" title="${t("resetToDefaults")}">↺</button>
           </div>
-          <div class="qwen-multiangle-param">
-            <div class="qwen-multiangle-param-label">${t("zoomFull")}</div>
-            <div class="qwen-multiangle-param-value zoom">5.0</div>
-          </div>
-          <button class="qwen-multiangle-reset" title="${t("resetToDefaults")}">↺</button>
         </div>
       </div>
     `;
@@ -20623,10 +20597,16 @@ class CameraWidget {
     this.previewCamera = new PerspectiveCamera(50, width / height, 0.1, 100);
     this.activeCamera = this.camera;
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
-    this.renderer.setSize(width, height);
+    this.renderer.setSize(width, height, false);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.canvasContainer.appendChild(this.renderer.domElement);
+    const canvas = this.renderer.domElement;
+    canvas.style.position = "absolute";
+    canvas.style.top = "0";
+    canvas.style.left = "0";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
     const ambientLight = new AmbientLight(16777215, 0.4);
     this.scene.add(ambientLight);
     const mainLight = new DirectionalLight(16777215, 0.8);
@@ -21028,7 +21008,7 @@ class CameraWidget {
     this.camera.updateProjectionMatrix();
     this.previewCamera.aspect = w / h;
     this.previewCamera.updateProjectionMatrix();
-    this.renderer.setSize(w, h);
+    this.renderer.setSize(w, h, false);
   }
   animate() {
     this.animationId = requestAnimationFrame(() => this.animate());
@@ -21136,7 +21116,6 @@ class CameraWidget {
     this.notifyStateChange();
     console.log("resetToDefaults");
   }
-  // Public API
   setState(newState) {
     if (newState.azimuth !== void 0) {
       this.state.azimuth = newState.azimuth;
@@ -21260,6 +21239,8 @@ class CameraWidget {
     }
   }
 }
+const { app } = window.comfyAPI.app;
+const { api } = window.comfyAPI.api;
 const widgetInstances = /* @__PURE__ */ new Map();
 function createCameraWidget(node) {
   const container = document.createElement("div");

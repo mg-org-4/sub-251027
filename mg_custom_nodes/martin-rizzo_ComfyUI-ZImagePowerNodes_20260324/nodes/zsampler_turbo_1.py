@@ -1,5 +1,5 @@
 """
-File    : zsampler_turbo.py
+File    : zsampler_turbo_1.py
 Purpose : Node for denoising latent images using a set of custom sigmas with Z-Image Turbo (ZIT)
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Jan 16, 2026
@@ -15,13 +15,15 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
-from typing                       import Any
-from comfy_api.latest             import io
-from .zsampler_turbo_advanced  import ZSamplerTurboAdvanced
+from typing            import Any
+from comfy_api.latest  import io
+from .lib.progress_bar               import ProgressPreview
+from .lib.zsampler_turbo_legacy_core import zsampler_turbo_legacy_core
+
 
 
 class ZSamplerTurbo(io.ComfyNode):
-    xTITLE         = "Z-Sampler Turbo"
+    xTITLE         = "Z-Sampler Turbo :geN1"
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -98,17 +100,19 @@ class ZSamplerTurbo(io.ComfyNode):
             initial_noise_calibration = initial_noise_calibration[:-1] if initial_noise_calibration[-1] == "%" else "0"
             initial_noise_calibration = float(initial_noise_calibration) / 100
 
-        # use the advanced node code to run the process
-        return ZSamplerTurboAdvanced.execute(
-            model                     = model,
-            positive                  = positive,
-            latent_input              = latent_input,
-            seed                      = seed,
-            steps                     = steps,
-            denoise                   = denoise,
-            initial_noise_calibration = initial_noise_calibration,
-            noise_bias_estimation     = noise_bias_estimation,
-            noise_bias_sample_size    = 256 if lowres_bias else "image_size",
-            noise_bias_scale          = noise_bias_scale,
-            noise_overdose            = noise_overdose,
-            )
+        # create a progress bar from 0 to 100 (with progress preview)
+        progress_preview = ProgressPreview.from_model( model )
+
+        # run the legacy Z-Sampler Turbo process on the latent image
+        latent_output = zsampler_turbo_legacy_core(latent_input, model, positive,
+                                                   seed                      = seed,
+                                                   steps                     = steps,
+                                                   denoise                   = denoise,
+                                                   initial_noise_calibration = initial_noise_calibration,
+                                                   noise_bias_estimation     = noise_bias_estimation,
+                                                   noise_bias_sample_size    = 256 if lowres_bias else "image_size",
+                                                   noise_bias_scale          = noise_bias_scale,
+                                                   noise_overdose            = noise_overdose,
+                                                   progress_preview          = progress_preview,
+                                                   )
+        return io.NodeOutput(latent_output)

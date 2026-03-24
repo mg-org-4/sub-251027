@@ -124,11 +124,20 @@ class ZImagePowerNodesExtension(ComfyExtension):
         from .nodes.style_string_injector_2 import StyleStringInjector2
         _register_node( StyleStringInjector2, nodes, subcategory )
 
-        from .nodes.zsampler_turbo import ZSamplerTurbo
+        from .nodes.zsampler_turbo_1 import ZSamplerTurbo
         _register_node( ZSamplerTurbo, nodes, subcategory )
 
-        from .nodes.zsampler_turbo_advanced import ZSamplerTurboAdvanced
+        from .nodes.zsampler_turbo_1_advanced import ZSamplerTurboAdvanced
         _register_node( ZSamplerTurboAdvanced, nodes, subcategory )
+
+        from .nodes.zsampler_turbo_2 import ZSamplerTurbo2
+        _register_node( ZSamplerTurbo2, nodes, subcategory )
+
+        from .nodes.zsampler_turbo_2_advanced import ZSamplerTurbo2Advanced
+        _register_node( ZSamplerTurbo2Advanced, nodes, subcategory )
+
+        from .nodes.zsampler_turbo_2_laboratory import ZSamplerTurbo2Laboratory
+        _register_node( ZSamplerTurbo2Laboratory, nodes, subcategory )
 
         from .nodes.my_top_10_styles import MyTop10Styles
         _register_node( MyTop10Styles, nodes, subcategory )

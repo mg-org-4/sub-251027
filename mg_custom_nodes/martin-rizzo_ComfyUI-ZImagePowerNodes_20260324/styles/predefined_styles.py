@@ -11,13 +11,14 @@ License : MIT
          ComfyUI nodes designed specifically for the "Z-Image" model.
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
+from ..nodes.lib.style_group import StyleGroup
 from .predefined_styles_1_0 import PREDEFINED_STYLE_GROUPS_1_0
 from .predefined_styles_0_9 import PREDEFINED_STYLE_GROUPS_0_9
 from .predefined_styles_0_8 import PREDEFINED_STYLE_GROUPS_0_8
 
 # Global variable that stores predefined style groups for the current version.
 # This acts as an alias allowing for easier version updates.
-PREDEFINED_STYLE_GROUPS = PREDEFINED_STYLE_GROUPS_1_0
+PREDEFINED_STYLE_GROUPS : list[StyleGroup] = PREDEFINED_STYLE_GROUPS_1_0
 
 # Global variable that stores all style groups by version.
 STYLE_GROUPS_BY_VERSION = {

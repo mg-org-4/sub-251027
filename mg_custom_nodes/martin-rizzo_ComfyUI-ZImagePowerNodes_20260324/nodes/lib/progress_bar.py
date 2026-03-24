@@ -100,7 +100,7 @@ class ProgressPreview:
 
 
     @classmethod
-    def from_comfyui(cls, model: object, steps: int):
+    def from_model(cls, model: object, steps: int = 100):
         callback = latent_preview.prepare_callback(model, steps)
         return cls(steps, parent=(callback, 0, steps))
 

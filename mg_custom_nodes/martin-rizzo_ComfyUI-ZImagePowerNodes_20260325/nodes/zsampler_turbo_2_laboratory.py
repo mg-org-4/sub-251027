@@ -24,7 +24,7 @@ def io_Divider(id: str):
 
 
 class ZSamplerTurbo2Laboratory(io.ComfyNode):
-    xTITLE         = "Z-Sampler Turbo :geN2 (Laboratory)"
+    xTITLE         = "Z-Sampler Turbo ^2 (Laboratory)"
     xCATEGORY      = ""
     xCOMFY_NODE_ID = ""
     xDEPRECATED    = False
@@ -80,7 +80,7 @@ class ZSamplerTurbo2Laboratory(io.ComfyNode):
                 io.Float.Input       ("noise_est_sample_bias", default=0.00, min=0.00, max=1.00, step=0.01,
                                       tooltip="The bias of the latent image used to calculate the initial noise. "
                                      ),
-                io.Float.Input       ("noise_est_sample_scale", default=0.10, min=0.00, max=1.00, step=0.01,
+                io.Float.Input       ("noise_est_sample_scale", default=1.00, min=0.00, max=1.00, step=0.01,
                                       tooltip="The scale of the latent image used to calculate the initial noise. "
                                      ),
 

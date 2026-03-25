@@ -20,89 +20,6 @@ from typing         import Any
 from .progress_bar  import ProgressPreview
 
 
-
-ALPHA_SIGMA_PRESET = (
-    (
-        [0.991, 0.980, 0.920],                 #< +2 steps
-        [0.942, 0.000],                        #< +1 steps
-        None,                                  #< (no refiner)
-    ),(
-        [0.991, 0.980, 0.920],                 #< +2 steps
-        [0.942, 0.000],                        #< +1 steps
-        [0.790, 0.000],                        #< +1 steps
-    ),(
-        [0.991, 0.980, 0.920],                 #< +2 steps
-        [0.942, 0.780, 0.000],                 #< +2 steps
-        [0.6200, 0.0000],                      #< +1 step
-    ),(
-        [0.991, 0.980, 0.920],                 #< +2 steps
-        [0.942, 0.780, 0.000],                 #< +2 steps
-        [0.6582, 0.3019, 0.0000],              #< +2 steps
-    ),(
-        [0.991, 0.980, 0.920],                 #< +2 steps
-        [0.9350, 0.8916, 0.7600, 0.0000],      #< +3 steps
-        [0.6582, 0.3019, 0.0000],              #< +2 steps
-
-    ),(
-        [0.991, 0.980, 0.920],                 #< +2 steps
-        [0.935, 0.90, 0.875, 0.750, 0.0000],   #< +4 steps
-        [0.6582, 0.3019, 0.0000],              #< +2 steps
-    ),(
-        [0.991, 0.980, 0.920],                 #< +2 steps
-        [0.935, 0.90, 0.875, 0.750, 0.0000],   #< +4 steps
-        [0.6582, 0.4556, 0.2000, 0.0000],      #< +3 steps
-    )
-)
-BRAVO_SIGMA_PRESET = (
-    (   [0.992, 0.977, 0.917],                #< 2 steps
-        [0.948, 0.000],                       #< 1 step  (=3 generation steps)
-        None,                                 #< (no refiner)
-    ),(
-        [0.992, 0.977, 0.917],                #< 2 steps
-        [0.948, 0.000],                       #< 1 step  (=3 generation steps)
-        [0.700, 0.000],                       #< 1 step  (+1 refiner step)
-    ),(
-        [0.992, 0.977, 0.917],                #< 2 steps
-        [0.948, 0.740, 0.000],                #< 2 steps (=4 generation steps)
-        [0.700, 0.000],                       #< 1 step  (+1 refiner step)
-    ),(
-        [0.992, 0.977, 0.917],                #< 2 steps
-        [0.948, 0.828, 0.570, 0.000],         #< 3 steps (=5 generation steps)
-        [0.700, 0.000],                       #< 1 step  (+1 refiner step)
-    ),(
-        [0.992, 0.977, 0.917],                #< 2 steps
-        [0.948, 0.828, 0.570, 0.000],         #< 3 steps (=5 generation steps)
-        [0.700, 0.280, 0.000],                #< 2 steps (+2 refiner steps)
-    ),(
-        [0.992, 0.977, 0.917],                #< 2 steps
-        [0.948, 0.858, 0.725, 0.540, 0.000],  #< 4 steps (=6 generation steps)
-        [0.700, 0.280, 0.000],                #< 2 steps (+2 refiner steps)
-    ),(
-        [0.992, 0.977, 0.917],                #< 2 steps
-        [0.948, 0.858, 0.725, 0.540, 0.000],  #< 4 steps (=6 generation steps)
-        [0.708, 0.586, 0.270, 0.000],         #< 3 steps (+3 refiner steps)
-    )
-)
-# C_SIGMA_PRESET = (
-#     (
-#         [0.990, 0.981, 0.911],                #< 2 steps
-#         [0.943, 0.850, 0.775, 0.640, 0.000],  #< 4 steps (=6 generation steps)
-#         [0.608, 0.486, 0.270, 0.000],         #< 3 steps (+3 refiner steps)
-#     )
-# )
-# D_SIGMA_PRESET = (
-#     (
-#         [0.990, 0.980, 0.913],                #< 2 steps
-#         [0.941, 0.858, 0.725, 0.540, 0.000],  #< 4 steps (=6 generation steps)
-#         [0.708, 0.586, 0.270, 0.000],         #< 3 steps (+3 refiner steps)
-#     )
-# )
-SIGMA_PRESETS_BY_NAME = {
-    "alpha"  : ALPHA_SIGMA_PRESET,
-    "bravo"  : BRAVO_SIGMA_PRESET,
-    "charlie": ALPHA_SIGMA_PRESET
-}
-
 def zsampler_turbo_core(latent_input             : dict[str, Any],
                         model                    : Any,
                         positive                 : list,
@@ -120,7 +37,8 @@ def zsampler_turbo_core(latent_input             : dict[str, Any],
                         sigma_step_range         : tuple[int,int] | list[int] | None       = None,
                         start_with_noise         : bool               = True,
                         end_with_denoise         : bool               = True,
-                        positive_stg1            : list | None        = None,
+                        positive_stg2            : list | None        = None,
+                        positive_stg3            : list | None        = None,
                         progress_preview         : ProgressPreview
                         ) -> dict[str, Any]:
     """
@@ -153,6 +71,10 @@ def zsampler_turbo_core(latent_input             : dict[str, Any],
                                     Set to `False` to preserve noise from a previous process (chaining samplers).
         end_with_denoise         : If `True` (default), ends the denoising process by zeroing out residual noise.
                                     Set to `False` to preserve noise for a next process (chaining samplers).
+        positive_stg2            : Optional positive conditioning to be used in the second stage.
+                                    If `None` (default), the main positive conditioning will be used.
+        positive_stg3            : Optional positive conditioning to be used in the third stage.
+                                    If `None` (default), the main positive conditioning will be used.
         progress_preview         : A `ProgressPreview` object for displaying progress during the denoising process.
 
     Returns:
@@ -208,9 +130,9 @@ def zsampler_turbo_core(latent_input             : dict[str, Any],
     if len(sigma_preset) != 7:
         raise ValueError(f"Sigma presets must have 7 elements but the \"{sigma_preset_name}\" preset has {len(sigma_preset)} elements")
     index   = min(max( 3, steps), 9 ) - 3
-    sigmas1 = sigma_preset[index][0]
-    sigmas2 = sigma_preset[index][1]
-    sigmas3 = sigma_preset[index][2]
+    sigmas1 = list(sigma_preset[index][0])
+    sigmas2 = list(sigma_preset[index][1])
+    sigmas3 = list(sigma_preset[index][2])
 
     # when the number of steps is greater than 9, the same 9-step sigma
     # sequence is used, but the Stage 2 and Stage 3 are refined to match
@@ -299,7 +221,8 @@ def zsampler_turbo_core(latent_input             : dict[str, Any],
     # execute the 3-stage denoising process
     latent_output = execute_3_stage_denoising(latent_input,
                                               model, seed, 1.0, positive, negative,
-                                              positive_stg1        = positive_stg1,
+                                              positive_stg2        = positive_stg2,
+                                              positive_stg3        = positive_stg3,
                                               sampler              = sampler,
                                               sigmas1              = sigmas1,
                                               sigmas2              = sigmas2,
@@ -348,9 +271,10 @@ def execute_3_stage_denoising(latent_image,
                               sigma_step_range    : tuple[int,int]     | list[int]   | None = None,
                               initial_noise_bias  : torch.Tensor | float | int | None       = None,
                               initial_noise_scale : torch.Tensor | float | int | None       = 1.0,
-                              start_with_noise    : bool = True,
-                              end_with_denoise    : bool = True,
-                              positive_stg1       : list | None,
+                              start_with_noise    : bool                                    = True,
+                              end_with_denoise    : bool                                    = True,
+                              positive_stg2       : list | None                             = None,
+                              positive_stg3       : list | None                             = None,
                               progress_preview    : ProgressPreview,
                               ):
     """
@@ -390,10 +314,12 @@ def execute_3_stage_denoising(latent_image,
     Returns:
         A dictionary with the updated latent image data after all three denoising stages.
     """
-    # the stage1 positive conditioning is optional,
-    # if not provided, it will be the same as the main positive
-    if positive_stg1 is None:
-        positive_stg1 = positive
+    # the positive conditioning for stage 2 and 3 are optional
+    # if not provided, they will be the same as the main conditioning
+    if positive_stg2 is None or (isinstance(positive_stg2,(list,tuple)) and len(positive_stg2) == 0):
+        positive_stg2 = positive
+    if positive_stg3 is None or (isinstance(positive_stg3,(list,tuple)) and len(positive_stg3) == 0):
+        positive_stg3 = positive
 
     # if sigmas is a list then convert it to pytorch tensor
     if isinstance(sigmas1, list):
@@ -442,7 +368,7 @@ def execute_3_stage_denoising(latent_image,
         force_denoise = (is_last_stage  and end_with_denoise)
 
         latent_image = execute_sampler(latent_image,
-                        model, seed, cfg, positive_stg1, negative,
+                        model, seed, cfg, positive, negative,
                         sampler             = sampler,
                         sigmas              = sigmas1,
                         noise_bias          = initial_noise_bias  if add_noise else 0,
@@ -463,7 +389,7 @@ def execute_3_stage_denoising(latent_image,
         force_denoise = (is_last_stage  and end_with_denoise)
 
         latent_image = execute_sampler(latent_image,
-                        model, seed, cfg, positive, negative,
+                        model, seed, cfg, positive_stg2, negative,
                         sampler             = sampler,
                         sigmas              = sigmas2,
                         noise_bias          = 0,
@@ -481,7 +407,7 @@ def execute_3_stage_denoising(latent_image,
         force_denoise = (is_last_stage  and end_with_denoise)
 
         latent_image = execute_sampler(latent_image,
-                        model, 696969, cfg, positive, negative,
+                        model, 696969, cfg, positive_stg3, negative,
                         sampler             = sampler,
                         sigmas              = sigmas3,
                         noise_bias          = 0,
@@ -781,7 +707,7 @@ def estimate_initial_noise_features(latent_image,
     scale = samples.std (dim=[2, 3], keepdim=True)
 
     # TODO: check clamp range
-    #bias.clamp_(min=-100.0, max=2.5)
+    #bias.clamp_(min=-4.5, max=4.5)
     return bias, scale
 
 
@@ -909,3 +835,123 @@ def refine_sigma_sequence(sigmas: list[float] | None, insert_count: int) -> list
         sigmas = new_sequence
 
     return sigmas
+
+
+#============================== SIGMA PRESETS ==============================#
+
+ALPHA_SIGMA_PRESET = (
+    (###3
+        (0.991, 0.980, 0.920),                      #< +2 steps
+        (0.942, 0.000),                             #< +1 step  | = 3 generation steps
+        None,                                       #< (no refiner)
+    ),(#4
+        (0.991, 0.980, 0.920),                      #< +2 steps
+        (0.942, 0.000),                             #< +1 step  | = 3 generation steps
+        (0.790, 0.000),                             #< +1 step  | + 1 refiner step
+    ),(#5
+        (0.991, 0.980, 0.920),                      #< +2 steps
+        (0.942, 0.780, 0.000),                      #< +2 steps | = 4 generation steps
+        (0.620, 0.000),                             #< +1 step  | + 1 refiner step
+    ),(#6
+        (0.991, 0.980, 0.920),                      #< +2 steps
+        (0.942, 0.780, 0.000),                      #< +2 steps | = 4 generation steps
+        (0.658, 0.302, 0.000),                      #< +2 steps | + 2 refiner steps
+    ),(#7
+        (0.991, 0.980, 0.920),                      #< +2 steps
+        (0.935, 0.892, 0.760, 0.000),               #< +3 steps | = 5 generation steps
+        (0.658, 0.302, 0.000),                      #< +2 steps | + 2 refiner steps
+    ),(#8
+        (0.991, 0.980, 0.920),                      #< +2 steps
+        (0.935, 0.900, 0.875, 0.750, 0.000),        #< +4 steps | = 6 generation steps
+        (0.658, 0.302, 0.000),                      #< +2 steps | + 2 refiner steps
+    ),(#9
+        (0.991, 0.980, 0.920),                      #< +2 steps
+        (0.935, 0.900, 0.875, 0.750, 0.000),        #< +4 steps | = 6 generation steps
+        (0.658, 0.456, 0.200, 0.000),               #< +3 steps | + 3 refiner steps
+    )
+)
+BRAVO_SIGMA_PRESET = (
+    (###3
+        (0.991, 0.920),                             #< +1 step
+        (0.942, 0.000),                             #< +1 step  | = 2 generation steps
+        (0.710, 0.000),                             #< +1 step  | + 1 refiner step
+    ),(#4
+        (0.991, 0.920),                             #< +1 step
+        (0.935, 0.789, 0.000),                      #< +2 steps | = 3 generation steps
+        (0.500, 0.000),                             #< +1 step  | + 1 refiner step
+    ),(#5
+        (0.991, 0.920),                             #< +1 step
+        (0.935, 0.770, 0.690, 0.000),               #< +4 steps | = 4 generation steps
+        (0.280, 0.000),                             #< +1 step  | + 1 refiner step
+    ),(#6
+        (0.991, 0.920),                             #< +1 step
+        (0.935, 0.770, 0.690, 0.000),               #< +3 steps | = 4 generation steps
+        (0.658, 0.302, 0.000),                      #< +2 steps | + 2 refiner steps
+    ),(#7
+        (0.991, 0.920),                             #< +1 step
+        (0.935, 0.900, 0.875, 0.800, 0.000),        #< +4 steps | = 5 generation steps
+        (0.658, 0.302, 0.000),                      #< +2 steps | + 2 refiner steps
+    ),(#8
+        (0.991, 0.920),                             #< +1 step
+        (0.935, 0.900, 0.875, 0.820, 0.750, 0.000), #< +5 steps | = 6 generation steps
+        (0.658, 0.302, 0.000),                      #< +2 steps | + 2 refiner steps
+    ),(#9
+        (0.991, 0.920),                             #< +1 step
+        (0.935, 0.900, 0.875, 0.820, 0.750, 0.000), #< +5 steps | = 6 generation steps
+        (0.658, 0.4556, 0.200, 0.000),              #< +3 steps | + 3 refiner steps
+    )
+)
+
+SIGMA_PRESETS_BY_NAME = {
+    "alpha"  : ALPHA_SIGMA_PRESET,
+    "bravo"  : BRAVO_SIGMA_PRESET,
+}
+
+#=== DISCARDED SIGMA PRESETS ===
+#
+# C_SIGMA_PRESET = (
+#     (   (0.992, 0.977, 0.917),                #< 2 steps
+#         (0.948, 0.000),                       #< 1 step  (=3 generation steps)
+#         None,                                 #< (no refiner)
+#     ),(
+#         (0.992, 0.977, 0.917),                #< 2 steps
+#         (0.948, 0.000),                       #< 1 step  (=3 generation steps)
+#         (0.700, 0.000),                       #< 1 step  (+1 refiner step)
+#     ),(
+#         (0.992, 0.977, 0.917),                #< 2 steps
+#         (0.948, 0.740, 0.000),                #< 2 steps (=4 generation steps)
+#         (0.700, 0.000),                       #< 1 step  (+1 refiner step)
+#     ),(
+#         (0.992, 0.977, 0.917),                #< 2 steps
+#         (0.948, 0.828, 0.570, 0.000),         #< 3 steps (=5 generation steps)
+#         (0.700, 0.000),                       #< 1 step  (+1 refiner step)
+#     ),(
+#         (0.992, 0.977, 0.917),                #< 2 steps
+#         (0.948, 0.828, 0.570, 0.000),         #< 3 steps (=5 generation steps)
+#         (0.700, 0.280, 0.000),                #< 2 steps (+2 refiner steps)
+#     ),(
+#         (0.992, 0.977, 0.917),                #< 2 steps
+#         (0.948, 0.858, 0.725, 0.540, 0.000),  #< 4 steps (=6 generation steps)
+#         (0.700, 0.280, 0.000),                #< 2 steps (+2 refiner steps)
+#     ),(
+#         (0.992, 0.977, 0.917),                #< 2 steps
+#         (0.948, 0.858, 0.725, 0.540, 0.000),  #< 4 steps (=6 generation steps)
+#         (0.708, 0.586, 0.270, 0.000),         #< 3 steps (+3 refiner steps)
+#     )
+#)
+#
+# D_SIGMA_PRESET = (
+#     (
+#         (0.990, 0.981, 0.911),                #< 2 steps
+#         (0.943, 0.850, 0.775, 0.640, 0.000),  #< 4 steps (=6 generation steps)
+#         (0.608, 0.486, 0.270, 0.000),         #< 3 steps (+3 refiner steps)
+#     )
+# )
+# E_SIGMA_PRESET = (
+#     (
+#         (0.990, 0.980, 0.913),                #< 2 steps
+#         (0.941, 0.858, 0.725, 0.540, 0.000),  #< 4 steps (=6 generation steps)
+#         (0.708, 0.586, 0.270, 0.000),         #< 3 steps (+3 refiner steps)
+#     )
+# )
+#

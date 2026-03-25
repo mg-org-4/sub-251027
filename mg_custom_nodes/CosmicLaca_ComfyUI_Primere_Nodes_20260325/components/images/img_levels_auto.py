@@ -224,8 +224,7 @@ def levels_normalize_gaps(
     """
     amplitude = max(1.0, (scale / 1.275) ** 2.2) * (max_val / 255.0)
     half      = amplitude / 2.0
-    noise     = (rng_gap.uniform(-half, half, stretched.shape).astype(np.float32) +
-                 rng_gap.uniform(-half, half, stretched.shape).astype(np.float32))
+    noise     = (rng_gap.uniform(-half, half, stretched.shape).astype(np.float32) + rng_gap.uniform(-half, half, stretched.shape).astype(np.float32))
     return np.clip(stretched + noise, 0.0, max_val)
 
 

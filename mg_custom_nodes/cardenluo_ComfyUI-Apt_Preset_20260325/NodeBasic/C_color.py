@@ -744,8 +744,24 @@ class color_OneColor_keep:  #保留一色
 #region----color_match adv----------
 
 
-def image_stats(image):
-    return np.mean(image[:, :, 1:], axis=(0, 1)), np.std(image[:, :, 1:], axis=(0, 1))
+def image_stats(image, mask=None):
+    ab = image[:, :, 1:]
+    if mask is None:
+        return np.mean(ab, axis=(0, 1)), np.std(ab, axis=(0, 1))
+    m = mask
+    if m.ndim == 3:
+        m = m.squeeze()
+    m = m.astype(np.float32)
+    if m.size == 0:
+        return np.mean(ab, axis=(0, 1)), np.std(ab, axis=(0, 1))
+    if np.max(m) <= 1.0:
+        m = m > 0
+    else:
+        m = m > 0
+    if not np.any(m):
+        return np.mean(ab, axis=(0, 1)), np.std(ab, axis=(0, 1))
+    v = ab[m]
+    return np.mean(v, axis=0), np.std(v, axis=0)
 
 
 def is_skin_or_lips(lab_image):
@@ -791,7 +807,7 @@ def adjust_contrast(image, factor, mask=None):
     return adjusted.astype(np.uint8)
 
 
-def adjust_tone(source, target, tone_strength=0.7, mask=None):
+def adjust_tone(source, target, tone_strength=0.7, mask=None, source_mask=None):
     h, w = target.shape[:2]
     source = cv2.resize(source, (w, h))
     lab_image = cv2.cvtColor(target, cv2.COLOR_BGR2LAB).astype(np.float32)
@@ -799,14 +815,35 @@ def adjust_tone(source, target, tone_strength=0.7, mask=None):
     l_image = lab_image[:,:,0]
     l_source = lab_source[:,:,0]
 
+    def _norm_mask(m):
+        m = cv2.resize(m, (w, h))
+        m = m.astype(np.float32)
+        if m.size == 0:
+            return m
+        if np.max(m) <= 1.0:
+            return m
+        return m / 255.0
+
+    src_mask = None
+    if source_mask is not None:
+        src_mask = _norm_mask(source_mask)
+
     if mask is not None:
-        mask = cv2.resize(mask, (w, h))
-        mask = mask.astype(np.float32) / 255.0
+        mask = _norm_mask(mask)
         l_adjusted = np.copy(l_image)
-        mean_source = np.mean(l_source[mask > 0])
-        std_source = np.std(l_source[mask > 0])
-        mean_target = np.mean(l_image[mask > 0])
-        std_target = np.std(l_image[mask > 0])
+        if np.any(mask > 0):
+            mean_target = np.mean(l_image[mask > 0])
+            std_target = np.std(l_image[mask > 0])
+        else:
+            mean_target = np.mean(l_image)
+            std_target = np.std(l_image)
+        src_sel = src_mask if src_mask is not None else mask
+        if src_sel is not None and np.any(src_sel > 0):
+            mean_source = np.mean(l_source[src_sel > 0])
+            std_source = np.std(l_source[src_sel > 0])
+        else:
+            mean_source = np.mean(l_source)
+            std_source = np.std(l_source)
         l_adjusted[mask > 0] = (l_image[mask > 0] - mean_target) * (std_source / (std_target + 1e-6)) * 0.7 + mean_source
         l_adjusted[mask > 0] = np.clip(l_adjusted[mask > 0], 0, 255)
         clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8,8))
@@ -817,8 +854,12 @@ def adjust_tone(source, target, tone_strength=0.7, mask=None):
         l_contrast = np.clip(l_contrast, 0, 255)
         l_image[mask > 0] = l_image[mask > 0] * (1 - tone_strength) + l_contrast[mask > 0] * tone_strength
     else:
-        mean_source = np.mean(l_source)
-        std_source = np.std(l_source)
+        if src_mask is not None and np.any(src_mask > 0):
+            mean_source = np.mean(l_source[src_mask > 0])
+            std_source = np.std(l_source[src_mask > 0])
+        else:
+            mean_source = np.mean(l_source)
+            std_source = np.std(l_source)
         l_mean = np.mean(l_image)
         l_std = np.std(l_image)
         l_adjusted = (l_image - l_mean) * (std_source / (l_std + 1e-6)) * 0.7 + mean_source
@@ -837,19 +878,21 @@ def adjust_tone(source, target, tone_strength=0.7, mask=None):
 
 def tensor2cv2(image: torch.Tensor) -> np.array:
     if image.dim() == 4:
-        image = image.squeeze()
-    npimage = image.numpy()
-    cv2image = np.uint8(npimage * 255 / npimage.max())
+        image = image[0]
+    npimage = image.detach().cpu().numpy()
+    cv2image = np.clip(npimage * 255.0, 0, 255).astype(np.uint8)
+    if cv2image.ndim == 3 and cv2image.shape[2] == 4:
+        return cv2.cvtColor(cv2image, cv2.COLOR_RGBA2BGR)
     return cv2.cvtColor(cv2image, cv2.COLOR_RGB2BGR)
 
 
 def color_transfer(source, target, mask=None, strength=1.0, skin_protection=0.2, auto_brightness=True,
                    brightness_range=0.5, auto_contrast=False, contrast_range=0.5,
-                   auto_saturation=False, saturation_range=0.5, auto_tone=False, tone_strength=0.7):
+                   auto_saturation=False, saturation_range=0.5, auto_tone=False, tone_strength=0.7, ref_mask=None):
     source_lab = cv2.cvtColor(source, cv2.COLOR_BGR2LAB).astype(np.float32)
     target_lab = cv2.cvtColor(target, cv2.COLOR_BGR2LAB).astype(np.float32)
 
-    src_means, src_stds = image_stats(source_lab)
+    src_means, src_stds = image_stats(source_lab, ref_mask)
     tar_means, tar_stds = image_stats(target_lab)
 
     skin_lips_mask = is_skin_or_lips(target_lab.astype(np.uint8))
@@ -882,7 +925,20 @@ def color_transfer(source, target, mask=None, strength=1.0, skin_protection=0.2,
         mask = cv2.resize(mask, (target.shape[1], target.shape[0]))
         mask = mask.astype(np.float32) / 255.0
         if auto_brightness:
-            source_brightness = np.mean(cv2.cvtColor(source, cv2.COLOR_BGR2GRAY))
+            src_gray = cv2.cvtColor(source, cv2.COLOR_BGR2GRAY)
+            if ref_mask is not None:
+                rm = ref_mask
+                if rm.ndim == 3:
+                    rm = rm.squeeze()
+                rm = cv2.resize(rm.astype(np.float32), (src_gray.shape[1], src_gray.shape[0]), interpolation=cv2.INTER_NEAREST)
+                if np.max(rm) > 1.0:
+                    rm = rm / 255.0
+                if np.any(rm > 0):
+                    source_brightness = np.mean(src_gray[rm > 0])
+                else:
+                    source_brightness = np.mean(src_gray)
+            else:
+                source_brightness = np.mean(src_gray)
             target_brightness = np.mean(cv2.cvtColor(target, cv2.COLOR_BGR2GRAY))
             brightness_difference = source_brightness - target_brightness
             brightness_factor = 1.0 + np.clip(brightness_difference / 255 * brightness_range, brightness_range*-1, brightness_range)
@@ -890,7 +946,19 @@ def color_transfer(source, target, mask=None, strength=1.0, skin_protection=0.2,
         if auto_contrast:
             source_gray = cv2.cvtColor(source, cv2.COLOR_BGR2GRAY)
             target_gray = cv2.cvtColor(target, cv2.COLOR_BGR2GRAY)
-            source_contrast = np.std(source_gray)
+            if ref_mask is not None:
+                rm = ref_mask
+                if rm.ndim == 3:
+                    rm = rm.squeeze()
+                rm = cv2.resize(rm.astype(np.float32), (source_gray.shape[1], source_gray.shape[0]), interpolation=cv2.INTER_NEAREST)
+                if np.max(rm) > 1.0:
+                    rm = rm / 255.0
+                if np.any(rm > 0):
+                    source_contrast = np.std(source_gray[rm > 0])
+                else:
+                    source_contrast = np.std(source_gray)
+            else:
+                source_contrast = np.std(source_gray)
             target_contrast = np.std(target_gray)
             contrast_difference = source_contrast - target_contrast
             contrast_factor = 1.0 + np.clip(contrast_difference / 255, contrast_range*-1, contrast_range)
@@ -898,16 +966,41 @@ def color_transfer(source, target, mask=None, strength=1.0, skin_protection=0.2,
         if auto_saturation:
             source_hsv = cv2.cvtColor(source, cv2.COLOR_BGR2HSV)
             target_hsv = cv2.cvtColor(target, cv2.COLOR_BGR2HSV)
-            source_saturation = np.mean(source_hsv[:, :, 1])
+            if ref_mask is not None:
+                rm = ref_mask
+                if rm.ndim == 3:
+                    rm = rm.squeeze()
+                rm = cv2.resize(rm.astype(np.float32), (source_hsv.shape[1], source_hsv.shape[0]), interpolation=cv2.INTER_NEAREST)
+                if np.max(rm) > 1.0:
+                    rm = rm / 255.0
+                if np.any(rm > 0):
+                    source_saturation = np.mean(source_hsv[:, :, 1][rm > 0])
+                else:
+                    source_saturation = np.mean(source_hsv[:, :, 1])
+            else:
+                source_saturation = np.mean(source_hsv[:, :, 1])
             target_saturation = np.mean(target_hsv[:, :, 1])
             saturation_difference = source_saturation - target_saturation
             saturation_factor = 1.0 + np.clip(saturation_difference / 255, saturation_range*-1, saturation_range)
             final_result = adjust_saturation(final_result, saturation_factor, mask)
         if auto_tone:
-            final_result = adjust_tone(source, final_result, tone_strength, mask)
+            final_result = adjust_tone(source, final_result, tone_strength, mask, source_mask=ref_mask)
     else:
         if auto_brightness:
-            source_brightness = np.mean(cv2.cvtColor(source, cv2.COLOR_BGR2GRAY))
+            src_gray = cv2.cvtColor(source, cv2.COLOR_BGR2GRAY)
+            if ref_mask is not None:
+                rm = ref_mask
+                if rm.ndim == 3:
+                    rm = rm.squeeze()
+                rm = cv2.resize(rm.astype(np.float32), (src_gray.shape[1], src_gray.shape[0]), interpolation=cv2.INTER_NEAREST)
+                if np.max(rm) > 1.0:
+                    rm = rm / 255.0
+                if np.any(rm > 0):
+                    source_brightness = np.mean(src_gray[rm > 0])
+                else:
+                    source_brightness = np.mean(src_gray)
+            else:
+                source_brightness = np.mean(src_gray)
             target_brightness = np.mean(cv2.cvtColor(target, cv2.COLOR_BGR2GRAY))
             brightness_difference = source_brightness - target_brightness
             brightness_factor = 1.0 + np.clip(brightness_difference / 255 * brightness_range, brightness_range*-1, brightness_range)
@@ -915,7 +1008,19 @@ def color_transfer(source, target, mask=None, strength=1.0, skin_protection=0.2,
         if auto_contrast:
             source_gray = cv2.cvtColor(source, cv2.COLOR_BGR2GRAY)
             target_gray = cv2.cvtColor(target, cv2.COLOR_BGR2GRAY)
-            source_contrast = np.std(source_gray)
+            if ref_mask is not None:
+                rm = ref_mask
+                if rm.ndim == 3:
+                    rm = rm.squeeze()
+                rm = cv2.resize(rm.astype(np.float32), (source_gray.shape[1], source_gray.shape[0]), interpolation=cv2.INTER_NEAREST)
+                if np.max(rm) > 1.0:
+                    rm = rm / 255.0
+                if np.any(rm > 0):
+                    source_contrast = np.std(source_gray[rm > 0])
+                else:
+                    source_contrast = np.std(source_gray)
+            else:
+                source_contrast = np.std(source_gray)
             target_contrast = np.std(target_gray)
             contrast_difference = source_contrast - target_contrast
             contrast_factor = 1.0 + np.clip(contrast_difference / 255, contrast_range*-1, contrast_range)
@@ -923,13 +1028,25 @@ def color_transfer(source, target, mask=None, strength=1.0, skin_protection=0.2,
         if auto_saturation:
             source_hsv = cv2.cvtColor(source, cv2.COLOR_BGR2HSV)
             target_hsv = cv2.cvtColor(target, cv2.COLOR_BGR2HSV)
-            source_saturation = np.mean(source_hsv[:, :, 1])
+            if ref_mask is not None:
+                rm = ref_mask
+                if rm.ndim == 3:
+                    rm = rm.squeeze()
+                rm = cv2.resize(rm.astype(np.float32), (source_hsv.shape[1], source_hsv.shape[0]), interpolation=cv2.INTER_NEAREST)
+                if np.max(rm) > 1.0:
+                    rm = rm / 255.0
+                if np.any(rm > 0):
+                    source_saturation = np.mean(source_hsv[:, :, 1][rm > 0])
+                else:
+                    source_saturation = np.mean(source_hsv[:, :, 1])
+            else:
+                source_saturation = np.mean(source_hsv[:, :, 1])
             target_saturation = np.mean(target_hsv[:, :, 1])
             saturation_difference = source_saturation - target_saturation
             saturation_factor = 1.0 + np.clip(saturation_difference / 255, saturation_range*-1, saturation_range)
             final_result = adjust_saturation(final_result, saturation_factor)
         if auto_tone:
-            final_result = adjust_tone(source, final_result, tone_strength)
+            final_result = adjust_tone(source, final_result, tone_strength, source_mask=ref_mask)
 
     return final_result
 
@@ -971,7 +1088,11 @@ class color_match_adv:
         auto_saturation =True
 
 
+        ref_alpha_mask = None
         for img in ref_img:
+            if img.dim() == 3 and img.shape[-1] == 4:
+                a = img[:, :, 3].detach().cpu().numpy()
+                ref_alpha_mask = (a > 1e-6).astype(np.uint8) * 255
             img_cv1 = tensor2cv2(img)
 
         for img in target_image:
@@ -985,7 +1106,7 @@ class color_match_adv:
 
         result_img = color_transfer(img_cv1, img_cv2, img_cv3, strength, skin_protection, auto_brightness,
                                     brightness_range,auto_contrast, contrast_range, auto_saturation,
-                                    saturation_range, auto_tone, tone_strength)
+                                    saturation_range, auto_tone, tone_strength, ref_mask=ref_alpha_mask)
         result_img = cv2.cvtColor(result_img, cv2.COLOR_BGR2RGB)
         rst = torch.from_numpy(result_img.astype(np.float32) / 255.0).unsqueeze(0)
 
@@ -2271,7 +2392,143 @@ CURVE_PRESETS = {
         "G": [[0.0, 0.0], [0.5, 0.48], [1.0, 0.95]],
         "B": [[0.0, 0.0], [0.25, 0.22], [0.75, 0.88], [1.0, 1.0]],
     },
+    "Linear": {
+        "RGB": [[0.0, 0.0], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Soft S": {
+        "RGB": [[0.0, 0.0], [0.157, 0.141], [0.376, 0.361], [0.627, 0.784], [0.816, 0.894], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Strong S": {
+        "RGB": [[0.0, 0.0], [0.125, 0.078], [0.314, 0.275], [0.502, 0.502], [0.69, 0.784], [0.878, 0.949], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Bright Midtones": {
+        "RGB": [[0.0, 0.0], [0.251, 0.431], [0.502, 0.667], [0.753, 0.863], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Dark Mood": {
+        "RGB": [[0.0, 0.0], [0.188, 0.11], [0.376, 0.314], [0.502, 0.471], [0.753, 0.706], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Highlight Lift": {
+        "RGB": [[0.0, 0.0], [0.251, 0.353], [0.502, 0.588], [0.753, 0.824], [0.902, 0.961], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Shadow Lift": {
+        "RGB": [[0.0, 0.0], [0.047, 0.094], [0.251, 0.306], [0.502, 0.549], [0.753, 0.784], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Film Matte": {
+        "RGB": [[0.0, 0.0], [0.141, 0.11], [0.376, 0.376], [0.627, 0.745], [0.816, 0.878], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Fade Blacks": {
+        "RGB": [[0.0, 0.0], [0.031, 0.071], [0.188, 0.188], [0.502, 0.549], [0.753, 0.784], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Punchy": {
+        "RGB": [[0.0, 0.0], [0.188, 0.125], [0.376, 0.329], [0.502, 0.502], [0.627, 0.706], [0.816, 0.922], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "High Key": {
+        "RGB": [[0.0, 0.0], [0.251, 0.392], [0.502, 0.706], [0.753, 0.902], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Low Key": {
+        "RGB": [[0.0, 0.0], [0.157, 0.078], [0.376, 0.251], [0.502, 0.431], [0.753, 0.706], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Subtle S": {
+        "RGB": [[0.0, 0.0], [0.188, 0.173], [0.439, 0.416], [0.627, 0.722], [0.816, 0.863], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Retro Fade": {
+        "RGB": [[0.0, 0.0], [0.047, 0.071], [0.251, 0.282], [0.502, 0.533], [0.753, 0.784], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Vintage Warm": {
+        "RGB": [[0.0, 0.0], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [0.188, 0.176], [0.376, 0.38], [0.502, 0.549], [0.753, 0.804], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [0.188, 0.157], [0.376, 0.353], [0.502, 0.51], [0.753, 0.784], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [0.188, 0.141], [0.376, 0.314], [0.502, 0.471], [0.753, 0.745], [1.0, 0.965]],
+    },
+    "Vintage Cool": {
+        "RGB": [[0.0, 0.0], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [0.188, 0.141], [0.376, 0.294], [0.502, 0.451], [0.753, 0.706], [1.0, 0.941]],
+        "G": [[0.0, 0.0], [0.188, 0.157], [0.376, 0.314], [0.502, 0.471], [0.753, 0.745], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [0.188, 0.176], [0.376, 0.38], [0.502, 0.549], [0.753, 0.824], [1.0, 1.0]],
+    },
+    "Cinematic S": {
+        "RGB": [[0.0, 0.0], [0.251, 0.188], [0.502, 0.502], [0.753, 0.816], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "HDR Boost": {
+        "RGB": [[0.0, 0.0], [0.125, 0.11], [0.251, 0.251], [0.502, 0.627], [0.753, 0.863], [1.0, 1.0]],
+        "R": [[0.0, 0.0], [1.0, 1.0]],
+        "G": [[0.0, 0.0], [1.0, 1.0]],
+        "B": [[0.0, 0.0], [1.0, 1.0]],
+    },
+    "Film Negative": {
+        "RGB": [[0.0, 1.0], [0.125, 0.784], [0.376, 0.627], [0.627, 0.314], [0.878, 0.094], [1.0, 0.0]],
+        "R": [[0.0, 1.0], [1.0, 0.0]],
+        "G": [[0.0, 1.0], [1.0, 0.0]],
+        "B": [[0.0, 1.0], [1.0, 0.0]],
+    },
 }
+
+def resolve_curve_data(curve_preset, curve_data_value):
+    has_curve_data = False
+    parsed_curve_data = None
+    if isinstance(curve_data_value, str):
+        try:
+            parsed_curve_data = json.loads(curve_data_value)
+        except:
+            parsed_curve_data = None
+    elif isinstance(curve_data_value, dict):
+        parsed_curve_data = curve_data_value
+    if isinstance(parsed_curve_data, dict):
+        has_curve_data = any(k in parsed_curve_data for k in ("RGB", "R", "G", "B"))
+    if curve_preset != "Custom" and not has_curve_data:
+        preset = CURVE_PRESETS.get(curve_preset)
+        if preset is not None:
+            return json.dumps(preset)
+    if isinstance(parsed_curve_data, dict):
+        return json.dumps(parsed_curve_data)
+    if isinstance(curve_data_value, str):
+        return curve_data_value
+    return "{}"
 
 def compute_curve_logic(image, curve_data_str, saturation, preview_mode=False):
 
@@ -2375,11 +2632,7 @@ class color_ImageCurve:
             "image": image_to_process.cpu()
         }
 
-        curve_data_to_use = curve_data
-        if curve_preset != "Custom":
-            preset = CURVE_PRESETS.get(curve_preset)
-            if preset is not None:
-                curve_data_to_use = json.dumps(preset)
+        curve_data_to_use = resolve_curve_data(curve_preset, curve_data)
 
         out_tensor = compute_curve_logic(image_to_process, curve_data_to_use, saturation, preview_mode=False)
         
@@ -2410,10 +2663,7 @@ async def live_preview(request):
     
     curve_data_str = data.get("curve_data", "{}")
     curve_preset = data.get("curve_preset", "Custom")
-    if curve_preset != "Custom":
-        preset = CURVE_PRESETS.get(curve_preset)
-        if preset is not None:
-            curve_data_str = json.dumps(preset)
+    curve_data_str = resolve_curve_data(curve_preset, curve_data_str)
 
     saturation = data.get("saturation", 1.0)
     
@@ -3032,6 +3282,167 @@ async def live_preview_bright_gradient(request):
 #endregion---------------------------------------gradient---------------------------------------    
 
 
+def _crop_visual_parse_state(crop_state):
+    if isinstance(crop_state, dict):
+        data = crop_state
+    else:
+        try:
+            data = json.loads(crop_state) if crop_state else {}
+        except:
+            data = {}
+    cx = float(data.get("cx", 0.5))
+    cy = float(data.get("cy", 0.5))
+    zoom = float(data.get("zoom", 1.0))
+    cx = min(1.0, max(0.0, cx))
+    cy = min(1.0, max(0.0, cy))
+    zoom = max(1e-4, zoom)
+    return cx, cy, zoom
+
+
+def _crop_visual_compute_box(img_w, img_h, crop_w, crop_h, center_x, center_y, zoom):
+    src_w = min(float(img_w), max(1.0, float(crop_w) / float(zoom)))
+    src_h = min(float(img_h), max(1.0, float(crop_h) / float(zoom)))
+    cx_px = min(float(img_w), max(0.0, float(center_x) * float(img_w)))
+    cy_px = min(float(img_h), max(0.0, float(center_y) * float(img_h)))
+    half_w = src_w * 0.5
+    half_h = src_h * 0.5
+    cx_px = min(float(img_w) - half_w, max(half_w, cx_px))
+    cy_px = min(float(img_h) - half_h, max(half_h, cy_px))
+    left = cx_px - half_w
+    top = cy_px - half_h
+    right = left + src_w
+    bottom = top + src_h
+    return left, top, right, bottom
+
+
+def _crop_visual_apply_single(img, crop_w, crop_h, center_x, center_y, zoom):
+    h = int(img.shape[0])
+    w = int(img.shape[1])
+    left, top, right, bottom = _crop_visual_compute_box(w, h, crop_w, crop_h, center_x, center_y, zoom)
+    x = torch.linspace(left, right, crop_w, device=img.device, dtype=img.dtype)
+    y = torch.linspace(top, bottom, crop_h, device=img.device, dtype=img.dtype)
+    yy, xx = torch.meshgrid(y, x, indexing="ij")
+    denom_w = float(max(1, w - 1))
+    denom_h = float(max(1, h - 1))
+    grid_x = (xx / denom_w) * 2.0 - 1.0
+    grid_y = (yy / denom_h) * 2.0 - 1.0
+    grid = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(0)
+    img_chw = img.permute(2, 0, 1).unsqueeze(0)
+    out = torch.nn.functional.grid_sample(
+        img_chw,
+        grid,
+        mode="bilinear",
+        padding_mode="border",
+        align_corners=True,
+    )
+    return out[0].permute(1, 2, 0).clamp(0.0, 1.0)
+
+
+def _crop_visual_prepare_image(img, fill):
+    fill_mode = str(fill or "none").lower()
+    if fill_mode == "none":
+        return img
+    h = int(img.shape[0])
+    w = int(img.shape[1])
+    side = max(h, w)
+    if side <= 0:
+        return img
+    if fill_mode == "white":
+        val = 1.0
+    elif fill_mode == "black":
+        val = 0.0
+    elif fill_mode == "grey":
+        val = 0.5
+    elif fill_mode == "edge":
+        c = int(img.shape[2])
+        canvas = torch.zeros((side, side, c), dtype=img.dtype, device=img.device)
+        top = (side - h) // 2
+        left = (side - w) // 2
+        bottom_pad = side - (top + h)
+        right_pad = side - (left + w)
+        canvas[top:top + h, left:left + w, :] = img
+        if top > 0:
+            top_row = img[0:1, :, :].expand(top, w, c)
+            canvas[0:top, left:left + w, :] = top_row
+        if bottom_pad > 0:
+            bottom_row = img[h - 1:h, :, :].expand(bottom_pad, w, c)
+            canvas[top + h:side, left:left + w, :] = bottom_row
+        if left > 0:
+            left_col = img[:, 0:1, :].expand(h, left, c)
+            canvas[top:top + h, 0:left, :] = left_col
+        if right_pad > 0:
+            right_col = img[:, w - 1:w, :].expand(h, right_pad, c)
+            canvas[top:top + h, left + w:side, :] = right_col
+        if top > 0 and left > 0:
+            canvas[0:top, 0:left, :] = img[0, 0, :].view(1, 1, c)
+        if top > 0 and right_pad > 0:
+            canvas[0:top, left + w:side, :] = img[0, w - 1, :].view(1, 1, c)
+        if bottom_pad > 0 and left > 0:
+            canvas[top + h:side, 0:left, :] = img[h - 1, 0, :].view(1, 1, c)
+        if bottom_pad > 0 and right_pad > 0:
+            canvas[top + h:side, left + w:side, :] = img[h - 1, w - 1, :].view(1, 1, c)
+        return canvas
+    else:
+        return img
+    c = int(img.shape[2])
+    canvas = torch.full((side, side, c), float(val), dtype=img.dtype, device=img.device)
+    top = (side - h) // 2
+    left = (side - w) // 2
+    canvas[top:top + h, left:left + w, :] = img
+    return canvas
+
+
+class Image_crop_visual:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "crop_width": ("INT", {"default": 512, "min": 1, "max": 8192, "step": 1}),
+                "crop_height": ("INT", {"default": 512, "min": 1, "max": 8192, "step": 1}),
+                "fill": (["none", "white", "black", "grey", "edge"], {"default": "none"}),
+                "crop_state": ("STRING", {"default": '{"cx":0.5,"cy":0.5,"zoom":1.0}'}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("cropped_image",)
+    FUNCTION = "crop_image"
+    CATEGORY = "Apt_Preset/image/visualize_edit"
+    OUTPUT_NODE = True
+    DESCRIPTION = """滚动鼠标，缩放裁剪框"""
+    def crop_image(self, image, crop_width, crop_height, fill, crop_state):
+        crop_w = int(max(1, crop_width))
+        crop_h = int(max(1, crop_height))
+        cx, cy, zoom = _crop_visual_parse_state(crop_state)
+
+        out_list = []
+        image_for_preview = image[0]
+        image_for_meta = image[0]
+        for img in image:
+            prepared = _crop_visual_prepare_image(img, fill)
+            out_list.append(_crop_visual_apply_single(prepared, crop_w, crop_h, cx, cy, zoom))
+        if image.shape[0] > 0:
+            image_for_preview = _crop_visual_prepare_image(image[0], fill)
+            image_for_meta = image_for_preview
+        out_tensor = torch.stack(out_list, dim=0)
+
+        bg_results = []
+        temp_dir = folder_paths.get_temp_directory()
+        if image.shape[0] > 0:
+            src_np = (255.0 * image_for_preview.cpu().numpy()).clip(0, 255).astype(np.uint8)
+            src_pil = Image.fromarray(src_np)
+            filename = f"image_crop_visual_bg_{random.randint(1, 1000000)}.png"
+            src_pil.save(os.path.join(temp_dir, filename))
+            bg_results.append({"filename": filename, "subfolder": "", "type": "temp"})
+
+        ui = {
+            "bg_image": bg_results,
+            "crop_meta": [{"img_w": int(image_for_meta.shape[1]), "img_h": int(image_for_meta.shape[0])}],
+        }
+        return {"ui": ui, "result": (out_tensor,)}
+
+
 
 
 
@@ -3051,3 +3462,18 @@ async def live_preview_bright_gradient(request):
 
 
 #endregion---------------------------------------visualize---------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

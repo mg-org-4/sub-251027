@@ -8237,7 +8237,7 @@
     }
   },
   "color_ImageCurve": {
-      "display_name": "颜色_图像曲线",
+      "display_name": "color_图像曲线",
       "inputs": {
           "image": {
               "name": "图像"
@@ -12948,7 +12948,28 @@
   }
   }
   },
-
+"Image_crop_visual": {
+    "display_name": "Image_可视化裁剪",
+    "inputs": {
+        "image": {
+            "name": "图像"
+        },
+        "crop_width": {
+            "name": "裁剪宽度"
+        },
+        "crop_height": {
+            "name": "裁剪高度"
+        },
+        "crop_state": {
+            "name": "裁剪状态"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "裁剪图"
+        }
+    }
+},
   "csv_write_data": {
     "display_name": "CSV_写入数据",
     "inputs": {

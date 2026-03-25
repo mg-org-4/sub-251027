@@ -221,7 +221,7 @@ app.registerExtension({
                 
                 rcBtn.onclick = () => {
                     curveData[activeChannel] = [[0.0, 0.0], [1.0, 1.0]];
-                    if (typeof updateBackend === 'function') updateBackend();
+                    if (typeof updateBackend === 'function') updateBackend(true);
                     if (typeof draw === 'function') draw();
                     if (typeof updateLivePreview === 'function') updateLivePreview(false);
                 };
@@ -244,7 +244,7 @@ app.registerExtension({
                         G: [[0.0, 0.0], [1.0, 1.0]],
                         B: [[0.0, 0.0], [1.0, 1.0]]
                     };
-                    if (typeof updateBackend === 'function') updateBackend();
+                    if (typeof updateBackend === 'function') updateBackend(true);
                     if (typeof draw === 'function') draw();
                     if (typeof updateLivePreview === 'function') updateLivePreview(false);
                 };
@@ -628,7 +628,18 @@ app.registerExtension({
                 let lastClickTime = 0;
                 const PADDING = 14; 
 
-                const updateBackend = () => {
+                const setPresetValue = (name) => {
+                    if (!presetWidget) return;
+                    presetWidget.value = name;
+                    if (presetWidget.inputEl) {
+                        presetWidget.inputEl.value = name;
+                    }
+                };
+
+                const updateBackend = (markCustom = false) => {
+                    if (markCustom && presetWidget && String(presetWidget.value || "Custom") !== "Custom") {
+                        setPresetValue("Custom");
+                    }
                     if (curveWidget) {
                         curveWidget.value = JSON.stringify(curveData);
                     }
@@ -645,7 +656,26 @@ app.registerExtension({
                     "Warm": { RGB: [[0.0, 0.0], [1.0, 1.0]], R: [[0.0, 0.0], [0.5, 0.55], [1.0, 1.0]], G: [[0.0, 0.0], [0.5, 0.52], [1.0, 1.0]], B: [[0.0, 0.0], [0.5, 0.45], [1.0, 0.95]] },
                     "Cool": { RGB: [[0.0, 0.0], [1.0, 1.0]], R: [[0.0, 0.0], [0.5, 0.45], [1.0, 0.95]], G: [[0.0, 0.0], [0.5, 0.5], [1.0, 1.0]], B: [[0.0, 0.0], [0.5, 0.55], [1.0, 1.0]] },
                     "Teal & Orange": { RGB: [[0.0, 0.0], [1.0, 1.0]], R: [[0.0, 0.0], [0.4, 0.38], [0.7, 0.78], [1.0, 1.0]], G: [[0.0, 0.02], [0.5, 0.5], [1.0, 1.0]], B: [[0.0, 0.08], [0.4, 0.45], [0.7, 0.62], [1.0, 0.95]] },
-                    "Cross Process": { RGB: [[0.0, 0.0], [1.0, 1.0]], R: [[0.0, 0.06], [0.35, 0.33], [0.75, 0.86], [1.0, 1.0]], G: [[0.0, 0.0], [0.5, 0.48], [1.0, 0.95]], B: [[0.0, 0.0], [0.25, 0.22], [0.75, 0.88], [1.0, 1.0]] }
+                    "Cross Process": { RGB: [[0.0, 0.0], [1.0, 1.0]], R: [[0.0, 0.06], [0.35, 0.33], [0.75, 0.86], [1.0, 1.0]], G: [[0.0, 0.0], [0.5, 0.48], [1.0, 0.95]], B: [[0.0, 0.0], [0.25, 0.22], [0.75, 0.88], [1.0, 1.0]] },
+                    "Linear": { RGB: [[0.0, 0.0], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Soft S": { RGB: [[0.0, 0.0], [0.157, 0.141], [0.376, 0.361], [0.627, 0.784], [0.816, 0.894], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Strong S": { RGB: [[0.0, 0.0], [0.125, 0.078], [0.314, 0.275], [0.502, 0.502], [0.69, 0.784], [0.878, 0.949], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Bright Midtones": { RGB: [[0.0, 0.0], [0.251, 0.431], [0.502, 0.667], [0.753, 0.863], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Dark Mood": { RGB: [[0.0, 0.0], [0.188, 0.11], [0.376, 0.314], [0.502, 0.471], [0.753, 0.706], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Highlight Lift": { RGB: [[0.0, 0.0], [0.251, 0.353], [0.502, 0.588], [0.753, 0.824], [0.902, 0.961], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Shadow Lift": { RGB: [[0.0, 0.0], [0.047, 0.094], [0.251, 0.306], [0.502, 0.549], [0.753, 0.784], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Film Matte": { RGB: [[0.0, 0.0], [0.141, 0.11], [0.376, 0.376], [0.627, 0.745], [0.816, 0.878], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Fade Blacks": { RGB: [[0.0, 0.0], [0.031, 0.071], [0.188, 0.188], [0.502, 0.549], [0.753, 0.784], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Punchy": { RGB: [[0.0, 0.0], [0.188, 0.125], [0.376, 0.329], [0.502, 0.502], [0.627, 0.706], [0.816, 0.922], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "High Key": { RGB: [[0.0, 0.0], [0.251, 0.392], [0.502, 0.706], [0.753, 0.902], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Low Key": { RGB: [[0.0, 0.0], [0.157, 0.078], [0.376, 0.251], [0.502, 0.431], [0.753, 0.706], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Subtle S": { RGB: [[0.0, 0.0], [0.188, 0.173], [0.439, 0.416], [0.627, 0.722], [0.816, 0.863], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Retro Fade": { RGB: [[0.0, 0.0], [0.047, 0.071], [0.251, 0.282], [0.502, 0.533], [0.753, 0.784], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Vintage Warm": { RGB: [[0.0, 0.0], [1.0, 1.0]], R: [[0.0, 0.0], [0.188, 0.176], [0.376, 0.38], [0.502, 0.549], [0.753, 0.804], [1.0, 1.0]], G: [[0.0, 0.0], [0.188, 0.157], [0.376, 0.353], [0.502, 0.51], [0.753, 0.784], [1.0, 1.0]], B: [[0.0, 0.0], [0.188, 0.141], [0.376, 0.314], [0.502, 0.471], [0.753, 0.745], [1.0, 0.965]] },
+                    "Vintage Cool": { RGB: [[0.0, 0.0], [1.0, 1.0]], R: [[0.0, 0.0], [0.188, 0.141], [0.376, 0.294], [0.502, 0.451], [0.753, 0.706], [1.0, 0.941]], G: [[0.0, 0.0], [0.188, 0.157], [0.376, 0.314], [0.502, 0.471], [0.753, 0.745], [1.0, 1.0]], B: [[0.0, 0.0], [0.188, 0.176], [0.376, 0.38], [0.502, 0.549], [0.753, 0.824], [1.0, 1.0]] },
+                    "Cinematic S": { RGB: [[0.0, 0.0], [0.251, 0.188], [0.502, 0.502], [0.753, 0.816], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "HDR Boost": { RGB: [[0.0, 0.0], [0.125, 0.11], [0.251, 0.251], [0.502, 0.627], [0.753, 0.863], [1.0, 1.0]], R: [[0.0, 0.0], [1.0, 1.0]], G: [[0.0, 0.0], [1.0, 1.0]], B: [[0.0, 0.0], [1.0, 1.0]] },
+                    "Film Negative": { RGB: [[0.0, 1.0], [0.125, 0.784], [0.376, 0.627], [0.627, 0.314], [0.878, 0.094], [1.0, 0.0]], R: [[0.0, 1.0], [1.0, 0.0]], G: [[0.0, 1.0], [1.0, 0.0]], B: [[0.0, 1.0], [1.0, 0.0]] }
                 };
 
                 const applyPreset = (presetName) => {
@@ -714,7 +744,7 @@ app.registerExtension({
                             if (closestIdx === -1) {
                                 pts.push([x, y]);
                                 pts.sort((a, b) => a[0] - b[0]);
-                                updateBackend();
+                                updateBackend(true);
                                 draw();
                                 updateLivePreview(false);
                             }
@@ -730,7 +760,7 @@ app.registerExtension({
                         e.preventDefault();
                         if (closestIdx !== -1 && pts.length > 2) {
                             pts.splice(closestIdx, 1);
-                            updateBackend();
+                            updateBackend(true);
                             draw();
                             updateLivePreview(false);
                         }
@@ -750,14 +780,14 @@ app.registerExtension({
                     pts[dragIndex] = [Math.max(minX, Math.min(maxX, x)), y];
                     
                     draw();
-                    updateBackend();
+                    updateBackend(true);
                     updateLivePreview(true);
                 });
 
                 window.addEventListener("mouseup", () => {
                     if (isDragging) {
                         isDragging = false;
-                        updateBackend();
+                        updateBackend(true);
                     }
                 });
 
@@ -1742,6 +1772,518 @@ app.registerExtension({
                     const uiWidget = this.widgets.find(w => w.name === "BrightGradientUI");
                     const bg = uiWidget?.element?.querySelector?.(".apt-preview-bg");
                     if (bg) bg.style.backgroundImage = `url(${url})`;
+                }
+            };
+        } else if (nodeData.name === "Image_crop_visual") {
+            const onNodeCreated = nodeType.prototype.onNodeCreated;
+
+            nodeType.prototype.onNodeCreated = function () {
+                if (onNodeCreated) onNodeCreated.apply(this, arguments);
+
+                const MIN_NODE_WIDTH = 240;
+                const MIN_NODE_HEIGHT = 320;
+                if (this.size[0] < MIN_NODE_WIDTH) this.size[0] = MIN_NODE_WIDTH;
+                if (this.size[1] < MIN_NODE_HEIGHT) this.size[1] = MIN_NODE_HEIGHT;
+                this.resizable = true;
+                this.min_size = [MIN_NODE_WIDTH, MIN_NODE_HEIGHT];
+                this._apt_target_size = this.size;
+                const _apt_orig_onResize = this.onResize;
+                this.onResize = function (size) {
+                    this._apt_target_size = size;
+                    return _apt_orig_onResize?.apply(this, arguments);
+                };
+
+                const hideWidgetAndSlot = (widgetName) => {
+                    const w = this.widgets?.find(w => w.name === widgetName);
+                    if (w) {
+                        w.type = "hidden";
+                        w.hidden = true;
+                        w.computeSize = () => [0, 0];
+                        w.draw = () => {};
+                        if (w.inputEl) {
+                            w.inputEl.style.display = "none";
+                            if (w.inputEl.parentElement) w.inputEl.parentElement.style.display = "none";
+                        }
+                    }
+                    if (this.inputs) {
+                        const idx = this.inputs.findIndex(i => i.name === widgetName);
+                        if (idx !== -1) this.removeInput(idx);
+                    }
+                };
+
+                hideWidgetAndSlot("crop_state");
+
+                const cropStateWidget = this.widgets?.find(w => w.name === "crop_state");
+                const cropWidthWidget = this.widgets?.find(w => w.name === "crop_width");
+                const cropHeightWidget = this.widgets?.find(w => w.name === "crop_height");
+                const fillWidget = this.widgets?.find(w => w.name === "fill");
+
+                let cropState = { cx: 0.5, cy: 0.5, zoom: 1.0 };
+                if (cropStateWidget && typeof cropStateWidget.value === "string") {
+                    try {
+                        const parsed = JSON.parse(cropStateWidget.value);
+                        if (parsed && typeof parsed === "object") cropState = { ...cropState, ...parsed };
+                    } catch (e) {}
+                }
+
+                const container = document.createElement("div");
+                container.style.display = "flex";
+                container.style.flexDirection = "column";
+                container.style.width = "100%";
+                container.style.height = "100%";
+                container.style.marginTop = "0px";
+                container.style.borderRadius = "6px";
+                container.style.overflow = "hidden";
+                container.style.backgroundColor = "transparent";
+
+                const viewArea = document.createElement("div");
+                viewArea.style.flex = "1";
+                viewArea.style.position = "relative";
+                viewArea.style.width = "100%";
+                viewArea.style.height = "100%";
+                viewArea.style.backgroundColor = "#1a1a1a";
+                viewArea.style.overflow = "hidden";
+
+                const bgImageLayer = document.createElement("div");
+                bgImageLayer.className = "apt-preview-bg";
+                bgImageLayer.style.position = "absolute";
+                bgImageLayer.style.inset = "0";
+                bgImageLayer.style.backgroundSize = "contain";
+                bgImageLayer.style.backgroundPosition = "center";
+                bgImageLayer.style.backgroundRepeat = "no-repeat";
+                viewArea.appendChild(bgImageLayer);
+
+                const canvas = document.createElement("canvas");
+                canvas.style.position = "absolute";
+                canvas.style.inset = "0";
+                canvas.style.width = "100%";
+                canvas.style.height = "100%";
+                canvas.style.cursor = "default";
+                viewArea.appendChild(canvas);
+
+                container.appendChild(viewArea);
+
+                const previewBar = document.createElement("div");
+                previewBar.style.display = "flex";
+                previewBar.style.alignItems = "center";
+                previewBar.style.gap = "8px";
+                previewBar.style.padding = "0 0px";
+                previewBar.style.backgroundColor = "transparent";
+
+                const isNodes2_0 = !!document.querySelector("comfy-app") ||
+                    !!document.querySelector(".comfy-vue") ||
+                    (window.comfyAPI && window.comfyAPI.vue);
+
+                const loadBtn = document.createElement("button");
+                loadBtn.innerText = "Preview";
+                loadBtn.style.flex = "1";
+                loadBtn.style.width = "auto";
+                loadBtn.style.height = "24px";
+                loadBtn.style.lineHeight = "22px";
+                loadBtn.style.marginTop = "8px";
+                loadBtn.style.border = "none";
+                loadBtn.style.borderRadius = "8px";
+                loadBtn.style.cursor = "pointer";
+                loadBtn.style.fontSize = "10px";
+                loadBtn.style.fontWeight = "bold";
+                loadBtn.style.backgroundColor = "#4f5d6d";
+                loadBtn.style.color = "#FFF";
+                loadBtn.style.transition = "all 0.2s ease";
+
+                const runPreview = async () => {
+                    try {
+                        const p = await app.graphToPrompt();
+                        const prompt = p.output;
+                        const selectedNodeId = String(this.id);
+                        const isolatedPrompt = {};
+                        const traceDependencies = (nodeId) => {
+                            if (!prompt[nodeId] || isolatedPrompt[nodeId]) return;
+                            isolatedPrompt[nodeId] = prompt[nodeId];
+                            const inputs = prompt[nodeId].inputs;
+                            for (let key in inputs) {
+                                const val = inputs[key];
+                                if (Array.isArray(val) && val.length === 2) traceDependencies(String(val[0]));
+                            }
+                        };
+                        traceDependencies(selectedNodeId);
+                        if (Object.keys(isolatedPrompt).length === 0) return;
+                        const response = await api.fetchApi("/prompt", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                client_id: api.clientId,
+                                prompt: isolatedPrompt,
+                                extra_data: p.workflow ? { extra_pnginfo: { workflow: p.workflow } } : {}
+                            })
+                        });
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || "Failed to queue prompt");
+                        }
+                    } catch (err) {}
+                };
+                loadBtn.onclick = runPreview;
+
+                previewBar.style.marginBottom = isNodes2_0 ? "10px" : "0px";
+                previewBar.appendChild(loadBtn);
+                container.appendChild(previewBar);
+
+                const widget = this.addDOMWidget("ImageCropUI", "div", container, { serialize: false, hideOnZoom: false });
+                const nodeInstance = this;
+                const ctx = canvas.getContext("2d");
+                const UI_DEFAULT_HEIGHT = 300;
+                widget.computeSize = function (width) {
+                    return [width, UI_DEFAULT_HEIGHT];
+                };
+                const UI_BASE_HEIGHT = typeof nodeInstance.computeSize === "function"
+                    ? nodeInstance.computeSize()[1]
+                    : nodeInstance.size[1];
+                const getTargetNodeHeight = () => {
+                    const c = app?.canvas;
+                    const m = c?.graph_mouse || c?.mouse;
+                    if (_aptPointerDown && _aptResizeNode && (_aptResizeNode === nodeInstance || _aptResizeNode?.id === nodeInstance.id) && Array.isArray(m) && m.length > 1 && Array.isArray(nodeInstance.pos)) {
+                        return Math.max(MIN_NODE_HEIGHT, m[1] - nodeInstance.pos[1]);
+                    }
+                    return nodeInstance.size[1];
+                };
+                widget.computeSize = function (width) {
+                    const targetH = getTargetNodeHeight();
+                    const extra = Math.max(0, (targetH - UI_BASE_HEIGHT) * 0.95);
+                    return [width, UI_DEFAULT_HEIGHT + extra];
+                };
+
+                const imageMeta = { img_w: 0, img_h: 0 };
+                let userAdjusted = false;
+                let dragInfo = null;
+
+                const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+                const getCropDims = () => {
+                    const cw = Math.max(1, parseInt(cropWidthWidget?.value ?? 512));
+                    const ch = Math.max(1, parseInt(cropHeightWidget?.value ?? 512));
+                    return { cw, ch };
+                };
+                const parseState = () => {
+                    const cx = Number.isFinite(+cropState.cx) ? +cropState.cx : 0.5;
+                    const cy = Number.isFinite(+cropState.cy) ? +cropState.cy : 0.5;
+                    const zoom = Number.isFinite(+cropState.zoom) ? +cropState.zoom : 1.0;
+                    cropState.cx = clamp(cx, 0, 1);
+                    cropState.cy = clamp(cy, 0, 1);
+                    cropState.zoom = Math.max(1e-4, zoom);
+                };
+                const syncState = () => {
+                    parseState();
+                    if (cropStateWidget) {
+                        cropStateWidget.value = JSON.stringify({
+                            cx: cropState.cx,
+                            cy: cropState.cy,
+                            zoom: cropState.zoom
+                        });
+                    }
+                    if (app.graph) app.graph.setDirtyCanvas(true);
+                };
+                const fitZoom = () => {
+                    if (!imageMeta.img_w || !imageMeta.img_h) return 1.0;
+                    const { cw, ch } = getCropDims();
+                    return Math.max(cw / imageMeta.img_w, ch / imageMeta.img_h, 1e-4);
+                };
+                const getSourceRect = () => {
+                    if (!imageMeta.img_w || !imageMeta.img_h) return null;
+                    const { cw, ch } = getCropDims();
+                    const minZoom = fitZoom();
+                    cropState.zoom = Math.max(cropState.zoom, minZoom);
+                    const srcW = Math.min(imageMeta.img_w, Math.max(1, cw / cropState.zoom));
+                    const srcH = Math.min(imageMeta.img_h, Math.max(1, ch / cropState.zoom));
+                    let cxPx = clamp(cropState.cx * imageMeta.img_w, 0, imageMeta.img_w);
+                    let cyPx = clamp(cropState.cy * imageMeta.img_h, 0, imageMeta.img_h);
+                    cxPx = clamp(cxPx, srcW * 0.5, imageMeta.img_w - srcW * 0.5);
+                    cyPx = clamp(cyPx, srcH * 0.5, imageMeta.img_h - srcH * 0.5);
+                    cropState.cx = cxPx / imageMeta.img_w;
+                    cropState.cy = cyPx / imageMeta.img_h;
+                    return {
+                        x: cxPx - srcW * 0.5,
+                        y: cyPx - srcH * 0.5,
+                        w: srcW,
+                        h: srcH
+                    };
+                };
+                const initState = () => {
+                    if (!imageMeta.img_w || !imageMeta.img_h) return;
+                    const z = fitZoom();
+                    cropState.cx = 0.5;
+                    cropState.cy = 0.5;
+                    cropState.zoom = z;
+                    syncState();
+                };
+                const getImageRectOnCanvas = () => {
+                    if (!imageMeta.img_w || !imageMeta.img_h) return null;
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    if (w <= 0 || h <= 0) return null;
+                    const scale = Math.min(w / imageMeta.img_w, h / imageMeta.img_h);
+                    const dw = imageMeta.img_w * scale;
+                    const dh = imageMeta.img_h * scale;
+                    return {
+                        x: (w - dw) * 0.5,
+                        y: (h - dh) * 0.5,
+                        w: dw,
+                        h: dh,
+                        scale
+                    };
+                };
+                const canvasToImage = (mx, my) => {
+                    const ir = getImageRectOnCanvas();
+                    if (!ir) return null;
+                    const ix = (mx - ir.x) / ir.scale;
+                    const iy = (my - ir.y) / ir.scale;
+                    return {
+                        x: clamp(ix, 0, imageMeta.img_w),
+                        y: clamp(iy, 0, imageMeta.img_h)
+                    };
+                };
+                const draw = () => {
+                    const clientW = canvas.clientWidth;
+                    const clientH = canvas.clientHeight;
+                    if (clientW > 0 && clientH > 0) {
+                        if (canvas.width !== clientW || canvas.height !== clientH) {
+                            canvas.width = clientW;
+                            canvas.height = clientH;
+                        }
+                    }
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    if (!w || !h) return;
+                    ctx.clearRect(0, 0, w, h);
+                    const ir = getImageRectOnCanvas();
+                    const sr = getSourceRect();
+                    if (!ir || !sr) return;
+                    const rx = ir.x + sr.x * ir.scale;
+                    const ry = ir.y + sr.y * ir.scale;
+                    const rw = sr.w * ir.scale;
+                    const rh = sr.h * ir.scale;
+
+                    ctx.fillStyle = "rgba(0,0,0,0.35)";
+                    ctx.fillRect(ir.x, ir.y, ir.w, Math.max(0, ry - ir.y));
+                    ctx.fillRect(ir.x, ry + rh, ir.w, Math.max(0, ir.y + ir.h - (ry + rh)));
+                    ctx.fillRect(ir.x, ry, Math.max(0, rx - ir.x), rh);
+                    ctx.fillRect(rx + rw, ry, Math.max(0, ir.x + ir.w - (rx + rw)), rh);
+
+                    ctx.strokeStyle = "#ff5a4f";
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(rx, ry, rw, rh);
+
+                    const hs = 6;
+                    ctx.fillStyle = "#ffea00";
+                    ctx.fillRect(rx - hs, ry - hs, hs * 2, hs * 2);
+                    ctx.fillRect(rx + rw - hs, ry - hs, hs * 2, hs * 2);
+                    ctx.fillRect(rx - hs, ry + rh - hs, hs * 2, hs * 2);
+                    ctx.fillRect(rx + rw - hs, ry + rh - hs, hs * 2, hs * 2);
+                };
+
+                const resizeObserver = new ResizeObserver((entries) => {
+                    for (let entry of entries) {
+                        const { width, height } = entry.contentRect;
+                        if (width > 0 && height > 0) {
+                            if (canvas.width !== width || canvas.height !== height) {
+                                canvas.width = width;
+                                canvas.height = height;
+                                draw();
+                            }
+                        }
+                    }
+                });
+                resizeObserver.observe(viewArea);
+
+                const getMouse = (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const sx = canvas.width / rect.width;
+                    const sy = canvas.height / rect.height;
+                    return {
+                        x: (e.clientX - rect.left) * sx,
+                        y: (e.clientY - rect.top) * sy
+                    };
+                };
+
+                canvas.addEventListener("mousedown", (e) => {
+                    if (e.button !== 0) return;
+                    const ir = getImageRectOnCanvas();
+                    const sr = getSourceRect();
+                    if (!ir || !sr) return;
+                    const m = getMouse(e);
+                    const rx = ir.x + sr.x * ir.scale;
+                    const ry = ir.y + sr.y * ir.scale;
+                    const rw = sr.w * ir.scale;
+                    const rh = sr.h * ir.scale;
+                    const inside = m.x >= rx && m.x <= rx + rw && m.y >= ry && m.y <= ry + rh;
+                    canvas.style.cursor = inside ? "move" : "default";
+                    if (!inside) return;
+                    const imgPt = canvasToImage(m.x, m.y);
+                    if (!imgPt) return;
+                    dragInfo = {
+                        mouseX: imgPt.x,
+                        mouseY: imgPt.y,
+                        cx: cropState.cx * imageMeta.img_w,
+                        cy: cropState.cy * imageMeta.img_h
+                    };
+                    e.preventDefault();
+                });
+
+                window.addEventListener("mousemove", (e) => {
+                    const m = getMouse(e);
+                    const ir = getImageRectOnCanvas();
+                    const sr = getSourceRect();
+                    if (ir && sr) {
+                        const rx = ir.x + sr.x * ir.scale;
+                        const ry = ir.y + sr.y * ir.scale;
+                        const rw = sr.w * ir.scale;
+                        const rh = sr.h * ir.scale;
+                        const over = m.x >= rx && m.x <= rx + rw && m.y >= ry && m.y <= ry + rh;
+                        canvas.style.cursor = dragInfo ? "move" : (over ? "move" : "default");
+                    }
+                    if (!dragInfo) return;
+                    const imgPt = canvasToImage(m.x, m.y);
+                    if (!imgPt) return;
+                    const dx = imgPt.x - dragInfo.mouseX;
+                    const dy = imgPt.y - dragInfo.mouseY;
+                    const src = getSourceRect();
+                    if (!src) return;
+                    const halfW = src.w * 0.5;
+                    const halfH = src.h * 0.5;
+                    const nx = clamp(dragInfo.cx + dx, halfW, imageMeta.img_w - halfW);
+                    const ny = clamp(dragInfo.cy + dy, halfH, imageMeta.img_h - halfH);
+                    cropState.cx = nx / imageMeta.img_w;
+                    cropState.cy = ny / imageMeta.img_h;
+                    userAdjusted = true;
+                    syncState();
+                    draw();
+                });
+
+                window.addEventListener("mouseup", () => {
+                    dragInfo = null;
+                });
+
+                canvas.addEventListener("wheel", (e) => {
+                    if (!imageMeta.img_w || !imageMeta.img_h) return;
+                    e.preventDefault();
+                    const m = getMouse(e);
+                    const imgPt = canvasToImage(m.x, m.y);
+                    if (!imgPt) return;
+                    const old = getSourceRect();
+                    if (!old) return;
+                    const rx = clamp((imgPt.x - old.x) / old.w, 0, 1);
+                    const ry = clamp((imgPt.y - old.y) / old.h, 0, 1);
+                    const factor = e.deltaY < 0 ? 1.08 : (1 / 1.08);
+                    const minZoom = fitZoom();
+                    cropState.zoom = clamp(cropState.zoom * factor, minZoom, minZoom * 256);
+                    const { cw, ch } = getCropDims();
+                    const nw = Math.min(imageMeta.img_w, Math.max(1, cw / cropState.zoom));
+                    const nh = Math.min(imageMeta.img_h, Math.max(1, ch / cropState.zoom));
+                    let nx = imgPt.x - rx * nw;
+                    let ny = imgPt.y - ry * nh;
+                    nx = clamp(nx, 0, imageMeta.img_w - nw);
+                    ny = clamp(ny, 0, imageMeta.img_h - nh);
+                    cropState.cx = (nx + nw * 0.5) / imageMeta.img_w;
+                    cropState.cy = (ny + nh * 0.5) / imageMeta.img_h;
+                    userAdjusted = true;
+                    syncState();
+                    draw();
+                }, { passive: false });
+
+                const bindCropDim = (w) => {
+                    if (!w) return;
+                    const originalCallback = w.callback;
+                    w.callback = function (value) {
+                        if (originalCallback) originalCallback.apply(this, arguments);
+                        const minZoom = fitZoom();
+                        cropState.zoom = Math.max(cropState.zoom, minZoom);
+                        if (!userAdjusted) initState();
+                        syncState();
+                        draw();
+                    };
+                    if (w.inputEl) {
+                        w.inputEl.addEventListener("change", () => {
+                            const minZoom = fitZoom();
+                            cropState.zoom = Math.max(cropState.zoom, minZoom);
+                            if (!userAdjusted) initState();
+                            syncState();
+                            draw();
+                        });
+                        w.inputEl.addEventListener("input", () => {
+                            const minZoom = fitZoom();
+                            cropState.zoom = Math.max(cropState.zoom, minZoom);
+                            if (!userAdjusted) initState();
+                            syncState();
+                            draw();
+                        });
+                    }
+                };
+                bindCropDim(cropWidthWidget);
+                bindCropDim(cropHeightWidget);
+
+                let fillAutoTimer = null;
+                const triggerFillAutoPreview = () => {
+                    if (fillAutoTimer) clearTimeout(fillAutoTimer);
+                    fillAutoTimer = setTimeout(() => {
+                        fillAutoTimer = null;
+                        runPreview();
+                    }, 120);
+                };
+                const bindFillAuto = (w) => {
+                    if (!w) return;
+                    const originalCallback = w.callback;
+                    w.callback = function (value) {
+                        if (originalCallback) originalCallback.apply(this, arguments);
+                        triggerFillAutoPreview();
+                    };
+                    if (w.inputEl) {
+                        w.inputEl.addEventListener("change", triggerFillAutoPreview);
+                        w.inputEl.addEventListener("input", triggerFillAutoPreview);
+                    }
+                };
+                bindFillAuto(fillWidget);
+
+                this._aptImageCropUI = {
+                    imageMeta,
+                    draw,
+                    initState,
+                    getUserAdjusted: () => userAdjusted
+                };
+
+                syncState();
+                draw();
+                setTimeout(() => {
+                    draw();
+                    if (this.onResize) this.onResize(this.size);
+                }, 150);
+            };
+
+            const onExecuted = nodeType.prototype.onExecuted;
+            nodeType.prototype.onExecuted = function (message) {
+                onExecuted?.apply(this, arguments);
+                if (message?.bg_image?.length > 0) {
+                    const img = message.bg_image[0];
+                    const url = api.apiURL(`/view?filename=${encodeURIComponent(img.filename)}&type=${img.type}&subfolder=${img.subfolder}&t=${Date.now()}`);
+                    const uiWidget = this.widgets.find(w => w.name === "ImageCropUI");
+                    const bg = uiWidget?.element?.querySelector?.(".apt-preview-bg");
+                    if (bg) bg.style.backgroundImage = `url(${url})`;
+
+                    const cropUi = this._aptImageCropUI;
+                    if (!cropUi) return;
+                    const cropMeta = Array.isArray(message?.crop_meta) ? message.crop_meta[0] : null;
+                    if (cropMeta && cropMeta.img_w && cropMeta.img_h) {
+                        cropUi.imageMeta.img_w = parseInt(cropMeta.img_w);
+                        cropUi.imageMeta.img_h = parseInt(cropMeta.img_h);
+                        if (!cropUi.getUserAdjusted()) cropUi.initState();
+                        cropUi.draw();
+                    } else {
+                        const imgProbe = new Image();
+                        imgProbe.onload = () => {
+                            cropUi.imageMeta.img_w = imgProbe.naturalWidth;
+                            cropUi.imageMeta.img_h = imgProbe.naturalHeight;
+                            if (!cropUi.getUserAdjusted()) cropUi.initState();
+                            cropUi.draw();
+                        };
+                        imgProbe.src = url;
+                    }
                 }
             };
         } else if ([

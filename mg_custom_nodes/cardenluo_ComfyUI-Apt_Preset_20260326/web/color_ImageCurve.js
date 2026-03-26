@@ -2287,11 +2287,11 @@ app.registerExtension({
                 }
             };
         } else if ([
-            "color_adjust_HSL", "color_adjust_HSL_visual",
-            "color_adjust_HDR", "color_adjust_HDR_visual",
-            "color_match_adv", "color_match_adv_visual",
-            "Image_CnMapMix", "Image_CnMapMix_visual",
-            "Image_Detail_HL_frequencye", "Image_Detail_HL_frequencye_visual",
+            "color_adjust_HSL_visual",
+            "color_adjust_HDR_visual",
+            "color_match_adv_visual",
+            "Image_CnMapMix_visual",
+            "Image_Detail_HL_frequencye_visual",
         ].includes(nodeData.name)) {
             const onNodeCreated = nodeType.prototype.onNodeCreated;
 

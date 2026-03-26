@@ -1427,7 +1427,7 @@ class color_select:
             elif len(final_color) != 7:
                 final_color = "#FFFFFF"
         
-        return ([final_color],)
+        return (final_color,)
 
 
 

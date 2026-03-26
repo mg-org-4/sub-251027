@@ -1,5 +1,12 @@
 import numpy as np
 from PIL import Image, ImageFilter
+import glob
+import hashlib
+import json
+from ..tree import PRIMERE_ROOT
+from .. import utility
+import os
+from PIL import Image
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Channel definitions
@@ -156,9 +163,10 @@ def rasterix_histogram_render(
                     # "percentile" — gradient + percentile marker lines
                     # "inverse"    — light-background gradient
 
-        precision : False = 8-bit histogram (256 bins, sigma=1.0, linear norm)
-                    True  = 16-bit histogram (65536→256 bins, sigma=0.75,
-                            sqrt normalisation)
+        precision : False = 8-bit raw histogram source
+                    True  = 16-bit raw histogram source (downsampled to 256 bins)
+                    Note: rendering normalisation is intentionally identical for both
+                    so equal input gives equal visual histogram height.
 
     Returns:
         PIL Image (RGB) — 1024 × 256 px (parade: 1536 × 256 px)
@@ -169,10 +177,11 @@ def rasterix_histogram_render(
     arr      = np.array(pil_img.convert("RGB"), dtype=np.float32)
     hist_h   = 192
     hist_w   = 512
-    sqrt_norm = precision
+    # Keep visual scale identical between 8-bit and 16-bit rendering.
+    # Precision only changes raw-bin acquisition, not display normalisation.
+    sqrt_norm = False
 
-    sigma    = (0.5 if style in ("bars","step","dots") else 0.75) if precision else \
-               (0.75 if style in ("bars","step","dots") else 1.0)
+    sigma = 0.75 if style in ("bars", "step", "dots") else 1.0
     smooth   = _make_smooth(sigma)
     channels = _HIST_CH_DEFS.get(channel, _HIST_CH_DEFS["RGB"])
 
@@ -498,3 +507,55 @@ def rasterix_histogram_render(
                 0, 255).astype(np.uint8), mode="RGB")
 
     return result
+
+def rasterix_hist_cache_paths():
+    hist_dir = os.path.join(PRIMERE_ROOT, 'front_end', 'images')
+    os.makedirs(hist_dir, exist_ok=True)
+    return (
+        hist_dir,
+        os.path.join(hist_dir, "rasterix_hist_cache_input.png"),
+        os.path.join(hist_dir, "rasterix_hist_cache_output.png"),
+    )
+
+def rasterix_hist_meta_path():
+    hist_dir, _, _ = rasterix_hist_cache_paths()
+    return os.path.join(hist_dir, "rasterix_hist_cache_meta.json")
+
+def rasterix_hist_signature(pil_img):
+    return hashlib.sha1(pil_img.tobytes()).hexdigest()
+
+def rasterix_hist_cache_store(pil_input, pil_output, precision):
+    hist_dir, in_path, out_path = rasterix_hist_cache_paths()
+    meta_path = rasterix_hist_meta_path()
+    current_key = f"{rasterix_hist_signature(pil_input)}::{rasterix_hist_signature(pil_output)}::{'16' if precision else '8'}"
+
+    previous_key = None
+    if os.path.isfile(meta_path):
+        try:
+            with open(meta_path, 'r', encoding='utf-8') as f:
+                previous_key = (json.load(f) or {}).get("cache_key")
+        except Exception:
+            previous_key = None
+
+    if current_key != previous_key:
+        for old_hist in glob.glob(os.path.join(hist_dir, "*_histogram_*_*.jpg")):
+            try:
+                os.remove(old_hist)
+            except OSError:
+                pass
+
+    pil_input.save(in_path, compress_level=1)
+    pil_output.save(out_path, compress_level=1)
+    with open(meta_path, 'w', encoding='utf-8') as f:
+        json.dump({"cache_key": current_key}, f)
+
+def rasterix_hist_render_selected(pil_input, pil_output, precision, histogram_source, histogram_channel, histogram_style):
+    hist_dir, _, _ = rasterix_hist_cache_paths()
+    source_prefix = "input" if histogram_source else "output"
+    target_file = os.path.join(hist_dir, f'{source_prefix}_histogram_{histogram_channel.lower()}_{histogram_style}.jpg')
+    if os.path.isfile(target_file):
+        return Image.open(target_file).convert("RGB")
+    source_image = pil_input if histogram_source else pil_output
+    rendered = rasterix_histogram_render(source_image, histogram_channel, histogram_style, precision)
+    rendered.save(target_file, quality=90)
+    return rendered

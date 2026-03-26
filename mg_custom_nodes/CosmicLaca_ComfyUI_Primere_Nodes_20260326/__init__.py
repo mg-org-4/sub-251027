@@ -5,6 +5,7 @@ from .utils import comfy_dir
 from .utils import here
 
 from .Nodes import Dashboard
+from .Nodes import Rasterix
 from .Nodes import Inputs
 from .Nodes import Styles
 from .Nodes import Outputs
@@ -58,9 +59,24 @@ NODE_CLASS_MAPPINGS = {
     "PrimereNetworkTagLoader": Dashboard.PrimereNetworkTagLoader,
     "PrimereModelKeyword": Dashboard.PrimereModelKeyword,
     "PrimereUpscaleModel": Dashboard.PrimereUpscaleModel,
-    "PrimereRasterix": Dashboard.PrimereRasterix,
-    "PrimereRasterixGrain": Dashboard.PrimereRasterixGrain,
-    "PrimereRasterixLens": Dashboard.PrimereRasterixLens,
+
+    "PrimereRasterix": Rasterix.PrimereRasterix,
+    "PrimereAutoNormalize": Rasterix.PrimereAutoNormalize,
+    "PrimereWhiteBalance": Rasterix.PrimereWhiteBalance,
+    "PrimereSmartLighting": Rasterix.PrimereSmartLighting,
+    "PrimereBlur": Rasterix.PrimereBlur,
+    "PrimereBrightnessContrast": Rasterix.PrimereBrightnessContrast,
+    "PrimereFilmRendering": Rasterix.PrimereFilmRendering,
+    "PrimereSelectiveTone": Rasterix.PrimereSelectiveTone,
+    "PrimereColorBalance": Rasterix.PrimereColorBalance,
+    "PrimereHSL": Rasterix.PrimereHSL,
+    "PrimereShadeDetailer": Rasterix.PrimereShadeDetailer,
+    "PrimereLevelEndpoints": Rasterix.PrimereLevelEndpoints,
+    "PrimereDithering": Rasterix.PrimereDithering,
+    "PrimereAIDetectionBypasser": Rasterix.PrimereAIDetectionBypasser,
+    "PrimereRasterixGrain": Rasterix.PrimereRasterixGrain,
+    "PrimereRasterixLens": Rasterix.PrimereRasterixLens,
+    "PrimereHistogram": Rasterix.PrimereHistogram,
 
     "PrimerePrompt": Inputs.PrimereDoublePrompt,
     "PrimereStyleLoader": Inputs.PrimereStyleLoader,
@@ -140,9 +156,24 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "PrimereModelKeyword": "Primere Model Keyword",
     "PrimereConceptDataTuple": "Primere Concept Tuple",
     "PrimereUpscaleModel": "Primere Upscale Models",
+
     "PrimereRasterix": "Primere Rasterix (The ToneLab)",
+    "PrimereAutoNormalize": "Primere Rasterix (Auto Normalize)",
+    "PrimereWhiteBalance": "Primere Rasterix (White Balance)",
+    "PrimereSmartLighting": "Primere Rasterix (Smart Lighting)",
+    "PrimereBlur": "Primere Rasterix (Blur)",
+    "PrimereBrightnessContrast": "Primere Rasterix (Brightness Contrast)",
+    "PrimereFilmRendering": "Primere Rasterix (Film Rendering)",
+    "PrimereSelectiveTone": "Primere Rasterix (Selective Tone)",
+    "PrimereColorBalance": "Primere Rasterix (Color Balance)",
+    "PrimereHSL": "Primere Rasterix (HSL)",
+    "PrimereShadeDetailer": "Primere Rasterix (Shade Detailer)",
+    "PrimereLevelEndpoints": "Primere Rasterix (Level Endpoints)",
+    "PrimereDithering": "Primere Rasterix (Dithering)",
+    "PrimereAIDetectionBypasser": "Primere Rasterix (AI Detection Bypasser)",
     "PrimereRasterixGrain": "Primere Rasterix (Grain)",
     "PrimereRasterixLens": "Primere Rasterix (Lens)",
+    "PrimereHistogram": "Primere Rasterix (Histogram)",
 
     "PrimerePrompt": "Primere Prompt",
     "PrimereStyleLoader": "Primere Styles",

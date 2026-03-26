@@ -75,7 +75,8 @@ app.registerExtension({
     name: "Primere.Rasterix",
 
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name !== "PrimereRasterix") return;
+        const rasterixNodes = ["PrimereRasterix", "PrimereSelectiveTone", "PrimereColorBalance", "PrimereHSL", "PrimereShadeDetailer", "PrimereHistogram"];
+        if (!rasterixNodes.includes(nodeData.name)) return;
 
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
@@ -116,6 +117,7 @@ app.registerExtension({
             let prevStZn  = wStZone?.value  ?? "midtones";
             let prevShMd  = wShMode?.value  ?? "medium";
             let updating  = false;
+            let histogramDebounceTimer = null;
 
             function updateHistogramDisplay(showInput, channel, style) {
                 const prefix = showInput ? "input" : "output";
@@ -133,16 +135,93 @@ app.registerExtension({
                 img.src = url;
             }
 
+            function showHistogramOffImage() {
+                const url = `/extensions/ComfyUI_Primere_Nodes/images/No_histogram_08.jpg?t=${Date.now()}`;
+                const img = new Image();
+                img.onload = () => {
+                    if (!node.imgs) node.imgs = [img];
+                    else node.imgs[0] = img;
+                    app.canvas?.setDirty(true);
+                };
+                img.onerror = () => {};
+                img.src = url;
+            }
+
+            function histogramFileUrl(showInput, channel, style) {
+                const prefix = showInput ? "input" : "output";
+                const ch = (channel || "RGB").toLowerCase();
+                const st = style || "bars";
+                return `/extensions/ComfyUI_Primere_Nodes/images/${prefix}_histogram_${ch}_${st}.jpg`;
+            }
+
+            async function histogramFileExists(showInput, channel, style) {
+                const url = `${histogramFileUrl(showInput, channel, style)}?t=${Date.now()}`;
+                try {
+                    const headResp = await fetch(url, { method: "HEAD" });
+                    if (headResp.ok) return true;
+                } catch (_) {}
+                try {
+                    const getResp = await fetch(url, { method: "GET" });
+                    return getResp.ok;
+                } catch (_) {
+                    return false;
+                }
+            }
+
+            async function generateHistogram(showInput, channel, style) {
+                try {
+                    await fetch('/primere_rasterix_histogram_generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            histogram_source: showInput,
+                            histogram_channel: channel || "RGB",
+                            histogram_style: style || "bars",
+                            precision: fw("precision")?.value ?? false,
+                        }),
+                    });
+                } catch (e) {
+                    console.warn('[Primere Rasterix] histogram render failed:', e);
+                }
+            }
+
+            function scheduleHistogramGenerate(showInput, channel, style, delayMs = 1000) {
+                if (histogramDebounceTimer) clearTimeout(histogramDebounceTimer);
+                histogramDebounceTimer = setTimeout(async () => {
+                    await generateHistogram(showInput, channel, style);
+                    updateHistogramDisplay(showInput, channel, style);
+                }, delayMs);
+            }
+
+            async function requestHistogramSwitch(showInput, channel, style) {
+                if (await histogramFileExists(showInput, channel, style)) {
+                    if (histogramDebounceTimer) clearTimeout(histogramDebounceTimer);
+                    updateHistogramDisplay(showInput, channel, style);
+                    return;
+                }
+                scheduleHistogramGenerate(showInput, channel, style, 1000);
+            }
+
             function currentHistState() {
                 return {
+                    enabled:   fw("show_histogram")?.value     ?? false,
                     showInput: fw("histogram_source")?.value      ?? false,
                     channel:   fw("histogram_channel")?.value   ?? "RGB",
-                    style:     fw("histogram_style")?.value     ?? "gradient",
+                    style:     fw("histogram_style")?.value     ?? "bars",
                 };
             }
 
-            node.onExecuted = function() {
-                const { showInput, channel, style } = currentHistState();
+            node.onExecuted = async function() {
+                const { enabled, showInput, channel, style } = currentHistState();
+                if (!enabled) {
+                    showHistogramOffImage();
+                    return;
+                }
+                if (await histogramFileExists(showInput, channel, style)) {
+                    updateHistogramDisplay(showInput, channel, style);
+                    return;
+                }
+                await generateHistogram(showInput, channel, style);
                 updateHistogramDisplay(showInput, channel, style);
             };
 
@@ -268,14 +347,22 @@ app.registerExtension({
                     captureShSliders(wShMode?.value ?? prevShMd);
 
                 } else if (name === "histogram_source") {
-                    const { channel, style } = currentHistState();
-                    updateHistogramDisplay(value, channel, style);
+                    const { enabled, channel, style } = currentHistState();
+                    if (enabled) requestHistogramSwitch(value, channel, style);
                 } else if (name === "histogram_channel") {
-                    const { showInput, style } = currentHistState();
-                    updateHistogramDisplay(showInput, value, style);
+                    const { enabled, showInput, style } = currentHistState();
+                    if (enabled) requestHistogramSwitch(showInput, value, style);
                 } else if (name === "histogram_style") {
-                    const { showInput, channel } = currentHistState();
-                    updateHistogramDisplay(showInput, channel, value);
+                    const { enabled, showInput, channel } = currentHistState();
+                    if (enabled) requestHistogramSwitch(showInput, channel, value);
+                } else if (name === "show_histogram") {
+                    const { showInput, channel, style } = currentHistState();
+                    if (value) {
+                        requestHistogramSwitch(showInput, channel, style);
+                    } else {
+                        if (histogramDebounceTimer) clearTimeout(histogramDebounceTimer);
+                        showHistogramOffImage();
+                    }
                 }
             };
         };

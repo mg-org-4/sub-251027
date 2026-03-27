@@ -55,7 +55,7 @@ class ZSamplerTurbo2Laboratory(io.ComfyNode):
                 io.Int.Input         ("seed", default=1, min=1, max=0xffffffffffffffff, control_after_generate=True,
                                       tooltip="The seed used for the random noise generator, ensuring the same result is produced with the same value.",
                                      ),
-                io.Int.Input         ("steps", default=9, min=3, max=20, step=1,
+                io.Int.Input         ("steps", default=8, min=3, max=20, step=1,
                                       tooltip="The number of iterations to be performed during the sampling process.",
                                      ),
                 io.Float.Input       ("denoise", default=1.0, min=0.00, max=1.00, step=0.01,
@@ -64,12 +64,12 @@ class ZSamplerTurbo2Laboratory(io.ComfyNode):
 
                 io_Divider("divider1"),#=====================================
 
-                io.Float.Input       ("initial_noise_bias_level", default=1.0, min=0.0, max=10.0, step=0.5,
+                io.Float.Input       ("initial_noise_bias_level", default=1.5, min=0.0, max=10.0, step=0.5,
                                       tooltip="The level of adjustament from the calculated noise bias "
                                               "to apply before the first denoising step. "
                                               "(0.0 means no noise bias adjustment; 1.0 means using the calculated noise bias).",
                                      ),
-                io.Float.Input       ("initial_noise_overdose", default=0.0, min=-1.0, max=1.0, step=0.1,
+                io.Float.Input       ("initial_noise_overdose", default=0.2, min=-1.0, max=1.0, step=0.1,
                                       tooltip="The amount of over-amplitude in the initial noise generation. "
                                               "(negative values ​​will reduce any excessive amplitude)."
                                      ),
@@ -86,7 +86,31 @@ class ZSamplerTurbo2Laboratory(io.ComfyNode):
 
                 io_Divider("divider2"),#=====================================
 
-                io.Combo.Input       ("sigma_preset_name", default="alpha", options=["alpha", "bravo", "charlie"],
+                io.Float.Input       ("inject_noise_st1", default=7.5, min=0.0, max=50.0, step=0.1,
+                                      tooltip="The amount of noise to be injected into the latent image during the first stage. "
+                                              "A value of 0 means that no noise will be injected. ",
+                                     ),
+                io.Int.Input         ("inject_freq_st1", default=32, min=0, max=1024,
+                                      tooltip="?? ",
+                                     ),
+                io.Float.Input       ("inject_noise_st2", default=3.7, min=0.0, max=50.0, step=0.1,
+                                      tooltip="The amount of noise to be injected into the latent image during the second stage. "
+                                              "A value of 0 means that no noise will be injected. ",
+                                     ),
+                io.Int.Input         ("inject_freq_st2", default=64, min=0, max=1024,
+                                      tooltip="?? ",
+                                     ),
+                io.Float.Input       ("inject_noise_st3", default=1.0, min=0.0, max=50.0, step=0.1,
+                                      tooltip="The amount of noise to be injected into the latent image during the third stage. "
+                                              "A value of 0 means that no noise will be injected. ",
+                                     ),
+                io.Int.Input         ("inject_freq_st3", default=512, min=0, max=1024,
+                                      tooltip="?? ",
+                                     ),
+
+                io_Divider("divider3"),#=====================================
+
+                io.Combo.Input       ("sigma_preset_name", default="bravo", options=["alpha", "bravo", "charlie"],
                                       tooltip="The set of predefined sigma values that are used during the denoise process. "
                                      ),
                 io.Float.Input       ("sigma0_off", default=0.000, min=-1.000, max=1.000, step=0.001,
@@ -142,6 +166,12 @@ class ZSamplerTurbo2Laboratory(io.ComfyNode):
                 noise_est_sample_scale   : float,
                 initial_noise_bias_level : float,
                 initial_noise_overdose   : float,
+                inject_noise_st1         : float,
+                inject_freq_st1          : int,
+                inject_noise_st2         : float,
+                inject_freq_st2          : int,
+                inject_noise_st3         : float,
+                inject_freq_st3          : int,
                 sigma_preset_name        : str,
                 sigma0_off               : float,
                 sigma1_off               : float,
@@ -163,6 +193,10 @@ class ZSamplerTurbo2Laboratory(io.ComfyNode):
         # creates a list of sigma offsets
         sigma_offsets = [sigma0_off, sigma1_off, sigma2_off, sigma3_off, sigma4_off, sigma5_off, sigma6_off, sigma7_off, sigma8_off, sigma9_off, sigma10_off]
 
+        # creates a list of inject noise scales
+        inject_noise_scales = (inject_noise_st1, inject_noise_st2, inject_noise_st3)
+        inject_noise_freqs  = (inject_freq_st1 , inject_freq_st2 , inject_freq_st3 )
+
         # run the Z-Sampler Turbo core method on the latent image
         latent_output = zsampler_turbo_core(latent_input, model, positive,
                                             seed                      = seed,
@@ -175,6 +209,8 @@ class ZSamplerTurbo2Laboratory(io.ComfyNode):
                                             sigma_preset_name         = sigma_preset_name,
                                             sigma_offsets             = sigma_offsets,
                                             sigma_limits              = sigma_limits,
+                                            inject_noise_scales       = inject_noise_scales,
+                                            inject_noise_freqs        = inject_noise_freqs,
                                             progress_preview = ProgressPreview.from_model( model ),
                                             )
 

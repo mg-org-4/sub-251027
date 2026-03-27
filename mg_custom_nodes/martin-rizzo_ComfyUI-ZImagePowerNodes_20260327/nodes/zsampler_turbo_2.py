@@ -82,13 +82,16 @@ class ZSamplerTurbo2(io.ComfyNode):
                                               "more pronounced contrasts and colors. 0.0 means no correction is applied. "
                                               "Negative values result in more washed-out images, while positive values "
                                               "enhance intensity and saturation. This parameter only affects the image "
-                                              "when 'denoise' is set to 1.00. "
+                                              "when 'denoise' is set to 1.00. ",
+                                     ),
+                io.Combo.Input       ("mode", default="normal", options=["normal", "detailed", "variety"],
+                                      tooltip="?? "
                                      ),
                 io.Boolean.Input     ("lowres_sample", default=False, label_on="yes", label_off="no",
                                       tooltip="When enabled, this option uses a smaller latent image to estimate initial "
                                               "noise features, accelerating the first step. If disabled, the full input "
                                               "image size is used. This parameter is only relevant when 'denoise' is set "
-                                              "to 1.00."
+                                              "to 1.00. ",
                                      ),
             ],
             outputs=[
@@ -109,6 +112,7 @@ class ZSamplerTurbo2(io.ComfyNode):
                 steps         : int,
                 denoise       : float,
                 z_vibrance    : float,
+                mode          : str,
                 lowres_sample : bool,
                 positive_stg2 : list | None = None,
                 positive_stg3 : list | None = None,
@@ -124,6 +128,20 @@ class ZSamplerTurbo2(io.ComfyNode):
         # calculate the amount of noise overdose based on `z_vibrance`
         initial_noise_overdose = (0.2 * ((z_vibrance+1)**2) + 0.8) - 1
 
+        inject_noise_scales = None
+        inject_noise_freqs  = None
+        if mode == "detailed":
+            inject_noise_scales = ( 7.5, 3.7, 3.0)
+            inject_noise_freqs  = (32,64,768)
+        elif mode == "variety":
+            inject_noise_scales = (19.0, 1.0, 1.0)
+            inject_noise_freqs  = (20,35,512)
+
+
+        ## ( 7.5, 3.7, 1.0) / (32,64,512)
+        ## (20.0, 1.0, 1.0) / (20,64,512)
+        ## (18.0, 1.5, 1.0) / (20,40,512)
+
         # run the Z-Sampler Turbo core method on the latent image
         latent_output = zsampler_turbo_core(latent_input, model, positive,
                                             positive_stg2             = positive_stg2,
@@ -135,6 +153,8 @@ class ZSamplerTurbo2(io.ComfyNode):
                                             noise_est_sample_size     = 512 if lowres_sample else "image_size",
                                             sigma_preset_name         = "bravo",
                                             sigma_limits              = sigma_limits,
+                                            inject_noise_scales       = inject_noise_scales,
+                                            inject_noise_freqs        = inject_noise_freqs,
                                             progress_preview = ProgressPreview.from_model( model ),
                                             )
 

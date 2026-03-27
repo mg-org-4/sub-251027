@@ -1,0 +1,404 @@
+import { app } from "/scripts/app.js";
+import { applyPrimereButtonStyle, showToast } from "./frontend_helper.js";
+
+const TARGET_NODE_NAME = "PrimereApiProcessor";
+const SCHEMA_ENDPOINT = "/primere_uniapi_schema_read";
+let schemaCache = null;
+let schemaPromise = null;
+let apiconfigChecked = false;
+
+
+
+async function loadSchemas() {
+    if (schemaCache) {
+        return schemaCache;
+    }
+
+    if (!schemaPromise) {
+        schemaPromise = fetch(SCHEMA_ENDPOINT)
+            .then(async (response) => {
+                const payload = response.ok ? await response.json() : null;
+                if (!response.ok || !payload?.success) {
+                    throw new Error(payload?.error || `Cannot load schema file (${response.status})`);
+                }
+                if (payload?.warning) {
+                    console.warn("[Primere UniApi] Schema read warning:", payload.warning);
+                }
+                schemaCache = payload.registry || {};
+                return schemaCache;
+            })
+            .catch((error) => {
+                console.error("[Primere UniApi] Failed to load schema registry from PromptServer", error);
+                return {};
+            });
+    }
+
+    return schemaPromise;
+}
+
+function getWidget(node, widgetName) {
+    return node.widgets?.find((widget) => widget?.name === widgetName);
+}
+
+function markDynamicWidget(node, widgetName) {
+    const widget = getWidget(node, widgetName);
+    if (widget) {
+        widget.__primereUniApiDynamic = true;
+    }
+    return widget;
+}
+function ensureComboWidget(node, widgetName, values) {
+    const normalizedValues = Array.isArray(values) && values.length > 0
+        ? values.map((value) => String(value))
+        : [`default_${widgetName}`];
+
+    let widget = getWidget(node, widgetName);
+    if (!widget) {
+        widget = node.addWidget("combo", widgetName, normalizedValues[0], () => {}, { values: normalizedValues });
+    }
+
+    widget.options = widget.options || {};
+    widget.options.values = normalizedValues;
+
+    if (!normalizedValues.includes(String(widget.value))) {
+        widget.value = normalizedValues[0];
+    }
+
+    return markDynamicWidget(node, widgetName);
+}
+
+function ensureBooleanWidget(node, widgetName, values) {
+    const normalizedValues = Array.isArray(values) && values.length > 0
+        ? values.map((value) => Boolean(value))
+        : [false, true];
+
+    const defaultValue = normalizedValues[0];
+    let widget = getWidget(node, widgetName);
+
+    if (!widget || widget.type !== "toggle") {
+        removeWidgetByName(node, widgetName);
+        widget = node.addWidget("toggle", widgetName, defaultValue, () => {}, {
+            on: "ON",
+            off: "OFF",
+            label_on: "ON",
+            label_off: "OFF",
+        });
+    }
+
+    widget.options = widget.options || {};
+    widget.options.on = "ON";
+    widget.options.off = "OFF";
+    widget.options.label_on = "ON";
+    widget.options.label_off = "OFF";
+
+    if (!normalizedValues.includes(Boolean(widget.value))) {
+        widget.value = defaultValue;
+    }
+
+    return markDynamicWidget(node, widgetName);
+}
+
+function ensureNumberWidget(node, widgetName, valueType) {
+    const isInteger = valueType === "INT";
+    const defaultValue = isInteger ? 1 : 1.0;
+    const expectedStep = isInteger ? 1 : 0.01;
+    const expectedPrecision = isInteger ? 0 : 4;
+
+    let widget = getWidget(node, widgetName);
+    if (!widget || widget.type !== "number") {
+        removeWidgetByName(node, widgetName);
+        widget = node.addWidget("number", widgetName, defaultValue, () => {}, {
+            step: expectedStep,
+            precision: expectedPrecision,
+        });
+    }
+
+    widget.options = widget.options || {};
+    widget.options.step = expectedStep;
+    widget.options.precision = expectedPrecision;
+
+    if (typeof widget.value !== "number" || Number.isNaN(widget.value)) {
+        widget.value = defaultValue;
+    } else if (isInteger) {
+        widget.value = Math.round(widget.value);
+    }
+
+    return markDynamicWidget(node, widgetName);
+}
+
+function ensureStringWidget(node, widgetName) {
+    let widget = getWidget(node, widgetName);
+    if (!widget || widget.type !== "text") {
+        removeWidgetByName(node, widgetName);
+        widget = node.addWidget("text", widgetName, "", () => {}, {});
+    }
+
+    if (widget.value == null) {
+        widget.value = "";
+    }
+
+    return markDynamicWidget(node, widgetName);
+}
+
+function detectParameterType(values) {
+    if (values === "INT" || values === "FLOAT" || values === "STRING") {
+        return values;
+    }
+
+    if (!Array.isArray(values) || values.length === 0) {
+        return "combo";
+    }
+
+    if (values.every((value) => typeof value === "boolean")) {
+        return "boolean";
+    }
+
+    return "combo";
+}
+
+function removeWidgetByName(node, widgetName) {
+    if (!node.widgets) {
+        return;
+    }
+    const widgetIndex = node.widgets.findIndex((widget) => widget?.name === widgetName);
+    if (widgetIndex >= 0) {
+        node.widgets.splice(widgetIndex, 1);
+    }
+}
+
+function readServiceSchema(schemaRegistry, provider, service) {
+    if (!schemaRegistry || typeof schemaRegistry !== "object") {
+        return null;
+    }
+    const providerEntry = schemaRegistry?.[provider];
+    if (!providerEntry || typeof providerEntry !== "object") {
+        return null;
+    }
+    return providerEntry?.[service] || null;
+}
+
+function listProviders(schemaRegistry) {
+    if (!schemaRegistry || typeof schemaRegistry !== "object") {
+        return [];
+    }
+    return Object.keys(schemaRegistry);
+}
+
+function listServices(schemaRegistry, provider) {
+    if (!schemaRegistry || typeof schemaRegistry !== "object") {
+        return [];
+    }
+    const providerEntry = schemaRegistry?.[provider];
+    if (!providerEntry || typeof providerEntry !== "object") {
+        return [];
+    }
+    return Object.keys(providerEntry);
+}
+
+function listServiceParameterNames(schemaRegistry, provider, service) {
+    const schema = readServiceSchema(schemaRegistry, provider, service);
+    const possible = schema?.possible_parameters;
+    if (!possible || typeof possible !== "object") {
+        return [];
+    }
+
+    return Object.keys(possible).filter((name) => name !== "prompt");
+}
+
+function updateServiceWidget(node, schemaRegistry) {
+    const providerWidget = getWidget(node, "api_provider");
+    const serviceWidget = getWidget(node, "api_service");
+    if (!providerWidget || !serviceWidget) {
+        return;
+    }
+
+    const providers = listProviders(schemaRegistry);
+    providerWidget.options = providerWidget.options || {};
+    providerWidget.options.values = providers;
+    if (!providers.includes(String(providerWidget.value))) {
+        providerWidget.value = providers[0] || providerWidget.value;
+    }
+
+    const services = listServices(schemaRegistry, providerWidget.value);
+    serviceWidget.options = serviceWidget.options || {};
+    serviceWidget.options.values = services;
+    if (!services.includes(String(serviceWidget.value))) {
+        serviceWidget.value = services[0] || serviceWidget.value;
+    }
+}
+
+function canonicalParameterKey(name) {
+    return String(name ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function getBlockedParameterNames(node) {
+    const names = node.__primereOptionalInputNames;
+    if (names instanceof Set) {
+        return new Set([...names].map((name) => canonicalParameterKey(name)));
+    }
+    return new Set();
+}
+
+function updateParameterWidgets(node, schemaRegistry) {
+    const providerWidget = getWidget(node, "api_provider");
+    const serviceWidget = getWidget(node, "api_service");
+    if (!providerWidget || !serviceWidget) {
+        return;
+    }
+
+    const provider = String(providerWidget.value);
+    const service = String(serviceWidget.value);
+    const schema = readServiceSchema(schemaRegistry, provider, service);
+    const possible = schema?.possible_parameters;
+
+    const activeParams = new Set(listServiceParameterNames(schemaRegistry, provider, service));
+    const blockedParams = getBlockedParameterNames(node);
+
+    for (const widget of [...(node.widgets || [])]) {
+        if (!widget || !widget.name || widget.__primereUniApiDynamic !== true) {
+            continue;
+        }
+        if (!activeParams.has(widget.name) || blockedParams.has(canonicalParameterKey(widget.name))) {
+            removeWidgetByName(node, widget.name);
+        }
+    }
+
+    if (possible && typeof possible === "object") {
+        for (const [paramName, values] of Object.entries(possible)) {
+            if (paramName === "prompt") {
+                continue;
+            }
+            if (blockedParams.has(canonicalParameterKey(paramName))) {
+                removeWidgetByName(node, paramName);
+                continue;
+            }
+            const paramType = detectParameterType(values);
+            if (paramType === "boolean") {
+                ensureBooleanWidget(node, paramName, values);
+                continue;
+            }
+            if (paramType === "INT" || paramType === "FLOAT") {
+                ensureNumberWidget(node, paramName, paramType);
+                continue;
+            }
+            if (paramType === "STRING") {
+                ensureStringWidget(node, paramName);
+                continue;
+            }
+            ensureComboWidget(node, paramName, values);
+        }
+    }
+
+    node.setDirtyCanvas?.(true, true);
+    node.computeSize?.();
+}
+
+async function initializeUniApiNode(node) {
+    if (!(node.__primereOptionalInputNames instanceof Set)) {
+        node.__primereOptionalInputNames = new Set();
+    }
+
+    if (!node.__primereUniApiWidgetHooked) {
+        node.__primereUniApiWidgetHooked = true;
+
+        const refreshBtn = node.addWidget("button", "↺  Reload API Schema", null, async () => {
+            schemaCache = null;
+            schemaPromise = null;
+            let apiconfigMissing = false;
+            try {
+                const r = await fetch("/primere_apiconfig_check");
+                const data = r.ok ? await r.json() : null;
+                if (data && !data.exists) {
+                    apiconfigMissing = true;
+                    showToast("error", "API config file (json/apiconfig.json) not found. Create it with your API keys before using this node. See the manual for details.");
+                }
+            } catch (_) {}
+            try {
+                const freshRegistry = await loadSchemas();
+                if (!freshRegistry || Object.keys(freshRegistry).length === 0) {
+                    showToast("error", "API Schema reload failed. PromptServer returned empty registry.");
+                    return;
+                }
+                updateServiceWidget(node, freshRegistry);
+                updateParameterWidgets(node, freshRegistry);
+                if (!apiconfigMissing) {
+                    const providerCount = Object.keys(freshRegistry).length;
+                    const serviceCount = Object.values(freshRegistry).reduce((sum, p) => sum + Object.keys(p).length, 0);
+                    showToast("success", `API Schema reloaded successfully. ${providerCount} provider(s), ${serviceCount} service(s) loaded.`);
+                }
+            } catch (error) {
+                showToast("error", `API Schema reload failed. ${error.message}`);
+            }
+        });
+        node.widgets.splice(node.widgets.indexOf(refreshBtn), 1);
+        node.widgets.unshift(refreshBtn);
+        applyPrimereButtonStyle(refreshBtn);
+
+        const onSaveResult = (event) => {
+            const detail = event.detail;
+            if (String(detail?.node_id) !== String(node.id)) return;
+            if (detail.status === "success") {
+                showToast("success", `Saved: ${detail.path}`);
+            } else {
+                showToast("error", `Save failed: ${detail.error}`);
+            }
+        };
+        app.api.addEventListener("primere.save_result", onSaveResult);
+
+        const originalOnRemoved = node.onRemoved;
+        node.onRemoved = function () {
+            originalOnRemoved?.call(this);
+            app.api.removeEventListener("primere.save_result", onSaveResult);
+        };
+
+        const originalOnWidgetChanged = node.onWidgetChanged;
+        node.onWidgetChanged = function (name, value, oldValue, widget) {
+            originalOnWidgetChanged?.call(this, name, value, oldValue, widget);
+            if (name !== "api_provider" && name !== "api_service") {
+                return;
+            }
+            if (name === "api_provider") {
+                updateServiceWidget(this, schemaCache || {});
+            }
+            updateParameterWidgets(this, schemaCache || {});
+        };
+    }
+
+    if (!apiconfigChecked) {
+        apiconfigChecked = true;
+        fetch("/primere_apiconfig_check")
+            .then((r) => r.ok ? r.json() : null)
+            .then((data) => {
+                if (data && !data.exists) {
+                    showToast("error", "API config file (json/apiconfig.json) not found. Create it with your API keys before using this node. See the manual for details.");
+                }
+            })
+            .catch(() => {});
+    }
+
+    const schemaRegistry = await loadSchemas();
+    updateServiceWidget(node, schemaRegistry);
+    updateParameterWidgets(node, schemaRegistry);
+}
+
+app.registerExtension({
+    name: "Primere.UniApiDynamicWidgets",
+    async beforeRegisterNodeDef(nodeType, nodeData, _app) {
+        if (nodeData.name !== TARGET_NODE_NAME) {
+            return;
+        }
+        const optionalInputNames = new Set(Object.keys(nodeData?.input?.optional || {}));
+        const onNodeCreated = nodeType.prototype.onNodeCreated;
+        nodeType.prototype.onNodeCreated = function () {
+            onNodeCreated?.apply(this, []);
+            this.__primereOptionalInputNames = new Set(optionalInputNames);
+            initializeUniApiNode(this);
+        };
+        const onConfigure = nodeType.prototype.onConfigure;
+        nodeType.prototype.onConfigure = function (config) {
+            onConfigure?.apply(this, [config]);
+            this.__primereOptionalInputNames = new Set(optionalInputNames);
+            initializeUniApiNode(this);
+        };
+    },
+});

@@ -12960,8 +12960,11 @@
         "crop_height": {
             "name": "裁剪高度"
         },
-        "crop_state": {
-            "name": "裁剪状态"
+        "fill": {
+            "name": "填充颜色"
+        },
+        "margin": {
+            "name": "边距"
         }
     },
     "outputs": {
@@ -12970,6 +12973,46 @@
         }
     }
 },
+
+
+"Image_mask_crop_visual": {
+    "display_name": "Image_遮罩裁剪可视化",
+    "inputs": {
+        "image": {
+            "name": "图像"
+        },
+        "mask": {
+            "name": "遮罩"
+        },
+        "crop_width": {
+            "name": "裁剪宽度"
+        },
+        "crop_height": {
+            "name": "裁剪高度"
+        },
+        "crop_img_bj": {
+            "name": "裁剪图背景"
+        },
+        "crop_state": {
+            "name": "裁剪状态"
+        },
+        "mask_stack": {
+            "name": "遮罩堆栈"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "裁剪图像"
+        },
+        "1": {
+            "name": "裁剪遮罩"
+        },
+        "2": {
+            "name": "拼接"
+        }
+    }
+},
+
   "csv_write_data": {
     "display_name": "CSV_写入数据",
     "inputs": {

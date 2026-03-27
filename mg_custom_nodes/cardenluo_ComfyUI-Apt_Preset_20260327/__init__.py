@@ -408,17 +408,19 @@ NODE_CLASS_MAPPINGS= {
 "color_balance_adv": color_balance_adv,
 "color_Fragment": color_Fragment,
 
+
 "color_adjust_HSL": color_adjust_HSL,
 "color_adjust_HDR": color_adjust_HDR,
 "color_match_adv":color_match_adv,
 
 
-
+"Image_mask_crop_visual": Image_mask_crop_visual,
 "color_ImageCurve": color_ImageCurve,
 "Image_crop_visual": Image_crop_visual,
 "color_RadiaGradient_visual": color_RadiaGradient_visual,
 "color_lineGradient_visual": color_lineGradient_visual,
 "Image_Detail_HL_frequencye_visual": Image_Detail_HL_frequencye_visual,
+
 "Image_CnMapMix_visual":Image_CnMapMix_visual, 
 "color_adjust_HSL_visual": color_adjust_HSL_visual,
 "color_adjust_HDR_visual": color_adjust_HDR_visual,

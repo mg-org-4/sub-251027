@@ -1817,6 +1817,7 @@ app.registerExtension({
                 const cropWidthWidget = this.widgets?.find(w => w.name === "crop_width");
                 const cropHeightWidget = this.widgets?.find(w => w.name === "crop_height");
                 const fillWidget = this.widgets?.find(w => w.name === "fill");
+                const marginWidget = this.widgets?.find(w => w.name === "margin");
 
                 let cropState = { cx: 0.5, cy: 0.5, zoom: 1.0 };
                 if (cropStateWidget && typeof cropStateWidget.value === "string") {
@@ -1986,9 +1987,19 @@ app.registerExtension({
                     const { cw, ch } = getCropDims();
                     return Math.max(cw / imageMeta.img_w, ch / imageMeta.img_h, 1e-4);
                 };
+                const getMinZoomForImageBounds = () => {
+                    return fitZoom();
+                };
+                const getMaxZoom = () => {
+                    const { cw, ch } = getCropDims();
+                    return Math.max(1, Math.min(cw, ch));
+                };
                 const getSourceRect = () => {
                     if (!imageMeta.img_w || !imageMeta.img_h) return null;
                     const { cw, ch } = getCropDims();
+                    const oldCx = cropState.cx;
+                    const oldCy = cropState.cy;
+                    const oldZoom = cropState.zoom;
                     const minZoom = fitZoom();
                     cropState.zoom = Math.max(cropState.zoom, minZoom);
                     const srcW = Math.min(imageMeta.img_w, Math.max(1, cw / cropState.zoom));
@@ -1999,6 +2010,7 @@ app.registerExtension({
                     cyPx = clamp(cyPx, srcH * 0.5, imageMeta.img_h - srcH * 0.5);
                     cropState.cx = cxPx / imageMeta.img_w;
                     cropState.cy = cyPx / imageMeta.img_h;
+                    if (cropState.cx !== oldCx || cropState.cy !== oldCy || cropState.zoom !== oldZoom) syncState();
                     return {
                         x: cxPx - srcW * 0.5,
                         y: cyPx - srcH * 0.5,
@@ -2144,14 +2156,29 @@ app.registerExtension({
                     if (!imgPt) return;
                     const dx = imgPt.x - dragInfo.mouseX;
                     const dy = imgPt.y - dragInfo.mouseY;
-                    const src = getSourceRect();
-                    if (!src) return;
-                    const halfW = src.w * 0.5;
-                    const halfH = src.h * 0.5;
-                    const nx = clamp(dragInfo.cx + dx, halfW, imageMeta.img_w - halfW);
-                    const ny = clamp(dragInfo.cy + dy, halfH, imageMeta.img_h - halfH);
-                    cropState.cx = nx / imageMeta.img_w;
-                    cropState.cy = ny / imageMeta.img_h;
+                    
+                    // 计算新的中心点
+                    const { cw, ch } = getCropDims();
+                    const srcW = cw / cropState.zoom;
+                    const srcH = ch / cropState.zoom;
+                    
+                    let newCx = dragInfo.cx + dx;
+                    let newCy = dragInfo.cy + dy;
+                    
+                    // 最后限制不超出图像边界
+                    if (srcW <= imageMeta.img_w) {
+                        newCx = clamp(newCx, srcW * 0.5, imageMeta.img_w - srcW * 0.5);
+                    } else {
+                        newCx = imageMeta.img_w * 0.5;
+                    }
+                    if (srcH <= imageMeta.img_h) {
+                        newCy = clamp(newCy, srcH * 0.5, imageMeta.img_h - srcH * 0.5);
+                    } else {
+                        newCy = imageMeta.img_h * 0.5;
+                    }
+                    
+                    cropState.cx = newCx / imageMeta.img_w;
+                    cropState.cy = newCy / imageMeta.img_h;
                     userAdjusted = true;
                     syncState();
                     draw();
@@ -2171,9 +2198,14 @@ app.registerExtension({
                     if (!old) return;
                     const rx = clamp((imgPt.x - old.x) / old.w, 0, 1);
                     const ry = clamp((imgPt.y - old.y) / old.h, 0, 1);
-                    const factor = e.deltaY < 0 ? 1.08 : (1 / 1.08);
-                    const minZoom = fitZoom();
-                    cropState.zoom = clamp(cropState.zoom * factor, minZoom, minZoom * 256);
+                    // 注意：zoom 越大，红框越小；zoom 越小，红框越大
+                    // 向上滚动（deltaY < 0）：放大红框，需要减小 zoom
+                    // 向下滚动（deltaY > 0）：缩小红框，需要增加 zoom（但不能超过 maxZoom）
+                    const factor = e.deltaY < 0 ? (1 / 1.08) : 1.08;
+                    const maxZoom = getMaxZoom();
+                    const minZoom = getMinZoomForImageBounds();
+                    // zoom 范围：最小 minZoom（红框刚好不超出图像边界），最大 maxZoom（刚好包裹遮罩）
+                    cropState.zoom = clamp(cropState.zoom * factor, minZoom, maxZoom);
                     const { cw, ch } = getCropDims();
                     const nw = Math.min(imageMeta.img_w, Math.max(1, cw / cropState.zoom));
                     const nh = Math.min(imageMeta.img_h, Math.max(1, ch / cropState.zoom));
@@ -2193,23 +2225,24 @@ app.registerExtension({
                     const originalCallback = w.callback;
                     w.callback = function (value) {
                         if (originalCallback) originalCallback.apply(this, arguments);
-                        const minZoom = fitZoom();
-                        cropState.zoom = Math.max(cropState.zoom, minZoom);
+                        const maxZoom = getMaxZoom();
+                        // 当裁剪尺寸变化时，如果当前 zoom 超过了新的 maxZoom，需要调整
+                        cropState.zoom = Math.min(cropState.zoom, maxZoom);
                         if (!userAdjusted) initState();
                         syncState();
                         draw();
                     };
                     if (w.inputEl) {
                         w.inputEl.addEventListener("change", () => {
-                            const minZoom = fitZoom();
-                            cropState.zoom = Math.max(cropState.zoom, minZoom);
+                            const maxZoom = getMaxZoom();
+                            cropState.zoom = Math.min(cropState.zoom, maxZoom);
                             if (!userAdjusted) initState();
                             syncState();
                             draw();
                         });
                         w.inputEl.addEventListener("input", () => {
-                            const minZoom = fitZoom();
-                            cropState.zoom = Math.max(cropState.zoom, minZoom);
+                            const maxZoom = getMaxZoom();
+                            cropState.zoom = Math.min(cropState.zoom, maxZoom);
                             if (!userAdjusted) initState();
                             syncState();
                             draw();
@@ -2232,14 +2265,28 @@ app.registerExtension({
                     const originalCallback = w.callback;
                     w.callback = function (value) {
                         if (originalCallback) originalCallback.apply(this, arguments);
+                        if (!userAdjusted) initState();
+                        syncState();
+                        draw();
                         triggerFillAutoPreview();
                     };
                     if (w.inputEl) {
-                        w.inputEl.addEventListener("change", triggerFillAutoPreview);
-                        w.inputEl.addEventListener("input", triggerFillAutoPreview);
+                        w.inputEl.addEventListener("change", () => {
+                            if (!userAdjusted) initState();
+                            syncState();
+                            draw();
+                            triggerFillAutoPreview();
+                        });
+                        w.inputEl.addEventListener("input", () => {
+                            if (!userAdjusted) initState();
+                            syncState();
+                            draw();
+                            triggerFillAutoPreview();
+                        });
                     }
                 };
                 bindFillAuto(fillWidget);
+                bindFillAuto(marginWidget);
 
                 this._aptImageCropUI = {
                     imageMeta,
@@ -2272,6 +2319,757 @@ app.registerExtension({
                     if (cropMeta && cropMeta.img_w && cropMeta.img_h) {
                         cropUi.imageMeta.img_w = parseInt(cropMeta.img_w);
                         cropUi.imageMeta.img_h = parseInt(cropMeta.img_h);
+                        if (!cropUi.getUserAdjusted()) cropUi.initState();
+                        cropUi.draw();
+                    } else {
+                        const imgProbe = new Image();
+                        imgProbe.onload = () => {
+                            cropUi.imageMeta.img_w = imgProbe.naturalWidth;
+                            cropUi.imageMeta.img_h = imgProbe.naturalHeight;
+                            if (!cropUi.getUserAdjusted()) cropUi.initState();
+                            cropUi.draw();
+                        };
+                        imgProbe.src = url;
+                    }
+                }
+            };
+        } else if (nodeData.name === "Image_mask_crop_visual") {
+            const onNodeCreated = nodeType.prototype.onNodeCreated;
+
+            nodeType.prototype.onNodeCreated = function () {
+                if (onNodeCreated) onNodeCreated.apply(this, arguments);
+
+                const MIN_NODE_WIDTH = 240;
+                const MIN_NODE_HEIGHT = 320;
+                if (this.size[0] < MIN_NODE_WIDTH) this.size[0] = MIN_NODE_WIDTH;
+                if (this.size[1] < MIN_NODE_HEIGHT) this.size[1] = MIN_NODE_HEIGHT;
+                this.resizable = true;
+                this.min_size = [MIN_NODE_WIDTH, MIN_NODE_HEIGHT];
+                this._apt_target_size = this.size;
+                const _apt_orig_onResize = this.onResize;
+                this.onResize = function (size) {
+                    this._apt_target_size = size;
+                    return _apt_orig_onResize?.apply(this, arguments);
+                };
+
+                const hideWidgetAndSlot = (widgetName) => {
+                    const w = this.widgets?.find(w => w.name === widgetName);
+                    if (w) {
+                        w.type = "hidden";
+                        w.hidden = true;
+                        w.computeSize = () => [0, 0];
+                        w.draw = () => {};
+                        if (w.inputEl) {
+                            w.inputEl.style.display = "none";
+                            if (w.inputEl.parentElement) w.inputEl.parentElement.style.display = "none";
+                        }
+                    }
+                    if (this.inputs) {
+                        const idx = this.inputs.findIndex(i => i.name === widgetName);
+                        if (idx !== -1) this.removeInput(idx);
+                    }
+                };
+
+                hideWidgetAndSlot("crop_state");
+
+                const cropStateWidget = this.widgets?.find(w => w.name === "crop_state");
+                const cropWidthWidget = this.widgets?.find(w => w.name === "crop_width");
+                const cropHeightWidget = this.widgets?.find(w => w.name === "crop_height");
+                const cropImgBjWidget = this.widgets?.find(w => w.name === "crop_img_bj");
+
+                let cropState = { cx: 0.5, cy: 0.5, zoom: 1.0 };
+                if (cropStateWidget && typeof cropStateWidget.value === "string") {
+                    try {
+                        const parsed = JSON.parse(cropStateWidget.value);
+                        if (parsed && typeof parsed === "object") cropState = { ...cropState, ...parsed };
+                    } catch (e) {}
+                }
+
+                const container = document.createElement("div");
+                container.style.display = "flex";
+                container.style.flexDirection = "column";
+                container.style.width = "100%";
+                container.style.height = "100%";
+                container.style.marginTop = "0px";
+                container.style.borderRadius = "6px";
+                container.style.overflow = "hidden";
+                container.style.backgroundColor = "transparent";
+
+                const viewArea = document.createElement("div");
+                viewArea.style.flex = "1";
+                viewArea.style.position = "relative";
+                viewArea.style.width = "100%";
+                viewArea.style.height = "100%";
+                viewArea.style.backgroundColor = "#1a1a1a";
+                viewArea.style.overflow = "hidden";
+
+                const bgImageLayer = document.createElement("div");
+                bgImageLayer.className = "apt-preview-bg";
+                bgImageLayer.style.position = "absolute";
+                bgImageLayer.style.inset = "0";
+                bgImageLayer.style.backgroundSize = "contain";
+                bgImageLayer.style.backgroundPosition = "center";
+                bgImageLayer.style.backgroundRepeat = "no-repeat";
+                viewArea.appendChild(bgImageLayer);
+
+                const canvas = document.createElement("canvas");
+                canvas.style.position = "absolute";
+                canvas.style.inset = "0";
+                canvas.style.width = "100%";
+                canvas.style.height = "100%";
+                canvas.style.cursor = "default";
+                viewArea.appendChild(canvas);
+
+                container.appendChild(viewArea);
+
+                const previewBar = document.createElement("div");
+                previewBar.style.display = "flex";
+                previewBar.style.alignItems = "center";
+                previewBar.style.gap = "8px";
+                previewBar.style.padding = "0 0px";
+                previewBar.style.backgroundColor = "transparent";
+
+                const isNodes2_0 = !!document.querySelector("comfy-app") ||
+                    !!document.querySelector(".comfy-vue") ||
+                    (window.comfyAPI && window.comfyAPI.vue);
+
+                const loadBtn = document.createElement("button");
+                loadBtn.innerText = "Preview";
+                loadBtn.style.flex = "1";
+                loadBtn.style.width = "auto";
+                loadBtn.style.height = "24px";
+                loadBtn.style.lineHeight = "22px";
+                loadBtn.style.marginTop = "8px";
+                loadBtn.style.border = "none";
+                loadBtn.style.borderRadius = "8px";
+                loadBtn.style.cursor = "pointer";
+                loadBtn.style.fontSize = "10px";
+                loadBtn.style.fontWeight = "bold";
+                loadBtn.style.backgroundColor = "#4f5d6d";
+                loadBtn.style.color = "#FFF";
+                loadBtn.style.transition = "all 0.2s ease";
+
+                const runPreview = async () => {
+                    try {
+                        const p = await app.graphToPrompt();
+                        const prompt = p.output;
+                        const selectedNodeId = String(this.id);
+                        const isolatedPrompt = {};
+                        const traceDependencies = (nodeId) => {
+                            if (!prompt[nodeId] || isolatedPrompt[nodeId]) return;
+                            isolatedPrompt[nodeId] = prompt[nodeId];
+                            const inputs = prompt[nodeId].inputs;
+                            for (let key in inputs) {
+                                const val = inputs[key];
+                                if (Array.isArray(val) && val.length === 2) traceDependencies(String(val[0]));
+                            }
+                        };
+                        traceDependencies(selectedNodeId);
+                        if (Object.keys(isolatedPrompt).length === 0) return;
+                        const response = await api.fetchApi("/prompt", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                client_id: api.clientId,
+                                prompt: isolatedPrompt,
+                                extra_data: p.workflow ? { extra_pnginfo: { workflow: p.workflow } } : {}
+                            })
+                        });
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || "Failed to queue prompt");
+                        }
+                    } catch (err) {}
+                };
+                loadBtn.onclick = runPreview;
+
+                previewBar.style.marginBottom = isNodes2_0 ? "10px" : "0px";
+                previewBar.appendChild(loadBtn);
+                container.appendChild(previewBar);
+
+                const widget = this.addDOMWidget("ImageMaskCropUI", "div", container, { serialize: false, hideOnZoom: false });
+                const nodeInstance = this;
+                const ctx = canvas.getContext("2d");
+                const UI_DEFAULT_HEIGHT = 300;
+                widget.computeSize = function (width) {
+                    return [width, UI_DEFAULT_HEIGHT];
+                };
+                const UI_BASE_HEIGHT = typeof nodeInstance.computeSize === "function"
+                    ? nodeInstance.computeSize()[1]
+                    : nodeInstance.size[1];
+                const getTargetNodeHeight = () => {
+                    const c = app?.canvas;
+                    const m = c?.graph_mouse || c?.mouse;
+                    if (_aptPointerDown && _aptResizeNode && (_aptResizeNode === nodeInstance || _aptResizeNode?.id === nodeInstance.id) && Array.isArray(m) && m.length > 1 && Array.isArray(nodeInstance.pos)) {
+                        return Math.max(MIN_NODE_HEIGHT, m[1] - nodeInstance.pos[1]);
+                    }
+                    return nodeInstance.size[1];
+                };
+                widget.computeSize = function (width) {
+                    const targetH = getTargetNodeHeight();
+                    const extra = Math.max(0, (targetH - UI_BASE_HEIGHT) * 0.95);
+                    return [width, UI_DEFAULT_HEIGHT + extra];
+                };
+
+                const imageMeta = { img_w: 0, img_h: 0 };
+                const maskMeta = { mask_x: 0, mask_y: 0, mask_w: 0, mask_h: 0 };
+                let userAdjusted = false;
+                let dragInfo = null;
+
+                const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+                const getCropDims = () => {
+                    const cw = Math.max(1, parseInt(cropWidthWidget?.value ?? 512));
+                    const ch = Math.max(1, parseInt(cropHeightWidget?.value ?? 512));
+                    return { cw, ch };
+                };
+                const parseState = () => {
+                    const cx = Number.isFinite(+cropState.cx) ? +cropState.cx : 0.5;
+                    const cy = Number.isFinite(+cropState.cy) ? +cropState.cy : 0.5;
+                    const zoom = Number.isFinite(+cropState.zoom) ? +cropState.zoom : 1.0;
+                    cropState.cx = clamp(cx, 0, 1);
+                    cropState.cy = clamp(cy, 0, 1);
+                    cropState.zoom = Math.max(1e-4, zoom);
+                };
+                const syncState = () => {
+                    parseState();
+                    if (cropStateWidget) {
+                        cropStateWidget.value = JSON.stringify({
+                            cx: cropState.cx,
+                            cy: cropState.cy,
+                            zoom: cropState.zoom
+                        });
+                    }
+                    if (app.graph) app.graph.setDirtyCanvas(true);
+                };
+                
+                // 计算能包裹遮罩的最小红框
+                const getMinCropBoxForMask = () => {
+                    if (!maskMeta.mask_w || !maskMeta.mask_h) return null;
+                    const { cw, ch } = getCropDims();
+                    const cropRatio = cw / ch;
+                    const maskW = maskMeta.mask_w;
+                    const maskH = maskMeta.mask_h;
+                    
+                    // 计算能包裹遮罩的最小等比框
+                    let boxW, boxH;
+                    if (maskW / maskH >= cropRatio) {
+                        boxW = maskW;
+                        boxH = maskW / cropRatio;
+                    } else {
+                        boxH = maskH;
+                        boxW = maskH * cropRatio;
+                    }
+                    return { w: boxW, h: boxH, ratio: cropRatio };
+                };
+                
+                // 计算最大zoom（刚好包裹遮罩时的zoom，此时红框最小）
+                // zoom = 输出尺寸 / 源尺寸，zoom越大，源尺寸越小
+                // 要包裹遮罩，源尺寸必须 >= 遮罩尺寸，所以 zoom <= 输出尺寸 / 遮罩尺寸
+                const getMaxZoom = () => {
+                    if (!imageMeta.img_w || !imageMeta.img_h) return 1.0;
+                    const minBox = getMinCropBoxForMask();
+                    if (!minBox) return 1.0;
+                    const { cw, ch } = getCropDims();
+                    // 最大zoom = 输出尺寸 / 最小源尺寸（刚好包裹遮罩）
+                    const maxZoomW = cw / minBox.w;
+                    const maxZoomH = ch / minBox.h;
+                    return Math.min(maxZoomW, maxZoomH);
+                };
+                
+                // 计算最小zoom（红框刚好不超出图像边界时的zoom，此时红框最大）
+                const getMinZoomForImageBounds = () => {
+                    if (!imageMeta.img_w || !imageMeta.img_h) return 0.01;
+                    const { cw, ch } = getCropDims();
+                    // 红框尺寸 = 输出尺寸 / zoom
+                    // 红框不超出图像边界：红框尺寸 <= 图像尺寸
+                    // 所以 zoom >= 输出尺寸 / 图像尺寸
+                    const minZoomW = cw / imageMeta.img_w;
+                    const minZoomH = ch / imageMeta.img_h;
+                    return Math.max(minZoomW, minZoomH, 0.01);
+                };
+                
+                // 获取源矩形（基于当前zoom和中心点）
+                const getSourceRect = () => {
+                    if (!imageMeta.img_w || !imageMeta.img_h) return null;
+                    const { cw, ch } = getCropDims();
+                    const oldCx = cropState.cx;
+                    const oldCy = cropState.cy;
+                    const oldZoom = cropState.zoom;
+                    const maxZoom = getMaxZoom();
+                    const minZoom = getMinZoomForImageBounds();
+                    // 确保 zoom 在有效范围内：
+                    // - 不超过 maxZoom（刚好包裹遮罩，红框最小）
+                    // - 不小于 minZoom（刚好不超出图像边界，红框最大）
+                    // zoom 越大，红框越小；zoom 越小，红框越大
+                    // 初始状态 zoom = maxZoom（红框刚好包裹遮罩）
+                    // 只能减小 zoom（放大红框）到 minZoom，不能更小
+                    cropState.zoom = clamp(cropState.zoom, minZoom, maxZoom);
+                    
+                    // 源裁剪区域的尺寸（在原始图像上的尺寸）
+                    const srcW = cw / cropState.zoom;
+                    const srcH = ch / cropState.zoom;
+                    
+                    // 遮罩中心
+                    const maskCx = maskMeta.mask_x + maskMeta.mask_w * 0.5;
+                    const maskCy = maskMeta.mask_y + maskMeta.mask_h * 0.5;
+                    
+                    // 中心点像素坐标 - 优先使用当前状态，但要确保能包裹遮罩
+                    let cxPx = cropState.cx * imageMeta.img_w;
+                    let cyPx = cropState.cy * imageMeta.img_h;
+                    
+                    // 计算红框边界
+                    let left = cxPx - srcW * 0.5;
+                    let right = cxPx + srcW * 0.5;
+                    let top = cyPx - srcH * 0.5;
+                    let bottom = cyPx + srcH * 0.5;
+                    
+                    // 遮罩边界
+                    const maskLeft = maskMeta.mask_x;
+                    const maskRight = maskMeta.mask_x + maskMeta.mask_w;
+                    const maskTop = maskMeta.mask_y;
+                    const maskBottom = maskMeta.mask_y + maskMeta.mask_h;
+                    
+                    // 调整位置确保遮罩被完全包裹
+                    if (left > maskLeft) {
+                        // 红框左边界在遮罩左边界的右边，需要左移
+                        const shift = left - maskLeft;
+                        cxPx -= shift;
+                        left -= shift;
+                        right -= shift;
+                    }
+                    if (right < maskRight) {
+                        // 红框右边界在遮罩右边界的左边，需要右移
+                        const shift = maskRight - right;
+                        cxPx += shift;
+                        left += shift;
+                        right += shift;
+                    }
+                    if (top > maskTop) {
+                        // 红框上边界在遮罩上边界的下边，需要上移
+                        const shift = top - maskTop;
+                        cyPx -= shift;
+                        top -= shift;
+                        bottom -= shift;
+                    }
+                    if (bottom < maskBottom) {
+                        // 红框下边界在遮罩下边界的上边，需要下移
+                        const shift = maskBottom - bottom;
+                        cyPx += shift;
+                        top += shift;
+                        bottom += shift;
+                    }
+                    
+                    // 最后限制不超出图像边界（如果可能的话，优先保证包裹遮罩）
+                    if (srcW <= imageMeta.img_w) {
+                        cxPx = clamp(cxPx, srcW * 0.5, imageMeta.img_w - srcW * 0.5);
+                    } else {
+                        // 如果红框比图像还大，居中
+                        cxPx = imageMeta.img_w * 0.5;
+                    }
+                    if (srcH <= imageMeta.img_h) {
+                        cyPx = clamp(cyPx, srcH * 0.5, imageMeta.img_h - srcH * 0.5);
+                    } else {
+                        cyPx = imageMeta.img_h * 0.5;
+                    }
+                    
+                    cropState.cx = cxPx / imageMeta.img_w;
+                    cropState.cy = cyPx / imageMeta.img_h;
+                    if (cropState.cx !== oldCx || cropState.cy !== oldCy || cropState.zoom !== oldZoom) syncState();
+                    
+                    return {
+                        x: cxPx - srcW * 0.5,
+                        y: cyPx - srcH * 0.5,
+                        w: srcW,
+                        h: srcH
+                    };
+                };
+                
+                // 检查红框是否完全包裹遮罩
+                const isMaskFullyContained = (srcRect) => {
+                    if (!srcRect || !maskMeta.mask_w) return true;
+                    const maskLeft = maskMeta.mask_x;
+                    const maskRight = maskMeta.mask_x + maskMeta.mask_w;
+                    const maskTop = maskMeta.mask_y;
+                    const maskBottom = maskMeta.mask_y + maskMeta.mask_h;
+                    
+                    const rectLeft = srcRect.x;
+                    const rectRight = srcRect.x + srcRect.w;
+                    const rectTop = srcRect.y;
+                    const rectBottom = srcRect.y + srcRect.h;
+                    
+                    return rectLeft <= maskLeft && rectRight >= maskRight &&
+                           rectTop <= maskTop && rectBottom >= maskBottom;
+                };
+                
+                const initState = () => {
+                    if (!imageMeta.img_w || !imageMeta.img_h) return;
+                    const maxZoom = getMaxZoom();
+                    // 初始状态：zoom = maxZoom（红框刚好包裹遮罩，最小状态）
+                    cropState.zoom = maxZoom;
+                    // 初始位置：红框居中于遮罩
+                    if (maskMeta.mask_w && maskMeta.mask_h) {
+                        cropState.cx = (maskMeta.mask_x + maskMeta.mask_w * 0.5) / imageMeta.img_w;
+                        cropState.cy = (maskMeta.mask_y + maskMeta.mask_h * 0.5) / imageMeta.img_h;
+                    } else {
+                        cropState.cx = 0.5;
+                        cropState.cy = 0.5;
+                    }
+                    syncState();
+                };
+                const getImageRectOnCanvas = () => {
+                    if (!imageMeta.img_w || !imageMeta.img_h) return null;
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    if (w <= 0 || h <= 0) return null;
+                    const scale = Math.min(w / imageMeta.img_w, h / imageMeta.img_h);
+                    const dw = imageMeta.img_w * scale;
+                    const dh = imageMeta.img_h * scale;
+                    return {
+                        x: (w - dw) * 0.5,
+                        y: (h - dh) * 0.5,
+                        w: dw,
+                        h: dh,
+                        scale
+                    };
+                };
+                const canvasToImage = (mx, my) => {
+                    const ir = getImageRectOnCanvas();
+                    if (!ir) return null;
+                    const ix = (mx - ir.x) / ir.scale;
+                    const iy = (my - ir.y) / ir.scale;
+                    return {
+                        x: clamp(ix, 0, imageMeta.img_w),
+                        y: clamp(iy, 0, imageMeta.img_h)
+                    };
+                };
+                
+                // 绘制遮罩边界框
+                const drawMaskBoundingBox = (ir) => {
+                    if (!maskMeta.mask_w || !maskMeta.mask_h) return;
+                    const mx = ir.x + maskMeta.mask_x * ir.scale;
+                    const my = ir.y + maskMeta.mask_y * ir.scale;
+                    const mw = maskMeta.mask_w * ir.scale;
+                    const mh = maskMeta.mask_h * ir.scale;
+                    
+                    ctx.strokeStyle = "#00ff00";
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(mx, my, mw, mh);
+                    ctx.setLineDash([]);
+                    
+                    // 绘制遮罩标签
+                    ctx.fillStyle = "#00ff00";
+                    ctx.font = "10px sans-serif";
+                    ctx.fillText("Mask", mx, my - 3);
+                };
+                
+                const draw = () => {
+                    const clientW = canvas.clientWidth;
+                    const clientH = canvas.clientHeight;
+                    if (clientW > 0 && clientH > 0) {
+                        if (canvas.width !== clientW || canvas.height !== clientH) {
+                            canvas.width = clientW;
+                            canvas.height = clientH;
+                        }
+                    }
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    if (!w || !h) return;
+                    ctx.clearRect(0, 0, w, h);
+                    const ir = getImageRectOnCanvas();
+                    const sr = getSourceRect();
+                    if (!ir || !sr) return;
+                    const rx = ir.x + sr.x * ir.scale;
+                    const ry = ir.y + sr.y * ir.scale;
+                    const rw = sr.w * ir.scale;
+                    const rh = sr.h * ir.scale;
+
+                    // 绘制遮罩边界框（绿色虚线）
+                    drawMaskBoundingBox(ir);
+
+                    ctx.fillStyle = "rgba(0,0,0,0.35)";
+                    ctx.fillRect(ir.x, ir.y, ir.w, Math.max(0, ry - ir.y));
+                    ctx.fillRect(ir.x, ry + rh, ir.w, Math.max(0, ir.y + ir.h - (ry + rh)));
+                    ctx.fillRect(ir.x, ry, Math.max(0, rx - ir.x), rh);
+                    ctx.fillRect(rx + rw, ry, Math.max(0, ir.x + ir.w - (rx + rw)), rh);
+
+                    ctx.strokeStyle = "#ff5a4f";
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(rx, ry, rw, rh);
+
+                    const hs = 6;
+                    ctx.fillStyle = "#ffea00";
+                    ctx.fillRect(rx - hs, ry - hs, hs * 2, hs * 2);
+                    ctx.fillRect(rx + rw - hs, ry - hs, hs * 2, hs * 2);
+                    ctx.fillRect(rx - hs, ry + rh - hs, hs * 2, hs * 2);
+                    ctx.fillRect(rx + rw - hs, ry + rh - hs, hs * 2, hs * 2);
+                };
+
+                const resizeObserver = new ResizeObserver((entries) => {
+                    for (let entry of entries) {
+                        const { width, height } = entry.contentRect;
+                        if (width > 0 && height > 0) {
+                            if (canvas.width !== width || canvas.height !== height) {
+                                canvas.width = width;
+                                canvas.height = height;
+                                draw();
+                            }
+                        }
+                    }
+                });
+                resizeObserver.observe(viewArea);
+
+                const getMouse = (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const sx = canvas.width / rect.width;
+                    const sy = canvas.height / rect.height;
+                    return {
+                        x: (e.clientX - rect.left) * sx,
+                        y: (e.clientY - rect.top) * sy
+                    };
+                };
+
+                canvas.addEventListener("mousedown", (e) => {
+                    if (e.button !== 0) return;
+                    const ir = getImageRectOnCanvas();
+                    const sr = getSourceRect();
+                    if (!ir || !sr) return;
+                    const m = getMouse(e);
+                    const rx = ir.x + sr.x * ir.scale;
+                    const ry = ir.y + sr.y * ir.scale;
+                    const rw = sr.w * ir.scale;
+                    const rh = sr.h * ir.scale;
+                    const inside = m.x >= rx && m.x <= rx + rw && m.y >= ry && m.y <= ry + rh;
+                    canvas.style.cursor = inside ? "move" : "default";
+                    if (!inside) return;
+                    const imgPt = canvasToImage(m.x, m.y);
+                    if (!imgPt) return;
+                    dragInfo = {
+                        mouseX: imgPt.x,
+                        mouseY: imgPt.y,
+                        cx: cropState.cx * imageMeta.img_w,
+                        cy: cropState.cy * imageMeta.img_h
+                    };
+                    e.preventDefault();
+                });
+
+                window.addEventListener("mousemove", (e) => {
+                    const m = getMouse(e);
+                    const ir = getImageRectOnCanvas();
+                    const sr = getSourceRect();
+                    if (ir && sr) {
+                        const rx = ir.x + sr.x * ir.scale;
+                        const ry = ir.y + sr.y * ir.scale;
+                        const rw = sr.w * ir.scale;
+                        const rh = sr.h * ir.scale;
+                        const over = m.x >= rx && m.x <= rx + rw && m.y >= ry && m.y <= ry + rh;
+                        canvas.style.cursor = dragInfo ? "move" : (over ? "move" : "default");
+                    }
+                    if (!dragInfo) return;
+                    const imgPt = canvasToImage(m.x, m.y);
+                    if (!imgPt) return;
+                    const dx = imgPt.x - dragInfo.mouseX;
+                    const dy = imgPt.y - dragInfo.mouseY;
+                    const src = getSourceRect();
+                    if (!src) return;
+                    const halfW = src.w * 0.5;
+                    const halfH = src.h * 0.5;
+                    const nx = clamp(dragInfo.cx + dx, halfW, imageMeta.img_w - halfW);
+                    const ny = clamp(dragInfo.cy + dy, halfH, imageMeta.img_h - halfH);
+                    cropState.cx = nx / imageMeta.img_w;
+                    cropState.cy = ny / imageMeta.img_h;
+                    getSourceRect();
+                    dragInfo.cx = cropState.cx * imageMeta.img_w;
+                    dragInfo.cy = cropState.cy * imageMeta.img_h;
+                    dragInfo.mouseX = imgPt.x;
+                    dragInfo.mouseY = imgPt.y;
+                    userAdjusted = true;
+                    syncState();
+                    draw();
+                });
+
+                window.addEventListener("mouseup", () => {
+                    dragInfo = null;
+                });
+
+                canvas.addEventListener("wheel", (e) => {
+                    if (!imageMeta.img_w || !imageMeta.img_h) return;
+                    e.preventDefault();
+                    const m = getMouse(e);
+                    const imgPt = canvasToImage(m.x, m.y);
+                    if (!imgPt) return;
+                    const old = getSourceRect();
+                    if (!old) return;
+                    const rx = clamp((imgPt.x - old.x) / old.w, 0, 1);
+                    const ry = clamp((imgPt.y - old.y) / old.h, 0, 1);
+                    // 注意：zoom 越大，红框越小；zoom 越小，红框越大
+                    // 向上滚动（deltaY < 0）：放大红框，需要减小 zoom
+                    // 向下滚动（deltaY > 0）：缩小红框，需要增加 zoom（但不能超过 maxZoom）
+                    const factor = e.deltaY < 0 ? (1 / 1.08) : 1.08;
+                    const maxZoom = getMaxZoom();
+                    // zoom 范围：最小 0.01（红框很大），最大 maxZoom（刚好包裹遮罩）
+                    cropState.zoom = clamp(cropState.zoom * factor, 0.01, maxZoom);
+                    const { cw, ch } = getCropDims();
+                    const nw = cw / cropState.zoom;
+                    const nh = ch / cropState.zoom;
+                    let nx = imgPt.x - rx * nw;
+                    let ny = imgPt.y - ry * nh;
+                    
+                    // 计算红框边界
+                    let left = nx;
+                    let right = nx + nw;
+                    let top = ny;
+                    let bottom = ny + nh;
+                    
+                    // 遮罩边界
+                    const maskLeft = maskMeta.mask_x;
+                    const maskRight = maskMeta.mask_x + maskMeta.mask_w;
+                    const maskTop = maskMeta.mask_y;
+                    const maskBottom = maskMeta.mask_y + maskMeta.mask_h;
+                    
+                    // 调整位置确保遮罩被完全包裹
+                    if (left > maskLeft) {
+                        nx -= (left - maskLeft);
+                    }
+                    if (right < maskRight) {
+                        nx += (maskRight - right);
+                    }
+                    if (top > maskTop) {
+                        ny -= (top - maskTop);
+                    }
+                    if (bottom < maskBottom) {
+                        ny += (maskBottom - bottom);
+                    }
+                    
+                    // 最后限制不超出图像边界
+                    if (nw <= imageMeta.img_w) {
+                        nx = clamp(nx, 0, imageMeta.img_w - nw);
+                    } else {
+                        nx = 0;
+                    }
+                    if (nh <= imageMeta.img_h) {
+                        ny = clamp(ny, 0, imageMeta.img_h - nh);
+                    } else {
+                        ny = 0;
+                    }
+                    
+                    cropState.cx = (nx + nw * 0.5) / imageMeta.img_w;
+                    cropState.cy = (ny + nh * 0.5) / imageMeta.img_h;
+                    userAdjusted = true;
+                    syncState();
+                    draw();
+                }, { passive: false });
+
+                const bindCropDim = (w) => {
+                    if (!w) return;
+                    const originalCallback = w.callback;
+                    w.callback = function (value) {
+                        if (originalCallback) originalCallback.apply(this, arguments);
+                        const maxZoom = getMaxZoom();
+                        cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                        if (!userAdjusted) initState();
+                        syncState();
+                        draw();
+                    };
+                    if (w.inputEl) {
+                        w.inputEl.addEventListener("change", () => {
+                            const maxZoom = getMaxZoom();
+                            cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                            if (!userAdjusted) initState();
+                            syncState();
+                            draw();
+                        });
+                        w.inputEl.addEventListener("input", () => {
+                            const maxZoom = getMaxZoom();
+                            cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                            if (!userAdjusted) initState();
+                            syncState();
+                            draw();
+                        });
+                    }
+                };
+                bindCropDim(cropWidthWidget);
+                bindCropDim(cropHeightWidget);
+
+                let fillAutoTimer = null;
+                const triggerFillAutoPreview = () => {
+                    if (fillAutoTimer) clearTimeout(fillAutoTimer);
+                    fillAutoTimer = setTimeout(() => {
+                        fillAutoTimer = null;
+                        runPreview();
+                    }, 120);
+                };
+                const bindFillAuto = (w) => {
+                    if (!w) return;
+                    const originalCallback = w.callback;
+                    w.callback = function (value) {
+                        if (originalCallback) originalCallback.apply(this, arguments);
+                        if (!userAdjusted) initState();
+                        syncState();
+                        draw();
+                        triggerFillAutoPreview();
+                    };
+                    if (w.inputEl) {
+                        w.inputEl.addEventListener("change", () => {
+                            if (!userAdjusted) initState();
+                            syncState();
+                            draw();
+                            triggerFillAutoPreview();
+                        });
+                        w.inputEl.addEventListener("input", () => {
+                            if (!userAdjusted) initState();
+                            syncState();
+                            draw();
+                            triggerFillAutoPreview();
+                        });
+                    }
+                };
+                bindFillAuto(cropImgBjWidget);
+
+                this._aptImageMaskCropUI = {
+                    imageMeta,
+                    maskMeta,
+                    draw,
+                    initState,
+                    getUserAdjusted: () => userAdjusted
+                };
+
+                syncState();
+                draw();
+                setTimeout(() => {
+                    draw();
+                    if (this.onResize) this.onResize(this.size);
+                }, 150);
+            };
+
+            const onExecuted = nodeType.prototype.onExecuted;
+            nodeType.prototype.onExecuted = function (message) {
+                onExecuted?.apply(this, arguments);
+                if (message?.bg_image?.length > 0) {
+                    const img = message.bg_image[0];
+                    const url = api.apiURL(`/view?filename=${encodeURIComponent(img.filename)}&type=${img.type}&subfolder=${img.subfolder}&t=${Date.now()}`);
+                    const uiWidget = this.widgets.find(w => w.name === "ImageMaskCropUI");
+                    const bg = uiWidget?.element?.querySelector?.(".apt-preview-bg");
+                    if (bg) bg.style.backgroundImage = `url(${url})`;
+
+                    const cropUi = this._aptImageMaskCropUI;
+                    if (!cropUi) return;
+                    const cropMeta = Array.isArray(message?.crop_meta) ? message.crop_meta[0] : null;
+                    const maskMetaData = Array.isArray(message?.mask_meta) ? message.mask_meta[0] : null;
+                    
+                    if (cropMeta && cropMeta.img_w && cropMeta.img_h) {
+                        cropUi.imageMeta.img_w = parseInt(cropMeta.img_w);
+                        cropUi.imageMeta.img_h = parseInt(cropMeta.img_h);
+                    }
+                    
+                    if (maskMetaData) {
+                        cropUi.maskMeta.mask_x = parseInt(maskMetaData.mask_x) || 0;
+                        cropUi.maskMeta.mask_y = parseInt(maskMetaData.mask_y) || 0;
+                        cropUi.maskMeta.mask_w = parseInt(maskMetaData.mask_w) || 0;
+                        cropUi.maskMeta.mask_h = parseInt(maskMetaData.mask_h) || 0;
+                    }
+                    
+                    if ((cropMeta && cropMeta.img_w && cropMeta.img_h) || (maskMetaData && maskMetaData.mask_w)) {
                         if (!cropUi.getUserAdjusted()) cropUi.initState();
                         cropUi.draw();
                     } else {

@@ -362,11 +362,6 @@ class color_adjust_HSL:
         return hsv_image.convert('RGB')
 
 
-class color_adjust_HSL_visual(color_adjust_HSL):
-    CATEGORY = "Apt_Preset/image/visualize_edit"
-    OUTPUT_NODE = True
-
-
 
 class color_adjust_HDR:
     def __init__(self):
@@ -561,10 +556,6 @@ class color_adjust_HDR:
             # 如果没有cv2，返回原始图像
             return image.astype(np.uint8)
 
-
-class color_adjust_HDR_visual(color_adjust_HDR):
-    CATEGORY = "Apt_Preset/image/visualize_edit"
-    OUTPUT_NODE = True
 
 
 class color_TransforTool:
@@ -1136,12 +1127,6 @@ class color_match_adv:
         if return_ui:
             return {"ui": {"bg_image": results}, "result": (rst,)}
         return rst
-
-
-class color_match_adv_visual(color_match_adv):
-    CATEGORY = "Apt_Preset/image/visualize_edit"
-    OUTPUT_NODE = True
-
 
 
 
@@ -1953,12 +1938,6 @@ class Image_CnMapMix:
         ).permute(0, 2, 3, 1)
         
         return blurred
-
-
-class Image_CnMapMix_visual(Image_CnMapMix):
-    CATEGORY = "Apt_Preset/image/visualize_edit"
-    OUTPUT_NODE = True
-
 
 
 
@@ -3300,8 +3279,15 @@ def _crop_visual_parse_state(crop_state):
 
 
 def _crop_visual_compute_box(img_w, img_h, crop_w, crop_h, center_x, center_y, zoom):
-    src_w = min(float(img_w), max(1.0, float(crop_w) / float(zoom)))
-    src_h = min(float(img_h), max(1.0, float(crop_h) / float(zoom)))
+    img_w = float(max(1, int(img_w)))
+    img_h = float(max(1, int(img_h)))
+    crop_w = float(max(1, int(crop_w)))
+    crop_h = float(max(1, int(crop_h)))
+    zoom = float(max(1e-4, float(zoom)))
+    fit_zoom = max(crop_w / img_w, crop_h / img_h, 1e-4)
+    zoom = max(zoom, fit_zoom)
+    src_w = max(1.0, crop_w / zoom)
+    src_h = max(1.0, crop_h / zoom)
     cx_px = min(float(img_w), max(0.0, float(center_x) * float(img_w)))
     cy_px = min(float(img_h), max(0.0, float(center_y) * float(img_h)))
     half_w = src_w * 0.5
@@ -3338,13 +3324,13 @@ def _crop_visual_apply_single(img, crop_w, crop_h, center_x, center_y, zoom):
     return out[0].permute(1, 2, 0).clamp(0.0, 1.0)
 
 
-def _crop_visual_prepare_image(img, fill):
+def _crop_visual_prepare_image(img, fill, margin):
     fill_mode = str(fill or "none").lower()
     if fill_mode == "none":
         return img
     h = int(img.shape[0])
     w = int(img.shape[1])
-    side = max(h, w)
+    side = max(h, w) + 2 * margin
     if side <= 0:
         return img
     if fill_mode == "white":
@@ -3372,7 +3358,7 @@ def _crop_visual_prepare_image(img, fill):
             canvas[top:top + h, 0:left, :] = left_col
         if right_pad > 0:
             right_col = img[:, w - 1:w, :].expand(h, right_pad, c)
-            canvas[top:top + h, left + w:side, :] = right_col
+            canvas[top + h:side, left + w:side, :] = right_col
         if top > 0 and left > 0:
             canvas[0:top, 0:left, :] = img[0, 0, :].view(1, 1, c)
         if top > 0 and right_pad > 0:
@@ -3401,6 +3387,7 @@ class Image_crop_visual:
                 "crop_width": ("INT", {"default": 512, "min": 1, "max": 8192, "step": 1}),
                 "crop_height": ("INT", {"default": 512, "min": 1, "max": 8192, "step": 1}),
                 "fill": (["none", "white", "black", "grey", "edge"], {"default": "none"}),
+                "margin": ("INT", {"default": 0, "min": 0, "max": 500, "step": 1}),
                 "crop_state": ("STRING", {"default": '{"cx":0.5,"cy":0.5,"zoom":1.0}'}),
             }
         }
@@ -3411,7 +3398,7 @@ class Image_crop_visual:
     CATEGORY = "Apt_Preset/image/visualize_edit"
     OUTPUT_NODE = True
     DESCRIPTION = """滚动鼠标，缩放裁剪框"""
-    def crop_image(self, image, crop_width, crop_height, fill, crop_state):
+    def crop_image(self, image, crop_width, crop_height, fill, margin, crop_state):
         crop_w = int(max(1, crop_width))
         crop_h = int(max(1, crop_height))
         cx, cy, zoom = _crop_visual_parse_state(crop_state)
@@ -3420,10 +3407,10 @@ class Image_crop_visual:
         image_for_preview = image[0]
         image_for_meta = image[0]
         for img in image:
-            prepared = _crop_visual_prepare_image(img, fill)
+            prepared = _crop_visual_prepare_image(img, fill, margin)
             out_list.append(_crop_visual_apply_single(prepared, crop_w, crop_h, cx, cy, zoom))
         if image.shape[0] > 0:
-            image_for_preview = _crop_visual_prepare_image(image[0], fill)
+            image_for_preview = _crop_visual_prepare_image(image[0], fill, margin)
             image_for_meta = image_for_preview
         out_tensor = torch.stack(out_list, dim=0)
 
@@ -3443,6 +3430,212 @@ class Image_crop_visual:
         return {"ui": ui, "result": (out_tensor,)}
 
 
+class Image_mask_crop_visual:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+                "crop_width": ("INT", {"default": 512, "min": 1, "max": 8192, "step": 1}),
+                "crop_height": ("INT", {"default": 512, "min": 1, "max": 8192, "step": 1}),
+                "crop_img_bj": (["image", "white", "black", "red", "green", "blue", "yellow", "cyan", "magenta", "gray"], {"default": "image"}),
+                "crop_state": ("STRING", {"default": '{"cx":0.5,"cy":0.5,"zoom":1.0}'}),
+            },
+            "optional": {
+                "mask_stack": ("MASK_STACK2",),
+            }
+        }
+
+    CATEGORY = "Apt_Preset/image/visualize_edit"
+    RETURN_TYPES = ("IMAGE", "MASK", "STITCH2")
+    RETURN_NAMES = ("crop_image", "crop_mask", "stitch")
+    FUNCTION = "crop_image"
+    OUTPUT_NODE = True
+    DESCRIPTION = """基于遮罩的可视化裁剪工具
+    - 红框：仅代表宽高比例 + 位置，不直接决定输出像素尺寸
+    - 输出尺寸：严格等于用户输入的「裁剪宽度 × 裁剪高度」
+    - 遮罩最小外接矩形：必须被红框完全包裹
+    - 红框比例：始终与「裁剪宽度：裁剪高度」保持一致
+    """
+
+    def get_mask_bounding_box(self, mask):
+        mask_np = mask[0].cpu().numpy()
+        mask_np = np.squeeze(mask_np)
+        mask_np = (mask_np > 0.5).astype(np.uint8)
+        if mask_np.ndim != 2:
+            raise ValueError(f"Mask must be 2D array, got {mask_np.ndim}D instead")
+        coords = cv2.findNonZero(mask_np)
+        if coords is None:
+            # 如果遮罩为空，返回全图
+            h, w = mask_np.shape
+            return w, h, 0, 0
+        x, y, w, h = cv2.boundingRect(coords)
+        return w, h, x, y
+
+    def crop_image(self, image, mask, crop_width, crop_height, crop_img_bj, crop_state, mask_stack=None):
+        crop_w = int(max(1, crop_width))
+        crop_h = int(max(1, crop_height))
+        cx, cy, zoom = _crop_visual_parse_state(crop_state)
+
+        # 处理遮罩
+        batch_size, height, width, _ = image.shape
+        if mask_stack is not None:
+            mask_mode, smoothness, mask_expand, mask_min, mask_max = mask_stack
+            if hasattr(mask, 'convert'):
+                mask_tensor = pil2tensor(mask.convert('L'))
+            else:
+                if isinstance(mask, torch.Tensor):
+                    mask_tensor = mask if len(mask.shape) <= 3 else mask.squeeze(-1) if mask.shape[-1] == 1 else mask
+                else:
+                    mask_tensor = mask
+            separated_result = Mask_transform_sum().separate(
+                bg_mode="crop_image",
+                mask_mode=mask_mode,
+                ignore_threshold=0,
+                opacity=1,
+                outline_thickness=1,
+                smoothness=smoothness,
+                mask_expand=mask_expand,
+                expand_width=0,
+                expand_height=0,
+                rescale_crop=1.0,
+                tapered_corners=True,
+                mask_min=mask_min,
+                mask_max=mask_max,
+                base_image=image,
+                mask=mask_tensor,
+                crop_to_mask=False,
+                divisible_by=1
+            )
+            processed_mask = separated_result[1]
+        else:
+            processed_mask = mask
+
+        # 获取遮罩边界框
+        mask_w, mask_h, mask_x, mask_y = self.get_mask_bounding_box(processed_mask)
+
+        original_h, original_w = height, width
+        left, top, right, bottom = _crop_visual_compute_box(original_w, original_h, crop_w, crop_h, cx, cy, zoom)
+        x0 = max(0, int(math.floor(left)))
+        y0 = max(0, int(math.floor(top)))
+        x1 = min(int(original_w), int(math.ceil(right)))
+        y1 = min(int(original_h), int(math.ceil(bottom)))
+        if x1 <= x0:
+            x1 = min(int(original_w), x0 + 1)
+        if y1 <= y0:
+            y1 = min(int(original_h), y0 + 1)
+        src_rect = {
+            'x': int(x0),
+            'y': int(y0),
+            'w': int(x1 - x0),
+            'h': int(y1 - y0)
+        }
+
+        # 准备图像和遮罩
+        out_list = []
+        mask_out_list = []
+        image_for_preview = image[0]
+        image_for_meta = image[0]
+        mask_for_meta = processed_mask[0]
+
+        for img, msk in zip(image, processed_mask):
+            # 应用裁剪
+            prepared = img
+            patch = prepared[src_rect["y"]:src_rect["y"] + src_rect["h"], src_rect["x"]:src_rect["x"] + src_rect["w"], :]
+            patch_chw = patch.permute(2, 0, 1).unsqueeze(0)
+            cropped_img = F.interpolate(patch_chw, size=(crop_h, crop_w), mode="bilinear", align_corners=False)[0].permute(1, 2, 0).clamp(0.0, 1.0)
+
+            patch_m = msk[src_rect["y"]:src_rect["y"] + src_rect["h"], src_rect["x"]:src_rect["x"] + src_rect["w"]].unsqueeze(0).unsqueeze(0)
+            cropped_mask = F.interpolate(patch_m, size=(crop_h, crop_w), mode="nearest")[0, 0].clamp(0.0, 1.0)
+            out_list.append(cropped_img)
+            mask_out_list.append(cropped_mask)
+
+        if image.shape[0] > 0:
+            image_for_preview = image[0]
+            image_for_meta = image[0]
+            mask_for_meta = processed_mask[0]
+
+        out_tensor = torch.stack(out_list, dim=0)
+        mask_out_tensor = torch.stack(mask_out_list, dim=0)
+
+        # 处理背景
+        colors = {
+            "white": (1.0, 1.0, 1.0),
+            "black": (0.0, 0.0, 0.0),
+            "red": (1.0, 0.0, 0.0),
+            "green": (0.0, 1.0, 0.0),
+            "blue": (0.0, 0.0, 1.0),
+            "yellow": (1.0, 1.0, 0.0),
+            "cyan": (0.0, 1.0, 1.0),
+            "magenta": (1.0, 0.0, 1.0),
+            "gray": (0.5, 0.5, 0.5)
+        }
+
+        if crop_img_bj != "image" and crop_img_bj in colors:
+            r, g, b = colors[crop_img_bj]
+            h_bg, w_bg, _ = out_tensor.shape[1:]
+            background = torch.zeros((out_tensor.shape[0], h_bg, w_bg, 3), device=out_tensor.device)
+            background[:, :, :, 0] = r
+            background[:, :, :, 1] = g
+            background[:, :, :, 2] = b
+            if out_tensor.shape[3] >= 4:
+                alpha = out_tensor[:, :, :, 3].unsqueeze(3)
+                image_rgb = out_tensor[:, :, :, :3]
+                out_tensor = image_rgb * alpha + background * (1 - alpha)
+            else:
+                alpha = mask_out_tensor.unsqueeze(3)
+                image_rgb = out_tensor[:, :, :, :3]
+                out_tensor = image_rgb * alpha + background * (1 - alpha)
+
+        # 生成预览图像
+        bg_results = []
+        temp_dir = folder_paths.get_temp_directory()
+        if image.shape[0] > 0:
+            src_np = (255.0 * image_for_preview.cpu().numpy()).clip(0, 255).astype(np.uint8)
+            src_pil = Image.fromarray(src_np)
+            filename = f"image_mask_crop_visual_bg_{random.randint(1, 1000000)}.png"
+            src_pil.save(os.path.join(temp_dir, filename))
+            bg_results.append({"filename": filename, "subfolder": "", "type": "temp"})
+
+        # 构建 stitch 信息
+        # 遮罩在裁剪后图像中的位置
+        mask_crop_x_start = max(0, mask_x - src_rect['x'])
+        mask_crop_y_start = max(0, mask_y - src_rect['y'])
+        mask_crop_x_end = min(src_rect['w'], mask_x + mask_w - src_rect['x'])
+        mask_crop_y_end = min(src_rect['h'], mask_y + mask_h - src_rect['y'])
+        
+        # 创建背景图像（用于 stitch 恢复）
+        bj_image = image.clone()
+        
+        stitch = {
+            "original_shape": (original_h, original_w),
+            "original_image_shape": (original_h, original_w),
+            "crop_position": (src_rect['x'], src_rect['y']),
+            "crop_size": (src_rect['w'], src_rect['h']),
+            "expand_width": 0,
+            "expand_height": 0,
+            "auto_expand_square": False,
+            "expanded_region": (src_rect['x'], src_rect['y'], src_rect['x'] + src_rect['w'], src_rect['y'] + src_rect['h']),
+            "mask_original_position": (mask_x, mask_y, mask_w, mask_h),
+            "mask_cropped_position": (mask_crop_x_start, mask_crop_y_start, mask_crop_x_end, mask_crop_y_end),
+            "original_long_side": max(original_w, original_h),
+            "crop_long_side": max(src_rect['w'], src_rect['h']),
+            "input_long_side": max(crop_w, crop_h),
+            "false_long_side": max(src_rect['w'], src_rect['h']),
+            "bj_image": bj_image,
+            "original_image": image,
+            "crop_state": crop_state,
+            "mask_bounding_box": (mask_x, mask_y, mask_w, mask_h),
+            "crop_img_bj": crop_img_bj,
+        }
+
+        ui = {
+            "bg_image": bg_results,
+            "crop_meta": [{"img_w": int(image_for_meta.shape[1]), "img_h": int(image_for_meta.shape[0])}],
+            "mask_meta": [{"mask_x": mask_x, "mask_y": mask_y, "mask_w": mask_w, "mask_h": mask_h}],
+        }
+        return {"ui": ui, "result": (out_tensor, mask_out_tensor, stitch)}
 
 
 
@@ -3458,6 +3651,29 @@ class Image_crop_visual:
 
 
 
+class Image_CnMapMix_visual(Image_CnMapMix):
+    CATEGORY = "Apt_Preset/image/visualize_edit"
+    OUTPUT_NODE = True
+
+
+
+class color_adjust_HSL_visual(color_adjust_HSL):
+    CATEGORY = "Apt_Preset/image/visualize_edit"
+    OUTPUT_NODE = True
+
+
+
+
+class color_adjust_HDR_visual(color_adjust_HDR):
+    CATEGORY = "Apt_Preset/image/visualize_edit"
+    OUTPUT_NODE = True
+
+
+
+
+class color_match_adv_visual(color_match_adv):
+    CATEGORY = "Apt_Preset/image/visualize_edit"
+    OUTPUT_NODE = True
 
 
 

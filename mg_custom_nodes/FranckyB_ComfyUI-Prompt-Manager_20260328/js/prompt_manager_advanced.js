@@ -500,8 +500,14 @@ app.registerExtension({
                 setupUseExternalToggleHandler(node);
 
                 // Load prompts data asynchronously (data only, widgets already added)
-                loadPrompts(node).then(() => {
+                loadPrompts(node).then(async () => {
                     filterPromptDropdown(node);
+
+                    // Re-check LoRA availability after restoring from serialized state.
+                    // The 'available' field is not serialized in toggle widgets, so after
+                    // a tab switch all restored loras would show as "not found" without this.
+                    await recheckLoraAvailability(node);
+
                     updateLoraDisplays(node);
                     updateTriggerWordsDisplay(node);
 
@@ -546,6 +552,46 @@ async function loadPrompts(node) {
     } catch (error) {
         console.error("[PromptManagerAdvanced] Error loading prompts:", error);
         return {};
+    }
+}
+
+/**
+ * Re-check availability of all loras currently on the node.
+ * Called after restoring from serialized state (tab switch / workflow load)
+ * because the 'available' flag is not persisted in toggle widgets.
+ */
+async function recheckLoraAvailability(node) {
+    const allLoras = [
+        ...(node.savedLorasA || []),
+        ...(node.savedLorasB || []),
+        ...(node.currentLorasA || []),
+        ...(node.currentLorasB || [])
+    ];
+    const allNames = [...new Set(allLoras.map(l => l.name).filter(Boolean))];
+    if (allNames.length === 0) return;
+
+    try {
+        const response = await fetch("/prompt-manager-advanced/check-loras", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lora_names: allNames })
+        });
+        const data = await response.json();
+        if (data.success && data.results) {
+            const updateList = (list) => {
+                (list || []).forEach(lora => {
+                    if (lora.name) lora.available = data.results[lora.name] === true;
+                });
+            };
+            updateList(node.savedLorasA);
+            updateList(node.savedLorasB);
+            updateList(node.currentLorasA);
+            updateList(node.currentLorasB);
+        }
+    } catch (error) {
+        console.error("[PromptManagerAdvanced] Error re-checking LoRA availability:", error);
+        // Default to available on error so they don't all show as missing
+        allLoras.forEach(l => { if (l.available === undefined) l.available = true; });
     }
 }
 
@@ -1869,7 +1915,8 @@ function mergeTriggerWordLists(currentWords, savedWords) {
                 source: 'saved'
             });
         } else {
-            merged.push({ ...word, source: 'current' });
+            // New trigger word from connected input — default to OFF
+            merged.push({ ...word, source: 'current', active: false });
         }
         seen.add(wordLower);
     });
@@ -4440,26 +4487,9 @@ async function showThumbnailBrowser(node, currentCategory, currentPrompt) {
         viewModeBtn.onmouseout = () => { viewModeBtn.style.background = '#2a2a2a'; viewModeBtn.style.color = '#aaa'; };
         updateViewModeBtn();
 
-        // Thumbnail preview toggle button
-        let thumbnailPreviewEnabled = getThumbnailPreviewEnabled();
-        const previewBtn = document.createElement("button");
-        const updatePreviewBtn = () => {
-            previewBtn.textContent = thumbnailPreviewEnabled ? "🔍 Preview" : "🔍 Off";
-            previewBtn.title = thumbnailPreviewEnabled ? "Hover preview enabled — click to disable" : "Hover preview disabled — click to enable";
-            if (!thumbnailPreviewEnabled) {
-                previewBtn.style.cssText = btnStyle + `background: #3a2020; border-color: #744; color: #c88;`;
-            } else {
-                previewBtn.style.cssText = btnStyle;
-            }
-        };
-        previewBtn.onmouseover = () => { if (thumbnailPreviewEnabled) { previewBtn.style.background = '#3a3a3a'; previewBtn.style.color = '#fff'; } };
-        previewBtn.onmouseout = () => { if (thumbnailPreviewEnabled) { previewBtn.style.background = '#2a2a2a'; previewBtn.style.color = '#aaa'; } };
-        updatePreviewBtn();
-
         controlsBar.appendChild(searchWrapper);
         controlsBar.appendChild(nsfwBtn);
         controlsBar.appendChild(viewModeBtn);
-        controlsBar.appendChild(previewBtn);
 
         // Category selector
         const categoryContainer = document.createElement("div");
@@ -5253,15 +5283,6 @@ async function showThumbnailBrowser(node, currentCategory, currentPrompt) {
             sessionViewMode = currentViewMode;
             updateViewModeBtn();
             renderContent(searchInput.value);
-        };
-
-        previewBtn.onclick = () => {
-            thumbnailPreviewEnabled = !thumbnailPreviewEnabled;
-            sessionEnableThumbnailPreview = thumbnailPreviewEnabled;
-            // Save to settings API (primary) and localStorage (backward compatibility)
-            app.ui.settings.setSettingValue("PromptManager.EnableThumbnailPreview", thumbnailPreviewEnabled);
-            localStorage.setItem("PromptManager.EnableThumbnailPreview", thumbnailPreviewEnabled.toString());
-            updatePreviewBtn();
         };
 
         // Initial render

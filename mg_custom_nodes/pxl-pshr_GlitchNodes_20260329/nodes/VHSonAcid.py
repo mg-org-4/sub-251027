@@ -1,0 +1,120 @@
+# https://x.com/_pxlpshr
+# https://instagram.com/pxl.pshr/
+
+import logging
+import torch
+import numpy as np
+import comfy.utils
+
+logger = logging.getLogger(__name__)
+
+class VHSonAcid:
+    """Apply VHS-style glitch effects with random slice displacement."""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "images": ("IMAGE",),
+                "slice_size": ("INT", {
+                    "default": 20,
+                    "min": 1,
+                    "max": 100,
+                    "step": 1
+                }),
+                "offset_range": ("INT", {
+                    "default": 50,
+                    "min": 1,
+                    "max": 200,
+                    "step": 1
+                }),
+                "color_shift": ("FLOAT", {
+                    "default": 0.5,
+                    "min": 0.0,
+                    "max": 1.0,
+                    "step": 0.1
+                }),
+                "glitch_probability": ("FLOAT", {
+                    "default": 0.3,
+                    "min": 0.0,
+                    "max": 1.0,
+                    "step": 0.1
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "apply_glitch"
+    CATEGORY = "GlitchNodes"
+    DESCRIPTION = "Apply VHS-style glitch effects with slice displacement and RGB channel shifting"
+
+    def create_slice_indices(self, height, slice_size, glitch_probability):
+        """Create random slice indices"""
+        slices = []
+        for i in range(0, height - slice_size, slice_size):
+            if np.random.random() < glitch_probability:
+                slices.append((i, i + slice_size))
+        return slices
+
+    def shift_slice(self, image, start, end, offset_range):
+        """Shift a slice of the image horizontally"""
+        offset = np.random.randint(-offset_range, offset_range)
+        slice_data = image[start:end].copy()
+
+        if offset > 0:
+            image[start:end, offset:] = slice_data[:, :-offset]
+            image[start:end, :offset] = slice_data[:, -offset:]
+        elif offset < 0:
+            image[start:end, :offset] = slice_data[:, -offset:]
+            image[start:end, offset:] = slice_data[:, :-offset]
+
+        return image
+
+    def rgb_shift(self, image, amount):
+        """Apply RGB channel shifting"""
+        result = image.copy()
+        for i in range(3):
+            shift = int(np.random.uniform(-amount * 30, amount * 30))
+            if shift != 0:
+                result[..., i] = np.roll(image[..., i], shift, axis=1)
+        return result
+
+    def process_single_image(self, image, slice_size, offset_range, color_shift, glitch_probability):
+        """Process a single image with glitch effects"""
+        result = image.copy()
+        height, width = image.shape[:2]
+
+        # Create random slices
+        slices = self.create_slice_indices(height, slice_size, glitch_probability)
+
+        # Apply slice shifts
+        for start, end in slices:
+            result = self.shift_slice(result, start, end, offset_range)
+
+        # Apply color shifting
+        if color_shift > 0:
+            result = self.rgb_shift(result, color_shift)
+
+        return result
+
+    def apply_glitch(self, images, slice_size, offset_range, color_shift, glitch_probability):
+        device = images.device
+        batch_size, height, width, channels = images.shape
+        
+        output_batch = []
+
+        logger.info(f"Applying glitch effects: batch_size={batch_size}, slice_size={slice_size}, offset_range={offset_range}, color_shift={color_shift}, glitch_probability={glitch_probability}")
+
+        pbar = comfy.utils.ProgressBar(batch_size)
+        for b in range(batch_size):
+            img = images[b].cpu().numpy()
+            canvas = self.process_single_image(img, slice_size, offset_range, color_shift, glitch_probability)
+            canvas_tensor = torch.from_numpy(canvas).float()
+            output_batch.append(canvas_tensor)
+            pbar.update(1)
+
+        result = torch.stack(output_batch).to(device)
+
+        logger.info("Glitch processing complete!")
+        
+        return (result,)

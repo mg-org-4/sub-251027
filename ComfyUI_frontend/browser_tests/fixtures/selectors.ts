@@ -51,7 +51,8 @@ export const TestIds = {
   topbar: {
     queueButton: 'queue-button',
     queueModeMenuTrigger: 'queue-mode-menu-trigger',
-    saveButton: 'save-workflow-button'
+    saveButton: 'save-workflow-button',
+    subscribeButton: 'topbar-subscribe-button'
   },
   nodeLibrary: {
     bookmarksSection: 'node-library-bookmarks-section'
@@ -77,6 +78,10 @@ export const TestIds = {
     subgraphEnterButton: 'subgraph-enter-button'
   },
   builder: {
+    footerNav: 'builder-footer-nav',
+    saveButton: 'builder-save-button',
+    saveAsButton: 'builder-save-as-button',
+    saveAsChevron: 'builder-save-as-chevron',
     ioItem: 'builder-io-item',
     ioItemTitle: 'builder-io-item-title',
     widgetActionsMenu: 'widget-actions-menu',

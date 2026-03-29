@@ -1,7 +1,7 @@
 [project]
 name = "glitchnodes"
 description = "GlitchNodes is a collection of image processing nodes designed for ComfyUI that specializes in creating glitch art and retro effects."
-version = "1.0.6"
+version = "1.0.7"
 license = {file = "LICENSE"}
 dependencies = ["numpy", "torch", "Pillow", "opencv-python", "scipy"]
 
@@ -12,4 +12,5 @@ Repository = "https://github.com/pxl-pshr/GlitchNodes"
 [tool.comfy]
 PublisherId = "pxlpshr"
 DisplayName = "GlitchNodes"
-Icon = ""
+Icon = "
+Banner = "https://raw.githubusercontent.com/pxl-pshr/GlitchNodes/refs/heads/main/examples/banner.png"

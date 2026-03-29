@@ -1082,6 +1082,24 @@ class PromptPostProcessor:  # pylint: disable=too-few-public-methods,too-many-in
                     )
                 )
 
+        def __resolve_cond_value(self, c: str):
+            """Resolve a condition value: try int first, fall back to variable lookup."""
+            try:
+                return int(c)
+            except ValueError:
+                # Bare identifier — resolve as variable reference
+                if c.startswith("_"):
+                    val = self.__ppp.system_variables.get(c, None)
+                    if val is None:
+                        val = ""
+                        self.warn_or_stop(f"Unknown system variable {c}")
+                else:
+                    val = self.__get_user_variable_value(c)
+                    if val is None:
+                        val = ""
+                        self.warn_or_stop(f"Unknown user variable {c}")
+                return val.lower() if isinstance(val, str) else val
+
         def __eval_basiccondition(self, cond_var: str, cond_comp: str, cond_value: str | list[str]) -> bool:
             """
             Evaluate a condition based on the given variable, comparison, and value.
@@ -1133,25 +1151,26 @@ class PromptPostProcessor:  # pylint: disable=too-few-public-methods,too-many-in
                 (
                     c[1:-1].lower()
                     if c.startswith('"') or c.startswith("'")
-                    else True if c.lower() == "true" else False if c.lower() == "false" or c == "" else int(c)
+                    else True if c.lower() == "true" else False if c.lower() == "false" or c == "" else self.__resolve_cond_value(c)
                 )
                 for c in cond_value
             )
             result = False
             for c in cond_value_adjusted:
-                var_value_adjusted = (
-                    var_value
-                    if isinstance(c, str)
-                    else (
-                        True
-                        if isinstance(c, bool) and var_value != "false" and var_value != "" and var_value is not False
-                        else (
-                            False
-                            if isinstance(c, bool) and (var_value != "true" or var_value is False)
-                            else int(var_value)
+                if isinstance(c, str):
+                    var_value_adjusted = var_value
+                elif isinstance(c, bool) and var_value != "false" and var_value != "" and var_value is not False:
+                    var_value_adjusted = True
+                elif isinstance(c, bool) and (var_value != "true" or var_value is False):
+                    var_value_adjusted = False
+                else:
+                    try:
+                        var_value_adjusted = int(var_value)
+                    except (ValueError, TypeError):
+                        self.warn_or_stop(
+                            f"Cannot convert variable value '{var_value}' to integer for comparison"
                         )
-                    )
-                )
+                        return False
                 result = comp_ops[cond_comp](var_value_adjusted, c)
                 if result:
                     break

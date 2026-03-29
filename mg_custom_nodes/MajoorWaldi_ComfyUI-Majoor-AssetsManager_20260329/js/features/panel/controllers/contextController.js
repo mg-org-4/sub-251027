@@ -1,0 +1,447 @@
+import { normalizeQuery } from "./query.js";
+import { APP_CONFIG } from "../../../app/config.js";
+
+const _safeSetValue = (el, value) => {
+    if (!el) return;
+    try {
+        el.value = value;
+    } catch (e) {
+        console.debug?.(e);
+    }
+};
+
+const _safeSetChecked = (el, checked) => {
+    if (!el) return;
+    try {
+        el.checked = !!checked;
+    } catch (e) {
+        console.debug?.(e);
+    }
+};
+
+export function createContextController({
+    state,
+    gridContainer,
+    filterBtn,
+    sortBtn,
+    collectionsBtn,
+    searchInputEl,
+    kindSelect,
+    wfCheckbox,
+    workflowTypeSelect,
+    ratingSelect,
+    minSizeInput,
+    maxSizeInput,
+    minWidthInput,
+    minHeightInput,
+    maxWidthInput,
+    maxHeightInput,
+    resolutionPresetSelect,
+    dateRangeSelect,
+    dateExactInput,
+    scopeController,
+    sortController,
+    updateSummaryBar,
+    reloadGrid,
+    extraActions = null,
+    getExtraContext = null,
+} = {}) {
+    const resetBrowserHistory = () => {
+        try {
+            extraActions?.resetBrowserHistory?.();
+        } catch (e) {
+            console.debug?.(e);
+        }
+    };
+
+    const applyBadgeCssVars = () => {
+        try {
+            const root =
+                gridContainer?.closest?.(".mjr-assets-manager") ||
+                document.querySelector?.(".mjr-assets-manager") ||
+                document.documentElement;
+            if (!root?.style?.setProperty) return;
+            root.style.setProperty(
+                "--mjr-star-active",
+                String(APP_CONFIG.BADGE_STAR_COLOR || "#FFD45A"),
+            );
+            root.style.setProperty(
+                "--mjr-badge-image",
+                String(APP_CONFIG.BADGE_IMAGE_COLOR || "#2196F3"),
+            );
+            root.style.setProperty(
+                "--mjr-badge-video",
+                String(APP_CONFIG.BADGE_VIDEO_COLOR || "#9C27B0"),
+            );
+            root.style.setProperty(
+                "--mjr-badge-audio",
+                String(APP_CONFIG.BADGE_AUDIO_COLOR || "#FF9800"),
+            );
+            root.style.setProperty(
+                "--mjr-badge-model3d",
+                String(APP_CONFIG.BADGE_MODEL3D_COLOR || "#4CAF50"),
+            );
+            root.style.setProperty(
+                "--mjr-badge-duplicate-alert",
+                String(APP_CONFIG.BADGE_DUPLICATE_ALERT_COLOR || "#FF1744"),
+            );
+        } catch (e) {
+            console.debug?.(e);
+        }
+    };
+
+    const actions = {
+        clearQuery: async () => {
+            try {
+                _safeSetValue(searchInputEl, "");
+                state.searchQuery = "";
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearCollection: async () => {
+            try {
+                state.collectionId = "";
+                state.collectionName = "";
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearScope: async () => {
+            try {
+                if (
+                    String(state?.viewScope || "")
+                        .trim()
+                        .toLowerCase() === "similar" &&
+                    typeof extraActions?.clearSimilarScope === "function"
+                ) {
+                    await extraActions.clearSimilarScope();
+                    return;
+                }
+            } catch (e) {
+                console.debug?.(e);
+            }
+            let didSetScope = false;
+            try {
+                state.customRootId = "";
+                state.customRootLabel = "";
+                state.currentFolderRelativePath = "";
+                delete gridContainer?.dataset?.mjrSubfolder;
+                resetBrowserHistory();
+                if (typeof scopeController?.setScope === "function") {
+                    await scopeController.setScope("output");
+                    didSetScope = true;
+                } else {
+                    state.scope = "output";
+                    scopeController?.setActiveTabStyles?.();
+                }
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                if (!didSetScope) await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearCustomRoot: async () => {
+            try {
+                state.customRootId = "";
+                state.customRootLabel = "";
+                state.currentFolderRelativePath = "";
+                delete gridContainer?.dataset?.mjrSubfolder;
+                resetBrowserHistory();
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearFolder: async () => {
+            try {
+                // Ensure state is cleared so it doesn't get restored
+                state.currentFolderRelativePath = "";
+                delete gridContainer?.dataset?.mjrSubfolder;
+                resetBrowserHistory();
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearKind: async () => {
+            try {
+                state.kindFilter = "";
+                _safeSetValue(kindSelect, "");
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearMinRating: async () => {
+            try {
+                state.minRating = 0;
+                _safeSetValue(ratingSelect, "0");
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearWorkflowOnly: async () => {
+            try {
+                state.workflowOnly = false;
+                _safeSetChecked(wfCheckbox, false);
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearWorkflowType: async () => {
+            try {
+                state.workflowType = "";
+                _safeSetValue(workflowTypeSelect, "");
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearSize: async () => {
+            try {
+                state.minSizeMB = 0;
+                state.maxSizeMB = 0;
+                _safeSetValue(minSizeInput, "");
+                _safeSetValue(maxSizeInput, "");
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearResolution: async () => {
+            try {
+                state.minWidth = 0;
+                state.minHeight = 0;
+                state.maxWidth = 0;
+                state.maxHeight = 0;
+                _safeSetValue(minWidthInput, "");
+                _safeSetValue(minHeightInput, "");
+                _safeSetValue(maxWidthInput, "");
+                _safeSetValue(maxHeightInput, "");
+                _safeSetValue(resolutionPresetSelect, "");
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearDateRange: async () => {
+            try {
+                state.dateRangeFilter = "";
+                _safeSetValue(dateRangeSelect, "");
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearDateExact: async () => {
+            try {
+                state.dateExactFilter = "";
+                _safeSetValue(dateExactInput, "");
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearSort: async () => {
+            try {
+                state.sort = "mtime_desc";
+                sortController?.setSortIcon?.(state.sort);
+                sortController?.renderSortMenu?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+        clearAll: async () => {
+            let didSetScope = false;
+            try {
+                _safeSetValue(searchInputEl, "");
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                state.collectionId = "";
+                state.collectionName = "";
+                state.kindFilter = "";
+                state.workflowOnly = false;
+                state.minRating = 0;
+                state.minSizeMB = 0;
+                state.maxSizeMB = 0;
+                state.minWidth = 0;
+                state.minHeight = 0;
+                state.maxWidth = 0;
+                state.maxHeight = 0;
+                state.resolutionCompare = "gte";
+                state.workflowType = "";
+                state.dateRangeFilter = "";
+                state.dateExactFilter = "";
+                state.sort = "mtime_desc";
+                state.customRootId = "";
+                state.customRootLabel = "";
+                state.currentFolderRelativePath = "";
+                delete gridContainer?.dataset?.mjrSubfolder;
+                resetBrowserHistory();
+                try {
+                    await extraActions?.clearTransientContext?.();
+                } catch (e) {
+                    console.debug?.(e);
+                }
+                if (typeof scopeController?.setScope === "function") {
+                    await scopeController.setScope("output");
+                    didSetScope = true;
+                } else {
+                    state.scope = "output";
+                    scopeController?.setActiveTabStyles?.();
+                }
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                _safeSetValue(kindSelect, "");
+                _safeSetChecked(wfCheckbox, false);
+                _safeSetValue(workflowTypeSelect, "");
+                _safeSetValue(ratingSelect, "0");
+                _safeSetValue(minSizeInput, "");
+                _safeSetValue(maxSizeInput, "");
+                _safeSetValue(minWidthInput, "");
+                _safeSetValue(minHeightInput, "");
+                _safeSetValue(maxWidthInput, "");
+                _safeSetValue(maxHeightInput, "");
+                _safeSetValue(resolutionPresetSelect, "");
+                _safeSetValue(dateRangeSelect, "");
+                _safeSetValue(dateExactInput, "");
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                sortController?.setSortIcon?.(state.sort);
+                sortController?.renderSortMenu?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+            try {
+                if (!didSetScope) await reloadGrid?.();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        },
+    };
+    if (extraActions && typeof extraActions === "object") {
+        const blocked = new Set(["__proto__", "constructor", "prototype"]);
+        for (const [key, value] of Object.entries(extraActions)) {
+            if (blocked.has(String(key))) continue;
+            actions[key] = value;
+        }
+    }
+
+    const update = () => {
+        const rawQuery = String(searchInputEl?.value || "").trim();
+        const normalizedQuery = normalizeQuery(searchInputEl);
+
+        const filterActive = !!(
+            state?.kindFilter ||
+            "" ||
+            state?.workflowOnly ||
+            (Number(state?.minRating || 0) || 0) > 0 ||
+            (Number(state?.minSizeMB || 0) || 0) > 0 ||
+            (Number(state?.maxSizeMB || 0) || 0) > 0 ||
+            (Number(state?.minWidth || 0) || 0) > 0 ||
+            (Number(state?.minHeight || 0) || 0) > 0 ||
+            (Number(state?.maxWidth || 0) || 0) > 0 ||
+            (Number(state?.maxHeight || 0) || 0) > 0 ||
+            String(state?.workflowType || "").trim().length > 0 ||
+            state?.dateRangeFilter ||
+            "" ||
+            state?.dateExactFilter ||
+            ""
+        );
+        const sortActive = String(state?.sort || "mtime_desc") !== "mtime_desc";
+        const collectionsActive = !!(state?.collectionId || "");
+
+        try {
+            filterBtn?.classList?.toggle?.("mjr-context-active", filterActive);
+            sortBtn?.classList?.toggle?.("mjr-context-active", sortActive);
+            collectionsBtn?.classList?.toggle?.("mjr-context-active", collectionsActive);
+        } catch (e) {
+            console.debug?.(e);
+        }
+
+        try {
+            const extraContext =
+                (typeof getExtraContext === "function" ? getExtraContext() || {} : {}) || {};
+            updateSummaryBar?.({
+                state,
+                gridContainer,
+                context: { rawQuery: rawQuery || normalizedQuery, ...extraContext },
+                actions,
+            });
+        } catch (e) {
+            console.debug?.(e);
+        }
+
+        // Keep badge CSS vars aligned with live settings/theme changes.
+        applyBadgeCssVars();
+    };
+
+    return { update, actions };
+}

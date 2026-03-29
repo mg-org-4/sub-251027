@@ -766,8 +766,8 @@ class PrimereModelControl:
                 "refiner_sampler": (comfy.samplers.KSampler.SAMPLERS, {"default": "dpmpp_2m"}),
                 "refiner_scheduler": (comfy.samplers.KSampler.SCHEDULERS, {"default": "normal"}),
                 "refiner_cfg": ("FLOAT", {"default": 2.0, "min": 0.1, "max": 100, "step": 0.01}),
-                "refiner_steps": ("INT", {"default": 22, "min": 10, "max": 30, "step": 1}),
-                "refiner_start": ("INT", {"default": 12, "min": 1, "max": 1000, "step": 1}),
+                "refiner_steps": ("INT", {"default": 20, "min": 2, "max": 50, "step": 1}),
+                "refiner_start": ("INT", {"default": 10, "min": 1, "max": 1000, "step": 1}),
                 "refiner_denoise": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "refiner_sampling_denoise": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "refiner_ignore_prompt": ("BOOLEAN", {"default": True, "label_on": "Ignore prompt", "label_off": "Send prompt to refiner"})
@@ -784,6 +784,7 @@ class PrimereModelControl:
         steps = kwargs.pop('steps', 12)
         cfg = kwargs.pop('cfg', 7.0)
         active_concept = model_concept if concepts == "Auto" else concepts
+        saved = {}
         if concepts == "Auto" and models == "Auto":
             raw_model = model_name
             model_key = os.path.splitext(os.path.basename(raw_model))[0] if raw_model else None
@@ -814,6 +815,25 @@ class PrimereModelControl:
             if found:
                 steps = int(found[0])
 
+        if concepts == "Auto" and models == "Auto":
+            if kwargs.get('speed_lora') == True and 'speed_lora' not in saved:
+                kwargs['speed_lora'] = False
+
+            if kwargs.get('lcm_lora') == True and 'lcm_lora' not in saved:
+                kwargs['lcm_lora'] = False
+
+            if kwargs.get('srpo_lora') == True and 'srpo_lora' not in saved:
+                kwargs['srpo_lora'] = False
+
+            if kwargs.get('srpo_svdq_lora') == True and 'srpo_svdq_lora' not in saved:
+                kwargs['srpo_svdq_lora'] = False
+
+            if kwargs.get('nunchaku_lora') == True and 'nunchaku_lora' not in saved:
+                kwargs['nunchaku_lora'] = False
+
+            if kwargs.get('refiner') == True and 'refiner' not in saved:
+                kwargs['refiner'] = False
+
         if kwargs.get('speed_lora') == True:
             speed_lora_name_val = kwargs.get('speed_lora_name', '')
             if speed_lora_name_val:
@@ -826,6 +846,7 @@ class PrimereModelControl:
             speed_lora_cfg_val = kwargs.get('speed_lora_cfg')
             if speed_lora_cfg_val is not None:
                 cfg = float(speed_lora_cfg_val)
+
         attn_preset = kwargs.pop('attn_preset', 'Off')
         attn_query = kwargs.pop('attn_query', 1.0)
         attn_key = kwargs.pop('attn_key', 1.0)
@@ -872,7 +893,7 @@ class PrimereModelControl:
         kwargs['attn_cross_v'] = cross_v
         kwargs['attn_cross_out'] = cross_out
         kwargs['concept_data'] = {}
-        kwargs['concept_data']['vae_name'] = kwargs.get('vae', 'Baked VAE')
+        kwargs['concept_data']['vae_name'] = kwargs.get('vae', None)
         kwargs['concept_data']['vae_selection'] = kwargs.get('vae_selection', True)
         kwargs['concept_data']['clip_selection'] = kwargs.get('clip_selection', True)
         return {"ui": {"active_concept": [active_display]}, "result": (kwargs, sampler_name, scheduler_name, steps, round(cfg, 2), active_concept,)}

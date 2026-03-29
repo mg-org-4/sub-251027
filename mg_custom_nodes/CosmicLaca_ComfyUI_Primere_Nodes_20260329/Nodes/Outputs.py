@@ -442,11 +442,11 @@ class PrimereKSampler:
         return {
             "required": {
                 "model": ("MODEL", {"forceInput": True}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": utility.MAX_SEED, "forceInput": True}),
                 "steps": ("INT", {"default": 20, "min": 1, "max": 10000, "forceInput": True}),
                 "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "forceInput": True}),
                 "sampler_name": (comfy.samplers.KSampler.SAMPLERS, {"forceInput": True}),
                 "scheduler_name": (comfy.samplers.KSampler.SCHEDULERS, {"forceInput": True}),
+                "seed": ("INT", {"default": 42, "min": 0, "max": utility.MAX_SEED}),
                 "positive": ("CONDITIONING", ),
                 "negative": ("CONDITIONING", ),
                 "latent_image": ("LATENT", ),
@@ -490,7 +490,10 @@ class PrimereKSampler:
                     else:
                         variation_extender = control_data['sampler_settings']['variation_extender_original']
 
-        samples_out = latent_image
+        if control_data is not None and 'refiner' in control_data and control_data['refiner'] == True and 'refiner_sampling_denoise' in control_data:
+            denoise = control_data['refiner_sampling_denoise']
+
+        # samples_out = latent_image
         # out = latent_image.copy()
         variation_extender_original = variation_extender
         variation_batch_step_original = variation_batch_step
@@ -684,7 +687,7 @@ class PrimereKSampler:
                                                         align_your_steps, noise_extender_ksampler, None, control_data)[0]
 
         if refiner_model_data is not None:
-            samples_out = primeresamplers._run_refiner_pass(self, refiner_model_data, refiner_cond_pos, refiner_cond_neg, samples_out, control_data, seed)
+            samples_out = primeresamplers.run_refiner_pass(self, refiner_model_data, refiner_cond_pos, refiner_cond_neg, samples_out, control_data, seed)[0]
 
         if control_data is not None:
             control_data['sampler_settings'] = {}

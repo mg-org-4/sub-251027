@@ -593,7 +593,7 @@ class text_Splitter:
             "required": {
                 "text_input": ("STRING", {"multiline": True, "default": "", "placeholder": "请输入要拆分的文本"}),
                 # 👇 新增：按空行分割，位置放在最顺手的地方
-                "split_rule": (["不分割", "自定义正则", "按行分割", "按空行分割", "按空格分割", "按逗号分割", "按句号分割", "按分号分割", "按制表符分割", "按竖线分割"], {"default": "按行分割"}),
+                "split_rule": (["不分割", "自定义正则", "按行分割", "按空行分割", "按空格分割", "按逗号分割", "按句号分割", "按分号分割", "按制表符分割", "按竖线分割", "按序号", "按标题"], {"default": "按行分割"}),
                 "custom_separator": ("STRING", {"multiline": False, "default": "", "placeholder": "自定义分隔符/正则表达式"}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             }
@@ -605,9 +605,13 @@ class text_Splitter:
     OUTPUT_IS_LIST = (False, False, True)
 
     DESCRIPTION = """
+    自定义正则：自定义分隔符，支持正则表达式
+    1) 匹配标题：【镜头1】、【镜头2】---->用：【[^】]+】
+    2）匹配文字编号：镜头1、镜头2、镜头3...---->用：镜头\d+
+    3）匹配编号：1）、2）、3）---->用：\d+）
+    4）匹配内容：内容 A、内容 B、内容 C---->用：内容.
     文本拆分工具说明
     不分割：不进行任何拆分
-    自定义正则：支持正则表达式，可匹配 镜头1、镜头2、镜头3...
     按行分割：按换行符拆分
     按空行分割：按连续空行拆分（适合分镜块、段落拆分）
     按空格分割：按空格拆分
@@ -616,6 +620,8 @@ class text_Splitter:
     按分号分割：按 ; ； 拆分
     按制表符分割：按 Tab 键拆分
     按竖线分割：按 | 拆分
+    按序号：按常见列表序号拆分（如 1. / A. / (1)）
+    按标题：按 Markdown 标题或“第X章/节/部分/篇”拆分
     """ 
     
     def _normalize_text(self, text: str) -> str:
@@ -639,12 +645,17 @@ class text_Splitter:
         }
         return smart_sep_map.get(rule, ["\n"])
 
-    def _smart_split(self, text: str, separators: List[str], is_regex: bool = False, is_blank_line: bool = False) -> List[str]:
+    def _smart_split(self, text: str, separators: List[str], is_regex: bool = False, is_blank_line: bool = False, split_rule: str = "") -> List[str]:
         if not text:
             return [self._normalize_text(text)]
         
-        # 空行分割专用逻辑（适配分镜）
-        if is_blank_line:
+        if split_rule == "按序号":
+            pattern = r"(?:^|\n)(?:\d+\.|[A-Za-z]\.|[\(（]?\d+[\)）]|[A-Za-z]\))\s*(.*)"
+            split_result = re.findall(pattern, text, re.MULTILINE)
+        elif split_rule == "按标题":
+            pattern = r"(?:^|\n)(?:#{1,6}\s+|第\s*[一二三四五六七八九十\d]+\s*(?:章|节|部分|篇))\s*(.*)"
+            split_result = re.findall(pattern, text, re.MULTILINE)
+        elif is_blank_line:
             split_result = re.split(r'\n\s*\n', text)
         elif is_regex:
             try:
@@ -674,7 +685,7 @@ class text_Splitter:
         is_regex_mode = (split_rule == "自定义正则")
         is_blank_line_mode = (split_rule == "按空行分割")
         
-        split_list = self._smart_split(text_content, separators, is_regex_mode, is_blank_line_mode)
+        split_list = self._smart_split(text_content, separators, is_regex_mode, is_blank_line_mode, split_rule)
         
         if not split_list or split_list == [""]:
             return ("❌ 拆分后无有效内容", [], [])
@@ -1758,7 +1769,6 @@ class text_StrMatrix:
             formatted_strings = []
 
         return (formatted_strings,formatted_strings,)
-
 
 
 

@@ -5091,7 +5091,7 @@ def apply_blending_mode(bg_img, fg_img, mode, strength=1.0):
 
 
 
-class Image_transform_layer_adv:
+class Image_transform_layer:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -5202,11 +5202,10 @@ class Image_transform_layer_adv:
                         if isinstance(temp_y, (int, float)) and 0 <= temp_y <= 1:
                             target_y = float(temp_y)
                         break
-            print(f"解析坐标成功：x={target_x}, y={target_y}")
         except json.JSONDecodeError as e:
-            print(f"坐标格式解析失败（使用默认值）：{e}，输入内容：{coordinates}")
+            pass
         except Exception as e:
-            print(f"坐标处理异常（使用默认值）：{e}")
+            pass
 
         bg_target_x = canvas_width * target_x
         bg_target_y = canvas_height * target_y
@@ -5266,47 +5265,165 @@ class Image_transform_layer_adv:
             mask_crop = adjusted_mask.crop((crop_left, crop_top, crop_right, crop_bottom))
             composite_mask_pil.paste(mask_crop, (mask_left, mask_top))
 
+        def _rgb_to_hsv_np(rgb01):
+            r = rgb01[..., 0]
+            g = rgb01[..., 1]
+            b = rgb01[..., 2]
+            maxc = np.maximum(np.maximum(r, g), b)
+            minc = np.minimum(np.minimum(r, g), b)
+            v = maxc
+            delta = maxc - minc
+            s = np.where(maxc == 0, 0.0, delta / np.maximum(maxc, 1e-8))
+            h = np.zeros_like(maxc)
+            nz = delta > 1e-8
+            rc = (maxc - r) / np.where(nz, delta, 1.0)
+            gc = (maxc - g) / np.where(nz, delta, 1.0)
+            bc = (maxc - b) / np.where(nz, delta, 1.0)
+            h_r = bc - gc
+            h_g = 2.0 + rc - bc
+            h_b = 4.0 + gc - rc
+            is_r = (r == maxc) & nz
+            is_g = (g == maxc) & nz
+            is_b = (b == maxc) & nz
+            h = np.where(is_r, h_r, h)
+            h = np.where(is_g, h_g, h)
+            h = np.where(is_b, h_b, h)
+            h = (h / 6.0) % 1.0
+            return h, s, v
+
+        def _hsv_to_rgb_np(h, s, v):
+            h6 = (h % 1.0) * 6.0
+            i = np.floor(h6).astype(np.int32)
+            f = h6 - i
+            p = v * (1.0 - s)
+            q = v * (1.0 - s * f)
+            t = v * (1.0 - s * (1.0 - f))
+            i_mod = i % 6
+            r = np.select([i_mod == 0, i_mod == 1, i_mod == 2, i_mod == 3, i_mod == 4, i_mod == 5], [v, q, p, p, t, v], default=v)
+            g = np.select([i_mod == 0, i_mod == 1, i_mod == 2, i_mod == 3, i_mod == 4, i_mod == 5], [t, v, v, q, p, p], default=p)
+            b = np.select([i_mod == 0, i_mod == 1, i_mod == 2, i_mod == 3, i_mod == 4, i_mod == 5], [p, p, t, v, v, q], default=q)
+            return np.stack([r, g, b], axis=-1)
+
+        def _blend_rgb_np(bg_rgb, fg_rgb, mode):
+            if mode == "正常" or mode == "溶解":
+                return fg_rgb
+            if mode == "变暗":
+                return np.minimum(bg_rgb, fg_rgb)
+            if mode == "正片叠底":
+                return (bg_rgb * fg_rgb) / 255.0
+            if mode == "颜色加深":
+                denom = np.maximum(fg_rgb, 1.0)
+                return 255.0 - (255.0 - bg_rgb) * 255.0 / denom
+            if mode == "线性加深":
+                return np.maximum(0.0, bg_rgb + fg_rgb - 255.0)
+            if mode == "深色":
+                bg_sum = bg_rgb[..., 0] + bg_rgb[..., 1] + bg_rgb[..., 2]
+                fg_sum = fg_rgb[..., 0] + fg_rgb[..., 1] + fg_rgb[..., 2]
+                m = fg_sum < bg_sum
+                return np.where(m[..., None], fg_rgb, bg_rgb)
+            if mode == "变亮":
+                return np.maximum(bg_rgb, fg_rgb)
+            if mode == "滤色":
+                return 255.0 - (255.0 - bg_rgb) * (255.0 - fg_rgb) / 255.0
+            if mode == "颜色减淡":
+                denom = np.maximum(255.0 - fg_rgb, 1.0)
+                return bg_rgb / denom * 255.0
+            if mode == "线性减淡（添加）":
+                return np.minimum(255.0, bg_rgb + fg_rgb)
+            if mode == "浅色":
+                bg_sum = bg_rgb[..., 0] + bg_rgb[..., 1] + bg_rgb[..., 2]
+                fg_sum = fg_rgb[..., 0] + fg_rgb[..., 1] + fg_rgb[..., 2]
+                m = fg_sum > bg_sum
+                return np.where(m[..., None], fg_rgb, bg_rgb)
+            if mode == "叠加":
+                return np.where(bg_rgb < 128.0, (2.0 * bg_rgb * fg_rgb / 255.0), (255.0 - 2.0 * (255.0 - bg_rgb) * (255.0 - fg_rgb) / 255.0))
+            if mode == "柔光":
+                return np.where(fg_rgb < 128.0, (2.0 * (bg_rgb / 255.0) * (fg_rgb / 255.0) * 255.0), (255.0 - 2.0 * (1.0 - bg_rgb / 255.0) * (1.0 - fg_rgb / 255.0) * 255.0))
+            if mode == "强光":
+                return np.where(fg_rgb < 128.0, (2.0 * bg_rgb * fg_rgb / 255.0), (255.0 - 2.0 * (255.0 - bg_rgb) * (255.0 - fg_rgb) / 255.0))
+            if mode == "亮光":
+                fg = fg_rgb
+                low = fg < 128.0
+                denom1 = np.maximum(2.0 * fg, 1.0)
+                denom2 = np.maximum(2.0 * (255.0 - fg), 1.0)
+                a = 255.0 - (255.0 - bg_rgb) * 255.0 / denom1
+                b = bg_rgb * 255.0 / denom2
+                out = np.where(low, a, b)
+                return np.clip(out, 0.0, 255.0)
+            if mode == "线性光":
+                return np.clip(bg_rgb + 2.0 * fg_rgb - 255.0, 0.0, 255.0)
+            if mode == "点光":
+                low = fg_rgb < 128.0
+                a = np.maximum(bg_rgb, 2.0 * fg_rgb - 255.0)
+                b = np.minimum(bg_rgb, 2.0 * fg_rgb)
+                return np.clip(np.where(low, a, b), 0.0, 255.0)
+            if mode == "实色混合":
+                out = np.where((bg_rgb + fg_rgb) > 255.0, 255.0, 0.0)
+                return out
+            if mode == "差值":
+                return np.abs(bg_rgb - fg_rgb)
+            if mode == "排除":
+                return bg_rgb + fg_rgb - 2.0 * bg_rgb * fg_rgb / 255.0
+            if mode == "减去":
+                return np.maximum(0.0, bg_rgb - fg_rgb)
+            if mode == "划分":
+                denom = np.maximum(fg_rgb, 1.0)
+                return np.clip(bg_rgb / denom * 255.0, 0.0, 255.0)
+            if mode == "色相" or mode == "饱和度" or mode == "颜色" or mode == "明度":
+                bg01 = np.clip(bg_rgb / 255.0, 0.0, 1.0)
+                fg01 = np.clip(fg_rgb / 255.0, 0.0, 1.0)
+                bg_h, bg_s, bg_v = _rgb_to_hsv_np(bg01)
+                fg_h, fg_s, fg_v = _rgb_to_hsv_np(fg01)
+                if mode == "色相":
+                    rgb = _hsv_to_rgb_np(fg_h, bg_s, bg_v)
+                elif mode == "饱和度":
+                    rgb = _hsv_to_rgb_np(bg_h, fg_s, bg_v)
+                elif mode == "颜色":
+                    rgb = _hsv_to_rgb_np(fg_h, fg_s, bg_v)
+                else:
+                    rgb = _hsv_to_rgb_np(bg_h, bg_s, fg_v)
+                return np.clip(rgb * 255.0, 0.0, 255.0)
+            return fg_rgb
+
+        def _apply_blend_to_bg(bg_pil_in):
+            if blending_mode == "正常":
+                bg_pil_in.paste(adjusted_fj, (paste_x, paste_y), adjusted_fj)
+                return bg_pil_in
+            x0 = max(0, paste_x)
+            y0 = max(0, paste_y)
+            x1 = min(canvas_width, paste_x + adjusted_fj.size[0])
+            y1 = min(canvas_height, paste_y + adjusted_fj.size[1])
+            if x1 <= x0 or y1 <= y0:
+                return bg_pil_in
+            crop_left = x0 - paste_x
+            crop_top = y0 - paste_y
+            crop_right = crop_left + (x1 - x0)
+            crop_bottom = crop_top + (y1 - y0)
+            fg_crop = adjusted_fj.crop((crop_left, crop_top, crop_right, crop_bottom))
+            bg_crop = bg_pil_in.crop((x0, y0, x1, y1))
+            bg_arr = np.array(bg_crop, dtype=np.float32)
+            fg_arr = np.array(fg_crop, dtype=np.float32)
+            bg_rgb = bg_arr[..., :3]
+            fg_rgb = fg_arr[..., :3]
+            fa = (fg_arr[..., 3:4] / 255.0) * float(blend_strength)
+            fa = np.clip(fa, 0.0, 1.0)
+            blend_rgb = _blend_rgb_np(bg_rgb, fg_rgb, blending_mode)
+            out_rgb = blend_rgb * fa + bg_rgb * (1.0 - fa)
+            out_a = np.maximum(bg_arr[..., 3:4] / 255.0, fa) * 255.0
+            out = bg_arr
+            out[..., :3] = np.clip(out_rgb, 0.0, 255.0)
+            out[..., 3:4] = np.clip(out_a, 0.0, 255.0)
+            out_img = Image.fromarray(out.astype(np.uint8), mode="RGBA")
+            bg_pil_in.paste(out_img, (x0, y0))
+            return bg_pil_in
+
         bj_composite_pil = Image.new("RGBA", (canvas_width, canvas_height), (0, 0, 0, 255))
         bj_composite_pil.paste(bj_pil, (0, 0))
-        if blending_mode != "正常":
-            temp_img = Image.new('RGBA', bj_composite_pil.size, (0, 0, 0, 0))
-            temp_img.paste(adjusted_fj, (paste_x, paste_y), adjusted_fj)
-            blended_pil = Image.new('RGBA', bj_composite_pil.size, (0, 0, 0, 0))
-            for x in range(max(0, paste_x), min(canvas_width, paste_x + adjusted_fj.size[0])):
-                for y in range(max(0, paste_y), min(canvas_height, paste_y + adjusted_fj.size[1])):
-                    if temp_img.getpixel((x, y))[3] > 0:
-                        bg_pixel = bj_composite_pil.getpixel((x, y))
-                        fg_pixel = temp_img.getpixel((x, y))
-                        bg_pixel_img = Image.new('RGBA', (1, 1), bg_pixel)
-                        fg_pixel_img = Image.new('RGBA', (1, 1), fg_pixel)
-                        blended_pixel_img = apply_blending_mode(
-                            bg_pixel_img, fg_pixel_img, blending_mode, blend_strength
-                        )
-                        blended_pil.putpixel((x, y), blended_pixel_img.getpixel((0, 0)))
-            bj_composite_pil = Image.alpha_composite(bj_composite_pil, blended_pil)
-        else:
-            bj_composite_pil.paste(adjusted_fj, (paste_x, paste_y), adjusted_fj)
+        bj_composite_pil = _apply_blend_to_bg(bj_composite_pil)
 
         bg_color = color_mapping.get(bg_fill, (0, 0, 0))
         composite_pil = Image.new("RGBA", (canvas_width, canvas_height), bg_color + (255,))
-        if blending_mode != "正常":
-            temp_img = Image.new('RGBA', composite_pil.size, (0, 0, 0, 0))
-            temp_img.paste(adjusted_fj, (paste_x, paste_y), adjusted_fj)
-            blended_pil = Image.new('RGBA', composite_pil.size, (0, 0, 0, 0))
-            for x in range(max(0, paste_x), min(canvas_width, paste_x + adjusted_fj.size[0])):
-                for y in range(max(0, paste_y), min(canvas_height, paste_y + adjusted_fj.size[1])):
-                    if temp_img.getpixel((x, y))[3] > 0:
-                        bg_pixel = composite_pil.getpixel((x, y))
-                        fg_pixel = temp_img.getpixel((x, y))
-                        bg_pixel_img = Image.new('RGBA', (1, 1), bg_pixel)
-                        fg_pixel_img = Image.new('RGBA', (1, 1), fg_pixel)
-                        blended_pixel_img = apply_blending_mode(
-                            bg_pixel_img, fg_pixel_img, blending_mode, blend_strength
-                        )
-                        blended_pil.putpixel((x, y), blended_pixel_img.getpixel((0, 0)))
-            composite_pil = Image.alpha_composite(composite_pil, blended_pil)
-        else:
-            composite_pil.paste(adjusted_fj, (paste_x, paste_y), adjusted_fj)
+        composite_pil = _apply_blend_to_bg(composite_pil)
 
         bj_composite_pil = bj_composite_pil.convert("RGB")
         bj_composite_np = np.array(bj_composite_pil).astype(np.float32) / 255.0
@@ -5329,42 +5446,243 @@ class Image_transform_layer_adv:
 
 
 
+#region---------------图层混合可视化-------
 
-class Image_transform_layer:
+class Image_transform_layer_visual:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "bj_img": ("IMAGE",),
                 "fj_img": ("IMAGE",),
-                "mask_expand": ("INT", {"default": 0, "min": -500, "max": 1000, "step": 1}),
-                "smoothness": ("INT", {"default": 0, "min": 0, "max": 150, "step": 1}),
-                "mask_mode": (["original", "fill", "fill_block", "outline", "outline_block", "circle", "outline_circle"], {"default": "original"}),
-                "x_offset": ("INT", {"default": 0, "min": -10000, "max": 10000, "step": 1}),
-                "y_offset": ("INT", {"default": 0, "min": -10000, "max": 10000, "step": 1}),
-                "rotation": ("FLOAT", {"default": 0, "min": -360, "max": 360, "step": 0.1}),
-                "scale": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 5.0, "step": 0.01}),
-                "edge_detection": ("BOOLEAN", {"default": False}),
-                "edge_thickness": ("INT", {"default": 1, "min": 1, "max": 100, "step": 1}),
-                "edge_color": (["black", "white", "red", "green", "blue", "yellow", "cyan", "magenta"], {"default": "black"}),
+                "bg_fill": (
+                    ["black", "white", "red", "green", "blue", "yellow", "cyan", "magenta", "gray"],
+                    {"default": "black"}
+                ),
                 "opacity": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "blending_mode": (BLEND_METHODS, {"default": "normal"}),
+                "blending_mode": (BLEND_METHODS, {"default": "正常"}),
                 "blend_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "transform_state": ("STRING", {"default": "{\"cx\":0.5,\"cy\":0.5,\"w\":0.25,\"h\":0.25,\"rot\":0}"}),
             },
             "optional": {
                 "mask": ("MASK",),
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK", "IMAGE", "MASK",)
-    RETURN_NAMES = ("bj_composite", "mask", "composite", "line_mask",)
+    RETURN_TYPES = ("IMAGE", "MASK", "IMAGE",)
+    RETURN_NAMES = ("composite", "mask", "bg_fill",)
     FUNCTION = "process"
-    CATEGORY = "Apt_Preset/image/ImgLayer"
+    CATEGORY = "Apt_Preset/image/visualize_edit"
+    OUTPUT_NODE = True
 
-    def process(self, x_offset, y_offset, rotation, scale, edge_detection, edge_thickness, edge_color, mask_expand, smoothness,
-                opacity, blending_mode, blend_strength, bj_img=None, fj_img=None, mask_mode="fill", mask=None):
+
+    def _parse_state(self, transform_state):
+        if isinstance(transform_state, dict):
+            data = transform_state
+        else:
+            try:
+                data = json.loads(transform_state) if transform_state else {}
+            except:
+                data = {}
+        cx = float(data.get("cx", 0.5))
+        cy = float(data.get("cy", 0.5))
+        w = float(data.get("w", 0.25))
+        h = float(data.get("h", 0.25))
+        rot = float(data.get("rot", 0.0))
+        if not np.isfinite(cx): cx = 0.5
+        if not np.isfinite(cy): cy = 0.5
+        if not np.isfinite(w): w = 0.25
+        if not np.isfinite(h): h = 0.25
+        if not np.isfinite(rot): rot = 0.0
+        return cx, cy, w, h, rot
+
+    def _bbox_from_mask(self, mask_np):
+        if mask_np is None:
+            return None
+        m = np.squeeze(mask_np)
+        if m.ndim != 2:
+            return None
+        ys, xs = np.where(m > 0.5)
+        if ys.size == 0 or xs.size == 0:
+            return None
+        y0 = int(ys.min())
+        y1 = int(ys.max()) + 1
+        x0 = int(xs.min())
+        x1 = int(xs.max()) + 1
+        return x0, y0, x1, y1
+
+    def _rgb_to_hsv_np(self, rgb01):
+        r = rgb01[..., 0]
+        g = rgb01[..., 1]
+        b = rgb01[..., 2]
+        maxc = np.maximum(np.maximum(r, g), b)
+        minc = np.minimum(np.minimum(r, g), b)
+        v = maxc
+        delta = maxc - minc
+        s = np.where(maxc == 0, 0.0, delta / np.maximum(maxc, 1e-8))
+        h = np.zeros_like(maxc)
+        nz = delta > 1e-8
+        rc = (maxc - r) / np.where(nz, delta, 1.0)
+        gc = (maxc - g) / np.where(nz, delta, 1.0)
+        bc = (maxc - b) / np.where(nz, delta, 1.0)
+        h_r = bc - gc
+        h_g = 2.0 + rc - bc
+        h_b = 4.0 + gc - rc
+        is_r = (r == maxc) & nz
+        is_g = (g == maxc) & nz
+        is_b = (b == maxc) & nz
+        h = np.where(is_r, h_r, h)
+        h = np.where(is_g, h_g, h)
+        h = np.where(is_b, h_b, h)
+        h = (h / 6.0) % 1.0
+        return h, s, v
+
+    def _hsv_to_rgb_np(self, h, s, v):
+        h6 = (h % 1.0) * 6.0
+        i = np.floor(h6).astype(np.int32)
+        f = h6 - i
+        p = v * (1.0 - s)
+        q = v * (1.0 - s * f)
+        t = v * (1.0 - s * (1.0 - f))
+        i_mod = i % 6
+        r = np.select([i_mod == 0, i_mod == 1, i_mod == 2, i_mod == 3, i_mod == 4, i_mod == 5], [v, q, p, p, t, v], default=v)
+        g = np.select([i_mod == 0, i_mod == 1, i_mod == 2, i_mod == 3, i_mod == 4, i_mod == 5], [t, v, v, q, p, p], default=p)
+        b = np.select([i_mod == 0, i_mod == 1, i_mod == 2, i_mod == 3, i_mod == 4, i_mod == 5], [p, p, t, v, v, q], default=q)
+        return np.stack([r, g, b], axis=-1)
+
+    def _blend_rgb_np(self, bg_rgb, fg_rgb, mode):
+        if mode == "正常" or mode == "溶解":
+            return fg_rgb
+        if mode == "变暗":
+            return np.minimum(bg_rgb, fg_rgb)
+        if mode == "正片叠底":
+            return (bg_rgb * fg_rgb) / 255.0
+        if mode == "颜色加深":
+            denom = np.maximum(fg_rgb, 1.0)
+            return 255.0 - (255.0 - bg_rgb) * 255.0 / denom
+        if mode == "线性加深":
+            return np.maximum(0.0, bg_rgb + fg_rgb - 255.0)
+        if mode == "深色":
+            bg_sum = bg_rgb[..., 0] + bg_rgb[..., 1] + bg_rgb[..., 2]
+            fg_sum = fg_rgb[..., 0] + fg_rgb[..., 1] + fg_rgb[..., 2]
+            m = fg_sum < bg_sum
+            return np.where(m[..., None], fg_rgb, bg_rgb)
+        if mode == "变亮":
+            return np.maximum(bg_rgb, fg_rgb)
+        if mode == "滤色":
+            return 255.0 - (255.0 - bg_rgb) * (255.0 - fg_rgb) / 255.0
+        if mode == "颜色减淡":
+            denom = np.maximum(255.0 - fg_rgb, 1.0)
+            return bg_rgb / denom * 255.0
+        if mode == "线性减淡（添加）":
+            return np.minimum(255.0, bg_rgb + fg_rgb)
+        if mode == "浅色":
+            bg_sum = bg_rgb[..., 0] + bg_rgb[..., 1] + bg_rgb[..., 2]
+            fg_sum = fg_rgb[..., 0] + fg_rgb[..., 1] + fg_rgb[..., 2]
+            m = fg_sum > bg_sum
+            return np.where(m[..., None], fg_rgb, bg_rgb)
+        if mode == "叠加":
+            return np.where(bg_rgb < 128.0, (2.0 * bg_rgb * fg_rgb / 255.0), (255.0 - 2.0 * (255.0 - bg_rgb) * (255.0 - fg_rgb) / 255.0))
+        if mode == "柔光":
+            return np.where(fg_rgb < 128.0, (2.0 * (bg_rgb / 255.0) * (fg_rgb / 255.0) * 255.0), (255.0 - 2.0 * (1.0 - bg_rgb / 255.0) * (1.0 - fg_rgb / 255.0) * 255.0))
+        if mode == "强光":
+            return np.where(fg_rgb < 128.0, (2.0 * bg_rgb * fg_rgb / 255.0), (255.0 - 2.0 * (255.0 - bg_rgb) * (255.0 - fg_rgb) / 255.0))
+        if mode == "亮光":
+            fg = fg_rgb
+            low = fg < 128.0
+            denom1 = np.maximum(2.0 * fg, 1.0)
+            denom2 = np.maximum(2.0 * (255.0 - fg), 1.0)
+            a = 255.0 - (255.0 - bg_rgb) * 255.0 / denom1
+            b = bg_rgb * 255.0 / denom2
+            out = np.where(low, a, b)
+            return np.clip(out, 0.0, 255.0)
+        if mode == "线性光":
+            return np.clip(bg_rgb + 2.0 * fg_rgb - 255.0, 0.0, 255.0)
+        if mode == "点光":
+            low = fg_rgb < 128.0
+            a = np.maximum(bg_rgb, 2.0 * fg_rgb - 255.0)
+            b = np.minimum(bg_rgb, 2.0 * fg_rgb)
+            return np.clip(np.where(low, a, b), 0.0, 255.0)
+        if mode == "实色混合":
+            out = np.where((bg_rgb + fg_rgb) > 255.0, 255.0, 0.0)
+            return out
+        if mode == "差值":
+            return np.abs(bg_rgb - fg_rgb)
+        if mode == "排除":
+            return bg_rgb + fg_rgb - 2.0 * bg_rgb * fg_rgb / 255.0
+        if mode == "减去":
+            return np.maximum(0.0, bg_rgb - fg_rgb)
+        if mode == "划分":
+            denom = np.maximum(fg_rgb, 1.0)
+            return np.clip(bg_rgb / denom * 255.0, 0.0, 255.0)
+        if mode == "色相" or mode == "饱和度" or mode == "颜色" or mode == "明度":
+            bg01 = np.clip(bg_rgb / 255.0, 0.0, 1.0)
+            fg01 = np.clip(fg_rgb / 255.0, 0.0, 1.0)
+            bg_h, bg_s, bg_v = self._rgb_to_hsv_np(bg01)
+            fg_h, fg_s, fg_v = self._rgb_to_hsv_np(fg01)
+            if mode == "色相":
+                rgb = self._hsv_to_rgb_np(fg_h, bg_s, bg_v)
+            elif mode == "饱和度":
+                rgb = self._hsv_to_rgb_np(bg_h, fg_s, bg_v)
+            elif mode == "颜色":
+                rgb = self._hsv_to_rgb_np(fg_h, fg_s, bg_v)
+            else:
+                rgb = self._hsv_to_rgb_np(bg_h, bg_s, fg_v)
+            return np.clip(rgb * 255.0, 0.0, 255.0)
+        return fg_rgb
+
+    def _apply_blend_roi(self, bg_pil, fg_pil, paste_x, paste_y, mode, strength):
+        if mode == "正常":
+            bg_pil.paste(fg_pil, (paste_x, paste_y), fg_pil)
+            return bg_pil
+        bg_w, bg_h = bg_pil.size
+        x0 = max(0, int(paste_x))
+        y0 = max(0, int(paste_y))
+        x1 = min(bg_w, int(paste_x + fg_pil.size[0]))
+        y1 = min(bg_h, int(paste_y + fg_pil.size[1]))
+        if x1 <= x0 or y1 <= y0:
+            return bg_pil
+        crop_left = x0 - int(paste_x)
+        crop_top = y0 - int(paste_y)
+        crop_right = crop_left + (x1 - x0)
+        crop_bottom = crop_top + (y1 - y0)
+        fg_crop = fg_pil.crop((crop_left, crop_top, crop_right, crop_bottom))
+        bg_crop = bg_pil.crop((x0, y0, x1, y1))
+        bg_arr = np.array(bg_crop, dtype=np.float32)
+        fg_arr = np.array(fg_crop, dtype=np.float32)
+        bg_rgb = bg_arr[..., :3]
+        fg_rgb = fg_arr[..., :3]
+        fa = (fg_arr[..., 3:4] / 255.0) * float(strength)
+        fa = np.clip(fa, 0.0, 1.0)
+        blend_rgb = self._blend_rgb_np(bg_rgb, fg_rgb, mode)
+        out_rgb = blend_rgb * fa + bg_rgb * (1.0 - fa)
+        out_a = np.maximum(bg_arr[..., 3:4] / 255.0, fa) * 255.0
+        out = bg_arr
+        out[..., :3] = np.clip(out_rgb, 0.0, 255.0)
+        out[..., 3:4] = np.clip(out_a, 0.0, 255.0)
+        out_img = Image.fromarray(out.astype(np.uint8), mode="RGBA")
+        bg_pil.paste(out_img, (x0, y0))
+        return bg_pil
+
+    def _paste_mask(self, mask_pil, alpha_pil, paste_x, paste_y):
+        bg_w, bg_h = mask_pil.size
+        x0 = max(0, int(paste_x))
+        y0 = max(0, int(paste_y))
+        x1 = min(bg_w, int(paste_x + alpha_pil.size[0]))
+        y1 = min(bg_h, int(paste_y + alpha_pil.size[1]))
+        if x1 <= x0 or y1 <= y0:
+            return mask_pil
+        crop_left = x0 - int(paste_x)
+        crop_top = y0 - int(paste_y)
+        crop_right = crop_left + (x1 - x0)
+        crop_bottom = crop_top + (y1 - y0)
+        alpha_crop = alpha_pil.crop((crop_left, crop_top, crop_right, crop_bottom))
+        mask_pil.paste(alpha_crop, (x0, y0))
+        return mask_pil
+
+    def process(self, bj_img, fj_img, bg_fill, opacity, blending_mode, blend_strength, transform_state, mask=None):
         color_mapping = {
-            "black": (0, 0, 0),
+            "black": (255 * 0, 255 * 0, 255 * 0),
             "white": (255, 255, 255),
             "red": (255, 0, 0),
             "green": (0, 255, 0),
@@ -5372,207 +5690,142 @@ class Image_transform_layer:
             "yellow": (255, 255, 0),
             "cyan": (0, 255, 255),
             "magenta": (255, 0, 255),
+            "gray": (128, 128, 128),
         }
-        if fj_img is None:
-            raise ValueError("前景图像(fj_img)是必需的输入")
-        if bj_img is None:
-            raise ValueError("背景图像(bj_img)是必需的输入")
 
-        bj_np = bj_img[0].cpu().numpy()
-        fj_np = fj_img[0].cpu().numpy()
-        bj_pil = Image.fromarray((bj_np * 255).astype(np.uint8)).convert("RGBA")
-        fj_pil = Image.fromarray((fj_np * 255).astype(np.uint8)).convert("RGBA")
+        cx, cy, wN, hN, rot = self._parse_state(transform_state)
+        opacity = float(opacity)
+        blend_strength = float(blend_strength)
 
-        canvas_width = max(bj_pil.size[0], fj_pil.size[0])
-        canvas_height = max(bj_pil.size[1], fj_pil.size[1])
-        canvas_center_x, canvas_center_y = canvas_width // 2, canvas_height // 2
+        bj_np0 = bj_img[0].detach().cpu().numpy()
+        bg_h, bg_w = bj_np0.shape[0], bj_np0.shape[1]
 
-        if mask is None:
-            mask = torch.ones((1, fj_pil.size[1], fj_pil.size[0]), dtype=torch.float32)
+        fj_np0 = fj_img[0].detach().cpu().numpy()
+        fg_h0, fg_w0 = fj_np0.shape[0], fj_np0.shape[1]
 
-        mask_tensor = None
+        bbox = None
         if mask is not None:
-            if hasattr(mask, 'convert'):
-                mask_tensor = pil2tensor(mask.convert('L'))
+            if isinstance(mask, torch.Tensor):
+                m0 = mask[0].detach().cpu().numpy()
+                bbox = self._bbox_from_mask(m0)
+            elif hasattr(mask, "convert"):
+                m0 = np.array(mask.convert("L")).astype(np.float32) / 255.0
+                bbox = self._bbox_from_mask(m0)
+        if bbox is None:
+            x0, y0, x1, y1 = 0, 0, fg_w0, fg_h0
+        else:
+            x0, y0, x1, y1 = bbox
+            x0 = int(max(0, min(fg_w0 - 1, x0)))
+            y0 = int(max(0, min(fg_h0 - 1, y0)))
+            x1 = int(max(x0 + 1, min(fg_w0, x1)))
+            y1 = int(max(y0 + 1, min(fg_h0, y1)))
+
+        layer_w = int(max(1, x1 - x0))
+        layer_h = int(max(1, y1 - y0))
+
+        def to_rgba_pil(img_rgb, msk=None):
+            rgb = (np.clip(img_rgb, 0.0, 1.0) * 255.0).astype(np.uint8)
+            pil = Image.fromarray(rgb, mode="RGB").convert("RGBA")
+            if msk is None:
+                alpha = np.full((rgb.shape[0], rgb.shape[1]), 255, dtype=np.uint8)
             else:
-                if isinstance(mask, torch.Tensor):
-                    mask_tensor = mask if len(mask.shape) <= 3 else mask.squeeze(-1) if mask.shape[-1] == 1 else mask
-                else:
-                    mask_tensor = mask
+                a = np.clip(msk, 0.0, 1.0)
+                alpha = (a * 255.0).astype(np.uint8)
+            pil.putalpha(Image.fromarray(alpha, mode="L"))
+            return pil
 
-        separated_result = Mask_transform_sum().separate(
-            bg_mode="crop_image",
-            mask_mode=mask_mode,
-            ignore_threshold=0,
-            opacity=1,
-            outline_thickness=1,
-            smoothness=smoothness,
-            mask_expand=mask_expand,
-            expand_width=0,
-            expand_height=0,
-            rescale_crop=1.0,
-            tapered_corners=True,
-            mask_min=0,
-            mask_max=1,
-            base_image=fj_img,
-            mask=mask_tensor,
-            crop_to_mask=False,
-            divisible_by=1
-        )
+        bg_results = []
+        fg_results = []
+        temp_dir = folder_paths.get_temp_directory()
+        if bj_img.shape[0] > 0:
+            src_np = (255.0 * bj_img[0].detach().cpu().numpy()).clip(0, 255).astype(np.uint8)
+            src_pil = Image.fromarray(src_np)
+            filename = f"image_transform_layer_visual_bg_{random.randint(1, 1000000)}.png"
+            src_pil.save(os.path.join(temp_dir, filename))
+            bg_results.append({"filename": filename, "subfolder": "", "type": "temp"})
 
-        fj_img = separated_result[0]
-        mask = separated_result[1]
-
-        if mask is not None:
-            mask_np = mask[0].cpu().numpy()
-            mask_pil = Image.fromarray((mask_np * 255).astype(np.uint8)).convert("L")
-
-            if mask_pil.size != fj_pil.size:
-                mask_pil = mask_pil.resize(fj_pil.size, Image.LANCZOS)
-
-            fj_with_mask = fj_pil.copy()
-            fj_with_mask.putalpha(mask_pil)
-
-            fj_processed = fj_with_mask
-            mask_processed = mask_pil
-        else:
-            mask_processed = Image.new("L", fj_pil.size, 255)
-            fj_processed = fj_pil.copy()
-            fj_processed.putalpha(mask_processed)
-
-        processed_width, processed_height = fj_processed.size
-        center_x, center_y = processed_width // 2, processed_height // 2
-
-        adjusted_fj = fj_processed
-        adjusted_mask = mask_processed
-
-        rotation = float(rotation)
-
-        if rotation != 0 or scale != 1.0:
-            adjusted_fj = adjusted_fj.rotate(rotation, center=(center_x, center_y), resample=Image.BICUBIC, expand=True)
-            adjusted_mask = adjusted_mask.rotate(rotation, center=(center_x, center_y), resample=Image.BICUBIC, expand=True)
-
-            if scale != 1.0:
-                new_size = (int(adjusted_fj.size[0] * scale), int(adjusted_fj.size[1] * scale))
-                adjusted_fj = adjusted_fj.resize(new_size, Image.LANCZOS)
-                adjusted_mask = adjusted_mask.resize(new_size, Image.LANCZOS)
-
-            center_x, center_y = adjusted_fj.size[0] // 2, adjusted_fj.size[1] // 2
-
-        bj_center_x, bj_center_y = bj_pil.size[0] // 2, bj_pil.size[1] // 2
-
-        x_position = canvas_center_x - center_x + x_offset
-        y_position = canvas_center_y - center_y + y_offset
-
-        paste_x = int(x_position)
-        paste_y = int(y_position)
-
-        if opacity < 1.0:
-            r, g, b, a = adjusted_fj.split()
-            a = a.point(lambda p: p * opacity)
-            adjusted_fj = Image.merge("RGBA", (r, g, b, a))
-
-        composite_mask_pil = Image.new("L", (canvas_width, canvas_height), 0)
-        mask_paste_x = paste_x
-        mask_paste_y = paste_y
-        mask_left = max(0, mask_paste_x)
-        mask_top = max(0, mask_paste_y)
-        mask_right = min(canvas_width, mask_paste_x + adjusted_mask.size[0])
-        mask_bottom = min(canvas_height, mask_paste_y + adjusted_mask.size[1])
-
-        if mask_right > mask_left and mask_bottom > mask_top:
-            crop_left = max(0, -mask_paste_x)
-            crop_top = max(0, -mask_paste_y)
-            crop_right = crop_left + (mask_right - mask_left)
-            crop_bottom = crop_top + (mask_bottom - mask_top)
-            mask_crop = adjusted_mask.crop((crop_left, crop_top, crop_right, crop_bottom))
-            composite_mask_pil.paste(mask_crop, (mask_left, mask_top))
-
-        composite_pil = Image.new("RGBA", (canvas_width, canvas_height), (0, 0, 0, 255))
-        bj_x = (canvas_width - bj_pil.size[0]) // 2
-        bj_y = (canvas_height - bj_pil.size[1]) // 2
-        composite_pil.paste(bj_pil, (bj_x, bj_y))
-
-        if blending_mode != "normal":
-            temp_img = Image.new('RGBA', composite_pil.size, (0, 0, 0, 0))
-            temp_img.paste(adjusted_fj, (paste_x, paste_y), adjusted_fj)
-            blended_pil = Image.new('RGBA', composite_pil.size, (0, 0, 0, 0))
-
-            for x in range(max(0, paste_x), min(canvas_width, paste_x + adjusted_fj.size[0])):
-                for y in range(max(0, paste_y), min(canvas_height, paste_y + adjusted_fj.size[1])):
-                    if temp_img.getpixel((x, y))[3] > 0:
-                        bg_pixel = composite_pil.getpixel((x, y))
-                        fg_pixel = temp_img.getpixel((x, y))
-                        bg_pixel_img = Image.new('RGBA', (1, 1), bg_pixel)
-                        fg_pixel_img = Image.new('RGBA', (1, 1), fg_pixel)
-                        blended_pixel_img = apply_blending_mode(
-                            bg_pixel_img, fg_pixel_img, blending_mode, blend_strength
-                        )
-                        blended_pil.putpixel((x, y), blended_pixel_img.getpixel((0, 0)))
-            composite_pil = Image.alpha_composite(composite_pil, blended_pil)
-        else:
-            composite_pil.paste(adjusted_fj, (paste_x, paste_y), adjusted_fj)
-
-        if edge_detection:
-            if edge_color in color_mapping:
-                r, g, b = color_mapping[edge_color]
+            fg_crop_np = fj_img[0].detach().cpu().numpy()[y0:y1, x0:x1, :3]
+            if mask is not None and isinstance(mask, torch.Tensor):
+                m_crop = mask[0].detach().cpu().numpy()[y0:y1, x0:x1]
+            elif mask is not None and hasattr(mask, "convert"):
+                m0 = np.array(mask.convert("L")).astype(np.float32) / 255.0
+                m_crop = m0[y0:y1, x0:x1]
             else:
-                r, g, b = 0, 0, 0
+                m_crop = None
+            fg_pil_preview = to_rgba_pil(fg_crop_np, m_crop)
+            filename = f"image_transform_layer_visual_fg_{random.randint(1, 1000000)}.png"
+            fg_pil_preview.save(os.path.join(temp_dir, filename))
+            fg_results.append({"filename": filename, "subfolder": "", "type": "temp"})
 
-            threshold = 128
-            mask_array = np.array(composite_mask_pil)
-            binary_mask = np.where(mask_array > threshold, 255, 0).astype(np.uint8)
-            binary_mask_pil = Image.fromarray(binary_mask)
+        layer_meta = [{
+            "bg_w": int(bg_w),
+            "bg_h": int(bg_h),
+            "layer_w": int(layer_w),
+            "layer_h": int(layer_h),
+            "bbox_x": int(x0),
+            "bbox_y": int(y0),
+            "bbox_w": int(layer_w),
+            "bbox_h": int(layer_h),
+        }]
 
-            edge_image = Image.new("RGBA", composite_pil.size, (0, 0, 0, 0))
-            edge_draw = ImageDraw.Draw(edge_image)
-            mask_cv = np.array(binary_mask_pil)
-            contours, _ = cv2.findContours(mask_cv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        out_list = []
+        mask_list = []
+        fill_list = []
 
-            for contour in contours:
-                for i in range(edge_thickness):
-                    points = [tuple(point[0]) for point in contour]
-                    edge_draw.line(points, fill=(r, g, b, int(opacity * 255)), width=edge_thickness - i + 1)
+        rect_w = max(1, int(round(abs(wN) * bg_w)))
+        rect_h = max(1, int(round(abs(hN) * bg_h)))
+        center_x = float(cx) * float(bg_w)
+        center_y = float(cy) * float(bg_h)
 
-            composite_pil = Image.alpha_composite(composite_pil, edge_image)
-            edge_mask = np.zeros_like(mask_cv)
-            cv2.drawContours(edge_mask, contours, -1, 255, edge_thickness)
-            line_mask_pil = Image.fromarray(edge_mask)
-        else:
-            line_mask_pil = Image.new("L", composite_pil.size, 0)
+        for i in range(bj_img.shape[0]):
+            bj_np = bj_img[i].detach().cpu().numpy()
+            fj_np = fj_img[i].detach().cpu().numpy()
+            fg_crop_np = fj_np[y0:y1, x0:x1, :3]
+            if mask is not None and isinstance(mask, torch.Tensor):
+                m_crop = mask[i if i < mask.shape[0] else 0].detach().cpu().numpy()[y0:y1, x0:x1]
+            elif mask is not None and hasattr(mask, "convert"):
+                m0 = np.array(mask.convert("L")).astype(np.float32) / 255.0
+                m_crop = m0[y0:y1, x0:x1]
+            else:
+                m_crop = None
+            fg_rgba = to_rgba_pil(fg_crop_np, m_crop)
+            fg_scaled = fg_rgba.resize((rect_w, rect_h), Image.LANCZOS)
+            fg_rot = fg_scaled.rotate(rot, resample=Image.BICUBIC, expand=True)
+            if opacity < 1.0:
+                r, g, b, a = fg_rot.split()
+                a = a.point(lambda p: int(p * opacity))
+                fg_rot = Image.merge("RGBA", (r, g, b, a))
 
-        composite_pil = composite_pil.convert("RGB")
+            paste_x = int(round(center_x - fg_rot.size[0] * 0.5))
+            paste_y = int(round(center_y - fg_rot.size[1] * 0.5))
 
-        composite_np = np.array(composite_pil).astype(np.float32) / 255.0
-        mask_np = np.array(composite_mask_pil).astype(np.float32) / 255.0
-        line_mask_np = np.array(line_mask_pil).astype(np.float32) / 255.0
+            bj_pil = Image.fromarray((np.clip(bj_np, 0.0, 1.0) * 255.0).astype(np.uint8), mode="RGB").convert("RGBA")
+            bj_pil = self._apply_blend_roi(bj_pil, fg_rot, paste_x, paste_y, blending_mode, blend_strength)
+            bj_rgb = np.array(bj_pil.convert("RGB")).astype(np.float32) / 255.0
+            out_list.append(torch.from_numpy(bj_rgb))
 
-        if len(composite_np.shape) == 2:
-            composite_np = np.stack([composite_np] * 3, axis=-1)
+            bg_color = color_mapping.get(str(bg_fill), (0, 0, 0))
+            fill_pil = Image.new("RGBA", (bg_w, bg_h), bg_color + (255,))
+            fill_pil = self._apply_blend_roi(fill_pil, fg_rot, paste_x, paste_y, blending_mode, blend_strength)
+            fill_rgb = np.array(fill_pil.convert("RGB")).astype(np.float32) / 255.0
+            fill_list.append(torch.from_numpy(fill_rgb))
 
-        composite_tensor = torch.from_numpy(composite_np).unsqueeze(0)
-        mask_tensor = torch.from_numpy(mask_np).unsqueeze(0).unsqueeze(0)
-        line_mask_tensor = torch.from_numpy(line_mask_np).unsqueeze(0).unsqueeze(0)
+            mask_canvas = Image.new("L", (bg_w, bg_h), 0)
+            alpha = fg_rot.split()[3]
+            self._paste_mask(mask_canvas, alpha, paste_x, paste_y)
+            mask_np = (np.array(mask_canvas).astype(np.float32) / 255.0)
+            mask_list.append(torch.from_numpy(mask_np).unsqueeze(0))
 
-        bj_x_start = (canvas_width - bj_pil.size[0]) // 2
-        bj_y_start = (canvas_height - bj_pil.size[1]) // 2
-        bj_x_end = bj_x_start + bj_pil.size[0]
-        bj_y_end = bj_y_start + bj_pil.size[1]
+        out_tensor = torch.stack(out_list, dim=0)
+        mask_tensor = torch.stack(mask_list, dim=0)
+        fill_tensor = torch.stack(fill_list, dim=0)
 
-        cropped_composite = composite_tensor[:, bj_y_start:bj_y_end, bj_x_start:bj_x_end, :]
-
-        cropped_mask_np = mask_np[bj_y_start:bj_y_end, bj_x_start:bj_x_end]
-        cropped_mask_tensor = torch.from_numpy(cropped_mask_np).unsqueeze(0).unsqueeze(0)
-
-        cropped_line_mask_np = line_mask_np[bj_y_start:bj_y_end, bj_x_start:bj_x_end]
-        cropped_line_mask_tensor = torch.from_numpy(cropped_line_mask_np).unsqueeze(0).unsqueeze(0)
-
-        return (
-            cropped_composite,
-            cropped_mask_tensor,
-            composite_tensor,
-            cropped_line_mask_tensor
-        )
+        ui = {
+            "bg_image": bg_results,
+            "fg_image": fg_results,
+            "layer_meta": layer_meta,
+        }
+        return {"ui": ui, "result": (out_tensor, mask_tensor, fill_tensor)}
 
 
 #endregion-----------------

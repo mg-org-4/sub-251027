@@ -705,6 +705,43 @@ class view_GetShape:
 
 
 
+_VIEW_GET_WIDGETS_VALUES_MAX_OUTPUTS = 20
+_NODE_DEFS_ZH_CACHE = None
+
+
+def _load_node_defs_zh():
+    global _NODE_DEFS_ZH_CACHE
+    if _NODE_DEFS_ZH_CACHE is not None:
+        return _NODE_DEFS_ZH_CACHE
+    node_defs_path = Path(__file__).resolve().parents[1] / "locales" / "zh" / "nodeDefs.json"
+    try:
+        with open(node_defs_path, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+            _NODE_DEFS_ZH_CACHE = loaded if isinstance(loaded, dict) else {}
+    except Exception:
+        _NODE_DEFS_ZH_CACHE = {}
+    return _NODE_DEFS_ZH_CACHE
+
+
+def _resolve_zh_input_name(node_type, key):
+    if not isinstance(node_type, str) or not isinstance(key, str):
+        return str(key)
+    node_defs = _load_node_defs_zh()
+    node_def = node_defs.get(node_type, {})
+    if not isinstance(node_def, dict):
+        return key
+    inputs = node_def.get("inputs", {})
+    if not isinstance(inputs, dict):
+        return key
+    input_def = inputs.get(key, {})
+    if not isinstance(input_def, dict):
+        return key
+    name = input_def.get("name")
+    if isinstance(name, str) and len(name.strip()) > 0:
+        return name
+    return key
+
+
 class view_GetWidgetsValues:
     def __init__(self):
         pass
@@ -723,8 +760,8 @@ class view_GetWidgetsValues:
         }
     
     NAME = "view_GetWidgetsValues"
-    RETURN_TYPES = ("LIST", )
-    RETURN_NAMES = ("LIST", )
+    RETURN_TYPES = ("LIST",) + tuple([ANY_TYPE for _ in range(_VIEW_GET_WIDGETS_VALUES_MAX_OUTPUTS)])
+    RETURN_NAMES = ("LIST",) + tuple([f"value_{i + 1}" for i in range(_VIEW_GET_WIDGETS_VALUES_MAX_OUTPUTS)])
     OUTPUT_NODE = True
     FUNCTION = "run"
     CATEGORY = "Apt_Preset/PreView"
@@ -737,7 +774,48 @@ class view_GetWidgetsValues:
         link = next(l for l in extra_pnginfo["workflow"]["links"] if l[0] == link_id)
         in_node_id, in_socket_id = link[1], link[2]
         in_node = next(n for n in node_list if n["id"] == in_node_id)
-        return { "ui": {"text": (f"{in_node['widgets_values']}",)}, "result": (in_node["widgets_values"], ) }
+        in_node_type = str(in_node.get("type", ""))
+        widget_values = in_node.get("widgets_values", [])
+        if not isinstance(widget_values, list):
+            widget_values = [widget_values]
+
+        dynamic_items = []
+        prompt_data = prompt if isinstance(prompt, dict) else {}
+        prompt_node = prompt_data.get(str(in_node_id), {})
+        prompt_inputs = prompt_node.get("inputs", {}) if isinstance(prompt_node, dict) else {}
+        linked_input_names = {
+            input_info.get("name")
+            for input_info in in_node.get("inputs", [])
+            if isinstance(input_info, dict) and input_info.get("name")
+        }
+
+        if isinstance(prompt_inputs, dict):
+            for key, value in prompt_inputs.items():
+                if key in linked_input_names:
+                    continue
+                zh_key = _resolve_zh_input_name(in_node_type, str(key))
+                dynamic_items.append((zh_key, value))
+
+        if len(dynamic_items) == 0:
+            dynamic_items = [(f"value_{idx + 1}", value) for idx, value in enumerate(widget_values)]
+
+        dynamic_items = dynamic_items[:_VIEW_GET_WIDGETS_VALUES_MAX_OUTPUTS]
+        key_counter = {}
+        dynamic_keys = []
+        for key, _ in dynamic_items:
+            count = key_counter.get(key, 0) + 1
+            key_counter[key] = count
+            dynamic_keys.append(key if count == 1 else f"{key}_{count}")
+        dynamic_values = [item[1] for item in dynamic_items]
+        padded_values = dynamic_values + [None] * (_VIEW_GET_WIDGETS_VALUES_MAX_OUTPUTS - len(dynamic_values))
+
+        return {
+            "ui": {
+                "text": (f"{widget_values}",),
+                "output_keys": (dynamic_keys,),
+            },
+            "result": (widget_values, *padded_values),
+        }
 
 
 

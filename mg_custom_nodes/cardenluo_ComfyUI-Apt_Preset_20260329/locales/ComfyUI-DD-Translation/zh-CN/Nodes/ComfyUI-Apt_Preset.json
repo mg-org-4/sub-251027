@@ -3612,7 +3612,7 @@
             "裁剪遮罩": "裁剪遮罩"
         }
     },
-    "Image_transform_layer_adv": {
+    "Image_transform_layer": {
         "title": "Image_双图层变换",
         "inputs": {
             "bj_img": "背景图像",
@@ -4068,35 +4068,7 @@
             "low_precision": "低精度"
         }
     },
-    "Image_transform_layer": {
-        "title": "Image_变换图层",
-        "inputs": {
-            "bj_img": "背景图像",
-            "fj_img": "前景图像",
-            "mask": "遮罩"
-        },
-        "widgets": {
-            "mask_expand": "遮罩扩展",
-            "smoothness": "平滑度",
-            "mask_mode": "遮罩模式",
-            "x_offset": "X偏移",
-            "y_offset": "Y偏移",
-            "rotation": "旋转",
-            "scale": "缩放",
-            "edge_detection": "边缘检测",
-            "edge_thickness": "边缘厚度",
-            "edge_color": "边缘颜色",
-            "opacity": "不透明度",
-            "blending_mode": "混合模式",
-            "blend_strength": "混合强度"
-        },
-        "outputs": {
-            "bj_composite": "背景合成",
-            "mask": "遮罩",
-            "composite": "合成",
-            "line_mask": "线条遮罩"
-        }
-    },
+    
     "create_lineGradient": {
         "title": "create_线性渐变",
         "inputs": {},

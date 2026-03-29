@@ -48,8 +48,10 @@ app.registerExtension({
                     {}
                 );
                 
-                this.addInput("*", "*");
-                this.addOutput("*", '*');
+                for (let i = 0; i < 3; i++) {
+                    this.addInput("*", "*");
+                    this.addOutput("*", "*");
+                }
                 
                 this.onConnectionsChange = function(
                     slotType,
@@ -63,9 +65,9 @@ app.registerExtension({
                             this.inputs[slot].type = '*';
                             this.inputs[slot].name = '*';
                         }
-                        if (this.outputs && this.outputs[0]) {
-                            this.outputs[0].type = '*';
-                            this.outputs[0].name = '*';
+                        if (this.outputs && this.outputs[slot]) {
+                            this.outputs[slot].type = "*";
+                            this.outputs[slot].name = "*";
                         }
                         const variableName = this.widgets?.[0]?.value;
                         this.title = variableName ? "Set_" + variableName : "Set_";
@@ -82,35 +84,37 @@ app.registerExtension({
                         if (fromNode && fromNode.outputs && fromNode.outputs[link_info.origin_slot]) {
                             const type = fromNode.outputs[link_info.origin_slot].type;
                             
-                            if (this.title === "Set_") {
+                            if (slot === 0 && this.title === "Set_") {
                                 this.title = "Set_" + type;
                             }
-                            if (this.widgets[0].value === '') {
+                            if (slot === 0 && this.widgets[0].value === '') {
                                 this.widgets[0].value = type
                             }
                             
                             this.validateName(node.graph);
-                            this.inputs[0].type = type;
-                            this.inputs[0].name = type;
+                            if (this.inputs && this.inputs[slot]) {
+                                this.inputs[slot].type = type;
+                                this.inputs[slot].name = type;
+                            }
                         }
                     }
                     if (link_info && node.graph && slotType === 2 && isChangeConnect) {
-                        let type = this.inputs && this.inputs[0] ? this.inputs[0].type : '*';
+                        let type = this.inputs && this.inputs[slot] ? this.inputs[slot].type : "*";
                         if (type === '*' && link_info && node.graph) {
                             const targetNode = node.graph._nodes.find((otherNode) => String(otherNode.id) === String(link_info.target_id));
                             const targetInput = targetNode?.inputs?.[link_info.target_slot];
                             const inferred = targetInput?.type;
                             if (typeof inferred === "string" && inferred.length > 0 && inferred !== "*") {
                                 type = inferred;
-                                if (this.inputs && this.inputs[0]) {
-                                    this.inputs[0].type = type;
-                                    this.inputs[0].name = type;
+                                if (this.inputs && this.inputs[slot]) {
+                                    this.inputs[slot].type = type;
+                                    this.inputs[slot].name = type;
                                 }
                             }
                         }
-                        if (this.outputs && this.outputs[0]) {
-                            this.outputs[0].type = type;
-                            this.outputs[0].name = type;
+                        if (this.outputs && this.outputs[slot]) {
+                            this.outputs[slot].type = type;
+                            this.outputs[slot].name = type;
                         }
                     }
                     
@@ -153,8 +157,18 @@ app.registerExtension({
                 
                 this.clone = function () {
                     const cloned = SetNode.prototype.clone.apply(this);
-                    cloned.inputs[0].name = '*';
-                    cloned.inputs[0].type = '*';
+                    if (Array.isArray(cloned.inputs)) {
+                        cloned.inputs.forEach((input) => {
+                            input.name = "*";
+                            input.type = "*";
+                        });
+                    }
+                    if (Array.isArray(cloned.outputs)) {
+                        cloned.outputs.forEach((output) => {
+                            output.name = "*";
+                            output.type = "*";
+                        });
+                    }
                     if (cloned.widgets && cloned.widgets[0]) {
                         cloned.widgets[0].value = '';
                     }
@@ -174,8 +188,13 @@ app.registerExtension({
                     }
                     
                     const getters = this.findGetters(node.graph);
+                    const types = Array.from({ length: 3 }, (_, idx) => this.inputs?.[idx]?.type ?? "*");
                     getters.forEach(getter => {
-                        getter.setType(this.inputs[0].type);
+                        if (typeof getter.setTypes === "function") {
+                            getter.setTypes(types);
+                        } else if (typeof getter.setType === "function") {
+                            getter.setType(types[0]);
+                        }
                     });
                     
                     if (this.widgets[0].value) {
@@ -263,7 +282,9 @@ app.registerExtension({
                     }
                 );
                 
-                this.addOutput("*", '*');
+                for (let i = 0; i < 3; i++) {
+                    this.addOutput("*", "*");
+                }
                 
                 this.onConnectionsChange = function(
                     slotType,
@@ -284,14 +305,13 @@ app.registerExtension({
                 this.onRename = function() {
                     const setter = this.findSetter(node.graph);
                     if (setter) {
-                        const linkType = setter.inputs?.[0]?.type ?? "*";
-                        
-                        this.setType(linkType);
+                        const types = Array.from({ length: 3 }, (_, idx) => setter.inputs?.[idx]?.type ?? "*");
+                        this.setTypes(types);
                         const variableName = setter.widgets?.[0]?.value ?? "";
                         this.title = variableName ? "Get_" + variableName : "Get_";
                         
                     } else {
-                        this.setType('*');
+                        this.setType("*");
                         this.title = "Get_";
                     }
                 }
@@ -302,38 +322,59 @@ app.registerExtension({
                         cloned.widgets[0].value = "";
                     }
                     cloned.title = "Get_";
-                    if (cloned.outputs && cloned.outputs[0]) {
-                        cloned.outputs[0].type = "*";
-                        cloned.outputs[0].name = "*";
+                    if (Array.isArray(cloned.inputs)) {
+                        cloned.inputs.forEach((input) => {
+                            input.type = "*";
+                            input.name = "*";
+                        });
+                    }
+                    if (Array.isArray(cloned.outputs)) {
+                        cloned.outputs.forEach((output) => {
+                            output.type = "*";
+                            output.name = "*";
+                        });
                     }
                     cloned.size = cloned.computeSize();
                     return cloned;
                 };
                 
                 this.validateLinks = function() {
-                    const outputSlot = this.outputs && this.outputs[0] ? this.outputs[0] : null;
-                    if (!outputSlot || outputSlot.type === '*' || !outputSlot.links || !node.graph || !node.graph.links) {
+                    if (!Array.isArray(this.outputs) || !node.graph || !node.graph.links) {
                         return;
                     }
-                    outputSlot.links
-                        .filter((linkId) => {
-                            const link = node.graph.links[linkId];
-                            if (!link) return false;
-                            const linkType = typeof link.type === "string" ? link.type : "*";
-                            if (linkType === "*") return false;
-                            return !linkType.split(",").includes(outputSlot.type);
-                        })
-                        .forEach((linkId) => {
-                            node.graph.removeLink(linkId);
+                    this.outputs.forEach((outputSlot) => {
+                        if (!outputSlot || outputSlot.type === "*" || !outputSlot.links) {
+                            return;
+                        }
+                        outputSlot.links
+                            .filter((linkId) => {
+                                const link = node.graph.links[linkId];
+                                if (!link) return false;
+                                const linkType = typeof link.type === "string" ? link.type : "*";
+                                if (linkType === "*") return false;
+                                return !linkType.split(",").includes(outputSlot.type);
+                            })
+                            .forEach((linkId) => {
+                                node.graph.removeLink(linkId);
+                            });
                         });
                 };
                 
                 this.setType = function(type) {
-                    if (!this.outputs || !this.outputs[0]) {
+                    this.setTypes([type, type, type]);
+                }
+
+                this.setTypes = function(types) {
+                    if (!Array.isArray(types)) {
                         return;
                     }
-                    this.outputs[0].name = type;
-                    this.outputs[0].type = type;
+                    for (let i = 0; i < 3; i++) {
+                        const type = types[i] ?? "*";
+                        if (this.outputs && this.outputs[i]) {
+                            this.outputs[i].name = type;
+                            this.outputs[i].type = type;
+                        }
+                    }
                     this.validateLinks();
                 }
                 

@@ -45,9 +45,10 @@ async function queueOutputNodes(nodes) {
         api.queuePrompt = originalQueuePrompt;
     }
 }
+
 function addQueueButtonToViewNodes(node) {
     // 定义所有需要添加按钮的节点类型
-    const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetShape","view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache","view_mulView"];
+    const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetWidgetsValues", "view_GetShape","view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache","view_mulView"];
     const flowSchControlNode = "flow_sch_control";
     
     // 检查是否是普通视图节点
@@ -91,7 +92,7 @@ function addQueueButtonToViewNodes(node) {
 app.registerExtension({
     name: "AptPreset.ViewMaskAndImgQueueButton",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetShape", "view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache","view_mulView", "flow_sch_control"];
+        const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetShape", "view_GetWidgetsValues","view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache","view_mulView", "flow_sch_control"];
         if (targetNodes.includes(nodeData.name)) {
             const onNodeCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
@@ -102,7 +103,7 @@ app.registerExtension({
         }
     },
     async setup() {
-        const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetShape","view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache","view_mulView", "flow_sch_control"];
+        const targetNodes = ["view_Mask_And_Img", "view_Data", "view_GetShape","view_GetWidgetsValues","view_GetLength","view_bridge_Text","IO_store_image","view_bridge_image","Apt_clear_cache","view_mulView", "flow_sch_control"];
         app.graph._nodes.forEach(node => {
             if (targetNodes.includes(node.constructor.nodeData?.name)) {
                 addQueueButtonToViewNodes(node);

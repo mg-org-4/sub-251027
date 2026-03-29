@@ -220,6 +220,8 @@ NODE_CLASS_MAPPINGS= {
 "AD_sch_prompt_basic": AD_sch_prompt_basic,
 "AD_sch_mask_weigh":AD_sch_mask_weigh,
 "AD_video_merge": AD_video_merge,
+"AD_VideoSeg": AD_VideoSeg,
+
 
 
 "AD_sch_image_merge":AD_sch_image_merge,
@@ -375,8 +377,9 @@ NODE_CLASS_MAPPINGS= {
 
 #--------------layer----------------------------------------------
 
-"Image_transform_layer_adv":Image_transform_layer_adv,  
 "Image_transform_layer":Image_transform_layer,  
+
+
 
 
 #--------------resize-----------------------------------------------
@@ -413,21 +416,20 @@ NODE_CLASS_MAPPINGS= {
 "color_adjust_HDR": color_adjust_HDR,
 "color_match_adv":color_match_adv,
 
-
-"Image_mask_crop_visual": Image_mask_crop_visual,
 "color_ImageCurve": color_ImageCurve,
-"Image_crop_visual": Image_crop_visual,
+"color_select": color_select,  
 "color_RadiaGradient_visual": color_RadiaGradient_visual,
 "color_lineGradient_visual": color_lineGradient_visual,
-"Image_Detail_HL_frequencye_visual": Image_Detail_HL_frequencye_visual,
-
-"Image_CnMapMix_visual":Image_CnMapMix_visual, 
 "color_adjust_HSL_visual": color_adjust_HSL_visual,
 "color_adjust_HDR_visual": color_adjust_HDR_visual,
 "color_match_adv_visual":color_match_adv_visual,
 
+"Image_Detail_HL_frequencye_visual": Image_Detail_HL_frequencye_visual,
+"Image_CnMapMix_visual":Image_CnMapMix_visual, 
+"Image_crop_visual": Image_crop_visual,
+"Image_mask_crop_visual": Image_mask_crop_visual,
+"Image_transform_layer_visual": Image_transform_layer_visual,
 
-"color_select": color_select,  
 
 #---ImgBatch-------------------------------------------
 
@@ -556,6 +558,8 @@ NODE_CLASS_MAPPINGS= {
 "flow_switch_input":flow_switch_input,
 "flow_switch_output":flow_switch_output,
 "flow_BooleanSwitch":flow_BooleanSwitch,
+
+
 
 "flow_bridge_image":flow_bridge_image,
 

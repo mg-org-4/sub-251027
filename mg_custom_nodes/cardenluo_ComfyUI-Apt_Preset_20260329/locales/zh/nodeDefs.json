@@ -7522,8 +7522,8 @@
       }
     }
   },
-  "Image_transform_layer_adv": {
-    "display_name": "Image_高级变换层",
+  "Image_transform_layer": {
+    "display_name": "Image_双图层变换",
     "inputs": {
       "bj_img": {
         "name": "背景图像"
@@ -7551,6 +7551,45 @@
       },
       "scale": {
         "name": "缩放"
+      },
+      "opacity": {
+        "name": "不透明度"
+      },
+      "blending_mode": {
+        "name": "混合模式"
+      },
+      "blend_strength": {
+        "name": "混合强度"
+      },
+      "mask": {
+        "name": "遮罩"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "合成"
+      },
+      "1": {
+        "name": "遮罩"
+      },
+      "2": {
+        "name": "背景填充"
+      }
+    }
+  },
+
+
+  "Image_transform_layer_visual": {
+    "display_name": "Image_图层变换可视化",
+    "inputs": {
+      "bj_img": {
+        "name": "背景图像"
+      },
+      "fj_img": {
+        "name": "前景图像"
+      },
+      "bg_fill": {
+        "name": "背景填充"
       },
       "opacity": {
         "name": "不透明度"
@@ -8752,73 +8791,9 @@
       }
     }
   },
-  "Image_transform_layer": {
-    "display_name": "Image_图层变换",
-    "inputs": {
-      "bj_img": {
-        "name": "背景图像"
-      },
-      "fj_img": {
-        "name": "前景图像"
-      },
-      "mask_expand": {
-        "name": "遮罩扩展"
-      },
-      "smoothness": {
-        "name": "平滑度"
-      },
-      "mask_mode": {
-        "name": "遮罩模式"
-      },
-      "x_offset": {
-        "name": "X偏移"
-      },
-      "y_offset": {
-        "name": "Y偏移"
-      },
-      "rotation": {
-        "name": "旋转"
-      },
-      "scale": {
-        "name": "缩放"
-      },
-      "edge_detection": {
-        "name": "边缘检测"
-      },
-      "edge_thickness": {
-        "name": "边缘厚度"
-      },
-      "edge_color": {
-        "name": "边缘颜色"
-      },
-      "opacity": {
-        "name": "不透明度"
-      },
-      "blending_mode": {
-        "name": "混合模式"
-      },
-      "blend_strength": {
-        "name": "混合强度"
-      },
-      "mask": {
-        "name": "遮罩"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "背景合成"
-      },
-      "1": {
-        "name": "遮罩"
-      },
-      "2": {
-        "name": "合成"
-      },
-      "3": {
-        "name": "线条遮罩"
-      }
-    }
-  },
+
+
+
   "create_lineGradient": {
     "display_name": "create_线性渐变",
     "inputs": {
@@ -11541,6 +11516,9 @@
       },
       "switch": {
         "name": "开关"
+      },
+      "store": {
+        "name": "存储"
       }
     },
     "outputs": {
@@ -13012,6 +12990,59 @@
         }
     }
 },
+
+"AD_VideoSeg": {
+    "display_name": "AD_视频分割",
+    "inputs": {
+        "video_path": {
+            "name": "视频路径"
+        },"video": {
+            "name": "视频"
+        },
+        "detector_mode": {
+            "name": "检测模式"
+        },
+        "enable_fade_black": {
+            "name": "黑场/淡入淡出检测"
+        },
+        "sensitivity": {
+            "name": "灵敏度"
+        },
+        "black_threshold": {
+            "name": "黑场阈值"
+        },
+        "min_scene_seconds": {
+            "name": "最小场景时长"
+        },
+        "frame_skip": {
+            "name": "跳帧检测"
+        },
+        "Seg_mold": {
+            "name": "分割模式"
+        },
+        "target_scene_count": {
+            "name": "目标分割数量"
+        },
+        "save_folder": {
+            "name": "保存文件夹"
+        },
+        "start_skip_sec": {
+            "name": "跳过片头"
+        },
+        "end_trim_sec": {
+            "name": "裁剪片尾"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "首尾帧列表"
+        },
+        "1": {
+            "name": "输出状态"
+        }
+    }
+},
+
 
   "csv_write_data": {
     "display_name": "CSV_写入数据",

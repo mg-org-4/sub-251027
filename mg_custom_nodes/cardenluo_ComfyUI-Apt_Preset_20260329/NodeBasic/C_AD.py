@@ -957,116 +957,6 @@ class AD_pingpong_vedio:
 
 
 
-import os
-import av
-import torch
-from typing import Optional, List
-from fractions import Fraction
-from comfy_api.latest import ComfyExtension, io, Input, InputImpl, Types
-
-def normalize_audio(audio_data):
-    if audio_data is None:
-        return None
-    audio_tensor = None
-    if isinstance(audio_data, torch.Tensor):
-        audio_tensor = audio_data
-    elif isinstance(audio_data, dict) and "tensor" in audio_data:
-        audio_tensor = audio_data["tensor"]
-    else:
-        return None
-    if audio_tensor.numel() == 0:
-        return None
-    if audio_tensor.ndim == 1:
-        audio_tensor = torch.stack([audio_tensor, audio_tensor], dim=0)
-    elif audio_tensor.ndim == 2 and audio_tensor.shape[0] > 2:
-        audio_tensor = audio_tensor[:2, :]
-    return audio_tensor
-
-class XXAD_video_merge(io.ComfyNode):
-    @classmethod
-    def define_schema(cls):
-        return io.Schema(
-            node_id="AD_video_merge",
-            display_name="AD_video_merge",
-            search_aliases=["combine videos", "join videos", "concatenate videos", "merge videos horizontally", "merge videos vertically"],
-            category="Apt_Preset/AD",
-            essentials_category="Video Tools",
-            description="Merge multiple videos with audio preservation",
-            inputs=[
-                io.Video.Input("video1", optional=True),
-                io.Video.Input("video2", optional=True),
-                io.Video.Input("video3", optional=True),
-                io.Video.Input("video4", optional=True),
-                io.Combo.Input("merge_mode", options=["horizontal", "vertical", "sequential"], default="horizontal"),
-                io.Float.Input("target_fps", default=0.0, min=0.0, max=120.0, step=1.0),
-                io.Boolean.Input("preserve_audio", default=True)
-            ],
-            outputs=[io.Video.Output()]
-        )
-
-    @classmethod
-    def execute(cls, video1=None, video2=None, video3=None, video4=None, merge_mode="horizontal", target_fps=0.0, preserve_audio=True):
-        videos = []
-        for v in [video1, video2, video3, video4]:
-            if v is not None:
-                videos.append(v)
-        if len(videos) == 0:
-            raise ValueError("At least one video input must be connected")
-        all_components = [v.get_components() for v in videos]
-        if target_fps <= 0:
-            fps = float(all_components[0].frame_rate)
-        else:
-            fps = target_fps
-        merged_images = None
-        merged_audio = None
-
-        if merge_mode == "sequential":
-            all_images = []
-            all_audio_tensors = []
-            for comp in all_components:
-                video_fps = float(comp.frame_rate)
-                num_frames = comp.images.shape[0]
-                if video_fps != fps and video_fps > 0:
-                    target_frames = int(num_frames * fps / video_fps)
-                    indices = torch.linspace(0, num_frames - 1, target_frames).long()
-                    frames = comp.images[indices]
-                else:
-                    frames = comp.images
-                all_images.append(frames)
-                if preserve_audio and comp.audio is not None:
-                    na = normalize_audio(comp.audio)
-                    if na is not None:
-                        all_audio_tensors.append(na)
-            merged_images = torch.cat(all_images, dim=0)
-            if preserve_audio and len(all_audio_tensors) > 0:
-                try:
-                    merged_audio = torch.cat(all_audio_tensors, dim=-1)
-                except:
-                    merged_audio = all_audio_tensors[0]
-        else:
-            min_frames = min(comp.images.shape[0] for comp in all_components)
-            resampled_images = []
-            for comp in all_components:
-                num_frames = comp.images.shape[0]
-                if num_frames != min_frames:
-                    indices = torch.linspace(0, num_frames - 1, min_frames).long()
-                    frames = comp.images[indices]
-                else:
-                    frames = comp.images[:min_frames]
-                resampled_images.append(frames)
-            if merge_mode == "horizontal":
-                merged_images = torch.cat(resampled_images, dim=2)
-            else:
-                merged_images = torch.cat(resampled_images, dim=1)
-            if preserve_audio:
-                merged_audio = normalize_audio(all_components[0].audio)
-
-        # 核心修复：空音频直接设为None，而非空Tensor
-        return io.NodeOutput(InputImpl.VideoFromComponents(Types.VideoComponents(images=merged_images, audio=merged_audio, frame_rate=Fraction(fps))))
-
-
-
-
 
 import os
 import av
@@ -1240,3 +1130,341 @@ class AD_video_merge(io.ComfyNode):
             merged_audio = main_audio
 
         return io.NodeOutput(InputImpl.VideoFromComponents(Types.VideoComponents(images=merged_images, audio=merged_audio, frame_rate=Fraction(fps))))
+
+
+
+
+
+
+
+
+
+
+
+import os
+import sys
+import cv2
+import zipfile
+import traceback
+import datetime
+import numpy as np
+import folder_paths
+from PIL import Image
+
+# ========== 安全导入 ==========
+try:
+    import requests
+except ImportError:
+    requests = None
+
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+
+try:
+    from scenedetect import open_video, SceneManager, FrameTimecode
+    from scenedetect.detectors import ContentDetector, AdaptiveDetector, HashDetector, ThresholdDetector
+    from scenedetect.video_splitter import split_video_ffmpeg
+    SCENEDETECT_AVAILABLE = True
+except ImportError:
+    SCENEDETECT_AVAILABLE = False
+
+# ==================================
+
+NODE_CLASS_MAPPINGS = {}
+NODE_DISPLAY_NAME_MAPPINGS = {}
+
+class AnyType(str):
+    def __ne__(self, __value: object) -> bool:
+        return False
+
+ANY = AnyType("*")
+
+def register_node(cls):
+    NODE_CLASS_MAPPINGS[cls.__name__] = cls
+    NODE_DISPLAY_NAME_MAPPINGS[cls.__name__] = cls.DISPLAY_NAME
+    return cls
+
+def get_ffmpeg_path():
+    comfy_root = os.path.dirname(os.path.abspath(sys.argv[0]))
+    ffmpeg_dir = os.path.join(comfy_root, "models", "Apt_File")
+    ffmpeg_path = os.path.join(ffmpeg_dir, "ffmpeg.exe")
+    return ffmpeg_dir, ffmpeg_path
+
+def auto_install_ffmpeg():
+    ffmpeg_dir, ffmpeg_path = get_ffmpeg_path()
+    os.makedirs(ffmpeg_dir, exist_ok=True)
+    if os.path.exists(ffmpeg_path):
+        return True, ffmpeg_path
+    if not requests:
+        return False, ffmpeg_path
+    try:
+        zip_url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+        zip_path = os.path.join(ffmpeg_dir, "ffmpeg.zip")
+        with requests.get(zip_url, stream=True, timeout=60) as r:
+            r.raise_for_status()
+            with open(zip_path, "wb") as f:
+                for chunk in r.iter_content(chunk_size=1024*1024):
+                    f.write(chunk)
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            extracted_ffmpeg = None
+            for f in zip_ref.namelist():
+                if f.endswith("ffmpeg.exe"):
+                    zip_ref.extract(f, ffmpeg_dir)
+                    extracted_ffmpeg = os.path.join(ffmpeg_dir, f.replace("/", os.sep))
+                    break
+            if not extracted_ffmpeg or not os.path.exists(extracted_ffmpeg):
+                for root, _, files in os.walk(ffmpeg_dir):
+                    if "ffmpeg.exe" in files:
+                        extracted_ffmpeg = os.path.join(root, "ffmpeg.exe")
+                        break
+            if not extracted_ffmpeg or not os.path.exists(extracted_ffmpeg):
+                return False, ffmpeg_path
+            if os.path.exists(ffmpeg_path):
+                os.remove(ffmpeg_path)
+            os.replace(extracted_ffmpeg, ffmpeg_path)
+        os.remove(zip_path)
+        return True, ffmpeg_path
+    except Exception:
+        return False, ffmpeg_path
+
+def check_ffmpeg():
+    _, ffmpeg_path = get_ffmpeg_path()
+    if os.path.exists(ffmpeg_path):
+        return True, ffmpeg_path
+    return auto_install_ffmpeg()
+
+def pil2tensor(img):
+    return np.array(img).astype(np.float32) / 255.0
+
+@register_node
+class AD_VideoSeg:
+    CATEGORY = "Apt_Preset/AD"
+    DISPLAY_NAME = "AD_VideoSeg"
+
+    INPUT_IS_LIST = False
+
+    INPUT_TYPES = lambda: {
+        "required": {
+            "video_path": ("STRING", {"default": ""}), # 路径输入（手动填）
+            "detector_mode": (["内容检测", "自适应检测", "哈希检测"], {"default": "自适应检测"}),
+            "enable_fade_black": ("BOOLEAN", {"default": True}),
+            "sensitivity": ("FLOAT", {"default": 25.0, "min": 1.0, "max": 200.0, "step": 1}),
+            "black_threshold": ("FLOAT", {"default": 10.0, "min": 0.0, "max": 100.0, "step": 1}),
+            "min_scene_seconds": ("FLOAT", {"default": 0.5, "min": 0.1, "max": 10.0, "step": 0.1}),
+            "frame_skip": ("INT", {"default": 1, "min": 1, "max": 4, "step": 1}),
+            "Seg_mold": ("BOOLEAN", {"default": True, "label_on": "按数量分割", "label_off": "自动分割"}),
+            "target_scene_count": ("INT", {"default": 5, "min": 1, "max": 30}),
+            "save_folder": ("STRING", {"default": "output/scene_ultimate"}),
+        },
+        "optional": {
+
+            "video": (ANY, {"default": None}),       # 视频输入（连线用）
+        }
+    }
+
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("imagelsit", "status")
+    FUNCTION = "process"
+    OUTPUT_NODE = True
+    DESCRIPTION = """
+    视频场景分割工具：自动检测镜头切换，分割视频并提取每段首尾帧。
+    支持三种检测算法 + 黑场/淡入淡出检测，可精准控制分割效果。
+
+    【三种检测模式】
+    • 内容检测：基础画面突变检测，适合普通硬切镜头
+    • 自适应检测：抗抖动、抗快速运动，最稳定，推荐默认
+    • 哈希检测：画面感知哈希对比，抗水印、抗光影变化
+
+    【关键参数说明】
+    • 灵敏度：数值越小越灵敏，切分越细（1-200）
+    • 黑场阈值：画面亮度低于该值判定为黑场/淡入淡出
+    • 最小场景时长：防止切出过短碎片镜头（秒）
+    • 跳帧检测：数值越大速度越快，1=不跳帧，最高4
+    • 目标分割数量：自动合并/均分，强制输出N段视频
+    • 跳过片头/裁剪片尾：忽略视频开头结尾不参与分割
+    """
+
+    def _resolve_video_path(self, video, video_path):
+        final_path = None
+
+        if video is not None:
+            if hasattr(video, "video_info") and isinstance(video.video_info, dict):
+                final_path = video.video_info.get("filepath", None)
+
+            if not final_path:
+                if isinstance(video, str):
+                    final_path = video
+                elif isinstance(video, (list, tuple)) and len(video) > 0 and isinstance(video[0], str):
+                    final_path = video[0]
+                elif isinstance(video, dict):
+                    for val in video.values():
+                        if isinstance(val, str) and val.lower().endswith((".mp4", ".mov", ".webm", ".avi", ".mkv")):
+                            final_path = val
+                            break
+                else:
+                    for attr in ["path", "video_path", "file_path", "filepath", "url"]:
+                        if hasattr(video, attr):
+                            val = getattr(video, attr)
+                            if isinstance(val, str):
+                                final_path = val
+                                break
+                    if not final_path:
+                        try:
+                            for attr in dir(video):
+                                if not attr.startswith("__"):
+                                    val = getattr(video, attr)
+                                    if isinstance(val, str) and val.lower().endswith((".mp4", ".mov", ".webm", ".avi", ".mkv")):
+                                        final_path = val
+                                        break
+                        except Exception:
+                            pass
+
+        if not final_path and video_path:
+            final_path = video_path
+
+        if final_path:
+            final_path = str(final_path).strip('"').strip("'")
+            if not os.path.exists(final_path):
+                try_path = os.path.join(folder_paths.get_input_directory(), final_path)
+                if os.path.exists(try_path):
+                    final_path = try_path
+                else:
+                    basename_path = os.path.join(folder_paths.get_input_directory(), os.path.basename(final_path))
+                    if os.path.exists(basename_path):
+                        final_path = basename_path
+
+        return final_path
+
+    def _safe_release(self, video_obj):
+        if hasattr(video_obj, "release") and callable(getattr(video_obj, "release")):
+            video_obj.release()
+            return
+        if hasattr(video_obj, "reset") and callable(getattr(video_obj, "reset")):
+            video_obj.reset()
+
+    def process(self, **kwargs):
+        video = kwargs.get("video")
+        video_path = kwargs.get("video_path", "").strip()
+
+        final_path = self._resolve_video_path(video, video_path)
+        if not final_path or not os.path.exists(final_path):
+            raise ValueError("❌ 未找到视频，请连接视频输入或填写有效路径")
+
+        # ----------------------
+        # 依赖检查
+        # ----------------------
+        if not SCENEDETECT_AVAILABLE:
+            raise ImportError("❌ 请安装：pip install scenedetect opencv-python-headless")
+        if not cv2:
+            raise ImportError("❌ 请安装 opencv")
+
+        ffmpeg_ok, ffmpeg_path = check_ffmpeg()
+        if not ffmpeg_ok:
+            raise RuntimeError("❌ 缺少 FFmpeg，手动下载https://github.com/BtbN/FFmpeg-Builds/releases")
+
+        # ----------------------
+        # 场景检测
+        # ----------------------
+        try:
+            video_obj = open_video(final_path)
+            fps = video_obj.frame_rate
+            total_frames = video_obj.duration.get_frames()
+            min_scene_len = int(kwargs["min_scene_seconds"] * fps)
+
+            scene_manager = SceneManager()
+            mode = kwargs["detector_mode"]
+            sens = kwargs["sensitivity"]
+
+            if mode == "内容检测":
+                scene_manager.add_detector(ContentDetector(threshold=sens))
+            elif mode == "自适应检测":
+                scene_manager.add_detector(AdaptiveDetector(adaptive_threshold=sens))
+            elif mode == "哈希检测":
+                scene_manager.add_detector(HashDetector(threshold=sens))
+
+            if kwargs["enable_fade_black"]:
+                scene_manager.add_detector(ThresholdDetector(threshold=kwargs["black_threshold"], min_scene_len=min_scene_len))
+
+            # 全版本兼容
+            scene_manager.detect_scenes(video_obj, frame_skip=kwargs["frame_skip"])
+            scenes = scene_manager.get_scene_list()
+
+            if not scenes:
+                raise ValueError("❌ 未检测到场景，请降低敏感度或关闭淡入淡出检测")
+
+            split_mode = "按数量分割" if kwargs["Seg_mold"] else "自动分割"
+            if kwargs["Seg_mold"]:
+                scenes = self._adjust_to_target(scenes, kwargs["target_scene_count"], total_frames, fps)
+
+            source_name = os.path.splitext(os.path.basename(final_path))[0]
+            run_tag = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            run_dir = os.path.join(kwargs["save_folder"], f"{source_name}_{run_tag}")
+            video_out_dir = os.path.join(run_dir, "videos")
+            image_out_dir = os.path.join(run_dir, "images")
+            os.makedirs(video_out_dir, exist_ok=True)
+            os.makedirs(image_out_dir, exist_ok=True)
+
+            split_video_ffmpeg(final_path, scenes, output_dir=video_out_dir)
+
+            cap = cv2.VideoCapture(final_path)
+            if not cap.isOpened():
+                raise RuntimeError("❌ 无法打开视频读取帧")
+            max_frame_idx = max(int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) - 1, 0)
+            images = []
+            for i, (s_tc, e_tc) in enumerate(scenes):
+                s = min(max(s_tc.get_frames(), 0), max_frame_idx)
+                e = min(max(e_tc.get_frames() - 1, s), max_frame_idx)
+
+                cap.set(cv2.CAP_PROP_POS_FRAMES, s)
+                ret1, frm1 = cap.read()
+                if ret1:
+                    rgb1 = cv2.cvtColor(frm1, cv2.COLOR_BGR2RGB)
+                    images.append(torch.from_numpy(pil2tensor(rgb1)))
+                    Image.fromarray(rgb1).save(os.path.join(image_out_dir, f"scene_{i:03d}_start_{s:06d}.png"))
+
+                cap.set(cv2.CAP_PROP_POS_FRAMES, e)
+                ret2, frm2 = cap.read()
+                if ret2:
+                    rgb2 = cv2.cvtColor(frm2, cv2.COLOR_BGR2RGB)
+                    images.append(torch.from_numpy(pil2tensor(rgb2)))
+                    Image.fromarray(rgb2).save(os.path.join(image_out_dir, f"scene_{i:03d}_end_{e:06d}.png"))
+
+            cap.release()
+            self._safe_release(video_obj)
+
+            if not images:
+                raise ValueError("❌ 场景已检测到，但未成功提取关键帧")
+
+            return (torch.stack(images), f"✅ 完成！模式：{split_mode}，分割 {len(scenes)} 段，预览帧 {len(images)} 张，输出目录：{run_dir}")
+
+        except Exception as e:
+            traceback.print_exc()
+            raise RuntimeError(f"❌ 错误：{str(e)}")
+
+    def _adjust_to_target(self, scenes, target, total_frames, fps=30):
+        n = len(scenes)
+        if n == target:
+            return scenes
+        if n > target:
+            while len(scenes) > target:
+                pairs = list(zip(scenes, scenes[1:]))
+                gaps = [p[1][0].get_frames() - p[0][1].get_frames() for p in pairs]
+                idx = gaps.index(min(gaps))
+                merged = (scenes[idx][0], scenes[idx+1][1])
+                scenes = scenes[:idx] + [merged] + scenes[idx+2:]
+            return scenes
+        else:
+            new_scenes = []
+            step = total_frames / target
+            for i in range(target):
+                s = FrameTimecode(int(i * step), fps)
+                e = FrameTimecode(int((i+1) * step), fps)
+                new_scenes.append((s, e))
+            return new_scenes
+
+
+
+
+

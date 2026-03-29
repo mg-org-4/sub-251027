@@ -15,20 +15,21 @@ pandas #选装，仅音频AMP归一化用，没有兼容问题
 pydub  #选装，仅音频AMP归一化用，没有兼容问题
 watchdog>=3.0.0   # 选装 sum_text中用，没有兼容问题
 
-gguf>=0.13.0   #选装
+gguf>=0.13.0   #选装gguf
 protobuf       #选装gguf
+
 onnxruntime    #选装 人体遮罩
 transparent-background #选装，仅背景移除2.0用，导入名transparent_background
 
 
 
 # 常用非官方依赖库-必装
-opencv-python-headless  #导入名CV2
+opencv-python-headless  #导入名CV2，问题较多
 toml
 tqdm     
 matplotlib
 scipy
 openpyxl    
 soundfile>=0.10.0
-
+scenedetect  #视频分割，兼容好
 

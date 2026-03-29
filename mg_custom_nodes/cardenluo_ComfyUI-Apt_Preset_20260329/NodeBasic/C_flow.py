@@ -722,13 +722,16 @@ class flow_tensor_Unify:
 
 #region--------------IN/out-switch--------------------------
 
-
 class flow_BooleanSwitch:
+    def __init__(self):
+        self.stored_data = None
+
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "switch": ("BOOLEAN", {"default": True, "label_on": "On", "label_off": "Off"}),
+                "store": ("BOOLEAN", {"default": True,}),
             },
             "optional": {
                 "any_input": (any_type,),
@@ -744,10 +747,15 @@ class flow_BooleanSwitch:
     def VALIDATE_INPUTS(cls, input_types):
         return True
 
-    def process(self, switch, any_input=None):
+    def process(self, switch, store, any_input=None):
+        if store and any_input is not None:
+            self.stored_data = any_input
+
         if switch:
             if any_input is not None:
                 return (any_input,)
+            elif store and self.stored_data is not None:
+                return (self.stored_data,)
             else:
                 if ExecutionBlocker is not None:
                     return (ExecutionBlocker(None),)
@@ -945,6 +953,16 @@ class AlwaysEqualProxy(str):
 
 any_type = AlwaysEqualProxy("*")
 def ByPassTypeTuple(t): return t
+
+FLOW_VALUE_STORE = {}
+
+
+def _normalize_flow_var_name(variable):
+    if variable is None:
+        return ""
+    return str(variable).strip()
+
+
 
 MAX_FLOW_NUM = 20
 

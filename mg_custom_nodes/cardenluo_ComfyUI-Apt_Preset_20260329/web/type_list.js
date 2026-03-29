@@ -478,15 +478,57 @@ app.registerExtension({
                 return me
             }
         } else if (nodeData.name === "view_GetWidgetsValues") {
+            const syncWidgetValueOutputs = function (node, keys) {
+                const dynamicKeys = Array.isArray(keys) ? keys : []
+                const targetLength = 1 + dynamicKeys.length
+                if (!Array.isArray(node.outputs) || node.outputs.length === 0) {
+                    return
+                }
+                while (node.outputs.length > targetLength) {
+                    node.removeOutput(node.outputs.length - 1)
+                }
+                while (node.outputs.length < targetLength) {
+                    node.addOutput("", "*")
+                }
+                node.outputs[0].name = "LIST"
+                node.outputs[0].label = "LIST"
+                node.outputs[0].type = "LIST"
+                for (let i = 0; i < dynamicKeys.length; i++) {
+                    const key = String(dynamicKeys[i] ?? "")
+                    const output = node.outputs[i + 1]
+                    output.name = key
+                    output.label = key
+                    output.type = "*"
+                }
+                node.setDirtyCanvas(true, true)
+            }
+
             const onNodeCreated = nodeType.prototype.onNodeCreated
             nodeType.prototype.onNodeCreated = function () {
                 onNodeCreated ? onNodeCreated.apply(this, []) : undefined
                 this.showValueWidget = ComfyWidgets["STRING"](this, "values", ["STRING", { multiline: true }], app).widget
+                if (Array.isArray(this.outputs) && this.outputs.length > 1) {
+                    syncWidgetValueOutputs(this, [])
+                }
+            }
+            const onConfigure = nodeType.prototype.onConfigure
+            nodeType.prototype.onConfigure = function () {
+                const me = onConfigure ? onConfigure.apply(this, arguments) : undefined
+                if (!app.configuringGraph || !Array.isArray(this.outputs) || this.outputs.length === 0) {
+                    return me
+                }
+                const keys = this.outputs.slice(1).map((output) => output?.name || "")
+                syncWidgetValueOutputs(this, keys)
+                return me
             }
             const onExecuted = nodeType.prototype.onExecuted
             nodeType.prototype.onExecuted = function (message) {
                 onExecuted === null || onExecuted === void 0 ? void 0 : onExecuted.apply(this, [message])
-                this.showValueWidget.value = message.text[0]
+                if (message?.text?.length > 0) {
+                    this.showValueWidget.value = message.text[0]
+                }
+                const outputKeys = Array.isArray(message?.output_keys?.[0]) ? message.output_keys[0] : []
+                syncWidgetValueOutputs(this, outputKeys)
             }
         } else if (nodeData.name === "view_GetLength") {
             const onNodeCreated = nodeType.prototype.onNodeCreated
@@ -546,5 +588,4 @@ app.registerExtension({
         }
     }
 })
-
 

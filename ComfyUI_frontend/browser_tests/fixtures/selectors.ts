@@ -20,6 +20,7 @@ export const TestIds = {
     main: 'graph-canvas',
     contextMenu: 'canvas-context-menu',
     toggleMinimapButton: 'toggle-minimap-button',
+    closeMinimapButton: 'close-minimap-button',
     toggleLinkVisibilityButton: 'toggle-link-visibility-button',
     zoomControlsButton: 'zoom-controls-button',
     zoomInAction: 'zoom-in-action',
@@ -97,6 +98,10 @@ export const TestIds = {
   user: {
     currentUserIndicator: 'current-user-indicator'
   },
+  queue: {
+    overlayToggle: 'queue-overlay-toggle',
+    clearHistoryAction: 'clear-history-action'
+  },
   errors: {
     imageLoadError: 'error-loading-image',
     videoLoadError: 'error-loading-video'
@@ -125,4 +130,5 @@ export type TestIdValue =
       (id: string) => string
     >
   | (typeof TestIds.user)[keyof typeof TestIds.user]
+  | (typeof TestIds.queue)[keyof typeof TestIds.queue]
   | (typeof TestIds.errors)[keyof typeof TestIds.errors]

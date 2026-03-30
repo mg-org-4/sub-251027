@@ -2,6 +2,7 @@ from ..components.tree import TREE_RASTERIX
 from ..components.tree import PRIMERE_ROOT
 import random
 import folder_paths
+
 from ..components.images import img_shade_level as img_shade_level
 from ..components.images import img_brightness_contrast as img_brightness_contrast
 from ..components.images import img_color_balance as img_color_balance
@@ -19,6 +20,14 @@ from ..components.images import img_lens_effects as img_lens_effects
 from ..components.images import img_levels_compress as img_levels_compress
 from ..components.images import img_dithering as img_dithering
 from ..components.images import histogram as histogram
+from ..components.images import img_posterize as img_posterize
+from ..components.images import img_solarization_bw as img_solarization_bw
+from ..components.images import img_clarity as img_clarity
+from ..components.images import img_dehaze as img_dehaze
+from ..components.images import img_local_laplacian as img_local_laplacian
+from ..components.images import img_frequency_separation as img_frequency_separation
+from ..components.images import img_filmic_curve as img_filmic_curve
+
 from ..components import utility
 from .Dashboard import PrimereModelConceptSelector as PrimereModelConceptSelector
 import os
@@ -124,6 +133,10 @@ class PrimereRasterix:
                 "adaptive_dither_strength": ("BOOLEAN", {"default": False, "label_off": "Keep dither strength", "label_on": "Increase dither strength"}),
                 "error_diffusion": ("BOOLEAN", {"default": False, "label_off": "Error diffusion OFF", "label_on": "Error diffusion ON"}),
 
+                "use_posterize": ("BOOLEAN", {"default": False, "label_off": "Ignore posterize", "label_on": "Apply posterize"}),
+                "shades": ("INT", {"default": 255, "min": 1, "max": 255, "step": 1}),
+                "channels": (["Red", "Green", "Blue"], {"default": "Red"}),
+
                 "use_ai_detection_bypasser": ("BOOLEAN", {"default": False, "label_off": "AI detection bypass off", "label_on": "AI detection bypass on"}),
                 "adb_freq_strength":     ("FLOAT", {"default": 0.019, "min": 0.0, "max": 0.1,  "step": 0.001}),
                 "adb_variance_strength": ("FLOAT", {"default": 0.32,  "min": 0.0, "max": 1.0,  "step": 0.01}),
@@ -228,6 +241,7 @@ class PrimereRasterix:
         dither_quantization = kwargs.get('dither_quantization', False)
         adaptive_dither_strength = kwargs.get('adaptive_dither_strength', False)
         error_diffusion = kwargs.get('error_diffusion', False)
+        use_posterize = kwargs.get('use_level_endpoints', False)
         show_histogram = kwargs.get('show_histogram', False)
         histogram_source = kwargs.get('histogram_source', False)
         histogram_channel = kwargs.get('histogram_channel', "RGB")
@@ -287,6 +301,10 @@ class PrimereRasterix:
         if dither_quantization or error_diffusion or normalize_midpeaks:
             pil_img = img_dithering.img_dithering(image=pil_img, dither_quantization=dither_quantization, adaptive_dither_strength=adaptive_dither_strength, error_diffusion=error_diffusion, normalize_midpeaks=normalize_midpeaks, peak_width=peak_width, high_precision=precision, seed=seed)
 
+        poster_data = rasterix_data.get('posterize', {})
+        if use_posterize and poster_data:
+            pil_img = img_posterize.img_posterize(image=pil_img, channels_data=poster_data)
+
         if use_ai_detection_bypasser:
             pil_img = isgen_detect_ext_full.bypass_ai_detector(image=pil_img, freq_strength=adb_freq_strength, variance_strength=adb_variance_strength, unsharp_percent=adb_unsharp_percent, jpeg_cycles=adb_jpeg_cycles)
 
@@ -336,7 +354,7 @@ class PrimereAutoNormalize:
             }
         }
 
-    def primere_auto_normalize(self, image, precision, auto_normalize, auto_levels_threshold, auto_gamma, gamma_target, normalize_gaps, normalize_midpeaks, peak_width, seed):
+    def primere_auto_normalize(self, image, precision, auto_normalize, auto_levels_threshold, auto_gamma, gamma_target, normalize_gaps, normalize_midpeaks, peak_width, seed = None):
         pil_img = utility.tensor_to_image(image)
         if auto_normalize:
             pil_img = img_levels_auto.img_levels_auto(image=pil_img, auto_normalize=auto_normalize, threshold=auto_levels_threshold, normalize_gaps=normalize_gaps, normalize_midpeaks=normalize_midpeaks, peak_width=peak_width, auto_gamma=auto_gamma, gamma_target=gamma_target, precision=precision, seed=seed)
@@ -633,6 +651,31 @@ class PrimereLevelEndpoints:
 
         return (utility.image_to_tensor(pil_img),)
 
+class PrimerePosterize:
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE",)
+    FUNCTION = "primere_posterize"
+    CATEGORY = TREE_RASTERIX
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True}),
+                "use_posterize": ("BOOLEAN", {"default": False, "label_off": "Ignore posterize", "label_on": "Apply posterize"}),
+                "shades": ("INT", {"default": 255, "min": 1, "max": 255, "step": 1}),
+                "channels": (["Red", "Green", "Blue"], {"default": "Red"}),
+            }
+        }
+
+    def primere_posterize(self, image, use_posterize, shades, channels):
+        pil_img = utility.tensor_to_image(image)
+        rasterix_json_path = os.path.join(PRIMERE_ROOT, 'front_end', 'rasterix.json')
+        rasterix_data = utility.json2tuple(rasterix_json_path) or {}
+        poster_data = rasterix_data.get('posterize', {})
+        if use_posterize and poster_data:
+            pil_img = img_posterize.img_posterize(image=pil_img, channels_data=poster_data)
+        return (utility.image_to_tensor(pil_img),)
 
 class PrimereDithering:
     RETURN_TYPES = ("IMAGE",)
@@ -899,3 +942,180 @@ class PrimereHistogram:
             TEMP_FILE = os.path.join(folder_paths.get_temp_directory(), temp_filename)
             utility.tensor_to_image(images[0]).save(TEMP_FILE)
             return {"ui": {"images": [{"filename": temp_filename, "subfolder": "", "type": "temp"}]}, "result": (utility.image_to_tensor(pil_img),),}
+
+class PrimereSolarizationBW:
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE",)
+    FUNCTION = "primere_solarization_bw"
+    CATEGORY = TREE_RASTERIX
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True}),
+                "use_solarization": ("BOOLEAN", {"default": False, "label_off": "Ignore solarization", "label_on": "Apply solarization"}),
+                "precision": ("BOOLEAN", {"default": False, "label_off": "8 bit", "label_on": "16 bit"}),
+
+                "strength": ("FLOAT", {"default": 0.6, "min": 0.0, "max": 2.0, "step": 0.01}),
+                "pivot": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "sigma": ("FLOAT", {"default": 0.18, "min": 0.01, "max": 0.5, "step": 0.01}),
+                "edge_boost": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 3.0, "step": 0.05}),
+                "edge_radius": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 3.0, "step": 0.1}),
+                "contrast": ("FLOAT", {"default": 1.1, "min": 0.5, "max": 2.0, "step": 0.01}),
+                "hard_paper": ("BOOLEAN", {"default": False, "label_off": "Soft paper", "label_on": "Hard paper"}),
+                "grain_modulation": ("BOOLEAN", {"default": False, "label_off": "No grain modulation", "label_on": "Grain-modulated inversion"}),
+                "grain_strength": ("FLOAT", {"default": 0.15, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "grain_scale": ("FLOAT", {"default": 1.0, "min": 0.3, "max": 3.0, "step": 0.1}),
+
+            },
+            "optional": {
+                "seed": ("INT", {"default": 0, "min": 0, "max": utility.MAX_SEED, "forceInput": True}),
+            }
+        }
+
+    def primere_solarization_bw(self, image, use_solarization, precision, strength, pivot, sigma, edge_boost, edge_radius, contrast, hard_paper, grain_modulation, grain_strength, grain_scale, seed = None):
+        pil_img = utility.tensor_to_image(image)
+        if use_solarization:
+            pil_img = img_solarization_bw.img_solarization_bw(image=pil_img, strength=strength, pivot=pivot, sigma=sigma, edge_boost=edge_boost, edge_radius=edge_radius, contrast=contrast, precision=precision, hard_paper=hard_paper, grain_modulation=grain_modulation, grain_strength=grain_strength, grain_scale=grain_scale, seed=seed)
+
+        return (utility.image_to_tensor(pil_img),)
+
+class PrimereClarity:
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE",)
+    FUNCTION = "primere_clarity"
+    CATEGORY = TREE_RASTERIX
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True}),
+                "use_clarity": ("BOOLEAN", {"default": False, "label_off": "Ignore clarity", "label_on": "Apply clarity"}),
+                "precision": ("BOOLEAN", {"default": False, "label_off": "8 bit", "label_on": "16 bit"}),
+
+                "strength": ("FLOAT", {"default": 0.5, "min": -2.0, "max": 3.0, "step": 0.01}),
+                "radius": ("FLOAT", {"default": 2.0, "min": 0.5, "max": 10.0, "step": 0.1}),
+                "midtone_range": ("FLOAT", {"default": 0.5, "min": 0.1, "max": 1.0, "step": 0.01}),
+                "edge_preservation": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.0, "step": 0.01}),
+            }
+        }
+
+    def primere_clarity(self, image, use_clarity, precision, strength, radius, midtone_range, edge_preservation):
+        pil_img = utility.tensor_to_image(image)
+        if use_clarity and strength != 0:
+            pil_img = img_clarity.img_clarity(image=pil_img, strength=strength, radius=radius, midtone_range=midtone_range, edge_preservation=edge_preservation, precision=precision)
+
+        return (utility.image_to_tensor(pil_img),)
+
+class PrimereDehaze:
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE",)
+    FUNCTION = "primere_dehaze"
+    CATEGORY = TREE_RASTERIX
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True}),
+                "use_dehaze": ("BOOLEAN", {"default": False, "label_off": "Ignore dehaze", "label_on": "Apply dehaze"}),
+                "precision": ("BOOLEAN", {"default": False, "label_off": "8 bit", "label_on": "16 bit"}),
+
+                "strength": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.01}),
+                "radius": ("INT", {"default": 15, "min": 3, "max": 100, "step": 1}),
+                "omega": ("FLOAT", {"default": 0.95, "min": 0.5, "max": 1.0, "step": 0.01}),
+                "t0": ("FLOAT", {"default": 0.1, "min": 0.01, "max": 0.5, "step": 0.01}),
+                "contrast": ("FLOAT", {"default": 1.05, "min": 0.5, "max": 2.0, "step": 0.01}),
+            }
+        }
+
+    def primere_dehaze(self, image, use_dehaze, precision, strength, radius, omega, t0, contrast):
+        pil_img = utility.tensor_to_image(image)
+        if use_dehaze and strength > 0:
+            pil_img = img_dehaze.img_dehaze(image=pil_img, strength=strength, radius=radius, omega=omega, t0=t0, contrast=contrast, precision=precision)
+
+        return (utility.image_to_tensor(pil_img),)
+
+class PrimereLocalLaplacian:
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE",)
+    FUNCTION = "primere_local_laplacian"
+    CATEGORY = TREE_RASTERIX
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True}),
+                "use_local_laplacian": ("BOOLEAN", {"default": False, "label_off": "Ignore local laplacian", "label_on": "Apply local laplacian"}),
+
+                "sigma": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 5.0, "step": 0.1}),
+                "contrast": ("FLOAT", {"default": 1.2, "min": 0.5, "max": 3.0, "step": 0.01}),
+                "detail": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0, "step": 0.01}),
+                "levels": ("INT", {"default": 8, "min": 4, "max": 32, "step": 1}),
+            }
+        }
+
+    def primere_local_laplacian(self, image, use_local_laplacian, sigma, contrast, detail, levels):
+        pil_img = utility.tensor_to_image(image)
+        if use_local_laplacian:
+            pil_img = img_local_laplacian.img_local_laplacian(image=pil_img, sigma=sigma, contrast=contrast, detail=detail, levels=levels)
+
+        return (utility.image_to_tensor(pil_img),)
+
+class PrimereFrequencySeparation:
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE",)
+    FUNCTION = "primere_frequency_separation"
+    CATEGORY = TREE_RASTERIX
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True}),
+                "use_frequency_separation": ("BOOLEAN", {"default": False, "label_off": "Ignore frequency separation", "label_on": "Apply frequency separation"}),
+
+                "radius": ("FLOAT", {"default": 3.0, "min": 0.5, "max": 20.0, "step": 0.1}),
+                "low_freq_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0, "step": 0.01}),
+                "high_freq_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0, "step": 0.01}),
+                "blend_mode": (["add", "multiply", "overlay"], {"default": "add"}),
+            }
+        }
+
+    def primere_frequency_separation(self, image, use_frequency_separation, radius, low_freq_strength, high_freq_strength, blend_mode):
+        pil_img = utility.tensor_to_image(image)
+        if use_frequency_separation:
+            pil_img = img_frequency_separation.img_frequency_separation(image=pil_img, radius=radius, low_freq_strength=low_freq_strength, high_freq_strength=high_freq_strength, blend_mode=blend_mode)
+
+        return (utility.image_to_tensor(pil_img),)
+
+class PrimereFilmicCurve:
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE",)
+    FUNCTION = "primere_filmic_curve"
+    CATEGORY = TREE_RASTERIX
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True}),
+                "use_filmic": ("BOOLEAN", {"default": False, "label_off": "Ignore filmic", "label_on": "Apply filmic"}),
+
+                "curve_type": (["filmic", "log"], {"default": "filmic"}),
+                "contrast": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 2.0, "step": 0.01}),
+                "highlight_rolloff": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "shadow_lift": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 0.5, "step": 0.01}),
+                "pivot": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+            }
+        }
+
+    def primere_filmic_curve(self, image, use_filmic, curve_type, contrast, highlight_rolloff, shadow_lift, pivot):
+        pil_img = utility.tensor_to_image(image)
+        if use_filmic:
+            pil_img = img_filmic_curve.img_filmic_curve(image=pil_img, curve_type=curve_type, contrast=contrast, highlight_rolloff=highlight_rolloff, shadow_lift=shadow_lift, pivot=pivot)
+
+        return (utility.image_to_tensor(pil_img),)

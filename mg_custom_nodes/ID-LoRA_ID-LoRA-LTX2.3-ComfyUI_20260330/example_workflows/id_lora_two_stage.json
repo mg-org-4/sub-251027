@@ -1,0 +1,135 @@
+{
+  "last_node_id": 6,
+  "last_link_id": 6,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "IDLoraTwoStageModelLoader",
+      "pos": [100, 200],
+      "size": [400, 380],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "Pipeline", "type": "ID_LORA_PIPELINE", "links": [1, 2] }
+      ],
+      "properties": { "Node name for S&R": "IDLoraTwoStageModelLoader" },
+      "widgets_values": [
+        "ltx-2.3-22b-dev.safetensors",
+        "",
+        "id-lora-celebvhq-ltx2.3.safetensors",
+        1.0,
+        "ltx-2.3-spatial-upscaler-x2-1.1.safetensors",
+        "ltx-2.3-22b-distilled-lora-384.safetensors",
+        "none",
+        1.0,
+        3.0,
+        3.0
+      ]
+    },
+    {
+      "id": 2,
+      "type": "IDLoraPromptEncoder",
+      "pos": [600, 100],
+      "size": [400, 300],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        { "name": "pipeline", "type": "ID_LORA_PIPELINE", "link": 1 }
+      ],
+      "outputs": [
+        { "name": "Conditioning", "type": "ID_LORA_CONDITIONING", "links": [3] }
+      ],
+      "properties": { "Node name for S&R": "IDLoraPromptEncoder" },
+      "widgets_values": [
+        "[VISUAL]: A young man with dark hair, wearing a bright pink hooded sweatshirt is seated in a cosy room. He is holding an acoustic guitar and strums it a few times while speaking to the camera. The background is a cozy, warmly lit room with bookshelves and music posters. The lighting is natural.[SPEECH]: ID Lora can generate voice and environmnental sounds, such as this guitar, now with LTX 2.3 and Comfy UI support. [SOUNDS]: Acoustic guitar strumming with jazz, accoustic melody. The speaker talks at moderate volume",
+        "blurry, exaggerated, low qualit"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [600, 500],
+      "size": [300, 314],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "IMAGE", "type": "IMAGE", "links": [4] },
+        { "name": "MASK", "type": "MASK", "links": null }
+      ],
+      "properties": { "Node name for S&R": "LoadImage" },
+      "widgets_values": ["poster_image.png", "image"]
+    },
+    {
+      "id": 4,
+      "type": "LoadAudio",
+      "pos": [600, 870],
+      "size": [300, 124],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "AUDIO", "type": "AUDIO", "links": [5] }
+      ],
+      "properties": { "Node name for S&R": "LoadAudio" },
+      "widgets_values": ["reference.mp3"]
+    },
+    {
+      "id": 5,
+      "type": "IDLoraTwoStageSampler",
+      "pos": [1100, 200],
+      "size": [400, 560],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        { "name": "pipeline", "type": "ID_LORA_PIPELINE", "link": 2 },
+        { "name": "conditioning", "type": "ID_LORA_CONDITIONING", "link": 3 },
+        { "name": "first_frame", "type": "IMAGE", "link": 4 },
+        { "name": "reference_audio", "type": "AUDIO", "link": 5 }
+      ],
+      "outputs": [
+        { "name": "Video", "type": "VIDEO", "links": [6] }
+      ],
+      "properties": { "Node name for S&R": "IDLoraTwoStageSampler" },
+      "widgets_values": [42, "fixed", 512, 512, 242, 30, 25.0, 3.0, 7.0, true, 756, true]
+    },
+    {
+      "id": 6,
+      "type": "SaveVideo",
+      "pos": [1600, 300],
+      "size": [400, 200],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        { "name": "video", "type": "VIDEO", "link": 6 }
+      ],
+      "outputs": [],
+      "properties": { "Node name for S&R": "SaveVideo" },
+      "widgets_values": ["video/ComfyUI", "auto", "auto"]
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "ID_LORA_PIPELINE"],
+    [2, 1, 0, 5, 0, "ID_LORA_PIPELINE"],
+    [3, 2, 0, 5, 1, "ID_LORA_CONDITIONING"],
+    [4, 3, 0, 5, 2, "IMAGE"],
+    [5, 4, 0, 5, 3, "AUDIO"],
+    [6, 5, 0, 6, 0, "VIDEO"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.7,
+      "offset": [0, 0]
+    }
+  },
+  "version": 0.4
+}

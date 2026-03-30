@@ -1,0 +1,12 @@
+[project]
+name = "comfyui-id-lora-ltx"
+version = "0.1.0"
+description = "ComfyUI nodes for ID-LoRA-2.3 audio+video generation with speaker identity transfer"
+requires-python = ">=3.10"
+dependencies = [
+    "ltx-core",
+    "ltx-pipelines",
+    "ltx-trainer",
+    "torch",
+    "torchaudio",
+]

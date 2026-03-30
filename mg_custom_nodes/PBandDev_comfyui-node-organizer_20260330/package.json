@@ -1,0 +1,58 @@
+{
+  "name": "comfyui-node-organizer",
+  "version": "2.1.1",
+  "description": "ComfyUI extension to organize nodes",
+  "type": "module",
+  "main": "./lib/core.js",
+  "module": "./lib/core.js",
+  "types": "./lib/core.d.ts",
+  "exports": {
+    ".": {
+      "import": "./lib/core.js",
+      "types": "./lib/core.d.ts"
+    }
+  },
+  "files": [
+    "lib/",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:lib": "vite build -c vite.config.lib.ts && tsc -p tsconfig.lib.json",
+    "test:lib": "pnpm build:lib && node scripts/smoke-core-package.mjs",
+    "watch": "tsc && vite build --watch",
+    "typecheck": "tsc --noEmit",
+    "prepare": "pnpm build:lib",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "setup:e2e": "tsx scripts/setup-test-comfy.ts",
+    "test:e2e": "playwright test",
+    "ci:local": "act push --workflows .github/workflows/ci.yaml"
+  },
+  "keywords": [
+    "comfyui",
+    "custom node",
+    "custom",
+    "node",
+    "extension",
+    "organizer",
+    "node",
+    "extension"
+  ],
+  "author": "PBandDev",
+  "license": "AGPL-3.0",
+  "packageManager": "pnpm@10.17.1",
+  "devDependencies": {
+    "@comfyorg/comfyui-frontend-types": "^1.32.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^24.10.0",
+    "@vitest/coverage-v8": "^4.0.16",
+    "fast-check": "^4.6.0",
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.16"
+  }
+}

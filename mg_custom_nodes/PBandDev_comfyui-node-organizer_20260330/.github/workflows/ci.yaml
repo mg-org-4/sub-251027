@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-tests:
+    name: Unit Tests & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Cache built extension
+        uses: actions/cache@v4
+        with:
+          path: dist/index.js
+          key: ${{ runner.os }}-dist-${{ github.sha }}
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Restore built extension
+        uses: actions/cache@v4
+        with:
+          path: dist/index.js
+          key: ${{ runner.os }}-dist-${{ github.sha }}
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers
+        run: pnpx playwright install chromium --with-deps
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Cache test ComfyUI environment
+        uses: actions/cache@v4
+        with:
+          path: .test-comfy
+          key: ${{ runner.os }}-test-comfy-${{ hashFiles('.python-version', 'e2e.config.ts', 'scripts/setup-test-comfy.ts', 'scripts/setup-test-comfy-helpers.ts') }}
+
+      - name: Setup test ComfyUI
+        run: pnpm setup:e2e
+        timeout-minutes: 15
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+        timeout-minutes: 30
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

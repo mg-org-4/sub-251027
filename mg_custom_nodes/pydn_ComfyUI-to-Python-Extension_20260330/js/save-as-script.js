@@ -1,6 +1,25 @@
 import { api } from "../../scripts/api.js";
 import { app } from "../../scripts/app.js";
-import { $el } from "../../scripts/ui.js";
+
+const DEFAULT_SCRIPT_FILENAME = "workflow_api.py";
+const DEFAULT_WORKFLOW_NAME = "workflow_api.json";
+
+function $el(tag, options = {}) {
+	const element = document.createElement(tag);
+	const { parent, style, ...props } = options;
+
+	if (style) {
+		Object.assign(element.style, style);
+	}
+
+	Object.assign(element, props);
+
+	if (parent) {
+		parent.appendChild(element);
+	}
+
+	return element;
+}
 
 const extension = {
 	name: "Comfy.SaveAsScript",
@@ -23,15 +42,12 @@ const extension = {
 		});
 	},
 	savePythonScript() {
-		var filename = prompt("Save script as:");
-		if(filename === undefined || filename === null || filename === "") {
-			return
-		}
-		
+		const filename = DEFAULT_SCRIPT_FILENAME;
+
 		app.graphToPrompt().then(async (p) => {
 			const frontendWorkflow = p.workflow ?? app.graph.serialize();
 			const json = JSON.stringify({
-				name: filename + ".json",
+				name: DEFAULT_WORKFLOW_NAME,
 				workflow: JSON.stringify(p.output, null, 2),
 				frontend_workflow: JSON.stringify(frontendWorkflow, null, 2),
 			}, null, 2); // convert the data to a JSON string
@@ -39,10 +55,6 @@ const extension = {
 			if(response.status == 200) {
 				const blob = new Blob([await response.text()], {type: "text/python;charset=utf-8"});
 				const url = URL.createObjectURL(blob);
-				if(!filename.endsWith(".py")) {
-					filename += ".py";
-				}
-
 				const a = $el("a", {
 					href: url,
 					download: filename,

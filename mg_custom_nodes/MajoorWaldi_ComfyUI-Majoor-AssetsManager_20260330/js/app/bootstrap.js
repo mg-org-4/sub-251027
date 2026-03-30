@@ -1,0 +1,119 @@
+/**
+ * Bootstrap - Auto-scan and initialization
+ */
+
+import { get, post } from "../api/client.js";
+import { ENDPOINTS } from "../api/endpoints.js";
+import { APP_CONFIG } from "./config.js";
+
+// Auto-scan state (once per session)
+let startupScanDone = false;
+let startupScanTimer = null;
+let startupWarmupDone = false;
+let startupWarmupPromise = null;
+
+function isExecutionIdle() {
+    try {
+        const runtime = window?.__MJR_EXECUTION_RUNTIME__;
+        return !String(runtime?.active_prompt_id || "").trim();
+    } catch (error) {
+        console.debug?.(error);
+        return true;
+    }
+}
+
+/**
+ * Trigger background scan as soon as the ComfyUI frontend loads (if enabled).
+ * This helps warming the DB before the Assets Manager panel is opened.
+ */
+export async function triggerStartupScan(options = {}) {
+    if (!APP_CONFIG || typeof APP_CONFIG !== "object") return;
+    if (!APP_CONFIG.AUTO_SCAN_ON_STARTUP) return;
+    if (startupScanDone) return;
+    const delayMs = Math.max(0, Number(options?.delayMs) || 0);
+    const idleOnly = options?.idleOnly !== false;
+    if (delayMs > 0) {
+        if (startupScanTimer) clearTimeout(startupScanTimer);
+        startupScanTimer = setTimeout(() => {
+            startupScanTimer = null;
+            void triggerStartupScan({ ...options, delayMs: 0 });
+        }, delayMs);
+        return;
+    }
+    if (idleOnly && !isExecutionIdle()) {
+        if (startupScanTimer) clearTimeout(startupScanTimer);
+        startupScanTimer = setTimeout(() => {
+            startupScanTimer = null;
+            void triggerStartupScan({ ...options, delayMs: 0 });
+        }, 5000);
+        return;
+    }
+    startupScanDone = true;
+
+    try {
+        console.debug("[Majoor] Starting startup scan of output directory...");
+
+        const result = await post(ENDPOINTS.SCAN, {
+            recursive: true,
+            incremental: true,
+            fast: true,
+            background_metadata: true,
+        });
+
+        if (result.ok) {
+            const stats = result.data;
+            console.debug(
+                `[Majoor] Startup scan complete — added: ${stats.added}, updated: ${stats.updated}, skipped: ${stats.skipped}`,
+            );
+        } else {
+            console.warn("📂 Majoor [⚠️]: Startup scan failed:", result.error);
+        }
+    } catch (error) {
+        console.error("📂 Majoor [❌]: Startup scan error:", error);
+    }
+}
+
+async function warmDbAndStatus() {
+    try {
+        await Promise.allSettled([
+            get(ENDPOINTS.HEALTH),
+            get(`${ENDPOINTS.HEALTH_COUNTERS}?scope=output`),
+            get(ENDPOINTS.HEALTH_DB),
+        ]);
+    } catch (error) {
+        console.debug?.(error);
+    }
+}
+
+/**
+ * Run a single explicit startup warmup sequence:
+ * 1. warm API/DB/status endpoints
+ * 2. schedule a background incremental scan if enabled and runtime is idle
+ */
+export async function runStartupWarmup(options = {}) {
+    if (startupWarmupDone) return startupWarmupPromise || Promise.resolve();
+    startupWarmupDone = true;
+    startupWarmupPromise = (async () => {
+        await warmDbAndStatus();
+        await triggerStartupScan(options);
+    })();
+    return startupWarmupPromise;
+}
+
+/**
+ * Test API connection
+ */
+export async function testAPI() {
+    try {
+        console.debug("[Majoor] Testing API connection...");
+        const data = await get(ENDPOINTS.HEALTH);
+
+        if (data?.ok) {
+            console.debug("[Majoor] API connection successful, health:", data.data.overall);
+        } else {
+            console.error("📂 Majoor [❌]: API health check failed:", data?.error);
+        }
+    } catch (error) {
+        console.error("📂 Majoor [❌]: Failed to connect to API:", error);
+    }
+}

@@ -1,28 +1,11 @@
-queue_rules:
-  - name: default
-    queue_conditions:
-      - check-success~=pre-commit
-      - "#approved-reviews-by>=1"
-      - -draft
-      - -conflict
-      - -closed
-      - label!=do-not-merge
-    merge_conditions:
-      - check-success~=buildkite/ci
-    merge_method: squash
-    commit_message_template: |
-      {{ title }} (#{{ number }})
-
-      {{ body }}
-
 merge_protections:
   - name: PR merge requirements
     if:
       - base = main
     success_conditions:
       - "title~=(?i)^\\[(feat|feature|bugfix|fix|refactor|perf|ci|doc|docs|misc|chore|kernel|new.?model)\\]"
-      - "#approved-reviews-by>=1"
       - check-success~=pre-commit
+      - check-success=fastcheck-passed
 
 pull_request_rules:
 
@@ -101,12 +84,12 @@ pull_request_rules:
   - name: "label scope: training"
     conditions:
       - or:
-        - files~=^fastvideo/train/
-        - files~=^fastvideo/training/
-        - files~=^fastvideo/distillation/
-        - files~=^examples/train/
-        - files~=^examples/training/
-        - files~=^examples/distill/
+          - files~=^fastvideo/train/
+          - files~=^fastvideo/training/
+          - files~=^fastvideo/distillation/
+          - files~=^examples/train/
+          - files~=^examples/training/
+          - files~=^examples/distill/
       - -closed
     actions:
       label:
@@ -115,14 +98,14 @@ pull_request_rules:
   - name: "label scope: inference"
     conditions:
       - or:
-        - files~=^fastvideo/pipelines/basic/
-        - files~=^fastvideo/pipelines/stages/
-        - files~=^fastvideo/pipelines/samplers/
-        - files~=^fastvideo/entrypoints/
-        - files~=^fastvideo/worker/
-        - files~=^fastvideo/configs/sample/
-        - files~=^fastvideo/configs/pipelines/
-        - files~=^examples/inference/
+          - files~=^fastvideo/pipelines/basic/
+          - files~=^fastvideo/pipelines/stages/
+          - files~=^fastvideo/pipelines/samplers/
+          - files~=^fastvideo/entrypoints/
+          - files~=^fastvideo/worker/
+          - files~=^fastvideo/configs/sample/
+          - files~=^fastvideo/configs/pipelines/
+          - files~=^examples/inference/
       - -closed
     actions:
       label:
@@ -139,8 +122,8 @@ pull_request_rules:
   - name: "label scope: kernel"
     conditions:
       - or:
-        - files~=^fastvideo-kernel/
-        - files~=^csrc/
+          - files~=^fastvideo-kernel/
+          - files~=^csrc/
       - -closed
     actions:
       label:
@@ -149,9 +132,9 @@ pull_request_rules:
   - name: "label scope: data"
     conditions:
       - or:
-        - files~=^fastvideo/dataset/
-        - files~=^fastvideo/pipelines/preprocess/
-        - files~=^examples/preprocessing/
+          - files~=^fastvideo/dataset/
+          - files~=^fastvideo/pipelines/preprocess/
+          - files~=^examples/preprocessing/
       - -closed
     actions:
       label:
@@ -160,10 +143,10 @@ pull_request_rules:
   - name: "label scope: infra"
     conditions:
       - or:
-        - files~=^\.github/
-        - files~=^\.buildkite/
-        - files~=^fastvideo/tests/
-        - files~=^docker/
+          - files~=^\.github/
+          - files~=^\.buildkite/
+          - files~=^fastvideo/tests/
+          - files~=^docker/
       - -closed
     actions:
       label:
@@ -196,9 +179,9 @@ pull_request_rules:
   - name: "label scope: model"
     conditions:
       - or:
-        - files~=^fastvideo/models/
-        - files~=^fastvideo/layers/
-        - files~=^fastvideo/configs/models/
+          - files~=^fastvideo/models/
+          - files~=^fastvideo/layers/
+          - files~=^fastvideo/configs/models/
       - -closed
     actions:
       label:
@@ -237,32 +220,6 @@ pull_request_rules:
 
           For future commits, `pre-commit` will run automatically on changed files before each commit.
 
-  # ============================================================
-  # Buildkite CI failure notification
-  # ============================================================
-
-  - name: comment on Buildkite CI failure
-    conditions:
-      - check-failure~=buildkite/ci
-      - -closed
-    actions:
-      comment:
-        message: |
-          ## ❌ CI tests failed
-
-          @{{author}} — to see what failed:
-          1. Scroll to the **Checks** section below
-          2. Find the check marked with ❌ (e.g. `buildkite/ci/microscope-transformer-tests`)
-          3. Click **Details** to view the full build log
-
-          Or [view all builds for this branch on Buildkite →](https://buildkite.com/fastvideo/ci/builds?branch={{head}})
-
-          **Common causes:**
-          - **Assertion error / test failure** — check the failing test's traceback
-          - **Import error** — new dependency missing from `pyproject.toml`
-          - **OOM** — some tests need specific GPUs (L40S, H100 NVL)
-
-          If the failure looks unrelated to your changes, comment why and a maintainer will review.
 
   # ============================================================
   # Merge conflict detection
@@ -296,12 +253,47 @@ pull_request_rules:
       label:
         remove: [needs-rebase]
 
-  - name: enter merge queue when ready and approved
+  # ============================================================
+  # Auto-merge and auto-rebase
+  # ============================================================
+
+  - name: auto-merge when ready and all checks pass
     conditions:
       - label=ready
+      - "title~=(?i)^\\[(feat|feature|bugfix|fix|refactor|perf|ci|doc|docs|misc|chore|kernel|new.?model)\\]"
+      - "#approved-reviews-by>=1"
+      - check-success~=pre-commit
+      - check-success=fastcheck-passed
+      - check-success=full-suite-passed
+      - -conflict
+      - -closed
+      - -draft
     actions:
-      queue:
-        name: default
+      merge:
+        method: squash
+
+  - name: auto-rebase when ready and Full Suite passed
+    conditions:
+      - label=ready
+      - "#approved-reviews-by>=1"
+      - check-success=full-suite-passed
+      - -conflict
+      - -closed
+      - -draft
+    actions:
+      rebase: {}
+
+  - name: remove ready label on Full Suite failure
+    conditions:
+      - label=ready
+      - check-failure=full-suite-passed
+    actions:
+      label:
+        remove: [ready]
+
+  # ============================================================
+  # PR title format help
+  # ============================================================
 
   - name: comment on invalid PR title format
     conditions:
@@ -327,9 +319,3 @@ pull_request_rules:
 
           Please update your PR title and the merge protection check will pass automatically.
 
-  - name: delete merged branch
-    conditions:
-      - merged
-      - -head~=^(main|master|release[/-])$
-    actions:
-      delete_head_branch: {}

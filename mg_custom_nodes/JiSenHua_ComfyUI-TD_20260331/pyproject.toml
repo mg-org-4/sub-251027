@@ -1,0 +1,16 @@
+[project]
+name = "ComfyUI-TD"
+description = "A custom node for ComfyUI designed to facilitate the real-time transmission of rendered images, videos, or 3D models to TouchDesigner."
+version = "1.1.7"
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/JiSenHua/ComfyUI-TD"
+Homepage = "https://jisenhua.github.io/ComfyUI-TD/"
+Documentation = "https://jisenhua.github.io/ComfyUI-TD/zh/"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "jisenhua"
+DisplayName = "ComfyUI-TD"
+Icon = ""

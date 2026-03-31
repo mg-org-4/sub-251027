@@ -27,6 +27,9 @@ from ..components.images import img_dehaze as img_dehaze
 from ..components.images import img_local_laplacian as img_local_laplacian
 from ..components.images import img_frequency_separation as img_frequency_separation
 from ..components.images import img_filmic_curve as img_filmic_curve
+from ..components.images import img_lut3d as img_lut3d
+from ..components.images import img_edge_jitter as img_edge_jitter
+from ..components.images import img_depth_blur as img_depth_blur
 
 from ..components import utility
 from .Dashboard import PrimereModelConceptSelector as PrimereModelConceptSelector
@@ -47,6 +50,28 @@ class PrimereRasterix:
     CONCEPT_LIST =  PrimereModelConceptSelector.CONCEPT_LIST
     FILM_TYPES = FILM_TYPES
     FILM_PRESETS_BY_TYPE = FILM_PRESETS_BY_TYPE
+
+    LUT_DIR = os.path.join(PRIMERE_ROOT, 'components', 'images', 'luts')
+
+    @classmethod
+    def _list_luts(cls):
+        lut_entries = ["None"]
+        if not os.path.exists(cls.LUT_DIR):
+            return lut_entries
+
+        for f in sorted(os.listdir(cls.LUT_DIR)):
+            full_path = os.path.join(cls.LUT_DIR, f)
+            if os.path.isfile(full_path) and f.lower().endswith(".cube"):
+                lut_entries.append(f)
+
+        for d in sorted(os.listdir(cls.LUT_DIR)):
+            subdir = os.path.join(cls.LUT_DIR, d)
+            if os.path.isdir(subdir):
+                for f in sorted(os.listdir(subdir)):
+                    if f.lower().endswith(".cube"):
+                        lut_entries.append(f"{d}/{f}")
+
+        return lut_entries
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -70,6 +95,13 @@ class PrimereRasterix:
                 "use_smart_lighting": ("BOOLEAN", {"default": False, "label_off": "Ignore smart lightning", "label_on": "Apply smart lightning"}),
                 "smart_lighting": ("FLOAT", {"default": 0, "min": 0, "max": 100, "step": 1}),
 
+                "use_dehaze": ("BOOLEAN", {"default": False, "label_off": "Ignore dehaze", "label_on": "Apply dehaze"}),
+                "strength": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.01}),
+                "dehaze_radius": ("INT", {"default": 15, "min": 3, "max": 100, "step": 1}),
+                "omega": ("FLOAT", {"default": 0.95, "min": 0.5, "max": 1.0, "step": 0.01}),
+                "t0": ("FLOAT", {"default": 0.1, "min": 0.01, "max": 0.5, "step": 0.01}),
+                "dehaze_contrast": ("FLOAT", {"default": 1.05, "min": 0.5, "max": 2.0, "step": 0.01}),
+
                 "use_blur": ("BOOLEAN", {"default": False, "label_off": "Ignore blur", "label_on": "Apply blur"}),
                 "blur_type":      (["gaussian", "box", "motion", "bilateral", "lens"], {"default": "bilateral"}),
                 "blur_intensity": ("FLOAT",   {"default": 0.0, "min": 0.0, "max": 5.0,   "step": 0.1}),
@@ -84,6 +116,18 @@ class PrimereRasterix:
                 "contrast":   ("FLOAT", {"default": 0, "min": -50,  "max": 100, "step": 1}),
                 "use_legacy": ("BOOLEAN", {"default": False, "label_off": "Use non-linear shift", "label_on": "Use adaptive offset"}),
 
+                "use_frequency_separation": ("BOOLEAN", {"default": False, "label_off": "Ignore frequency separation", "label_on": "Apply frequency separation"}),
+                "radius": ("FLOAT", {"default": 3.0, "min": 0.5, "max": 20.0, "step": 0.1}),
+                "low_freq_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0, "step": 0.01}),
+                "high_freq_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0, "step": 0.01}),
+                "blend_mode": (["add", "multiply", "overlay"], {"default": "add"}),
+
+                "use_local_laplacian": ("BOOLEAN", {"default": False, "label_off": "Ignore local laplacian", "label_on": "Apply local laplacian"}),
+                "sigma": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 5.0, "step": 0.1}),
+                "laplacian_contrast": ("FLOAT", {"default": 1.2, "min": 0.5, "max": 3.0, "step": 0.01}),
+                "detail": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0, "step": 0.01}),
+                "levels": ("INT", {"default": 8, "min": 4, "max": 32, "step": 1}),
+
                 "use_film_rendering": ("BOOLEAN", {"default": False, "label_off": "Ignore film rendering", "label_on": "Apply film rendering"}),
                 "film_type": (cls.FILM_TYPES, {"default": "All"}),
                 "film_rendering": (list(FILM_PRESETS.keys()), {"default": list(FILM_PRESETS.keys())[0]}),
@@ -91,6 +135,21 @@ class PrimereRasterix:
                 "iso_grain": ("BOOLEAN", {"default": False, "label_off": "Ignore ISO grain", "label_on": "Add ISO grain"}),
                 "halation": ("BOOLEAN", {"default": False, "label_off": "Ignore halation", "label_on": "Add halation"}),
                 "expiration_years": ("INT", {"default": 0, "min": 0, "max": 30, "step": 1}),
+
+                "use_photo_paper": ("BOOLEAN", {"default": False, "label_off": "Ignore H/B photo paper", "label_on": "Apply H/B photo paper"}),
+                "photo_paper": ("BOOLEAN", {"default": False, "label_off": "Soft paper", "label_on": "Hard paper"}),
+
+                "use_lut": ("BOOLEAN", {"default": False, "label_off": "Ignore LUT", "label_on": "Apply LUT"}),
+                "lut_file": (cls._list_luts(),),
+                "intensity": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.01}),
+                "color_space": (["sRGB", "linear"], {"default": "sRGB"}),
+
+                "use_filmic": ("BOOLEAN", {"default": False, "label_off": "Ignore filmic", "label_on": "Apply filmic"}),
+                "curve_type": (["filmic", "log"], {"default": "filmic"}),
+                "filmic_contrast": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 2.0, "step": 0.01}),
+                "highlight_rolloff": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "shadow_lift": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 0.5, "step": 0.01}),
+                "pivot": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
 
                 "use_selective_tone": ("BOOLEAN", {"default": False, "label_off": "Ignore selective tone", "label_on": "Apply selective tone"}),
                 "selective_tone_value":      ("FLOAT", {"default": 0,   "min": -100, "max": 100, "step": 1}),
@@ -121,6 +180,12 @@ class PrimereRasterix:
                 "detail_mode":    (["fine", "medium", "broad"], {"default": "medium"}),
                 "shade_strength": ("FLOAT", {"default": 0.5, "min": 0.0,  "max": 1.0, "step": 0.01}),
 
+                "use_clarity": ("BOOLEAN", {"default": False, "label_off": "Ignore clarity", "label_on": "Apply clarity"}),
+                "clarity_strength": ("FLOAT", {"default": 0.5, "min": -2.0, "max": 3.0, "step": 0.01}),
+                "clarity_radius": ("FLOAT", {"default": 2.0, "min": 0.5, "max": 10.0, "step": 0.1}),
+                "midtone_range": ("FLOAT", {"default": 0.5, "min": 0.1, "max": 1.0, "step": 0.01}),
+                "edge_preservation": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.0, "step": 0.01}),
+
                 "use_level_endpoints": ("BOOLEAN", {"default": False, "label_off": "Ignore endpoint offset", "label_on": "Apply endpoint offset"}),
                 "black_offset": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 25.0, "step": 0.1}),
                 "white_offset": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 25.0, "step": 0.1}),
@@ -132,16 +197,6 @@ class PrimereRasterix:
                 "dither_quantization": ("BOOLEAN", {"default": False, "label_off": "Dither quantization OFF", "label_on": "Dither quantization ON"}),
                 "adaptive_dither_strength": ("BOOLEAN", {"default": False, "label_off": "Keep dither strength", "label_on": "Increase dither strength"}),
                 "error_diffusion": ("BOOLEAN", {"default": False, "label_off": "Error diffusion OFF", "label_on": "Error diffusion ON"}),
-
-                "use_posterize": ("BOOLEAN", {"default": False, "label_off": "Ignore posterize", "label_on": "Apply posterize"}),
-                "shades": ("INT", {"default": 255, "min": 1, "max": 255, "step": 1}),
-                "channels": (["Red", "Green", "Blue"], {"default": "Red"}),
-
-                "use_ai_detection_bypasser": ("BOOLEAN", {"default": False, "label_off": "AI detection bypass off", "label_on": "AI detection bypass on"}),
-                "adb_freq_strength":     ("FLOAT", {"default": 0.019, "min": 0.0, "max": 0.1,  "step": 0.001}),
-                "adb_variance_strength": ("FLOAT", {"default": 0.32,  "min": 0.0, "max": 1.0,  "step": 0.01}),
-                "adb_unsharp_percent":   ("INT",   {"default": 38,    "min": 0,   "max": 150,  "step": 1}),
-                "adb_jpeg_cycles":       ("INT",   {"default": 4,     "min": 0,   "max": 6,    "step": 1}),
 
                 "show_histogram": ("BOOLEAN", {"default": False, "label_off": "Ignore histogram", "label_on": "Create histogram"}),
                 "histogram_source":        ("BOOLEAN", {"default": False, "label_off": "Show output histogram", "label_on": "Show input histogram"}),
@@ -206,10 +261,26 @@ class PrimereRasterix:
         edge_threshold = kwargs.get('edge_threshold', 0.0)
         use_smart_lighting = kwargs.get('use_smart_lighting', False)
         smart_lighting = kwargs.get('smart_lighting', 0)
+        use_dehaze = kwargs.get('use_dehaze', False)
+        strength = kwargs.get('strength', 0.7)
+        dehaze_radius = kwargs.get('dehaze_radius', 15)
+        omega = kwargs.get('omega', 0.95)
+        t0 = kwargs.get('t0', 0.1)
+        dehaze_contrast = kwargs.get('dehaze_contrast', 1.05)
         use_brightness_contrast = kwargs.get('use_brightness_contrast', False)
         brightness = kwargs.get('brightness', 0)
         contrast = kwargs.get('contrast', 0)
         use_legacy = kwargs.get('use_legacy', False)
+        use_frequency_separation = kwargs.get('use_frequency_separation', False)
+        radius = kwargs.get('radius', 3.0)
+        low_freq_strength = kwargs.get('low_freq_strength', 1.0)
+        high_freq_strength = kwargs.get('high_freq_strength', 1.0)
+        blend_mode = kwargs.get('blend_mode', 'add')
+        use_local_laplacian = kwargs.get('use_local_laplacian', False)
+        sigma = kwargs.get('sigma', 1.0)
+        laplacian_contrast = kwargs.get('laplacian_contrast', 1.2)
+        detail = kwargs.get('detail', 1.0)
+        levels = kwargs.get('levels', 8)
         use_film_rendering = kwargs.get('use_film_rendering', False)
         film_type = "All" if auto_runtime_mode else kwargs.get('film_type', "All")
         film_rendering = kwargs.get('film_rendering', list(FILM_PRESETS.keys())[0])
@@ -217,22 +288,34 @@ class PrimereRasterix:
         iso_grain = kwargs.get('iso_grain', False)
         halation = kwargs.get('halation', False)
         expiration_years = kwargs.get('expiration_years', 0)
+        use_photo_paper = kwargs.get('use_photo_paper', False)
+        photo_paper = kwargs.get('photo_paper', False)
+        use_filmic = kwargs.get('use_filmic', False)
+        curve_type = kwargs.get('curve_type', "filmic")
+        filmic_contrast = kwargs.get('filmic_contrast', 1.0)
+        highlight_rolloff = kwargs.get('highlight_rolloff', 0.5)
+        shadow_lift = kwargs.get('shadow_lift', 0.0)
+        pivot = kwargs.get('pivot', 0.5)
         use_selective_tone = kwargs.get('use_selective_tone', False)
         selective_tone_separation = kwargs.get('selective_tone_separation', 50)
         selective_tone_strength = kwargs.get('selective_tone_strength', 0.5)
         use_color_balance = kwargs.get('use_color_balance', False)
         color_balance_preserve_luminosity = kwargs.get('color_balance_preserve_luminosity', False)
         color_balance_separation = kwargs.get('color_balance_separation', 50)
+        use_lut = kwargs.get('use_lut', False)
+        lut_file = kwargs.get('lut_file', "None")
+        intensity = kwargs.get('intensity', 1.0)
+        color_space = kwargs.get('color_space', "sRGB")
         use_hsl = kwargs.get('use_hsl', False)
         hsl_channel_width = kwargs.get('hsl_channel_width', 50)
         hsl_skin_protection = kwargs.get('hsl_skin_protection', True)
         use_shade_detailer = kwargs.get('use_shade_detailer', False)
         shade_strength = kwargs.get('shade_strength', 0.5)
-        use_ai_detection_bypasser = kwargs.get('use_ai_detection_bypasser', False)
-        adb_freq_strength = kwargs.get('adb_freq_strength', 0.019)
-        adb_variance_strength = kwargs.get('adb_variance_strength', 0.32)
-        adb_unsharp_percent = kwargs.get('adb_unsharp_percent', 38)
-        adb_jpeg_cycles = kwargs.get('adb_jpeg_cycles', 4)
+        use_clarity = kwargs.get('use_clarity', False)
+        clarity_strength = kwargs.get('clarity_strength', 0.5)
+        clarity_radius = kwargs.get('clarity_radius', 2.0)
+        midtone_range = kwargs.get('midtone_range', 0.5)
+        edge_preservation = kwargs.get('edge_preservation', 0.8)
         use_level_endpoints = kwargs.get('use_level_endpoints', False)
         black_offset = kwargs.get('black_offset', 0.0)
         white_offset = kwargs.get('white_offset', 0.0)
@@ -241,7 +324,6 @@ class PrimereRasterix:
         dither_quantization = kwargs.get('dither_quantization', False)
         adaptive_dither_strength = kwargs.get('adaptive_dither_strength', False)
         error_diffusion = kwargs.get('error_diffusion', False)
-        use_posterize = kwargs.get('use_level_endpoints', False)
         show_histogram = kwargs.get('show_histogram', False)
         histogram_source = kwargs.get('histogram_source', False)
         histogram_channel = kwargs.get('histogram_channel', "RGB")
@@ -259,14 +341,23 @@ class PrimereRasterix:
         if use_white_balance and (wb_temperature != 6500 or wb_tint != 0):
             pil_img = img_white_balance.img_white_balance(image=pil_img, temperature=wb_temperature, tint=wb_tint)
 
-        if use_blur and blur_intensity != 0:
-            pil_img = img_blur.img_blur(image=pil_img, blur_type=blur_type, intensity=blur_intensity, radius=blur_radius, angle=angle, edge_only=blur_edge_only, bilateral_edge_sensitivity=bilateral_edge_sensitivity, edge_threshold=edge_threshold)
-
         if use_smart_lighting and smart_lighting != 0:
             pil_img = img_smart_lighting.img_smart_lighting(image=pil_img, intensity=smart_lighting)
 
+        if use_dehaze and strength > 0:
+            pil_img = img_dehaze.img_dehaze(image=pil_img, strength=strength, radius=dehaze_radius, omega=omega, t0=t0, contrast=dehaze_contrast, precision=precision)
+
+        if use_blur and blur_intensity != 0:
+            pil_img = img_blur.img_blur(image=pil_img, blur_type=blur_type, intensity=blur_intensity, radius=blur_radius, angle=angle, edge_only=blur_edge_only, bilateral_edge_sensitivity=bilateral_edge_sensitivity, edge_threshold=edge_threshold)
+
         if use_brightness_contrast and (brightness != 0 or contrast != 0):
             pil_img = img_brightness_contrast.img_brightness_contrast(image=pil_img, brightness=brightness, contrast=contrast, use_legacy=use_legacy)
+
+        if use_frequency_separation:
+            pil_img = img_frequency_separation.img_frequency_separation(image=pil_img, radius=radius, low_freq_strength=low_freq_strength, high_freq_strength=high_freq_strength, blend_mode=blend_mode)
+
+        if use_local_laplacian:
+            pil_img = img_local_laplacian.img_local_laplacian(image=pil_img, sigma=sigma, contrast=laplacian_contrast, detail=detail, levels=levels)
 
         if film_type != "All":
             allowed_presets = self.FILM_PRESETS_BY_TYPE.get(film_type, [])
@@ -274,6 +365,16 @@ class PrimereRasterix:
                 film_rendering = allowed_presets[0]
         if use_film_rendering and film_rendering_intensity != 0:
             pil_img = img_film_rendering.img_film_rendering(image=pil_img, rendering=film_rendering, intensity=film_rendering_intensity, add_grain=iso_grain, add_halation=halation, expiration_years=expiration_years)
+
+        if use_photo_paper:
+            pil_img = img_solarization_bw.img_solarization_bw(image=pil_img, color_mode=False, strength=0.00, pivot=0.00, sigma=0.01, edge_boost=0.00, edge_radius=0.5, contrast=1, precision=precision, hard_paper=photo_paper, grain_modulation=False, grain_strength=0, grain_scale=1, seed=1)
+
+        if use_lut and lut_file != "None":
+            lut_path = os.path.join(self.LUT_DIR, lut_file)
+            pil_img = img_lut3d.img_lut3d(image=pil_img, lut_path=lut_path, intensity=intensity, input_space=color_space, output_space=color_space)
+
+        if use_filmic:
+            pil_img = img_filmic_curve.img_filmic_curve(image=pil_img, curve_type=curve_type, contrast=filmic_contrast, highlight_rolloff=highlight_rolloff, shadow_lift=shadow_lift, pivot=pivot)
 
         st_data = rasterix_data.get('selective_tone', {})
         if use_selective_tone and st_data:
@@ -295,18 +396,14 @@ class PrimereRasterix:
                     rad = vals.get('shade_radius', 0)
                     pil_img = img_shade_level.img_shade_level(image=pil_img, shade_level=lvl, radius=rad, strength=shade_strength)
 
+        if use_clarity and strength != 0:
+            pil_img = img_clarity.img_clarity(image=pil_img, strength=clarity_strength, radius=clarity_radius, midtone_range=midtone_range, edge_preservation=edge_preservation, precision=precision)
+
         if use_level_endpoints and (black_offset != 0 or white_offset != 0):
             pil_img = img_levels_compress.img_levels_compress(image=pil_img, black_offset=black_offset, white_offset=white_offset, skip_if_no_clip=skip_if_no_clip, high_precision=precision)
 
         if dither_quantization or error_diffusion or normalize_midpeaks:
             pil_img = img_dithering.img_dithering(image=pil_img, dither_quantization=dither_quantization, adaptive_dither_strength=adaptive_dither_strength, error_diffusion=error_diffusion, normalize_midpeaks=normalize_midpeaks, peak_width=peak_width, high_precision=precision, seed=seed)
-
-        poster_data = rasterix_data.get('posterize', {})
-        if use_posterize and poster_data:
-            pil_img = img_posterize.img_posterize(image=pil_img, channels_data=poster_data)
-
-        if use_ai_detection_bypasser:
-            pil_img = isgen_detect_ext_full.bypass_ai_detector(image=pil_img, freq_strength=adb_freq_strength, variance_strength=adb_variance_strength, unsharp_percent=adb_unsharp_percent, jpeg_cycles=adb_jpeg_cycles)
 
         histogram.rasterix_hist_cache_store(pil_img_input, pil_img, precision)
         if show_histogram:
@@ -957,6 +1054,7 @@ class PrimereSolarizationBW:
                 "use_solarization": ("BOOLEAN", {"default": False, "label_off": "Ignore solarization", "label_on": "Apply solarization"}),
                 "precision": ("BOOLEAN", {"default": False, "label_off": "8 bit", "label_on": "16 bit"}),
 
+                "color_mode": ("BOOLEAN", {"default": False, "label_off": "Keep unchanged", "label_on": "Force B&W"}),
                 "strength": ("FLOAT", {"default": 0.6, "min": 0.0, "max": 2.0, "step": 0.01}),
                 "pivot": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "sigma": ("FLOAT", {"default": 0.18, "min": 0.01, "max": 0.5, "step": 0.01}),
@@ -974,10 +1072,10 @@ class PrimereSolarizationBW:
             }
         }
 
-    def primere_solarization_bw(self, image, use_solarization, precision, strength, pivot, sigma, edge_boost, edge_radius, contrast, hard_paper, grain_modulation, grain_strength, grain_scale, seed = None):
+    def primere_solarization_bw(self, image, color_mode, use_solarization, precision, strength, pivot, sigma, edge_boost, edge_radius, contrast, hard_paper, grain_modulation, grain_strength, grain_scale, seed = None):
         pil_img = utility.tensor_to_image(image)
         if use_solarization:
-            pil_img = img_solarization_bw.img_solarization_bw(image=pil_img, strength=strength, pivot=pivot, sigma=sigma, edge_boost=edge_boost, edge_radius=edge_radius, contrast=contrast, precision=precision, hard_paper=hard_paper, grain_modulation=grain_modulation, grain_strength=grain_strength, grain_scale=grain_scale, seed=seed)
+            pil_img = img_solarization_bw.img_solarization_bw(image=pil_img, color_mode=color_mode, strength=strength, pivot=pivot, sigma=sigma, edge_boost=edge_boost, edge_radius=edge_radius, contrast=contrast, precision=precision, hard_paper=hard_paper, grain_modulation=grain_modulation, grain_strength=grain_strength, grain_scale=grain_scale, seed=seed)
 
         return (utility.image_to_tensor(pil_img),)
 
@@ -1117,5 +1215,113 @@ class PrimereFilmicCurve:
         pil_img = utility.tensor_to_image(image)
         if use_filmic:
             pil_img = img_filmic_curve.img_filmic_curve(image=pil_img, curve_type=curve_type, contrast=contrast, highlight_rolloff=highlight_rolloff, shadow_lift=shadow_lift, pivot=pivot)
+
+        return (utility.image_to_tensor(pil_img),)
+
+class PrimereLUT3D:
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE",)
+    FUNCTION = "primere_lut3d"
+    CATEGORY = TREE_RASTERIX
+
+    LUT_DIR = os.path.join(PRIMERE_ROOT, 'components', 'images', 'luts')
+
+    @classmethod
+    def _list_luts(cls):
+        lut_entries = ["None"]
+        if not os.path.exists(cls.LUT_DIR):
+            return lut_entries
+
+        for f in sorted(os.listdir(cls.LUT_DIR)):
+            full_path = os.path.join(cls.LUT_DIR, f)
+            if os.path.isfile(full_path) and f.lower().endswith(".cube"):
+                lut_entries.append(f)
+
+        for d in sorted(os.listdir(cls.LUT_DIR)):
+            subdir = os.path.join(cls.LUT_DIR, d)
+            if os.path.isdir(subdir):
+                for f in sorted(os.listdir(subdir)):
+                    if f.lower().endswith(".cube"):
+                        lut_entries.append(f"{d}/{f}")
+
+        return lut_entries
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True}),
+                "use_lut": ("BOOLEAN", {"default": False, "label_off": "Ignore LUT", "label_on": "Apply LUT"}),
+
+                "lut_file": (cls._list_luts(),),
+                "intensity": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.01}),
+                "color_space": (["sRGB", "linear"], {"default": "sRGB"}),
+            }
+        }
+
+    def primere_lut3d(self, image, use_lut, lut_file, intensity, color_space):
+        pil_img = utility.tensor_to_image(image)
+        if use_lut and lut_file != "None":
+            lut_path = os.path.join(self.LUT_DIR, lut_file)
+            pil_img = img_lut3d.img_lut3d(image=pil_img, lut_path=lut_path, intensity=intensity, input_space=color_space, output_space=color_space)
+
+        return (utility.image_to_tensor(pil_img),)
+
+class PrimereEdgeJitter:
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE",)
+    FUNCTION = "primere_edge_jitter"
+    CATEGORY = TREE_RASTERIX
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True}),
+                "use_edge_jitter": ("BOOLEAN", {"default": False, "label_off": "Ignore edge jitter", "label_on": "Apply edge jitter"}),
+                "precision": ("BOOLEAN", {"default": False, "label_off": "8 bit", "label_on": "16 bit"}),
+
+                "strength": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 3.0, "step": 0.01}),
+                "radius": ("FLOAT", {"default": 1.5, "min": 0.5, "max": 5.0, "step": 0.1}),
+                "edge_threshold": ("FLOAT", {"default": 0.1, "min": 0.01, "max": 0.5, "step": 0.01}),
+                "randomness": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+            },
+            "optional": {
+                "seed": ("INT", {"default": 0, "min": 0, "max": utility.MAX_SEED, "forceInput": True}),
+            }
+        }
+
+    def primere_edge_jitter(self, image, use_edge_jitter, precision, strength, radius, edge_threshold, randomness, seed=None):
+        pil_img = utility.tensor_to_image(image)
+        if use_edge_jitter and strength > 0:
+            pil_img = img_edge_jitter.img_edge_jitter(image=pil_img, strength=strength, radius=radius, edge_threshold=edge_threshold, randomness=randomness, seed=seed, precision=precision)
+
+        return (utility.image_to_tensor(pil_img),)
+
+class PrimereDepthBlur:
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE",)
+    FUNCTION = "primere_depth_blur"
+    CATEGORY = TREE_RASTERIX
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True}),
+                "use_depth_blur": ("BOOLEAN", {"default": False, "label_off": "Ignore depth blur", "label_on": "Apply depth blur"}),
+                "auto_optimize": ("BOOLEAN", {"default": False, "label_off": "Use custom inputs", "label_on": "Optimize settings by focus"}),
+
+                "focus_depth": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "depth_range": ("FLOAT", {"default": 0.200, "min": 0.001, "max": 1.000, "step": 0.001}),
+                "max_blur": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 50.0, "step": 0.5}),
+                "depth_gamma": ("FLOAT", {"default": 1.00, "min": 0.10, "max": 5.00, "step": 0.01}),
+            }
+        }
+
+    def primere_depth_blur(self, image, use_depth_blur, auto_optimize, focus_depth, depth_range, max_blur, depth_gamma):
+        pil_img = utility.tensor_to_image(image)
+        if use_depth_blur:
+            pil_img = img_depth_blur.img_depth_blur(image=pil_img, focus_depth=focus_depth, depth_range=depth_range, max_blur=max_blur, depth_gamma=depth_gamma, auto_optimize=auto_optimize)
 
         return (utility.image_to_tensor(pil_img),)

@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.24.15] - 2026-04-01
+
+### Changed
+
+- Improve reliability when repeated pause tags appear across SRT cues
+
+### Fixed
+
+- Fix Multiline TTS Tag Editor tag highlighting with repeated subtitle tags
+- Fix some subtitle tags not highlighting correctly after editor updates
+- Fix internal marker artifacts leaking into the editor view
+## [4.24.14] - 2026-03-31
+
+### Added
+
+- Add merge controls for combining neighboring subtitle cues in the editor
+- Add split-at-caret support for breaking one subtitle into two timed cues
+- Add a dedicated Multiline TTS Tag Editor guide with SRT workflow notes
+
+### Changed
+
+- Improve Multiline TTS Tag Editor SRT editing and documentation
+- Improve in-editor and README documentation so the editor features are easier to discover
+## [4.24.13] - 2026-03-31
+
+### Added
+
+- Add draggable subtitle timing controls directly in the SRT editor
+- Keep adjacent subtitle gaps stable while adjusting linked timings
+- Keep the editor scrollbar from shifting text when focus changes
+
+### Changed
+
+- Improve Multiline TTS Tag Editor SRT timing editing and line alignment
+
+### Fixed
+
+- Fix line numbers drifting out of sync when long lines wrap
 ## [4.24.12] - 2026-03-30
 
 ### Added

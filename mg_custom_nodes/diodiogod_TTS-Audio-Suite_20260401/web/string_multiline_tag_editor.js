@@ -15,6 +15,8 @@ import { buildPresetSection } from "./widget-preset-system.js";
 import { attachAllEventHandlers } from "./widget-event-handlers.js";
 import { buildTabSystem } from "./widget-tabs.js";
 import { buildInlineEditSection } from "./widget-inline-edit-section.js";
+import { SRTTimingDragController, buildSRTTimingMarkup } from "./string_multiline_tag_editor_timing_drag.js";
+import { SRTCueEditController, buildSRTCueNumberMarkup } from "./string_multiline_tag_editor_srt_cue_ops.js";
 
 
 // Counter to ensure unique storage keys even when node.id is -1
@@ -352,6 +354,120 @@ function addStringMultilineTagEditorWidget(node) {
     lineGutterContent.className = "string-multiline-tag-editor-gutter-content";
     lineGutter.appendChild(lineGutterContent);
 
+    const editorScrollbar = document.createElement("div");
+    editorScrollbar.className = "string-multiline-tag-editor-editor-scrollbar";
+
+    const editorScrollbarThumb = document.createElement("div");
+    editorScrollbarThumb.className = "string-multiline-tag-editor-editor-scrollbar-thumb";
+    editorScrollbar.appendChild(editorScrollbarThumb);
+    let editorScrollbarDragState = null;
+    let renderedLogicalLineHtmlParts = [""];
+    const EDITOR_LOGICAL_LINE_CLASS = "string-multiline-tag-editor-editor-line";
+
+    const isEditorLogicalLineElement = (node) => (
+        node instanceof HTMLElement &&
+        node.classList.contains(EDITOR_LOGICAL_LINE_CLASS)
+    );
+
+    const getRenderedLogicalLineElements = () => (
+        Array.from(editor.children).filter((child) => isEditorLogicalLineElement(child))
+    );
+
+    const getRenderedLogicalLineHeights = (lineCount, lineHeight) => {
+        const renderedLineElements = getRenderedLogicalLineElements();
+        if (!renderedLineElements.length) {
+            return Array.from({ length: lineCount }, () => lineHeight);
+        }
+
+        return Array.from({ length: lineCount }, (_, row) => (
+            Math.max(lineHeight, renderedLineElements[row]?.getBoundingClientRect().height || lineHeight)
+        ));
+    };
+
+    const updateEditorScrollbar = () => {
+        const visibleHeight = editor.clientHeight;
+        const scrollHeight = editor.scrollHeight;
+        const maxScrollTop = Math.max(0, scrollHeight - visibleHeight);
+        const hasOverflow = maxScrollTop > 1;
+
+        editorScrollbar.style.opacity = hasOverflow ? "" : "0";
+        editorScrollbar.style.pointerEvents = hasOverflow ? "auto" : "none";
+
+        if (!hasOverflow) {
+            editorScrollbarThumb.style.transform = "translateY(0)";
+            editorScrollbarThumb.style.height = "0";
+            return;
+        }
+
+        const trackHeight = Math.max(0, editorScrollbar.clientHeight);
+        const thumbHeight = Math.max(20, (visibleHeight / scrollHeight) * trackHeight);
+        const availableTravel = Math.max(0, trackHeight - thumbHeight);
+        const progress = maxScrollTop > 0 ? editor.scrollTop / maxScrollTop : 0;
+        const thumbOffset = progress * availableTravel;
+
+        editorScrollbarThumb.style.height = `${thumbHeight}px`;
+        editorScrollbarThumb.style.transform = `translateY(${thumbOffset}px)`;
+    };
+
+    const stopEditorScrollbarDrag = () => {
+        if (!editorScrollbarDragState) {
+            return;
+        }
+
+        window.removeEventListener("pointermove", handleEditorScrollbarPointerMove, true);
+        window.removeEventListener("pointerup", stopEditorScrollbarDrag, true);
+        window.removeEventListener("pointercancel", stopEditorScrollbarDrag, true);
+        editorSurface.classList.remove("is-dragging-scrollbar");
+        editorScrollbarDragState = null;
+    };
+
+    const handleEditorScrollbarPointerMove = (event) => {
+        if (!editorScrollbarDragState) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const deltaY = event.clientY - editorScrollbarDragState.startY;
+        const scrollDelta = editorScrollbarDragState.availableTravel > 0
+            ? (deltaY / editorScrollbarDragState.availableTravel) * editorScrollbarDragState.maxScrollTop
+            : 0;
+        editor.scrollTop = Math.max(0, Math.min(
+            editorScrollbarDragState.startScrollTop + scrollDelta,
+            editorScrollbarDragState.maxScrollTop
+        ));
+        updateEditorScrollbar();
+    };
+
+    editorScrollbarThumb.addEventListener("pointerdown", (event) => {
+        const visibleHeight = editor.clientHeight;
+        const scrollHeight = editor.scrollHeight;
+        const maxScrollTop = Math.max(0, scrollHeight - visibleHeight);
+        if (event.button !== 0 || maxScrollTop <= 0) {
+            return;
+        }
+
+        const trackHeight = Math.max(0, editorScrollbar.clientHeight);
+        const thumbHeight = editorScrollbarThumb.getBoundingClientRect().height;
+        const availableTravel = Math.max(0, trackHeight - thumbHeight);
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        editorScrollbarDragState = {
+            startY: event.clientY,
+            startScrollTop: editor.scrollTop,
+            maxScrollTop,
+            availableTravel
+        };
+
+        editorSurface.classList.add("is-dragging-scrollbar");
+        window.addEventListener("pointermove", handleEditorScrollbarPointerMove, true);
+        window.addEventListener("pointerup", stopEditorScrollbarDrag, true);
+        window.addEventListener("pointercancel", stopEditorScrollbarDrag, true);
+    });
+
     const updateEditorMetrics = () => {
         const plainText = getPlainText();
         const characterTags = (plainText.match(/\[[^\]|]+(?:\|[^\]]+)?\]/g) || [])
@@ -366,22 +482,32 @@ function addStringMultilineTagEditorWidget(node) {
         inlineEditsChip.textContent = `Inline Tags: ${inlineEditCount}`;
         const computedEditorStyle = window.getComputedStyle(editor);
         const lineHeight = parseFloat(computedEditorStyle.lineHeight) || (state.fontSize * 1.4);
-        const visualRowCount = Math.max(lineCount, Math.ceil(editor.scrollHeight / lineHeight));
+        const paddingTop = parseFloat(computedEditorStyle.paddingTop || "0");
+        const paddingBottom = parseFloat(computedEditorStyle.paddingBottom || "0");
         editorStatusStats.textContent = `${lineCount} lines | ${wordCount} words | ${plainText.length} chars`;
         lineGutterContent.style.fontSize = `${state.fontSize}px`;
+        lineGutterContent.style.fontFamily = computedEditorStyle.fontFamily;
         lineGutterContent.style.lineHeight = `${lineHeight}px`;
-        const gutterDigits = String(visualRowCount).length;
+        lineGutterContent.style.paddingTop = `${paddingTop}px`;
+        lineGutterContent.style.paddingBottom = `${paddingBottom}px`;
+        const gutterDigits = String(lineCount).length;
         lineGutter.style.flexBasis = `${Math.max(24, Math.ceil(gutterDigits * state.fontSize * 0.72) + 14)}px`;
         lineGutter.style.minWidth = lineGutter.style.flexBasis;
 
+        const logicalLineHeights = getRenderedLogicalLineHeights(lineCount, lineHeight);
+        const contentHeight = logicalLineHeights.reduce((sum, height) => sum + height, 0);
+        lineGutterContent.style.height = `${Math.max(editor.scrollHeight, paddingTop + contentHeight + paddingBottom)}px`;
         const gutterFragment = document.createDocumentFragment();
-        for (let row = 0; row < visualRowCount; row++) {
+        for (let row = 0; row < lineCount; row++) {
             const lineNumber = document.createElement("span");
             lineNumber.textContent = String(row + 1);
+            lineNumber.style.height = `${logicalLineHeights[row] ?? lineHeight}px`;
+            lineNumber.style.lineHeight = `${lineHeight}px`;
             gutterFragment.appendChild(lineNumber);
         }
 
         lineGutterContent.replaceChildren(gutterFragment);
+        updateEditorScrollbar();
     };
 
     // Function to update font size and persist it
@@ -403,9 +529,75 @@ function addStringMultilineTagEditorWidget(node) {
     // Initialize with text
     editor.textContent = state.text;
 
-    const INTERNAL_MARKER_PATTERN = /(?:\x00)?(?:NUM_START|NUM_END|SRT_START|SRT_END|TAG_START|TAG_END|EDIT_START|EDIT_END|COMMA_START|COMMA_END|PERIOD_START|PERIOD_END|PUNCT_START|PUNCT_END|SPACE_START|SPACE_END)(?:\x00)?/g;
+    const INTERNAL_MARKER_PATTERN = /(?:\x00)?(?:NUM_START(?:_\d+)?|NUM_END|SRT_START|SRT_END|TAG_START|TAG_END|EDIT_START|EDIT_END|COMMA_START|COMMA_END|PERIOD_START|PERIOD_END|PUNCT_START|PUNCT_END|SPACE_START|SPACE_END)(?:\x00)?/g;
 
     const stripInternalMarkers = (text) => text.replace(INTERNAL_MARKER_PATTERN, "");
+    const stripResidualMarkerArtifacts = (text) => stripInternalMarkers(text).replace(/\x00/g, "");
+    const highlightResidualSquareBracketTags = (html) => {
+        if (!html.includes("[")) {
+            return html;
+        }
+
+        const tempRoot = document.createElement("div");
+        tempRoot.innerHTML = html;
+
+        const textNodes = [];
+        const walker = document.createTreeWalker(tempRoot, NodeFilter.SHOW_TEXT);
+        let currentNode;
+        while ((currentNode = walker.nextNode())) {
+            textNodes.push(currentNode);
+        }
+
+        const rawTagPattern = /\[[^\]\r\n]+\]/g;
+        textNodes.forEach((textNode) => {
+            const textContent = textNode.textContent || "";
+            if (!textContent.includes("[")) {
+                return;
+            }
+
+            const parentElement = textNode.parentElement;
+            if (
+                !parentElement ||
+                parentElement.closest(".string-multiline-tag-editor-srt-timing, .string-multiline-tag-editor-srt-number") ||
+                (parentElement.tagName === "SPAN" && parentElement.getAttribute("style"))
+            ) {
+                return;
+            }
+
+            rawTagPattern.lastIndex = 0;
+            if (!rawTagPattern.test(textContent)) {
+                return;
+            }
+
+            rawTagPattern.lastIndex = 0;
+            const fragment = document.createDocumentFragment();
+            let lastIndex = 0;
+            let match;
+
+            while ((match = rawTagPattern.exec(textContent)) !== null) {
+                if (match.index > lastIndex) {
+                    fragment.appendChild(document.createTextNode(textContent.slice(lastIndex, match.index)));
+                }
+
+                const tagSpan = document.createElement("span");
+                tagSpan.style.color = "#38d7ae";
+                tagSpan.style.fontWeight = "700";
+                tagSpan.textContent = match[0];
+                fragment.appendChild(tagSpan);
+                lastIndex = match.index + match[0].length;
+            }
+
+            if (lastIndex < textContent.length) {
+                fragment.appendChild(document.createTextNode(textContent.slice(lastIndex)));
+            }
+
+            textNode.replaceWith(fragment);
+        });
+
+        return tempRoot.innerHTML;
+    };
+    let timingDragController = null;
+    let cueEditController = null;
 
     const selectionIsInsideEditor = (selection) => {
         if (!selection || selection.rangeCount === 0) {
@@ -426,12 +618,20 @@ function addStringMultilineTagEditorWidget(node) {
         }
 
         if (node.nodeName === "BR") {
+            const parentNode = node.parentNode;
+            if (isEditorLogicalLineElement(parentNode) && parentNode.childNodes.length === 1) {
+                return "";
+            }
             return "\n";
         }
 
         let text = "";
-        node.childNodes.forEach(child => {
+        const childNodes = Array.from(node.childNodes);
+        childNodes.forEach((child, index) => {
             text += getNodePlainText(child);
+            if (isEditorLogicalLineElement(child) && index < childNodes.length - 1) {
+                text += "\n";
+            }
         });
         return text;
     };
@@ -465,11 +665,79 @@ function addStringMultilineTagEditorWidget(node) {
         const range = document.createRange();
         const plainTextLength = getPlainText().length;
         const targetPos = Math.max(0, Math.min(pos, plainTextLength));
+        let foundStart = false;
+
+        const setCaretPosWithinNode = (rootNode, localTargetPos) => {
+            if (localTargetPos <= 0) {
+                range.setStart(rootNode, 0);
+                return true;
+            }
+
+            let charCount = 0;
+            let nodeStack = [rootNode];
+            let node;
+
+            while ((node = nodeStack.pop())) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const nextCharCount = charCount + node.length;
+                    if (localTargetPos <= nextCharCount) {
+                        range.setStart(node, localTargetPos - charCount);
+                        return true;
+                    }
+                    charCount = nextCharCount;
+                } else if (node.nodeName === "BR") {
+                    const parentNode = node.parentNode;
+                    const isPlaceholderBreak = isEditorLogicalLineElement(parentNode) && parentNode.childNodes.length === 1;
+                    if (isPlaceholderBreak) {
+                        continue;
+                    }
+
+                    const nextCharCount = charCount + 1;
+                    if (localTargetPos <= nextCharCount) {
+                        range.setStartAfter(node);
+                        return true;
+                    }
+                    charCount = nextCharCount;
+                } else {
+                    let i = node.childNodes.length;
+                    while (i--) {
+                        nodeStack.push(node.childNodes[i]);
+                    }
+                }
+            }
+
+            range.selectNodeContents(rootNode);
+            range.collapse(false);
+            return true;
+        };
+
+        const renderedLogicalLineElements = getRenderedLogicalLineElements();
+        if (renderedLogicalLineElements.length) {
+            let remainingPos = targetPos;
+            for (let lineIndex = 0; lineIndex < renderedLogicalLineElements.length; lineIndex++) {
+                const lineElement = renderedLogicalLineElements[lineIndex];
+                const lineTextLength = stripInternalMarkers(getNodePlainText(lineElement)).length;
+
+                if (remainingPos <= lineTextLength) {
+                    foundStart = setCaretPosWithinNode(lineElement, remainingPos);
+                    break;
+                }
+
+                remainingPos -= lineTextLength;
+
+                if (lineIndex < renderedLogicalLineElements.length - 1) {
+                    if (remainingPos === 1) {
+                        foundStart = setCaretPosWithinNode(renderedLogicalLineElements[lineIndex + 1], 0);
+                        break;
+                    }
+                    remainingPos -= 1;
+                }
+            }
+        }
+
         let charCount = 0;
         let nodeStack = [editor];
         let node;
-        let foundStart = false;
-
         while (!foundStart && (node = nodeStack.pop())) {
             if (node.nodeType === Node.TEXT_NODE) {
                 const nextCharCount = charCount + node.length;
@@ -481,9 +749,7 @@ function addStringMultilineTagEditorWidget(node) {
             } else if (node.nodeName === "BR") {
                 const nextCharCount = charCount + 1;
                 if (targetPos <= nextCharCount) {
-                    const parentNode = node.parentNode;
-                    const nodeIndex = Array.prototype.indexOf.call(parentNode.childNodes, node);
-                    range.setStart(parentNode, nodeIndex + 1);
+                    range.setStartAfter(node);
                     foundStart = true;
                 }
                 charCount = nextCharCount;
@@ -514,11 +780,13 @@ function addStringMultilineTagEditorWidget(node) {
         const plainText = getPlainText();
         const caretPos = getCaretPos();
         let html = plainText;
+        let cueNumberIndex = 0;
+        let timingHandleIndex = 0;
 
         // Highlight SRT sequence numbers - bright red
         html = html.replace(
             /^(\d+)\s*\n(\d{2}:\d{2}:\d{2},\d{3}\s+-->\s+\d{2}:\d{2}:\d{2},\d{3})/gm,
-            '\x00NUM_START\x00$1\x00NUM_END\x00\n$2'
+            (_, cueNumber, timingLine) => `\x00NUM_START_${cueNumberIndex++}\x00${cueNumber}\x00NUM_END\x00\n${timingLine}`
         );
 
         // Highlight SRT timings - bright orange
@@ -559,8 +827,8 @@ function addStringMultilineTagEditorWidget(node) {
 
         // Replace placeholders with spans
         html = html
-            .replace(/\x00NUM_START\x00(.*?)\x00NUM_END\x00/g, '<span style="color: #ff6f61; font-weight: bold;">$1</span>')
-            .replace(/\x00SRT_START\x00(.*?)\x00SRT_END\x00/g, '<span style="color: #f0b35a; font-weight: bold;">$1</span>')
+            .replace(/\x00NUM_START_(\d+)\x00(.*?)\x00NUM_END\x00/g, (_, cueIndex, cueNumber) => buildSRTCueNumberMarkup(cueNumber, Number(cueIndex)))
+            .replace(/\x00SRT_START\x00(.*?)\x00SRT_END\x00/g, (_, timingText) => buildSRTTimingMarkup(stripInternalMarkers(timingText).replace(/&gt;/g, ">"), timingHandleIndex++))
             .replace(/\x00TAG_START\x00(.*?)\x00TAG_END\x00/g, '<span style="color: #38d7ae; font-weight: 700;">$1</span>')
             .replace(/\x00EDIT_START\x00(.*?)\x00EDIT_END\x00/g, '<span style="color: #a6d700; font-weight: 700;">$1</span>')
             .replace(/\x00COMMA_START\x00(.*?)\x00COMMA_END\x00/g, '<span style="color: #7bd6a7; font-weight: bold;">$1</span>')
@@ -568,11 +836,22 @@ function addStringMultilineTagEditorWidget(node) {
             .replace(/\x00PUNCT_START\x00(.*?)\x00PUNCT_END\x00/g, '<span style="color: #f0a1a1;">$1</span>')
             .replace(/\x00SPACE_START\x00(.*?)\x00SPACE_END\x00/g, '<span style="background: #2a2a2a; color: #eee;">$1</span>');
 
+        // Safety net: if any placeholder token survives the replacement chain,
+        // strip it before the editor HTML is rendered.
+        html = stripResidualMarkerArtifacts(html);
+        html = highlightResidualSquareBracketTags(html);
+
+        renderedLogicalLineHtmlParts = html.split("\n");
+        html = renderedLogicalLineHtmlParts.map((lineHtml, index) => (
+            `<div class="${EDITOR_LOGICAL_LINE_CLASS}" data-line-index="${index}">${lineHtml && lineHtml.length ? lineHtml : "<br>"}</div>`
+        )).join("");
+
         // Update only if changed to avoid flicker
         if (editor.innerHTML !== html) {
             editor.innerHTML = html;
             setCaretPos(caretPos);
         }
+        timingDragController?.syncActiveHandle();
         updateEditorMetrics();
     };
 
@@ -687,6 +966,7 @@ function addStringMultilineTagEditorWidget(node) {
 
     editorSurface.appendChild(editor);
     editorSurface.prepend(lineGutter);
+    editorSurface.appendChild(editorScrollbar);
     textareaWrapper.appendChild(editorStatusBar);
     textareaWrapper.appendChild(editorSurface);
     shellBody.appendChild(sidebar);
@@ -913,6 +1193,33 @@ function addStringMultilineTagEditorWidget(node) {
 
     // ==================== ATTACH EVENT HANDLERS ====================
     // Consolidates all addEventListener calls into a single module function
+    timingDragController = new SRTTimingDragController({
+        rootElement: editorContainer,
+        editor,
+        getPlainText,
+        setEditorText,
+        getCaretPos,
+        setCaretPos,
+        state,
+        storageKey,
+        widget,
+        historyStatus,
+        showNotification
+    });
+
+    cueEditController = new SRTCueEditController({
+        editor,
+        getPlainText,
+        setEditorText,
+        getCaretPos,
+        setCaretPos,
+        state,
+        storageKey,
+        widget,
+        historyStatus,
+        showNotification
+    });
+
     attachAllEventHandlers(
         editor, state, widget, storageKey, getPlainText, setEditorText, getCaretPos, setCaretPos,
         undoBtn, redoBtn, historyStatus, charSelect, charInput, addCharBtn, langSelect, addLangBtn,
@@ -1166,7 +1473,7 @@ function addStringMultilineTagEditorWidget(node) {
 
     const renderLibraryView = () => {
         auxiliaryTitle.textContent = "Library";
-        auxiliaryDescription.textContent = "Consult the tag guides directly in the editor: character switching, per-segment parameters, and inline edit workflow notes.";
+        auxiliaryDescription.textContent = "Consult the tag guides directly in the editor: character switching, per-segment parameters, inline edit workflow notes, and the SRT editing cheat sheet.";
 
         const libraryGroups = [
             {
@@ -1224,6 +1531,25 @@ function addStringMultilineTagEditorWidget(node) {
                     "`<restore>` and `<restore:N>` use the original clean pre-edit audio as reference. `<restore:N@M>` switches the reference to edit step M, not restore pass M.",
                     "Example: `<style:whisper:2> <Laughter:3> <restore:1@2>` means restore runs after everything else, but it aims back at the audio from whisper step 2 so you keep the whisper feel and drop the later laughter damage.",
                     "If you want stronger laughter or reaction effects, include supporting spoken text too, not just the tag."
+                ]
+            },
+            {
+                title: "SRT Editing Guide",
+                intro: "Use these subtitle-specific actions when the editor is showing SRT content and you need to retime, merge, or split cues directly inside the node.",
+                rows: [
+                    { syntax: "Drag start time", purpose: "Retiming cue start", notes: "Drag the left timestamp horizontally to move only the cue start." },
+                    { syntax: "Drag end time", purpose: "Retiming cue end", notes: "Drag the right timestamp horizontally to move only the cue end." },
+                    { syntax: "Drag -->", purpose: "Move whole cue", notes: "Drag the arrow segment to move the full subtitle without changing its duration." },
+                    { syntax: "Shift + drag start/end", purpose: "Keep adjacent gap stable", notes: "Moves the neighboring cue boundary by the same delta so the existing gap remains intact." },
+                    { syntax: "Alt + click cue number", purpose: "Merge with next cue", notes: "Keeps the current cue start, uses the next cue end, joins the text, and renumbers later cues." },
+                    { syntax: "Alt + Shift + click cue number", purpose: "Merge with previous cue", notes: "Merges the selected cue backward into the previous one and keeps timing across the full combined span." },
+                    { syntax: "Ctrl + Shift + Enter", purpose: "Split cue at caret", notes: "Splits subtitle text at the caret and estimates the new boundary time from the text proportion on both sides." }
+                ],
+                bullets: [
+                    "Merge is useful when short subtitle chunks sound too abrupt and you want a larger TTS segment.",
+                    "Split uses text proportion plus punctuation bias as a first-pass timing estimate, so review the result if the pacing is critical.",
+                    "Cue numbers are now action targets for merge, while timing lines remain action targets for retiming.",
+                    "For the full guide, see `docs/MULTILINE_TTS_TAG_EDITOR_GUIDE.md`."
                 ]
             }
         ];
@@ -1332,6 +1658,9 @@ function addStringMultilineTagEditorWidget(node) {
 
     // Store state when node is removed
     widget.onRemove = () => {
+        stopEditorScrollbarDrag();
+        timingDragController?.dispose();
+        cueEditController?.dispose();
         state.saveToLocalStorage(storageKey);
     };
 
@@ -1341,6 +1670,7 @@ function addStringMultilineTagEditorWidget(node) {
 
     editor.addEventListener("scroll", () => {
         lineGutterContent.style.transform = `translateY(${-editor.scrollTop}px)`;
+        updateEditorScrollbar();
     });
     sidebarScrollContent.addEventListener("scroll", updateSidebarScrollbar);
 
@@ -1356,6 +1686,7 @@ function addStringMultilineTagEditorWidget(node) {
     }
 
     requestAnimationFrame(updateSidebarScrollbar);
+    requestAnimationFrame(updateEditorScrollbar);
 
     return widget;
 }

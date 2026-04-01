@@ -7,12 +7,14 @@ from .nodes.nodes import *
 from .nodes.power_loaders import *
 from .nodes.decode_overlap import *
 
+from .nodes.power_load_video import *
 from .nodes.power_spline_editor import *
 from .nodes.prepare_refs import *
 from .nodes.video_inpaint import *
 from .nodes.matanyone2 import *
 
 from .nodes.lora_extract_v2 import *
+from .nodes.lora_merge_ltx import *
 from .nodes.lora_change import *
 from .nodes.lora_combine import *
 from .nodes.math_nodes import *

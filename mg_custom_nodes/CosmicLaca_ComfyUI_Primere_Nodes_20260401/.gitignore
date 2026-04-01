@@ -1,6 +1,6 @@
 .idea
 .github
-/!Examples/
+.git
 wildcards
 stylecsv
 consoletests
@@ -14,4 +14,6 @@ Toml/prompts.toml
 ghtoken.txt
 json/llm_enhancer_config.json
 front_end/model_concept.json
-Nodes/Downloads/LLM
+front_end/api_schemas.json
+Nodes/Downloads
+json/apiconfig.json

@@ -52,6 +52,29 @@ class PrimereRasterix:
     FILM_PRESETS_BY_TYPE = FILM_PRESETS_BY_TYPE
 
     LUT_DIR = os.path.join(PRIMERE_ROOT, 'components', 'images', 'luts')
+    SECTION_TITLES = [
+        {"before": "concepts", "title": "🧭 Main Settings", "color": "#3A3F52", "text_color": "#F2F5FF"},
+        {"after": "precision", "title": "🎚 Auto levels", "color": "#364556", "text_color": "#EAF1F8"},
+        {"after": "gamma_target", "title": "🔦 White balance", "color": "#364556", "text_color": "#EAF1F8"},
+        {"after": "wb_tint", "title": "💡 Smart lightning", "color": "#364556", "text_color": "#EAF1F8"},
+        {"after": "smart_lighting", "title": "🌫 Dehaze", "color": "#364556", "text_color": "#EAF1F8"},
+        {"after": "dehaze_contrast", "title": "🪄 Depth blur", "color": "#364556", "text_color": "#EAF1F8"},
+        {"after": "depth_gamma", "title": "🫗 Blur", "color": "#364556", "text_color": "#EAF1F8"},
+        {"after": "edge_threshold", "title": "🧊 Primary Image Ops", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "use_legacy", "title": "🪒 Portrait retouching", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "blend_mode", "title": "⚔ Edge-Aware pyramid", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "levels", "title": "🎞 Analog film and CCD rendering", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "photo_paper", "title": "📷 LUT .cube file reader", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "color_space", "title": "🎥 Filmic camera", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "pivot", "title": "🎛 Selective tone", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "selective_tone_strength", "title": "⚖ Color balance", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "color_balance_separation", "title": "🪁 Hue Saturation Lightness", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "hsl_skin_protection", "title": "💎 Microcontrast - Shade detailer", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "shade_strength", "title": "🧹 Midtone claity", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "edge_preservation", "title": "🔛 Black and light endpoints", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "skip_if_no_clip", "title": "🛝 Dithering / diffusion", "color": "#355443", "text_color": "#E8F6EF"},
+        {"after": "error_diffusion", "title": "📊 Histogram", "color": "#2F4F61", "text_color": "#E6F5FF"},
+    ]
 
     @classmethod
     def _list_luts(cls):
@@ -101,6 +124,14 @@ class PrimereRasterix:
                 "omega": ("FLOAT", {"default": 0.95, "min": 0.5, "max": 1.0, "step": 0.01}),
                 "t0": ("FLOAT", {"default": 0.1, "min": 0.01, "max": 0.5, "step": 0.01}),
                 "dehaze_contrast": ("FLOAT", {"default": 1.05, "min": 0.5, "max": 2.0, "step": 0.01}),
+
+                "use_depth_blur": ("BOOLEAN", {"default": False, "label_off": "Ignore depth blur", "label_on": "Apply depth blur"}),
+                "auto_optimize": ("BOOLEAN", {"default": False, "label_off": "Use custom inputs", "label_on": "Optimize settings by focus"}),
+                "use_DA_v3": ("BOOLEAN", {"default": False, "label_off": "Depth-anything V2", "label_on": "Depth-anything V3"}),
+                "focus_depth": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "depth_range": ("FLOAT", {"default": 0.200, "min": 0.001, "max": 1.000, "step": 0.001}),
+                "max_blur": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 50.0, "step": 0.5}),
+                "depth_gamma": ("FLOAT", {"default": 1.00, "min": 0.10, "max": 5.00, "step": 0.01}),
 
                 "use_blur": ("BOOLEAN", {"default": False, "label_off": "Ignore blur", "label_on": "Apply blur"}),
                 "blur_type":      (["gaussian", "box", "motion", "bilateral", "lens"], {"default": "bilateral"}),
@@ -207,6 +238,9 @@ class PrimereRasterix:
                 "model_concept": ("STRING", {"default": None, "forceInput": True}),
                 "model_name": ("CHECKPOINT_NAME", {"default": None, "forceInput": True}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": utility.MAX_SEED, "forceInput": True}),
+            },
+            "hidden": {
+                "id": "UNIQUE_ID",
             }
         }
 
@@ -251,6 +285,13 @@ class PrimereRasterix:
         use_white_balance = kwargs.get('use_white_balance', False)
         wb_temperature = kwargs.get('wb_temperature', 6500)
         wb_tint = kwargs.get('wb_tint', 0)
+        use_depth_blur = kwargs.get('use_depth_blur', False)
+        auto_optimize = kwargs.get('auto_optimize', False)
+        use_DA_v3 = kwargs.get('use_DA_v3', False)
+        focus_depth = kwargs.get('focus_depth', 0.5)
+        depth_range = kwargs.get('depth_range', 0.200)
+        max_blur = kwargs.get('bilateral_edge_sensitivity', 8.0)
+        depth_gamma = kwargs.get('depth_gamma', 1.0)
         use_blur = kwargs.get('use_blur', False)
         blur_type = kwargs.get('blur_type', "bilateral")
         blur_intensity = kwargs.get('blur_intensity', 0.0)
@@ -328,6 +369,7 @@ class PrimereRasterix:
         histogram_source = kwargs.get('histogram_source', False)
         histogram_channel = kwargs.get('histogram_channel', "RGB")
         histogram_style = kwargs.get('histogram_style', "bars")
+        node_id = kwargs.get('id', None)
 
         pil_img = utility.tensor_to_image(image)
         pil_img_input = pil_img.copy()
@@ -346,6 +388,9 @@ class PrimereRasterix:
 
         if use_dehaze and strength > 0:
             pil_img = img_dehaze.img_dehaze(image=pil_img, strength=strength, radius=dehaze_radius, omega=omega, t0=t0, contrast=dehaze_contrast, precision=precision)
+
+        if use_depth_blur and focus_depth > 0 and max_blur > 0:
+            pil_img = img_depth_blur.img_depth_blur(image=pil_img, focus_depth=focus_depth, depth_range=depth_range, max_blur=max_blur, depth_gamma=depth_gamma, auto_optimize=auto_optimize, use_v3=use_DA_v3)
 
         if use_blur and blur_intensity != 0:
             pil_img = img_blur.img_blur(image=pil_img, blur_type=blur_type, intensity=blur_intensity, radius=blur_radius, angle=angle, edge_only=blur_edge_only, bilateral_edge_sensitivity=bilateral_edge_sensitivity, edge_threshold=edge_threshold)
@@ -405,10 +450,10 @@ class PrimereRasterix:
         if dither_quantization or error_diffusion or normalize_midpeaks:
             pil_img = img_dithering.img_dithering(image=pil_img, dither_quantization=dither_quantization, adaptive_dither_strength=adaptive_dither_strength, error_diffusion=error_diffusion, normalize_midpeaks=normalize_midpeaks, peak_width=peak_width, high_precision=precision, seed=seed)
 
-        histogram.rasterix_hist_cache_store(pil_img_input, pil_img, precision)
+        histogram.rasterix_hist_cache_store(pil_img_input, pil_img, precision, node_id=node_id)
         if show_histogram:
-            histogram.rasterix_hist_cache_store(pil_img_input, pil_img, precision)
-            active_hist = histogram.rasterix_hist_render_selected(pil_img_input, pil_img, precision, histogram_source, histogram_channel, histogram_style,)
+            histogram.rasterix_hist_cache_store(pil_img_input, pil_img, precision, node_id=node_id)
+            active_hist = histogram.rasterix_hist_render_selected(pil_img_input, pil_img, precision, histogram_source, histogram_channel, histogram_style, node_id=node_id)
             suffix      = ''.join(random.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(8))
             temp_file   = f"rasterix_hist_{suffix}.png"
             active_hist.save(os.path.join(folder_paths.temp_directory, temp_file), compress_level=1)
@@ -1010,21 +1055,23 @@ class PrimereHistogram:
                 "image": ("IMAGE", {"forceInput": True}),
                 "precision": ("BOOLEAN", {"default": False, "label_off": "8 bit", "label_on": "16 bit"}),
                 "show_histogram": ("BOOLEAN", {"default": False, "label_off": "Ignore histogram", "label_on": "Create histogram"}),
-                # "histogram_source": ("BOOLEAN", {"default": False, "label_off": "Show output histogram", "label_on": "Show input histogram"}),
                 "histogram_channel": (["RGB", "RED", "GREEN", "BLUE"], {"default": "RGB"}),
                 "histogram_style": (["bars", "lines", "waveform", "heatmap", "stacked", "luma", "parade", "gradient", "glow", "dots", "step", "log", "percentile", "inverse"], {"default": "bars"}),
+            },
+            "hidden": {
+                "id": "UNIQUE_ID",
             }
         }
 
-    def primere_histogram(self, image, precision, show_histogram=False, histogram_channel="RGB", histogram_style="bars"):
+    def primere_histogram(self, image, precision, show_histogram=False, histogram_channel="RGB", histogram_style="bars", id=None):
         pil_img = utility.tensor_to_image(image)
         pil_img_input = pil_img.copy()
 
-        histogram.rasterix_hist_cache_store(pil_img_input, pil_img, precision)
+        histogram.rasterix_hist_cache_store(pil_img_input, pil_img, precision, node_id=id)
 
         if show_histogram:
-            histogram.rasterix_hist_cache_store(pil_img_input, pil_img, precision)
-            active_hist = histogram.rasterix_hist_render_selected(pil_img_input, pil_img, precision, True, histogram_channel, histogram_style,)
+            histogram.rasterix_hist_cache_store(pil_img_input, pil_img, precision, node_id=id)
+            active_hist = histogram.rasterix_hist_render_selected(pil_img_input, pil_img, precision, True, histogram_channel, histogram_style, node_id=id)
             suffix = ''.join(random.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(8))
             temp_file = f"rasterix_hist_{suffix}.png"
             active_hist.save(os.path.join(folder_paths.temp_directory, temp_file), compress_level=1)
@@ -1311,7 +1358,7 @@ class PrimereDepthBlur:
                 "image": ("IMAGE", {"forceInput": True}),
                 "use_depth_blur": ("BOOLEAN", {"default": False, "label_off": "Ignore depth blur", "label_on": "Apply depth blur"}),
                 "auto_optimize": ("BOOLEAN", {"default": False, "label_off": "Use custom inputs", "label_on": "Optimize settings by focus"}),
-
+                "use_DA_v3": ("BOOLEAN", {"default": False, "label_off": "Depth-anything V2", "label_on": "Depth-anything V3"}),
                 "focus_depth": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "depth_range": ("FLOAT", {"default": 0.200, "min": 0.001, "max": 1.000, "step": 0.001}),
                 "max_blur": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 50.0, "step": 0.5}),
@@ -1319,9 +1366,9 @@ class PrimereDepthBlur:
             }
         }
 
-    def primere_depth_blur(self, image, use_depth_blur, auto_optimize, focus_depth, depth_range, max_blur, depth_gamma):
+    def primere_depth_blur(self, image, use_depth_blur, auto_optimize, use_DA_v3, focus_depth, depth_range, max_blur, depth_gamma):
         pil_img = utility.tensor_to_image(image)
         if use_depth_blur:
-            pil_img = img_depth_blur.img_depth_blur(image=pil_img, focus_depth=focus_depth, depth_range=depth_range, max_blur=max_blur, depth_gamma=depth_gamma, auto_optimize=auto_optimize)
+            pil_img = img_depth_blur.img_depth_blur(image=pil_img, focus_depth=focus_depth, depth_range=depth_range, max_blur=max_blur, depth_gamma=depth_gamma, auto_optimize=auto_optimize, use_v3=use_DA_v3)
 
         return (utility.image_to_tensor(pil_img),)

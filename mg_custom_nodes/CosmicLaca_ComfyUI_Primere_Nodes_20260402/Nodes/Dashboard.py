@@ -686,12 +686,25 @@ class PrimereModelControl:
 
     REFINER_MODELS  = [n for n in PrimereModelConceptSelector.MODELLIST if "refiner" in os.path.basename(n).lower() or "refiner" in os.path.dirname(n).lower()]
 
+    SECTION_TITLES = [
+        {"before": "concepts", "name": "modelctrl_target", "title": "🧭 Model Target & Concept", "color": "#233945", "text_color": "#EAF1F8", "label": "Select active concept/model context and auto-binding behavior for setting profiles."},
+        {"after": "models", "name": "modelctrl_sampling_core", "title": "🎛 Core Sampling Controls", "color": "#2D4B57", "text_color": "#EAF1F8", "label": "Set sampler, scheduler, step strategy, CFG and override behavior for baseline generation."},
+        {"after": "rescale_cfg", "name": "modelctrl_vae_clip", "title": "🧩 VAE & CLIP Selection", "color": "#2D4B57", "text_color": "#EAF1F8", "label": "Choose VAE/CLIP source preference and final CLIP layer behavior."},
+        {"after": "last_layer", "name": "modelctrl_text_encoders", "title": "📝 Text Encoder Routing", "color": "#274441", "text_color": "#EAF1F8", "label": "Assign encoder slots for multi-encoder pipelines (T5/CLIP/UNET-backed text paths)."},
+        {"after": "encoder_3", "name": "modelctrl_attention", "title": "🧠 Attention Modulation", "color": "#274441", "text_color": "#EAF1F8", "label": "Preset or custom attention scaling for self/cross attention blocks and expander shaping."},
+        {"after": "attn_expander", "name": "modelctrl_sampler_backend", "title": "⚙ Backend Sampling Model", "color": "#2B384A", "text_color": "#EAF1F8", "label": "Configure sampler backend mode, EDM/discrete options, sigma bounds and flux shift parameters."},
+        {"after": "beta_beta", "name": "modelctrl_guidance_precision", "title": "📐 Guidance & Precision", "color": "#2B384A", "text_color": "#EAF1F8", "label": "Tune model guidance and runtime precision/weight dtype for speed, memory and quality balance."},
+        {"after": "precision", "name": "modelctrl_speed_loras", "title": "⚡ Acceleration LoRAs", "color": "#1C3D47", "text_color": "#EAF1F8", "label": "LCM and speed-focused LoRA controls for faster inference and step/cfg auto-alignment."},
+        {"after": "speed_lora_steps_offset", "name": "modelctrl_special_loras", "title": "🧪 Specialized LoRAs", "color": "#1C3D47", "text_color": "#EAF1F8", "label": "Optional SRPO, SRPO-SVDQ and Nunchaku LoRA blocks for specialized behavior."},
+        {"after": "nunchaku_lora_strength", "name": "modelctrl_refiner", "title": "✨ Refiner Stage", "color": "#392E42", "text_color": "#EAF1F8", "label": "Enable second-stage refiner pass and tune sampler, denoise, prompt handoff and step window."},
+    ]
+
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model_concept": ("STRING", {"default": None, "forceInput": True}),
-                "model_name": ("CHECKPOINT_NAME", {"default": None, "forceInput": True}),
+                # "model_concept": ("STRING", {"default": None, "forceInput": True}),
+                # "model_name": ("CHECKPOINT_NAME", {"default": None, "forceInput": True}),
 
                 "concepts": (["Auto"] + cls.CONCEPT_LIST,),
                 "models": (["Auto"] + cls.MODELLIST,),
@@ -771,11 +784,15 @@ class PrimereModelControl:
                 "refiner_denoise": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "refiner_sampling_denoise": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "refiner_ignore_prompt": ("BOOLEAN", {"default": True, "label_on": "Ignore prompt", "label_off": "Send prompt to refiner"})
-            }
+            },
+            "optional": {
+                "model_concept": ("STRING", {"default": None, "forceInput": True}),
+                "model_name": ("CHECKPOINT_NAME", {"default": None, "forceInput": True}),
+            },
         }
 
     def get_primeremodelcontrol(self, **kwargs):
-        model_concept = kwargs.pop('model_concept', 'SD1')
+        model_concept = kwargs.pop('model_concept', None)
         model_name = kwargs.pop('model_name', None)
         concepts = kwargs.pop('concepts', 'Auto')
         models = kwargs.pop('models', 'Auto')
@@ -783,7 +800,7 @@ class PrimereModelControl:
         scheduler_name = kwargs.pop('scheduler_name', comfy.samplers.KSampler.SCHEDULERS[0])
         steps = kwargs.pop('steps', 12)
         cfg = kwargs.pop('cfg', 7.0)
-        active_concept = model_concept if concepts == "Auto" else concepts
+        active_concept = model_concept if concepts == "Auto" and model_name is not None else concepts
         saved = {}
         if concepts == "Auto" and models == "Auto":
             raw_model = model_name
@@ -810,7 +827,7 @@ class PrimereModelControl:
         else:
             active_display = active_concept
 
-        if kwargs.get('override_steps') == True:
+        if kwargs.get('override_steps') == True and model_name is not None:
             found = re.findall(r"(?i)(\d+)step", model_name.lower())
             if found:
                 steps = int(found[0])
@@ -1241,6 +1258,17 @@ class PrimereCLIP:
         with open(toml_path, "rb") as f:
             style_def_neg = tomli.load(f)
         return style_def_neg
+
+    SECTION_TITLES = [
+        {"before": "negative_strength", "name": "clip_core", "title": "📝 Core Prompt Setup", "color": "#4C5E70", "text_color": "#EAF1F8", "label": "Base positive and negative prompt inputs (force-connected) with global negative prompt strength control."},
+        {"before": "use_int_style", "name": "clip_int_style", "title": "🎨 Internal Style Injection", "color": "#6A4C70", "text_color": "#EAF1F8", "label": "Toggle and apply predefined internal positive/negative styles with independent strength multipliers."},
+        {"before": "adv_encode", "name": "clip_adv_encode", "title": "🔧 Advanced Encoding", "color": "#6A5636", "text_color": "#EAF1F8", "label": "Enable advanced CLIP encoding with token normalization and multiple weight interpretation modes (Comfy, A1111, Compel, etc.)."},
+        {"before": "enhanced_prompt_usage", "name": "clip_enhanced", "title": "🚀 Enhanced Prompt Injection", "color": "#3E5C4B", "text_color": "#EAF1F8", "label": "Inject or replace prompts using T5-XXL or other enhanced modes with controllable strength for richer prompt interpretation."},
+        {"before": "opt_pos_strength", "name": "clip_opt_strength", "title": "⚖️ Optional Prompt Strengths", "color": "#705C4C", "text_color": "#EAF1F8", "label": "Fine-tune overall positive and negative prompt strengths independently of other settings."},
+        {"before": "style_handling", "name": "clip_style_handling", "title": "🖼️ Style Prompt Management", "color": "#4C705E", "text_color": "#EAF1F8", "label": "Separate/merge style prompts, control position (front/end), and swap between default CLIP and T5/L with dedicated strengths."},
+        {"before": "l_strength", "name": "clip_l_strength", "title": "🔗 Final CLIP L Strength", "color": "#5C4C70", "text_color": "#EAF1F8", "label": "Final strength multiplier applied to the CLIP L component of the encoding pipeline."}
+    ]
+
     @classmethod
     def INPUT_TYPES(cls):
         DEF_TOML_DIR = os.path.join(PRIMERE_ROOT, 'Toml')
@@ -1261,20 +1289,36 @@ class PrimereCLIP:
                 "clip": ("CLIP", {"forceInput": True}),
                 "positive_prompt": ("STRING", {"forceInput": True}),
                 "negative_prompt": ("STRING", {"forceInput": True}),
+
                 "negative_strength": ("FLOAT", {"default": 1.2, "min": 0.0, "max": 10.0, "step": 0.01}),
+
                 "use_int_style": ("BOOLEAN", {"default": False}),
                 "int_style_pos": (['None'] + sorted(list(cls.default_pos.keys())),),
                 "int_style_pos_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
                 "int_style_neg": (['None'] + sorted(list(cls.default_neg.keys())),),
                 "int_style_neg_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
+
                 "adv_encode": ("BOOLEAN", {"default": False}),
                 "token_normalization": (["none", "mean", "length", "length+mean"], {"default": "mean"}),
                 "weight_interpretation": (["comfy", "A1111", "compel", "comfy++", "down_weight"], {"default": "comfy++"}),
+
+                "enhanced_prompt_usage": (['None', 'Add', 'Replace', 'T5-XXL'], {"default": "T5-XXL"}),
+                "enhanced_prompt_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
+
+                "opt_pos_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "opt_neg_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
+
+                "style_handling": ("BOOLEAN", {"default": False, "label_on": "Style-prompt separation", "label_off": "Style-prompt merge"}),
+                "style_position": ("BOOLEAN", {"default": False, "label_on": "Style to front of prompt", "label_off": "Style to end of prompt"}),
+                "style_swap": ("BOOLEAN", {"default": False, "label_on": "Style to default clip - prompt to T5/L", "label_off": "Style to T5/L - prompt to default clip"}),
+
+                "style_pos_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "style_neg_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
+
+                "l_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
             },
             "optional": {
                 "enhanced_prompt": ("STRING", {"forceInput": True}),
-                "enhanced_prompt_usage": (['None', 'Add', 'Replace', 'T5-XXL'], {"default": "T5-XXL"}),
-                "enhanced_prompt_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
                 "edit_image_list": ("IMAGE", {"forceInput": True}, {"default": None}),
                 "edit_vae": ("VAE", {"forceInput": True}, {"default": None}),
                 "model_keywords": ("MODEL_KEYWORD", {"forceInput": True}),
@@ -1284,24 +1328,17 @@ class PrimereCLIP:
                 "embedding_neg": ("EMBEDDING", {"forceInput": True}),
 
                 "opt_pos_prompt": ("STRING", {"forceInput": True}),
-                "opt_pos_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
                 "opt_neg_prompt": ("STRING", {"forceInput": True}),
-                "opt_neg_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
-
-                "style_handling": ("BOOLEAN", {"default": False, "label_on": "Style-prompt separation", "label_off": "Style-prompt merge"}),
-                "style_position": ("BOOLEAN", {"default": False, "label_on": "Style to front of prompt", "label_off": "Style to end of prompt"}),
-                "style_swap": ("BOOLEAN", {"default": False, "label_on": "Style to default clip - prompt to T5/L", "label_off": "Style to T5/L - prompt to default clip"}),
 
                 "style_pos_prompt": ("STRING", {"forceInput": True}),
-                "style_pos_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
                 "style_neg_prompt": ("STRING", {"forceInput": True}),
-                "style_neg_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
 
                 "positive_l": ("STRING", {"forceInput": True}),
                 "negative_l": ("STRING", {"forceInput": True}),
-                "l_strength": ("FLOAT", {"default": 1, "min": 0.0, "max": 10.0, "step": 0.01}),
+
                 "width": ("INT", {"default": 1024.0, "min": 0, "max": MAX_RESOLUTION, "forceInput": True}),
                 "height": ("INT", {"default": 1024.0, "min": 0, "max": MAX_RESOLUTION, "forceInput": True}),
+
                 "control_data": ("TUPLE", {"default": None, "forceInput": True}),
             },
             "hidden": {

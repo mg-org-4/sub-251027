@@ -30,6 +30,8 @@ from ..components.images import img_filmic_curve as img_filmic_curve
 from ..components.images import img_lut3d as img_lut3d
 from ..components.images import img_edge_jitter as img_edge_jitter
 from ..components.images import img_depth_blur as img_depth_blur
+from ..components.images import img_photo_paper as img_photo_paper
+from ..components.images.img_photo_paper import PAPER_PRESETS
 
 from ..components import utility
 from .Dashboard import PrimereModelConceptSelector as PrimereModelConceptSelector
@@ -52,28 +54,38 @@ class PrimereRasterix:
     FILM_PRESETS_BY_TYPE = FILM_PRESETS_BY_TYPE
 
     LUT_DIR = os.path.join(PRIMERE_ROOT, 'components', 'images', 'luts')
+
     SECTION_TITLES = [
-        {"before": "concepts", "title": "🧭 Main Settings", "color": "#3A3F52", "text_color": "#F2F5FF"},
-        {"after": "precision", "title": "🎚 Auto levels", "color": "#364556", "text_color": "#EAF1F8"},
-        {"after": "gamma_target", "title": "🔦 White balance", "color": "#364556", "text_color": "#EAF1F8"},
-        {"after": "wb_tint", "title": "💡 Smart lightning", "color": "#364556", "text_color": "#EAF1F8"},
-        {"after": "smart_lighting", "title": "🌫 Dehaze", "color": "#364556", "text_color": "#EAF1F8"},
-        {"after": "dehaze_contrast", "title": "🪄 Depth blur", "color": "#364556", "text_color": "#EAF1F8"},
-        {"after": "depth_gamma", "title": "🫗 Blur", "color": "#364556", "text_color": "#EAF1F8"},
-        {"after": "edge_threshold", "title": "🧊 Primary Image Ops", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "use_legacy", "title": "🪒 Portrait retouching", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "blend_mode", "title": "⚔ Edge-Aware pyramid", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "levels", "title": "🎞 Analog film and CCD rendering", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "photo_paper", "title": "📷 LUT .cube file reader", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "color_space", "title": "🎥 Filmic camera", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "pivot", "title": "🎛 Selective tone", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "selective_tone_strength", "title": "⚖ Color balance", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "color_balance_separation", "title": "🪁 Hue Saturation Lightness", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "hsl_skin_protection", "title": "💎 Microcontrast - Shade detailer", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "shade_strength", "title": "🧹 Midtone claity", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "edge_preservation", "title": "🔛 Black and light endpoints", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "skip_if_no_clip", "title": "🛝 Dithering / diffusion", "color": "#355443", "text_color": "#E8F6EF"},
-        {"after": "error_diffusion", "title": "📊 Histogram", "color": "#2F4F61", "text_color": "#E6F5FF"},
+        {"before": "concepts", "name": "rasterix_main", "title": "🧭 Project Setup", "color": "#1B263B", "text_color": "#EAF1F8", "label": "Choose model concept/model for save-load profiles and set precision for the full pipeline."},
+
+        {"after": "precision", "name": "rasterix_auto_levels", "title": "🎚 Auto Levels & Gamma", "color": "#243B55", "text_color": "#EAF1F8", "label": "Photoshop-style auto levels with threshold protection and optional target gamma alignment. Inspired by Adobe Photoshop."},
+        {"after": "gamma_target", "name": "rasterix_white_balance", "title": "🔦 White Balance", "color": "#243B55", "text_color": "#EAF1F8", "label": "Correct temperature and tint first to establish a neutral color baseline for later grading. Inspired by Adobe Camera Raw and DxO Photolab."},
+        {"after": "wb_tint", "name": "rasterix_smart_lighting", "title": "💡 Smart Lighting", "color": "#243B55", "text_color": "#EAF1F8", "label": "Adaptive light shaping to recover perceived depth and readability before local effects. Inspired by DxO Photolab"},
+
+        {"after": "smart_lighting", "name": "rasterix_dehaze", "title": "🌫 Atmosphere: Dehaze", "color": "#0F3443", "text_color": "#EAF1F8", "label": "Reduce haze and veiling glow while preserving natural contrast and color balance. Inspired by Adobe Lightroom Dehaze."},
+        {"after": "dehaze_contrast", "name": "rasterix_depth_blur", "title": "🌀 Atmosphere: Depth Blur", "color": "#0F3443", "text_color": "#EAF1F8", "label": "Depth-guided lens blur to separate subject and background with controllable focus falloff."},
+        {"after": "depth_gamma", "name": "rasterix_blur", "title": "🫗 Atmosphere: Creative Blur", "color": "#0F3443", "text_color": "#EAF1F8", "label": "Apply additional blur styles for softness, abstraction, or cinematic diffusion."},
+
+        {"after": "edge_threshold", "name": "rasterix_brightness_contrast", "title": "🧊 Tone: Brightness & Contrast", "color": "#1A2A6C", "text_color": "#EAF1F8", "label": "Global tone shaping for exposure feel and contrast punch after atmospheric corrections. Inspired by Adobe Photoshop."},
+        {"after": "use_legacy", "name": "rasterix_portrait_retouch", "title": "🪒 Tone: Portrait Retouch", "color": "#1A2A6C", "text_color": "#EAF1F8", "label": "Frequency-based skin and texture workflow for gentle portrait cleanup and separation. Inspired by professional Photoshop retouch workflows."},
+        {"after": "blend_mode", "name": "rasterix_local_laplacian", "title": "🧱 Tone: Edge-Aware Pyramid", "color": "#1A2A6C", "text_color": "#EAF1F8", "label": "Local Laplacian contrast/detail enhancement with strong edge preservation."},
+
+        {"after": "levels", "name": "rasterix_analog_film", "title": "🎞 Creative: Analog Film / CCD", "color": "#273C75", "text_color": "#EAF1F8", "label": "Stylized film and sensor-era rendering for mood, palette, and texture character. Inspired by DxO."},
+        {"after": "expiration_years", "name": "rasterix_photo_paper", "title": "🧪 Creative: Photo Paper Simulation", "color": "#273C75", "text_color": "#EAF1F8", "label": "Darkroom-inspired paper response with selectable grade, RC/FB base, color/B&W mode, and controlled print intensity."},
+        {"after": "paper_intensity", "name": "rasterix_lut_reader", "title": "📷 Creative: LUT .cube Reader", "color": "#273C75", "text_color": "#EAF1F8", "label": "Load and blend LUT looks for fast creative direction and consistent show style. Inspired by Blackmagic DaVinci Resolve and DxO."},
+        {"after": "color_space", "name": "rasterix_filmic_camera", "title": "🎥 Creative: Filmic Camera Curve", "color": "#273C75", "text_color": "#EAF1F8", "label": "Camera-like highlight roll-off and tonal response for cinematic dynamic range behavior. Inspired by Adobe Camera Raw."},
+
+        {"after": "pivot", "name": "rasterix_selective_tone", "title": "🎛 Color: Selective Tone Zones", "color": "#34495E", "text_color": "#EAF1F8", "label": "Zone-based tonal pushes for highlights, midtones, shadows, and blacks. Inspired by DxO Photolab"},
+        {"after": "selective_tone_strength", "name": "rasterix_color_balance", "title": "⚖ Color: Balance Wheels", "color": "#34495E", "text_color": "#EAF1F8", "label": "Color-balance style adjustments per tonal range with luminosity preservation options. Inspired by DaVinci Resolve and Photoshop color wheels."},
+        {"after": "color_balance_separation", "name": "rasterix_hsl", "title": "🌈 Color: HSL Sculpting", "color": "#34495E", "text_color": "#EAF1F8", "label": "Hue, saturation, lightness, and vibrance targeting by color channel. Inspired by Adobe Lightroom and Photoshop HSL panel."},
+
+        {"after": "hsl_skin_protection", "name": "rasterix_shade_detailer", "title": "💎 Detail: Microcontrast", "color": "#30336B", "text_color": "#EAF1F8", "label": "Fine local contrast shaping to emphasize texture and perceived detail. Inspired by DxO PhotoLab microcontrast tools."},
+        {"after": "shade_strength", "name": "rasterix_clarity", "title": "🔍 Detail: Midtone Clarity", "color": "#30336B", "text_color": "#EAF1F8", "label": "Midtone-focused clarity enhancement for crispness without excessive global contrast. Inspired by Adobe Lightroom Clarity."},
+
+        {"after": "edge_preservation", "name": "rasterix_endpoints", "title": "🔛 Output: Black/White Endpoints", "color": "#130F40", "text_color": "#EAF1F8", "label": "Set endpoint compression and clipping behavior for final output anchoring. Inspired by Adobe Photoshop Levels."},
+        {"after": "skip_if_no_clip", "name": "rasterix_dithering", "title": "🧩 Output: Dithering & Diffusion", "color": "#130F40", "text_color": "#EAF1F8", "label": "Reduce banding and smooth gradients using dither and error diffusion tools. Inspired by Floyd-Steinberg error diffusion."},
+
+        {"after": "error_diffusion", "name": "rasterix_histogram", "title": "📊 Analysis: Histogram", "color": "#0C2461", "text_color": "#EAF1F8", "label": "View channel histograms for fast clipping, balance, and tonal distribution checks. Inspired by Adobe Photoshop (and all other) Histogram."},
     ]
 
     @classmethod
@@ -167,8 +179,12 @@ class PrimereRasterix:
                 "halation": ("BOOLEAN", {"default": False, "label_off": "Ignore halation", "label_on": "Add halation"}),
                 "expiration_years": ("INT", {"default": 0, "min": 0, "max": 30, "step": 1}),
 
-                "use_photo_paper": ("BOOLEAN", {"default": False, "label_off": "Ignore H/B photo paper", "label_on": "Apply H/B photo paper"}),
-                "photo_paper": ("BOOLEAN", {"default": False, "label_off": "Soft paper", "label_on": "Hard paper"}),
+                "use_photo_paper": ("BOOLEAN", {"default": False, "label_off": "Ignore photo paper", "label_on": "Apply photo paper"}),
+                "photo_paper": (list(PAPER_PRESETS.keys()), {"default": list(PAPER_PRESETS.keys())[0]}),
+                "color_paper": ("BOOLEAN", {"default": False, "label_off": "B&W paper", "label_on": "Color paper"}),
+                "paper_base": (["RC", "FB"], {"default": "RC"}),
+                "paper_expiration_years": ("FLOAT", {"default": 0, "min": 0, "max": 30, "step": 0.1}),
+                "paper_intensity": ("FLOAT", {"default": 100, "min": 0, "max": 200, "step": 1}),
 
                 "use_lut": ("BOOLEAN", {"default": False, "label_off": "Ignore LUT", "label_on": "Apply LUT"}),
                 "lut_file": (cls._list_luts(),),
@@ -330,7 +346,11 @@ class PrimereRasterix:
         halation = kwargs.get('halation', False)
         expiration_years = kwargs.get('expiration_years', 0)
         use_photo_paper = kwargs.get('use_photo_paper', False)
-        photo_paper = kwargs.get('photo_paper', False)
+        photo_paper = kwargs.get('photo_paper', "N (ISO R 90, normal)")
+        color_paper = kwargs.get('color_paper', False)
+        paper_base = kwargs.get('paper_base', "RC")
+        paper_expiration_years = kwargs.get('paper_expiration_years', 0)
+        paper_intensity = kwargs.get('paper_intensity', 100)
         use_filmic = kwargs.get('use_filmic', False)
         curve_type = kwargs.get('curve_type', "filmic")
         filmic_contrast = kwargs.get('filmic_contrast', 1.0)
@@ -411,15 +431,15 @@ class PrimereRasterix:
         if use_film_rendering and film_rendering_intensity != 0:
             pil_img = img_film_rendering.img_film_rendering(image=pil_img, rendering=film_rendering, intensity=film_rendering_intensity, add_grain=iso_grain, add_halation=halation, expiration_years=expiration_years)
 
-        if use_photo_paper:
-            pil_img = img_solarization_bw.img_solarization_bw(image=pil_img, color_mode=False, strength=0.00, pivot=0.00, sigma=0.01, edge_boost=0.00, edge_radius=0.5, contrast=1, precision=precision, hard_paper=photo_paper, grain_modulation=False, grain_strength=0, grain_scale=1, seed=1)
-
         if use_lut and lut_file != "None":
             lut_path = os.path.join(self.LUT_DIR, lut_file)
             pil_img = img_lut3d.img_lut3d(image=pil_img, lut_path=lut_path, intensity=intensity, input_space=color_space, output_space=color_space)
 
         if use_filmic:
             pil_img = img_filmic_curve.img_filmic_curve(image=pil_img, curve_type=curve_type, contrast=filmic_contrast, highlight_rolloff=highlight_rolloff, shadow_lift=shadow_lift, pivot=pivot)
+
+        if use_photo_paper and paper_intensity != 0:
+            pil_img = img_photo_paper.img_photo_paper(image=pil_img, paper_type=photo_paper, color_paper=color_paper, paper_base=paper_base, paper_intensity=paper_intensity, expiration_years=paper_expiration_years)
 
         st_data = rasterix_data.get('selective_tone', {})
         if use_selective_tone and st_data:
@@ -457,7 +477,6 @@ class PrimereRasterix:
             suffix      = ''.join(random.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(8))
             temp_file   = f"rasterix_hist_{suffix}.png"
             active_hist.save(os.path.join(folder_paths.temp_directory, temp_file), compress_level=1)
-            # return {"ui": {"images": [{"filename": temp_file, "subfolder": "", "type": "temp"}]}, "result": (utility.image_to_tensor(pil_img),), }
             return {"ui": {"images": [{"filename": temp_file, "subfolder": "", "type": "temp"}], "active_concept": [active_display]}, "result": (utility.image_to_tensor(pil_img),), }
         else:
             INVALID_IMAGE_PATH = os.path.join(PRIMERE_ROOT, 'front_end', 'images')
@@ -468,7 +487,6 @@ class PrimereRasterix:
             os.makedirs(folder_paths.get_temp_directory(), exist_ok=True)
             TEMP_FILE = os.path.join(folder_paths.get_temp_directory(), temp_filename)
             utility.tensor_to_image(images[0]).save(TEMP_FILE)
-            # return {"ui": {"images": [{"filename": temp_filename, "subfolder": "", "type": "temp"}]}, "result": (utility.image_to_tensor(pil_img),),}
             return {"ui": {"images": [{"filename": temp_filename, "subfolder": "", "type": "temp"}], "active_concept": [active_display]}, "result": (utility.image_to_tensor(pil_img),),}
 
 class PrimereAutoNormalize:
@@ -932,6 +950,18 @@ class PrimereRasterixLens:
     FUNCTION = "primere_rasterix_lens"
     CATEGORY = TREE_RASTERIX
 
+    SECTION_TITLES = [
+        {"before": "use_vignette", "name": "lensfx_vignette", "title": "🌑 Vignette Control", "color": "#1B263B", "text_color": "#EAF1F8", "label": "Master toggle and parameters for vignette: darken corners/edges with strength, radius, feather, and shape. Inspired by Adobe Lightroom."},
+        {"before": "use_chroma", "name": "lensfx_chromatic", "title": "🌈 Chromatic Aberration", "color": "#243B55", "text_color": "#EAF1F8", "label": "Toggle and control chromatic aberration: intensity, falloff, and fringe color for realistic color fringing. Inspired by Adobe Camera Raw."},
+        {"before": "use_bokeh", "name": "lensfx_bokeh", "title": "✨ Bokeh Effect", "color": "#1A2A6C", "text_color": "#EAF1F8", "label": "Enable bokeh simulation: radius, blade count, highlight boost, and cat-eye shaping for dreamy out-of-focus highlights. Inspired by Adobe Photoshop."},
+        {"before": "use_distortion", "name": "lensfx_distortion", "title": "🌀 Lens Distortion", "color": "#0F3443", "text_color": "#EAF1F8", "label": "Toggle barrel/pincushion/zoom distortion: simulate classic lens imperfections with fine-grained controls. Inspired by DxO PhotoLab."},
+        {"before": "use_flare", "name": "lensfx_flare", "title": "☀️ Lens Flare", "color": "#273C75", "text_color": "#EAF1F8", "label": "Activate realistic lens flare: intensity, position, streak/ghost count, length, and color tinting. Inspired by Adobe Photoshop."},
+        {"before": "use_halation", "name": "lensfx_halation", "title": "🌟 Halation Glow", "color": "#34495E", "text_color": "#EAF1F8", "label": "Toggle halation: glow around bright areas with intensity, radius, threshold, and warmth adjustment. Inspired by Blackmagic DaVinci Resolve."},
+        {"before": "use_focus", "name": "lensfx_focus", "title": "🔍 Focus Falloff", "color": "#30336B", "text_color": "#EAF1F8", "label": "Enable selective focus blur: radius, mode (horizontal/vertical/radial/oval), position, width, and feather. Inspired by Adobe Photoshop."},
+        {"before": "use_spherical", "name": "lensfx_spherical", "title": "🌐 Spherical Aberration", "color": "#130F40", "text_color": "#EAF1F8", "label": "Toggle spherical aberration: intensity, radius, and zone (centre/edge/global) for soft-focus effects."},
+        {"before": "use_anamorphic", "name": "lensfx_anamorphic", "title": "📽️ Anamorphic Lens", "color": "#0C2461", "text_color": "#EAF1F8", "label": "Apply anamorphic characteristics: intensity, streak color/length, oval bokeh, and blue bias for cinematic look. Inspired by Blackmagic DaVinci Resolve."},
+    ]
+
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -1370,5 +1400,32 @@ class PrimereDepthBlur:
         pil_img = utility.tensor_to_image(image)
         if use_depth_blur:
             pil_img = img_depth_blur.img_depth_blur(image=pil_img, focus_depth=focus_depth, depth_range=depth_range, max_blur=max_blur, depth_gamma=depth_gamma, auto_optimize=auto_optimize, use_v3=use_DA_v3)
+
+        return (utility.image_to_tensor(pil_img),)
+
+class PrimerePhotoPaper:
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("IMAGE",)
+    FUNCTION = "primere_photo_paper"
+    CATEGORY = TREE_RASTERIX
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"forceInput": True}),
+                "use_photo_paper": ("BOOLEAN", {"default": False, "label_off": "Ignore photo paper", "label_on": "Apply photo paper"}),
+                "photo_paper": (list(PAPER_PRESETS.keys()), {"default": list(PAPER_PRESETS.keys())[0]}),
+                "color_paper": ("BOOLEAN", {"default": False, "label_off": "B&W paper", "label_on": "Color paper"}),
+                "paper_base": (["RC", "FB"], {"default": "RC"}),
+                "paper_expiration_years": ("FLOAT", {"default": 0, "min": 0, "max": 30, "step": 0.1}),
+                "paper_intensity": ("FLOAT", {"default": 100, "min": 0, "max": 200, "step": 1}),
+            }
+        }
+
+    def primere_photo_paper(self, image, use_photo_paper, photo_paper, color_paper, paper_base, paper_intensity, paper_expiration_years):
+        pil_img = utility.tensor_to_image(image)
+        if use_photo_paper and paper_intensity != 0:
+            pil_img = img_photo_paper.img_photo_paper(image=pil_img, paper_type=photo_paper, color_paper=color_paper, paper_base=paper_base, paper_intensity=paper_intensity, expiration_years=paper_expiration_years)
 
         return (utility.image_to_tensor(pil_img),)

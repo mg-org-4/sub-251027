@@ -347,13 +347,6 @@ function addStringMultilineTagEditorWidget(node) {
     const editorSurface = document.createElement("div");
     editorSurface.className = "string-multiline-tag-editor-surface";
 
-    const lineGutter = document.createElement("div");
-    lineGutter.className = "string-multiline-tag-editor-gutter";
-
-    const lineGutterContent = document.createElement("div");
-    lineGutterContent.className = "string-multiline-tag-editor-gutter-content";
-    lineGutter.appendChild(lineGutterContent);
-
     const editorScrollbar = document.createElement("div");
     editorScrollbar.className = "string-multiline-tag-editor-editor-scrollbar";
 
@@ -372,17 +365,6 @@ function addStringMultilineTagEditorWidget(node) {
     const getRenderedLogicalLineElements = () => (
         Array.from(editor.children).filter((child) => isEditorLogicalLineElement(child))
     );
-
-    const getRenderedLogicalLineHeights = (lineCount, lineHeight) => {
-        const renderedLineElements = getRenderedLogicalLineElements();
-        if (!renderedLineElements.length) {
-            return Array.from({ length: lineCount }, () => lineHeight);
-        }
-
-        return Array.from({ length: lineCount }, (_, row) => (
-            Math.max(lineHeight, renderedLineElements[row]?.getBoundingClientRect().height || lineHeight)
-        ));
-    };
 
     const updateEditorScrollbar = () => {
         const visibleHeight = editor.clientHeight;
@@ -477,36 +459,13 @@ function addStringMultilineTagEditorWidget(node) {
         const inlineEditCount = (plainText.match(/<[^<>\r\n]+>/g) || []).length;
         const wordCount = plainText.trim() ? plainText.trim().split(/\s+/).length : 0;
         const lineCount = plainText === "" ? 1 : plainText.split("\n").length;
+        const gutterDigits = String(lineCount).length;
+        const gutterWidth = `calc(${Math.max(2, gutterDigits)}ch + 2px)`;
 
         charactersChip.textContent = `Characters: ${uniqueCharacters.size}`;
         inlineEditsChip.textContent = `Inline Tags: ${inlineEditCount}`;
-        const computedEditorStyle = window.getComputedStyle(editor);
-        const lineHeight = parseFloat(computedEditorStyle.lineHeight) || (state.fontSize * 1.4);
-        const paddingTop = parseFloat(computedEditorStyle.paddingTop || "0");
-        const paddingBottom = parseFloat(computedEditorStyle.paddingBottom || "0");
         editorStatusStats.textContent = `${lineCount} lines | ${wordCount} words | ${plainText.length} chars`;
-        lineGutterContent.style.fontSize = `${state.fontSize}px`;
-        lineGutterContent.style.fontFamily = computedEditorStyle.fontFamily;
-        lineGutterContent.style.lineHeight = `${lineHeight}px`;
-        lineGutterContent.style.paddingTop = `${paddingTop}px`;
-        lineGutterContent.style.paddingBottom = `${paddingBottom}px`;
-        const gutterDigits = String(lineCount).length;
-        lineGutter.style.flexBasis = `${Math.max(24, Math.ceil(gutterDigits * state.fontSize * 0.72) + 14)}px`;
-        lineGutter.style.minWidth = lineGutter.style.flexBasis;
-
-        const logicalLineHeights = getRenderedLogicalLineHeights(lineCount, lineHeight);
-        const contentHeight = logicalLineHeights.reduce((sum, height) => sum + height, 0);
-        lineGutterContent.style.height = `${Math.max(editor.scrollHeight, paddingTop + contentHeight + paddingBottom)}px`;
-        const gutterFragment = document.createDocumentFragment();
-        for (let row = 0; row < lineCount; row++) {
-            const lineNumber = document.createElement("span");
-            lineNumber.textContent = String(row + 1);
-            lineNumber.style.height = `${logicalLineHeights[row] ?? lineHeight}px`;
-            lineNumber.style.lineHeight = `${lineHeight}px`;
-            gutterFragment.appendChild(lineNumber);
-        }
-
-        lineGutterContent.replaceChildren(gutterFragment);
+        editor.style.setProperty("--tts-editor-gutter-width", gutterWidth);
         updateEditorScrollbar();
     };
 
@@ -657,6 +616,27 @@ function addStringMultilineTagEditorWidget(node) {
         const caretPos = stripInternalMarkers(getNodePlainText(fragment)).length;
         state.lastCursorPosition = caretPos;
         return caretPos;
+    };
+
+    const getSelectionRange = () => {
+        const selection = window.getSelection();
+        if (!selectionIsInsideEditor(selection) || selection.rangeCount === 0 || selection.isCollapsed) {
+            return null;
+        }
+
+        const range = selection.getRangeAt(0);
+        const preRange = range.cloneRange();
+        preRange.selectNodeContents(editor);
+        preRange.setEnd(range.startContainer, range.startOffset);
+
+        const start = stripInternalMarkers(getNodePlainText(preRange.cloneContents())).length;
+        const selectedText = stripInternalMarkers(getNodePlainText(range.cloneContents()));
+
+        return {
+            start,
+            end: start + selectedText.length,
+            text: selectedText
+        };
     };
 
     // Restore caret position after update
@@ -843,7 +823,7 @@ function addStringMultilineTagEditorWidget(node) {
 
         renderedLogicalLineHtmlParts = html.split("\n");
         html = renderedLogicalLineHtmlParts.map((lineHtml, index) => (
-            `<div class="${EDITOR_LOGICAL_LINE_CLASS}" data-line-index="${index}">${lineHtml && lineHtml.length ? lineHtml : "<br>"}</div>`
+            `<div class="${EDITOR_LOGICAL_LINE_CLASS}" data-line-index="${index}" data-line-number="${index + 1}">${lineHtml && lineHtml.length ? lineHtml : "<br>"}</div>`
         )).join("");
 
         // Update only if changed to avoid flicker
@@ -965,7 +945,6 @@ function addStringMultilineTagEditorWidget(node) {
     updateDividerPosition();
 
     editorSurface.appendChild(editor);
-    editorSurface.prepend(lineGutter);
     editorSurface.appendChild(editorScrollbar);
     textareaWrapper.appendChild(editorStatusBar);
     textareaWrapper.appendChild(editorSurface);
@@ -1221,7 +1200,7 @@ function addStringMultilineTagEditorWidget(node) {
     });
 
     attachAllEventHandlers(
-        editor, state, widget, storageKey, getPlainText, setEditorText, getCaretPos, setCaretPos,
+        editor, state, widget, storageKey, getPlainText, setEditorText, getCaretPos, setCaretPos, getSelectionRange,
         undoBtn, redoBtn, historyStatus, charSelect, charInput, addCharBtn, langSelect, addLangBtn,
         paramTypeSelect, paramInputWrapper, addParamBtn, presetButtons, presetTitles, updatePresetGlows,
         formatBtn, validateBtn, fontFamilySelect, fontSizeInput, null, setFontSize, setFontFamily,
@@ -1471,12 +1450,16 @@ function addStringMultilineTagEditorWidget(node) {
         auxiliaryContent.replaceChildren(presetGrid);
     };
 
+    let activeLibraryGroupKey = "character-switching";
+
     const renderLibraryView = () => {
         auxiliaryTitle.textContent = "Library";
         auxiliaryDescription.textContent = "Consult the tag guides directly in the editor: character switching, per-segment parameters, inline edit workflow notes, and the SRT editing cheat sheet.";
 
         const libraryGroups = [
             {
+                key: "character-switching",
+                tabLabel: "Characters",
                 title: "Character Switching Guide",
                 intro: "Use square-bracket tags to swap speakers and optionally language without leaving the same text field.",
                 rows: [
@@ -1491,6 +1474,8 @@ function addStringMultilineTagEditorWidget(node) {
                 ]
             },
             {
+                key: "parameter-switching",
+                tabLabel: "Parameters",
                 title: "Parameter Switching Guide",
                 intro: "Override generation behavior per segment without changing node-level defaults.",
                 rows: [
@@ -1505,6 +1490,8 @@ function addStringMultilineTagEditorWidget(node) {
                 ]
             },
             {
+                key: "inline-tags",
+                tabLabel: "Inline Tags",
                 title: "Inline Edit Tags Guide",
                 intro: "These tags are for convenience when you want segment-level Step Audio EditX processing without building separate TTS -> Edit chains.",
                 rows: [
@@ -1534,6 +1521,8 @@ function addStringMultilineTagEditorWidget(node) {
                 ]
             },
             {
+                key: "srt-editing",
+                tabLabel: "SRT",
                 title: "SRT Editing Guide",
                 intro: "Use these subtitle-specific actions when the editor is showing SRT content and you need to retime, merge, or split cues directly inside the node.",
                 rows: [
@@ -1556,8 +1545,13 @@ function addStringMultilineTagEditorWidget(node) {
 
         const libraryLayout = document.createElement("div");
         libraryLayout.className = "string-multiline-tag-editor-library";
+        const libraryTabs = document.createElement("div");
+        libraryTabs.className = "string-multiline-tag-editor-library-tabs";
+        const libraryPanel = document.createElement("div");
+        libraryPanel.className = "string-multiline-tag-editor-library-panel";
+        const libraryTabButtons = new Map();
 
-        libraryGroups.forEach(group => {
+        const renderLibraryGroup = (group) => {
             const section = document.createElement("section");
             section.className = "string-multiline-tag-editor-library-section";
 
@@ -1614,8 +1608,39 @@ function addStringMultilineTagEditorWidget(node) {
             section.appendChild(intro);
             section.appendChild(bulletList);
             section.appendChild(table);
-            libraryLayout.appendChild(section);
+            libraryPanel.replaceChildren(section);
+        };
+
+        const activateLibraryGroup = (groupKey) => {
+            const nextGroup = libraryGroups.find(group => group.key === groupKey) || libraryGroups[0];
+            activeLibraryGroupKey = nextGroup.key;
+
+            libraryTabButtons.forEach((button, key) => {
+                button.classList.toggle("is-active", key === nextGroup.key);
+            });
+
+            renderLibraryGroup(nextGroup);
+        };
+
+        libraryGroups.forEach(group => {
+            const tabButton = document.createElement("button");
+            tabButton.type = "button";
+            tabButton.className = "string-multiline-tag-editor-library-tab";
+            tabButton.textContent = group.tabLabel;
+            tabButton.addEventListener("click", () => {
+                activateLibraryGroup(group.key);
+            });
+            libraryTabButtons.set(group.key, tabButton);
+            libraryTabs.appendChild(tabButton);
         });
+
+        libraryLayout.appendChild(libraryTabs);
+        libraryLayout.appendChild(libraryPanel);
+
+        const initialLibraryGroup = libraryGroups.some(group => group.key === activeLibraryGroupKey)
+            ? activeLibraryGroupKey
+            : libraryGroups[0].key;
+        activateLibraryGroup(initialLibraryGroup);
 
         auxiliaryContent.replaceChildren(libraryLayout);
     };
@@ -1669,7 +1694,6 @@ function addStringMultilineTagEditorWidget(node) {
     activateTopView(state.activeTopView || "editor");
 
     editor.addEventListener("scroll", () => {
-        lineGutterContent.style.transform = `translateY(${-editor.scrollTop}px)`;
         updateEditorScrollbar();
     });
     sidebarScrollContent.addEventListener("scroll", updateSidebarScrollbar);

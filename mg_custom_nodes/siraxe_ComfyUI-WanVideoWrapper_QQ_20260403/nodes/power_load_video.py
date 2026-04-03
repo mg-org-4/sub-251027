@@ -81,27 +81,35 @@ class PowerLoadVideo:
     Outputs:
         - IMAGE: Tensor of shape [frame_count, height, width, 3]
         - AUDIO: Audio waveform dict {"waveform", "sample_rate"}
-        - FLOAT: FPS value
+        - FPS: Vide real FPS
     """
 
     @classmethod
     def INPUT_TYPES(cls):
+        input_dir = folder_paths.get_input_directory()
+        try:
+            files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
+            files = folder_paths.filter_files_content_types(files, ["video"])
+            files = sorted(files)
+        except Exception:
+            files = []
         return {
             "required": {},
             "optional": {
-                "video": ([], {}),
+                "video": (files, {"video_upload": True}),
                 "start_frame": ("INT", {"default": 1, "min": 1}),
                 "end_frame": ("INT", {"default": -1, "min": -1}),
+                "force_fps": ("FLOAT", {"default": 0, "min": 0, "max": 60, "step": 1, "disable": 0}),
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "AUDIO", "FLOAT")
+    RETURN_TYPES = ("IMAGE", "AUDIO", "FPS")
     FUNCTION = "load_video"
     OUTPUT_NODE = True
     CATEGORY = "Power/Video"
     DESCRIPTION = "Load a video file via drag-and-drop. Outputs frames as IMAGE tensor, audio, and FPS."
 
-    def load_video(self, video=None, start_frame=1, end_frame=-1):
+    def load_video(self, video=None, start_frame=1, end_frame=-1, force_fps=0):
         """
         Load video frames and audio from uploaded video file.
 
@@ -109,11 +117,21 @@ class PowerLoadVideo:
             video: Video filename
             start_frame: First frame to load (1-based). Default 1 = first frame.
             end_frame: Last frame to load (1-based). Default -1 = last frame.
+            force_fps: Force output FPS (0 = native). Same logic as VHS force_rate.
 
         Returns:
             tuple: (IMAGE tensor, AUDIO dict, fps)
         """
         video_filename = video
+
+        # Handle force_fps type coercion (ComfyUI may pass empty dict for optional params)
+        if isinstance(force_fps, dict):
+            force_fps = 0.0
+        elif not isinstance(force_fps, (int, float)):
+            try:
+                force_fps = float(force_fps) if force_fps else 0.0
+            except (ValueError, TypeError):
+                force_fps = 0.0
 
         if not video_filename:
             raise ValueError("No video file provided. Please use the Upload button or drag and drop a video onto this node.")
@@ -139,21 +157,71 @@ class PowerLoadVideo:
         if native_fps <= 0:
             native_fps = 24.0
 
+        # Calculate target FPS (same logic as VideoHelperSuite force_rate)
+        if force_fps == 0:
+            target_fps = native_fps
+        else:
+            target_fps = float(force_fps)
+
         # Convert 1-based frame numbers to 0-based index range
         first_idx = max(0, (start_frame or 1) - 1)
         last_idx = (total_frames - 1) if (end_frame is None or end_frame <= 0) else min(end_frame - 1, total_frames - 1)
 
-        frames_to_load = list(range(first_idx, last_idx + 1))
+        # Check if we're using the full video (no trimming needed)
+        full_video = (first_idx == 0) and (last_idx == total_frames - 1)
 
-        # Read frames
+        # Read frames with force_fps logic (same as VideoHelperSuite)
         images = []
-        for frame_idx in frames_to_load:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-            ret, frame = cap.read()
-            if ret:
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                pil_image = Image.fromarray(frame)
-                images.append(pil_image)
+
+        if force_fps == 0 or force_fps == native_fps:
+            # No FPS conversion needed - read normally
+            if full_video:
+                while True:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    images.append(Image.fromarray(frame))
+            else:
+                for frame_idx in range(first_idx, last_idx + 1):
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                    ret, frame = cap.read()
+                    if ret:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        images.append(Image.fromarray(frame))
+        else:
+            # Apply force_fps: skip or duplicate frames
+            time_per_native_frame = 1.0 / native_fps
+            time_per_target_frame = 1.0 / target_fps
+            current_time = 0.0
+            next_target_time = 0.0
+
+            if full_video:
+                while True:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                    # Add frames at target times (may duplicate or skip)
+                    while next_target_time <= current_time:
+                        images.append(frame.copy())
+                        next_target_time += time_per_target_frame
+
+                    current_time += time_per_native_frame
+            else:
+                for frame_idx in range(first_idx, last_idx + 1):
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                    while next_target_time <= current_time:
+                        images.append(frame.copy())
+                        next_target_time += time_per_target_frame
+
+                    current_time += time_per_native_frame
 
         cap.release()
 
@@ -163,13 +231,16 @@ class PowerLoadVideo:
         # Convert to tensor
         image_tensor = self.pil_totensor(images)
 
-        # Extract audio (trimmed to match frame range)
+        # Extract audio (skip trimming if full video)
         audio = None
-        audio_start_time = first_idx / native_fps
-        audio_duration = (last_idx - first_idx + 1) / native_fps
-        audio = extract_audio(filename, audio_start_time, audio_duration)
+        if full_video:
+            audio = extract_audio(filename, start_time=0, duration=0)
+        else:
+            audio_start_time = first_idx / native_fps
+            audio_duration = (last_idx - first_idx + 1) / native_fps
+            audio = extract_audio(filename, audio_start_time, audio_duration)
 
-        return (image_tensor, audio, native_fps)
+        return (image_tensor, audio, target_fps)
 
     def pil_totensor(self, images):
         """Convert list of PIL Images to PyTorch tensor [N, H, W, C] in [0, 1]."""
@@ -181,7 +252,7 @@ class PowerLoadVideo:
         return torch.from_numpy(stacked)
 
     @classmethod
-    def IS_CHANGED(s, video=None):
+    def IS_CHANGED(s, video=None, start_frame=1, end_frame=-1, force_fps=0):
         if not video:
             return 0
         try:
@@ -190,6 +261,16 @@ class PowerLoadVideo:
             m = hashlib.sha256()
             with open(image_path, 'rb') as f:
                 m.update(f.read())
+            # Handle force_fps type coercion (ComfyUI may pass empty dict for optional params)
+            if isinstance(force_fps, dict):
+                force_fps = 0.0
+            elif not isinstance(force_fps, (int, float)):
+                try:
+                    force_fps = float(force_fps) if force_fps else 0.0
+                except (ValueError, TypeError):
+                    force_fps = 0.0
+            # Include force_fps in hash so changing it triggers re-execution
+            m.update(str(force_fps).encode())
             return m.digest().hex()
         except:
             return 0

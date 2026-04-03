@@ -3,7 +3,6 @@
  * Similar to Power Spline Editor's top row with Refresh button and text inputs
  */
 import { app } from '../../../scripts/app.js';
-import { api } from '../../../scripts/api.js';
 import { RgthreeBaseWidget } from '../power_spline_editor/drawing_utils.js';
 
 export class PowerLoadVideoTopRowWidget extends RgthreeBaseWidget {
@@ -19,6 +18,7 @@ export class PowerLoadVideoTopRowWidget extends RgthreeBaseWidget {
         this.fpsValue = 24;
         this.sizeValue = "?x?";
         this.frameCountValue = "?f";
+        this.forceFpsValue = "0";
 
         this.hitAreas = {
             refreshButton: { bounds: [0, 0], onClick: null, onDown: null, onUp: null },
@@ -27,9 +27,8 @@ export class PowerLoadVideoTopRowWidget extends RgthreeBaseWidget {
             fpsInc: { bounds: [0, 0], onClick: null },
             fpsAny: { bounds: [0, 0], onMove: null },
             sizeInput: { bounds: [0, 0], onClick: null },
-            uploadButton: { bounds: [0, 0], onClick: null, onDown: null, onUp: null },
+            forceFpsInput: { bounds: [0, 0], onClick: null },
         };
-        this.uploadButtonMouseDown = false;
     }
 
     draw(ctx, node, w, posY, height) {
@@ -49,9 +48,8 @@ export class PowerLoadVideoTopRowWidget extends RgthreeBaseWidget {
             area.onMove = null;
         };
 
-        // Calculate available width (leaving room for upload button on the right)
-        const uploadButtonWidth = 100;
-        const availableWidth = node.size[0] - margin * 2 - spacing * 3 - uploadButtonWidth;
+        // Calculate available width (no upload button - moved to file selector row)
+        const availableWidth = node.size[0] - margin * 2 - spacing * 2;
 
         // Calculate component widths
         const refreshButtonWidth = availableWidth * 0.24;  // Narrower refresh button
@@ -91,10 +89,10 @@ export class PowerLoadVideoTopRowWidget extends RgthreeBaseWidget {
         assignBounds("fpsVal", fpsText);
         assignBounds("fpsInc", fpsRightArrow);
         assignBounds("fpsAny", [fpsLeftArrow[0], fpsRightArrow[0] + fpsRightArrow[1] - fpsLeftArrow[0]]);
-        posX += fpsLabelWidth + drawNumberWidgetPart.WIDTH_TOTAL + spacing;
+        posX += fpsLabelWidth + drawNumberWidgetPart.WIDTH_TOTAL + 20;
 
         // Draw size input (text field style with content-sized background)
-        const sizeLabelWidth = 35;
+        const sizeLabelWidth = 20;
         ctx.fillText("size:", posX, midY);
 
         const sizeInputX = posX + sizeLabelWidth;
@@ -122,21 +120,44 @@ export class PowerLoadVideoTopRowWidget extends RgthreeBaseWidget {
 
         assignBounds("sizeInput", [sizeInputX, bgWidth]);
 
-        // Draw frame count text (read-only, between size and Upload button)
+        // Draw frame count text (read-only)
         ctx.textAlign = "left";
         ctx.fillStyle = LiteGraph.WIDGET_TEXT_COLOR;
         posX = sizeInputX + bgWidth + spacing;
         ctx.fillText(this.frameCountValue, posX, midY);
 
-        // Draw Upload button on the right side
-        const uploadButtonX = node.size[0] - margin - uploadButtonWidth;
-        drawWidgetButton(
-            ctx,
-            { size: [uploadButtonWidth, height], pos: [uploadButtonX, posY] },
-            "📤 Upload",
-            this.uploadButtonMouseDown
-        );
-        assignBounds("uploadButton", [uploadButtonX, uploadButtonWidth]);
+        // Draw force fps label and input
+        const forceLabelWidth = 40;
+        posX += ctx.measureText(this.frameCountValue).width + 15;
+        ctx.fillText("force:", posX, midY);
+
+        const forceInputX = posX + forceLabelWidth;
+
+        // Measure the actual text width and add padding
+        ctx.font = `${Math.max(14, height * 0.7)}px Sans-Serif`;
+        const forceTextSize = ctx.measureText(this.forceFpsValue);
+        const forceTextWidthActual = Math.ceil(forceTextSize.width);
+        const forceBgPadding = 12; // Padding on each side
+        const forceBgWidth = forceTextWidthActual + forceBgPadding * 2;
+        const forceBgRadius = height * 0.5;
+
+        // Draw rounded background only around the text content
+        ctx.fillStyle = LiteGraph.WIDGET_BGCOLOR;
+        ctx.strokeStyle = LiteGraph.WIDGET_OUTLINE_COLOR;
+        ctx.beginPath();
+        ctx.roundRect(forceInputX, posY, forceBgWidth, height, [forceBgRadius]);
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw force fps text
+        ctx.fillStyle = LiteGraph.WIDGET_TEXT_COLOR;
+        ctx.fillText(this.forceFpsValue, forceInputX + forceBgPadding, midY);
+
+        assignBounds("forceFpsInput", [forceInputX, forceBgWidth]);
+
+        // Draw "fps" label after the input
+        const fpsLabelX = forceInputX + forceBgWidth + 8;
+        ctx.fillText("fps", fpsLabelX, midY);
 
         // Setup event handlers
         this.hitAreas.refreshButton.onClick = async () => {
@@ -171,19 +192,6 @@ export class PowerLoadVideoTopRowWidget extends RgthreeBaseWidget {
             node.setDirtyCanvas(true, false);
         };
 
-        // Upload button handlers
-        this.hitAreas.uploadButton.onClick = async () => {
-            await this.handleUploadClick(node);
-        };
-        this.hitAreas.uploadButton.onDown = () => {
-            this.uploadButtonMouseDown = true;
-            node.setDirtyCanvas(true, false);
-        };
-        this.hitAreas.uploadButton.onUp = () => {
-            this.uploadButtonMouseDown = false;
-            node.setDirtyCanvas(true, false);
-        };
-
         // FPS handlers
         this.hitAreas.fpsDec.onClick = () => this.stepFps(node, -1);
         this.hitAreas.fpsInc.onClick = () => this.stepFps(node, 1);
@@ -192,6 +200,9 @@ export class PowerLoadVideoTopRowWidget extends RgthreeBaseWidget {
 
         // Size input handler
         this.hitAreas.sizeInput.onClick = () => this.promptSize(node);
+
+        // Force fps input handler
+        this.hitAreas.forceFpsInput.onClick = () => this.promptForceFps(node);
 
         ctx.restore();
     }
@@ -237,74 +248,37 @@ export class PowerLoadVideoTopRowWidget extends RgthreeBaseWidget {
         });
     }
 
+    promptForceFps(node) {
+        if (this.haveMouseMovedValue) return;
+        const canvas = app.canvas;
+        canvas.prompt("Force FPS", this.forceFpsValue, (v) => {
+            this.forceFpsValue = String(v).trim() || "0";
+            // Update the hidden backend widget value so it gets serialized to Python
+            const forceFpsWidget = node.widgets.find(w => w.name === 'force_fps');
+            if (forceFpsWidget) {
+                forceFpsWidget.value = this.forceFpsValue === "0" ? 0 : parseFloat(this.forceFpsValue);
+            }
+            node.setDirtyCanvas(true, true);
+        });
+    }
+
+    // Restore from saved workflow JSON
+    fromJSON(data, _widgetInfo, node) {
+        if (data?.force_fps !== undefined && data.force_fps !== null) {
+            this.forceFpsValue = String(data.force_fps);
+        }
+        return this;
+    }
+
+    // Serialize to workflow JSON
+    toJSON(_node, widgetInfo) {
+        return { force_fps: this.forceFpsValue === "0" ? 0 : parseFloat(this.forceFpsValue) };
+    }
+
     onMouseUp(event, pos, node) {
         super.onMouseUp(event, pos, node);
         this.haveMouseMovedValue = false;
         this.refreshButtonMouseDown = false;
-        this.uploadButtonMouseDown = false;
-    }
-
-    /**
-     * Handle upload button click - opens file picker and uploads video
-     */
-    async handleUploadClick(node) {
-        // Create a hidden file input element
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'video/*';
-        fileInput.style.display = 'none';
-
-        fileInput.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file || !file.type.startsWith('video/')) {
-                return;
-            }
-
-            // Upload the file via ComfyUI's API
-            try {
-                const formData = new FormData();
-                formData.append('image', file);
-                formData.append('type', 'input');
-
-                const resp = await api.fetchApi('/upload/image', { method: 'POST', body: formData });
-
-                if (resp.ok || resp.status === 200) {
-                    const data = await resp.json();
-                    const uploadedName = data.name || data.filename || file.name;
-
-                    // Store the video filename on the node for execution
-                    node.videoFilename = uploadedName;
-
-                    // Update the hidden combo widget value so ComfyUI serializes it to the backend
-                    const comboWidget = node.widgets.find(w => w.type === 'combo');
-                    if (comboWidget) {
-                        comboWidget.value = uploadedName;
-                    }
-                    // Also update widgets_values so serialization picks it up
-                    if (!node.widgets_values || node.widgets_values.length === 0) {
-                        node.widgets_values = [uploadedName];
-                    } else {
-                        node.widgets_values[0] = uploadedName;
-                    }
-
-                    // Load the video into the display directly (bypassing execute)
-                    if (node.loadVideoIntoDisplay && typeof node.loadVideoIntoDisplay === 'function') {
-                        node.loadVideoIntoDisplay(uploadedName);
-                    }
-
-                    // Force canvas redraw to show the video
-                    app.graph.setDirtyCanvas(true, true);
-                } else {
-                    console.error('[PowerLoadVideo] Upload failed:', resp.status, resp.statusText);
-                }
-            } catch (err) {
-                console.error('[PowerLoadVideo] Upload error:', err);
-            }
-        };
-
-        document.body.appendChild(fileInput);
-        fileInput.click();
-        document.body.removeChild(fileInput);
     }
 
     computeSize(width) {
@@ -340,9 +314,9 @@ function drawWidgetButton(ctx, rect, label, pressed = false) {
 }
 
 function drawNumberWidgetPart(ctx, { posX, posY, height, value, direction = 1 }) {
-    const spacing = 3;  // Reduced from 6 to bring arrows closer
-    const arrowWidth = 24;
-    const textWidth = 50;
+    const spacing = 0;  // No gap between elements
+    const arrowWidth = 16;
+    const textWidth = 32;
     const midY = posY + height * 0.5;
 
     // Left arrow (no background)
@@ -378,4 +352,4 @@ function drawNumberWidgetPart(ctx, { posX, posY, height, value, direction = 1 })
     ];
 }
 
-drawNumberWidgetPart.WIDTH_TOTAL = 24 + 3 + 50 + 3 + 24; // arrow + spacing + text + spacing + arrow
+drawNumberWidgetPart.WIDTH_TOTAL = 16 + 0 + 32 + 0 + 16; // arrow + spacing + text + spacing + arrow

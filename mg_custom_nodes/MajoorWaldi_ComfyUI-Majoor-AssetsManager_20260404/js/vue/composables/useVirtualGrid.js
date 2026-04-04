@@ -1,0 +1,688 @@
+﻿/**
+ * useVirtualGrid.js - unified virtualization module for the Vue migration.
+ *
+ * This centralizes virtualization helpers that were previously split
+ * across VirtualScroller.js and InfiniteScroll.js.
+ */
+import { shouldHideSiblingAsset, unregisterHiddenSibling } from "../../features/grid/AssetCardRenderer.js";
+
+export function isPotentialScrollContainer(el) {
+    if (!el || el === window) return false;
+    if (el === document.body || el === document.documentElement) return false;
+    try {
+        const style = window.getComputedStyle(el);
+        const overflowY = String(style?.overflowY || "");
+        if (!/(auto|scroll|overlay)/.test(overflowY)) return false;
+        const clientH = Number(el.clientHeight) || 0;
+        if (clientH <= 0) return false;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export function detectScrollRoot(gridContainer) {
+    try {
+        const browse = gridContainer?.closest?.(".mjr-am-browse") || null;
+        if (browse && isPotentialScrollContainer(browse)) return browse;
+    } catch (e) {
+        console.debug?.(e);
+    }
+    try {
+        let cur = gridContainer?.parentElement;
+        while (cur && cur !== document.body && cur !== document.documentElement) {
+            if (isPotentialScrollContainer(cur)) return cur;
+            cur = cur.parentElement;
+        }
+    } catch (e) {
+        console.debug?.(e);
+    }
+    return gridContainer?.parentElement || null;
+}
+
+export function getScrollContainer(gridContainer, state) {
+    try {
+        const cur = state?.scrollRoot;
+        if (cur && cur instanceof HTMLElement) return cur;
+    } catch (e) {
+        console.debug?.(e);
+    }
+    const detected = detectScrollRoot(gridContainer);
+    if (detected && state) state.scrollRoot = detected;
+    return detected;
+}
+
+export function ensureVirtualGrid(gridContainer, state, deps) {
+    if (state.virtualGrid) {
+        // Guard: a disposed instance has its DOM detached; discard it so a fresh one is created.
+        if (state.virtualGrid._disposed) {
+            state.virtualGrid = null;
+        } else {
+            return state.virtualGrid;
+        }
+    }
+    const scrollRoot = getScrollContainer(gridContainer, state);
+    try {
+        deps.gridDebug("virtualGrid:scrollRoot", {
+            scrollRoot:
+                scrollRoot === document.body
+                    ? "document.body"
+                    : scrollRoot === document.documentElement
+                      ? "document.documentElement"
+                      : scrollRoot?.className || scrollRoot?.tagName || null,
+        });
+    } catch (e) {
+        console.debug?.(e);
+    }
+    state.virtualGrid = new deps.VirtualGrid(gridContainer, scrollRoot, deps.optionsFactory());
+    if (!state._cardKeydownHandler) {
+        const handler = (event) => {
+            try {
+                if (!event?.key) return;
+                if (event.key !== "Enter" && event.key !== " ") return;
+                const card = event.target?.closest?.(".mjr-asset-card");
+                if (!card) return;
+                event.preventDefault();
+                card.click();
+            } catch (e) {
+                console.debug?.(e);
+            }
+        };
+        state._cardKeydownHandler = handler;
+        gridContainer.addEventListener("keydown", handler, true);
+    }
+    return state.virtualGrid;
+}
+
+export function ensureSentinel(gridContainer, state, sentinelClass) {
+    let sentinel = state.sentinel;
+    if (
+        sentinel &&
+        sentinel.isConnected &&
+        sentinel.parentNode === gridContainer &&
+        !sentinel.nextSibling
+    )
+        return sentinel;
+    if (sentinel) {
+        sentinel.remove();
+    } else {
+        sentinel = document.createElement("div");
+        sentinel.className = sentinelClass;
+        sentinel.style.cssText =
+            "height: 1px; width: 100%; position: absolute; bottom: 0; left: 0; pointer-events: none; z-index: -10;";
+        state.sentinel = sentinel;
+    }
+    gridContainer.appendChild(sentinel);
+    if (state.observer) {
+        try {
+            state.observer.observe(sentinel);
+        } catch (e) {
+            console.debug?.(e);
+        }
+    }
+    return sentinel;
+}
+
+export function stopObserver(state, gridContainer = null) {
+    try {
+        if (state.observer) state.observer.disconnect();
+    } catch (e) {
+        console.debug?.(e);
+    }
+    state.observer = null;
+    try {
+        if (state.sentinel && state.sentinel.isConnected) state.sentinel.remove();
+    } catch (e) {
+        console.debug?.(e);
+    }
+    state.sentinel = null;
+    try {
+        if (state.scrollTarget && state.scrollHandler) {
+            state.scrollTarget.removeEventListener("scroll", state.scrollHandler);
+        }
+    } catch (e) {
+        console.debug?.(e);
+    }
+    state.scrollRoot = null;
+    state.scrollTarget = null;
+    state.scrollHandler = null;
+    state.ignoreNextScroll = false;
+    state.userScrolled = false;
+    state.allowUntilFilled = true;
+    if (gridContainer && state._cardKeydownHandler) {
+        try {
+            gridContainer.removeEventListener("keydown", state._cardKeydownHandler, true);
+        } catch (e) {
+            console.debug?.(e);
+        }
+        state._cardKeydownHandler = null;
+    }
+}
+
+export function captureScrollMetrics(state) {
+    const root = state?.scrollRoot;
+    if (!root) return null;
+    try {
+        if (!root.isConnected) return null;
+    } catch (e) {
+        console.debug?.(e);
+    }
+    const clientHeight = Number(root.clientHeight) || 0;
+    if (clientHeight <= 0) return null;
+    const scrollHeight = Number(root.scrollHeight) || 0;
+    const scrollTop = Number(root.scrollTop) || 0;
+    const bottomGap = scrollHeight - (scrollTop + clientHeight);
+    return { clientHeight, scrollHeight, scrollTop, bottomGap };
+}
+
+export function maybeKeepPinnedToBottom(_state, _before) {
+    return;
+}
+
+export function startInfiniteScroll(gridContainer, state, deps) {
+    if (!deps.config.INFINITE_SCROLL_ENABLED) return;
+    stopObserver(state);
+    const sentinel = ensureSentinel(gridContainer, state, deps.sentinelClass);
+    let rootEl;
+    try {
+        rootEl = state?.virtualGrid?.scrollElement || null;
+    } catch {
+        rootEl = null;
+    }
+    if (!rootEl) rootEl = getScrollContainer(gridContainer, state);
+    if (!rootEl || !(rootEl instanceof HTMLElement)) {
+        deps.gridDebug("infiniteScroll:disabled", { reason: "no scroll container" });
+        return;
+    }
+    state.scrollRoot = rootEl;
+    state.userScrolled = false;
+    const scrollTarget = rootEl;
+    state.scrollTarget = scrollTarget;
+    deps.gridDebug("infiniteScroll:setup", {
+        rootEl: rootEl?.className || rootEl?.tagName || null,
+        scrollTarget: scrollTarget?.className || scrollTarget?.tagName || null,
+        rootMargin: deps.config.INFINITE_SCROLL_ROOT_MARGIN || "800px",
+        threshold: deps.config.INFINITE_SCROLL_THRESHOLD ?? 0.01,
+        offset: Number(state?.offset || 0) || 0,
+        done: !!state?.done,
+    });
+    if (scrollTarget && !state.scrollHandler) {
+        state.scrollHandler = () => {
+            if (state.ignoreNextScroll) {
+                state.ignoreNextScroll = false;
+                return;
+            }
+            state.userScrolled = true;
+            try {
+                if (state.loading || state.done || state.allowUntilFilled) return;
+                const m = captureScrollMetrics(state);
+                const bottomGapPx = Math.max(0, Number(deps.config.BOTTOM_GAP_PX || 80));
+                if (m && m.bottomGap <= bottomGapPx) {
+                    Promise.resolve(deps.loadNextPage(gridContainer, state)).catch(() => null);
+                }
+            } catch (e) {
+                console.debug?.(e);
+            }
+        };
+        try {
+            scrollTarget.addEventListener("scroll", state.scrollHandler, { passive: true });
+        } catch (e) {
+            console.debug?.(e);
+        }
+    }
+    const observerRoot = rootEl;
+    state.observer = new IntersectionObserver(
+        (entries) => {
+            for (const entry of entries || []) {
+                if (!entry.isIntersecting) continue;
+                if (state.loading || state.done) return;
+                const metrics = captureScrollMetrics(state);
+                if (!metrics) return;
+                const fillsViewport = metrics
+                    ? metrics.scrollHeight > metrics.clientHeight + 40
+                    : false;
+                if (!state.userScrolled && fillsViewport && !state.allowUntilFilled) return;
+                try {
+                    state.observer?.unobserve?.(sentinel);
+                } catch (e) {
+                    console.debug?.(e);
+                }
+                state.userScrolled = false;
+                if (fillsViewport) state.allowUntilFilled = false;
+                Promise.resolve(deps.loadNextPage(gridContainer, state))
+                    .catch(() => null)
+                    .finally(() => {
+                        if (state.done) return;
+                        if (!sentinel.isConnected) return;
+                        try {
+                            state.observer?.observe?.(sentinel);
+                        } catch (e) {
+                            console.debug?.(e);
+                        }
+                    });
+            }
+        },
+        {
+            root: observerRoot,
+            rootMargin: deps.config.INFINITE_SCROLL_ROOT_MARGIN || "800px",
+            threshold: deps.config.INFINITE_SCROLL_THRESHOLD ?? 0.01,
+        },
+    );
+    state.observer.observe(sentinel);
+}
+
+
+function _assetMatchesActiveFilters(gridContainer, asset) {
+    if (!asset || typeof asset !== "object") return false;
+    const scope = String(gridContainer?.dataset?.mjrScope || "output").trim().toLowerCase();
+    const subfolder = String(gridContainer?.dataset?.mjrSubfolder || "").trim().toLowerCase();
+    const kind = String(gridContainer?.dataset?.mjrFilterKind || "").trim().toLowerCase();
+    const workflowOnly = gridContainer?.dataset?.mjrFilterWorkflowOnly === "1";
+    const minRating = Number(gridContainer?.dataset?.mjrFilterMinRating || 0) || 0;
+    const workflowType = String(gridContainer?.dataset?.mjrFilterWorkflowType || "")
+        .trim()
+        .toLowerCase();
+    const dateExact = String(gridContainer?.dataset?.mjrFilterDateExact || "").trim();
+    const assetSubfolder = String(asset?.subfolder || "").trim().toLowerCase();
+    const assetType = String(asset?.type || "output").trim().toLowerCase();
+    const assetKind = String(asset?.kind || "").trim().toLowerCase();
+    const assetWorkflowType = String(asset?.workflow_type || asset?.workflowType || "")
+        .trim()
+        .toLowerCase();
+    const assetDate = String(asset?.date_exact || asset?.date || "").trim();
+    const hasWorkflow = Boolean(asset?.has_workflow ?? asset?.hasWorkflow);
+
+    if (scope && scope !== "all" && assetType && assetType !== scope) return false;
+    if (subfolder && assetSubfolder !== subfolder) return false;
+    if (kind && assetKind && assetKind !== kind) return false;
+    if (workflowOnly && !hasWorkflow) return false;
+    if (minRating > 0 && (Number(asset?.rating || 0) || 0) < minRating) return false;
+    if (workflowType && assetWorkflowType !== workflowType) return false;
+    if (dateExact && assetDate && assetDate !== dateExact) return false;
+
+    return true;
+}
+
+export async function fetchPage(
+    gridContainer,
+    query,
+    limit,
+    offset,
+    deps,
+    { requestId = 0, signal = null } = {},
+) {
+    const coerceQueryText = (value) => {
+        if (typeof value === "string") return value;
+        if (value && typeof value === "object") {
+            if (typeof value.value === "string") return value.value;
+            if (typeof value.target?.value === "string") return value.target.value;
+        }
+        return String(value || "");
+    };
+
+    const scope = gridContainer?.dataset?.mjrScope || "output";
+    const customRootId = gridContainer?.dataset?.mjrCustomRootId || "";
+    const subfolder = gridContainer?.dataset?.mjrSubfolder || "";
+    const kind = gridContainer?.dataset?.mjrFilterKind || "";
+    const workflowOnly = gridContainer?.dataset?.mjrFilterWorkflowOnly === "1";
+    const minRating = Number(gridContainer?.dataset?.mjrFilterMinRating || 0) || 0;
+    const minSizeMB = Number(gridContainer?.dataset?.mjrFilterMinSizeMB || 0) || 0;
+    const maxSizeMB = Number(gridContainer?.dataset?.mjrFilterMaxSizeMB || 0) || 0;
+    const resolutionCompare =
+        String(gridContainer?.dataset?.mjrFilterResolutionCompare || "gte") === "lte"
+            ? "lte"
+            : "gte";
+    const minWidth = Number(gridContainer?.dataset?.mjrFilterMinWidth || 0) || 0;
+    const minHeight = Number(gridContainer?.dataset?.mjrFilterMinHeight || 0) || 0;
+    const maxWidth = Number(gridContainer?.dataset?.mjrFilterMaxWidth || 0) || 0;
+    const maxHeight = Number(gridContainer?.dataset?.mjrFilterMaxHeight || 0) || 0;
+    const workflowType = String(gridContainer?.dataset?.mjrFilterWorkflowType || "")
+        .trim()
+        .toUpperCase();
+    const dateRange = String(gridContainer?.dataset?.mjrFilterDateRange || "")
+        .trim()
+        .toLowerCase();
+    const dateExact = String(gridContainer?.dataset?.mjrFilterDateExact || "").trim();
+    const sortKey = gridContainer?.dataset?.mjrSort || "mtime_desc";
+    const groupStacks = String(gridContainer?.dataset?.mjrGroupStacks || "") === "1";
+    const requestedQueryRaw = coerceQueryText(query).trim();
+    const requestedQuery = requestedQueryRaw || "*";
+    const normalizedRequestedQuery = /^\[object\s+HTML.*Element\]$/i.test(requestedQuery)
+        ? "*"
+        : requestedQuery;
+    const safeQuery = deps.sanitizeQuery(normalizedRequestedQuery) || normalizedRequestedQuery;
+    try {
+        const includeTotal = !(
+            String(scope || "").toLowerCase() === "output" && Number(offset ?? 0) > 0
+        );
+        const url = deps.buildListURL({
+            q: safeQuery,
+            limit,
+            offset,
+            scope,
+            subfolder,
+            customRootId: customRootId || null,
+            kind: kind || null,
+            hasWorkflow: workflowOnly ? true : null,
+            minRating: minRating > 0 ? minRating : null,
+            minSizeMB: minSizeMB > 0 ? minSizeMB : null,
+            maxSizeMB: maxSizeMB > 0 ? maxSizeMB : null,
+            resolutionCompare,
+            minWidth: minWidth > 0 ? minWidth : null,
+            minHeight: minHeight > 0 ? minHeight : null,
+            maxWidth: maxWidth > 0 ? maxWidth : null,
+            maxHeight: maxHeight > 0 ? maxHeight : null,
+            workflowType: workflowType || null,
+            dateRange: dateRange || null,
+            dateExact: dateExact || null,
+            sort: sortKey,
+            includeTotal,
+            groupStacks,
+        });
+        const result = await deps.get(url, signal ? { signal } : undefined);
+        try {
+            const state = deps.getGridState(gridContainer);
+            if (state && Number(state.requestId) !== Number(requestId)) {
+                return { ok: false, stale: true, error: "Stale response" };
+            }
+        } catch (e) {
+            console.debug?.(e);
+        }
+        if (result.ok) {
+            const assets = result.data?.assets || [];
+            const serverCount = Array.isArray(assets) ? assets.length : 0;
+            const rawTotal = result.data?.total;
+            const total = rawTotal == null ? null : Number(rawTotal ?? 0) || 0;
+            return { ok: true, assets, total, count: serverCount, sortKey, safeQuery };
+        }
+        try {
+            if (String(result?.code || "") === "ABORTED")
+                return { ok: false, aborted: true, error: "Aborted" };
+        } catch (e) {
+            console.debug?.(e);
+        }
+        return { ok: false, error: result.error };
+    } catch (error) {
+        try {
+            if (String(error?.name || "") === "AbortError")
+                return { ok: false, aborted: true, error: "Aborted" };
+        } catch (e) {
+            console.debug?.(e);
+        }
+        return { ok: false, error: error.message };
+    }
+}
+
+export function emitAgendaStatus(dateExact, hasResults) {
+    if (!dateExact) return;
+    try {
+        window?.dispatchEvent?.(
+            new CustomEvent("MJR:AgendaStatus", {
+                detail: { date: dateExact, hasResults: Boolean(hasResults) },
+            }),
+        );
+    } catch (e) {
+        console.debug?.(e);
+    }
+}
+
+export async function loadNextPage(gridContainer, state, deps) {
+    if (state.loading || state.done) return;
+    const limit = Math.max(1, Math.min(deps.config.MAX_PAGE_SIZE, deps.config.DEFAULT_PAGE_SIZE));
+    state.loading = true;
+    const before = deps.captureScrollMetrics(state);
+    deps.gridDebug("loadNextPage:start", {
+        q: String(state?.query || ""),
+        limit,
+        offset: Number(state?.offset ?? 0) || 0,
+    });
+    try {
+        const page = await fetchPage(gridContainer, state.query, limit, state.offset, deps, {
+            requestId: Number(state.requestId ?? 0) || 0,
+            signal: state.abortController?.signal || null,
+        });
+        const dateExact = String(gridContainer?.dataset?.mjrFilterDateExact || "").trim();
+        emitAgendaStatus(
+            dateExact,
+            page.ok && Array.isArray(page.assets) && page.assets.length > 0,
+        );
+        if (!page.ok) {
+            if (page.aborted || page.stale) return;
+            state.done = true;
+            deps.stopObserver(state);
+            return;
+        }
+        if (page.total != null) state.total = page.total;
+        const added = deps.appendAssets(gridContainer, page.assets || [], state);
+        state.offset += page.count || 0;
+        deps.gridDebug("loadNextPage:append", { added, offset: state.offset });
+        deps.maybeKeepPinnedToBottom(state, before);
+        if ((page.count || 0) === 0) {
+            state.done = true;
+            deps.stopObserver(state);
+        }
+    } finally {
+        state.loading = false;
+    }
+}
+
+export function getSortValue(asset, sortKey) {
+    switch (sortKey) {
+        case "mtime_desc":
+            // Negate so that larger mtime (newer) sorts first in ascending numeric order.
+            return -(Number(asset?.mtime) || 0);
+        case "mtime_asc":
+            return Number(asset?.mtime) || 0;
+        case "name_asc":
+        case "name_desc":
+            return String(asset?.filename || "").toLowerCase();
+        default:
+            // Default to newest-first (descending mtime) via negation.
+            return -(Number(asset?.mtime) || 0);
+    }
+}
+
+export function compareAssets(a, b, sortKey) {
+    if (sortKey === "name_desc") {
+        // Reverse the natural string order for descending name sort.
+        const av = String(a?.filename || "").toLowerCase();
+        const bv = String(b?.filename || "").toLowerCase();
+        if (av > bv) return -1;
+        if (av < bv) return 1;
+        return 0;
+    }
+    // For mtime sorts, getSortValue already negates desc values,
+    // so a plain ascending compare yields the correct order.
+    const av = getSortValue(a, sortKey);
+    const bv = getSortValue(b, sortKey);
+    if (av < bv) return -1;
+    if (av > bv) return 1;
+    return 0;
+}
+
+export function shouldInsertBefore(assetValue, cardValue, sortKey) {
+    if (sortKey === "name_asc") return String(assetValue) < String(cardValue);
+    if (sortKey === "name_desc") return String(assetValue) > String(cardValue);
+    return Number(assetValue) < Number(cardValue);
+}
+
+export function findInsertPosition(array, asset, sortKey) {
+    const assetValue = getSortValue(asset, sortKey);
+    for (let i = 0; i < array.length; i++) {
+        const arrValue = getSortValue(array[i], sortKey);
+        if (shouldInsertBefore(assetValue, arrValue, sortKey)) return i;
+    }
+    return array.length;
+}
+
+export function findAssetElement(gridContainer, assetId) {
+    const escaped = _safeEscape(String(assetId));
+    return gridContainer.querySelector(`[data-mjr-asset-id="${escaped}"]`);
+}
+
+function _safeEscape(value) {
+    try {
+        return CSS?.escape
+            ? CSS.escape(value)
+            : value.replace(/([!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, "\\$1");
+    } catch {
+        return value.replace(/([!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, "\\$1");
+    }
+}
+
+export function getUpsertBatchState(gridContainer, upsertState) {
+    let s = upsertState.get(gridContainer);
+    if (!s) {
+        s = { pending: new Map(), timer: null, flushing: false };
+        upsertState.set(gridContainer, s);
+    }
+    return s;
+}
+
+function dedupeAssetsByKey(state, deps) {
+    const seenIds = new Set();
+    const seenKeys = new Set();
+    const deduped = [];
+    for (const asset of Array.isArray(state?.assets) ? state.assets : []) {
+        const assetId = asset?.id != null ? String(asset.id) : "";
+        const key = deps.assetKey(asset);
+        if (assetId && seenIds.has(assetId)) continue;
+        if (key && seenKeys.has(key)) continue;
+        if (assetId) seenIds.add(assetId);
+        if (key) seenKeys.add(key);
+        deduped.push(asset);
+    }
+    state.assets = deduped;
+    state.assetIdSet = seenIds;
+    state.seenKeys = seenKeys;
+}
+
+/**
+ * Flush all pending upsert operations into the grid.
+ *
+ * Concurrency guard: `batchState.flushing` prevents re-entrant flushes.
+ * Items arriving during a flush are accumulated in `batchState.pending` and
+ * a follow-up flush is scheduled in the `finally` block (BUG-01).
+ */
+export function flushUpsertBatch(gridContainer, deps) {
+    const batchState = deps.upsertState.get(gridContainer);
+    if (!batchState || batchState.pending.size === 0 || batchState.flushing) return;
+    batchState.flushing = true;
+    if (batchState.timer) {
+        clearTimeout(batchState.timer);
+        batchState.timer = null;
+    }
+    // Snapshot the current batch so items arriving during the flush are not lost (BUG-01).
+    const snapshot = new Map(batchState.pending);
+    for (const key of snapshot.keys()) batchState.pending.delete(key);
+    const state = deps.getOrCreateState(gridContainer);
+    const vg = deps.ensureVirtualGrid(gridContainer, state);
+    try {
+        let modified = false;
+        for (const [assetId, asset] of snapshot.entries()) {
+            state.assetKeyFn = deps.assetKey;
+            const siblingCheck = shouldHideSiblingAsset(asset, state, deps.loadMajoorSettings);
+            if (Array.isArray(siblingCheck?.removed) && siblingCheck.removed.length) {
+                const removedSet = new Set(siblingCheck.removed);
+                state.assets = state.assets.filter((item) => {
+                    const keep = !removedSet.has(item);
+                    if (!keep) {
+                        unregisterHiddenSibling(state, item, state);
+                    }
+                    return keep;
+                });
+                try {
+                    state.hiddenPngSiblings =
+                        (Number(state.hiddenPngSiblings || 0) || 0) + siblingCheck.removed.length;
+                } catch (e) {
+                    console.debug?.(e);
+                }
+                modified = true;
+            }
+            if (siblingCheck?.hidden) {
+                try {
+                    state.hiddenPngSiblings = (Number(state.hiddenPngSiblings || 0) || 0) + 1;
+                } catch (e) {
+                    console.debug?.(e);
+                }
+                continue;
+            }
+            const key = deps.assetKey(asset);
+            const existingIndex = state.assets.findIndex((a) => String(a.id) === assetId);
+            const matchesFilters = _assetMatchesActiveFilters(gridContainer, asset);
+            if (!matchesFilters) {
+                if (existingIndex > -1) {
+                    const [removedAsset] = state.assets.splice(existingIndex, 1);
+                    unregisterHiddenSibling(state, removedAsset, state);
+                    modified = true;
+                }
+                continue;
+            }
+            if (existingIndex > -1) {
+                const existingAsset = state.assets[existingIndex];
+                const previousKey = deps.assetKey(existingAsset);
+                Object.assign(existingAsset, asset);
+                const mergedAsset = { ...existingAsset };
+                const nextKey = deps.assetKey(mergedAsset);
+                state.assets[existingIndex] = mergedAsset;
+                if (previousKey && previousKey !== nextKey) {
+                    state.seenKeys?.delete?.(previousKey);
+                    if (nextKey) state.seenKeys?.add?.(nextKey);
+                }
+                modified = true;
+            } else {
+                const alreadySeen =
+                    state.seenKeys.has(key) ||
+                    (asset.id != null && state.assetIdSet?.has?.(assetId));
+                if (!alreadySeen) {
+                    const sortKey = gridContainer.dataset.mjrSort || "mtime_desc";
+                    const insertPos = findInsertPosition(state.assets, asset, sortKey);
+                    state.seenKeys.add(key);
+                    if (asset.id != null) state.assetIdSet?.add?.(assetId);
+                    state.assets.splice(insertPos, 0, asset); // findInsertPosition never returns -1
+                    modified = true;
+                }
+            }
+        }
+        if (modified && vg) {
+            dedupeAssetsByKey(state, deps);
+            try {
+                gridContainer.dataset.mjrHiddenPngSiblings = String(
+                    Number(state.hiddenPngSiblings || 0) || 0,
+                );
+            } catch (e) {
+                console.debug?.(e);
+            }
+            vg.setItems(state.assets);
+        }
+    } finally {
+        batchState.flushing = false;
+        // Items may have arrived during the flush â€” reschedule if needed (BUG-01).
+        if (batchState.pending.size > 0 && !batchState.timer) {
+            batchState.timer = setTimeout(() => {
+                batchState.timer = null;
+                flushUpsertBatch(gridContainer, deps);
+            }, deps.debounceMs);
+        }
+    }
+}
+
+export function upsertAsset(gridContainer, asset, deps) {
+    if (!asset || !asset.id) return false;
+    const state = deps.getOrCreateState(gridContainer);
+    const assetId = String(asset.id);
+    const vg = deps.ensureVirtualGrid(gridContainer, state);
+    if (!vg) return false;
+    const batchState = getUpsertBatchState(gridContainer, deps.upsertState);
+    batchState.pending.set(assetId, asset);
+    if (batchState.pending.size >= deps.maxBatchSize) {
+        flushUpsertBatch(gridContainer, deps);
+    } else if (!batchState.timer && !batchState.flushing) {
+        batchState.timer = setTimeout(() => {
+            batchState.timer = null;
+            flushUpsertBatch(gridContainer, deps);
+        }, deps.debounceMs);
+    }
+    return true;
+}
+

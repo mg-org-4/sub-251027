@@ -1,0 +1,17 @@
+{
+  "OpenAI":
+  {
+    "Name": "Open AI",
+    "APIKEY": "*************************"
+  },
+  "BlackForest":
+  {
+    "Name": "Black Forest",
+    "APIKEY": "*************************"
+  },
+  "Gemini":
+  {
+    "Name": "Gemini",
+    "APIKEY": "*************************"
+  }
+}

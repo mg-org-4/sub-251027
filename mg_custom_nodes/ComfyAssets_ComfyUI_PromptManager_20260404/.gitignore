@@ -9,10 +9,14 @@ AGENTS.md
 CLAUDE.md
 
 # Local files
+data/
 docs/
 logs/
 standalone_tagger.py
 prompts.db
+prompts.db-shm
+prompts.db-wal
+prompts.db-journal
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

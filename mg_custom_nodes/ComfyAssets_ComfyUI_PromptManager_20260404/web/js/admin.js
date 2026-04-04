@@ -8,6 +8,7 @@
                 };
                 this.categories = [];
                 this.tags = [];
+                this.subfolders = [];
                 this.imageViewMode = 'fit'; // 'fit' or 'full'
                 this.naturalImageSize = { width: 0, height: 0 };
                 
@@ -28,6 +29,7 @@
                 this.bindEvents();
                 this.initRouter();
                 this.loadInitialData();
+                this.checkUpdateNotice();
             }
 
             initRouter() {
@@ -108,7 +110,7 @@
                 this.bindModalEvents();
 
                 // Auto-search on filter changes
-                ["searchCategory"].forEach((id) => {
+                ["searchCategory", "searchFolder"].forEach((id) => {
                     document.getElementById(id).addEventListener("change", () => this.search());
                 });
                 
@@ -121,6 +123,7 @@
                 document.getElementById("saveSettings").addEventListener("click", () => this.saveSettings());
                 document.getElementById("cancelSettings").addEventListener("click", () => this.hideModal("settingsModal"));
                 document.getElementById("refreshMonitoringStatus").addEventListener("click", () => this.updateMonitoringStatus());
+                document.getElementById("addScanPathBtn").addEventListener("click", () => this.addScanPath());
 
                 // Bulk tag modal
                 document.getElementById("confirmBulkTag").addEventListener("click", () => this.confirmBulkTag());
@@ -212,6 +215,7 @@
                     await Promise.all([
                         this.loadStatistics(),
                         this.loadCategories(),
+                        this.loadSubfolders(),
                         this.loadTags(),
                         this.loadRecentPrompts(),
                         this.loadSettings(),
@@ -230,8 +234,12 @@
                         if (data.success && data.settings) {
                             this.settings.resultTimeout = data.settings.result_timeout || 5;
                             this.settings.webuiDisplayMode = data.settings.webui_display_mode || 'popup';
-                            this.settings.galleryRootPath = data.settings.gallery_root_path || '';
                             this.settings.monitoredDirectories = data.settings.monitored_directories || [];
+                            this.settings.galleryRootPaths = data.settings.gallery_root_paths || [];
+                            // Backward compat: if server only returned old field
+                            if (!this.settings.galleryRootPaths.length && data.settings.gallery_root_path) {
+                                this.settings.galleryRootPaths = [data.settings.gallery_root_path];
+                            }
                         }
                     }
                 } catch (error) {
@@ -310,6 +318,38 @@
                 });
             }
 
+            async loadSubfolders() {
+                try {
+                    const response = await fetch("/prompt_manager/subfolders");
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            this.subfolders = data.subfolders;
+                            this.populateFolderDropdown();
+                        }
+                    }
+                } catch (error) {
+                    console.error("Subfolders error:", error);
+                }
+            }
+
+            populateFolderDropdown() {
+                const select = document.getElementById("searchFolder");
+                const current = select.value;
+                select.textContent = '';
+                const defaultOpt = document.createElement("option");
+                defaultOpt.value = "";
+                defaultOpt.textContent = "All Folders";
+                select.appendChild(defaultOpt);
+                this.subfolders.forEach((folder) => {
+                    const option = document.createElement("option");
+                    option.value = folder;
+                    option.textContent = folder;
+                    select.appendChild(option);
+                });
+                select.value = current;
+            }
+
             async loadRecentPrompts(page = 1) {
                 try {
                     this.pagination.currentPage = page;
@@ -377,6 +417,8 @@
                     if (searchText) params.append("text", searchText);
                     if (category) params.append("category", category);
                     if (tags) params.append("tags", tags);
+                    const folder = document.getElementById("searchFolder").value;
+                    if (folder) params.append("folder", folder);
                     params.append("limit", "100");
 
                     const response = await fetch(`/prompt_manager/search?${params}`);
@@ -687,11 +729,33 @@
                 document.body.style.overflow = "";
             }
 
+            checkUpdateNotice() {
+                const NOTICE_VERSION = "3.2.0";
+                const dismissed = localStorage.getItem("pm_update_notice_dismissed");
+                if (dismissed === NOTICE_VERSION) return;
+
+                this.showModal("updateNoticeModal");
+
+                document.getElementById("updateNoticeDismiss").addEventListener("click", () => {
+                    if (document.getElementById("dismissUpdateNotice").checked) {
+                        localStorage.setItem("pm_update_notice_dismissed", NOTICE_VERSION);
+                    }
+                    this.hideModal("updateNoticeModal");
+                });
+
+                document.getElementById("updateNoticeScan").addEventListener("click", () => {
+                    localStorage.setItem("pm_update_notice_dismissed", NOTICE_VERSION);
+                    this.hideModal("updateNoticeModal");
+                    this.showScanModal();
+                });
+            }
+
             showSettingsModal() {
                 document.getElementById("resultTimeout").value = this.settings.resultTimeout;
                 document.getElementById("webuiDisplayMode").value = this.settings.webuiDisplayMode;
-                document.getElementById("galleryRootPath").value = this.settings.galleryRootPath || '';
+                this.renderScanPaths();
                 this.updateMonitoringStatus();
+                this.detectLoraManager();
                 this.showModal("settingsModal");
             }
 
@@ -713,14 +777,174 @@
                 }
             }
 
+            // ── LoraManager integration ──────────────────────────────
+
+            async detectLoraManager() {
+                const badge = document.getElementById("loraDetectionBadge");
+                const toggle = document.getElementById("loraEnabled");
+                const settings = document.getElementById("loraSettings");
+
+                try {
+                    // First check current status
+                    const statusRes = await fetch("/prompt_manager/lora/status");
+                    if (statusRes.ok) {
+                        const status = await statusRes.json();
+                        if (status.success && status.enabled) {
+                            badge.textContent = "enabled";
+                            badge.className = "text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400";
+                            toggle.checked = true;
+                            toggle.disabled = false;
+                            document.getElementById("loraManagerPath").value = status.path;
+                            document.getElementById("loraTriggerWords").checked = status.trigger_words_enabled;
+                            document.getElementById("civitaiApiKey").value = status.civitai_api_key || "";
+                            settings.classList.remove("hidden");
+                            this._loraPath = status.path;
+                            this._bindLoraEvents();
+                            return;
+                        }
+                    }
+
+                    // Try auto-detection
+                    const detectRes = await fetch("/prompt_manager/lora/detect");
+                    if (!detectRes.ok) return;
+                    const data = await detectRes.json();
+
+                    if (data.detected) {
+                        badge.textContent = "detected";
+                        badge.className = "text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400";
+                        toggle.disabled = false;
+                        document.getElementById("loraManagerPath").value = data.path;
+                        this._loraPath = data.path;
+                    } else {
+                        badge.textContent = "not installed";
+                        badge.className = "text-[10px] px-1.5 py-0.5 rounded-full bg-pm-input text-pm-muted";
+                        toggle.disabled = true;
+                    }
+
+                    this._bindLoraEvents();
+                } catch (e) {
+                    badge.textContent = "error";
+                    badge.className = "text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400";
+                }
+            }
+
+            _bindLoraEvents() {
+                if (this._loraBound) return;
+                this._loraBound = true;
+
+                const toggle = document.getElementById("loraEnabled");
+                const settings = document.getElementById("loraSettings");
+
+                toggle.addEventListener("change", () => {
+                    if (toggle.checked) {
+                        settings.classList.remove("hidden");
+                    } else {
+                        settings.classList.add("hidden");
+                    }
+                });
+
+                document.getElementById("loraImportBtn").addEventListener("click", () => {
+                    this.runLoraImport();
+                });
+            }
+
+            async saveLoraSettings() {
+                const enabled = document.getElementById("loraEnabled").checked;
+                const triggerWords = document.getElementById("loraTriggerWords").checked;
+                const civitaiKey = document.getElementById("civitaiApiKey").value.trim();
+                const path = this._loraPath || "";
+
+                try {
+                    const res = await fetch("/prompt_manager/lora/enable", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            enabled,
+                            path,
+                            trigger_words_enabled: triggerWords,
+                            civitai_api_key: civitaiKey,
+                        }),
+                    });
+                    const data = await res.json();
+                    if (!data.success) {
+                        this.showNotification(data.error || "Failed to save LoRA settings", "error");
+                        return false;
+                    }
+                    return true;
+                } catch (e) {
+                    this.showNotification("Failed to save LoRA settings", "error");
+                    return false;
+                }
+            }
+
+            async runLoraImport() {
+                const saved = await this.saveLoraSettings();
+                if (!saved) return;
+
+                // Close settings and show progress modal
+                this.hideModal("settingsModal");
+                document.getElementById("loraImportStatus").textContent = "Initializing...";
+                document.getElementById("loraImportBar").style.width = "0%";
+                document.getElementById("loraImportPercent").textContent = "0%";
+                document.getElementById("loraImportProcessed").textContent = "0 processed";
+                document.getElementById("loraImportImported").textContent = "0 imported";
+                this.showModal("loraImportModal");
+
+                try {
+                    const res = await fetch("/prompt_manager/lora/scan", { method: "POST" });
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = "";
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split("\n\n");
+                        buffer = lines.pop();
+
+                        for (const line of lines) {
+                            if (!line.startsWith("data: ")) continue;
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                const pct = data.progress || 0;
+                                document.getElementById("loraImportBar").style.width = `${pct}%`;
+                                document.getElementById("loraImportPercent").textContent = `${pct}%`;
+
+                                if (data.status) {
+                                    document.getElementById("loraImportStatus").textContent = data.status;
+                                }
+                                if (data.processed !== undefined) {
+                                    document.getElementById("loraImportProcessed").textContent = `${data.processed} processed`;
+                                }
+                                if (data.imported !== undefined) {
+                                    document.getElementById("loraImportImported").textContent = `${data.imported} imported`;
+                                }
+
+                                if (data.type === "complete") {
+                                    document.getElementById("loraImportStatus").textContent =
+                                        `Done — ${data.imported} imported, ${data.skipped} skipped`;
+                                    this.loadStatistics();
+                                    setTimeout(() => this.hideModal("loraImportModal"), 2000);
+                                }
+                            } catch (e) { /* skip malformed SSE */ }
+                        }
+                    }
+                } catch (e) {
+                    document.getElementById("loraImportStatus").textContent = `Error: ${e.message}`;
+                    setTimeout(() => this.hideModal("loraImportModal"), 3000);
+                }
+            }
+
             async saveSettings() {
                 const timeout = parseInt(document.getElementById("resultTimeout").value);
                 const displayMode = document.getElementById("webuiDisplayMode").value;
-                const galleryPath = document.getElementById("galleryRootPath").value.trim();
+                const galleryPaths = this._collectScanPaths().filter(p => p !== '');
 
                 this.settings.resultTimeout = timeout;
                 this.settings.webuiDisplayMode = displayMode;
-                this.settings.galleryRootPath = galleryPath;
+                this.settings.galleryRootPaths = galleryPaths;
 
                 try {
                     const response = await fetch("/prompt_manager/settings", {
@@ -729,12 +953,16 @@
                         body: JSON.stringify({
                             result_timeout: timeout,
                             webui_display_mode: displayMode,
-                            gallery_root_path: galleryPath
+                            gallery_root_paths: galleryPaths
                         }),
                     });
 
                     if (response.ok) {
                         const data = await response.json();
+
+                        // Save LoRA integration settings (fire-and-forget)
+                        await this.saveLoraSettings();
+
                         if (data.restart_required) {
                             this.showNotification("Settings saved. Restart ComfyUI for gallery path changes to take effect.", "warning");
                         } else {
@@ -747,6 +975,57 @@
                 } catch (error) {
                     this.showNotification("Failed to save settings", "error");
                 }
+            }
+
+            renderScanPaths() {
+                const container = document.getElementById("scanPathsList");
+                const paths = this.settings.galleryRootPaths || [];
+                container.textContent = '';  // Clear safely
+
+                const toRender = paths.length > 0 ? paths : [''];
+                toRender.forEach((p, i) => {
+                    const row = document.createElement('div');
+                    row.className = 'flex gap-2 items-center';
+                    row.dataset.pathIndex = i;
+
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = p;
+                    input.placeholder = 'Leave empty for auto-detect';
+                    input.className = 'flex-1 px-2.5 py-1.5 bg-pm-input border border-pm rounded-pm-sm text-pm text-[13px] focus:outline-none scan-path-input';
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'text-pm-muted hover:text-red-400 p-1 text-lg leading-none';
+                    removeBtn.title = 'Remove';
+                    removeBtn.textContent = '\u00d7';  // multiplication sign as X
+                    removeBtn.addEventListener('click', () => this.removeScanPath(i));
+
+                    row.appendChild(input);
+                    row.appendChild(removeBtn);
+                    container.appendChild(row);
+                });
+            }
+
+            addScanPath() {
+                const paths = this._collectScanPaths();
+                paths.push('');
+                this.settings.galleryRootPaths = paths;
+                this.renderScanPaths();
+                const inputs = document.querySelectorAll('.scan-path-input');
+                if (inputs.length) inputs[inputs.length - 1].focus();
+            }
+
+            removeScanPath(index) {
+                const paths = this._collectScanPaths();
+                paths.splice(index, 1);
+                this.settings.galleryRootPaths = paths;
+                this.renderScanPaths();
+            }
+
+            _collectScanPaths() {
+                return Array.from(document.querySelectorAll('.scan-path-input'))
+                    .map(input => input.value.trim());
             }
 
             toggleSelectAll(checked) {

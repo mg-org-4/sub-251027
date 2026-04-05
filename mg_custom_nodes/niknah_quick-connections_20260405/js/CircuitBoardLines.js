@@ -1,7 +1,6 @@
 /* eslint max-classes-per-file: 0 */
 /* eslint no-tabs: 0 */
 /* eslint no-underscore-dangle:0 */
-/* eslint import/prefer-default-export:0 */
 /* eslint prefer-rest-params:0 */
 /* eslint curly:0 */
 /* eslint no-plusplus:0 */
@@ -20,8 +19,6 @@ const INSIDE = 1;
 const OUTSIDE = 0;
 
 function clipT(num, denom, c) {
-	/* eslint-disable one-var,no-param-reassign,prefer-destructuring,operator-linebreak */
-	/* eslint-disable one-var-declaration-per-line,nonblock-statement-body-position,curly */
 	const tE = c[0], tL = c[1];
 	if (Math.abs(denom) < EPSILON)
 		return num < 0;
@@ -49,8 +46,6 @@ function clipT(num, denom, c) {
  * @return {number}
  */
 function liangBarsky(a, b, box, da, db) {
-	/* eslint-disable one-var,no-param-reassign,prefer-destructuring,operator-linebreak */
-	/* eslint-disable one-var-declaration-per-line */
 	const x1 = a[0], y1 = a[1];
 	const x2 = b[0], y2 = b[1];
 	const dx = x2 - x1;
@@ -92,13 +87,13 @@ function liangBarsky(a, b, box, da, db) {
 }
 
 class MapLinks {
-	constructor(canvas) {
+	constructor(canvas, config) {
 		this.canvas = canvas;
 		this.nodesByRight = [];
 		this.nodesById = [];
 		this.lastPathId = 10000000;
 		this.paths = [];
-		this.lineSpace = Math.floor(LiteGraph.NODE_SLOT_HEIGHT / 2);
+		this.config = config;
 		this.maxDirectLineDistance = Number.MAX_SAFE_INTEGER;
 		this.debug = false;
 	}
@@ -295,9 +290,9 @@ class MapLinks {
 			];
 
 			if (horzDistance <= 0) {
-				linesArea[2] += this.lineSpace;
+				linesArea[2] += this.config.lineSpace;
 			} else {
-				linesArea[0] -= this.lineSpace;
+				linesArea[0] -= this.config.lineSpace;
 			}
 
 			const vertDistanceViaBlockTop =
@@ -323,10 +318,10 @@ class MapLinks {
 				];
 			}
 			if (lastPathLocation[1] < outputXY[1]) {
-				linesArea[1] -= this.lineSpace;
+				linesArea[1] -= this.config.lineSpace;
 				lastPathLocation[1] -= 1;
 			} else {
-				linesArea[3] += this.lineSpace;
+				linesArea[3] += this.config.lineSpace;
 				lastPathLocation[1] += 1;
 			}
 			thisDirection = 'vert';
@@ -346,9 +341,9 @@ class MapLinks {
 				[outputXY[0], vertEdge],
 			];
 			if (vertDistance <= 0) {
-				linesArea[3] += this.lineSpace;
+				linesArea[3] += this.config.lineSpace;
 			} else {
-				linesArea[1] -= this.lineSpace;
+				linesArea[1] -= this.config.lineSpace;
 			}
 
 			const horzDistanceViaBlockLeft =
@@ -374,10 +369,10 @@ class MapLinks {
 				];
 			}
 			if (lastPathLocation[0] < outputXY[0]) {
-				linesArea[0] -= this.lineSpace;
+				linesArea[0] -= this.config.lineSpace;
 				// lastPathLocation[0] -= 1; //this.lineSpace;
 			} else {
-				linesArea[2] += this.lineSpace;
+				linesArea[2] += this.config.lineSpace;
 				// lastPathLocation[0] += 1; //this.lineSpace;
 			}
 			thisDirection = 'horz';
@@ -389,7 +384,7 @@ class MapLinks {
 		// console.log('is blocked check',isBlocked, blockedNodeId);
 		if (isBlocked[blockedNodeId] > 3) {
 			// Blocked too many times, let's return the direct path
-			console.log('CircuitBoardLines: Too many blocked, node id:', blockedNodeId, 'output', outputXY, 'input', inputXY); // eslint-disable-line no-console
+			console.log('CircuitBoardLines: Too many blocked, node id:', blockedNodeId, 'output', outputXY, 'input', inputXY);
 			isBlocked.blocked = true;
 			return [outputXY, inputXY];
 		}
@@ -418,7 +413,7 @@ class MapLinks {
 		if (path[1][0] === path[2][0]) {
 			// first link is going vertical
 			// while (path[1][0] > linesArea[2])
-			linesArea[2] += this.lineSpace;
+			linesArea[2] += this.config.lineSpace;
 		}
 		return true;
 	}
@@ -434,7 +429,7 @@ class MapLinks {
 		if (path[path2Len - 1][0] === path[path2Len][0]) {
 			// first link is going vertical
 			// while (path[path2Len][0] < linesArea[0])
-			linesArea[0] -= this.lineSpace;
+			linesArea[0] -= this.config.lineSpace;
 		}
 		return true;
 	}
@@ -459,7 +454,7 @@ class MapLinks {
 	mapLinks(nodesByExecution) {
 		const graphLinks = this.canvas.graph.links;
 		if (!graphLinks) {
-			console.error('Missing graph.links', this.canvas.graph); // eslint-disable-line no-console
+			console.error('Missing graph.links', this.canvas.graph);
 			return;
 		}
 
@@ -479,10 +474,10 @@ class MapLinks {
 			];
 			const linesArea = Array.from(area);
 			// new layout needs more spacing
-			linesArea[0] -= 8;
-			linesArea[1] -= 4;
-			linesArea[2] += 12;
-			linesArea[3] += 4;
+			linesArea[0] += this.config.nodeSpace[0];
+			linesArea[1] += this.config.nodeSpace[1];
+			linesArea[2] += this.config.nodeSpace[2];
+			linesArea[3] += this.config.nodeSpace[3];
 			const obj = {
 				node,
 				area,
@@ -595,7 +590,7 @@ class MapLinks {
 						slot,
 					});
 					outputXY = [
-						outputXY[0] + this.lineSpace,
+						outputXY[0] + this.config.lineSpace,
 						outputXY[1],
 					];
 					return false;
@@ -611,7 +606,7 @@ class MapLinks {
 		}
 
 		if (this.debug)
-			console.log('last calc time', this.lastCalcTime); // eslint-disable-line no-console
+			console.log('last calc time', this.lastCalcTime);
 		// console.log('nodesbyright', this.nodesByRight);
 		// Uncomment this to test timeout on draws
 		// this.lastCalcTime = 250;
@@ -620,11 +615,11 @@ class MapLinks {
 	// draw the links calculated from mapLinks()
 	drawLinks(ctx) {
 		if (!this.canvas.default_connection_color_byType || !this.canvas.default_connection_color) {
-			console.error('Missing canvas.default_connection_color_byType', this.canvas); // eslint-disable-line no-console
+			console.error('Missing canvas.default_connection_color_byType', this.canvas);
 			return;
 		}
 		if (this.debug)
-			console.log('paths', this.paths); // eslint-disable-line no-console
+			console.log('paths', this.paths);
 
 		ctx.save();
 		const currentNodeIds = this.canvas.selected_nodes || {};
@@ -646,7 +641,7 @@ class MapLinks {
 				ctx.strokeStyle = slotColor;
 			}
 			ctx.lineWidth = 3;
-			const cornerRadius = this.lineSpace;
+			const cornerRadius = this.config.lineSpace;
 
 			let isPrevDotRound = false;
 			for (let p = 0; p < path.length; ++p) {
@@ -823,7 +818,7 @@ class EyeButton {
 	static getEyeButton() {
 		const eyeButtons = document.querySelectorAll('.pi-eye,.pi-eye-slash');
 		if (eyeButtons.length > 1) {
-			console.log('found too many eye buttons', eyeButtons); // eslint-disable-line no-console
+			console.log('found too many eye buttons', eyeButtons);
 		}
 		return eyeButtons[0];
 	}
@@ -863,6 +858,22 @@ export class CircuitBoardLines {
 		this.enabled = true;
 		this.eyeHidden = false;
 		this.maxDirectLineDistance = Number.MAX_SAFE_INTEGER;
+		this.config = {
+			lineSpace : Math.floor(LiteGraph.NODE_SLOT_HEIGHT / 2),
+			nodeSpace : [-8, -4, 12, 4],
+		};
+	}
+
+	static cleanFloat(n, def) {
+		n = parseFloat(n);
+		if(isNaN(n)) {
+			n = def;
+		}
+		return n;
+	}
+
+	static cleanInteger(n, def) {
+		return Math.round(CircuitBoardLines.cleanFloat(n, def));
 	}
 
 	setEnabled(e) { this.enabled = e; }
@@ -901,7 +912,7 @@ export class CircuitBoardLines {
 		this.lastDrawTimeout = setTimeout(() => {
 			this.lastDrawTimeout = null;
 			window.requestAnimationFrame(() => {
-				console.log('redraw timeout'); // eslint-disable-line no-console
+				console.log('redraw timeout');
 				this.canvas.setDirty(true, true);
 				this.skipNextRecalcTimeout = true;
 				this.canvas.draw(true, true);
@@ -921,7 +932,7 @@ export class CircuitBoardLines {
 	}
 
 	recalcMapLinks() {
-		this.mapLinks = new MapLinks(this.canvas);
+		this.mapLinks = new MapLinks(this.canvas, this.config);
 		this.mapLinks.maxDirectLineDistance = this.maxDirectLineDistance;
 		this.mapLinks.debug = this.debug;
 		const nodesByExecution = this.canvas.graph.computeExecutionOrder() || [];
@@ -936,7 +947,7 @@ export class CircuitBoardLines {
 		try {
 			this.mapLinks.mapLinks(nodesByExecution);
 		} catch (e) {
-			console.error('mapLinks error', e); // eslint-disable-line no-console
+			console.error('mapLinks error', e);
 		}
 	}
 

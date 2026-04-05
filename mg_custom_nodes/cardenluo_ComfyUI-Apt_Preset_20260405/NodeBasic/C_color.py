@@ -3392,8 +3392,8 @@ class Image_crop_visual:
             }
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("cropped_image",)
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("cropped_image", "mask")
     FUNCTION = "crop_image"
     CATEGORY = "Apt_Preset/image/visualize_edit"
     OUTPUT_NODE = True
@@ -3404,15 +3404,37 @@ class Image_crop_visual:
         cx, cy, zoom = _crop_visual_parse_state(crop_state)
 
         out_list = []
+        mask_list = []
         image_for_preview = image[0]
         image_for_meta = image[0]
         for img in image:
             prepared = _crop_visual_prepare_image(img, fill, margin)
-            out_list.append(_crop_visual_apply_single(prepared, crop_w, crop_h, cx, cy, zoom))
+            cropped_img = _crop_visual_apply_single(prepared, crop_w, crop_h, cx, cy, zoom)
+            out_list.append(cropped_img)
+            
+            # Generate mask for the cropped image
+            h = int(img.shape[0])
+            w = int(img.shape[1])
+            left, top, right, bottom = _crop_visual_compute_box(w, h, crop_w, crop_h, cx, cy, zoom)
+            
+            # Create coordinate grid
+            x = torch.linspace(left, right, crop_w, device=img.device, dtype=img.dtype)
+            y = torch.linspace(top, bottom, crop_h, device=img.device, dtype=img.dtype)
+            yy, xx = torch.meshgrid(y, x, indexing="ij")
+            
+            # Create mask: 1.0 inside original canvas, 0.0 outside
+            mask = torch.ones((crop_h, crop_w), device=img.device, dtype=img.dtype)
+            mask[xx < 0] = 0.0
+            mask[xx >= w] = 0.0
+            mask[yy < 0] = 0.0
+            mask[yy >= h] = 0.0
+            mask_list.append(mask)
+            
         if image.shape[0] > 0:
             image_for_preview = _crop_visual_prepare_image(image[0], fill, margin)
             image_for_meta = image_for_preview
         out_tensor = torch.stack(out_list, dim=0)
+        mask_tensor = torch.stack(mask_list, dim=0)
 
         bg_results = []
         temp_dir = folder_paths.get_temp_directory()
@@ -3427,7 +3449,7 @@ class Image_crop_visual:
             "bg_image": bg_results,
             "crop_meta": [{"img_w": int(image_for_meta.shape[1]), "img_h": int(image_for_meta.shape[0])}],
         }
-        return {"ui": ui, "result": (out_tensor,)}
+        return {"ui": ui, "result": (out_tensor, mask_tensor)}
 
 
 class Image_mask_crop_visual:

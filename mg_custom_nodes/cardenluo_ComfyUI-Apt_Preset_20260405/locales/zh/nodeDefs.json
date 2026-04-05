@@ -7005,6 +7005,43 @@
       }
     }
   },
+
+"Image_expand_canvase_visual": {
+    "display_name": "Image_画布可视化扩展",
+    "inputs": {
+        "width": {
+            "name": "宽度"
+        },
+        "height": {
+            "name": "高度"
+        },
+        "constant_color": {
+            "name": "填充颜色"
+        },
+        "transform_state": {
+            "name": "变换状态"
+        },
+        "align_position": {
+            "name": "位置对齐"
+        },
+        "image": {
+            "name": "图像"
+        }
+
+    },
+    "outputs": {
+        "0": {
+            "name": "图像"
+        },
+        "1": {
+            "name": "填充遮罩"
+        }
+    }
+},
+
+
+
+
   "Image_solo_crop": {
     "display_name": "Image_单图裁剪(弃)",
     "inputs": {
@@ -10556,6 +10593,7 @@
       }
     }
   },
+  
   "text_filter": {
     "display_name": "text_过滤器",
     "inputs": {
@@ -10568,8 +10606,11 @@
       "custom_rule": {
         "name": "自定义规则"
       },
-      "seed": {
-        "name": "随机种子"
+      "current_frame": {
+        "name": "当前帧"
+      },
+      "reverse_filter": {
+        "name": "反转过滤"
       },
       "match_all": {
         "name": "匹配全部"
@@ -10577,7 +10618,7 @@
     },
     "outputs": {
       "0": {
-        "name": "单文本"
+        "name": "调度文本"
       },
       "1": {
         "name": "匹配列表"
@@ -10618,15 +10659,18 @@
       "custom_separator": {
         "name": "自定义分隔符"
       },
-      "seed": {
-        "name": "随机种子"
+      "current_frame": {
+        "name": "当前帧"
       }
     },
     "outputs": {
       "0": {
-        "name": "单文本"
+        "name": "调度文本"
       },
       "1": {
+        "name": "分割批次"
+      },
+      "2": {
         "name": "分割列表"
       }
     }
@@ -10829,42 +10873,8 @@
       }
     }
   },
-  "AI_GLM4": {
-    "display_name": "AI_GLM4",
-    "inputs": {
-      "text_input": {
-        "name": "文本输入"
-      },
-      "prompt_preset": {
-        "name": "提示词预设"
-      },
-      "prompt_override": {
-        "name": "提示词覆盖"
-      },
-      "max_tokens": {
-        "name": "最大令牌数"
-      },
-      "seed": {
-        "name": "随机种子"
-      },
-      "api_key": {
-        "name": "API密钥"
-      },
-      "model_name": {
-        "name": "模型名称"
-      },
-      "image_input": {
-        "name": "图像输入"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "响应"
-      }
-    }
-  },
   "AI_Qwen": {
-    "display_name": "AI_Qwen",
+    "display_name": "AI_Qwen_视觉",
     "inputs": {
       "model": {
         "name": "模型"
@@ -10957,7 +10967,7 @@
     }
   },
   "Ai_doubao_seedream": {
-    "display_name": "Ai_豆包_种子梦想",
+    "display_name": "Ai_豆包_seedream(付费)",
     "inputs": {
       "main_image1": {
         "name": "图像1(主图)"
@@ -10997,7 +11007,7 @@
     }
   },
   "AI_Ollama_image": {
-    "display_name": "AI_Ollama_图像",
+    "display_name": "AI_Ollama_视觉",
     "inputs": {
       "model_name": {
         "name": "模型名称"
@@ -13042,6 +13052,271 @@
         }
     }
 },
+
+
+
+
+
+"AI_ModelScope_image": {
+    "display_name": "AI_魔塔_视觉",
+    "inputs": {
+
+        "MODELSCOPE_API_TOKEN": {
+            "name": "API令牌"
+        }
+    },
+    "outputs": {}
+},
+
+
+
+"AI_ModelScopeImageEdit": {
+    "display_name": "AI_魔塔_图像编辑",
+    "inputs": {
+        "MODELSCOPE_API_TOKEN": {
+            "name": "API令牌"
+        }
+    },
+    "outputs": {
+    }
+},
+
+
+"AI_ModelScopeT2I": {
+    "display_name": "AI_魔塔_文生图",
+    "inputs": {
+        "MODELSCOPE_API_TOKEN": {
+            "name": "API令牌"
+        }
+    },
+    "outputs": {
+    }
+},
+
+"AI_ModelScope_text": {
+    "display_name": "AI_魔塔_文本",
+    "inputs": {
+        "MODELSCOPE_API_TOKEN": {
+            "name": "API令牌"
+        }
+    },
+    "outputs": {
+    }
+},
+
+
+
+  "AI_GLM_text": {
+    "display_name": "AI_GLM_文本",
+    "inputs": {
+      "llm_model": {
+        "name": "模型名称"
+      },
+      "preset": {
+        "name": "预设"
+      },
+      "custom_system_prompt": {
+        "name": "自定义系统提示词"
+      },
+      "text": {
+        "name": "文本"
+      },
+      "max_tokens": {
+        "name": "最大令牌数"
+      },
+      "seed": {
+        "name": "随机种子"
+      },
+      "api_key_input": {
+        "name": "API密钥输入"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "结果"
+      },
+      "1": {
+        "name": "系统提示词"
+      }
+    }
+  },
+
+
+  "AI_GLM_image": {
+    "display_name": "AI_GLM_视觉",
+    "inputs": {
+      "model": {
+        "name": "模型"
+      },
+      "preset": {
+        "name": "预设"
+      },
+      "text": {
+        "name": "文本"
+      },
+      "max_tokens": {
+        "name": "最大令牌数"
+      },
+      "image_1": {
+        "name": "图像1"
+      },
+      "image_2": {
+        "name": "图像2"
+      },
+      "image_3": {
+        "name": "图像3"
+      },
+      "seed": {
+        "name": "随机种子"
+      },
+      "api_key_input": {
+        "name": "API密钥输入"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "结果"
+      },
+      "1": {
+        "name": "系统提示词"
+      }
+    }
+  },
+
+
+
+  "view_node_Script": {
+    "display_name": "view_node_Script",
+    "inputs": {
+      "selected_node": {
+        "name": "选中节点"
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "字符串"
+      }
+    }
+  },
+"AD_AutoTileVAEDecode": {
+    "display_name": "AD_vae自动切片",
+    "inputs": {
+        "width": {
+            "name": "宽度"
+        },
+        "height": {
+            "name": "高度"
+        },
+        "total_frames": {
+            "name": "总帧数"
+        },
+        "vram_level": {
+            "name": "显存级别"
+        },
+        "temporal_compression": {
+            "name": "时间压缩率"
+        },
+        "vae": {
+            "name": "vae"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "分块尺寸"
+        },
+        "1": {
+            "name": "重叠"
+        },
+        "2": {
+            "name": "时间尺寸"
+        },
+        "3": {
+            "name": "时间重叠"
+        },
+        "4": {
+            "name": "时间压缩率"
+        }
+    }
+},
+
+
+"AD_Latent_Diffusion_Keyframe": {
+    "display_name": "AD_扩散关键帧",
+    "inputs": {
+        "positive": {
+            "name": "正向条件"
+        },
+        "negative": {
+            "name": "负向条件"
+        },
+        "vae": {
+            "name": "vae"
+        },
+        "latent": {
+            "name": "latent"
+        },
+        "history": {
+            "name": "历史数据"
+        },
+        "history_strength": {
+            "name": "历史强度"
+        },
+        "history_fade_frames": {
+            "name": "历史淡出帧数"
+        },
+
+        "num_guides": {
+            "name": "引导数量"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "正向条件"
+        },
+        "1": {
+            "name": "负向条件"
+        },
+        "2": {
+            "name": "latent"
+        },
+        "3": {
+            "name": "历史数据"
+        }
+    }
+},
+
+
+"type_AnyListUnpack": {
+    "display_name": "type_任意列表解包",
+    "inputs": {
+        "any_list": {
+            "name": "任意列表"
+        },
+        "unpack_count": {
+            "name": "解包数量"
+        }
+    },
+    "outputs": {
+        "output_1": {}
+    }
+},
+"type_AnyBatchUnpack": {
+    "display_name": "type_任意批次解包",
+    "inputs": {
+        "any_batch": {
+            "name": "任意批次"
+        },
+        "unpack_count": {
+            "name": "解包数量"
+        }
+    },
+    "outputs": {
+        "output_1": {}
+    }
+},
+
+
+
 
 
   "csv_write_data": {

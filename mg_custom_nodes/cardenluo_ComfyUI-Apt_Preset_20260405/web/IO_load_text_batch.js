@@ -184,7 +184,19 @@ function getIndexWidget(node) {
 }
 
 function parseTextList(text) {
-    return (text || "")
+    const raw = String(text ?? "");
+    const st = raw.trim();
+    if (st.startsWith("[") && st.endsWith("]")) {
+        try {
+            const v = JSON.parse(raw);
+            if (Array.isArray(v)) {
+                return v
+                    .map((x) => String(x ?? "").replace(/\r/g, "").trim())
+                    .filter((x) => x !== "");
+            }
+        } catch {}
+    }
+    return raw
         .split("\n")
         .map((s) => String(s || "").replace(/\r/g, "").trim())
         .filter((s) => s !== "");
@@ -194,7 +206,8 @@ function setTextList(node, lines) {
     const w = getTextListWidget(node);
     if (!w) return;
     const next = Array.isArray(lines) ? lines : [];
-    w.value = next.join("\n");
+    const hasMultiLineItem = next.some((x) => String(x ?? "").includes("\n") || String(x ?? "").includes("\r"));
+    w.value = hasMultiLineItem ? JSON.stringify(next) : next.join("\n");
     w.callback?.(w.value);
 }
 
@@ -903,7 +916,8 @@ app.registerExtension({
                 const next = items
                     .map((x) => String(x ?? "").replace(/\r/g, "").trim())
                     .filter((x) => x !== "");
-                const nextStr = next.join("\n");
+                const hasMultiLineItem = next.some((x) => x.includes("\n") || x.includes("\r"));
+                const nextStr = hasMultiLineItem ? JSON.stringify(next) : next.join("\n");
                 if (wList.value !== nextStr) {
                     wList.value = nextStr;
                     wList.callback?.(wList.value);

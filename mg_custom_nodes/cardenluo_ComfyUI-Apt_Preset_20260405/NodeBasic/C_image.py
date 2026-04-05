@@ -6309,7 +6309,216 @@ class Image_pad_adjust:
 
 
 
-#endregion-----pad组---------------
+
+
+
+
+class Image_expand_canvase_visual:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "width": ("INT", {"default": 2048, "min": 1, "max": 8192, "step": 1}),
+                "height": ("INT", {"default": 2048, "min": 1, "max": 8192, "step": 1}),
+                "constant_color": (["white", "black", "red", "gray"], {"default": "black"}),
+                "transform_state": ("STRING", {"default": '{"x":0,"y":0,"scale":1.0,"angle":0,"shear":0}' }),
+                "align_position": (["left-top", "mid-top", "right-top", "left-center", "mid-center", "right-center", "left-bottom", "mid-bottom", "right-bottom"], {"default": "mid-center"}),   
+            },
+            "optional": {
+                "image": ("IMAGE",),
+            },
+        }
+
+    FUNCTION = "transform"
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("image", "pad_mask")
+    CATEGORY = "Apt_Preset/image/visualize_edit"
+    OUTPUT_NODE = True
+
+    def _parse_state(self, transform_state):
+        if isinstance(transform_state, dict):
+            data = transform_state
+        else:
+            try:
+                data = json.loads(transform_state) if transform_state else {}
+            except:
+                data = {}
+        x = float(data.get("x", 0))
+        y = float(data.get("y", 0))
+        scale = float(data.get("scale", 1.0))
+        angle = float(data.get("angle", 0))
+        shear = float(data.get("shear", 0))
+        if not np.isfinite(x): x = 0
+        if not np.isfinite(y): y = 0
+        if not np.isfinite(scale): scale = 1.0
+        if not np.isfinite(angle): angle = 0
+        if not np.isfinite(shear): shear = 0
+        return x, y, scale, angle, shear
+
+    def _resolve_align_anchor(self, align_position):
+        align_map = {
+            "left-top": (0.0, 0.0),
+            "mid-top": (0.5, 0.0),
+            "right-top": (1.0, 0.0),
+            "left-center": (0.0, 0.5),
+            "mid-center": (0.5, 0.5),
+            "right-center": (1.0, 0.5),
+            "left-bottom": (0.0, 1.0),
+            "mid-bottom": (0.5, 1.0),
+            "right-bottom": (1.0, 1.0),
+        }
+        return align_map.get(align_position, (0.5, 0.5))
+
+    def transform(self, width, height, constant_color, transform_state, align_position, image=None):
+        import json
+        
+        color_map = {
+            "white": (255, 255, 255),
+            "black": (0, 0, 0),
+            "red": (255, 0, 0),
+            "gray": (128, 128, 128)
+        }
+        
+        canvas_width = int(width)
+        canvas_height = int(height)
+        
+        # 如果没有输入图像，返回空白画布
+        if image is None or image.size(0) == 0:
+            blank = Image.new("RGB", (canvas_width, canvas_height), color_map.get(constant_color, (0, 0, 0)))
+            blank_tensor = pil2tensor(blank)
+            mask = torch.zeros((1, canvas_height, canvas_width), dtype=torch.float32)
+            return {"ui": {"preview": []}, "result": (blank_tensor, mask)}
+        
+        x_offset, y_offset, scale, angle, shear = self._parse_state(transform_state)
+        
+        frames_count, frame_height, frame_width, frame_channel_count = image.size()
+        
+        transformed_images = []
+        padding_masks = []
+        
+        temp_dir = folder_paths.get_temp_directory()
+        preview_results = []
+        
+        for idx, img in enumerate(list_tensor2pil(image)):
+            orig_w, orig_h = img.size
+            
+            # 计算初始缩放，使图片在不超过画布的情况下最大化
+            scale_x = canvas_width / orig_w
+            scale_y = canvas_height / orig_h
+            base_scale = min(scale_x, scale_y)
+            
+            # 应用用户缩放
+            final_scale = base_scale * scale
+            
+            # 计算缩放后的尺寸
+            new_w = int(orig_w * final_scale)
+            new_h = int(orig_h * final_scale)
+            
+            align_x, align_y = self._resolve_align_anchor(align_position)
+            
+            # 创建画布
+            if constant_color == "edge":
+                # 使用边缘近似色
+                edge_color = self._get_edge_color(img)
+                canvas = Image.new("RGB", (canvas_width, canvas_height), edge_color)
+            else:
+                canvas = Image.new("RGB", (canvas_width, canvas_height), color_map.get(constant_color, (0, 0, 0)))
+            
+            # 创建遮罩画布（反转：背景为0，图片区域为255）
+            mask_canvas = Image.new("L", (canvas_width, canvas_height), 0)
+            
+            # 使用 affine 变换同时应用缩放、旋转和 shear
+            # 计算变换参数
+            translate_x = int(x_offset)
+            translate_y = int(y_offset)
+            
+            # 应用 affine 变换到图片
+            transformed_img = cast(Image.Image, TF.affine(
+                img,
+                angle=-angle,  # PIL 角度方向与 Canvas 相反
+                scale=final_scale,
+                translate=[translate_x, translate_y],
+                shear=shear,
+                interpolation=Image.BILINEAR,
+                fill=None if constant_color == "edge" else color_map.get(constant_color, (0, 0, 0))
+            ))
+            
+            # 应用相同的变换到遮罩
+            img_mask = Image.new("L", (orig_w, orig_h), 255)
+            transformed_mask = cast(Image.Image, TF.affine(
+                img_mask,
+                angle=-angle,
+                scale=final_scale,
+                translate=[translate_x, translate_y],
+                shear=shear,
+                interpolation=Image.NEAREST,
+                fill=0
+            ))
+            
+            # 计算粘贴位置（按对齐基准）
+            new_w, new_h = transformed_img.size
+            paste_x = int((canvas_width - new_w) * align_x)
+            paste_y = int((canvas_height - new_h) * align_y)
+            
+            # 粘贴图片到画布（只粘贴可见部分）
+            if paste_x < canvas_width and paste_y < canvas_height and paste_x + new_w > 0 and paste_y + new_h > 0:
+                # 计算可见区域
+                src_x = max(0, -paste_x)
+                src_y = max(0, -paste_y)
+                dst_x = max(0, paste_x)
+                dst_y = max(0, paste_y)
+                
+                crop_w = min(new_w - src_x, canvas_width - dst_x)
+                crop_h = min(new_h - src_y, canvas_height - dst_y)
+                
+                if crop_w > 0 and crop_h > 0:
+                    cropped = transformed_img.crop((src_x, src_y, src_x + crop_w, src_y + crop_h))
+                    canvas.paste(cropped, (dst_x, dst_y))
+                    
+                    # 更新遮罩
+                    mask_cropped = transformed_mask.crop((src_x, src_y, src_x + crop_w, src_y + crop_h))
+                    mask_canvas.paste(mask_cropped, (dst_x, dst_y))
+            
+            transformed_images.append(canvas)
+            padding_masks.append(mask_canvas)
+            
+            # 生成预览图（仅第一帧）- 保存原始输入图片
+            if idx == 0:
+                # 保存原始图片用于前端显示
+                orig_filename = f"Image_expand_canvase_visual_orig_{random.randint(1, 1000000)}.png"
+                img.save(os.path.join(temp_dir, orig_filename))
+                preview_results.append({"filename": orig_filename, "subfolder": "", "type": "temp"})
+        
+        result_tensor = list_pil2tensor(transformed_images)
+        mask_tensor = list_pil2tensor(padding_masks).squeeze(-1) if padding_masks else torch.zeros((frames_count, canvas_height, canvas_width), dtype=torch.float32)
+        
+        # 返回原始图片尺寸
+        orig_w, orig_h = 0, 0
+        if image is not None and image.size(0) > 0:
+            orig_w = frame_width
+            orig_h = frame_height
+        
+        ui = {
+            "preview": preview_results,
+            "original_size": [{"w": int(orig_w), "h": int(orig_h)}]
+        }
+        return {"ui": ui, "result": (result_tensor, mask_tensor)}
+    
+    def _get_edge_color(self, img):
+        """获取图片边缘的平均颜色"""
+        np_img = np.array(img)
+        if len(np_img.shape) == 3:
+            # 取四个边缘的像素
+            top = np_img[0, :, :]
+            bottom = np_img[-1, :, :]
+            left = np_img[:, 0, :]
+            right = np_img[:, -1, :]
+            edges = np.vstack([top, bottom, left, right])
+            avg_color = tuple(map(int, np.mean(edges, axis=0)))
+            return avg_color
+        else:
+            return (128, 128, 128)
+
 
 
 

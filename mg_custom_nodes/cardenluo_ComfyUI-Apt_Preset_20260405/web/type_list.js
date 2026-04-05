@@ -428,6 +428,60 @@ app.registerExtension({
 
 
 
+        } else if (nodeData.name === "type_AnyListUnpack" || nodeData.name === "type_AnyBatchUnpack") {
+            const onNodeCreated = nodeType.prototype.onNodeCreated
+            nodeType.prototype.onNodeCreated = function () {
+                const me = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined
+                const thisNode = this
+                const widget = this.widgets?.find(w => w.name === "unpack_count")
+                if (widget) {
+                    const oldCallback = widget.callback
+                    widget.callback = function (v) {
+                        const r = oldCallback ? oldCallback.apply(this, arguments) : undefined
+                        const count = Math.max(1, Math.min(20, Math.floor(v)))
+                        const cur_len = thisNode.outputs ? thisNode.outputs.length : 0
+                        if (count > cur_len) {
+                            for (let i = cur_len; i < count; i++) {
+                                thisNode.addOutput(`output_${i + 1}`, "*")
+                            }
+                        } else if (count < cur_len) {
+                            for (let i = cur_len - 1; i >= count; i--) {
+                                thisNode.removeOutput(i)
+                            }
+                        }
+                        return r
+                    }
+                    
+                    // 初始化时立即执行一次回调，只保留需要的输出端口
+                    setTimeout(() => {
+                        if (thisNode.outputs && thisNode.outputs.length > widget.value) {
+                            for (let i = thisNode.outputs.length - 1; i >= widget.value; i--) {
+                                thisNode.removeOutput(i)
+                            }
+                        }
+                    }, 0)
+                }
+                return me
+            }
+            const onConfigure = nodeType.prototype.onConfigure
+            nodeType.prototype.onConfigure = function () {
+                const me = onConfigure ? onConfigure.apply(this, arguments) : undefined
+                const widget = this.widgets?.find(w => w.name === "unpack_count")
+                if (widget) {
+                    const count = Math.max(1, Math.min(20, Math.floor(widget.value)))
+                    const cur_len = this.outputs ? this.outputs.length : 0
+                    if (count > cur_len) {
+                        for (let i = cur_len; i < count; i++) {
+                            this.addOutput(`output_${i + 1}`, "*")
+                        }
+                    } else if (count < cur_len) {
+                        for (let i = cur_len - 1; i >= count; i--) {
+                            this.removeOutput(i)
+                        }
+                    }
+                }
+                return me
+            }
             
         } else if (nodeData.name == "XXXtype_AnyCast") {
             const onNodeCreated = nodeType.prototype.onNodeCreated
@@ -564,6 +618,16 @@ app.registerExtension({
                 onExecuted === null || onExecuted === void 0 ? void 0 : onExecuted.apply(this, [message])
                 if (message.text && message.text.length > 0) {
                     this.showValueWidget.value = message.text[0]
+                }
+            }
+        } else if (nodeData.name === "view_node_Script") {
+            const onNodeCreated = nodeType.prototype.onNodeCreated
+            nodeType.prototype.onNodeCreated = function () {
+                onNodeCreated ? onNodeCreated.apply(this, []) : undefined
+                
+                const dataWidget = this.widgets?.find(w => w.name === "data")
+                if (dataWidget) {
+                    this.showValueWidget = dataWidget;
                 }
             }
         } else if (nodeData.name === "XXlist_ListGetByIndex" || nodeData.name === "XXlist_ListSlice") {

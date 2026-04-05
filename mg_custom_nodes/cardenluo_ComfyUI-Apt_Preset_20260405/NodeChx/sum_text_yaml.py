@@ -94,7 +94,7 @@ class text_sum:
     RETURN_TYPES = ("STRING","STRING",)
     RETURN_NAMES = ("pos", "neg",)
     FUNCTION = "run"
-    CATEGORY = "Apt_Preset/prompt/text_tool"
+    CATEGORY = "Apt_Preset/prompt"
     NAME="text_sum"
     
     DESCRIPTION = """

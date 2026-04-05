@@ -3,13 +3,12 @@ import os
 import io
 import json
 import time
-import wave
+
 import hashlib
-import zipfile
+
 import numpy as np
 import torch
 from PIL import Image, ImageOps
-from PIL.PngImagePlugin import PngInfo
 from typing import Dict, Any, Optional, Tuple, List
 import folder_paths
 import node_helpers
@@ -568,8 +567,8 @@ class view_Data:
             },
         }
 
-    RETURN_TYPES = (anyType,)  
-    RETURN_NAMES = ("record",)  
+    RETURN_TYPES = ()  
+    RETURN_NAMES = ()  
     OUTPUT_NODE = True
     NAME = "view_Data"
     CATEGORY = "Apt_Preset/PreView"
@@ -580,10 +579,7 @@ class view_Data:
         displayText = self.render(any)
 
         updateTextWidget(unique_id, "data", displayText)
-        if isinstance(any, list) and len(any) == 1:
-            return {"ui": {"data": displayText}, "result": (any[0],)}
-        else:
-            return {"ui": {"data": displayText}, "result": (any,)}
+        return {"ui": {"data": displayText}, "result": ()}
 
     def render(self, any):
         if not isinstance(any, list):
@@ -600,7 +596,7 @@ class view_Data:
         result = "List:\n"
 
         for i, element in enumerate(any):
-            result += f"- {str(any[i])}\n"
+            result += f"[No.{i}] {str(any[i])}\n"
 
         return result
 
@@ -675,10 +671,17 @@ class view_GetShape:
         B, H, W, C = 1, 1, 1, 1
         
         if input_type == "IMAGE":
-            B, H, W, C = tensor.shape
+            if len(tensor.shape) == 5:
+                B, F, H, W, C = tensor.shape
+                B = B * F
+            else:
+                B, H, W, C = tensor.shape
         elif input_type == "LATENT" or (type(tensor) is dict and "samples" in tensor):
             samples_shape = tensor["samples"].shape
-            if len(samples_shape) == 4:
+            if len(samples_shape) == 5:
+                B, C, F, H, W = samples_shape
+                B = B * F
+            elif len(samples_shape) == 4:
                 B, C, H, W = samples_shape
             elif len(samples_shape) == 3:
                 B, H, W = samples_shape
@@ -686,9 +689,6 @@ class view_GetShape:
             else:
                 print(f"Unexpected latent shape: {samples_shape}")
                 B, C, H, W = 1, 4, 64, 64
-            
-            H *= 8
-            W *= 8
         else:
             shape = tensor.shape
             if len(shape) == 2:
@@ -700,6 +700,13 @@ class view_GetShape:
                     B, H, W, C = tensor.shape
                 else:
                     B, C, H, W = shape
+            elif len(shape) == 5:
+                if shape[-1] <= 4:
+                    B, F, H, W, C = shape
+                    B = B * F
+                else:
+                    B, C, F, H, W = shape
+                    B = B * F
         
         return { "ui": {"text": (f"{W}, {H}, {B}, {C}",)}, "result": (W, H, B, C) }
 
@@ -824,8 +831,6 @@ class view_GetWidgetsValues:
 
 
 
-
-
 class view_bridge_Text:
     @classmethod
     def INPUT_TYPES(s):
@@ -894,7 +899,7 @@ class view_bridge_Text:
         result = "List:\n"
 
         for i, element in enumerate(input):
-            result += f"- {element}\n"
+            result += f">>{i}<< {element}\n"
         return result
 
 
@@ -1646,6 +1651,7 @@ class IO_save_image:
 class IO_LoadTextBatch:
     INPUT_IS_LIST = True
     _last_pushed_hash_by_node: dict = {}
+    _last_import_hash_by_node: dict = {}
 
     def _first_scalar(self, v, default=None):
         if isinstance(v, list):
@@ -1685,6 +1691,34 @@ class IO_LoadTextBatch:
                 out.append(t)
         return out
 
+    def _parse_text_list_in(self, raw):
+        if raw is None:
+            return []
+        if isinstance(raw, list):
+            out = []
+            for e in raw:
+                out.extend(self._parse_text_list_in(e))
+            return out
+        s = str(raw)
+        st = s.strip()
+        if st == "":
+            return []
+        if st.startswith("[") and st.endswith("]"):
+            try:
+                v = json.loads(s)
+                if isinstance(v, list):
+                    out = []
+                    for x in v:
+                        if x is None:
+                            continue
+                        t = str(x).strip()
+                        if t != "":
+                            out.append(t)
+                    return out
+            except Exception:
+                pass
+        return [st]
+
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -1714,10 +1748,32 @@ class IO_LoadTextBatch:
         card_size = self._first_scalar(card_size, 120)
         index = self._first_scalar(index, 0)
         unique_id = self._first_scalar(unique_id, "")
+        uid = str(unique_id) if unique_id is not None else ""
+        local_texts = self._parse_text_list(text_list)
+        needs_frontend_resync = False
 
-        texts = self._parse_text_list(text_list)
+        texts = local_texts
         if text_list_in is not None:
-            texts.extend(self._parse_text_list(text_list_in))
+            incoming_texts = self._parse_text_list_in(text_list_in)
+            incoming_hash = hashlib.sha256(
+                json.dumps(incoming_texts, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            last_in_hash = self._last_import_hash_by_node.get(uid) if uid else None
+
+            should_import = False
+            if len(local_texts) == 0:
+                should_import = True
+            elif uid and last_in_hash != incoming_hash:
+                should_import = True
+            elif local_texts == incoming_texts:
+                should_import = True
+
+            if should_import:
+                texts = incoming_texts
+                if local_texts != incoming_texts:
+                    needs_frontend_resync = True
+            if uid:
+                self._last_import_hash_by_node[uid] = incoming_hash
 
         total = len(texts)
         if total == 0:
@@ -1739,7 +1795,7 @@ class IO_LoadTextBatch:
                 h = hashlib.sha256(
                     json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
                 ).hexdigest()
-                if self._last_pushed_hash_by_node.get(uid) != h:
+                if needs_frontend_resync or self._last_pushed_hash_by_node.get(uid) != h:
                     self._last_pushed_hash_by_node[uid] = h
                     ps = getattr(PromptServer, "instance", None)
                     if ps is not None and hasattr(ps, "send_sync"):
@@ -1758,12 +1814,24 @@ class IO_LoadTextBatch:
             index = index[0] if len(index) > 0 else 0
         if isinstance(card_size, list):
             card_size = card_size[0] if len(card_size) > 0 else 120
-        if isinstance(text_list_in, list):
-            text_list_in = text_list_in[0] if len(text_list_in) > 0 else None
-
         m.update((str(text_list) if text_list is not None else "").encode("utf-8"))
         if text_list_in is not None:
-            m.update((str(text_list_in) if text_list_in is not None else "").encode("utf-8"))
+            if isinstance(text_list_in, list):
+                flat = []
+
+                def _flatten(v):
+                    if isinstance(v, list):
+                        for x in v:
+                            _flatten(x)
+                    else:
+                        t = str(v).strip()
+                        if t != "":
+                            flat.append(t)
+
+                _flatten(text_list_in)
+                m.update(json.dumps(flat, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+            else:
+                m.update(str(text_list_in).encode("utf-8"))
         m.update(str(index).encode("utf-8"))
         m.update(str(card_size).encode("utf-8"))
         return m.digest().hex()
@@ -4324,3 +4392,242 @@ class IO_ShotCreate:
         if not folder_paths.exists_annotated_filepath(image):
             return "Invalid image file: {}".format(image)
         return True
+
+
+
+
+
+
+
+
+
+class view_node_Script:
+    def __init__(self):
+        self.node_list = []
+        self.custom_node_list = []
+        self.update_node_list()
+
+    def update_node_list(self):
+        try:
+            import nodes
+            self.node_list = []
+            self.custom_node_list = []
+            
+            for node_name, node_class in nodes.NODE_CLASS_MAPPINGS.items():
+                try:
+                    module = inspect.getmodule(node_class)
+                    module_path = getattr(module, '__file__', '')
+                    is_custom = 'custom_nodes' in module_path
+
+                    node_info = {
+                        'name': node_name,
+                        'class_name': node_class.__name__,
+                        'category': getattr(node_class, 'CATEGORY', 'Uncategorized'),
+                        'description': getattr(node_class, 'DESCRIPTION', ''),
+                        'is_custom': is_custom
+                    }
+                    
+                    self.node_list.append(node_info)
+                    if is_custom:
+                        self.custom_node_list.append(node_info)
+                except Exception as e:
+                    logging.error(f"Error processing node {node_name}: {str(e)}")
+                    continue
+            
+            self.node_list.sort(key=lambda x: x['name'])
+            self.custom_node_list.sort(key=lambda x: x['name'])
+            
+        except Exception as e:
+            logging.error(f"Error updating node list: {str(e)}")
+            traceback.print_exc()
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        try:
+            import nodes
+            node_names = sorted(list(nodes.NODE_CLASS_MAPPINGS.keys()))
+            if not node_names:
+                node_names = ["No nodes found"]
+                
+            return {
+                "required": {
+                    "selected_node": (node_names, {
+                        "default": node_names[0]
+                    }),
+                },
+                "optional": {
+                    "ANY": (ANY_TYPE, {}),
+                    "data": ("STRING", {"default": "", "multiline": True}),
+                },
+                "hidden": {
+                    "unique_id": "UNIQUE_ID",
+                    "extra_pnginfo": "EXTRA_PNGINFO",
+                },
+            }
+        except Exception as e:
+            print(f"Error in INPUT_TYPES: {str(e)}")
+            return {
+                "required": {
+                    "selected_node": (["No nodes found"], {
+                        "default": "No nodes found"
+                    }),
+                },
+                "optional": {
+                    "ANY": (ANY_TYPE, {}),
+                    "data": ("STRING", {"default": "", "multiline": True}),
+                },
+                "hidden": {
+                    "unique_id": "UNIQUE_ID",
+                    "extra_pnginfo": "EXTRA_PNGINFO",
+                },
+            }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("node_source",)
+    OUTPUT_NODE = True
+    FUNCTION = "find_script"
+    CATEGORY = "Apt_Preset/PreView"
+
+    def get_node_source_code(self, node_name):
+        try:
+            import nodes
+            import inspect
+            import os
+
+            node_class = nodes.NODE_CLASS_MAPPINGS.get(node_name)
+            if not node_class:
+                return f"Node '{node_name}' not found"
+
+            module = inspect.getmodule(node_class)
+            if not module:
+                return f"Could not find module for {node_name}"
+
+            try:
+                file_path = inspect.getfile(module)
+            except TypeError:
+                return f"Could not determine file path for {node_name}"
+
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    file_content = f.read()
+            except Exception as e:
+                return f"Error reading file: {str(e)}"
+
+            class_def = f"class {node_class.__name__}:"
+            class_start = file_content.find(class_def)
+            
+            if class_start == -1:
+                return f"Could not find class definition for {node_name}"
+
+            lines = file_content[class_start:].split('\n')
+            class_lines = []
+            indent_level = None
+
+            for line in lines:
+                if indent_level is None:
+                    if line.strip().startswith('class'):
+                        indent_level = len(line) - len(line.lstrip())
+                    continue
+
+                current_indent = len(line) - len(line.lstrip())
+                if current_indent <= indent_level and line.strip():
+                    break
+
+                class_lines.append(line)
+
+            source_output = f"=== Node: {node_name} ===\n"
+            source_output += f"File: {file_path}\n\n"
+            source_output += "=== Source Code ===\n"
+            source_output += "\n".join(class_lines)
+
+            return source_output
+
+        except Exception as e:
+            return f"Error retrieving source code: {str(e)}"
+
+    def _resolve_upstream_node_type(self, unique_id, extra_pnginfo):
+        workflow = extra_pnginfo.get("workflow", {}) if isinstance(extra_pnginfo, dict) else {}
+        node_list = workflow.get("nodes", [])
+        links = workflow.get("links", [])
+        cur_node = next((n for n in node_list if str(n.get("id")) == str(unique_id)), None)
+        if cur_node is None:
+            return None, "Current node not found in workflow metadata"
+        inputs = cur_node.get("inputs", [])
+        first_link_id = None
+        if isinstance(inputs, list):
+            for item in inputs:
+                if isinstance(item, dict) and item.get("link") is not None:
+                    first_link_id = item.get("link")
+                    break
+        if first_link_id is None:
+            return None, "No upstream link found. Please connect an input."
+        link = next((l for l in links if isinstance(l, list) and len(l) > 2 and l[0] == first_link_id), None)
+        if link is None:
+            return None, "Upstream link metadata not found"
+        upstream_node_id = link[1]
+        upstream_node = next((n for n in node_list if n.get("id") == upstream_node_id), None)
+        if upstream_node is None:
+            return None, "Upstream node not found in workflow metadata"
+        upstream_type = str(upstream_node.get("type", "")).strip()
+        if len(upstream_type) == 0:
+            return None, "Upstream node type is empty"
+        return upstream_type, None
+
+    def _get_class_source(self, node_type):
+        import nodes
+        node_class = nodes.NODE_CLASS_MAPPINGS.get(node_type)
+        if node_class is None:
+            return f"Node type '{node_type}' is not in NODE_CLASS_MAPPINGS"
+        try:
+            module = inspect.getmodule(node_class)
+            file_path = inspect.getfile(module) if module is not None else "Unknown file"
+        except Exception:
+            file_path = "Unknown file"
+        try:
+            source = inspect.getsource(node_class)
+        except Exception:
+            source = f"Could not read source for class '{node_class.__name__}'"
+        source_output = f"=== Upstream Node: {node_type} ===\n"
+        source_output += f"Class: {node_class.__name__}\n"
+        source_output += f"File: {file_path}\n\n"
+        source_output += "=== Source Code ===\n"
+        source_output += source
+        return source_output
+
+    def find_script(self, selected_node, ANY=None, data="", unique_id=None, extra_pnginfo=None):
+        try:
+            self.update_node_list()
+
+            source_code = ""
+            if unique_id is not None and extra_pnginfo is not None:
+                upstream_type, error = self._resolve_upstream_node_type(unique_id, extra_pnginfo)
+                if error is None and upstream_type is not None:
+                    source_code = self._get_class_source(upstream_type)
+            
+            if not source_code and selected_node:
+                source_code = self.get_node_source_code(selected_node)
+            
+            if not source_code:
+                source_code = "Please select a node to view its source code"
+
+            updateTextWidget(unique_id, "data", source_code)
+            return {"ui": {"data": source_code}, "result": (source_code,)}
+
+        except Exception as e:
+            logging.error(f"Error in find_script: {str(e)}")
+            traceback.print_exc()
+            err_msg = traceback.format_exc()
+            updateTextWidget(unique_id, "data", err_msg)
+            return {"ui": {"data": err_msg}, "result": (err_msg,)}
+
+
+
+
+
+
+
+
+
+
+
+

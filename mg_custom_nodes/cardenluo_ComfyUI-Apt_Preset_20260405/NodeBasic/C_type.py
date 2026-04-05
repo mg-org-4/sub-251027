@@ -426,6 +426,92 @@ class type_ListToBatch:
 
 
 
+class type_AnyListUnpack:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "any_list": (ANY_TYPE, {"forceInput": True}),
+                "unpack_count": ("INT", {"default": 1, "min": 1, "max": 20, "step": 1, "display": "number"}),
+            }
+        }
+    NAME = "type_AnyListUnpack"
+    RETURN_TYPES = (ANY_TYPE,) * 20
+    RETURN_NAMES = tuple(f"output_{i+1}" for i in range(20))
+    FUNCTION = "unpack"
+    CATEGORY = "Apt_Preset/data"
+    INPUT_IS_LIST = True
+    OUTPUT_IS_LIST = (False,) * 20
+
+    def unpack(self, any_list, unpack_count):
+        res = []
+        
+        count = unpack_count[0] if isinstance(unpack_count, list) else unpack_count
+        
+        actual_list = any_list
+        if isinstance(any_list, list) and len(any_list) == 1 and isinstance(any_list[0], list):
+            actual_list = any_list[0]
+        elif not isinstance(actual_list, (list, tuple)):
+            actual_list = [actual_list]
+            
+        for i in range(20):
+            if i < count and i < len(actual_list):
+                res.append(actual_list[i])
+            else:
+                res.append(None)
+        return tuple(res)
+
+
+
+
+
+class type_AnyBatchUnpack:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "any_batch": (ANY_TYPE, {"forceInput": True}),
+                "unpack_count": ("INT", {"default": 1, "min": 1, "max": 20, "step": 1, "display": "number"}),
+            }
+        }
+    NAME = "type_AnyBatchUnpack"
+    RETURN_TYPES = (ANY_TYPE,) * 20
+    RETURN_NAMES = tuple(f"output_{i+1}" for i in range(20))
+    FUNCTION = "unpack"
+    CATEGORY = "Apt_Preset/data"
+
+
+    def unpack(self, any_batch, unpack_count):
+        res = []
+        
+        count = unpack_count
+        actual_batch = any_batch
+
+        if hasattr(actual_batch, "shape") and len(actual_batch.shape) > 0:
+            import torch
+            if isinstance(actual_batch, torch.Tensor):
+                actual_batch = [actual_batch[i:i+1] for i in range(actual_batch.shape[0])]
+            else:
+                try:
+                    actual_batch = [actual_batch[i:i+1] for i in range(actual_batch.shape[0])]
+                except:
+                    actual_batch = [actual_batch]
+        elif not isinstance(actual_batch, (list, tuple)):
+            actual_batch = [actual_batch]
+            
+        for i in range(20):
+            if i < count and i < len(actual_batch):
+                val = actual_batch[i]
+                if not hasattr(val, "shape") and not isinstance(val, (list, tuple)):
+                    val = [val]
+                res.append(val)
+            else:
+                res.append(None)
+        return tuple(res)
+
+
+
+
 class type_AnyCast:
     def __init__(self):
         # 类型构造函数映射

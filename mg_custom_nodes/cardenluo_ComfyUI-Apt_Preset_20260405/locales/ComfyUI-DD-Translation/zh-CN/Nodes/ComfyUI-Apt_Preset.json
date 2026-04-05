@@ -5103,7 +5103,7 @@
         }
     },
     "AI_Ollama_image": {
-        "title": "AI_Ollama图像",
+        "title": "AI_Ollama视觉",
         "inputs": {
             "image_1": "图像1",
             "image_2": "图像2",

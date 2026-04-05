@@ -1465,6 +1465,570 @@ class AD_VideoSeg:
             return new_scenes
 
 
+class AD_AutoTileVAEDecode:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "width": ("INT", {"default": 1024, "min": 64, "max": 32768, "step": 8}),
+                "height": ("INT", {"default": 1024, "min": 64, "max": 32768, "step": 8}),
+                "total_frames": ("INT", {"default": 64, "min": 1, "max": 4096, "step": 1}),
+                "mode": (["质量优先", "显存优先"], {"default": "质量优先"}),
+                "vram_level": (["12GB", "16GB", "20GB", "≥24GB"], {"default": "16GB"}),
+                "temporal_compression": ("INT", {"default": 8, "min": 0, "max": 64, "step": 1}),
+            },
+            "optional": {
+                "vae": ("VAE",),
+            },
+        }
+
+    RETURN_TYPES = ("INT", "INT", "INT", "INT", "INT")
+    RETURN_NAMES = ("tile_size", "overlap", "temporal_size", "temporal_overlap", "temporal_compression")
+    FUNCTION = "recommend"
+    CATEGORY = "Apt_Preset/AD"
+
+    def recommend(self, width, height, total_frames, mode, vram_level, temporal_compression, vae=None):
+        width = max(64, int(width))
+        height = max(64, int(height))
+        total_frames = max(1, int(total_frames))
+        temporal_compression = int(temporal_compression)
+        if temporal_compression <= 0 and vae is not None:
+            read_tc = vae.temporal_compression_decode()
+            if read_tc is not None:
+                temporal_compression = int(read_tc)
+        temporal_compression = max(1, temporal_compression)
+        short_edge = max(64, min(width, height))
+        megapixels = (width * height) / 1000000.0
+
+        if vram_level == "12GB":
+            base_tile = 512
+            if megapixels >= 24:
+                base_tile = 448
+            base_effective_temporal = 8
+        elif vram_level == "16GB":
+            base_tile = 640
+            if megapixels >= 24:
+                base_tile = 576
+            base_effective_temporal = 10
+        elif vram_level == "20GB":
+            base_tile = 768
+            if megapixels >= 24:
+                base_tile = 640
+            base_effective_temporal = 12
+        else:
+            base_tile = 1024
+            if megapixels >= 24:
+                base_tile = 896
+            if megapixels >= 48:
+                base_tile = 768
+            base_effective_temporal = 16
+
+        if megapixels >= 48:
+            base_effective_temporal = max(4, base_effective_temporal - 4)
+        elif megapixels >= 24:
+            base_effective_temporal = max(4, base_effective_temporal - 2)
+
+        if mode == "显存优先":
+            max_effective_frames = max(2, total_frames // temporal_compression)
+            effective_temporal = min(base_effective_temporal, max_effective_frames)
+            temporal_size = max(8, effective_temporal * temporal_compression)
+            temporal_size = (temporal_size // 4) * 4
+            max_temporal_size_by_frames = max(8, (total_frames // 4) * 4)
+            temporal_size = min(temporal_size, max_temporal_size_by_frames)
+            temporal_size = max(8, temporal_size)
+            effective_temporal = max(2, temporal_size // temporal_compression)
+            temporal_pressure = math.sqrt(max(1.0, effective_temporal / 8.0))
+            base_tile = int(base_tile / temporal_pressure)
+            temporal_overlap = ((temporal_size // 8) // 4) * 4
+            if temporal_size >= 16:
+                temporal_overlap = max(4, temporal_overlap)
+            temporal_overlap = min(temporal_overlap, 64)
+        else:
+            if vram_level == "12GB":
+                temporal_size = 512
+            elif vram_level == "16GB":
+                temporal_size = 1024
+            elif vram_level == "20GB":
+                temporal_size = 2048
+            else:
+                temporal_size = 4096
+            temporal_size = max(8, min(4096, temporal_size))
+            temporal_size = (temporal_size // 4) * 4
+            temporal_overlap = 64
+
+        tile_size = min(base_tile, short_edge)
+        tile_size = max(64, (tile_size // 32) * 32)
+
+        overlap = ((tile_size // 8) // 32) * 32
+        if tile_size >= 128:
+            overlap = max(32, overlap)
+        overlap = min(overlap, 160)
+
+        max_overlap = (tile_size // 4 // 32) * 32
+        if overlap > max_overlap:
+            overlap = max_overlap
+        overlap = max(0, overlap)
+
+        max_temporal_overlap = (temporal_size // 2 // 4) * 4
+        if temporal_overlap > max_temporal_overlap:
+            temporal_overlap = max_temporal_overlap
+        temporal_overlap = max(4, temporal_overlap)
+
+        return (tile_size, overlap, temporal_size, temporal_overlap, temporal_compression)
+
+
+
+
+
+
+
+from comfy_api.latest import io
+from comfy_extras.nodes_lt import LTXVAddGuide
+from comfy_extras.nodes_lt import get_noise_mask
+import torch
+import numpy as np
+from PIL import Image, ImageDraw
+
+HISTORY = io.Custom("HISTORY")
+KEYFRAME_TREND = io.Custom("KEYFRAME_TREND")
+
+class AD_Latent_Diffusion_Keyframe(LTXVAddGuide):
+    DESCRIPTION = """
+    多段衔接设置要点：
+    - 适用场景：第一段生成后，把 history 输出接到下一段 history 输入
+    - 第一段建议：num_guides=2，frame_idx_1=0，frame_idx_2 设在本段末尾附近（避免越界）
+    - 第二段建议：num_guides=1，history_strength 先用 0.30~0.45，history_fade_frames 先用 3~6
+    - 为减少跳变：第二段 image_1 的 frame_idx_1 放在 16~32，再按效果微调
+    - 为避免首帧混入：不要把第二段目标图放在 frame 0 且强度过高
+    - 调参顺序：先调 frame_idx_1，再调 history_strength，最后调 history_fade_frames
+    """
+    @classmethod
+    def define_schema(cls):
+        options = []
+        for num_guides in range(1, 11):
+            guide_inputs = []
+            for i in range(1, num_guides + 1):
+                guide_inputs.extend([
+                    io.Image.Input(f"image_{i}"),
+                    io.Int.Input(f"frame_idx_{i}", default=0, min=0, max=9999),
+                    io.Float.Input(f"strength_{i}", default=0.85, min=0.0, max=1.0, step=0.01),
+                ])
+            options.append(io.DynamicCombo.Option(key=str(num_guides), inputs=guide_inputs))
+
+        return io.Schema(
+            node_id="AD_Latent_Diffusion_Keyframe",
+            category="Apt_Preset/AD",
+            description="AD video keyframe auto relay",
+            inputs=[
+                io.Conditioning.Input("positive"),
+                io.Conditioning.Input("negative"),
+                io.Latent.Input("latent"),
+                io.Vae.Input("vae"),
+                HISTORY.Input("history", optional=True),
+                io.Float.Input("history_strength", default=0.5, min=0.0, max=1.0, step=0.01, display_name="History Strength"),
+                io.Int.Input("history_fade_frames", default=16, min=1, max=100, step=1, display_name="Fade Frames"),
+                io.DynamicCombo.Input("num_guides", options=options, display_name="Guides"),
+            ],
+            outputs=[
+                io.Conditioning.Output("positive"),
+                io.Conditioning.Output("negative"),
+                io.Latent.Output("latent"),
+                HISTORY.Output("history"),
+                KEYFRAME_TREND.Output("trend_data"),
+            ],
+        )
+
+    @classmethod
+    def _build_trend_data(cls, points, frame_length):
+        cleaned = []
+        for item in sorted(points, key=lambda x: x["frame"]):
+            frame = int(max(0, item["frame"]))
+            strength = float(max(0.0, min(1.0, item["strength"])))
+            source = str(item.get("source", "guide"))
+            if cleaned and cleaned[-1]["frame"] == frame:
+                cleaned[-1] = {"frame": frame, "strength": strength, "source": source}
+            else:
+                cleaned.append({"frame": frame, "strength": strength, "source": source})
+        if not cleaned:
+            cleaned = [
+                {"frame": 0, "strength": 0.0, "source": "none"},
+                {"frame": max(0, frame_length - 1), "strength": 0.0, "source": "none"},
+            ]
+        frame_length = max(int(frame_length), int(cleaned[-1]["frame"]) + 1)
+        if len(cleaned) == 1:
+            cleaned.append({"frame": max(0, frame_length - 1), "strength": cleaned[0]["strength"], "source": cleaned[0]["source"]})
+        segments = []
+        frame_span = max(1, frame_length - 1)
+        for i in range(len(cleaned) - 1):
+            p0 = cleaned[i]
+            p1 = cleaned[i + 1]
+            span = max(1, p1["frame"] - p0["frame"])
+            delta = abs(p1["strength"] - p0["strength"])
+            span_ratio = min(1.0, span / frame_span)
+            curvature = max(0.05, min(0.95, 0.15 + 0.55 * delta + 0.30 * span_ratio))
+            bend = 1.0 if p1["strength"] >= p0["strength"] else -1.0
+            segments.append({
+                "start_frame": p0["frame"],
+                "end_frame": p1["frame"],
+                "start_strength": p0["strength"],
+                "end_strength": p1["strength"],
+                "curvature": curvature,
+                "bend": bend,
+                "source": "mixed" if p0["source"] != p1["source"] else p1["source"],
+            })
+        return {
+            "frame_length": int(frame_length),
+            "points": cleaned,
+            "segments": segments,
+        }
+
+    @classmethod
+    def execute(cls, positive, negative, vae, latent, history=None, history_strength=0.5, history_fade_frames=16, **kwargs):
+        keep_history_keyframes = True
+        continuity_tail_frames = max(1, history_fade_frames)
+        trend_points = []
+        trend_max_frame = 0
+
+        base_frame_offset = 0
+        history_latent = None
+        if history is not None:
+            base_frame_offset = history.get("base_frame_offset", 0)
+            history_latent = history.get("latent")
+            continuity_tail_frames = max(1, int(history.get("tail_frames", continuity_tail_frames)))
+        trend_max_frame = max(0, base_frame_offset)
+
+        guide_payload = kwargs.get("num_guides", {})
+        scale_factors = vae.downscale_index_formula
+        latent_image = latent["samples"]
+        noise_mask = get_noise_mask(latent)
+        _, _, latent_length, _, _ = latent_image.shape
+
+        def _fade_ratio(step, fade_steps):
+            x = step / fade_steps
+            y = x*x*(3-2*x)
+            return max(0.0, min(1.0, 1-y))
+
+        history_tail_source = None
+        if history_latent is not None and "samples" in history_latent:
+            h_samples = history_latent["samples"]
+            if isinstance(h_samples, torch.Tensor) and h_samples.ndim == 5:
+                frames = min(max(1, continuity_tail_frames), h_samples.shape[2])
+                h_clip = h_samples[:, :, -frames:]
+                if h_clip.shape[0] != latent_image.shape[0]:
+                    h_clip = h_clip[:1].repeat(latent_image.shape[0], 1,1,1,1)
+                h_clip = h_clip.to(device=latent_image.device, dtype=latent_image.dtype)
+                if h_clip.shape[3:] != latent_image.shape[3:]:
+                    n,c,t,h,w = h_clip.shape
+                    resized = torch.nn.functional.interpolate(
+                        h_clip.permute(0,2,1,3,4).reshape(-1,c,h,w),
+                        size=latent_image.shape[3:], mode="bilinear", align_corners=False
+                    )
+                    h_clip = resized.reshape(n,t,c,latent_image.shape[3],latent_image.shape[4]).permute(0,2,1,3,4)
+                history_tail_source = h_clip
+                fade_steps = min(max(1, history_fade_frames), latent_length)
+                src_len = h_clip.shape[2]
+                for step in range(fade_steps):
+                    s = history_strength * _fade_ratio(step, fade_steps)
+                    if s <= 0: continue
+                    src_idx = max(0, src_len - 1 - step)
+                    step_guide = h_clip[:,:,src_idx:src_idx+1]
+                    f_idx, l_idx = cls.get_latent_index(positive, latent_length, 1, step, scale_factors)
+                    if l_idx+1 > latent_length: continue
+                    history_frame = base_frame_offset + int(step)
+                    trend_max_frame = max(trend_max_frame, history_frame)
+                    trend_points.append({"frame": history_frame, "strength": float(s), "source": "history"})
+                    positive, negative, latent_image, noise_mask = cls.append_keyframe(
+                        positive, negative, f_idx, latent_image, noise_mask, step_guide, s, scale_factors
+                    )
+
+        guides = []
+        for k in guide_payload:
+            if not k.startswith("image_"): continue
+            idx = k.split("_",1)[1]
+            img = guide_payload.get(k)
+            if img is None: continue
+            f = int(guide_payload.get(f"frame_idx_{idx}",0))
+            s = float(guide_payload.get(f"strength_{idx}",0.85))
+            guides.append((f, img, max(0.0, min(1.0, s))))
+        guides.sort(key=lambda x:x[0])
+
+        latest_guide_source = None
+        for f_idx, img, s in guides:
+            _, g_latent = cls.encode(vae, latent_image.shape[4], latent_image.shape[3], img, scale_factors)
+            latest_guide_source = g_latent.to(device=latent_image.device, dtype=latent_image.dtype)
+            fi, li = cls.get_latent_index(positive, latent_length, g_latent.shape[2], f_idx, scale_factors)
+            if li + g_latent.shape[2] > latent_length:
+                time_scale_factor = scale_factors[0]
+                max_latent_idx = max(0, latent_length - g_latent.shape[2])
+                if max_latent_idx == 0:
+                    clamped_frame_idx = 0
+                elif g_latent.shape[2] > 1:
+                    clamped_frame_idx = (max_latent_idx - 1) * time_scale_factor + 1
+                else:
+                    clamped_frame_idx = max_latent_idx * time_scale_factor
+                fi, li = cls.get_latent_index(positive, latent_length, g_latent.shape[2], clamped_frame_idx, scale_factors)
+            if li + g_latent.shape[2] > latent_length: continue
+            guide_frame = base_frame_offset + int(f_idx)
+            trend_max_frame = max(trend_max_frame, guide_frame)
+            trend_points.append({"frame": guide_frame, "strength": float(s), "source": "guide"})
+            positive, negative, latent_image, noise_mask = cls.append_keyframe(
+                positive, negative, fi, latent_image, noise_mask, g_latent, s, scale_factors
+            )
+        if latest_guide_source is not None:
+            history_tail_source = latest_guide_source
+
+        source_limit = min(latent_length, latent_image.shape[2])
+        source_samples = latent_image[:, :, :source_limit]
+        source_noise_mask = noise_mask[:, :, :source_limit]
+        if history_tail_source is not None:
+            if history_tail_source.shape[0] != latent_image.shape[0]:
+                history_tail_source = history_tail_source[:1].repeat(latent_image.shape[0], 1,1,1,1)
+            if history_tail_source.shape[3:] != latent_image.shape[3:]:
+                n,c,t,h,w = history_tail_source.shape
+                resized = torch.nn.functional.interpolate(
+                    history_tail_source.permute(0,2,1,3,4).reshape(-1,c,h,w),
+                    size=latent_image.shape[3:], mode="bilinear", align_corners=False
+                )
+                history_tail_source = resized.reshape(n,t,c,latent_image.shape[3],latent_image.shape[4]).permute(0,2,1,3,4)
+            source_samples = history_tail_source
+            source_noise_mask = torch.ones_like(source_samples[:, :1])
+        cont_frames = min(max(1, continuity_tail_frames), source_samples.shape[2])
+        continuity_latent = {
+            "samples": source_samples[:, :, -cont_frames:].clone(),
+            "noise_mask": source_noise_mask[:, :, -cont_frames:].clone()
+        }
+
+        output_history = {
+            "base_frame_offset": base_frame_offset + latent_length,
+            "latent": continuity_latent,
+            "tail_frames": cont_frames
+        }
+        trend_max_frame = max(trend_max_frame, base_frame_offset + latent_length - 1)
+        total_frame_length = max(base_frame_offset + latent_length, trend_max_frame + 1)
+        trend_data = cls._build_trend_data(trend_points, total_frame_length)
+        trend_data["segment_start"] = int(base_frame_offset)
+        trend_data["segment_length"] = int(latent_length)
+        trend_data["total_frame_length"] = int(total_frame_length)
+
+        return io.NodeOutput(positive, negative, {"samples": latent_image, "noise_mask": noise_mask}, output_history, trend_data)
+
+
+class AD_latent_history(io.ComfyNode):
+    DESCRIPTION = """
+    将采样后的 LATENT 打包为 HISTORY，用于下一段 AD_扩散关键帧衔接。
+    """
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="AD_latent_history",
+            category="Apt_Preset/AD",
+            description="Pack sampled latent tail to HISTORY",
+            inputs=[
+                io.Latent.Input("latent"),
+            ],
+            outputs=[
+                HISTORY.Output("history"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, latent):
+        def _safe_copy(x):
+            if hasattr(x, "clone"):
+                return x.clone()
+            if hasattr(x, "_copy"):
+                return x._copy()
+            return x
+
+        latent_image = latent["samples"]
+        _, _, latent_length, _, _ = latent_image.shape
+        keep_frames = latent_length
+        batch_size = latent_image.shape[0]
+        noise_mask = torch.ones(
+            (batch_size, 1, latent_length, 1, 1),
+            dtype=torch.float32,
+            device=latent_image.device,
+        )
+        sample_tail = latent_image[:, :, -keep_frames:]
+        mask_tail = noise_mask[:, :, -keep_frames:]
+        continuity_latent = {
+            "samples": _safe_copy(sample_tail),
+            "noise_mask": _safe_copy(mask_tail),
+        }
+        output_history = {
+            "base_frame_offset": latent_length,
+            "latent": continuity_latent,
+            "tail_frames": keep_frames,
+        }
+        return io.NodeOutput(output_history)
+
+
+class AD_keyframe_trend_preview(io.ComfyNode):
+    INPUT_IS_LIST = True
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="AD_keyframe_trend_preview",
+            category="Apt_Preset/AD",
+            description="Preview keyframe trend graph",
+            inputs=[
+                KEYFRAME_TREND.Input("trend_data"),
+                io.Int.Input("width", default=1024, min=256, max=4096, step=1),
+                io.Int.Input("height", default=320, min=128, max=2048, step=1),
+            ],
+            outputs=[
+                io.Image.Output("graph"),
+            ],
+        )
+
+    @classmethod
+    def _draw_line(cls, canvas, x0, y0, x1, y1, color):
+        steps = int(max(abs(x1 - x0), abs(y1 - y0))) + 1
+        if steps <= 1:
+            xi = int(max(0, min(canvas.shape[1] - 1, round(x0))))
+            yi = int(max(0, min(canvas.shape[0] - 1, round(y0))))
+            canvas[yi, xi] = color
+            return
+        for i in range(steps + 1):
+            t = i / steps
+            x = int(max(0, min(canvas.shape[1] - 1, round(x0 + (x1 - x0) * t))))
+            y = int(max(0, min(canvas.shape[0] - 1, round(y0 + (y1 - y0) * t))))
+            canvas[y, x] = color
+
+    @classmethod
+    def _annotate_axes(cls, canvas, frame_length, left, right, top, bottom):
+        img = Image.fromarray((canvas.clamp(0, 1).cpu().numpy() * 255).astype(np.uint8))
+        draw = ImageDraw.Draw(img)
+        h, w = canvas.shape[0], canvas.shape[1]
+        draw.text((6, top - 6), "Y(strength)", fill=(0, 0, 0))
+        draw.text((w - right - 86, top - 6), "Y2(visibility%)", fill=(0, 0, 0))
+        draw.text((w // 2 - 24, h - 18), "X(frame)", fill=(0, 0, 0))
+        for gy in range(0, 5):
+            ratio = gy / 4.0
+            y = top + int((h - top - bottom - 1) * ratio)
+            label = f"{1.0 - ratio:.2f}"
+            draw.text((6, y - 6), label, fill=(0, 0, 0))
+            vis_label = f"{int(round((1.0 - ratio) * 100))}%"
+            draw.text((w - right - 34, y - 6), vis_label, fill=(0, 0, 0))
+        for gx in range(0, 6):
+            ratio = gx / 5.0
+            x = left + int((w - left - right - 1) * ratio)
+            frame_label = int(round((frame_length - 1) * ratio))
+            draw.text((x - 8, h - bottom + 6), str(frame_label), fill=(0, 0, 0))
+        draw.text((left + 8, top + 4), "Light Red/Blue: visibility%", fill=(0, 0, 0))
+        return torch.from_numpy(np.array(img)).float() / 255.0
+
+    @classmethod
+    def execute(cls, trend_data, width=1024, height=320):
+        if isinstance(width, list):
+            width = width[0] if width else 1024
+        if isinstance(height, list):
+            height = height[0] if height else 320
+        w = int(max(256, width))
+        h = int(max(128, height))
+        trend_items = trend_data if isinstance(trend_data, list) else [trend_data]
+        normalized_items = []
+        seen_signatures = set()
+        for item in trend_items:
+            if not isinstance(item, dict):
+                continue
+            points = item.get("points", [])
+            sig_points = tuple(
+                (int(p.get("frame", 0)), round(float(p.get("strength", 0.0)), 6), str(p.get("source", "")))
+                for p in points
+            )
+            signature = (int(item.get("frame_length", 0)), sig_points)
+            if signature in seen_signatures:
+                continue
+            seen_signatures.add(signature)
+            normalized_items.append(item)
+        trend_items = normalized_items if normalized_items else [{}]
+        merged_points = []
+        inferred_total_frame_length = 1
+        for item in trend_items:
+            if not isinstance(item, dict):
+                continue
+            frame_length_local = int(max(1, item.get("total_frame_length", item.get("frame_length", 1))))
+            inferred_total_frame_length = max(inferred_total_frame_length, frame_length_local)
+            points = item.get("points", [])
+            render_points = [p for p in points if p.get("source") == "guide"]
+            if len(render_points) < 2:
+                render_points = points
+            local_points = []
+            for p in sorted(render_points, key=lambda x: x["frame"]):
+                frame = int(max(0, min(frame_length_local - 1, p["frame"])))
+                strength = float(max(0.0, min(1.0, p["strength"])))
+                if local_points and local_points[-1]["frame"] == frame:
+                    local_points[-1]["strength"] = strength
+                else:
+                    local_points.append({"frame": frame, "strength": strength})
+            if not local_points:
+                continue
+            for p in local_points:
+                merged_points.append({"frame": p["frame"], "strength": p["strength"]})
+        if not merged_points:
+            merged_points = [{"frame": 0, "strength": 1.0}, {"frame": 1, "strength": 0.0}]
+            frame_length = 2
+        else:
+            merged_points = sorted(merged_points, key=lambda x: x["frame"])
+            if len(merged_points) == 1:
+                merged_points.append({"frame": merged_points[0]["frame"] + 1, "strength": merged_points[0]["strength"]})
+            frame_length = int(max(inferred_total_frame_length, merged_points[-1]["frame"] + 1))
+        canvas = torch.ones((h, w, 3), dtype=torch.float32)
+        left, right, top, bottom = 64, 16, 16, 34
+        plot_w = max(10, w - left - right)
+        plot_h = max(10, h - top - bottom)
+        grid_color = torch.tensor([0.88, 0.88, 0.88], dtype=torch.float32)
+        axis_color = torch.tensor([0.05, 0.05, 0.05], dtype=torch.float32)
+        vis_a_color = torch.tensor([0.75, 0.30, 0.30], dtype=torch.float32)
+        vis_b_color = torch.tensor([0.30, 0.45, 0.85], dtype=torch.float32)
+        for gy in range(1, 5):
+            y = top + int((plot_h - 1) * gy / 5)
+            canvas[y:y + 1, left:left + plot_w, :] = grid_color
+        for gx in range(1, 10):
+            x = left + int((plot_w - 1) * gx / 10)
+            canvas[top:top + plot_h, x:x + 1, :] = grid_color
+        canvas[top:top + plot_h, left:left + 1, :] = axis_color
+        canvas[top + plot_h - 1:top + plot_h, left:left + plot_w, :] = axis_color
+        frame_span = max(1, frame_length - 1)
+        if len(merged_points) >= 2:
+            for i in range(len(merged_points) - 1):
+                p0 = merged_points[i]
+                p1 = merged_points[i + 1]
+                start = int(max(0, min(frame_span, p0["frame"])))
+                end = int(max(start + 1, min(frame_span, p1["frame"])))
+                span = max(1, end - start)
+                delta = abs(p1["strength"] - p0["strength"])
+                span_ratio = min(1.0, span / frame_span)
+                curvature = max(0.05, min(0.95, 0.15 + 0.55 * delta + 0.30 * span_ratio))
+                gamma = max(0.45, min(2.2, 1.8 - curvature * 1.2))
+                s0 = float(max(0.0, min(1.0, p0["strength"])))
+                s1 = float(max(0.0, min(1.0, p1["strength"])))
+                prev_va = prev_vb = None
+                sample_count = int(max(12, (end - start) * 4))
+                for si in range(sample_count + 1):
+                    t = si / max(1, sample_count)
+                    eased = t ** gamma
+                    w0 = s0 * (1.0 - eased)
+                    w1 = s1 * eased
+                    vis_sum = max(1e-6, w0 + w1)
+                    v0 = w0 / vis_sum
+                    v1 = w1 / vis_sum
+                    frame = start + (end - start) * t
+                    x = left + (frame / frame_span) * (plot_w - 1)
+                    yv0 = top + (1.0 - v0) * (plot_h - 1)
+                    yv1 = top + (1.0 - v1) * (plot_h - 1)
+                    if prev_va is not None:
+                        cls._draw_line(canvas, prev_va[0], prev_va[1], x, yv0, vis_a_color)
+                        cls._draw_line(canvas, prev_vb[0], prev_vb[1], x, yv1, vis_b_color)
+                    prev_va = (x, yv0)
+                    prev_vb = (x, yv1)
+        canvas = cls._annotate_axes(canvas, frame_length, left, right, top, bottom)
+        return io.NodeOutput(canvas.unsqueeze(0))
+
+
+
+
 
 
 

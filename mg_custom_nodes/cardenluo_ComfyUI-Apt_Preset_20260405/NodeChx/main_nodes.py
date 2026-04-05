@@ -1286,12 +1286,13 @@ class sum_editor:
                     latent = self.set_latent_mask2(latent_copy, latent_mask)
                 else:latent = self.set_latent_mask2(latent, latent_mask)
         elif latent is not None:
-            latent = latentrepeat(latent, batch_size)[0]
+            pass  # 保留原始 latent，不执行 latentrepeat
             if latent_mask is not None:
                 if isinstance(latent, dict) and "samples" in latent:
                     latent_copy = {"samples": latent["samples"].clone()}
                     latent = self.set_latent_mask2(latent_copy, latent_mask)
-                else:latent = self.set_latent_mask2(latent, latent_mask)
+                else:
+                    latent = self.set_latent_mask2(latent, latent_mask)
         elif ratio_selected != "None":
 
             if ratio_selected == 'customer_WxH':
@@ -1360,7 +1361,7 @@ class sum_create_chx:
             },
         }
 
-    RETURN_TYPES = ("RUN_CONTEXT", "MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "VAE", "CLIP", "ANY_TYPE")
+    RETURN_TYPES = ("RUN_CONTEXT", "MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "VAE", "CLIP", ANY_TYPE)
     RETURN_NAMES = ("context", "model", "positive", "negative", "latent", "vae", "clip", "data")
     FUNCTION = "process_settings"
     CATEGORY = "Apt_Preset/chx_load"
@@ -1810,7 +1811,7 @@ class basic_Ksampler_custom:
         
         if image_output == "None":
             context = new_context(context, images=None, latent=latent, model=model, positive=positive, negative=negative,  )
-            return(context, model, positive, negative, latent, vae, None, ) 
+            return(context, None, model, positive, negative, latent, vae, ) 
             
         output_image = VAEDecode().decode(vae, latent)[0]  
         context = new_context(context, images=output_image, latent=latent, model=model, positive=positive, negative=negative,  )   

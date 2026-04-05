@@ -578,6 +578,62 @@ class flow_case_tentor:
 
 
 
+class XXXXflow_sch_XXXcontrol:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                #"seed": ("INT", {"default": 0, "min": -999999, "max": 0xffffffffffffffff}),
+                "total": ("INT", {"default": 10, "min": 0, "max": 5000} ),
+                "种子": ("INT", {"default": -1, "min": -1, "max": 0xffffffffffffffff}),
+                "种子控制": (["随机", "固定", "递增"], {"default": "递增"}),
+            },
+            "optional": {
+            },
+        }
+
+    FUNCTION = "set_range"
+    RETURN_TYPES = ("INT", "INT",)
+    RETURN_NAMES = ("seedIndex", "total",)
+    CATEGORY = "Apt_Preset/flow"
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        seed_control = kwargs.get("种子控制", "随机")
+        seed = kwargs.get("种子", -1)
+        if seed_control in ["随机", "递增"]:
+            return float("nan")
+        return seed
+    def __init__(self):
+        self.last_seed = -1
+    def _effective_seed(self, seed: int, seed_control: str) -> int:
+        import random
+        if seed_control == "固定":
+            effective_seed = seed if seed != -1 else random.randint(0, 2147483647)
+        elif seed_control == "随机":
+            effective_seed = random.randint(0, 2147483647)
+        elif seed_control == "递增":
+            if self.last_seed == -1:
+                effective_seed = seed if seed != -1 else random.randint(0, 2147483647)
+            else:
+                effective_seed = self.last_seed + 1
+        else:
+            effective_seed = random.randint(0, 2147483647)
+        self.last_seed = effective_seed
+        return effective_seed
+
+    def set_range(
+        self,
+        seed,
+        total,
+    ):
+        
+        value = seed + 1    
+        return (value, total)
+
+
+
+
 class flow_sch_control:
     @classmethod
     def INPUT_TYPES(cls):
@@ -603,8 +659,6 @@ class flow_sch_control:
         
         value = seed + 1    
         return (value, total)
-
-
 
 
 
@@ -1298,7 +1352,7 @@ class flow_createbatch:
     RETURN_NAMES = ("batch",)
 
     FUNCTION = "batch"
-    CATEGORY = "Apt_Preset/flow"
+    CATEGORY = "Apt_Preset/stack/register"
 
     def latentBatch(self, any_1, any_2):
         samples_out = any_1.copy()

@@ -498,7 +498,7 @@ class text_mul_Join:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("joined_text",)
     FUNCTION = "smart_join"
-    CATEGORY = "Apt_Preset/prompt/text_tool"
+    CATEGORY = "Apt_Preset/prompt"
     DESCRIPTION = """
     文本合并预设说明
     None：直接拼接所有文本（无分隔符）。
@@ -595,13 +595,13 @@ class text_Splitter:
                 # 👇 新增：按空行分割，位置放在最顺手的地方
                 "split_rule": (["不分割", "自定义正则", "按行分割", "按空行分割", "按空格分割", "按逗号分割", "按句号分割", "按分号分割", "按制表符分割", "按竖线分割", "按序号", "按标题"], {"default": "按行分割"}),
                 "custom_separator": ("STRING", {"multiline": False, "default": "", "placeholder": "自定义分隔符/正则表达式"}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+                "current_frame": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             }
         }
     RETURN_TYPES = ("STRING", "LIST", ANY_TYPE)
-    RETURN_NAMES = ("随机文本", "拆分列表", "列表")
+    RETURN_NAMES = ("调度输出", "拆分列表", "列表")
     FUNCTION = "smart_process"
-    CATEGORY = "Apt_Preset/prompt/text_tool"
+    CATEGORY = "Apt_Preset/prompt"
     OUTPUT_IS_LIST = (False, False, True)
 
     DESCRIPTION = """
@@ -676,7 +676,7 @@ class text_Splitter:
                 result.append(cleaned)
         return result if result else [""]
 
-    def smart_process(self, text_input: str, split_rule: str, custom_separator: str, seed: int):
+    def smart_process(self, text_input: str, split_rule: str, custom_separator: str, current_frame: int):
         text_content = self._normalize_text(text_input)
         if not text_content:
             return ("❌ 文本为空", [], [])
@@ -690,8 +690,9 @@ class text_Splitter:
         if not split_list or split_list == [""]:
             return ("❌ 拆分后无有效内容", [], [])
         
-        random.seed(seed)
-        single_text = split_list[random.randint(0, len(split_list)-1)] if split_list else ""
+        frame_index = current_frame if current_frame >= 0 else 0
+        selected_index = frame_index % len(split_list)
+        single_text = split_list[selected_index]
         return (single_text, split_list, split_list)
 
 
@@ -726,7 +727,7 @@ class text_converter:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("输出文本",)
     FUNCTION = "convert"
-    CATEGORY = "Apt_Preset/prompt/text_tool"
+    CATEGORY = "Apt_Preset/prompt"
     OUTPUT_IS_LIST = (False,)
     DESCRIPTION = """
     文本转换工具：自动识别上游列表格式，转为单一文本
@@ -956,6 +957,7 @@ class text_converter:
 
 
 
+
 class text_filter:
     @classmethod
     def INPUT_TYPES(cls):
@@ -964,25 +966,26 @@ class text_filter:
                 "text_input": ("STRING", {"multiline": True, "default": "", "placeholder": "Enter text to filter"}),
                 "filter_rule": (["None", "custom", "@text@", "@text", "text @", '"text"', "'text'", "{text}", "(text)"], {"default": "None"}),
                 "custom_rule": ("STRING", {"multiline": False, "default": "", "placeholder": "Custom filter rule, e.g., [text], [text, text]"}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+                "current_frame": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             },
             "optional": {
-                "match_all": ("BOOLEAN", {"default": False, "label_on": "Match All", "label_off": "Single Match"}),
+                "match_all": ("BOOLEAN", {"default": False, "label_on": "All", "label_off": "Single"}),
+                "reverse_filter": ("BOOLEAN", {"default": False, }),
             }
         }
     RETURN_TYPES = ("STRING", "LIST")
-    RETURN_NAMES = ("single_text", "Matched_list")
+    RETURN_NAMES = ("调度文本", "Matched_list")
     FUNCTION = "smart_process"
-    CATEGORY = "Apt_Preset/prompt/text_tool"
+    CATEGORY = "Apt_Preset/prompt"
     DESCRIPTION = """
     文本过滤预设说明
     None：不过滤，返回原始文本。
-    @text@：提取@符号包裹的文本（非贪婪匹配）。
+    @text@：提取@符号包裹的文本。
     @text：提取@符号后的所有文本。
     text @：提取@符号前的所有文本。
-    "text"：提取双引号包裹的文本（非贪婪匹配）。
-    'text'：提取单引号包裹的文本（非贪婪匹配）。
-    (text)：提取小括号包裹的文本（非贪婪匹配）。
+    "text"：提取双引号包裹的文本。
+    'text'：提取单引号包裹的文本。
+    (text)：提取小括号包裹的文本。
     Custom：使用自定义过滤规则，例如:
          [text] ：括号内的文本都会被提取并返回。
          [text ：括号后面的文本都会被提取并返回。
@@ -1020,28 +1023,47 @@ class text_filter:
             "custom": None,  # 如果选择custom但没有提供规则，返回None
         }
         return rule_pattern_map.get(filter_rule, None)
-    def _smart_filter(self, text: str, pattern: Optional[str], match_all: bool) -> Tuple[str, List[str]]:
+    def _extract_non_matches(self, text: str, pattern: str) -> List[str]:
+        non_match_parts = []
+        last_end = 0
+        for m in re.finditer(pattern, text, re.DOTALL):
+            part = self._normalize_text(text[last_end:m.start()])
+            if part:
+                non_match_parts.append(part)
+            last_end = m.end()
+        tail = self._normalize_text(text[last_end:])
+        if tail:
+            non_match_parts.append(tail)
+        return non_match_parts
+
+    def _smart_filter(self, text: str, pattern: Optional[str], match_all: bool, reverse_filter: bool) -> Tuple[str, List[str]]:
         if pattern is None:
             normalized_text = self._normalize_text(text)
             return (normalized_text, [normalized_text] if normalized_text else [])
-        match_results = re.findall(pattern, text, re.DOTALL)
-        match_results = [res.strip() for res in match_results if res.strip()]
-        if not match_results:
-            return ("❌ No valid content after filtering", [])
-        if match_all:
-            main_result = "\n".join(match_results)
+        if reverse_filter:
+            filtered_results = self._extract_non_matches(text, pattern)
+            if not filtered_results:
+                return ("❌ No valid content after reverse filtering", [])
         else:
-            main_result = match_results[0]
-        return (main_result, match_results)
-    def smart_process(self, text_input: str, filter_rule: str, custom_rule: str, seed: int, match_all: bool = False):
+            filtered_results = re.findall(pattern, text, re.DOTALL)
+            filtered_results = [res.strip() for res in filtered_results if res.strip()]
+            if not filtered_results:
+                return ("❌ No valid content after filtering", [])
+        if match_all:
+            main_result = "\n".join(filtered_results)
+        else:
+            main_result = filtered_results[0]
+        return (main_result, filtered_results)
+    def smart_process(self, text_input: str, filter_rule: str, custom_rule: str, current_frame: int, match_all: bool = False, reverse_filter: bool = False):
         text_content = self._normalize_text(text_input)
         if not text_content:
             return ("❌ Text input is empty", [])
         pattern = self._get_filter_pattern(filter_rule, custom_rule)
-        main_result, match_list = self._smart_filter(text_content, pattern, match_all)
-        if not match_all and len(match_list) > 1:
-            random.seed(seed)
-            main_result = match_list[random.randint(0, len(match_list)-1)]
+        main_result, match_list = self._smart_filter(text_content, pattern, match_all, reverse_filter)
+        if not match_all and len(match_list) > 0:
+            frame_index = current_frame if current_frame >= 0 else 0
+            selected_index = frame_index % len(match_list)
+            main_result = match_list[selected_index]
         return (main_result, match_list)
 
 
@@ -1072,7 +1094,7 @@ class text_modifier:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("processed_text",)
     FUNCTION = "process_text"
-    CATEGORY = "Apt_Preset/prompt/text_tool"
+    CATEGORY = "Apt_Preset/prompt"
     DESCRIPTION = """
     多文本替换或移除，使用竖线分隔，支持正则表达式。
     例如：
@@ -1255,7 +1277,7 @@ class text_saveText:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("status",)
     FUNCTION = "write_content"
-    CATEGORY = "Apt_Preset/prompt/text_tool"
+    CATEGORY = "Apt_Preset/prompt"
 
     def write_content(self, content: str, file_path: str, file_type: str, custom_file_name: str = "") -> Tuple[str]:
         file_path = file_path.strip('\'"')
@@ -1354,7 +1376,7 @@ class text_loadText:
     RETURN_TYPES = ("STRING", "STRING", "STRING")
     RETURN_NAMES = ("text", "file_paths", "file_names")
     FUNCTION = "read_content"
-    CATEGORY = "Apt_Preset/prompt/text_tool"
+    CATEGORY = "Apt_Preset/prompt"
 
     def read_content(self, path: str, file_type: str, char_limit: int, batch_mode: bool, remove_extension: bool) -> Tuple[str, str, str]:
         path = path.strip('\'"')
@@ -1550,7 +1572,7 @@ class text_wildcards:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("text",)
     FUNCTION = "stack_Wildcards"
-    CATEGORY = "Apt_Preset/prompt/text_tool"
+    CATEGORY = "Apt_Preset/prompt"
     DESCRIPTION = """
     1. 支持text0（自定义文本），text1-text8通配符文件选None则跳过
     2. text0为自定义文本前缀，可直接输入任意内容（完美支持中文）
@@ -1731,7 +1753,7 @@ class text_StrMatrix:
     OUTPUT_IS_LIST = (True,False,)
 
     FUNCTION = "execute"
-    CATEGORY = "Apt_Preset/prompt/text_tool"
+    CATEGORY = "Apt_Preset/prompt"
     
     def execute(self, fstring, max_count, a=[], b=[], c=[], d=[]):
         fstring_template = fstring[0] if isinstance(fstring, list) and len(fstring) > 0 else "{a}_{b}_{c}_{d}"
@@ -1769,9 +1791,6 @@ class text_StrMatrix:
             formatted_strings = []
 
         return (formatted_strings,formatted_strings,)
-
-
-
 
 
 

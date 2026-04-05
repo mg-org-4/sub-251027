@@ -21,7 +21,9 @@ PROXIES = {
 
 custom_nodes_paths = folder_paths.get_folder_paths("custom_nodes")
 comfy_root = os.path.dirname(custom_nodes_paths[0]) if custom_nodes_paths else os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
-key_path = os.path.join(comfy_root, "custom_nodes", "ComfyUI-Apt_Preset", "NodeExcel", "ApiKey_doubao.txt")
+
+key_path = os.path.join(comfy_root, "models", "Apt_File", "UNIT_API_KEY", "ApiKey_doubao.txt")
+
 
 def get_oubao_api_key():
     env_api_key = os.getenv("DOUBAO_API_KEY")
@@ -105,7 +107,7 @@ class Ai_doubao_seedream:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAME = ("image",)
     FUNCTION = "generate_image"
-    CATEGORY = "Apt_Preset/prompt"
+    CATEGORY = "Apt_Preset/AI_tool"
 
     def _process_image_channels(self, image):
         if image is None:
@@ -395,7 +397,7 @@ class AI_PresetSave:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("result",)
     FUNCTION = "append_prompt"
-    CATEGORY = "Apt_Preset/prompt"
+    CATEGORY = "Apt_Preset/AI_tool"
  
     DESCRIPTION = """
     TEXT_PROMPTS: 文本提示词，对应AiPromptPreset.json中的TEXT_PROMPTS字典
@@ -520,8 +522,8 @@ def resize_to_limit(img, max_pixels=262144):
 
 IMAGE_PROMPTS = load_Image_Analysis()
 TEXT_PROMPTS = load_TEXT_PROMPTS()
-OLLMAMA_MODEL_NAME_IMAGE = ["None","qwen3-vl:latest","gemma3:12b"]
-OLLMAMA_MODEL_NAME_TEXT = ["None","qwen2.5-coder:7b","qwen3-coder:30b","gemma3:1b-it-fp16","gemma3:12b"]
+OLLMAMA_MODEL_NAME_IMAGE = ["None","qwen3.5:latest","qwen3.5:27b","qwen3-vl:latest","gemma3:12b"]
+OLLMAMA_MODEL_NAME_TEXT = ["None","qwen3.5:latest","qwen3-coder:30b","gemma3:1b-it-fp16","gemma3:12b"]
 
 
 
@@ -551,7 +553,7 @@ class AI_Ollama_image:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("analysis_result", "system_prompt")
     FUNCTION = "run_image_analysis"
-    CATEGORY = "Apt_Preset/prompt"
+    CATEGORY = "Apt_Preset/AI_tool"
     DESCRIPTION = "CMD运行命令:  ollama run qwen3-vl:latest"
     
     def run_image_analysis(
@@ -703,7 +705,7 @@ class AI_Ollama_text:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("analysis_result", "system_prompt")
     FUNCTION = "run"
-    CATEGORY = "Apt_Preset/prompt"
+    CATEGORY = "Apt_Preset/AI_tool"
     
     def run(self, model_name, preset, prompt, temperature, max_tokens, seed=0, custom_system_prompt="", custom_model=""):
         if custom_model.strip():
@@ -793,7 +795,7 @@ class Ai_Ollama_RunModel:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("status",)
     FUNCTION = "control_ollama_service"
-    CATEGORY = "Apt_Preset/prompt"
+    CATEGORY = "Apt_Preset/AI_tool"
 
     def control_ollama_service(self, enable_service: bool, timeout: int = 20):
         if enable_service:
@@ -1067,7 +1069,7 @@ class AI_GLM_text:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("result", "system_prompt")
     FUNCTION = "analyze"
-    CATEGORY = "Apt_Preset/prompt"
+    CATEGORY = "Apt_Preset/AI_tool"
 
     def analyze(self, model_name, preset, text, max_tokens, custom_system_prompt="", api_key_input="", seed=0, custom_model=""):
         actual_model = custom_model.strip() if custom_model.strip() else model_name
@@ -1179,7 +1181,7 @@ class AI_GLM_image:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("result", "system_prompt")
     FUNCTION = "analyze"
-    CATEGORY = "Apt_Preset/prompt"
+    CATEGORY = "Apt_Preset/AI_tool"
 
     def analyze(self, model_name, preset, text, max_tokens, custom_system_prompt="", image_1=None, image_2=None, image_3=None, seed=0, api_key_input="", custom_model=""):
         actual_model = custom_model.strip() if custom_model.strip() else model_name
@@ -1233,8 +1235,6 @@ class AI_GLM_image:
 
 
 
-
-
 #region-----------qwen-combined（无SDK版）-----------------
 import os
 import json
@@ -1264,8 +1264,8 @@ def get_aliyun_api_key():
         pass
     
     comfy_root = os.path.dirname(custom_nodes_paths[0]) if custom_nodes_paths else os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
-    key_path = os.path.join(comfy_root, "custom_nodes", "ComfyUI-Apt_Preset", "NodeExcel", "ApiKey_AI_Qwen.txt")
-    
+    key_path = os.path.join(comfy_root, "models", "Apt_File", "UNIT_API_KEY", "ApiKey_AI_Qwen.txt")
+
     if os.path.exists(key_path):
         try:
             with open(key_path, "r", encoding="utf-8") as f:
@@ -1363,8 +1363,8 @@ class AI_Qwen_text:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "llm_model": (["None", "qwen3-coder-plus", "qwen3-coder-plus-2025-09-23", "qwen3-coder-flash", 
-                              "qwen3-coder-480b-a35b-instruct", "qwen3-coder-30b-a3b-instruct"], {"default": "qwen3-coder-plus"}),
+                "llm_model": (["None", "qwen3.5-plus", "qwen3.5-flash", "qwen3-coder-plus", "qwen3-coder-flash", 
+                            "qwen3-coder-30b-a3b-instruct"], {"default": "qwen3-coder-plus"}),
 
                 "preset": (list(TEXT_PROMPTS.keys()), {"default": "None"}),
                 "custom_system_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "custom_system_prompt：在预设preset=None时生效"}),
@@ -1382,7 +1382,7 @@ class AI_Qwen_text:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("result", "system_prompt")
     FUNCTION = "analyze"
-    CATEGORY = "Apt_Preset/prompt"
+    CATEGORY = "Apt_Preset/AI_tool"
 
     def analyze(self, llm_model, preset, text, max_tokens, custom_system_prompt="", api_key_input="", seed=0, custom_model=""):
         actual_model = custom_model.strip() if custom_model.strip() else llm_model
@@ -1502,7 +1502,7 @@ class AI_Qwen:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model": (["None", "qwen-vl-max", "qwen-vl-max-latest"], {"default": "qwen-vl-max-latest"}),
+                "model": (["None","qwen3.5-plus", "qwen3.5-flash", "qwen-vl-max", "qwen-vl-max-latest"], {"default": "qwen-vl-max-latest"}),
                 "preset": (list(IMAGE_PROMPTS.keys()), {"default": "None"}),
                 "custom_system_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "custom_system_prompt：在预设preset=None时生效"}),
                 "text": ("STRING", {"default": "", "multiline": True, "placeholder": "user prompt"}),
@@ -1521,7 +1521,7 @@ class AI_Qwen:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("result", "system_prompt")
     FUNCTION = "analyze"
-    CATEGORY = "Apt_Preset/prompt"
+    CATEGORY = "Apt_Preset/AI_tool"
 
     def analyze(self, model, preset, text, max_tokens, custom_system_prompt="", api_key_input="", image_1=None, image_2=None, image_3=None, seed=0, custom_model=""):
         actual_model = custom_model.strip() if custom_model.strip() else model
@@ -1569,13 +1569,831 @@ class AI_Qwen:
         except Exception as e:
             return (f"分析失败: {str(e)}", system_prompt)
 
+
 #endregion--------------------------------------------------------------------------
 
 
+#region魔塔免费API-----------------------
+
+
+
+import base64
+import io
+import json
+import os
+import time
+from typing import Any, Dict, List, Optional, Tuple
+#from urllib.parse import quote
+
+import numpy as np
+import requests
+import torch
+from PIL import Image
 
 
 
 
+MOTA_BASE_URL = "https://api-inference.modelscope.cn/v1"
+MOTA_CHAT_PRESET_MODELS = [
+    "None",
+    "Qwen/Qwen3-VL-235B-A22B-Instruct",
+    "Qwen/Qwen3-VL-8B-Instruct",
+    "Qwen/Qwen3-VL-8B-Thinking",
+    "iic/GUI-Owl-1.5-8B-Instruct",
+    "iic/GUI-Owl-1.5-8B-Think",
+]
+MOTA_EDIT_PRESET_MODELS = [
+    "None",
+    "MusePublic/Qwen-Image-Edit",
+    "Qwen/Qwen-Image-Edit",
+]
+MOTA_T2I_PRESET_MODELS = [
+    "None",
+    "Tongyi-MAI/Z-Image-Turbo",
+    "Qwen/Qwen-Image-2512",
+    "MoYouuu/MYHuman-QWEN",
+]
+
+
+
+
+
+def _pil2tensor(image: Image.Image) -> torch.Tensor:
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+    np_image = np.array(image).astype(np.float32) / 255.0
+    tensor = torch.from_numpy(np_image).unsqueeze(0)
+    return tensor
+
+
+def _tensor2pil(tensor: torch.Tensor) -> Image.Image:
+    if len(tensor.shape) == 4:
+        tensor = tensor[0]
+    np_image = tensor.detach().cpu().numpy()
+    np_image = np.clip(np_image, 0, 1)
+    np_image = (np_image * 255).astype(np.uint8)
+    return Image.fromarray(np_image)
+
+
+def _blank_image_tensor(color: str = "white", size: int = 512) -> torch.Tensor:
+    return _pil2tensor(Image.new("RGB", (size, size), color=color))
+
+
+def _load_local_config() -> Dict[str, Any]:
+    config_path = os.path.join(os.path.dirname(__file__), "config.json")
+    if not os.path.exists(config_path):
+        return {}
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        return {}
+    return {}
+
+
+def _get_mota_api_key(api_key_input: str = "") -> Optional[str]:
+    if api_key_input and api_key_input.strip():
+        return api_key_input.strip()
+
+    config = _load_local_config()
+    for key in ["mota_api_key", "modelscope_token", "modelscope_api_key", "api_key", "token"]:
+        val = config.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+
+    for env_key in ["MODELSCOPE_API_TOKEN", "MOTA_API_KEY", "MODELSCOPE_API_KEY", "MODELSCOPE_TOKEN", "MODELSCOPE_SDK_TOKEN"]:
+        val = os.environ.get(env_key)
+        if val and val.strip():
+            return val.strip()
+
+    return None
+
+
+def _get_modelscope_token(token_override: str) -> Optional[str]:
+    return _get_mota_api_key(token_override)
+
+
+def _normalize_base_url(base_url: str) -> str:
+    url = str(base_url or "").strip()
+    if not url:
+        return "https://api-inference.modelscope.cn/v1"
+
+    url = url.strip("`").strip().strip('"').strip("'")
+    url = url.split("?", 1)[0].rstrip("/")
+
+    endpoint_suffixes = [
+        "/v1/images/generations",
+        "/v1/images/edits",
+        "/images/generations",
+        "/images/edits",
+    ]
+    for s in endpoint_suffixes:
+        if url.endswith(s):
+            url = url[: -len(s)].rstrip("/")
+            break
+
+    if url.endswith("/v1"):
+        return url
+    if url.startswith("https://api-inference.modelscope.cn") or url.startswith("http://api-inference.modelscope.cn"):
+        return f"{url}/v1"
+    return url
+
+
+def _encode_image_tensor_to_data_url(image_tensor: torch.Tensor) -> str:
+    pil_img = _tensor2pil(image_tensor)
+    buffer = io.BytesIO()
+    pil_img.save(buffer, format="PNG")
+    b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    return f"data:image/png;base64,{b64}"
+
+def _encode_image_tensor_to_jpeg_data_url(image_tensor: torch.Tensor, quality: int = 85) -> str:
+    pil_img = _tensor2pil(image_tensor)
+    buffer = io.BytesIO()
+    pil_img.save(buffer, format="JPEG", quality=int(quality))
+    b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    return f"data:image/jpeg;base64,{b64}"
+
+
+def _post_json(url: str, headers: Dict[str, str], payload: Dict[str, Any], timeout: int) -> Dict[str, Any]:
+    resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
+    raw_text = resp.text or ""
+    if not resp.ok:
+        raise RuntimeError(f"HTTP {resp.status_code}: {raw_text[:2000]}")
+    try:
+        data = resp.json()
+    except Exception:
+        raise RuntimeError(f"HTTP {resp.status_code} 非JSON响应: {raw_text[:2000]}")
+    if not isinstance(data, dict):
+        raise RuntimeError("API 返回不是 JSON 对象")
+    return data
+
+
+def _post_multipart(
+    url: str,
+    headers: Dict[str, str],
+    data_fields: Dict[str, Any],
+    files: List[Tuple[str, Tuple[str, io.BytesIO, str]]],
+    timeout: int,
+) -> Dict[str, Any]:
+    req_headers = dict(headers or {})
+    req_headers.pop("Content-Type", None)
+
+    resp = requests.post(url, headers=req_headers, data=data_fields, files=files, timeout=timeout)
+    raw_text = resp.text or ""
+    if not resp.ok:
+        raise RuntimeError(f"HTTP {resp.status_code}: {raw_text[:2000]}")
+    try:
+        data = resp.json()
+    except Exception:
+        raise RuntimeError(f"HTTP {resp.status_code} 非JSON响应: {raw_text[:2000]}")
+    if not isinstance(data, dict):
+        raise RuntimeError("API 返回不是 JSON 对象")
+    return data
+
+
+def _get_json(url: str, headers: Dict[str, str], timeout: int) -> Any:
+    resp = requests.get(url, headers=headers, timeout=timeout)
+    raw_text = resp.text or ""
+    if not resp.ok:
+        raise RuntimeError(f"HTTP {resp.status_code}: {raw_text[:2000]}")
+    try:
+        return resp.json()
+    except Exception:
+        raise RuntimeError(f"HTTP {resp.status_code} 非JSON响应: {raw_text[:2000]}")
+
+
+def _call_chat_completions(
+    *,
+    url: str,
+    headers: Dict[str, str],
+    payload: Dict[str, Any],
+    timeout: int,
+) -> Dict[str, Any]:
+    try:
+        return _post_json(url, headers=headers, payload=payload, timeout=timeout)
+    except Exception as e:
+        if "HTTP 400" not in str(e):
+            raise
+
+        minimal_payload = {"model": payload.get("model"), "messages": payload.get("messages")}
+        return _post_json(url, headers=headers, payload=minimal_payload, timeout=timeout)
+
+
+class AI_ModelScope_image:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "预设模型": (MOTA_CHAT_PRESET_MODELS, {"default": "Qwen/Qwen3-VL-8B-Instruct"}),
+                "提示词预设": (list(IMAGE_PROMPTS.keys()), {"default": "None"}),
+                "自定义系统提示词": ("STRING", {"default": "", "multiline": True, "placeholder": "在提示词预设=None时生效"}),
+                "用户消息": ("STRING", {"default": "", "multiline": True}),
+                "温度": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.01}),
+                "Top-P": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "最大长度": ("INT", {"default": 2048, "min": 1, "max": 32768}),
+                "超时时间": ("INT", {"default": 180, "min": 1, "max": 600}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2147483647}),
+                "MODELSCOPE_API_TOKEN": ("STRING", {"default": "", "multiline": False}),
+                "自定义模型": ("STRING", {"default": "", "multiline": False}),
+            },
+            "optional": {
+                "图像1": ("IMAGE",),
+                "图像2": ("IMAGE",),
+                "图像3": ("IMAGE",),
+                "图像4": ("IMAGE",),
+            },
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("AI回复", "status")
+    FUNCTION = "chat"
+    CATEGORY = "Apt_Preset/AI_tool"
+
+    def chat(self, **kwargs) -> Tuple[str, str]:
+        token = _get_mota_api_key(kwargs.get("MODELSCOPE_API_TOKEN", ""))
+        if not token:
+            return ("❌ 缺少 MODELSCOPE_API_TOKEN：请在节点输入或系统环境变量中配置", "error: missing_modelscope_api_token")
+
+        base_url = MOTA_BASE_URL
+        url = f"{base_url}/chat/completions"
+
+        preset_model = kwargs.get("预设模型", "None")
+        custom_model_id = (kwargs.get("自定义模型", "") or "").strip()
+        model_id = preset_model if preset_model != "None" else custom_model_id
+        if not model_id:
+            return ("❌ 缺少自定义模型", "error: missing_custom_model")
+
+        preset = kwargs.get("提示词预设", "None")
+        if preset != "None":
+            system_prompt = IMAGE_PROMPTS.get(preset, "")
+        else:
+            system_prompt = kwargs.get("自定义系统提示词", "") or ""
+        user_message = kwargs.get("用户消息", "") or ""
+        temperature = float(kwargs.get("温度", 0.7))
+        top_p = float(kwargs.get("Top-P", 0.9))
+        max_tokens = int(kwargs.get("最大长度", 2048))
+        timeout = int(kwargs.get("超时时间", 180))
+        seed = int(kwargs.get("seed", 0))
+        seed = max(0, min(seed, 2147483647))
+
+        history_json = kwargs.get("历史消息JSON", "[]") or "[]"
+        messages: List[Dict[str, Any]] = []
+        try:
+            history = json.loads(history_json) if history_json.strip() else []
+            if isinstance(history, list):
+                for item in history:
+                    if isinstance(item, dict) and "role" in item and "content" in item:
+                        messages.append({"role": str(item["role"]), "content": item["content"]})
+        except Exception:
+            messages = []
+
+        if system_prompt.strip():
+            messages.insert(0, {"role": "system", "content": system_prompt})
+
+        images: List[Optional[torch.Tensor]] = [
+            kwargs.get("图像1"),
+            kwargs.get("图像2"),
+            kwargs.get("图像3"),
+            kwargs.get("图像4"),
+        ]
+        image_count = sum(1 for img in images if img is not None)
+        has_any_image = any(img is not None for img in images)
+        if has_any_image:
+            parts: List[Dict[str, Any]] = []
+            if user_message.strip():
+                parts.append({"type": "text", "text": user_message})
+            for img in images:
+                if img is None:
+                    continue
+                single = img[0] if len(img.shape) == 4 else img
+                parts.append({"type": "image_url", "image_url": {"url": _encode_image_tensor_to_data_url(single)}})
+            messages.append({"role": "user", "content": parts})
+        else:
+            messages.append({"role": "user", "content": user_message})
+
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        payload = {
+            "model": model_id,
+            "messages": messages,
+            "temperature": temperature,
+            "top_p": top_p,
+            "max_tokens": max_tokens,
+            "stream": False,
+            "seed": seed,
+        }
+        status_prefix = f"model={model_id};seed={seed};timeout={timeout};images={image_count};max_tokens={max_tokens}"
+
+        try:
+            data = _call_chat_completions(url=url, headers=headers, payload=payload, timeout=timeout)
+            text = ""
+            choices = data.get("choices")
+            choice_count = len(choices) if isinstance(choices, list) else 0
+            if isinstance(choices, list) and choices:
+                msg = choices[0].get("message") if isinstance(choices[0], dict) else None
+                if isinstance(msg, dict):
+                    text = msg.get("content") or ""
+            if not text:
+                text = json.dumps(data, ensure_ascii=False)
+            return (text, f"success;{status_prefix};choices={choice_count}")
+        except Exception as e:
+            err_text = str(e)
+            hint = ""
+            if "has no provider supported" in err_text:
+                hint = "（该模型可能未在 API-Inference 开通。先用「📃 魔塔模型列表」节点查可用模型ID，再填到本节点）"
+            return (f"❌ API 调用失败：{e} {hint}".strip(), f"error;{status_prefix};detail={err_text}")
+
+
+class AI_ModelScopeImageEdit:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "预设模型": (MOTA_EDIT_PRESET_MODELS, {"default": "Qwen/Qwen-Image-Edit"}),
+                "提示词": ("STRING", {"default": "", "multiline": True}),
+                "图像宽度": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 64, "display": "number"}),
+                "图像高度": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 64, "display": "number"}),
+                "张数": ("INT", {"default": 1, "min": 1, "max": 4}),
+                "超时时间": ("INT", {"default": 300, "min": 1, "max": 900}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2147483647}),
+                "MODELSCOPE_API_TOKEN": ("STRING", {"default": "", "multiline": False}),
+                "自定义模型": ("STRING", {"default": "", "multiline": False}),
+            },
+            "optional": {
+                "图像1": ("IMAGE",),
+                "图像2": ("IMAGE",),
+                "图像3": ("IMAGE",),
+                "图像4": ("IMAGE",),
+                "图像5": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING")
+    RETURN_NAMES = ("图像", "图片链接", "status")
+    FUNCTION = "generate"
+    CATEGORY = "Apt_Preset/AI_tool"
+
+    def generate(self, **kwargs) -> Tuple[torch.Tensor, str, str]:
+        token = _get_mota_api_key(kwargs.get("MODELSCOPE_API_TOKEN", ""))
+        if not token:
+            return (
+                _blank_image_tensor("red"),
+                "❌ 缺少Token",
+                "error: missing_modelscope_api_token",
+            )
+
+        base_url = MOTA_BASE_URL
+        
+        # 模型选择逻辑
+        preset_model_id = kwargs.get("预设模型", "None")
+        custom_model_id = (kwargs.get("自定义模型", "") or "").strip()
+        model_id = preset_model_id if preset_model_id != "None" else custom_model_id
+        
+        if not model_id:
+            return (
+                _blank_image_tensor("gray"),
+                "❌ 缺少自定义模型",
+                "error: missing_custom_model",
+            )
+        url = f"{base_url}/images/generations"
+
+        prompt = kwargs.get("提示词", "") or ""
+        width = int(kwargs.get("图像宽度", 1024))
+        height = int(kwargs.get("图像高度", 1024))
+        n_images = int(kwargs.get("张数", 1))
+        timeout = int(kwargs.get("超时时间", 300))
+        seed = int(kwargs.get("seed", 0))
+        seed = max(0, min(seed, 2147483647))
+        status_prefix = f"model={model_id};seed={seed};size={width}x{height};n={n_images};timeout={timeout}"
+
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        headers_submit = {**headers, "X-ModelScope-Async-Mode": "true"}
+
+        # 收集图像
+        image_urls: List[str] = []
+        image_b64_list: List[str] = []
+        for i in range(1, 6):
+            img = kwargs.get(f"图像{i}")
+            if img is None:
+                continue
+            single = img[0] if len(img.shape) == 4 else img
+            pil_img = _tensor2pil(single)
+
+            buf = io.BytesIO()
+            pil_img.save(buf, format="PNG")
+            b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+            image_b64_list.append(b64)
+            image_urls.append(f"data:image/png;base64,{b64}")
+
+        if not image_urls:
+            return (
+                _blank_image_tensor("gray"),
+                "❌ 图像编辑需要至少 1 张输入图像",
+                f"error;{status_prefix};detail=missing_input_image",
+            )
+
+        payload: Dict[str, Any] = {
+            "model": model_id,
+            "prompt": prompt,
+            "seed": seed,
+            "n": n_images,
+            "size": f"{width}x{height}",
+        }
+        payload["image_url"] = image_urls
+        if len(image_b64_list) == 1:
+            payload["image"] = image_b64_list[0]
+        else:
+            payload["images"] = image_b64_list
+        model_id_lower = model_id.lower()
+        is_qwen_image = model_id_lower.startswith("qwen/qwen-image") or "qwen-image" in model_id_lower
+        if not is_qwen_image:
+            headers_submit = {
+                **headers_submit,
+                "X-ModelScope-Task-Type": "image-to-image-generation",
+                "X-ModelScope-Request-Params": json.dumps({}, ensure_ascii=False),
+            }
+
+        # 尝试调用
+        try:
+            try:
+                data = _post_json(url, headers=headers_submit, payload=payload, timeout=timeout)
+            except Exception as e:
+                if "HTTP 400" not in str(e):
+                    raise
+                payload_no_size = {k: v for k, v in payload.items() if k != "size"}
+                data = _post_json(url, headers=headers_submit, payload=payload_no_size, timeout=timeout)
+
+            task_id = data.get("task_id") if isinstance(data, dict) else None
+            final_data: Any = data
+            urls: List[str] = []
+
+            # 异步任务轮询
+            if isinstance(task_id, str) and task_id.strip():
+                task_url = f"{base_url}/tasks/{task_id.strip()}"
+                # 注意：通用推理任务的任务查询 URL 可能不同，这里假设与 TextToImage 相同
+                # 如果 base_url 是 /v1，则 /tasks/{id} 是合理的
+                task_headers = {**headers, "X-ModelScope-Task-Type": "image_generation"}
+                start = time.time()
+                while True:
+                    if time.time() - start > timeout:
+                        raise RuntimeError(f"task_timeout: {task_id}")
+                    task_data = _get_json(task_url, headers=task_headers, timeout=min(timeout, 60))
+                    final_data = {"submit": data, "task": task_data}
+                    if isinstance(task_data, dict):
+                        status = (task_data.get("task_status") or task_data.get("status") or "").upper()
+                        if status in ["SUCCEED", "SUCCESS", "SUCCEEDED"]:
+                            out_imgs = task_data.get("output_images")
+                            # 通用推理结果可能在 output 字段
+                            if not out_imgs:
+                                out_imgs = task_data.get("output", {}).get("images")
+                            
+                            if isinstance(out_imgs, list):
+                                for u in out_imgs:
+                                    if isinstance(u, str) and u.strip():
+                                        urls.append(u.strip())
+                            break
+                        if status in ["FAILED", "FAIL"]:
+                            raise RuntimeError(f"task_failed: {json.dumps(task_data, ensure_ascii=False)[:2000]}")
+                    time.sleep(2)
+            else:
+                # 同步返回处理
+                # 通用推理结果通常在 data.output.choices (chat) 或 data.output.results
+                # 文生图/图生图通常直接返回 output_images 或 output: { output_imgs: ... }
+                
+                # 1. 尝试直接获取 images
+                images = data.get("images")
+                if isinstance(images, list):
+                    for item in images:
+                        if isinstance(item, dict):
+                            u = item.get("url")
+                            if isinstance(u, str) and u.strip():
+                                urls.append(u.strip())
+                        elif isinstance(item, str) and item.strip():
+                            urls.append(item.strip())
+                
+                # 2. 尝试 OpenAI 风格 data[].url / b64_json
+                if not urls:
+                    data_items = data.get("data")
+                    if isinstance(data_items, list):
+                        for it in data_items:
+                            if not isinstance(it, dict):
+                                continue
+                            u = it.get("url")
+                            if isinstance(u, str) and u.strip():
+                                urls.append(u.strip())
+                                continue
+                            b64j = it.get("b64_json")
+                            if isinstance(b64j, str) and b64j.strip():
+                                urls.append(f"data:image/png;base64,{b64j.strip()}")
+
+                # 3. 尝试 output_images
+                if not urls:
+                    out_imgs = data.get("output_images")
+                    if isinstance(out_imgs, list):
+                        for u in out_imgs:
+                            urls.append(u)
+                            
+                # 3. 尝试 output.images (常见于通用推理)
+                if not urls and isinstance(data.get("output"), dict):
+                    out_imgs = data.get("output", {}).get("images")
+                    if isinstance(out_imgs, list):
+                        for u in out_imgs:
+                            urls.append(u)
+
+                # 4. 尝试 output.img_url
+                if not urls and isinstance(data.get("output"), dict):
+                     u = data.get("output", {}).get("img_url")
+                     if u: urls.append(u)
+
+            if not urls:
+                return (_blank_image_tensor("gray"), "⚠️ 未返回图片URL", f"error;{status_prefix};detail=no_image_url")
+
+            tensors: List[torch.Tensor] = []
+            download_errors: List[Dict[str, Any]] = []
+            for u in urls:
+                try:
+                    if u.startswith("http"):
+                        r = requests.get(u, timeout=timeout)
+                        if r.status_code in (401, 403):
+                            r = requests.get(u, timeout=timeout, headers={"Authorization": f"Bearer {token}"})
+                        r.raise_for_status()
+                        img = Image.open(io.BytesIO(r.content))
+                    elif u.startswith("data:image") or ";base64," in u:
+                        b64_part = u.split(",", 1)[1] if "," in u else u
+                        img = Image.open(io.BytesIO(base64.b64decode(b64_part)))
+                    else:
+                        download_errors.append({"url": u, "error": "unsupported_url"})
+                        continue
+
+                    if img.mode != "RGB":
+                        img = img.convert("RGB")
+                    tensors.append(_pil2tensor(img))
+                except Exception as e:
+                    download_errors.append({"url": u, "error": str(e)})
+                    continue
+
+            if not tensors:
+                if isinstance(final_data, dict):
+                    final_data = {**final_data, "download_errors": download_errors}
+                else:
+                    final_data = {"data": final_data, "download_errors": download_errors}
+                first_url = urls[0] if urls else ""
+                return (_blank_image_tensor("gray"), first_url or "⚠️ 未能下载图片", f"error;{status_prefix};detail=download_failed")
+
+            out = torch.cat(tensors, dim=0)
+            return (out, urls[0] if urls else "", f"success;{status_prefix};returned={len(urls)}")
+        except Exception as e:
+            return (_blank_image_tensor("red"), f"❌ {e}", f"error;{status_prefix};detail={str(e)}")
+
+
+class AI_ModelScopeT2I:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "预设模型": (MOTA_T2I_PRESET_MODELS, {"default": "Tongyi-MAI/Z-Image-Turbo"}),
+                "提示词": ("STRING", {"default": "a cute girl in festive chinese new year clothing", "multiline": True}),
+                "图像宽度": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 64, "display": "number"}),
+                "图像高度": ("INT", {"default": 1024, "min": 64, "max": 8192, "step": 64, "display": "number"}),
+                "张数": ("INT", {"default": 1, "min": 1, "max": 4}),
+                "超时时间": ("INT", {"default": 300, "min": 1, "max": 900}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2147483647}),
+                "MODELSCOPE_API_TOKEN": ("STRING", {"default": "", "multiline": False}),
+                "自定义模型": ("STRING", {"default": "", "multiline": False}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING")
+    RETURN_NAMES = ("图像", "图片链接", "status")
+    FUNCTION = "generate"
+    CATEGORY = "Apt_Preset/AI_tool"
+
+    def generate(self, **kwargs):
+        token = _get_mota_api_key(kwargs.get("MODELSCOPE_API_TOKEN", ""))
+        if not token:
+            return (
+                _blank_image_tensor("red"),
+                "❌ 缺少Token",
+                "error: missing_modelscope_api_token",
+            )
+
+        base_url = MOTA_BASE_URL
+        url = f"{base_url}/images/generations"
+
+        # 模型选择逻辑
+        preset_model_id = kwargs.get("预设模型", "None")
+        custom_model_id = (kwargs.get("自定义模型", "") or "").strip()
+        model_id = preset_model_id if preset_model_id != "None" else custom_model_id
+        if not model_id:
+            return (
+                _blank_image_tensor("gray"),
+                "❌ 缺少自定义模型",
+                "error: missing_custom_model",
+            )
+
+        prompt = kwargs.get("提示词", "") or ""
+        width = int(kwargs.get("图像宽度", 1024))
+        height = int(kwargs.get("图像高度", 1024))
+        n_images = int(kwargs.get("张数", 1))
+        timeout = int(kwargs.get("超时时间", 300))
+        seed = int(kwargs.get("seed", 0))
+        seed = max(0, min(seed, 2147483647))
+        status_prefix = f"model={model_id};seed={seed};size={width}x{height};n={n_images};timeout={timeout}"
+
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        headers_submit = {**headers, "X-ModelScope-Async-Mode": "true"}
+
+        payload: Dict[str, Any] = {"model": model_id, "prompt": prompt, "seed": seed, "size": f"{width}x{height}"}
+        if n_images != 1:
+            payload["n"] = n_images
+
+        try:
+            try:
+                data = _post_json(url, headers=headers_submit, payload=payload, timeout=timeout)
+            except Exception as e:
+                if "HTTP 400" not in str(e):
+                    raise
+                minimal_payload: Dict[str, Any] = {"model": model_id, "prompt": prompt, "seed": seed}
+                if n_images != 1:
+                    minimal_payload["n"] = n_images
+                data = _post_json(url, headers=headers_submit, payload=minimal_payload, timeout=timeout)
+
+            task_id = data.get("task_id") if isinstance(data, dict) else None
+            final_data: Any = data
+            urls: List[str] = []
+
+            if isinstance(task_id, str) and task_id.strip():
+                task_url = f"{base_url}/tasks/{task_id.strip()}"
+                task_headers = {**headers, "X-ModelScope-Task-Type": "image_generation"}
+                start = time.time()
+                while True:
+                    if time.time() - start > timeout:
+                        raise RuntimeError(f"task_timeout: {task_id}")
+                    task_data = _get_json(task_url, headers=task_headers, timeout=min(timeout, 60))
+                    final_data = {"submit": data, "task": task_data}
+                    if isinstance(task_data, dict):
+                        status = (task_data.get("task_status") or task_data.get("status") or "").upper()
+                        if status in ["SUCCEED", "SUCCESS", "SUCCEEDED"]:
+                            out_imgs = task_data.get("output_images")
+                            if isinstance(out_imgs, list):
+                                for u in out_imgs:
+                                    if isinstance(u, str) and u.strip():
+                                        urls.append(u.strip())
+                            break
+                        if status in ["FAILED", "FAIL"]:
+                            raise RuntimeError(f"task_failed: {json.dumps(task_data, ensure_ascii=False)[:2000]}")
+                    time.sleep(2)
+            else:
+                images = data.get("images") if isinstance(data, dict) else None
+                if isinstance(images, list):
+                    for item in images:
+                        if isinstance(item, dict):
+                            u = item.get("url")
+                            if isinstance(u, str) and u.strip():
+                                urls.append(u.strip())
+                        elif isinstance(item, str) and item.strip():
+                            urls.append(item.strip())
+                elif isinstance(data, dict):
+                    out_imgs = data.get("output_images")
+                    if isinstance(out_imgs, list):
+                        for u in out_imgs:
+                            if isinstance(u, str) and u.strip():
+                                urls.append(u.strip())
+            if not urls:
+                return (_blank_image_tensor("gray"), "⚠️ 未返回图片URL", f"error;{status_prefix};detail=no_image_url")
+
+            tensors: List[torch.Tensor] = []
+            download_errors: List[Dict[str, Any]] = []
+            for u in urls:
+                try:
+                    r = requests.get(u, timeout=timeout)
+                    if r.status_code in (401, 403):
+                        r = requests.get(u, timeout=timeout, headers={"Authorization": f"Bearer {token}"})
+                    r.raise_for_status()
+                    img = Image.open(io.BytesIO(r.content))
+                    if img.mode != "RGB":
+                        img = img.convert("RGB")
+                    tensors.append(_pil2tensor(img))
+                except Exception as e:
+                    download_errors.append({"url": u, "error": str(e)})
+                    continue
+
+            if not tensors:
+                if isinstance(final_data, dict):
+                    final_data = {**final_data, "download_errors": download_errors}
+                else:
+                    final_data = {"data": final_data, "download_errors": download_errors}
+                first_url = urls[0] if urls else ""
+                return (_blank_image_tensor("gray"), first_url or "⚠️ 未能下载图片", f"error;{status_prefix};detail=download_failed")
+
+            out = torch.cat(tensors, dim=0)
+            return (out, urls[0], f"success;{status_prefix};returned={len(urls)}")
+        except Exception as e:
+            return (_blank_image_tensor("red"), f"❌ {e}", f"error;{status_prefix};detail={str(e)}")
+
+
+class AI_ModelScope_text:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "预设模型": (["None", "MiniMax/MiniMax-M2.5", "ZhipuAI/GLM-5"], {"default": "MiniMax/MiniMax-M2.5"}),
+                "提示词预设": (list(TEXT_PROMPTS.keys()), {"default": "None"}),
+                "自定义系统提示词": ("STRING", {"default": "", "multiline": True, "placeholder": "在提示词预设=None时生效"}),
+                "用户消息": ("STRING", {"default": "", "multiline": True}),
+                "温度": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.01}),
+                "Top-P": ("FLOAT", {"default": 0.9, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "最大长度": ("INT", {"default": 2048, "min": 1, "max": 32768}),
+                "超时时间": ("INT", {"default": 180, "min": 1, "max": 600}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2147483647}),
+                "MODELSCOPE_API_TOKEN": ("STRING", {"default": "", "multiline": False}),
+                "自定义模型": ("STRING", {"default": "", "multiline": False}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("AI回复", "status")
+    FUNCTION = "chat"
+    CATEGORY = "Apt_Preset/AI_tool"
+
+    def chat(self, **kwargs) -> Tuple[str, str]:
+        token = _get_mota_api_key(kwargs.get("MODELSCOPE_API_TOKEN", ""))
+        if not token:
+            return ("❌ 缺少 MODELSCOPE_API_TOKEN：请在节点输入/系统环境变量/models/Apt_File/UNIT_API_KEY/ApiKey_AI_MOTA.txt中配置", "error: missing_modelscope_api_token")
+
+        base_url = MOTA_BASE_URL
+        url = f"{base_url}/chat/completions"
+
+        preset_model = kwargs.get("预设模型", "None")
+        custom_model_id = (kwargs.get("自定义模型", "") or "").strip()
+        model_id = preset_model if preset_model != "None" else custom_model_id
+        if not model_id:
+            return ("❌ 缺少自定义模型", "error: missing_custom_model")
+
+        preset = kwargs.get("提示词预设", "None")
+        if preset != "None":
+            system_prompt = TEXT_PROMPTS.get(preset, "")
+        else:
+            system_prompt = kwargs.get("自定义系统提示词", "") or ""
+        user_message = kwargs.get("用户消息", "") or ""
+        temperature = float(kwargs.get("温度", 0.7))
+        top_p = float(kwargs.get("Top-P", 0.9))
+        max_tokens = int(kwargs.get("最大长度", 2048))
+        timeout = int(kwargs.get("超时时间", 180))
+        seed = int(kwargs.get("seed", 0))
+        seed = max(0, min(seed, 2147483647))
+
+        messages: List[Dict[str, Any]] = []
+
+        if system_prompt.strip():
+            messages.append({"role": "system", "content": system_prompt})
+
+        messages.append({"role": "user", "content": user_message})
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "model": model_id,
+            "messages": messages,
+            "temperature": temperature,
+            "top_p": top_p,
+            "max_tokens": max_tokens,
+            "seed": seed,
+        }
+
+        try:
+            response = _call_chat_completions(
+                url=url,
+                headers=headers,
+                payload=payload,
+                timeout=timeout,
+            )
+
+            if response.get("error"):
+                err_msg = response["error"].get("message", str(response["error"]))
+                return (f"❌ {err_msg}", f"error;{response['error'].get('type', 'api_error')}")
+
+            choices = response.get("choices", [])
+            if not choices:
+                return ("❌ 无响应内容", "error: no_choices")
+
+            content = choices[0].get("message", {}).get("content", "")
+            if not content:
+                return ("❌ 响应内容为空", "error: empty_content")
+
+            usage = response.get("usage", {})
+            status = f"success;usage={usage.get('total_tokens', 'unknown')}"
+            return (content, status)
+
+        except Exception as e:
+            return (f"❌ 调用失败: {str(e)}", f"error;exception;{str(e)}")
+
+
+#endregion--------------------------------------------------------------------------
 
 
 

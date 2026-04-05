@@ -16,6 +16,7 @@ from .NodeChx.style_node import *
 from .NodeChx.video_node import *
 from .NodeChx.Ksampler_all import *
 from .NodeChx.Scheduler import *
+from .NodeChx.output_shate import InputShareNode
 
 
 
@@ -93,7 +94,7 @@ NODE_CLASS_MAPPINGS= {
 
 "basic_Ksampler_simple": basic_Ksampler_simple,  
 "basic_Ksampler_full": basic_Ksampler_full, 
-      
+    
 "sampler_DynamicTileSplit": DynamicTileSplit, 
 "sampler_DynamicTileMerge": DynamicTileMerge,
 "sampler_enhance": sampler_enhance,
@@ -221,12 +222,16 @@ NODE_CLASS_MAPPINGS= {
 "AD_sch_mask_weigh":AD_sch_mask_weigh,
 "AD_video_merge": AD_video_merge,
 "AD_VideoSeg": AD_VideoSeg,
+"AD_Latent_Diffusion_Keyframe": AD_Latent_Diffusion_Keyframe,
+"AD_latent_history": AD_latent_history,
+"AD_keyframe_trend_preview": AD_keyframe_trend_preview,
 
 
 
 "AD_sch_image_merge":AD_sch_image_merge,
 "AD_MaskExpandBatch": AD_MaskExpandBatch, 
 "AD_ImageExpandBatch": AD_ImageExpandBatch,
+"AD_AutoTileVAEDecode": AD_AutoTileVAEDecode,
 "AD_frame_replace": AD_frame_replace,
 "AD_pingpong_vedio":AD_pingpong_vedio,
 "AD_FILM_VFI":AD_FILM_VFI,
@@ -263,11 +268,13 @@ NODE_CLASS_MAPPINGS= {
 "view_Primitive": view_Primitive,#wed----utils
 
 "view_GetWidgetsValues": view_GetWidgetsValues, #wed----utils
+
 "view_GetLength": view_GetLength, #wed----utils
 "view_mask": view_mask,
 "view_mulView": view_mulView,
 
 
+"view_node_Script": view_node_Script, 
 
 #-------------输入输出 IO_Port-------------------
 
@@ -314,7 +321,9 @@ NODE_CLASS_MAPPINGS= {
 
 
 "type_AnyIndex":type_AnyIndex,
-"type_AnyCast": type_AnyCast, 
+"type_AnyCast": type_AnyCast,
+"type_AnyListUnpack": type_AnyListUnpack, 
+"type_AnyBatchUnpack": type_AnyBatchUnpack,
 
 
 "math_calculate": math_calculate, 
@@ -357,7 +366,7 @@ NODE_CLASS_MAPPINGS= {
 
 #----------------image------------------------
 
-"Image_pad_keep": Image_pad_keep,  
+"Image_pad_keep": Image_pad_keep,
 "Image_pad_adjust": Image_pad_adjust,  
 "Image_pad_adjust_restore": Image_pad_adjust_restore,   
 
@@ -429,6 +438,7 @@ NODE_CLASS_MAPPINGS= {
 "Image_crop_visual": Image_crop_visual,
 "Image_mask_crop_visual": Image_mask_crop_visual,
 "Image_transform_layer_visual": Image_transform_layer_visual,
+"Image_expand_canvase_visual": Image_expand_canvase_visual,
 
 
 #---ImgBatch-------------------------------------------
@@ -536,6 +546,8 @@ NODE_CLASS_MAPPINGS= {
 "text_saveText": text_saveText,
 "text_StrMatrix":text_StrMatrix,
 
+
+
 "Ai_doubao_seedream":Ai_doubao_seedream,
 "AI_PresetSave":AI_PresetSave,
 "AI_Qwen":AI_Qwen,
@@ -545,7 +557,10 @@ NODE_CLASS_MAPPINGS= {
 "AI_Ollama_image":AI_Ollama_image,
 "AI_Ollama_text": AI_Ollama_text,
 "Ai_Ollama_RunModel":Ai_Ollama_RunModel,
-
+"AI_ModelScopeImageEdit": AI_ModelScopeImageEdit,
+"AI_ModelScope_image": AI_ModelScope_image,
+"AI_ModelScopeT2I": AI_ModelScopeT2I,
+"AI_ModelScope_text": AI_ModelScope_text,
 
 #---****------------------
 
@@ -575,14 +590,16 @@ NODE_CLASS_MAPPINGS= {
 "flow_forEnd": flow_forEnd,
 "flow_whileStart": flow_whileStart,
 "flow_whileEnd": flow_whileEnd,
-"flow_createbatch": flow_createbatch,
 "flow_AutoShutdown": flow_AutoShutdown,   
 
 
 
-#----------------------外部导入节点-----------------------
+#----------------------外部导入节点-register-----------------------
 
 "Easy_QwenEdit2509": Easy_QwenEdit2509,
+"InputShareNode": InputShareNode,
+"flow_createbatch": flow_createbatch,  #    CATEGORY = "Apt_Preset/stack/register"
+
 
 #----------------------外部导入节点-----------------------
 
@@ -669,6 +686,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 "pre_qwen_controlnet": "pre_qwenModelPatch_CN"
 
 }
+
 
 
 

@@ -1,0 +1,885 @@
+{
+  "id": "0f4fc7cc-a0d9-4eea-a1a3-edfe080a260e",
+  "revision": 0,
+  "last_node_id": 82,
+  "last_link_id": 217,
+  "nodes": [
+    {
+      "id": 44,
+      "type": "ShowText|pysssss",
+      "pos": [
+        143.38790893554688,
+        3757.780029296875
+      ],
+      "size": [
+        776.5259399414062,
+        169.22947692871094
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 165
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "9f7b3215e6af317603056a9a1666bf6e83e28835",
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "high_quality, best_quality, highres, masterpiece, detailed_eyes, 8k, professional, detailed, subject_focus, depth_of_field, (volumetric lighting:1.1, dof:1.1, depth of field:1.1), cinematic lighting, dramatic shadows, color grading, absurdres, very_detailed, extremely_detailed, ultra_detailed, 1 girl solo, volumetric lighting, bokeh, dynamic pose"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 50,
+      "type": "ShowText|pysssss",
+      "pos": [
+        1843.387939453125,
+        3237.780029296875
+      ],
+      "size": [
+        690,
+        220
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 217
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "9f7b3215e6af317603056a9a1666bf6e83e28835",
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "🎨 Illustrious Latent Generation Report\n═════════════════════════════════════════════\nResolution: 1024x1024 (1.0MP)\nLatent Size: 128x128\nAspect Ratio: 1.00:1 (square)\nResolution Tier: 1024\nModel Version: Illustrious v1.0\nNoise Pattern: illustrious_optimized\n✨ Size optimized for native resolution\n\n📊 Tier Characteristics:\n  Standard SDXL resolution, reliable anime/illustration results\n  Optimal for: Illustrious v0.1, Illustrious v1.0\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 55,
+      "type": "ShowText|pysssss",
+      "pos": [
+        1843.387939453125,
+        2987.780029296875
+      ],
+      "size": [
+        695.014404296875,
+        188.6537628173828
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 163
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "9f7b3215e6af317603056a9a1666bf6e83e28835",
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "🎨 Illustrious CLIP Encoder Report\n════════════════════════════════════════\nVersion: v2.0\nOriginal length: 24 tags\nProcessed length: 32 tags\n\n🔧 Optimizations Applied:\n  1. Added 'high_resolution' for v2.0 capability\n  2. Reordered tags for optimal Illustrious hierarchy\n  3. Order: Quality → Illustrious Specialty → Rating → Character → Composition → Background → Lighting → Style\n\n📝 Final Prompt:\n(high_quality:1.00), high_quality, (best_quality:1.00), best_quality, (highres:1.00), highres, (masterpiece:1.00), masterpiece, (absurdres:1.00), absurdres, (detailed_eyes:1.00), detailed_eyes, (high_resolution:1.00), high_resolution, 1 girl solo, cinematic lighting, 8k, professional, detailed, subject_focus, depth_of_field, (volumetric lighting:1.1, dof:1.1, depth of field:1.1), dramatic shadows, color grading, very_detailed, extremely_detailed, ultra_detailed, volumetric lighting, bokeh, dynamic pose\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 56,
+      "type": "PreviewImage",
+      "pos": [
+        143.38790893554688,
+        2457.780029296875
+      ],
+      "size": [
+        783.85888671875,
+        1247.2974853515625
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 170
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.27",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": [],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 59,
+      "type": "ShowText|pysssss",
+      "pos": [
+        3160,
+        3390
+      ],
+      "size": [
+        695.014404296875,
+        188.6537628173828
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 171
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "9f7b3215e6af317603056a9a1666bf6e83e28835",
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "🎨 Illustrious VAE Decode Report\n════════════════════════════════════════\nVersion: v2.0\nMethod: standard\nMemory Strategy: normal\nDetail Preservation: very_high\nColor Correction: Not needed\nHighlight Roll-Off: Clamped\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 65,
+      "type": "IllustriousNegativeCLIPEncoder",
+      "pos": [
+        2250,
+        2290
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 214
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 167
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            206
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousNegativeCLIPEncoder"
+      },
+      "widgets_values": [
+        "worst_quality, bad_quality, lowres",
+        "illustrious_optimized",
+        "v2.0",
+        2,
+        1
+      ]
+    },
+    {
+      "id": 66,
+      "type": "IllustriousCLIPTextEncoder",
+      "pos": [
+        1830,
+        2290
+      ],
+      "size": [
+        400,
+        348
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 215
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 166
+        }
+      ],
+      "outputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "links": [
+            205
+          ]
+        },
+        {
+          "name": "processed_prompt",
+          "type": "STRING",
+          "links": [
+            163
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousCLIPTextEncoder"
+      },
+      "widgets_values": [
+        "masterpiece, best quality, 1girl",
+        "v2.0",
+        true,
+        true,
+        true,
+        true,
+        2,
+        1,
+        1,
+        1,
+        true
+      ]
+    },
+    {
+      "id": 67,
+      "type": "IllustriousPrompt",
+      "pos": [
+        980,
+        2460
+      ],
+      "size": [
+        800,
+        860
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROMPT",
+          "type": "STRING",
+          "links": [
+            165,
+            166,
+            210
+          ]
+        },
+        {
+          "name": "NEGATIVE",
+          "type": "STRING",
+          "links": [
+            167
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousPrompt"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "",
+        "-",
+        "-",
+        "1 girl solo",
+        "-",
+        false,
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "Volumetric",
+        "Bokeh",
+        "Dynamic",
+        "",
+        "Boost",
+        true,
+        false,
+        false,
+        true,
+        "Cinematic",
+        "Ultra Detailed",
+        true,
+        true,
+        false,
+        "comfy",
+        "none"
+      ]
+    },
+    {
+      "id": 68,
+      "type": "IllustriousVAEDecode",
+      "pos": [
+        2580,
+        2990
+      ],
+      "size": [
+        440,
+        550
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 209
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 213
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            170
+          ]
+        },
+        {
+          "name": "decode_info",
+          "type": "STRING",
+          "links": [
+            171
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousVAEDecode"
+      },
+      "widgets_values": [
+        "v2.0",
+        "auto",
+        true,
+        512,
+        64,
+        true,
+        false,
+        true,
+        false,
+        true,
+        "Clamped"
+      ]
+    },
+    {
+      "id": 72,
+      "type": "IllustriousScheduler",
+      "pos": [
+        1830,
+        1980
+      ],
+      "size": [
+        400,
+        232
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "content_analysis",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "content_analysis"
+          },
+          "link": 210
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            208
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousScheduler"
+      },
+      "widgets_values": [
+        24,
+        "aware",
+        "v1.0",
+        0.5,
+        1,
+        "",
+        true
+      ]
+    },
+    {
+      "id": 79,
+      "type": "IllustriousKSamplerPro",
+      "pos": [
+        2680,
+        2290
+      ],
+      "size": [
+        420,
+        640
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 212
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 205
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 206
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 216
+        },
+        {
+          "name": "sigmas",
+          "shape": 7,
+          "type": "SIGMAS",
+          "link": 208
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            209
+          ]
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousKSamplerPro"
+      },
+      "widgets_values": [
+        521121952451093,
+        "decrement",
+        21,
+        4.5,
+        "euler_ancestral",
+        "karras",
+        1,
+        "Illustrious v2.0",
+        true,
+        true,
+        true,
+        0,
+        false
+      ]
+    },
+    {
+      "id": 81,
+      "type": "IllustriousMasterModel",
+      "pos": [
+        990,
+        2000
+      ],
+      "size": [
+        790,
+        400
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            212
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            213
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            214,
+            215
+          ]
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "SEED",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "STEPS",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "CFG SCALE",
+          "type": "FLOAT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousMasterModel"
+      },
+      "widgets_values": [
+        "Illustrious/hassakuXLIllustrious_v30.safetensors",
+        -2,
+        "Square | Model Preview (1:1) - 1024x1024",
+        1,
+        143760,
+        "randomize",
+        30,
+        7
+      ]
+    },
+    {
+      "id": 82,
+      "type": "IllustriousEmptyLatentImage",
+      "pos": [
+        1830,
+        2690
+      ],
+      "size": [
+        410,
+        250
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            216
+          ]
+        },
+        {
+          "name": "resolution_info",
+          "type": "STRING",
+          "links": [
+            217
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousEmptyLatentImage"
+      },
+      "widgets_values": [
+        "Square | Model Preview (1:1) - 1024x1024",
+        1,
+        "auto",
+        "auto",
+        "illustrious_optimized",
+        true,
+        1041793119453780,
+        "randomize"
+      ]
+    }
+  ],
+  "links": [
+    [
+      163,
+      66,
+      1,
+      55,
+      0,
+      "STRING"
+    ],
+    [
+      165,
+      67,
+      0,
+      44,
+      0,
+      "STRING"
+    ],
+    [
+      166,
+      67,
+      0,
+      66,
+      1,
+      "STRING"
+    ],
+    [
+      167,
+      67,
+      1,
+      65,
+      1,
+      "STRING"
+    ],
+    [
+      170,
+      68,
+      0,
+      56,
+      0,
+      "IMAGE"
+    ],
+    [
+      171,
+      68,
+      1,
+      59,
+      0,
+      "STRING"
+    ],
+    [
+      205,
+      66,
+      0,
+      79,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      206,
+      65,
+      0,
+      79,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      208,
+      72,
+      0,
+      79,
+      4,
+      "SIGMAS"
+    ],
+    [
+      209,
+      79,
+      0,
+      68,
+      0,
+      "LATENT"
+    ],
+    [
+      210,
+      67,
+      0,
+      72,
+      0,
+      "STRING"
+    ],
+    [
+      212,
+      81,
+      0,
+      79,
+      0,
+      "MODEL"
+    ],
+    [
+      213,
+      81,
+      1,
+      68,
+      1,
+      "VAE"
+    ],
+    [
+      214,
+      81,
+      2,
+      65,
+      0,
+      "CLIP"
+    ],
+    [
+      215,
+      81,
+      2,
+      66,
+      0,
+      "CLIP"
+    ],
+    [
+      216,
+      82,
+      0,
+      79,
+      3,
+      "LATENT"
+    ],
+    [
+      217,
+      82,
+      1,
+      50,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9090909090909091,
+      "offset": [
+        -151.68863128252954,
+        -2414.5404342284464
+      ]
+    },
+    "frontendVersion": "1.27.2",
+    "ue_links": [],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

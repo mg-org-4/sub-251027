@@ -1,0 +1,1644 @@
+{
+  "id": "3641d449-5b37-4e22-99a9-27b06353337b",
+  "revision": 0,
+  "last_node_id": 40,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 5,
+      "type": "TIPOPromptOptimizer",
+      "pos": [
+        -1830,
+        150
+      ],
+      "size": [
+        720,
+        404
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "optimized_prompt",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "name": "candidate_prompts",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "name": "diagnostics",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "TIPOPromptOptimizer"
+      },
+      "widgets_values": [
+        "",
+        8,
+        1400767548,
+        "randomize",
+        true,
+        "balanced",
+        320,
+        "",
+        "balanced colors, clean lineart, consistent shading"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 10,
+      "type": "IllustriousPrompt",
+      "pos": [
+        -120,
+        -950
+      ],
+      "size": [
+        400,
+        828
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROMPT",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "NEGATIVE",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousPrompt"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "",
+        "-",
+        "-",
+        "-",
+        "-",
+        false,
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "leaning against a wall in a alley, glitch hair, iridescent hair, holding gun, profile, backlighting,  scenery of a ruin city, patrol team in the background",
+        "Latest (Underscores)",
+        true,
+        false,
+        false,
+        false,
+        "-",
+        "-",
+        false,
+        false,
+        false,
+        "comfy",
+        "none"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 11,
+      "type": "IllustriousCharacters",
+      "pos": [
+        310,
+        -680
+      ],
+      "size": [
+        288.04296875,
+        222
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CHARACTER PROMPT",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousCharacters"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        false,
+        true
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 12,
+      "type": "IllustriousArtists",
+      "pos": [
+        310,
+        -950
+      ],
+      "size": [
+        270,
+        222
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "ARTIST PROMPT",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousArtists"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        false,
+        true
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 14,
+      "type": "IllustriousE621Characters",
+      "pos": [
+        310,
+        -210
+      ],
+      "size": [
+        285.3828125,
+        174
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "E621 CHARACTER TAGS",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousE621Characters"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 15,
+      "type": "IllustriousE621Artists",
+      "pos": [
+        310,
+        -410
+      ],
+      "size": [
+        270,
+        150
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "E621 ARTIST TAGS",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousE621Artists"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 16,
+      "type": "IllustriousHairstyles",
+      "pos": [
+        620,
+        -950
+      ],
+      "size": [
+        270,
+        198
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROMPT",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousHairstyles"
+      },
+      "widgets_values": [
+        "-",
+        "-",
+        "-",
+        "-",
+        true,
+        false
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 17,
+      "type": "IllustriousClothing",
+      "pos": [
+        630,
+        -680
+      ],
+      "size": [
+        270,
+        222
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROMPT",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousClothing"
+      },
+      "widgets_values": [
+        "-",
+        "-",
+        "-",
+        true,
+        false,
+        true,
+        false
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 18,
+      "type": "IllustriousPonyTokens",
+      "pos": [
+        630,
+        -190
+      ],
+      "size": [
+        312.078125,
+        222
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROMPT",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "NEGATIVE",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousPonyTokens"
+      },
+      "widgets_values": [
+        "EVERYTHING",
+        "-",
+        "-",
+        false,
+        false,
+        false,
+        false
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 19,
+      "type": "IllustriousPoses",
+      "pos": [
+        630,
+        -450
+      ],
+      "size": [
+        284.0703125,
+        198
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROMPT",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousPoses"
+      },
+      "widgets_values": [
+        false,
+        1,
+        "-",
+        false,
+        0,
+        false
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 20,
+      "type": "IllustriousScenesPlus",
+      "pos": [
+        -470,
+        -950
+      ],
+      "size": [
+        325.841796875,
+        726
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROMPT",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousScenesPlus"
+      },
+      "widgets_values": [
+        "Outdoor",
+        "medium",
+        true,
+        true,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        "-",
+        "-",
+        "-",
+        "-",
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        8,
+        "balanced",
+        320,
+        0,
+        "",
+        320,
+        0,
+        ""
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 21,
+      "type": "IllustriousKSamplerPro",
+      "pos": [
+        1100,
+        -980
+      ],
+      "size": [
+        286.70703125,
+        522
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "sigmas",
+          "shape": 7,
+          "type": "SIGMAS",
+          "link": null
+        },
+        {
+          "name": "preview_vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "input_latent",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousKSamplerPro"
+      },
+      "widgets_values": [
+        0,
+        "randomize",
+        "Warm",
+        26,
+        5.2,
+        "euler_ancestral",
+        "karras",
+        1,
+        false,
+        4,
+        512,
+        "Auto Detect",
+        true
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 22,
+      "type": "IllustriousKSamplerPresets",
+      "pos": [
+        1430,
+        -970
+      ],
+      "size": [
+        270.734375,
+        330
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "input_latent",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousKSamplerPresets"
+      },
+      "widgets_values": [
+        0,
+        "randomize",
+        "Balanced",
+        "Auto Detect",
+        true,
+        true,
+        true,
+        0,
+        false
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 23,
+      "type": "IllustriousMultiPassSampler",
+      "pos": [
+        1100,
+        -270
+      ],
+      "size": [
+        291.388671875,
+        546
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "sigmas",
+          "shape": 7,
+          "type": "SIGMAS",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "structure_latent",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "final_latent",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousMultiPassSampler"
+      },
+      "widgets_values": [
+        0,
+        "randomize",
+        12,
+        6.5,
+        0.7,
+        "dpm_2",
+        "karras",
+        10,
+        4.2,
+        0.2,
+        "euler",
+        "normal",
+        true,
+        true,
+        false,
+        1,
+        "auto",
+        "disabled"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 24,
+      "type": "IllustriousTriplePassSampler",
+      "pos": [
+        1430,
+        -270
+      ],
+      "size": [
+        322.0859375,
+        838
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "composition_latent",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "structure_latent",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "final_latent",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousTriplePassSampler"
+      },
+      "widgets_values": [
+        0,
+        "randomize",
+        8,
+        7,
+        0.9,
+        "dpm_2",
+        "karras",
+        12,
+        5.5,
+        0.7,
+        "euler",
+        "normal",
+        16,
+        4.5,
+        0.35,
+        "euler",
+        "normal",
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        0,
+        1,
+        2,
+        true,
+        20,
+        "auto",
+        "disabled"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 25,
+      "type": "IllustriousLatentUpscale",
+      "pos": [
+        -180,
+        220
+      ],
+      "size": [
+        291.40625,
+        226
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousLatentUpscale"
+      },
+      "widgets_values": [
+        "bilinear",
+        2,
+        "auto",
+        true,
+        "disabled",
+        0,
+        0,
+        0
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 27,
+      "type": "IllustriousCLIPTextEncoder",
+      "pos": [
+        -1040,
+        -980
+      ],
+      "size": [
+        400,
+        348
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "processed_prompt",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousCLIPTextEncoder"
+      },
+      "widgets_values": [
+        "masterpiece, best quality, 1girl",
+        "auto",
+        true,
+        true,
+        true,
+        true,
+        2,
+        1,
+        1,
+        1,
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 28,
+      "type": "IllustriousNegativeCLIPEncoder",
+      "pos": [
+        -1040,
+        -560
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousNegativeCLIPEncoder"
+      },
+      "widgets_values": [
+        "worst_quality, bad_quality, lowres",
+        "illustrious_optimized",
+        "auto",
+        2,
+        1
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 32,
+      "type": "IllustriousVAEDecode",
+      "pos": [
+        490,
+        200
+      ],
+      "size": [
+        270,
+        318
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "decode_info",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousVAEDecode"
+      },
+      "widgets_values": [
+        "auto",
+        "auto",
+        true,
+        512,
+        64,
+        true,
+        false,
+        true,
+        false,
+        true,
+        "Clamped"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 33,
+      "type": "IllustriousVAEEncode",
+      "pos": [
+        180,
+        200
+      ],
+      "size": [
+        282.728515625,
+        222
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "encode_info",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousVAEEncode"
+      },
+      "widgets_values": [
+        "auto",
+        "auto",
+        true,
+        512,
+        64,
+        true,
+        true
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 34,
+      "type": "IllustriousAttentionCouple",
+      "pos": [
+        -1030,
+        90
+      ],
+      "size": [
+        390,
+        258
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "mask",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "latent_image",
+          "shape": 7,
+          "type": "LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousAttentionCouple"
+      },
+      "widgets_values": [
+        true,
+        true,
+        true,
+        0.5,
+        "",
+        false
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 37,
+      "type": "IllustriousScheduler",
+      "pos": [
+        -1040,
+        -250
+      ],
+      "size": [
+        410,
+        270
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousScheduler"
+      },
+      "widgets_values": [
+        24,
+        "aware",
+        "v1.0",
+        0.5,
+        1,
+        "",
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 38,
+      "type": "IllustriousColorSuite",
+      "pos": [
+        -1840,
+        -540
+      ],
+      "size": [
+        730,
+        626
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "corrected_images",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "cache_used",
+          "type": "BOOLEAN",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousColorSuite"
+      },
+      "widgets_values": [
+        "balanced",
+        0,
+        0,
+        0,
+        true,
+        1,
+        true,
+        true,
+        "auto",
+        "hybrid",
+        false,
+        "auto",
+        1,
+        true,
+        true,
+        true,
+        true
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 39,
+      "type": "IllustriousMasterModel",
+      "pos": [
+        -1850,
+        -1000
+      ],
+      "size": [
+        730,
+        380
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "SEED",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "STEPS",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "CFG SCALE",
+          "type": "FLOAT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousMasterModel"
+      },
+      "widgets_values": [
+        "3D/hunyuan3d-dit-v2-mv.safetensors",
+        -2,
+        "Square | Model Preview (1:1) - 1024x1024",
+        1,
+        0,
+        "randomize",
+        30,
+        7
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 40,
+      "type": "IllustriousEmptyLatentImage",
+      "pos": [
+        -510,
+        220
+      ],
+      "size": [
+        297.435546875,
+        246
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "resolution_info",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousEmptyLatentImage"
+      },
+      "widgets_values": [
+        "Square | Model Preview (1:1) - 1024x1024",
+        1,
+        "auto",
+        "auto",
+        "illustrious_optimized",
+        true,
+        0,
+        "randomize"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    }
+  ],
+  "links": [],
+  "groups": [
+    {
+      "id": 1,
+      "title": "GENERATE",
+      "bounding": [
+        -550,
+        -1080,
+        1550,
+        1150
+      ],
+      "color": "#444",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "SAMPLERS",
+      "bounding": [
+        1050,
+        -1080,
+        760,
+        670
+      ],
+      "color": "#444",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "MULTI-PASS",
+      "bounding": [
+        1060,
+        -380,
+        750,
+        980
+      ],
+      "color": "#444",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "LATENT IMAGES",
+      "bounding": [
+        -540,
+        120,
+        670,
+        380
+      ],
+      "color": "#444",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "VAEs",
+      "bounding": [
+        160,
+        120,
+        630,
+        410
+      ],
+      "color": "#444",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "CLIP ENCODERS",
+      "bounding": [
+        -1070,
+        -1080,
+        460,
+        750
+      ],
+      "color": "#444",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5644739300537783,
+      "offset": [
+        1821.3319101744767,
+        1457.635638541586
+      ]
+    },
+    "frontendVersion": "1.27.2",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

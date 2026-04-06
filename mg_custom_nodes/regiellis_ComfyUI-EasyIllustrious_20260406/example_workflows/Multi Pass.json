@@ -1,0 +1,1005 @@
+{
+  "id": "0f4fc7cc-a0d9-4eea-a1a3-edfe080a260e",
+  "revision": 0,
+  "last_node_id": 74,
+  "last_link_id": 190,
+  "nodes": [
+    {
+      "id": 44,
+      "type": "ShowText|pysssss",
+      "pos": [
+        143.38790893554688,
+        3757.780029296875
+      ],
+      "size": [
+        776.5259399414062,
+        169.22947692871094
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 165
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "9f7b3215e6af317603056a9a1666bf6e83e28835",
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "1 girl solo, (dutch angle:1.15), shallow depth of field, volumetric lighting, bokeh, action pose, calm_expression, wearing ornate shrine_guardian robes trimmed with gold and vermilion, flowing fabric catching sunset light, waist_length black_hair slightly windblown, glowing_eyes with subtle golden aura, standing on ancient shrine steps, lanterns glowing, cherry blossoms drifting, stone fox statues in background, absurdres, rich_environment details, mossy stone textures, anime_style, clear lineart, atmospheric perspective, detailed clouds and horizon, cinematic mood like Kyoto twilight photography, balanced_colors mixing crimson, indigo, and gold, extremely_detailed illustration, 8k, professional finish., clean_lines, saturated_colors, cel_shading, crisp edges, very_detailed, extremely_detailed, ultra_detailed"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 50,
+      "type": "ShowText|pysssss",
+      "pos": [
+        1843.387939453125,
+        3237.780029296875
+      ],
+      "size": [
+        690,
+        220
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 180
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "9f7b3215e6af317603056a9a1666bf6e83e28835",
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "🎨 Illustrious Latent Generation Report\n═════════════════════════════════════════════\nResolution: 1024x1024 (1.0MP)\nLatent Size: 128x128\nAspect Ratio: 1.00:1 (square)\nResolution Tier: 1024\nModel Version: Illustrious v2.0\nNoise Pattern: illustrious_optimized\n\n📊 Tier Characteristics:\n  Standard SDXL resolution, reliable anime/illustration results\n  Optimal for: Illustrious v0.1, Illustrious v1.0\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 55,
+      "type": "ShowText|pysssss",
+      "pos": [
+        1843.387939453125,
+        2987.780029296875
+      ],
+      "size": [
+        695.014404296875,
+        188.6537628173828
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 163
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "9f7b3215e6af317603056a9a1666bf6e83e28835",
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "🎨 Illustrious CLIP Encoder Report\n════════════════════════════════════════\nVersion: v2.0\nOriginal length: 36 tags\nProcessed length: 40 tags\n\n🔧 Optimizations Applied:\n  1. Added 'high_resolution' for v2.0 capability\n  2. Reordered tags for optimal Illustrious hierarchy\n  3. Order: Quality → Illustrious Specialty → Rating → Character → Composition → Background → Lighting → Style\n\n📝 Final Prompt:\n(absurdres:1.00), absurdres, extremely_detailed illustration, (high_resolution:1.00), high_resolution, 1 girl solo, (anime_style:1.00), anime_style, (dutch angle:1.15), shallow depth of field, volumetric lighting, bokeh, action pose, calm_expression, wearing ornate shrine_guardian robes trimmed with gold and vermilion, flowing fabric catching sunset light, waist_length black_hair slightly windblown, glowing_eyes with subtle golden aura, standing on ancient shrine steps, lanterns glowing, cherry blossoms drifting, stone fox statues in background, rich_environment details, mossy stone textures, clear lineart, atmospheric perspective, detailed clouds and horizon, cinematic mood like Kyoto twilight photography, balanced_colors mixing crimson, indigo, and gold, 8k, professional finish., clean_lines, saturated_colors, cel_shading, crisp edges, very_detailed, extremely_detailed, ultra_detailed\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 56,
+      "type": "PreviewImage",
+      "pos": [
+        143.38790893554688,
+        2457.780029296875
+      ],
+      "size": [
+        783.85888671875,
+        1247.2974853515625
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 170
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.27",
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": [],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 59,
+      "type": "ShowText|pysssss",
+      "pos": [
+        3160,
+        3390
+      ],
+      "size": [
+        695.014404296875,
+        188.6537628173828
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 171
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "9f7b3215e6af317603056a9a1666bf6e83e28835",
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        "🎨 Illustrious VAE Decode Report\n════════════════════════════════════════\nVersion: v2.0\nMethod: standard\nMemory Strategy: normal\nDetail Preservation: very_high\nColor Correction: Not needed\nHighlight Roll-Off: Clamped\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 64,
+      "type": "IllustriousKSamplerPresets",
+      "pos": [
+        2690,
+        2280
+      ],
+      "size": [
+        420,
+        550
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 181
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 162
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 159
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 179
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            189
+          ]
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            185
+          ]
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            186
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            187
+          ]
+        },
+        {
+          "name": "input_latent",
+          "type": "LATENT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousKSamplerPresets"
+      },
+      "widgets_values": [
+        535703820850041,
+        "randomize",
+        "High Quality",
+        "Illustrious v2.0",
+        true,
+        true,
+        true,
+        0,
+        false
+      ]
+    },
+    {
+      "id": 65,
+      "type": "IllustriousNegativeCLIPEncoder",
+      "pos": [
+        2250,
+        2290
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 183
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 167
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            159
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousNegativeCLIPEncoder"
+      },
+      "widgets_values": [
+        "worst_quality, bad_quality, lowres",
+        "illustrious_optimized",
+        "v2.0",
+        2,
+        1
+      ]
+    },
+    {
+      "id": 66,
+      "type": "IllustriousCLIPTextEncoder",
+      "pos": [
+        1830,
+        2290
+      ],
+      "size": [
+        400,
+        348
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 184
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 166
+        }
+      ],
+      "outputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "links": [
+            162
+          ]
+        },
+        {
+          "name": "processed_prompt",
+          "type": "STRING",
+          "links": [
+            163
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousCLIPTextEncoder"
+      },
+      "widgets_values": [
+        "masterpiece, best quality, 1girl",
+        "v2.0",
+        true,
+        true,
+        true,
+        true,
+        2,
+        1,
+        1,
+        1,
+        true
+      ]
+    },
+    {
+      "id": 67,
+      "type": "IllustriousPrompt",
+      "pos": [
+        980,
+        2460
+      ],
+      "size": [
+        800,
+        860
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROMPT",
+          "type": "STRING",
+          "links": [
+            165,
+            166
+          ]
+        },
+        {
+          "name": "NEGATIVE",
+          "type": "STRING",
+          "links": [
+            167
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousPrompt"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "",
+        "-",
+        "-",
+        "1 girl solo",
+        "-",
+        false,
+        "-",
+        "-",
+        "-",
+        "-",
+        "Shallow DOF",
+        "Dutch Angle",
+        "Volumetric",
+        "Bokeh",
+        "Action",
+        "calm_expression, wearing ornate shrine_guardian robes trimmed with gold and vermilion, flowing fabric catching sunset light, waist_length black_hair slightly windblown, glowing_eyes with subtle golden aura, standing on ancient shrine steps, lanterns glowing, cherry blossoms drifting, stone fox statues in background, absurdres, rich_environment details, mossy stone textures, anime_style, clear lineart, atmospheric perspective, detailed clouds and horizon, cinematic mood like Kyoto twilight photography, balanced_colors mixing crimson, indigo, and gold, extremely_detailed illustration, 8k, professional finish.",
+        "Boost",
+        true,
+        false,
+        false,
+        false,
+        "Anime Clean",
+        "Ultra Detailed",
+        false,
+        true,
+        false,
+        "comfy",
+        "none"
+      ]
+    },
+    {
+      "id": 68,
+      "type": "IllustriousVAEDecode",
+      "pos": [
+        2690,
+        2900
+      ],
+      "size": [
+        440,
+        550
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 190
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 182
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            170
+          ]
+        },
+        {
+          "name": "decode_info",
+          "type": "STRING",
+          "links": [
+            171
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousVAEDecode"
+      },
+      "widgets_values": [
+        "v2.0",
+        "auto",
+        true,
+        512,
+        64,
+        true,
+        false,
+        true,
+        false,
+        true,
+        "Clamped"
+      ]
+    },
+    {
+      "id": 71,
+      "type": "IllustriousScenesPlus",
+      "pos": [
+        -440,
+        2460
+      ],
+      "size": [
+        560,
+        760
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prefix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "suffix",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROMPT",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousScenesPlus"
+      },
+      "widgets_values": [
+        "Outdoor",
+        "medium",
+        true,
+        true,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        true,
+        true,
+        true,
+        true,
+        true,
+        "77",
+        true,
+        8,
+        "balanced",
+        320,
+        0,
+        ""
+      ]
+    },
+    {
+      "id": 72,
+      "type": "IllustriousEmptyLatentImage",
+      "pos": [
+        1830,
+        2690
+      ],
+      "size": [
+        400,
+        246
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            179
+          ]
+        },
+        {
+          "name": "resolution_info",
+          "type": "STRING",
+          "links": [
+            180
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousEmptyLatentImage"
+      },
+      "widgets_values": [
+        "Square | Model Preview (1:1) - 1024x1024",
+        1,
+        "Illustrious v2.0",
+        "quality",
+        "illustrious_optimized",
+        true,
+        879151450540217,
+        "randomize"
+      ]
+    },
+    {
+      "id": 73,
+      "type": "IllustriousMasterModel",
+      "pos": [
+        990,
+        2000
+      ],
+      "size": [
+        780,
+        400
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            181
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            182
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            183,
+            184
+          ]
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "SEED",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "STEPS",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "CFG SCALE",
+          "type": "FLOAT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousMasterModel"
+      },
+      "widgets_values": [
+        "Illustrious/novaAnimeXL_ilV110.safetensors",
+        -2,
+        "Portrait | Character Sheet (2:3) - 832x1248",
+        1,
+        31520,
+        "randomize",
+        30,
+        7
+      ]
+    },
+    {
+      "id": 74,
+      "type": "IllustriousMultiPassSampler",
+      "pos": [
+        3150,
+        2300
+      ],
+      "size": [
+        450,
+        770
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 185
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 186
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 187
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 189
+        },
+        {
+          "name": "sigmas",
+          "shape": 7,
+          "type": "SIGMAS",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "structure_latent",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "final_latent",
+          "type": "LATENT",
+          "links": [
+            190
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "regiellis/ComfyUI-EasyIllustrious",
+        "ver": "unknown",
+        "Node name for S&R": "IllustriousMultiPassSampler"
+      },
+      "widgets_values": [
+        295490615009462,
+        "randomize",
+        12,
+        6.5,
+        0.7,
+        "euler_ancestral",
+        "simple",
+        10,
+        4.2,
+        0.2,
+        "dpm_2_ancestral",
+        "normal",
+        true,
+        true,
+        false,
+        1,
+        "Illustrious v2.0",
+        "disabled"
+      ]
+    }
+  ],
+  "links": [
+    [
+      159,
+      65,
+      0,
+      64,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      162,
+      66,
+      0,
+      64,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      163,
+      66,
+      1,
+      55,
+      0,
+      "STRING"
+    ],
+    [
+      165,
+      67,
+      0,
+      44,
+      0,
+      "STRING"
+    ],
+    [
+      166,
+      67,
+      0,
+      66,
+      1,
+      "STRING"
+    ],
+    [
+      167,
+      67,
+      1,
+      65,
+      1,
+      "STRING"
+    ],
+    [
+      170,
+      68,
+      0,
+      56,
+      0,
+      "IMAGE"
+    ],
+    [
+      171,
+      68,
+      1,
+      59,
+      0,
+      "STRING"
+    ],
+    [
+      179,
+      72,
+      0,
+      64,
+      3,
+      "LATENT"
+    ],
+    [
+      180,
+      72,
+      1,
+      50,
+      0,
+      "STRING"
+    ],
+    [
+      181,
+      73,
+      0,
+      64,
+      0,
+      "MODEL"
+    ],
+    [
+      182,
+      73,
+      1,
+      68,
+      1,
+      "VAE"
+    ],
+    [
+      183,
+      73,
+      2,
+      65,
+      0,
+      "CLIP"
+    ],
+    [
+      184,
+      73,
+      2,
+      66,
+      0,
+      "CLIP"
+    ],
+    [
+      185,
+      64,
+      1,
+      74,
+      0,
+      "MODEL"
+    ],
+    [
+      186,
+      64,
+      2,
+      74,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      187,
+      64,
+      3,
+      74,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      189,
+      64,
+      0,
+      74,
+      3,
+      "LATENT"
+    ],
+    [
+      190,
+      74,
+      1,
+      68,
+      0,
+      "LATENT"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5644739300537776,
+      "offset": [
+        115.33443367655845,
+        -1844.1678672173896
+      ]
+    },
+    "frontendVersion": "1.27.2",
+    "ue_links": [],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

@@ -13,20 +13,20 @@ A complete prompt management solution featuring three core capabilities:
 ___
 
 <div align="center">
-  <figcaption>Simple Prompt Generator Usage</figcaption>
-  <img src="docs/prompt_manager.png" alt="Prompt Manager">
-</div>
-<div align="center">
-  <figcaption>Advanced Prompt Generator Usage</figcaption>
-  <img src="docs/prompt_generator_advanced.png" alt="Prompt Manager">
-</div>
-<div align="center">
   <figcaption>Prompt Manager Advanced, with Lora and trigger word support</figcaption>
   <img src="docs/prompt_manager_advanced.png" alt="Prompt Manager">
 </div>
 <div align="center">
   <figcaption>Prompt Extractor connected to Manager Advanced, so workflow can be saved with Loras</figcaption>
   <img src="docs/prompt_extractor.png" alt="Prompt Manager">
+</div>
+<div align="center">
+  <figcaption>Advanced Prompt Generator Usage</figcaption>
+  <img src="docs/prompt_generator_advanced.png" alt="Prompt Manager">
+</div>
+<div align="center">
+  <figcaption>Simple Prompt Generator Usage</figcaption>
+  <img src="docs/prompt_manager.png" alt="Prompt Manager">
 </div>
 
 ### Key features:
@@ -242,6 +242,15 @@ Preference settings can be found in ComfyUI Settings → Prompt Manager
 
 
 ## Changelog
+
+### version 1.21.2
+- **Improved Thumbnail Extraction**
+  - prompt extractor: enhance video thumbnail extraction and error handling for unsupported formats
+
+- **Improve llama-server**
+  - Increase server startup timeout from 30s to 120s for large models
+  - Detect early server crashes and show stderr output to user
+  - Fix _get_model_keywords docstring to reflect version preservation (qwen3.5)
 
 ### version 1.21.1
 - **Bug Fix** - Fixed issues caused by restructure

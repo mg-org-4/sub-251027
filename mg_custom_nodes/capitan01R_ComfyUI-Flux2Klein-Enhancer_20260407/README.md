@@ -65,16 +65,6 @@ This means:
 
 ## Nodes
 
-### Core Enhancement Nodes
-
-<a href="examples/node_fixed.png">
-  <img src="examples/node_fixed.png" alt="FLUX.2 Klein Enhancer" width="900">
-</a>
-
-<a href="examples/updated_sample.png">
-  <img src="examples/updated_sample.png" alt="FLUX.2 Klein Enhancer" width="900">
-</a>
-
 ### FLUX.2 Klein Enhancer
 
 General-purpose text conditioning enhancement for both text-to-image and image editing workflows.
@@ -112,100 +102,43 @@ Regional control over prompt conditioning. Divides active tokens into front/mid/
 
 ---
 
-## NEW: Reference Latent Control
-
-<a href="examples/new_wf.png">
-  <img src="examples/new_wf.png" alt="FLUX.2 Klein ref" width="500">
-</a>
-
-<a href="examples/new_nodes.png">
-  <img src="examples/new_nodes.png" alt="FLUX.2 Klein ref" width="500">
-</a>
-
-
-
-### The Discovery
-
-Through forward-pass hook tracing, I discovered that **reference latents are completely separate from text conditioning**. The reference latent `[1, 128, H, W]` is:
-
-1. Stored in `conditioning[0][1]['reference_latents']` metadata
-2. Patchified into `[1, num_patches, 128]` 
-3. Concatenated with the noisy latent before `img_in` projection
-4. Processed through the image stream independently of text
-
-This means we can control reference influence directly without touching text conditioning.
-
 ### FLUX.2 Klein Ref Latent Controller
 
-Direct manipulation of the reference latent tensor before it enters the model.
+Controls how strongly a specific reference image influences the generation. Requires a `MODEL` input and returns an updated `MODEL`. Chain multiple nodes to control each reference independently.
 
 #### Parameters
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
-| `strength` | 1.0 | 0.0 to 5.0 | Scale reference latent. **0 = ignore reference (like txt2img), 1 = normal, >1 = stronger structure lock** |
-| `blend_with_noise` | 0.0 | 0.0 to 1.0 | Blend reference with noise. 0 = pure reference, 1 = pure noise |
-| `channel_mask_start` | 0 | 0 to 127 | Start channel for selective modification |
-| `channel_mask_end` | 128 | 1 to 128 | End channel for selective modification |
-| `spatial_fade` | none | none/center_out/edges_out/top_down/left_right | Apply spatial gradient to reference strength |
-| `spatial_fade_strength` | 0.5 | 0.0 to 1.0 | Intensity of spatial fade |
-| `debug` | False | True/False | Print modification stats |
-
-#### Quick Test Settings
-
-| Test | strength | Expected Result |
-|------|----------|-----------------|
-| Baseline | 1.0 | Normal behavior |
-| Kill reference | 0.0 | Should look like txt2img |
-| Boost reference | 2.0 | Stronger structure preservation |
+| `strength` | 1.0 | 0.0 to 1000.0 | Reference attention strength. 0 = reference ignored, 1 = normal, >1 = stronger structure. |
+| `reference_index` | 0 | 0 to 7 | Which reference image to control (0 = first). |
+| `spatial_fade` | none | none/center_out/edges_out/top_down/left_right | Per-token spatial gradient applied to the strength. |
+| `spatial_fade_strength` | 0.5 | 0.0 to 1.0 | Intensity of the spatial fade. |
+| `debug` | False | True/False | Prints block index, token range, and strength to console. |
 
 ### FLUX.2 Klein Text/Ref Balance
 
-Simple single-slider control for balancing text prompt vs reference structure.
+Single slider to balance text conditioning vs. all reference images. Requires a `MODEL` input and returns an updated `MODEL`.
 
 #### Parameters
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
-| `balance` | 0.5 | 0.0 to 1.0 | **0 = reference only (ignore prompt), 0.5 = balanced, 1 = text only (ignore reference)** |
-| `debug` | False | True/False | Print scaling factors |
+| `balance` | 0.005 | 0.000 to 1.000 | 0 = reference only, 0.5 = balanced, 1 = text only. |
+| `debug` | False | True/False | Prints text and ref scale factors per block to console. |
 
-<a href="examples/Figure_003.png">
-  <img src="examples/Figure_003.png" alt="FLUX.2 Klein ref" width="1000">
-</a>
+### FLUX.2 Klein Ref Latent Weight
 
----
+Minimal per-reference k/v scaler. Takes and returns `MODEL` only. Chain one node per reference for independent per-reference control.
 
-## Front/Mid/End Separation Examples
+#### Parameters
 
-<a href="examples/front.png">
-  <img src="examples/front.png" alt="FLUX.2 Detail Controller" width="500">
-</a>
-<a href="examples/mid.png">
-  <img src="examples/mid.png" alt="FLUX.2 Detail Controller" width="500">
-</a>
-<a href="examples/end.png">
-  <img src="examples/end.png" alt="FLUX.2 Detail Controller" width="500">
-</a>
+| Parameter | Default | Range | Description |
+|-----------|---------|-------|-------------|
+| `reference_index` | 0 | 0 to 7 | Which reference image to weight (0 = first). |
+| `weight` | 1.0 | 0.0 to 5.0 | 1.0 = unchanged, 0.0 = invisible, >1.0 = stronger influence. |
 
-**Prompt:** turn only the ground into a mirror surface reflecting the sky, keep the full dog and its body unchanged and add the dog's reflection below
 
----
-
-## Sectioned Encoder Node
-
-<a href="examples/new_node.png">
-  <img src="examples/new_node.png" alt="FLUX.2 Detail Controller" width="500">
-</a>
-<a href="examples/eg1.png">
-  <img src="examples/eg1.png" alt="FLUX.2 Detail Controller" width="500">
-</a>
-<a href="examples/eg2.png">
-  <img src="examples/eg2.png" alt="FLUX.2 Detail Controller" width="500">
-</a>
-<a href="examples/eg3.png">
-  <img src="examples/eg3.png" alt="FLUX.2 Detail Controller" width="500">
-</a>
 
 ---
 
@@ -237,15 +170,6 @@ Same as linear, just a different name.
 - **1.40-1.50**: Tighter control when needed, very prompt-dependent
 - **0.0-1.0**: Standard range from full enhancement to balanced preservation
 
-<a href="examples/updated_01_26.png">
-  <img src="examples/updated_01_26.png" alt="Preservation_01" width="1280">
-</a>
-<a href="examples/added_preservation.png">
-  <img src="examples/added_preservation.png" alt="Preservation_02" width="1280">
-</a>
-<a href="examples/Figure_01.png">
-  <img src="examples/Figure_01.png" alt="Preservation" width="1280">
-</a>
 
 ---
 
@@ -284,13 +208,15 @@ active = active * (1.0 - normalize_strength) + normalized * normalize_strength
 
 ### Reference Latent Control
 
-The reference latent is stored in metadata and processed separately from text:
+Strength is applied to `k` and `v` inside every attention block via `attn1_patch`, after all normalisation has completed:
+
 ```python
-ref_latents = meta.get("reference_latents", None)  # [1, 128, H, W]
-ref_latents[0] = ref_latents[0] * strength  # Direct scaling
+# Token layout: [ txt_tokens | main_img_tokens | ref_0_tokens | ... | ref_N_tokens ]
+k[:, :, seq_start:seq_end, :] *= strength
+v[:, :, seq_start:seq_end, :] *= strength
 ```
 
-This modified tensor is then patchified and concatenated with the noisy latent, entering the img_stream with adjusted magnitude.
+`reference_image_num_tokens` from `extra_options` gives the exact token count per reference, allowing precise per-reference indexing without affecting other tokens.
 
 ### Active Region Detection
 Auto-detected from attention mask:
@@ -327,21 +253,9 @@ edit_weight:     0.70     0.85       1.00     1.25    1.50
 ref_strength:    1.50     1.20       1.00     0.70    0.30
 ```
 
-### Reference Latent Control (NEW)
-
-```
-              LOCK     STRONG    NORMAL    LOOSE    IGNORE
-              ----     ------    ------    -----    ------
-ref_strength: 3.00      2.00      1.00     0.50      0.00
-```
-
 ---
 
 ## BETA: Mask-Guided Reference Latent Controller
-
-<a href="examples/full.png">
-  <img src="examples/full.png" alt="FLUX.2 Klein Mask Ref Controller" width="900">
-</a>
 
 > Experimental — results are promising but behavior may vary depending on prompt and image complexity.
 
@@ -367,31 +281,6 @@ Not inpainting — works entirely at the conditioning level through the referenc
 - `strength` also controls boundary bleed — 1.0 is a tight boundary, lower values spread influence into neighboring regions
 - Useful for targeting a specific subject within a scene while leaving the rest open to the prompt
 
-
-
-
-## Visual Results: Vanilla vs. With Flux2Klein-Enhancer
-
-Exact same workflow, seed and prompt - only difference is using the node or not.
-
-### Source Photo
-[![Source](examples/source_02.jpg)](examples/source_02.jpg)
-
-### Comparison 1
-**Prompt:** turn only the ground into a mirror surface reflecting the sky, keep the full dog and its body unchanged and add the dog's reflection below
-
-Vanilla Flux.2 Klein          |  With Enhancer Node
-:-----------------------------:|:-----------------------------:
-[![Vanilla](examples/vanilla_01.png)](examples/vanilla_01.png) | [![With Node](examples/with_node_01.png)](examples/with_node_01.png)
-
-### Comparison 2
-**Prompt:** replace the grass with shallow ocean water and add realistic water reflections of the dog, keep the sunny lighting
-
-Vanilla                       |  With Enhancer Node
-:-----------------------------:|:-----------------------------:
-[![Vanilla](examples/vanilla_02.png)](examples/vanilla_02.png) | [![With Node](examples/with_node_02.png)](examples/with_node_02.png)
-
----
 
 ## Technical Details
 

@@ -18,7 +18,7 @@ Works with lora*, torch compile (needed to get full speedup).
 - **Performance:** ~1.15x slower due to dynamic calculations
 - **Quality:** Possibly slightly higher quality
 
-Pre-quantized checkpoints are recommended for most architectures.
+Pre-quantized checkpoints were recommended for most architectures, but on-the-fly quantization with QuaRot can be better in a few cases.
 
 **Shoutout to [vistralis](https://huggingface.co/vistralis) for these:** 
 Make sure to update the node to use them as int8 row-wise was added.
@@ -35,9 +35,11 @@ Make sure to update the node to use them as int8 row-wise was added.
 | Model | Link |
 |-------|------|
 | Chroma1-HD | [Download](https://huggingface.co/bertbobson/Chroma1-HD-INT8Tensorwise) |
-| Z-Image-Base | [Download](https://huggingface.co/bertbobson/Z-Image-Base-INT8-QUIP) |
+| Z-Image-Base* | ~~[Download](https://huggingface.co/bertbobson/Z-Image-Base-INT8-QUIP)~~ 
 | Z-Image-Turbo | [Download](https://huggingface.co/bertbobson/Z-Image-Turbo-INT8-Tensorwise) |
 | Anima | [Download](https://huggingface.co/bertbobson/Anima-INT8-QUIP) |
+
+*Z-Image Base weights have been Deprecated in favor of Quarot OTF, which is higher quality.
 
 
 # Metrics:
@@ -78,6 +80,8 @@ https://github.com/Nerogar/OneTrainer/pull/1034
 
 If you have a 30-Series GPU, OneTrainer is also the fastest current lora trainer thanks to this. Please go check them out!!
 
+## newgrit1004 for the QuaRot code I basically copied
+https://github.com/newgrit1004/ComfyUI-ZImage-Triton
 
 ## silveroxides for providing a base to hack the INT8 conversion code onto.
 https://github.com/silveroxides/convert_to_quant

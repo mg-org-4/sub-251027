@@ -101,6 +101,46 @@ class ForbiddenVisionFaceProcessorIntegrated:
         self.upscaler_model = None
         self.upscaler_model_name = None
     
+    def encode_wildcard_prompt(self, segment_text, base_conditioning, base_text, clip, exclusions, replace_mode, processor):
+        """
+        Encode a single wildcard prompt segment into conditioning.
+        
+        Args:
+            segment_text: The per-face prompt segment (from wildcard parser)
+            base_conditioning: The original conditioning to fall back on
+            base_text: The original prompt text extracted from conditioning metadata
+            clip: CLIP model for encoding
+            exclusions: Exclusion string
+            replace_mode: Whether to replace or prepend
+            processor: ExclusionProcessor instance
+        
+        Returns:
+            New conditioning list
+        """
+        if not clip:
+            return base_conditioning
+        
+        processed_base = processor.process(base_text, exclusions).strip() if base_text else ""
+        face_prompt = segment_text.strip()
+        
+        if not face_prompt and not processed_base:
+            return base_conditioning
+        
+        if replace_mode and face_prompt:
+            final_text = face_prompt
+        else:
+            final_text = ", ".join(filter(None, [face_prompt, processed_base]))
+        
+        if not final_text.strip():
+            return base_conditioning
+        
+        tokens = clip.tokenize(final_text)
+        cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
+        
+        new_cond_dict = base_conditioning[0][1].copy() if base_conditioning and len(base_conditioning) > 0 else {}
+        new_cond_dict["pooled_output"] = pooled
+        
+        return [[cond, new_cond_dict]]
     def differential_diffusion_function(self, sigma, denoise_mask, extra_options):
         try:
             model = extra_options["model"]
@@ -590,13 +630,20 @@ class ForbiddenVisionFaceProcessorIntegrated:
             elif not clip and (exclusions or face_positive_prompt or face_negative_prompt):
                 print("[Face Processor] Warning: Face prompts or exclusions were provided, but no CLIP model was connected. These options will be ignored.")
 
+            # --- Face Detection ---
             face_masks = []
+            
+            # Override face_selection if wildcard syntax is present
+            detection_face_selection = face_selection
+            if WildcardPromptParser().parse(face_positive_prompt).is_active() or \
+               WildcardPromptParser().parse(face_negative_prompt).is_active():
+                detection_face_selection = 0
             
             np_masks = self.face_detector.detect_faces(
                 image_tensor=processing_image, 
                 enable_segmentation=enable_segmentation,
                 detection_confidence=detection_confidence, 
-                face_selection=face_selection
+                face_selection=detection_face_selection
             )
             if np_masks:
                 face_masks = [torch.from_numpy(m).unsqueeze(0) for m in np_masks]
@@ -604,10 +651,79 @@ class ForbiddenVisionFaceProcessorIntegrated:
             if not face_masks:
                 return self.create_safe_fallback_outputs(input_image, processing_resolution)
             
+            # --- Wildcard Prompt Parsing ---
+            pos_parser = WildcardPromptParser().parse(face_positive_prompt)
+            neg_parser = WildcardPromptParser().parse(face_negative_prompt)
+            wildcard_active = pos_parser.is_active() or neg_parser.is_active()
+            
+            # Use the positive parser for ordering/sorting (it's the primary prompt)
+            active_parser = pos_parser if pos_parser.is_active() else neg_parser
+            
+            if wildcard_active:
+                # Sort face masks according to ordering tag
+                face_masks, sorted_indices = active_parser.sort_face_masks(face_masks, processing_image)
+                
+                if face_selection != 0:
+                    print(f"[Face Processor] Wildcard syntax detected — face_selection ({face_selection}) is overridden. Processing all faces with per-face prompts.")
+            else:
+                sorted_indices = list(range(len(face_masks)))
+            
+            # --- Extract base prompt texts for per-face re-encoding ---
+            def extract_original_text(conditioning):
+                try:
+                    if conditioning and len(conditioning) > 0 and len(conditioning[0]) > 1:
+                        metadata = conditioning[0][1].get("forbidden_vision_metadata")
+                        if metadata and isinstance(metadata, dict):
+                            return metadata.get('original_text', '')
+                except Exception:
+                    pass
+                return ""
+            
+            pos_base_text = extract_original_text(positive)
+            neg_base_text = extract_original_text(negative)
+            processor = ExclusionProcessor()
+            
+            # --- Per-Face Processing Loop ---
             all_processed_faces, all_restore_info = [], []
             
             for i, face_mask in enumerate(face_masks):
                 check_for_interruption()
+                
+                # --- Wildcard: check for SKIP ---
+                if wildcard_active and active_parser.should_skip(i):
+                    print(f"[Face Processor] Face {i+1}: [SKIP] — skipping this face.")
+                    continue
+                
+                # --- Wildcard: per-face prompt encoding ---
+                if wildcard_active and clip:
+                    pos_segment = pos_parser.get_segment(i) if pos_parser.is_active() else ""
+                    neg_segment = neg_parser.get_segment(i) if neg_parser.is_active() else ""
+                    
+                    # Skip if this specific segment is a SKIP tag
+                    if "[SKIP]" in pos_segment.upper() or "[SKIP]" in neg_segment.upper():
+                        print(f"[Face Processor] Face {i+1}: [SKIP] — skipping this face.")
+                        continue
+                    
+                    # Clean SKIP/SEP artifacts from segment text
+                    pos_segment_clean = re.sub(r'\[(SKIP|SEP)\]', '', pos_segment, flags=re.IGNORECASE).strip()
+                    neg_segment_clean = re.sub(r'\[(SKIP|SEP)\]', '', neg_segment, flags=re.IGNORECASE).strip()
+                    
+                    current_positive = self.encode_wildcard_prompt(
+                        pos_segment_clean, positive, pos_base_text, clip,
+                        exclusions, replace_positive_prompt, processor
+                    )
+                    current_negative = self.encode_wildcard_prompt(
+                        neg_segment_clean, negative, neg_base_text, clip,
+                        exclusions, replace_negative_prompt, processor
+                    )
+                    
+                    if pos_segment_clean:
+                        print(f"[Face Processor] Face {i+1} positive: \"{pos_segment_clean}\"")
+                    if neg_segment_clean:
+                        print(f"[Face Processor] Face {i+1} negative: \"{neg_segment_clean}\"")
+                else:
+                    current_positive = final_positive_for_face
+                    current_negative = final_negative_for_face
                 
                 target_resolution = (processing_resolution, processing_resolution)
 
@@ -640,7 +756,7 @@ class ForbiddenVisionFaceProcessorIntegrated:
                     restore_info['manual_rotation'] = "None"
                 
                 processed_latent = self.run_inpaint_sampling(
-                    cropped_face, sampler_mask_batch, model, vae, final_positive_for_face, final_negative_for_face,
+                    cropped_face, sampler_mask_batch, model, vae, current_positive, current_negative,
                     steps, cfg_scale, sampler, scheduler, denoise_strength, seed + i,
                     sampling_mask_blur_size, sampling_mask_blur_strength,
                     enable_differential_diffusion
@@ -662,7 +778,7 @@ class ForbiddenVisionFaceProcessorIntegrated:
                     refinement_strength = 0.05
                     refinement_latent = self.run_inpaint_sampling(
                         processed_face_batch, sampler_mask_batch, 
-                        model, vae, final_positive_for_face, final_negative_for_face,
+                        model, vae, current_positive, current_negative,
                         steps=2, cfg_scale=1.0, 
                         sampler=sampler, scheduler=scheduler,
                         denoise_strength=refinement_strength, seed=seed + i + 1,
@@ -1181,3 +1297,104 @@ class ForbiddenVisionFaceProcessorIntegrated:
         except Exception as e:
             print(f"Error cleaning interpolation edges: {e}. Returning original image.")
             return image_np_uint8
+        
+class WildcardPromptParser:
+    """Parses Impact Pack-style wildcard syntax for per-face prompting."""
+    
+    ORDERING_TAGS = ["[ASC]", "[DSC]", "[ASC-SIZE]", "[DSC-SIZE]"]
+    
+    def __init__(self):
+        self.ordering = None
+        self.segments = []
+        self.has_wildcard_syntax = False
+    
+    def parse(self, prompt_text):
+        """Parse a prompt string for wildcard syntax. Returns self for chaining."""
+        self.ordering = None
+        self.segments = []
+        self.has_wildcard_syntax = False
+        
+        if not prompt_text or not prompt_text.strip():
+            return self
+        
+        text = prompt_text.strip()
+        
+        # Check for ordering tag at the start
+        for tag in self.ORDERING_TAGS:
+            if text.upper().startswith(tag):
+                self.ordering = tag.strip("[]")
+                text = text[len(tag):].strip()
+                self.has_wildcard_syntax = True
+                break
+        
+        # Check for [SEP] — this is the main trigger
+        if "[SEP]" in text.upper():
+            self.has_wildcard_syntax = True
+            # Split on [SEP] case-insensitive
+            parts = re.split(r'\[SEP\]', text, flags=re.IGNORECASE)
+            self.segments = [p.strip() for p in parts]
+        else:
+            self.segments = [text]
+        
+        # Default ordering if wildcard syntax is active but none specified
+        if self.has_wildcard_syntax and self.ordering is None:
+            self.ordering = "ASC"
+        
+        return self
+    
+    def is_active(self):
+        """Returns True if wildcard syntax was detected."""
+        return self.has_wildcard_syntax
+    
+    def get_segment(self, index):
+        """Get prompt segment for face at index. Returns last segment if index exceeds count."""
+        if not self.segments:
+            return ""
+        if index < len(self.segments):
+            return self.segments[index]
+        # Repeat last non-SKIP segment for faces beyond the prompt count
+        return self.segments[-1]
+    
+    def should_skip(self, index):
+        """Check if face at this index should be skipped."""
+        segment = self.get_segment(index)
+        return "[SKIP]" in segment.upper()
+    
+    def sort_face_masks(self, face_masks, image_tensor):
+        """
+        Sort face masks according to the ordering tag.
+        Returns sorted masks and the index mapping (for seed consistency).
+        """
+        if not self.ordering or len(face_masks) <= 1:
+            return face_masks, list(range(len(face_masks)))
+        
+        # Calculate bbox for each mask: (x_min, y_min, x_max, y_max, area, original_index)
+        mask_info = []
+        for i, mask in enumerate(face_masks):
+            mask_np = mask.squeeze().cpu().numpy()
+            ys, xs = np.where(mask_np > 0.5)
+            if len(xs) == 0 or len(ys) == 0:
+                mask_info.append((0, 0, 0, 0, 0, i))
+                continue
+            x_min, y_min = int(xs.min()), int(ys.min())
+            x_max, y_max = int(xs.max()), int(ys.max())
+            area = (x_max - x_min) * (y_max - y_min)
+            mask_info.append((x_min, y_min, x_max, y_max, area, i))
+        
+        if self.ordering == "ASC":
+            # Ascending by x, then y
+            mask_info.sort(key=lambda m: (m[0], m[1]))
+        elif self.ordering == "DSC":
+            # Descending by x, then y
+            mask_info.sort(key=lambda m: (-m[0], -m[1]))
+        elif self.ordering == "ASC-SIZE":
+            # Ascending by area
+            mask_info.sort(key=lambda m: m[4])
+        elif self.ordering == "DSC-SIZE":
+            # Descending by area
+            mask_info.sort(key=lambda m: -m[4])
+        
+        sorted_indices = [m[5] for m in mask_info]
+        sorted_masks = [face_masks[idx] for idx in sorted_indices]
+        
+        return sorted_masks, sorted_indices

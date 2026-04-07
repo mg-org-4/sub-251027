@@ -11,7 +11,7 @@ class SamplerSchedulerSettings:
             }
         }
 
-    RETURN_TYPES = ("*", "*",)
+    RETURN_TYPES = (comfy.samplers.KSampler.SAMPLERS, comfy.samplers.KSampler.SCHEDULERS,)
     RETURN_NAMES = ("sampler_name", "scheduler",)
     FUNCTION = "get_settings"
     CATEGORY = "Forbidden Vision"

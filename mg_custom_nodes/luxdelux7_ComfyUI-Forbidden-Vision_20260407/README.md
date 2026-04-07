@@ -3,14 +3,11 @@
   
   <h1>ComfyUI Forbidden Vision</h1>
   <p>
-    Custom face detection and segmentation for ComfyUI with automatic face fixing and
-    <strong>learned, model-driven color and tone adjustment</strong>.
-    Works with anime and realistic content, SFW and NSFW.
-</p>
-<p>⭐ <strong>If this tool helps your workflow, consider giving the repo a star!</strong></p>
-    <a href="https://ko-fi.com/luxdelux" target="_blank">
-  <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi">
-</a>
+    A modern alternative to ADetailer and Impact Pack's FaceDetailer for ComfyUI using custom trained models.
+  </p>
+  <p>With additional nodes to streamline any workflow. Works with anime and realistic content, SFW and NSFW.</p>
+  <p>⭐ <strong>If this tool helps your workflow, consider giving the repo a star!</strong></p>
+
 </div>
 
 <br>
@@ -24,11 +21,14 @@
 
 ## ⚡ What Makes It Different
 
-Most tools in this space are built on general models. Forbidden Vision ships three models 
-trained from scratch on hand-curated data, built specifically for these tasks:
+Built as a modern replacement for ADetailer and Impact Pack's FaceDetailer, Forbidden Vision 
+doesn't rely on general-purpose models. Instead, it ships three models trained from scratch 
+on hand-curated data — purpose-built for face work across styles, content types, and edge cases 
+that other tools struggle with.
 
 1. **Detection & Segmentation** — consistent across real, anime, and NSFW; handles extreme poses and heavy occlusion  
-2. **Neural Corrector** — analyzes and fixes exposure, black levels, and color automatically.
+2. **Neural Corrector** — analyzes and fixes exposure, black levels, and color automatically
+
 
 ## 🚀 Quick Start
 
@@ -86,6 +86,7 @@ If you encounter detection failures, report them via [GitHub Issues](https://git
 * **Flexible Prompt Control**: Add details to existing prompts, replace prompts entirely, or exclude specific tags just for face processing.
 * **AI Pre-Upscaling**: Upscale small faces with AI models before processing for better detail in the final result.
 * **Smart Blending**: Applies automatic color correction and feathered mask blending for seamless integration with the original image
+* **Wildcard Per-Face Prompting**: Use `[SEP]` to assign different prompts to each detected face, with ordering control (`[ASC]`, `[DSC]`, `[ASC-SIZE]`, `[DSC-SIZE]`) and `[SKIP]` to leave specific faces untouched. Works in both positive and negative prompts. Inspired by Impact Pack's wildcard syntax for easy migration.
 
 <div align="center">
 <img src="./images/face_compare.webp" alt="Fixer Example" style="border-radius: 6px; box-shadow: 0 0 12px rgba(0,0,0,0.1);">
@@ -124,22 +125,28 @@ First-pass and second-pass sampling nodes with integrated useful features to red
 
 **Key Features:**
 
+* **Adaptive CFG Scheduling**: Three CFG modes — Constant, Linear, and Ease Down — for dynamic guidance control across sampling steps.
 * **Self-Correction**: A final 2 step polish pass that automatically refines the generated image with minimal denoising of 0.05 for cleaner results.
 * **Resolution Presets**: Built-in SDXL, SD1.5 and other optimal resolution presets, plus custom sizing.
 * **Integrated VAE Decoding**: Automatically outputs both latent and decoded image when VAE is connected.
 
+<br>
 
-## ☕ Support the Project
+<div align="center">
 
-If **Forbidden Vision** improves your workflow or saves you time, consider supporting development.
-
-Training the models, curating datasets, and maintaining the project takes a lot of time, and support helps me keep improving the models and adding features.
-
-<a href="https://ko-fi.com/luxdelux" target="_blank">
-  <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi">
+<a href="https://ko-fi.com/D1D01FOQYF">
+  <img src="./images/support.webp" width="100%" style="border-radius: 8px;">
 </a>
 
-Even a small coffee helps keep the project moving forward ❤️
+<em>Support helps me continue improving the models and adding new features.</em>
+
+<p>
+  <a href="https://ko-fi.com/D1D01FOQYF">
+    <img src="https://ko-fi.com/img/githubbutton_sm.svg">
+  </a>
+</p>
+
+</div>
 
 ---
 
@@ -233,6 +240,38 @@ Instead of adding tags, these toggles completely replace the connected condition
 
 **exclusions**  
 Removes specific tags from the positive conditioning. Ideal for removing unwanted traits (e.g., “smile”, “angry”, “glasses”) while keeping the rest of your prompt intact.
+
+### Per-Face Wildcard Prompting
+
+Assign different prompts to individual detected faces using Impact Pack-inspired wildcard syntax. Works in both **face_positive_prompt** and **face_negative_prompt**.
+
+**Basic syntax:**  
+Use `[SEP]` to separate prompts for each face:
+detailed eyes, sharp focus [SEP] soft skin, gentle expression [SEP] angry, scarred
+
+Face 1 gets the first segment, face 2 the second, and so on. If there are more faces than segments, extra faces reuse the last segment.
+
+**Ordering tags:**  
+Place one of these at the very start of the prompt to control which face gets which segment:
+- `[ASC]` — Left-to-right, top-to-bottom *(default when using [SEP])*
+- `[DSC]` — Right-to-left, bottom-to-top
+- `[ASC-SIZE]` — Smallest face first
+- `[DSC-SIZE]` — Largest face first
+
+Example:
+[DSC-SIZE] detailed eyes, hero character [SEP] soft focus, background character
+The largest face gets "detailed eyes, hero character" and the next largest gets "soft focus, background character".
+
+**Skipping faces:**  
+Use `[SKIP]` to leave a face unprocessed:
+[ASC] beautiful eyes [SEP] [SKIP] [SEP] freckles
+Face 1 and 3 are processed, face 2 is left untouched.
+
+**Notes:**
+- When wildcard syntax is detected, `face_selection` is automatically overridden to process all faces.
+- `[SKIP]` in either the positive or negative prompt will skip that face entirely.
+- If only one prompt uses `[SEP]` syntax, the other prompt applies its full text to all faces normally.
+- Ordering is determined by the positive prompt. If only the negative prompt has an ordering tag, it controls ordering instead.
 
 ---
 
@@ -383,7 +422,24 @@ Manual width when using “Custom” mode. Must be divisible by 64, since SD lat
 **custom_height**  
 Same as above but for height.
 
+---
 
+### CFG Scheduling
+
+**cfg_mode**  
+Controls how CFG behaves across sampling steps.
+- **Constant** — Uses the base CFG value for every step. Default behavior.
+- **Linear** — Transitions in a straight line from CFG to CFG Finish. Simple and predictable.
+- **Ease Down** — Moves quickly toward CFG Pivot early in sampling, then gently settles toward CFG Finish. Useful for getting away from high CFG fast to avoid artifacts while still landing at your target value.
+
+**cfg_finish**  
+The CFG value at the final sampling step. Only used when CFG Mode is not Constant.
+
+**cfg_pivot**  
+The intermediate CFG value the curve moves toward quickly before settling to CFG Finish. Only used in Ease Down mode.
+- When CFG is higher than CFG Finish (dropping), the curve falls fast toward this value then eases down to finish.
+- When CFG is lower than CFG Finish (rising), the curve rises fast toward this value then eases up to finish.
+- For most SDXL workflows starting at CFG 5–9, a pivot of 3–4 works well. For turbo/distilled models, try lowering it to 1–2.
 
 
 </details>

@@ -72,9 +72,8 @@ class ForbiddenVisionFaceDetector:
             
             detection_model = self.model_manager.load_face_detection_model()
             if not detection_model:
-                self._debug_log("No face detection model available - creating fallback mask", "ERROR")
-                fallback_mask = self._create_fallback_mask(image_tensor)
-                return [fallback_mask] if face_selection == 0 or face_selection == 1 else []
+                self._debug_log("No face detection model available", "ERROR")
+                return []
             
             yolo_image, yolo_scale, yolo_offset = self.model_manager.resize_image_for_yolo(image_uint8)
             
@@ -84,8 +83,7 @@ class ForbiddenVisionFaceDetector:
                 results = detection_model.predict(yolo_pil, conf=detection_confidence, verbose=False, device=device_str)
             except Exception as detection_error:
                 self._debug_log(f"YOLO detection failed: {detection_error}", "ERROR")
-                fallback_mask = self._create_fallback_mask(image_tensor)
-                return [fallback_mask] if face_selection == 0 or face_selection == 1 else []
+                return []
             
             face_masks = []
             if results and results[0].boxes is not None:
@@ -123,9 +121,8 @@ class ForbiddenVisionFaceDetector:
             
             
             if not face_masks:
-                self._debug_log("No faces detected, creating fallback mask", "WARNING")
-                fallback_mask = self._create_fallback_mask(image_tensor)
-                face_masks = [fallback_mask]
+                self._debug_log("No faces detected — passing through unchanged", "INFO")
+                return []
             
             if face_selection == 0:
                 result_masks = face_masks
@@ -140,11 +137,7 @@ class ForbiddenVisionFaceDetector:
             
         except Exception as e:
             self._debug_log(f"Critical error in face detection: {e}", "ERROR")
-            try:
-                fallback_mask = self._create_fallback_mask(image_tensor)
-                return [fallback_mask]
-            except:
-                return [np.zeros((512, 512), dtype=np.float32)]
+            return []
 
     def _map_crop_mask_to_original(self, crop_mask, crop_coords, original_w, original_h):
         """Map crop mask back to original image coordinates using robust intersection logic"""

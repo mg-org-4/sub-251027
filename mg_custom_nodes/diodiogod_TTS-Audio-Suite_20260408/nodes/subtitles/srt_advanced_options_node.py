@@ -39,21 +39,25 @@ class SRTAdvancedOptionsNode(BaseChatterBoxNode):
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "srt_preset": (["Custom", "Netflix-Standard", "Broadcast", "Fast speech", "Mobile", "TTS-Ready"], {
+                "srt_preset": (["Custom", "Netflix-Standard", "Broadcast", "Fast speech", "Mobile", "TTS-Ready", "TTS-Ready (Paragraphs)"], {
                     "default": "Broadcast",
-                    "tooltip": "Readability preset for subtitle building.\nCustom = you control the raw knobs below.\n\nExamples:\n• Broadcast: conservative timing, safe desktop readability\n• Netflix-Standard: similar readability with longer max duration\n• Fast speech: denser subtitles for rapid speech\n• Mobile: shorter lines for smaller screens\n• TTS-Ready: single-line cues that stop by meaning instead of display wrapping"
+                    "tooltip": "Readability preset for subtitle building.\nChoose a preset to seed the knobs below with recommended values, then edit them as needed.\nIf you change a preset-derived knob, the UI will switch to Custom automatically.\n\nExamples:\n• Broadcast: conservative timing, safe desktop readability\n• Netflix-Standard: similar readability with longer max duration\n• Fast speech: denser subtitles for rapid speech\n• Mobile: shorter lines for smaller screens\n• TTS-Ready: single-line cues that stop by meaning instead of display wrapping\n• TTS-Ready (Paragraphs): same TTS-ready behavior, but tuned for longer paragraph-sized cues"
                 }),
                 "srt_mode": (["smart", "engine_segments", "words"], {
                     "default": "smart",
-                    "tooltip": "How subtitle cues are built:\n• smart: rebuild from word timings for readability\n• engine_segments: trust incoming segments as-is\n• words: one word per cue (debug/alignment only)\n\nUse smart unless you have a reason not to."
+                    "tooltip": "How subtitle cues are grouped before final display wrapping:\n• smart: rebuild cues from timed words using this node's gap, duration, CPS, and merge rules. Best default for final subtitles.\n• engine_segments: keep the incoming ASR/engine segments as the base chunks, then only split later for display if needed. Use this when the source segments are already good.\n• words: one timed word per cue. This is mainly for debugging alignment or inspecting bad timing data.\n\nUse smart for almost everything."
                 }),
                 "tts_ready_mode": ("BOOLEAN", {
                     "default": False,
                     "tooltip": "Build cues for downstream TTS instead of on-screen subtitles.\nThis disables multi-line display wrapping pressure, keeps each cue on one line, and prefers semantic stopping points over character-count stops."
                 }),
+                "tts_ready_paragraph_mode": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Only used when TTS-ready is enabled.\nPrefer one cue per paragraph and only split if a paragraph is genuinely too long for clean TTS playback."
+                }),
                 "heuristic_language_profile": (HEURISTIC_PROFILE_OPTIONS, {
                     "default": DEFAULT_HEURISTIC_PROFILE_LABEL,
-                    "tooltip": "Language profile for heuristic defaults.\nPick a language to auto-populate connector and incomplete-sentence lists.\nAuto resolves from ASR timing language when available. Custom means you fully manage the text lists yourself."
+                    "tooltip": "Language profile for heuristic defaults.\nPick a language to seed the connector and incomplete-sentence lists.\nAuto uses the ASR timing language when one is available, then falls back to English.\nThis is only a seed. You can still edit the text fields manually after selection."
                 }),
                 "srt_max_chars_per_line": ("INT", {
                     "default": 42, "min": 10, "max": 10000, "step": 1,
@@ -192,6 +196,7 @@ class SRTAdvancedOptionsNode(BaseChatterBoxNode):
         srt_preset: str,
         srt_mode: str,
         tts_ready_mode: bool,
+        tts_ready_paragraph_mode: bool,
         heuristic_language_profile: str,
         srt_max_chars_per_line: int,
         srt_max_lines: int,
@@ -236,6 +241,7 @@ class SRTAdvancedOptionsNode(BaseChatterBoxNode):
             "srt_min_duration": srt_min_duration,
             "srt_min_gap": srt_min_gap,
             "srt_max_cps": srt_max_cps,
+            "tts_ready_paragraph_mode": tts_ready_paragraph_mode,
             "dedupe_overlaps": dedupe_overlaps,
             "dedupe_window_ms": dedupe_window_ms,
             "dedupe_min_words": dedupe_min_words,

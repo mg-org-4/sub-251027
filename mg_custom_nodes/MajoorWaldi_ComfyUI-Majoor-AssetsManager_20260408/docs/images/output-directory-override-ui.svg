@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" fill="none">
+  <rect width="1200" height="320" fill="#171717"/>
+  <rect x="0" y="0" width="205" height="320" fill="#232323"/>
+  <text x="26" y="42" fill="#F3F4F6" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="600">Settings</text>
+  <text x="26" y="88" fill="#E5E7EB" font-family="Segoe UI, Arial, sans-serif" font-size="16">path</text>
+  <line x1="22" y1="97" x2="90" y2="97" stroke="#9CA3AF" stroke-width="1.5"/>
+
+  <text x="240" y="108" fill="#E5E7EB" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="600">Majoor Assets Manager › Advanced</text>
+
+  <rect x="226" y="122" width="954" height="70" fill="none" stroke="#FF2D2D" stroke-width="6"/>
+  <text x="240" y="158" fill="#D1D5DB" font-family="Segoe UI, Arial, sans-serif" font-size="18">Generation Output Directory</text>
+  <circle cx="468" cy="152" r="10" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="464" y="156" fill="#9CA3AF" font-family="Segoe UI, Arial, sans-serif" font-size="12">i</text>
+  <rect x="1028" y="138" width="148" height="38" rx="8" fill="#111111" stroke="#6B7280"/>
+  <text x="1044" y="162" fill="#E5E7EB" font-family="Consolas, 'Courier New', monospace" font-size="14">D:\\...COMFY_OUT</text>
+
+  <text x="240" y="221" fill="#D1D5DB" font-family="Segoe UI, Arial, sans-serif" font-size="18">Index Database Directory</text>
+  <circle cx="441" cy="215" r="10" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="437" y="219" fill="#9CA3AF" font-family="Segoe UI, Arial, sans-serif" font-size="12">i</text>
+  <rect x="1010" y="200" width="166" height="38" rx="8" fill="#111111" stroke="#6B7280"/>
+  <text x="1022" y="224" fill="#E5E7EB" font-family="Consolas, 'Courier New', monospace" font-size="14">C:\\Users\\...\\Doc</text>
+</svg>

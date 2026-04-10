@@ -1,0 +1,580 @@
+{
+    "categories": {
+        "全部": [],
+        "3D立体字": [
+            "女神来了",
+            "流体艺术",
+            "卡通保卫萝卜",
+            "森林公园",
+            "啤酒",
+            "硬核机甲",
+            "科幻机甲",
+            "烫金字",
+            "儿童节快乐",
+            "东南西北"
+        ],
+        "logo标志": [
+            "快乐星猫",
+            "無限進步",
+            "炽魂殿",
+            "扫一扫",
+            "重阳节",
+            "星动电台",
+            "设计猫",
+            "潮流派对",
+            "寻梦",
+            "超级新品季",
+            "魔童降世",
+            "所向由心"
+        ],
+        "书法字": [
+            "干就完了",
+            "相信未来",
+            "可劲儿造",
+            "西出玉门",
+            "然也",
+            "美白祛斑",
+            "奇思妙想",
+            "人间正道是沧桑",
+            "终极道场"
+        ],
+        "像素字": [
+            "游戏世界",
+            "Retro"
+        ],
+        "卡通字": [
+            "焕活新生",
+            "未来计划",
+            "星球大战",
+            "向野而生",
+            "我们毕业啦",
+            "豆浆",
+            "随意游",
+            "世界读书日",
+            "半亩花田"
+        ],
+        "哥特体": [
+            "极乐幻境",
+            "黑暗时刻",
+            "天才练习生",
+            "丝绸之路",
+            "骑士精神"
+        ],
+        "复古风": [
+            "松涛浅唱",
+            "赶集",
+            "西山有茶",
+            "日月山河",
+            "诗词歌赋",
+            "江南印象",
+            "出山水",
+            "遮天",
+            "消失",
+            "醉岛龙虾"
+        ],
+        "宋体字": [
+            "意境",
+            "茉莉白桃",
+            "青花瓷",
+            "清和",
+            "追逐青春",
+            "春满花开"
+        ],
+        "手写字": [
+            "张语欢",
+            "韦余娟",
+            "奔向自然去找快乐",
+            "臭不要脸",
+            "小猫装饰签名字",
+            "许晓隼",
+            "善意的谎言",
+            "有梦想的人永远年轻",
+            "悬崖上的金鱼姬",
+            "星辰大海",
+            "拾光信念照亮前路",
+            "与你一起"
+        ],
+        "机甲风": [
+            "万物竞自由",
+            "AI新纪元",
+            "数字9",
+            "刺破恐惧",
+            "中国制造"
+        ],
+        "海报字": [
+            "狂热而没有理性",
+            "刺杀预告函",
+            "宇宙探索编辑部",
+            "人微言轻",
+            "职场盲盒",
+            "萤火星球"
+        ],
+        "科技感": [
+            "探索未来",
+            "拥抱你的梦",
+            "闪电侠",
+            "智能驱动",
+            "狼王电竞",
+            "混沌",
+            "恒星时刻",
+            "刀片",
+            "TenQi"
+        ],
+        "花体字": [
+            "所向由心礼遇金秋",
+            "野趣踏春",
+            "疾风",
+            "恋爱脑",
+            "家有喜事",
+            "奥莱夏日价",
+            "荷尔蒙超导模式",
+            "你是最好的",
+            "时间煮雨",
+            "一心一意"
+        ],
+        "黑体字": [
+            "这就是生活",
+            "云栖茶叙",
+            "禁止焦虑",
+            "好好学习天天向上"
+        ]
+    },
+    "prompts": {
+        "女神来了": {
+            "prompt": "文字设计，采用手写艺术字体，创作一个甜美浪漫风格的标题，笔画转灵动，富有曲线美，粉色系渐变色彩，呈现透明胶质 、水晶质感。添加小钻石、爱心装饰元素，营造梦幻、闪耀氛围，契合女神主题 。标题和元素为一个整体且为正视图，背景为干净的黑色",
+            "description_en": "Sweet romantic style with handwritten artistic font, pink gradient colors, crystal texture, decorated with diamonds and hearts"
+        },
+        "流体艺术": {
+            "prompt": "创意字体设计，流体艺术形态，抽象，酸性，silver，金属流体字，艺术性概念性混合，文字排版艺术，极简主义，留白，简约。",
+            "description_en": "Fluid art typography, abstract and metallic style, minimalist design with silver tones"
+        },
+        "卡通保卫萝卜": {
+            "prompt": "字体设计，卡通保卫萝卜风格字体，主字体颜色为土黄色，模拟石块质感，表面有裂纹和破损效果，装饰元素:搭配白色骷髅头(带绿色眼睛)、鱼骨、石斧等原始魔幻风格元素，底部设置深棕色不规则石块样式基座，呈现粗糙质感，黑色背景",
+            "description_en": "Cartoon game-style font with stone texture, earthy yellow color, decorated with skull and bone elements"
+        },
+        "森林公园": {
+            "prompt": "字体设计，纯黑色背景，自然森林字体，苔藓包裹文字，木质纹理，被藤蔓缠绕，绿色调，大自然氛围。",
+            "description_en": "Natural forest style with moss-covered text, wood texture, wrapped in vines, green tones"
+        },
+        "啤酒": {
+            "prompt": "啤酒泡沫构成的立体字体，滲透啤酒泡沫纹理，高分辨率，详细的光影细节，泡沫层次。动态层次，极致质感。黑色干净背景。ue5渲染。",
+            "description_en": "3D font made of beer foam with realistic texture, high resolution, rendered in UE5"
+        },
+        "硬核机甲": {
+            "prompt": "硬核机甲体字体，锋利几何切割:笔画由尖锐折线与块面构成，呈现装甲拼接般的机械结构。工业细节:铆钉、螺栓、散热孔等机械元素嵌入字体，强化金属组装感。重质感材质:做旧金属锈蚀、碳纤维纹理或战损刮痕，搭配暗黑系配色（黑 灰 警戒橙）。科技符号融合:嵌入电路板走线、脉冲光带或能量核心等科幻元素。动态破坏效果:局部笔画断裂、激光灼烧痕迹或全息投影残影。黑色背景",
+            "description_en": "Hardcore mecha style with sharp geometric cuts, industrial details, metallic texture, dark color scheme"
+        },
+        "科幻机甲": {
+            "prompt": "冲击力的创意字体设计，未来科幻机甲风格创意字体，以c4d进行3d风格渲染，背景：黑底，字体颜色为银白、亮蓝金属渐变与能量护盾特效字体特色：采用黑底厚涂流体五彩字创意理念进行3d风格渲染，文字置于画面中心，充满未来科幻机甲的强大气场。主笔粗壮且有力量感，转折处有机械关节般的硬朗线条和锐利的角度，字体颜色以银白、亮蓝金属渐变为主，搭配能量护盾特效，营造出神秘、强大的氛围。",
+            "description_en": "Futuristic sci-fi mecha style with 3D rendering, silver-blue metallic gradient, energy shield effects"
+        },
+        "烫金字": {
+            "prompt": "字体设计，烫金字，以正面视角呈现的立体特效字，具有极为强烈立体特效的3D字设计。烫金字，表面带有金色的光泽，反射光柔和，呈现出奢华与高贵的特质。厚度感明显，边缘清晰，光影效果自然。背景极简，采用16K分辨率，最佳品质，突出烫金的奢华与高贵。",
+            "description_en": "Gold foil 3D font with luxurious metallic luster, elegant and noble appearance"
+        },
+        "儿童节快乐": {
+            "prompt": "字体设计，由气球构成，错乱排版，可爱风格要求艺术字体设计，字体笔画扭曲变形，字形笔画流动扭曲，抽象艺术风格，粗细线条交替，字体变形动感有设计感，杰作，深纯色背景鲜艳色彩字，高清，8K",
+            "description_en": "Balloon-style font with playful arrangement, colorful and cute design for children"
+        },
+        "东南西北": {
+            "prompt": "字体设计，山海经图腾风格文字，字体结构为大篆变体，笔画内嵌龙鳞图案与兽纹旋形，仿铜绿色调，模拟青铜器铭文质感，横排，黑色背景",
+            "description_en": "Ancient totem style inspired by Shan Hai Jing, bronze texture with dragon scale patterns"
+        },
+        "快乐星猫": {
+            "prompt": "采用活泼、圆润的字体设计，卡通手写字体风格，字体造型充满活力与动感，笔画带有流畅的曲线，富有艺术感和一个猫爪的装饰，相邻的笔划可以共用，颜色为荧光绿在纯黑色背景上呈现，整体风格轻松、趣味、醒目。搭配小字设计 happy cat 2025",
+            "description_en": "Lively cartoon style with cat paw decoration, fluorescent green color, playful and fun"
+        },
+        "無限進步": {
+            "prompt": "字体，无衬线字体设计，黑底白色，相邻笔划可以连笔，字体笔画粗厚醒目，创造出独特的节奏和动感，给人以强烈的视觉冲击。整体结构规整，通过笔画的变形与点缀，呈现出时尚、新颖的视觉效果，契合青春、活力的主题。",
+            "description_en": "Bold sans-serif design with connected strokes, modern and energetic style"
+        },
+        "炽魂殿": {
+            "prompt": "字体进行了大幅度的创意变形，笔画的形态和常规字体差异较大。字的笔画有弯曲、扭转等变化，打破了传统汉字的方正结构，使字体更具视觉冲击力，粗细对比，现代感与时尚感，背景黑色，富有层次感。",
+            "description_en": "Creative deformed font with dramatic curves and twists, modern and stylish"
+        },
+        "扫一扫": {
+            "prompt": "字体设计，黑色背景,白色字体，创意字体设计,线条流畅且富有艺术感将字体进行抽象变形,创造独特的节差和动感，给人以强烈的视觉冲击高级感。",
+            "description_en": "Abstract deformed font with flowing lines, minimalist black and white design"
+        },
+        "重阳节": {
+            "prompt": "现代几何创意字体，字体笔画以流畅曲线线为主、融合曲线柔和过渡，笔画均匀厚重且曲线处有微妙粗细变化，节 字做笔画化重构、重阳 字进行艺术变形；横向堆叠布局，通过曲线笔画形成结构关联；整体营造 简约大气、力量与韵味并存的现代几何字体艺术氛围，突出字体几何感、黑白高对比及辅助元素的层级融合效果。重阳字红色小印章。底部文字细节：有 重阳节 无衬线体的字样。灰色背景",
+            "description_en": "Modern geometric font for Double Ninth Festival, elegant curves with red seal accent"
+        },
+        "星动电台": {
+            "prompt": "创意字体设计，白色背景，黑色字体，干净的背景，加入小字英文 Star Motion Music Radio Station 进行排版，字体居中画面，字体设计富有动感与活力，笔画线条流畅、舒展且具有艺术感，将字体进行抽象变形，相邻字的笔划可以连笔和共用。夸张的笔画弧度，字体造型充满动感且棱角分明，融合尖锐边缘与流畅曲线，营造出大胆、视觉冲击力强的装饰性字体效果，笔画转角圆角处理，笔画延伸，居于画面中心，简约而强大。部分笔画融入四角星形和音乐符号图形，让整体更准确的表达和贴近主题。",
+            "description_en": "Music radio station logo style with star and music note decorations, dynamic and energetic"
+        },
+        "设计猫": {
+            "prompt": "创意字体设计LOGO，线条流畅、舒展且富有艺术感，将字体进行抽象变形，似是而非，相邻两个字上一字的末笔是下一字的首笔，相邻字的笔划可以共享借代。使几个文字成为一个紧凑的整体，字与字之间有相互联系的笔划。高级感，扁平化，黑色高端大气背景。",
+            "description_en": "Creative logo design with connected strokes, minimalist and sophisticated"
+        },
+        "潮流派对": {
+            "prompt": "字体设计，生成潮流派对风格艺术字体，两个字一排。字体笔画粗厚醒目，形态夸张变形，部分笔画带俏皮弧度或独特弯折，营造活波、肆意、充满活力的派对氛围，黑色背景，背景干净。白色字体，大师作品。",
+            "description_en": "Trendy party style with bold and exaggerated strokes, energetic and playful"
+        },
+        "寻梦": {
+            "prompt": "字体设计，标题LOGO设计，数位板写手写泼墨，笔画龙飞凤舞，大气磅礴，草书，笔画唯美，背景干净，黑色背景。",
+            "description_en": "Elegant calligraphy style with flowing brush strokes, dreamy and artistic"
+        },
+        "超级新品季": {
+            "prompt": "采用极简的线条组合，时尚简约的抽象字体，将文字笔画简化为流畅的几何形状，字母与汉字风格统一，具有强烈的整体感。以白色呈现于黑色背景，营造出简洁而富有艺术感的氛围，凸显出独特的设计魅力。",
+            "description_en": "Minimalist geometric font with clean lines, modern and stylish"
+        },
+        "魔童降世": {
+            "prompt": "设计文字，游戏主题字体，整齐排成一行，黑底白字，奇幻魔幻风格，艺术变形字体，笔画尖锐锋利，边角细长翘起修饰，黑底白字，背景干净",
+            "description_en": "Fantasy game-style font with sharp edges, mysterious and powerful"
+        },
+        "所向由心": {
+            "prompt": "采用极简的线条组合，时尚简约的抽象字体，将文字笔画简化为流畅的几何形状，字母与汉字风格统一，具有强烈的整体感。以白色呈现于黑色背景，营造出简洁而富有艺术感的氛围，凸显出独特的设计魅力。",
+            "description_en": "Minimalist abstract font with geometric shapes, clean and modern"
+        },
+        "干就完了": {
+            "prompt": "字体设计，毛笔书法字体，大气磅礴，狂草，字体狂野奔放，笔画飘逸，富有动感张力，中国书法，笔触流畅，黑底白字",
+            "description_en": "Wild cursive calligraphy with powerful brush strokes, dynamic and expressive"
+        },
+        "相信未来": {
+            "prompt": "字体设计，白底黑字，竖版设计，朴实，拙趣，手写，粗笔画，复古黑体感觉，笔触两头都是平的，字体有颗粒感，字体不是宋体，也不是书法字体，字体风格独特，采用了粗体块状设计，笔画边缘不规则，带有磨损和斑驳的效果，仿佛历经岁月侵蚀，呈现出一种复古、沧桑的质感。文字排列较为紧凑，错落有致，给人一种随性又不失秩序的感觉。",
+            "description_en": "Vintage hand-written style with weathered texture, rustic and nostalgic"
+        },
+        "可劲儿造": {
+            "prompt": "涂鸦字体设计风格，黑色背景，金字，创意字体设计Logo，流畅且富有艺术感，笔画之间合理相连。设计灵感:将字体进行抽象变形，给人以强烈的视觉冲击。高级感，扁平化，大师作品",
+            "description_en": "Graffiti-style font with gold color, bold and artistic"
+        },
+        "西出玉门": {
+            "prompt": "字体设计，中国风书法字体文字内容为，字体为耀眼的金色，带有金属光泽和高光效果，呈现 3D 立体质感书法笔触流畅且富有艺术感，呈现飘逸洒脱的风格背景为纯黑色。",
+            "description_en": "Chinese calligraphy style with golden 3D effect, elegant and flowing"
+        },
+        "然也": {
+            "prompt": "字体设计，横向排列，黑底白宇，干净背景，花体字风，纤细的笔画，笔画拉丝，灵动的曲线，有质感，部分笔划末端被擦除的痕迹",
+            "description_en": "Elegant script style with thin strokes and flowing curves, refined and artistic"
+        },
+        "美白祛斑": {
+            "prompt": "字体设计，创意字体设计,线条流畅且富有动感，笔画粗细不一，将字体进行抽象变形,创造独特的节奏和动感，整体风格活泼、时尚、具有现代感和艺术感，视觉冲击力强 。纯黑色干净背景，白色字",
+            "description_en": "Modern creative font with varied stroke thickness, lively and fashionable"
+        },
+        "奇思妙想": {
+            "prompt": "字体设计，白字，纯黑色底，极简风格，扁平矢量。黑体变形，笔画边缘锐利，夸张的笔画张力和连笔处理，极具艺术感。笔画粗细均匀无变化，每个笔画都带俏皮弧度，用方形代替点笔画。整体体现青春活力的感觉。根据字体的含义，加入简单的元素点缀",
+            "description_en": "Minimalist creative font with playful curves, youthful and imaginative"
+        },
+        "人间正道是沧桑": {
+            "prompt": "书法字，字体狂野奔放如龙蛇竞走，笔画飘逸带有枯笔飞白，墨色浓淡对比强烈（焦墨与枯笔交替），笔势如骤雨旋风富有动感，字形结构夸张变形呈现张力，纯黑色背景，参考以下细节： 笔法：逆锋起笔 横扫收笔，中锋侧锋交替节奏：快慢交替章法：字间大小悬殊（最大字是最小字的3倍）特效：墨迹边缘有自然晕染",
+            "description_en": "Wild calligraphy with dramatic ink variations, powerful and expressive"
+        },
+        "终极道场": {
+            "prompt": "一个极简风格的中文LOGO设计，字体采用了一种独特的现代化书法体，字形流畅且带有明显的装饰性笔画。字体的设计有一定的倾斜度，具有动态感，整体呈现出一种带有未来感的优雅风格。文字的笔画粗细变化明显，曲线部分富有韵律感，给人一种张扬而有力量的视觉冲击。背景为纯黑色，突出了文字的白色，增强了视觉对比，使得整体风格显得更为醒目和现代。这样的设计非常适合用作与都市、神秘、或恐怖相关的品牌或主题标识。",
+            "description_en": "Modern calligraphic logo with futuristic elegance, dynamic and powerful"
+        },
+        "游戏世界": {
+            "prompt": "像素点阵风字体，8BIT游戏风格网格结构清晰，复古数码质感，色彩复古明亮，适合游戏或潮玩类品牌，黑底彩块字。",
+            "description_en": "8-bit pixel art style font, retro gaming aesthetic with colorful blocks"
+        },
+        "Retro": {
+            "prompt": "字母潮流字体设计，字形粗犷现代，字体外部轮廓被多层彩色火焰包裹，火焰为波普霓虹色系：蓝、红、黄、青，火焰形态液化流动，呈现渐变同心环结构，整体构图以黑色为背景，具有强烈对比与视觉冲击，整体风格融合Y2K美学、像素失真、胶片噪点质感、未来朋克潮流设计。",
+            "description_en": "Retro-futuristic font with colorful flame effects, Y2K aesthetic with neon colors"
+        },
+        "焕活新生": {
+            "prompt": "创意字体设计，黑色粗体艺术字，字体设计富有动感与活力，笔画圆润且有一定的粗细变化，呈现现代感和醒目视觉效果，文字居中排列，背景为纯白色，无其他元素干扰。",
+            "description_en": "Bold modern font with rounded strokes, clean and energetic design"
+        },
+        "未来计划": {
+            "prompt": "字体设计，矢量插画，标志，黑色背景，白色字，创意字体设计，流畅且富有艺术感，趣味活泼运营风格，字体大小粗细变化，笔画转角处圆角弧形处理，部分笔画用星形代替，设计灵感:将字体进行抽象变形，给人以强烈的视觉冲击。高级感，扁平化，大师作品",
+            "description_en": "Playful modern font with star decorations, rounded corners and varied thickness"
+        },
+        "星球大战": {
+            "prompt": "黑底背景，白色中文艺术字，采用不规则扭曲字形设计，笔画间嵌入荧光渐变星形粒子，主笔画末端延伸出微型星球剪影，文字下方添加银河光晕效果，使用卡通风格流星符号作为笔画连接点",
+            "description_en": "Star Wars inspired font with cosmic elements, glowing particles and planet silhouettes"
+        },
+        "向野而生": {
+            "prompt": "艺术字体，字体颜色为粉色，笔画粗壮且富有变化，打破常规结构。添加白色的装饰线条环绕字体，在 向 字上方添加类似太阳光芒的装饰元素。底部添加英文 Keep striving without stopping ，整体风格潮流、动感、富有创意。纯黑背景。",
+            "description_en": "Pink artistic font with sun decoration, trendy and creative outdoor theme"
+        },
+        "我们毕业啦": {
+            "prompt": "字体设计，创意可爱体矢量插画，加点星星元素融入字体，标志，黑色背景，创意字体设计Logo，设计灵感:将字体进行笔划夸张，给人以强烈的视觉冲击。高级感，扁平化，大师作品",
+            "description_en": "Cute graduation font with star elements, playful and celebratory"
+        },
+        "豆浆": {
+            "prompt": "字体设计，采用活泼、圆润的卡通手写字体风格，笔画带有流畅的曲线和俏皮的装饰，颜色为橙黄色，在纯黑色背景上呈现，整体风格轻松、趣味、醒目 。",
+            "description_en": "Playful cartoon font with orange-yellow color, fun and casual"
+        },
+        "随意游": {
+            "prompt": "旅游品牌字体设计，黑底白字，富有创意，创意手绘潮流字体，文字排版，高级艺术，主标题白色文字位于画面中心，旁边黄色英文字体 Suiyiyou，标题周围点缀有简约的卡通图案、黄色曲线装饰和黄色箭头，将字体进行抽象变形，创造出独特的节奏和动感。",
+            "description_en": "Travel brand font with cartoon decorations, creative and adventurous"
+        },
+        "世界读书日": {
+            "prompt": "字体设计，主标题白色文字位于画面中心，旁边黄色英文字体 World Reading Day，蓝底白字，富有创意，创意手绘潮流字体，文字排版，高级艺术，标题周围点缀有简约的卡通图案、黄色曲线装饰和黄色箭头，将字体进行抽象变形，创造出独特的节奏和动感。",
+            "description_en": "World Reading Day font with book-themed decorations, educational and creative"
+        },
+        "半亩花田": {
+            "prompt": "字体标志，创意字体设计，线条流畅且富有艺术感，将字体进行抽象变形，创造出独特的节奏和动感，部分笔划省略，部分笔划创意变形，立体，给人以强烈的视觉冲击，高级感，黑色背景。",
+            "description_en": "Elegant logo font with creative deformation, sophisticated and artistic"
+        },
+        "极乐幻境": {
+            "prompt": "哥特体，粗细对比强烈，装饰性元素，如曲线、尖角、螺旋、花饰，高度一致，棱角分明，增加线点装饰，复古神秘，纯黑色底",
+            "description_en": "Gothic style with strong contrast, decorative elements, mysterious and elegant"
+        },
+        "黑暗时刻": {
+            "prompt": "字体设计，哥特体风高垂直比，笔画尖锐，修饰性强，复古庄严，用于奇幻 哥特气质字体，纯黑背景 000，轮廓衬线，楔形，红色高光，笔画延伸，艺术感。",
+            "description_en": "Dark gothic font with sharp strokes and red highlights, mysterious and solemn"
+        },
+        "天才练习生": {
+            "prompt": "哥特式复古风格花体字，融合戏剧性笔触与装饰性元素，适用于音乐、演出等艺术主题设计，纯黑色底。 字形结构： 采用经典哥特体骨架，整体向右倾斜，增强动态感；笔画变形穿插，形成流畅的连笔效果，展现优雅的曲线韵律。 笔画特征： 尖锐的起笔与收笔，粗细对比强烈，部分笔画以镂空或扭曲变形处理，增强视觉张力。 装饰元素： 用五角星、星芒等元素替代部分笔画，结合扁平化几何点缀，平衡复古与现代感。 字体材质：字体渐变镭射金属，哥特式楔形立体风，呈现金属反光质感和时尚感。",
+            "description_en": "Gothic calligraphy with star decorations, laser metallic effect, dramatic and artistic"
+        },
+        "丝绸之路": {
+            "prompt": "艺术字体设计，要求哥特风格，笔画硬朗，大气磅礴，字体金色流体效果，电影空间背景",
+            "description_en": "Gothic style with golden fluid effect, cinematic and majestic"
+        },
+        "骑士精神": {
+            "prompt": "黑底白字，字体倾斜，字体设计风格为魔幻冒险与哥特式风格变体。笔画尖锐且富有攻击性，粗细变化明显，部分笔画带有独特装饰。",
+            "description_en": "Fantasy knight-style font with sharp strokes, adventurous and bold"
+        },
+        "松涛浅唱": {
+            "prompt": "创意字体设计，厚重感强，笔画粗壮，结构扁平，转角圆润，整体现代感强，适合标题使用，黑底白字，大师作品。",
+            "description_en": "Bold modern font with rounded corners, strong and suitable for titles"
+        },
+        "赶集": {
+            "prompt": "字体设计，古朴风，凹凸印板，融合图案人挑着担子，加上小英文 GANJI，纯白色背景",
+            "description_en": "Vintage printing style with rustic charm, traditional market theme"
+        },
+        "西山有茶": {
+            "prompt": "字体设计，篆刻，书法，结构古朴，厚重，横向排版，挤压的字体，纯色背景，粗糙，颗粒感，艺术感，印刷风，纸张纹理，黑色字体，中国传统元素，设计感，古典，大气，复古风，国风，创意字体，文字设计，logo设计，图案设计，先锋艺术，绘画肌理，古韵字体",
+            "description_en": "Traditional seal carving style with tea culture theme, rustic and elegant"
+        },
+        "日月山河": {
+            "prompt": "字体设计，一行等距排列，黑底白字，复古美术字，无衬线黑体字，有笔刷肌理感，字与字间有较大间距。",
+            "description_en": "Vintage art font with brush texture, clean and spacious layout"
+        },
+        "诗词歌赋": {
+            "prompt": "篆刻字体，个性字体，字体设计，矢量字体，几何字体，图形字体，绘画字体，设计思路：改变笔画的形状，调整字体的形状或笔画的形状结构，达到设计的要求，背景：细颗粒纸质质感极简纯色背景，画面干净，无其他元素，无任何几何图形出现。",
+            "description_en": "Seal carving style with paper texture, traditional Chinese literary theme"
+        },
+        "江南印象": {
+            "prompt": "字体设计，江南水乡风格，水墨画效果，淡雅色调，诗意氛围，黑色背景。",
+            "description_en": "Jiangnan water town style with ink wash effect, elegant and poetic"
+        },
+        "出山水": {
+            "prompt": "字体设计，山水画风格，水墨渲染，自然流畅，意境深远，黑色背景。",
+            "description_en": "Landscape painting style with ink wash, natural and flowing"
+        },
+        "遮天": {
+            "prompt": "字体设计，玄幻风格，气势磅礴，笔画夸张，神秘感强，黑色背景。",
+            "description_en": "Fantasy style with dramatic strokes, mysterious and powerful"
+        },
+        "消失": {
+            "prompt": "字体设计，渐隐效果，淡出感，若隐若现，神秘氛围，黑色背景。",
+            "description_en": "Fading effect font, mysterious and ethereal"
+        },
+        "醉岛龙虾": {
+            "prompt": "字体设计，美食主题，活泼可爱，色彩鲜艳，食欲感强，黑色背景。",
+            "description_en": "Food-themed font with playful style, colorful and appetizing"
+        },
+        "意境": {
+            "prompt": "字体设计，宋体风格，优雅端庄，笔画细腻，意境深远，黑色背景。",
+            "description_en": "Elegant Song typeface with refined strokes, artistic and graceful"
+        },
+        "茉莉白桃": {
+            "prompt": "字体设计，清新甜美，水果主题，柔和色调，可爱风格，黑色背景。",
+            "description_en": "Fresh and sweet fruit-themed font, soft and lovely"
+        },
+        "青花瓷": {
+            "prompt": "字体设计，青花瓷风格，蓝白配色，传统纹样，典雅精致，黑色背景。",
+            "description_en": "Blue and white porcelain style with traditional patterns, elegant and refined"
+        },
+        "清和": {
+            "prompt": "字体设计，宋体风格，清新和煦，笔画柔和，温暖感，黑色背景。",
+            "description_en": "Song typeface with soft strokes, warm and gentle"
+        },
+        "追逐青春": {
+            "prompt": "字体设计，青春活力，动感十足，现代时尚，黑色背景。",
+            "description_en": "Youthful and energetic font, modern and dynamic"
+        },
+        "春满花开": {
+            "prompt": "字体设计，春天主题，花朵装饰，色彩缤纷，生机勃勃，黑色背景。",
+            "description_en": "Spring-themed font with flower decorations, colorful and vibrant"
+        },
+        "张语欢": {
+            "prompt": "字体设计，手写签名风格，流畅自然，个性鲜明，黑色背景。",
+            "description_en": "Handwritten signature style, natural and personal"
+        },
+        "韦余娟": {
+            "prompt": "字体设计，手写签名风格，优雅流畅，女性气质，黑色背景。",
+            "description_en": "Elegant handwritten signature style, graceful and feminine"
+        },
+        "奔向自然去找快乐": {
+            "prompt": "字体设计，自然主题，活泼自由，户外风格，黑色背景。",
+            "description_en": "Nature-themed font with free-spirited style, outdoor adventure"
+        },
+        "臭不要脸": {
+            "prompt": "字体设计，俏皮幽默，夸张变形，趣味性强，黑色背景。",
+            "description_en": "Playful and humorous font with exaggerated deformation"
+        },
+        "小猫装饰签名字": {
+            "prompt": "字体设计，猫咪装饰，可爱风格，签名效果，黑色背景。",
+            "description_en": "Cat-decorated signature font, cute and playful"
+        },
+        "许晓隼": {
+            "prompt": "字体设计，手写签名风格，流畅有力，个性独特，黑色背景。",
+            "description_en": "Handwritten signature style with strong character"
+        },
+        "善意的谎言": {
+            "prompt": "字体设计，柔和神秘，情感丰富，艺术感强，黑色背景。",
+            "description_en": "Soft and mysterious font with emotional depth"
+        },
+        "有梦想的人永远年轻": {
+            "prompt": "字体设计，励志主题，青春活力，动感十足，黑色背景。",
+            "description_en": "Inspirational font with youthful energy and dreams"
+        },
+        "悬崖上的金鱼姬": {
+            "prompt": "字体设计，动画电影风格，梦幻童趣，海洋元素，黑色背景。",
+            "description_en": "Anime-inspired font with ocean elements, dreamy and playful"
+        },
+        "星辰大海": {
+            "prompt": "字体设计，星空主题，宇宙感，浪漫梦幻，黑色背景。",
+            "description_en": "Starry sky theme with cosmic elements, romantic and dreamy"
+        },
+        "拾光信念照亮前路": {
+            "prompt": "字体设计，光影主题，希望感，温暖明亮，黑色背景。",
+            "description_en": "Light-themed font with hopeful and warm atmosphere"
+        },
+        "与你一起": {
+            "prompt": "字体设计，浪漫主题，温馨甜蜜，情侣风格，黑色背景。",
+            "description_en": "Romantic font with sweet and warm atmosphere"
+        },
+        "万物竞自由": {
+            "prompt": "字体设计，机甲风格，科技感强，未来主义，黑色背景。",
+            "description_en": "Mecha style with strong tech feel, futuristic design"
+        },
+        "AI新纪元": {
+            "prompt": "字体设计，AI主题，科技未来，数字感，黑色背景。",
+            "description_en": "AI-themed font with futuristic digital aesthetic"
+        },
+        "数字9": {
+            "prompt": "字体设计，数字艺术，科技感，现代简约，黑色背景。",
+            "description_en": "Digital art font with modern tech aesthetic"
+        },
+        "刺破恐惧": {
+            "prompt": "字体设计，锐利锋芒，突破感，力量感强，黑色背景。",
+            "description_en": "Sharp and powerful font with breakthrough energy"
+        },
+        "中国制造": {
+            "prompt": "字体设计，工业风格，硬朗有力，民族自豪，黑色背景。",
+            "description_en": "Industrial style font with strong national pride"
+        },
+        "狂热而没有理性": {
+            "prompt": "字体设计，狂野奔放，情感激烈，艺术感强，黑色背景。",
+            "description_en": "Wild and passionate font with intense emotion"
+        },
+        "刺杀预告函": {
+            "prompt": "字体设计，悬疑风格，神秘紧张，戏剧感强，黑色背景。",
+            "description_en": "Suspense-themed font with mysterious and dramatic feel"
+        },
+        "宇宙探索编辑部": {
+            "prompt": "字体设计，科幻主题，探索感，复古未来，黑色背景。",
+            "description_en": "Sci-fi themed font with retro-futuristic exploration vibe"
+        },
+        "人微言轻": {
+            "prompt": "字体设计，低调内敛，细腻含蓄，情感深沉，黑色背景。",
+            "description_en": "Subtle and understated font with deep emotion"
+        },
+        "职场盲盒": {
+            "prompt": "字体设计，职场主题，趣味盲盒，现代都市，黑色背景。",
+            "description_en": "Workplace-themed font with fun mystery box concept"
+        },
+        "萤火星球": {
+            "prompt": "字体设计，梦幻星球，萤火虫元素，浪漫唯美，黑色背景。",
+            "description_en": "Dreamy planet font with firefly elements, romantic and beautiful"
+        },
+        "探索未来": {
+            "prompt": "字体设计，科技未来，探索感，现代简约，黑色背景。",
+            "description_en": "Futuristic font with exploration theme, modern and sleek"
+        },
+        "拥抱你的梦": {
+            "prompt": "字体设计，梦幻主题，温暖柔和，浪漫感，黑色背景。",
+            "description_en": "Dreamy font with warm and soft romantic feel"
+        },
+        "闪电侠": {
+            "prompt": "字体设计，闪电主题，速度感，动感十足，黑色背景。",
+            "description_en": "Lightning-themed font with speed and dynamic energy"
+        },
+        "智能驱动": {
+            "prompt": "字体设计，智能科技，未来感，数字化，黑色背景。",
+            "description_en": "Smart tech font with futuristic digital aesthetic"
+        },
+        "狼王电竞": {
+            "prompt": "字体设计，电竞风格，霸气威猛，游戏感，黑色背景。",
+            "description_en": "Esports font with fierce and powerful gaming style"
+        },
+        "混沌": {
+            "prompt": "字体设计，混沌风格，神秘莫测，艺术感强，黑色背景。",
+            "description_en": "Chaotic style font with mysterious and artistic feel"
+        },
+        "恒星时刻": {
+            "prompt": "字体设计，星空主题，闪耀感，浪漫唯美，黑色背景。",
+            "description_en": "Stellar font with shining and romantic cosmic feel"
+        },
+        "刀片": {
+            "prompt": "字体设计，锐利锋芒，金属质感，现代工业，黑色背景。",
+            "description_en": "Sharp blade-style font with metallic industrial feel"
+        },
+        "TenQi": {
+            "prompt": "字体设计，科技品牌，现代简约，未来感，黑色背景。",
+            "description_en": "Tech brand font with modern minimalist futuristic style"
+        },
+        "所向由心礼遇金秋": {
+            "prompt": "字体设计，秋天主题，金色优雅，节日氛围，黑色背景。",
+            "description_en": "Autumn-themed font with golden elegance and festive atmosphere"
+        },
+        "野趣踏春": {
+            "prompt": "字体设计，春天主题，自然野趣，户外风格，黑色背景。",
+            "description_en": "Spring-themed font with natural outdoor adventure feel"
+        },
+        "疾风": {
+            "prompt": "字体设计，风主题，速度感，动感十足，黑色背景。",
+            "description_en": "Wind-themed font with speed and dynamic energy"
+        },
+        "恋爱脑": {
+            "prompt": "字体设计，恋爱主题，甜蜜浪漫，可爱风格，黑色背景。",
+            "description_en": "Love-themed font with sweet and romantic cute style"
+        },
+        "家有喜事": {
+            "prompt": "字体设计，喜庆主题，欢乐祥和，传统节日，黑色背景。",
+            "description_en": "Celebration font with joyful and festive traditional style"
+        },
+        "奥莱夏日价": {
+            "prompt": "字体设计，夏日促销，活力四射，商业感，黑色背景。",
+            "description_en": "Summer sale font with energetic commercial appeal"
+        },
+        "荷尔蒙超导模式": {
+            "prompt": "字体设计，激情主题，活力爆发，性感魅力，黑色背景。",
+            "description_en": "Passionate font with explosive energy and charismatic appeal"
+        },
+        "你是最好的": {
+            "prompt": "字体设计，励志主题，温暖鼓励，正能量，黑色背景。",
+            "description_en": "Inspirational font with warm encouragement and positive energy"
+        },
+        "时间煮雨": {
+            "prompt": "字体设计，诗意主题，时光流逝，文艺感，黑色背景。",
+            "description_en": "Poetic font with nostalgic time-passing artistic feel"
+        },
+        "一心一意": {
+            "prompt": "字体设计，爱情主题，专一深情，浪漫温馨，黑色背景。",
+            "description_en": "Love-themed font with devoted and romantic warmth"
+        },
+        "这就是生活": {
+            "prompt": "字体设计，生活主题，真实自然，现代简约，黑色背景。",
+            "description_en": "Life-themed font with authentic and modern minimalist style"
+        },
+        "云栖茶叙": {
+            "prompt": "字体设计，茶文化，雅致清幽，传统韵味，黑色背景。",
+            "description_en": "Tea culture font with elegant and traditional charm"
+        },
+        "禁止焦虑": {
+            "prompt": "字体设计，心理主题，轻松幽默，现代感，黑色背景。",
+            "description_en": "Mental health font with relaxed and humorous modern style"
+        },
+        "好好学习天天向上": {
+            "prompt": "字体设计，学习主题，励志向上，青春活力，黑色背景。",
+            "description_en": "Study-themed font with inspirational and youthful energy"
+        }
+    }
+}

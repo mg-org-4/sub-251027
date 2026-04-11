@@ -38,6 +38,7 @@ class InpaintNodes(ComfyExtension):
             nodes.ShrinkMask,
             nodes.StabilizeMask,
             nodes.DenoiseToCompositingMask,
+            nodes.MaskBoundingBox,
         ]
 
 

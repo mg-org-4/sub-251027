@@ -644,3 +644,33 @@ class StabilizeMask(io.ComfyNode):
         mask = mask_to_torch(mask)
         mask = torch.where(mask > 1.0 - epsilon, torch.ones_like(mask), mask)
         return io.NodeOutput(mask.squeeze(1))
+
+
+class MaskBoundingBox(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="INPAINT_MaskBoundingBox",
+            display_name="Mask Bounding Box",
+            category="inpaint",
+            inputs=[io.Mask.Input("mask")],
+            outputs=[
+                io.Int.Output("x"),
+                io.Int.Output("y"),
+                io.Int.Output("width"),
+                io.Int.Output("height"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, mask: Tensor):  # type: ignore
+        if mask.dim() == 3:
+            mask = mask[0]  # first mask in batch
+
+        ys, xs = torch.nonzero(mask.cpu() != 0, as_tuple=True)
+        x_min = xs.min().item()
+        y_min = ys.min().item()
+        x_max = xs.max().item() + 1
+        y_max = ys.max().item() + 1
+
+        return io.NodeOutput(x_min, y_min, x_max - x_min, y_max - y_min)

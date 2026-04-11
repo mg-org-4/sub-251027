@@ -11,7 +11,10 @@ This version was created to meet my requirements:
 5. The node needs to run fast. ~10 seconds is acceptable for me. So, for now, only the gguf model can provide this.
 
 # Last update:
-**04.04.2026 - Nightly**
+**11.04.2026 - Nightly**
+- Add `split_mode` settings for multi GPU
+
+**04.04.2026 - V3.6**
 - Add Gemma4 support.
 - Fix `raw_mode` in text mode.
   
@@ -290,9 +293,12 @@ Possible model configurations that can be passed to the `config_override` input.
 | pool_size | int | 4194304 | Memory pool size for the model (llama.cpp). |
 | cpu_threads | int | os.cpu_count() or 8 | Number of CPU threads to use for inference. |
 | image_quality | int | 95 | JPEG quality (1–100) when encoding images to data URIs. Higher values give better quality but larger size. |
-| gpu_layers | int | -1 | Number of layers to offload to GPU; -1 means all layers in GPU. 0 means all layers in CPU. Setting a lower number (40 -> 35 -> 30) can help, sometimes even speeding up by avoiding out-of-memory errors. |
 | merge_system_and_user | bool | False | If True, combines system and user prompts into a single user message.Used for some llava-type models. |
-| cuda_device | int/str | None | Sets CUDA_VISIBLE_DEVICES to the specified device(s). May not work reliably due to implementation limitations. |
+| gpu_layers | int | -1 | Number of layers to offload to GPU; -1 means all layers in GPU. 0 means all layers in CPU. Setting a lower number (40 -> 35 -> 30) can help, sometimes even speeding up by avoiding out-of-memory errors. |
+| cuda_device https://github.com/KLL535/ComfyUI_Simple_Qwen3-VL-gguf/issues/24 | int/str | None | System level. Sets `CUDA_VISIBLE_DEVICES` environment variable before initialization. Restricts GPU visibility for the entire Python process. Accepts single index (0) or comma-separated list ("0,1"). Remaps logical GPU indices for llama-cpp (e.g., cuda_device=2 makes physical GPU2 appear as logical 0, so main_gpu must be 0). Must be set before any CUDA library loads; runtime changes are ignored. Use for strict GPU isolation in multi-GPU or shared environments. to the specified device(s). 💡 It may not work correctly in `direct_clear` and `keep_vram` modes, since comfi-ui is already running llama.cpp with its own settings. |
+| main_gpu | int | 0 | Library level. Index of the primary GPU to use when split_mode=0 (NONE). Ignored in LAYER/ROW modes except for KV-cache placement. Works with CUDA_VISIBLE_DEVICES filtering: if CUDA_VISIBLE_DEVICES=1, then main_gpu=0 refers to physical GPU1. |
+| split_mode | int | 1 | GPU splitting mode: 0=NONE (No splitting. The model is loaded onto a single main_gpu), 1=LAYER (distribute layers across GPUs. This is the most common mode. Different layers of the neural network are assigned to different GPUs. For example, layers 1-16 go to GPU0, and 17-32 go to GPU1.), 2=ROW (tensor parallelism, this splits the actual weight matrices across GPUs. It can be faster for certain operations but usually requires higher bandwidth between GPUs). Use 0 for single-GPU setups to avoid distribution overhead. |
+| tensor_split | list | None | List of floats specifying the fraction of the model to offload to each GPU (e.g., [0.7, 0.3] for 70%/30% split). Only effective when split_mode=1 (LAYER). Length must match number of visible GPUs. If not set, llama-cpp auto-balances based on VRAM. |
 | script | string |  | Name of the Python script to execute ("qwen3vl_run.py"). This field must be specified in the config. |
 | verbose | bool | False | Enables verbose logging from llama.cpp |
 | silent | bool | False | 💡 Unstable function. Disable. |
@@ -558,20 +564,20 @@ Option appeared `enable_thinking": false`, but he doesn't turn off thinking :).
             "model_path": "H:\\LLM2\\gemma4\\gemma-4-E4B-it-IQ4_XS.gguf",
             "mmproj_path": "H:\\LLM2\\gemma4\\mmproj-BF16.gguf",
             "output_max_tokens": 2048,
-            "ctx": 8192, //Depends on the required task and the amount of free memory
+            "ctx": 8192, 
             "n_batch": 2048,
             "n_ubatch": 2048,
             "gpu_layers": -1,
-            "temperature": 1.0, //From the recommendations on the model page
-            "top_p": 0.95, //From the recommendations on the model page
+            "temperature": 1.0, 
+            "top_p": 0.95, 
             "min_p": 0.01,
             "repeat_penalty": 1.0,
-            "top_k": 64, //From the recommendations on the model page
+            "top_k": 64, 
             "script": "qwen3vl_run.py",
             "debug": true,
             "verbose": false,
             "enable_thinking": false,
-            "chat_handler": "gemma4" //💡 New chat handler 💡
+            "chat_handler": "gemma4" 
          },
 ```
 
@@ -594,7 +600,7 @@ You can write custom `prompt template` and then thinking will turn off.
             "chat_handler": "gemma4", 
             "script": "qwen3vl_run.py",
             "debug": true,
-            "raw_mode": true, //💡 redefine the chat template to custom one 💡
+            "raw_mode": true, 
             "prompt_template": "<|turn>system\n{system}<turn|>\n<|turn>user\n{images}\n{user}<turn|>\n<|turn>model\n",
             "stop": ["<turn|>", "<eos>", "<|end_of_turn|>"]
          },

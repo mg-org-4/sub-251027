@@ -1,10 +1,14 @@
-import torch
-from torchaudio.transforms import Resample
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import comfy.model_management
+from torchaudio.transforms import Resample
 
-from typing import Tuple
-from ._types import AUDIO
+if TYPE_CHECKING:
+    import torch
+
+    from ._types import AUDIO
 
 
 class AudioCombine:
@@ -36,7 +40,7 @@ class AudioCombine:
         audio_1: AUDIO,
         audio_2: AUDIO,
         method: str = "add",
-    ) -> Tuple[AUDIO]:
+    ) -> tuple[AUDIO]:
         waveform_1: torch.Tensor = audio_1["waveform"]
         input_sample_rate_1: int = audio_1["sample_rate"]
 
@@ -49,13 +53,13 @@ class AudioCombine:
             if input_sample_rate_1 < input_sample_rate_2:
                 resample = Resample(input_sample_rate_1, input_sample_rate_2).to(device)
                 waveform_1: torch.Tensor = resample(waveform_1.to(device))
-                waveform_1.to("cpu")
                 output_sample_rate = input_sample_rate_2
             else:
                 resample = Resample(input_sample_rate_2, input_sample_rate_1).to(device)
                 waveform_2: torch.Tensor = resample(waveform_2.to(device))
-                waveform_2.to("cpu")
                 output_sample_rate = input_sample_rate_1
+            waveform_1 = waveform_1.to("cpu")
+            waveform_2 = waveform_2.to("cpu")
         else:
             output_sample_rate = input_sample_rate_1
 

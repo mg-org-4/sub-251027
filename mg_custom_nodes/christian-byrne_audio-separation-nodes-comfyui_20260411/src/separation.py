@@ -1,14 +1,19 @@
 """Credit: https://pytorch.org/audio/stable/tutorials/hybrid_demucs_tutorial.html"""
 
-import torch
-from torchaudio.transforms import Fade, Resample
-from torchaudio.pipelines import HDEMUCS_HIGH_MUSDB_PLUS
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from zipfile import BadZipFile
 
 import comfy.model_management
+import torch
+from torchaudio.pipelines import HDEMUCS_HIGH_MUSDB_PLUS
+from torchaudio.transforms import Fade, Resample
 
-from typing import Dict, Tuple
-from ._types import AUDIO
 from .utils import ensure_stereo
+
+if TYPE_CHECKING:
+    from ._types import AUDIO
 
 
 class AudioSeparation:
@@ -28,21 +33,21 @@ class AudioSeparation:
                     ],
                     {
                         "default": "linear",
-                        "tooltip": "Audio is split into segments (chunks) with overlapping areas to ensure smooth transitions. This setting controls the fade effect at these overlaps. Choose Linear for even fading, Half-Sine for a smooth curve, Logarithmic for a quick fade out and slow fade in, or Exponential for a slow fade out and quick fade in.",
+                        "tooltip": "Audio is split into segments (chunks) with overlapping areas to ensure smooth transitions. This setting controls the fade effect at these overlaps. Choose Linear for even fading, Half-Sine for a smooth curve, Logarithmic for a quick fade out and slow fade in, or Exponential for a slow fade out and quick fade in.",  # noqa: E501
                     },
                 ),
                 "chunk_length": (
                     "FLOAT",
                     {
                         "default": 10.0,
-                        "tooltip": "The length of each segment (chunk) in seconds. Longer chunks may require more memory and MIGHT produce better results.",
+                        "tooltip": "The length of each segment (chunk) in seconds. Longer chunks may require more memory and MIGHT produce better results.",  # noqa: E501
                     },
                 ),
                 "chunk_overlap": (
                     "FLOAT",
                     {
                         "default": 0.1,
-                        "tooltip": "The overlap between each segment (chunk) in seconds. A higher overlap may be necessary if chunks are too short or the audio changes rapidly.",
+                        "tooltip": "The overlap between each segment (chunk) in seconds. A higher overlap may be necessary if chunks are too short or the audio changes rapidly.",  # noqa: E501
                     },
                 ),
             },
@@ -60,23 +65,31 @@ class AudioSeparation:
         chunk_fade_shape: str = "linear",
         chunk_length: float = 10.0,
         chunk_overlap: float = 0.1,
-    ) -> Tuple[AUDIO, AUDIO, AUDIO, AUDIO]:
+    ) -> tuple[AUDIO, AUDIO, AUDIO, AUDIO]:
         device: torch.device = comfy.model_management.get_torch_device()
         waveform: torch.Tensor = audio["waveform"]
         waveform = waveform.squeeze(0).to(device)
         self.input_sample_rate_: int = audio["sample_rate"]
 
         bundle = HDEMUCS_HIGH_MUSDB_PLUS
-        model: torch.nn.Module = bundle.get_model().to(device)
+        try:
+            model: torch.nn.Module = bundle.get_model()
+        except (BadZipFile, RuntimeError) as exc:
+            raise RuntimeError(
+                "Failed to load the Hybrid Demucs model — the downloaded checkpoint "
+                "appears to be corrupted. Delete the cached model file and restart "
+                "ComfyUI to trigger a fresh download. The cached file is typically "
+                "located in your torch hub cache directory (~/.cache/torch/hub/checkpoints/)."
+            ) from exc
+        model = model.to(device)
         self.model_sample_rate = bundle.sample_rate
 
         waveform = ensure_stereo(waveform)
+        waveform = waveform.float()
 
         # Resample to model's expected sample rate
         if self.input_sample_rate_ != self.model_sample_rate:
-            resample = Resample(self.input_sample_rate_, self.model_sample_rate).to(
-                device
-            )
+            resample = Resample(self.input_sample_rate_, self.model_sample_rate).to(device)
             waveform = resample(waveform)
 
         ref = waveform.mean(0)
@@ -97,9 +110,7 @@ class AudioSeparation:
 
         return self.sources_to_tuple(dict(zip(sources_list, sources)))
 
-    def sources_to_tuple(
-        self, sources: Dict[str, torch.Tensor]
-    ) -> Tuple[AUDIO, AUDIO, AUDIO, AUDIO]:
+    def sources_to_tuple(self, sources: dict[str, torch.Tensor]) -> tuple[AUDIO, AUDIO, AUDIO, AUDIO]:
         output_order = ["bass", "drums", "other", "vocals"]
         outputs = []
         for source in output_order:
@@ -135,10 +146,7 @@ class AudioSeparation:
                 When `device` is different from `mix.device`, only local computations will
                 be on `device`, while the entire tracks will be stored on `mix.device`.
         """
-        if device is None:
-            device = mix.device
-        else:
-            device = torch.device(device)
+        device = mix.device if device is None else torch.device(device)
 
         batch, channels, length = mix.shape
 
@@ -146,9 +154,7 @@ class AudioSeparation:
         start = 0
         end = chunk_len
         overlap_frames = overlap * sample_rate
-        fade = Fade(
-            fade_in_len=0, fade_out_len=int(overlap_frames), fade_shape=chunk_fade_shape
-        )
+        fade = Fade(fade_in_len=0, fade_out_len=int(overlap_frames), fade_shape=chunk_fade_shape)
 
         final = torch.zeros(batch, len(model.sources), channels, length, device=device)
 

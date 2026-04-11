@@ -270,6 +270,403 @@ def load_model_by_type(conf, ckpt_name, use_remote_vae, optional_model, optional
         )
 
 
+def run_deferred_upscales(
+    deferred_queue, upscale_settings, session_settings,
+    loaded_vae, patched_model, patched_clip, conditioning_cache,
+    paths, existing_data, session_name, unique_id,
+    PromptServer, config_overrides_vae=None
+):
+    """
+    Process deferred upscale jobs after generation completes.
+    Runs all pipeline chains for each queued image.
+    Called BEFORE finalization cleanup so VAE/model/CLIP are still loaded.
+    """
+    if not deferred_queue:
+        return
+
+    from .image_generation import upscale_image, decode_latent_with_vae, create_image_metadata
+    import itertools as up_itertools
+    import random as up_random
+    from PIL import Image as PILImage
+    import comfy.model_management as mm
+    import numpy as np
+    import torch
+
+    pipelines = upscale_settings.get("pipelines", [])
+    if not pipelines:
+        return
+
+    total_jobs = len(deferred_queue)
+    print(f"\n[GridTester] 🔄 Starting deferred upscale phase: {total_jobs} images")
+
+    upscale_durations = []
+
+    for job_idx, job in enumerate(deferred_queue):
+        # Check for interrupt
+        if mm.processing_interrupted():
+            print(f"\n[GridTester] 🛑 INTERRUPTED during deferred upscaling")
+            break
+
+        conf = job["config"]
+        pipe_w = job["width"]
+        pipe_h = job["height"]
+        current_seed = job["seed"]
+        actual_positive_prompt = job["actual_positive_prompt"]
+        actual_negative_prompt = job["actual_negative_prompt"]
+
+        # Find the base image in the manifest by matching identity
+        base_item = None
+        for item in existing_data.get("items", []):
+            if (item.get("seed") == current_seed and
+                item.get("width") == pipe_w and
+                item.get("height") == pipe_h and
+                not item.get("upscaled") and
+                item.get("positive") == actual_positive_prompt):
+                base_item = item
+                break
+
+        if not base_item:
+            print(f"[GridTester] ⚠️ Deferred upscale #{job_idx+1}: base image not found in manifest, skipping")
+            continue
+
+        base_filename = base_item.get("filename")
+        if not base_filename:
+            print(f"[GridTester] ⚠️ Deferred upscale #{job_idx+1}: no filename in manifest, skipping")
+            continue
+
+        base_image_path = os.path.join(paths["images"], base_filename)
+        if not os.path.exists(base_image_path):
+            print(f"[GridTester] ⚠️ Deferred upscale #{job_idx+1}: file not found: {base_filename}, skipping")
+            continue
+
+        # Check if already upscaled (resume support)
+        already_upscaled = False
+        for item in existing_data.get("items", []):
+            if (item.get("upscaled") and
+                item.get("seed") == current_seed and
+                item.get("positive") == actual_positive_prompt and
+                item.get("width") != pipe_w):
+                already_upscaled = True
+                break
+        if already_upscaled:
+            print(f"[GridTester] ⏭️ Deferred upscale #{job_idx+1}: already upscaled, skipping")
+            continue
+
+        # Load base image from disk and VAE-encode back to latent
+        try:
+            pil_image = PILImage.open(base_image_path).convert("RGB")
+            img_array = np.array(pil_image).astype(np.float32) / 255.0
+            img_tensor = torch.from_numpy(img_array).unsqueeze(0)
+            encoded = loaded_vae.encode(img_tensor[:, :, :, :3])
+            result_latent = {"samples": encoded}
+        except Exception as e:
+            print(f"[GridTester] ⚠️ Deferred upscale #{job_idx+1}: failed to load/encode: {e}")
+            continue
+
+        # Look up conditioning from cache
+        final_positive = conditioning_cache["positive"].get(actual_positive_prompt)
+        final_negative = conditioning_cache["negative"].get(actual_negative_prompt)
+
+        if final_positive is None or final_negative is None:
+            print(f"[GridTester] ⚠️ Deferred upscale #{job_idx+1}: conditioning not in cache, re-encoding")
+            try:
+                clip_skip = conf.get("clip_skip", 0)
+                if final_positive is None:
+                    final_positive = encode_prompt_with_combinators(patched_clip, actual_positive_prompt, clip_skip)
+                    conditioning_cache["positive"][actual_positive_prompt] = final_positive
+                if final_negative is None:
+                    final_negative = encode_prompt_with_combinators(patched_clip, actual_negative_prompt, clip_skip)
+                    conditioning_cache["negative"][actual_negative_prompt] = final_negative
+            except Exception as e:
+                print(f"[GridTester] ⚠️ Deferred upscale #{job_idx+1}: re-encode failed: {e}, skipping")
+                continue
+
+        # HiRes prompt adjustment
+        hires_positive_cond = final_positive
+        hires_prompt_active = False
+        hires_prompt_behavior_rt = ""
+        hires_prompt_text_rt = ""
+        if upscale_settings.get("hires_prompt_adjust") and upscale_settings.get("hires_prompt_text", "").strip():
+            hires_prompt_behavior_rt = upscale_settings.get("hires_prompt_behavior", "append_end")
+            hires_prompt_text_rt = upscale_settings["hires_prompt_text"].strip()
+            if hires_prompt_behavior_rt == "prepend":
+                adjusted_prompt = hires_prompt_text_rt + " " + actual_positive_prompt
+            elif hires_prompt_behavior_rt == "append_end":
+                adjusted_prompt = actual_positive_prompt + " " + hires_prompt_text_rt
+            elif hires_prompt_behavior_rt == "replace":
+                adjusted_prompt = hires_prompt_text_rt
+            else:
+                adjusted_prompt = actual_positive_prompt
+            hires_cond = conditioning_cache["positive"].get(adjusted_prompt)
+            if hires_cond is not None:
+                hires_positive_cond = hires_cond
+                hires_prompt_active = True
+
+        job_start_time = time.time()
+        upscale_combo_idx = 0
+
+        for pipeline_idx, pipeline in enumerate(pipelines):
+            if pipeline.get("active", True) is False:
+                continue
+            pipeline_name = pipeline.get("name", f"Pipeline {pipeline_idx + 1}")
+            pipeline_steps = pipeline.get("steps", [])
+            if not pipeline_steps:
+                continue
+
+            pipe_latent = result_latent
+            pipe_w_current = pipe_w
+            pipe_h_current = pipe_h
+
+            expanded_steps = []
+            for step in pipeline_steps:
+                if step.get("active", True) is False:
+                    continue
+                repeat = max(1, int(step.get("repeat", 1)))
+                for _ in range(repeat):
+                    expanded_steps.append(step)
+
+            for step_idx, ucfg in enumerate(expanded_steps):
+                mode = ucfg.get("mode", "hires_only")
+                show_hires = mode in ("hires_only", "model_then_hires")
+                show_model = mode in ("model_only", "model_then_hires")
+
+                raw_ratios = str(ucfg.get("upscale_ratios", "1.5"))
+                ratios = [float(r.strip()) for r in raw_ratios.split(",") if r.strip()] or [1.5]
+                raw_denoise = str(ucfg.get("hires_denoise", "0.3"))
+                denoises = [float(d.strip()) for d in raw_denoise.split(",") if d.strip()] or [0.3]
+                models = ucfg.get("upscale_models", []) or [""]
+
+                if show_hires and show_model:
+                    combos = list(up_itertools.product(models, ratios, denoises))
+                elif show_hires:
+                    combos = list(up_itertools.product([""], ratios, denoises))
+                elif show_model:
+                    combos = list(up_itertools.product(models, [1.0], [0.0]))
+                else:
+                    combos = []
+
+                for combo in combos:
+                    up_model, up_ratio, up_denoise = combo
+                    single_config = {
+                        "mode": mode,
+                        "upscale_model": up_model,
+                        "upscale_ratio": up_ratio,
+                        "hires_denoise": up_denoise,
+                        "hires_steps": ucfg.get("hires_steps", 0),
+                        "tiled_vae": ucfg.get("tiled_vae", False),
+                        "tile_size": ucfg.get("tile_size", 512),
+                        "upscale_size": ucfg.get("upscale_size", "2.0"),
+                        "resize_method": ucfg.get("resize_method", "bilinear"),
+                        "hires_tiled_sampling": ucfg.get("hires_tiled_sampling", False),
+                        "hires_tile_width": ucfg.get("hires_tile_width", 512),
+                        "hires_tile_height": ucfg.get("hires_tile_height", 512),
+                        "hires_mask_blur": ucfg.get("hires_mask_blur", 8),
+                        "hires_tile_padding": ucfg.get("hires_tile_padding", 32),
+                        "hires_force_uniform_tiles": ucfg.get("hires_force_uniform_tiles", False)
+                    }
+
+                    up_positive = hires_positive_cond if (show_hires and hires_prompt_active) else final_positive
+                    upscale_result, upscale_duration = upscale_image(
+                        pipe_latent, loaded_vae, patched_model, single_config,
+                        conf, up_positive, final_negative, pipe_w_current, pipe_h_current
+                    )
+
+                    is_last_step = step_idx == len(expanded_steps) - 1
+                    is_last_combo = combo == combos[-1]
+                    is_final_output = is_last_step and is_last_combo
+
+                    if isinstance(upscale_result, dict) and "samples" in upscale_result:
+                        upscaled_pil = decode_latent_with_vae(loaded_vae, upscale_result["samples"])
+                        up_w, up_h = upscaled_pil.size
+                        if is_final_output:
+                            upscale_id = int(time.time() * 100000) + up_random.randint(0, 1000)
+                            upscaled_filename = f"img_{upscale_id}_upscaled.webp"
+                            upscaled_pil.save(
+                                os.path.join(paths["images"], upscaled_filename),
+                                format="WEBP", quality=95
+                            )
+                    elif isinstance(upscale_result, PILImage.Image):
+                        up_w, up_h = upscale_result.size
+                        if is_final_output:
+                            upscale_id = int(time.time() * 100000) + up_random.randint(0, 1000)
+                            upscaled_filename = f"img_{upscale_id}_upscaled.webp"
+                            upscale_result.save(
+                                os.path.join(paths["images"], upscaled_filename),
+                                format="WEBP", quality=95
+                            )
+                    else:
+                        continue
+
+                    if not is_final_output:
+                        if isinstance(upscale_result, dict) and "samples" in upscale_result:
+                            pipe_latent = upscale_result
+                        pipe_w_current = up_w
+                        pipe_h_current = up_h
+                        continue
+
+                    # Final output: create manifest entry
+                    upscaled_meta = create_image_metadata(
+                        conf, up_w, up_h, upscale_duration, current_seed, job.get("batch_idx", 0),
+                        actual_positive_prompt, actual_negative_prompt,
+                        gen_index=job.get("gen_index", 0)
+                    )
+                    upscaled_meta["id"] = upscale_id
+                    upscaled_meta["filename"] = upscaled_filename
+                    upscaled_meta["upscaled"] = True
+                    upscaled_meta["upscale_pipeline"] = pipeline_name
+                    upscaled_meta["upscale_mode"] = mode
+                    upscaled_meta["upscale_ratio"] = up_ratio
+                    upscaled_meta["upscale_denoise"] = up_denoise
+                    if up_model:
+                        upscaled_meta["upscale_model"] = up_model
+                    if hires_prompt_active:
+                        upscaled_meta["hires_prompt_behavior"] = hires_prompt_behavior_rt
+                        upscaled_meta["hires_prompt_text"] = hires_prompt_text_rt
+
+                    existing_data["items"].append(upscaled_meta)
+                    upscale_combo_idx += 1
+
+        if upscale_combo_idx > 0:
+            save_manifest(paths["manifest"], existing_data)
+            if PromptServer is not None:
+                try:
+                    PromptServer.instance.send_sync("ultimate_grid.update_data", {
+                        "node": unique_id,
+                        "session_name": session_name,
+                        "new_items": [existing_data["items"][-1]]
+                    })
+                except Exception:
+                    pass
+
+        job_duration = time.time() - job_start_time
+        upscale_durations.append(job_duration)
+
+        # Progress reporting
+        if PromptServer is not None:
+            try:
+                avg_dur = sum(upscale_durations) / len(upscale_durations)
+                remaining = (total_jobs - (job_idx + 1)) * avg_dur
+                mins = int(remaining // 60)
+                secs = int(remaining % 60)
+                eta_str = f"{mins}m {secs}s" if mins > 0 else f"{secs}s"
+                PromptServer.instance.send_sync("ultimate_grid.progress", {
+                    "node": unique_id,
+                    "session_name": session_name,
+                    "current_job": job_idx + 1,
+                    "total_jobs": total_jobs,
+                    "progress_pct": int(((job_idx + 1) / total_jobs) * 100),
+                    "eta_str": eta_str,
+                    "avg_duration": round(avg_dur, 1),
+                    "last_duration": round(job_duration, 1),
+                    "phase": "upscaling",
+                })
+            except Exception:
+                pass
+
+        print(f"[GridTester] 🔄 Deferred upscale {job_idx+1}/{total_jobs} complete ({job_duration:.1f}s)")
+
+    print(f"[GridTester] ✅ Deferred upscale phase complete: {len(upscale_durations)}/{total_jobs} images upscaled")
+
+
+def _expand_lora_weight_arrays(expanded_configs):
+    """
+    Expand LoRA weight array bracket notation into Cartesian product of configs.
+
+    Input format per lora part: "name:[0.5, 0.8]:1.0" or "name:0.5:[0.7, 1.0]"
+    Weight arrays use brackets in the STRENGTH fields (after first colon),
+    while folder random syntax uses brackets in the NAME field (before first colon).
+
+    If multiple loras in the same config have weight arrays, produces a Cartesian
+    product of all combinations:
+      lora1:[0.5, 1.0] + lora2:[0.7, 1.0] → 4 configs
+    """
+    import re
+    from itertools import product as itertools_product
+
+    result = []
+    weight_array_pattern = re.compile(r'\[([^\]]+)\]')
+
+    for conf in expanded_configs:
+        lora_str = conf.get("lora", "None")
+        if lora_str == "None" or ":" not in lora_str:
+            result.append(conf)
+            continue
+
+        lora_parts = lora_str.split(" + ")
+        # Check each part for weight arrays (brackets in strength fields, not name field)
+        parts_with_arrays = []
+        has_weight_arrays = False
+
+        for part in lora_parts:
+            part = part.strip()
+            colon_idx = part.find(":")
+            if colon_idx < 0:
+                # No strength specified — plain lora name
+                parts_with_arrays.append([(part, None, None)])
+                continue
+
+            name = part[:colon_idx]
+            strength_str = part[colon_idx + 1:]
+
+            # If brackets are in the name portion, it's folder syntax — skip
+            if "[" in name:
+                parts_with_arrays.append([(part, None, None)])
+                continue
+
+            # Parse strength fields for bracket arrays
+            # Format: "model_str:clip_str" where either can be "[val1, val2]"
+            strength_parts = strength_str.split(":")
+            model_strs = strength_parts[0] if len(strength_parts) > 0 else "1.0"
+            clip_strs = strength_parts[1] if len(strength_parts) > 1 else model_strs
+
+            # Extract arrays from model strength
+            model_match = weight_array_pattern.search(model_strs)
+            if model_match:
+                model_vals = [v.strip() for v in model_match.group(1).split(",")]
+                has_weight_arrays = True
+            else:
+                model_vals = [model_strs.strip()]
+
+            # Extract arrays from clip strength
+            clip_match = weight_array_pattern.search(clip_strs)
+            if clip_match:
+                clip_vals = [v.strip() for v in clip_match.group(1).split(",")]
+                has_weight_arrays = True
+            else:
+                clip_vals = [clip_strs.strip()]
+
+            # Build all combinations for this lora part
+            combos = []
+            for mv in model_vals:
+                for cv in clip_vals:
+                    combos.append((name, mv, cv))
+            parts_with_arrays.append(combos)
+
+        if not has_weight_arrays:
+            result.append(conf)
+            continue
+
+        # Cartesian product across all lora parts
+        for combo in itertools_product(*parts_with_arrays):
+            new_lora_parts = []
+            for item in combo:
+                name, mv, cv = item
+                if mv is None:
+                    # Passthrough (folder syntax or plain name)
+                    new_lora_parts.append(name)
+                else:
+                    new_lora_parts.append(f"{name}:{mv}:{cv}")
+
+            new_conf = conf.copy()
+            new_conf["lora"] = " + ".join(new_lora_parts)
+            result.append(new_conf)
+
+    if len(result) != len(expanded_configs):
+        print(f"[GridTester] 🎯 LoRA weight arrays expanded: {len(expanded_configs)} → {len(result)} configs")
+
+    return result
+
+
 def run_generation_loop(
     self,
     ckpt_name, positive_text, negative_text, seed, denoise, vae_batch_size,
@@ -332,6 +729,10 @@ def run_generation_loop(
     expanded = expand_configs(raw_configs, pos_prompts, neg_prompts, denoise_values, seed, extra_seeds, ckpt_name)
     expanded.sort(key=lambda x: (x.get('model_type', 'checkpoint'), x['model'], tuple(x.get('text_encoders', [])), x.get('vae', 'Default'), x['lora'], x.get('attention_mode', 'default'), x['positive'], x['negative']))
     
+    # ==== EXPAND LORA WEIGHT ARRAYS (Cartesian product) ====
+    # Format: "lora:[0.5, 0.8]:1.0" → expand into separate configs per strength combo
+    expanded = _expand_lora_weight_arrays(expanded)
+
     # ==== EXPAND LORA FOLDERS ====
     print(f"[GridTester] 🎲 Expanding LoRA folders and random selections...")
     for conf in expanded:
@@ -430,9 +831,9 @@ def run_generation_loop(
 
     if dist_enabled:
         print(f"[GridTester] 🌐 ENTERING DISTRIBUTED MODE with {len(distribution_config.get('worker_urls', []))} worker(s)")
-        # Warn if upscaling is enabled — not yet supported in distributed mode
+        # Upscaling in distributed mode: workers generate base images, master runs upscales after collection
         if session_settings and session_settings.get("upscaling", {}).get("enabled", False):
-            print(f"[GridTester] ⚠️ WARNING: Upscaling is enabled but not supported in distributed mode. Workers will generate images without upscaling.")
+            print(f"[GridTester] ℹ️ Upscaling enabled — workers will generate base images, master will run upscales after all generation completes.")
         return _run_distributed_generation(
             self, distribution_config, expanded, input_jobs, existing_data,
             overwrite_existing, has_optional_inputs, lora_triggerwords_mode,
@@ -477,9 +878,13 @@ def run_generation_loop(
     total_generated = 0
     gen_index_offset = len(existing_data.get("items", []))  # Sequential index for deterministic sort ordering
     skipped_count = 0
+    start_at_job = int(session_settings.get("start_at_job", 0)) if session_settings else 0
+    if start_at_job > 0:
+        print(f"[GridTester] ⏭️ Start At Job #{start_at_job} — skipping earlier jobs")
     job_durations = []
+    deferred_upscale_queue = []
     eta_start_time = time.time()
-    
+
     # Initialize remote VAE worker
     remote_vae_worker = None
     if use_remote_vae and expanded:
@@ -742,6 +1147,11 @@ def run_generation_loop(
             )
             actual_negative_prompt = conf["negative"]
             
+            # ==== START AT JOB # (skip earlier jobs) ====
+            if start_at_job > 0 and current_job < start_at_job:
+                skipped_count += 1
+                continue
+
             # ==== CHECK EXISTING MATCH ====
             match_index = check_if_job_completed(
                 existing_data["items"],
@@ -874,8 +1284,10 @@ def run_generation_loop(
                 # Because of short-circuit, if model_switched is True, conditioning_cache['positive'] isn't checked initially
                 # But inside the loop, we access it.
                 if model_switched or not conditioning_cache["positive"]:
-                    model_unique_positives = set()
-                    model_unique_negatives = set()
+                    model_unique_positives = []
+                    model_unique_negatives = []
+                    _seen_positives = set()
+                    _seen_negatives = set()
 
                     for future_idx in range(conf_idx, len(expanded)):
                         future_conf = expanded[future_idx]
@@ -899,8 +1311,13 @@ def run_generation_loop(
                                         break
                                 if all_done:
                                     continue
-                            model_unique_positives.add(future_positive)
-                            model_unique_negatives.add(future_conf["negative"])
+                            if future_positive not in _seen_positives:
+                                _seen_positives.add(future_positive)
+                                model_unique_positives.append(future_positive)
+                            future_neg = future_conf["negative"]
+                            if future_neg not in _seen_negatives:
+                                _seen_negatives.add(future_neg)
+                                model_unique_negatives.append(future_neg)
 
                     if model_unique_positives:
                         print(f"[GridTester] 🧠 Batch encoding {len(model_unique_positives)} prompts for {target_model_name}")
@@ -1116,6 +1533,7 @@ def run_generation_loop(
                 # ==== UPSCALING (pipeline-based with sequential steps) ====
                 upscale_produced = False
                 save_pre_upscale = False
+                total_upscale_duration = 0  # Track cumulative upscale time for duration metric
                 if session_settings and session_settings.get("upscaling", {}).get("enabled", False) and result_latent is not None:
                     from .image_generation import upscale_image
                     import itertools as upscale_itertools
@@ -1126,6 +1544,21 @@ def run_generation_loop(
                     upscale_pipelines = upscale_settings_rt.get("pipelines", [])
                     upscale_combo_idx = 0
                     save_pre_upscale = upscale_settings_rt.get("save_pre_upscale", False)
+
+                    # If deferring upscales to end, skip inline processing and queue the job
+                    run_upscales_at_end = upscale_settings_rt.get("run_upscales_at_end", False)
+                    if run_upscales_at_end:
+                        deferred_upscale_queue.append({
+                            "config": conf.copy(),
+                            "width": w, "height": h,
+                            "seed": current_seed,
+                            "batch_idx": batch_idx,
+                            "actual_positive_prompt": actual_positive_prompt,
+                            "actual_negative_prompt": actual_negative_prompt,
+                            "gen_index": gen_index_offset + total_generated,
+                        })
+                        # Clear pipelines so the inline loop below becomes a no-op
+                        upscale_pipelines = []
 
                     # Compute HiRes-adjusted conditioning if enabled
                     hires_positive_cond = final_positive  # Default: same as base
@@ -1239,6 +1672,7 @@ def run_generation_loop(
                                     pipe_latent, loaded_vae, patched_model, single_config,
                                     conf, up_positive, final_negative, pipe_w, pipe_h
                                 )
+                                total_upscale_duration += upscale_duration
 
                                 # Determine if this is the final output (only the last step's last combo in the pipeline)
                                 is_last_step = step_idx == len(expanded_steps) - 1
@@ -1304,7 +1738,7 @@ def run_generation_loop(
 
                                 if is_final_output:
                                     upscaled_meta = create_image_metadata(
-                                        conf, up_w, up_h, upscale_duration, current_seed, batch_idx,
+                                        conf, up_w, up_h, duration + total_upscale_duration, current_seed, batch_idx,
                                         actual_positive_prompt, actual_negative_prompt,
                                         gen_index=gen_index_offset + total_generated
                                     )
@@ -1393,10 +1827,12 @@ def run_generation_loop(
                     if upscale_combo_idx > 0:
                         save_manifest(paths["manifest"], existing_data)
 
-                job_durations.append(duration)
+                # Include upscale time in total duration for ETA accuracy
+                total_duration = duration + total_upscale_duration
+                job_durations.append(total_duration)
                 eta_info = calculate_eta(job_durations, current_job, total_jobs)
                 if eta_info:
-                    print_generation_progress(current_job, total_jobs, conf, w, h, duration, eta_info)
+                    print_generation_progress(current_job, total_jobs, conf, w, h, total_duration, eta_info)
                     # Send progress to dashboard frontend
                     if PromptServer is not None:
                         try:
@@ -1416,7 +1852,7 @@ def run_generation_loop(
                                 "eta_str": eta_str,
                                 "finish_time": eta_info['finish_formatted'],
                                 "avg_duration": round(eta_info['avg_duration'], 1),
-                                "last_duration": round(duration, 1)
+                                "last_duration": round(total_duration, 1)
                             })
                         except Exception:
                             pass
@@ -1426,7 +1862,7 @@ def run_generation_loop(
                 # Unless save_pre_upscale is enabled, in which case save both
                 if not upscale_produced or save_pre_upscale:
                     meta = create_image_metadata(
-                        conf, w, h, duration, current_seed, batch_idx,
+                        conf, w, h, total_duration, current_seed, batch_idx,
                         actual_positive_prompt, actual_negative_prompt,
                         gen_index=gen_index_offset + total_generated
                     )
@@ -1526,6 +1962,16 @@ def run_generation_loop(
                              per_config_remote_workers, use_remote_vae, remote_vae_worker,
                              loaded_vae, paths, existing_data, session_name, paths["manifest"], unique_id,
                              config_overrides_vae=config_overrides_vae)
+
+    # ==== DEFERRED UPSCALE PHASE (must run before cleanup so VAE/model/CLIP are still loaded) ====
+    if deferred_upscale_queue and session_settings and session_settings.get("upscaling", {}).get("run_upscales_at_end", False):
+        upscale_settings_deferred = session_settings["upscaling"]
+        run_deferred_upscales(
+            deferred_upscale_queue, upscale_settings_deferred, session_settings,
+            loaded_vae, patched_model, patched_clip, conditioning_cache,
+            paths, existing_data, session_name, unique_id,
+            PromptServer, config_overrides_vae=config_overrides_vae
+        )
 
     # Shut down per-config remote VAE workers
     _cleanup_per_config_remote_workers(per_config_remote_workers)
@@ -1899,7 +2345,7 @@ def _run_distributed_generation(
     - Waits for all remote workers to finish
     - Returns the final HTML dashboard
     """
-    from .distribution_manager import DistributionManager
+    from .distribution_manager import DistributionManager, JobState
     from .distribution_routes import (
         set_distribution_manager, notify_workers_to_start,
         stop_all_workers, _send_distribution_status
@@ -2329,9 +2775,32 @@ def _run_distributed_generation(
         raise
 
     # === Wait for remote workers to finish ===
+    # Max wait timeout prevents infinite loops if workers crash without cleanup.
+    # After timeout, remaining claimed jobs are reclaimed and processed on master.
+    dist_wait_timeout = distribution_config.get("wait_timeout", 600)  # Default 10 minutes
     if manager.has_pending_or_claimed:
-        print(f"[Distribution] ⏳ Waiting for remote workers to finish...")
+        print(f"[Distribution] ⏳ Waiting for remote workers to finish (timeout: {dist_wait_timeout}s)...")
+        wait_start = time.time()
         while manager.has_pending_or_claimed:
+            # Release timed-out jobs from dead workers (was only called during claim_job)
+            manager.release_timed_out_jobs()
+
+            # Check max wait timeout — reclaim remaining jobs for master processing
+            elapsed_wait = time.time() - wait_start
+            if elapsed_wait > dist_wait_timeout:
+                status = manager.get_status()
+                remaining = status['pending'] + status['claimed']
+                print(f"[Distribution] ⏰ Wait timeout ({dist_wait_timeout}s) reached with {remaining} jobs remaining — reclaiming for master")
+                # Force-reclaim all remaining claimed jobs
+                with manager._lock:
+                    for job in manager._jobs.values():
+                        if job.state == JobState.CLAIMED and job.worker_id != "master":
+                            job.state = JobState.PENDING
+                            job.worker_id = None
+                            job.claimed_at = None
+                            manager._pending_queue.append(job.job_id)
+                break
+
             # Check for interrupt while waiting
             try:
                 import comfy.model_management as mm
@@ -2374,6 +2843,18 @@ def _run_distributed_generation(
                   f"Claimed: {status['claimed']}, "
                   f"Completed: {status['completed']}/{status['total']}")
 
+    # === Handle remaining jobs after wait timeout ===
+    if manager.has_pending_or_claimed:
+        status = manager.get_status()
+        remaining = status['pending'] + status['claimed']
+        print(f"[Distribution] ⚠️ {remaining} job(s) still incomplete after wait timeout — marking as failed and proceeding to finalization")
+        # Mark remaining jobs as failed so we don't block forever
+        with manager._lock:
+            for job in manager._jobs.values():
+                if job.state in (JobState.PENDING, JobState.CLAIMED):
+                    job.state = JobState.COMPLETED  # Mark done to unblock
+                    print(f"[Distribution] ⚠️ Abandoned job {job.job_id} (was {job.state})")
+
     # === Finalization ===
     stop_all_workers(worker_urls)
     manager.deactivate()
@@ -2382,9 +2863,23 @@ def _run_distributed_generation(
     # be in the middle of submitting a result. The submit_result route only needs
     # manager != None (it does NOT check is_active). Deactivation already prevents
     # new job claims (claim_job returns 503). Delay the cleanup with a daemon thread
-    # so in-flight submissions can still be processed as duplicates.
+    # that waits for workers to go silent before clearing the manager.
     def _delayed_manager_cleanup():
-        time.sleep(30)
+        # Wait up to 5 minutes for all workers to stop submitting.
+        # Check every 10s whether any registered workers still have recent heartbeats.
+        for _ in range(30):  # 30 × 10s = 5 minutes max
+            time.sleep(10)
+            if not manager or not manager._workers:
+                break
+            now = time.time()
+            any_alive = False
+            with manager._lock:
+                for w in manager._workers.values():
+                    if now - w.get("last_heartbeat", 0) < 30:
+                        any_alive = True
+                        break
+            if not any_alive:
+                break
         set_distribution_manager(None)
 
     threading.Thread(target=_delayed_manager_cleanup, daemon=True).start()
@@ -2396,6 +2891,34 @@ def _run_distributed_generation(
         remote_vae_worker.stop()
 
     print_incompatible_loras_summary(incompatible_loras)
+
+    # === Run deferred upscales on master after all distributed generation is complete ===
+    if session_settings and session_settings.get("upscaling", {}).get("enabled", False):
+        upscale_settings = session_settings.get("upscaling", {})
+        print(f"[Distribution] 🔍 Running upscales on master for distributed results...")
+        # Build deferred upscale queue from all generated items
+        deferred_upscale_queue = []
+        for item_meta in existing_data.get("items", []):
+            if not item_meta.get("upscaled"):  # Skip items already upscaled
+                deferred_upscale_queue.append({
+                    "meta": item_meta,
+                    "config": {
+                        "model": item_meta.get("model", ckpt_name),
+                        "steps": item_meta.get("steps", 20),
+                        "sampler": item_meta.get("sampler", "euler"),
+                        "scheduler": item_meta.get("scheduler", "normal"),
+                        "cfg": item_meta.get("cfg", 7.0),
+                    }
+                })
+        if deferred_upscale_queue:
+            run_deferred_upscales(
+                deferred_upscale_queue, upscale_settings, existing_data,
+                session_name, paths, unique_id, ckpt_name,
+                conditioning_cache, model_cache,
+                use_remote_vae, remote_vae_endpoint
+            )
+        else:
+            print(f"[Distribution] ℹ️ No items to upscale")
 
     existing_data["meta"] = {
         "positive": positive_text, "negative": negative_text,

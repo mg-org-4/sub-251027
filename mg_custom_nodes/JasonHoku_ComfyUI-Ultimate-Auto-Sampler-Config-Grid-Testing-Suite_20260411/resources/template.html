@@ -92,10 +92,11 @@
                     <button class="session-action-btn save-btn" onclick="saveState()">SAVE</button>
                 </div>
                 <div style="margin-top: 8px;">
-                    <span class="meta-label" style="font-size: 10px;">Load Session:</span>
-                    <select id="session-picker" style="width: 100%; margin-top: 4px; background: #1a1a1a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; font-size: 11px; cursor: pointer;" onchange="loadSessionFromPicker(this.value)">
-                        <option value="">-- Select a session --</option>
-                    </select>
+                    <span class="meta-label" style="font-size: 10px;">Load Session: <span style="color:#666;">(sorted by most recent)</span></span>
+                    <input type="text" id="session-search" placeholder="Search sessions..."
+                        style="width: 100%; margin-top: 4px; background: #1a1a1a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; font-size: 11px; box-sizing: border-box;"
+                        oninput="filterSessionPicker(this.value)">
+                    <div id="session-picker-list" style="max-height: 180px; overflow-y: auto; margin-top: 4px; border: 1px solid #333; border-radius: 4px; background: #1a1a1a;"></div>
                 </div>
             </div>
 
@@ -130,6 +131,13 @@
                     </label>
                 </div>
                 <div id="label-fields-container" style="display: none;">
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                        <label for="label-size-slider" style="font-size: 10px; color: #999; white-space: nowrap;">Size:</label>
+                        <input type="range" id="label-size-slider" min="6" max="16" value="9" step="1"
+                            style="flex: 1; height: 14px; cursor: pointer;"
+                            oninput="updateLabelSize(this.value)">
+                        <span id="label-size-value" style="font-size: 10px; color: #999; min-width: 20px;">9px</span>
+                    </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
                         <div style="display: flex; align-items: center; gap: 4px;">
                             <input type="checkbox" id="label-field-model" onchange="updateLabelFields()" style="width: 12px; height: 12px; cursor: pointer;">
@@ -476,6 +484,18 @@
                     <span class="filter-label">Seed</span>
                     <div id="filter-seed" class="filter-buttons-container"></div>
                 </div>
+                <div class="filter-row">
+                    <span class="filter-label">Steps</span>
+                    <div id="filter-steps" class="filter-buttons-container"></div>
+                </div>
+                <div class="filter-row">
+                    <span class="filter-label">CFG</span>
+                    <div id="filter-cfg" class="filter-buttons-container"></div>
+                </div>
+                <div class="filter-row">
+                    <span class="filter-label">Upscale</span>
+                    <div id="filter-upscaleMethod" class="filter-buttons-container"></div>
+                </div>
             </div>
 
             <!-- Keyboard Shortcuts Reference -->
@@ -500,11 +520,35 @@
                     </tr>
                     <tr style="border-bottom: 1px solid #333;">
                         <td style="padding: 4px 8px; color: #0af; font-family: monospace;">0</td>
-                        <td style="padding: 4px 8px; color: #ccc;">Reset zoom to 1:1</td>
+                        <td style="padding: 4px 8px; color: #ccc;">Auto-fit first row to viewport</td>
                     </tr>
                     <tr style="border-bottom: 1px solid #333;">
                         <td style="padding: 4px 8px; color: #0af; font-family: monospace;">F</td>
-                        <td style="padding: 4px 8px; color: #ccc;">Auto-fit first row to viewport</td>
+                        <td style="padding: 4px 8px; color: #ccc;">Toggle fullscreen</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #333;">
+                        <td style="padding: 4px 8px; color: #0af; font-family: monospace;">R</td>
+                        <td style="padding: 4px 8px; color: #ccc;">Reload session</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #333;">
+                        <td style="padding: 4px 8px; color: #0af; font-family: monospace;">1-9</td>
+                        <td style="padding: 4px 8px; color: #ccc;">Quick favorite Nth visible card</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #333;">
+                        <td style="padding: 4px 8px; color: #0af; font-family: monospace;">Shift+0-9</td>
+                        <td style="padding: 4px 8px; color: #ccc;">Set column count (0 = auto)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #333;">
+                        <td style="padding: 4px 8px; color: #0af; font-family: monospace;">Ctrl+S</td>
+                        <td style="padding: 4px 8px; color: #ccc;">Save (forwarded to ComfyUI)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #333;">
+                        <td style="padding: 4px 8px; color: #0af; font-family: monospace;">Escape</td>
+                        <td style="padding: 4px 8px; color: #ccc;">Close modal / lightbox</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #333;">
+                        <td style="padding: 4px 8px; color: #0af; font-family: monospace;">Double-click</td>
+                        <td style="padding: 4px 8px; color: #ccc;">Toggle favorite on card</td>
                     </tr>
                     <tr>
                         <td style="padding: 4px 8px; color: #0af; font-family: monospace;">Shift+Click</td>
@@ -697,6 +741,11 @@
                 }
             })();
     </script>
+
+<!-- Upscale Modal -->
+<div id="upscale-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;" onclick="if(event.target===this)closeUpscaleModal()">
+    <div id="upscale-modal-content" style="background: #1e1e1e; border: 1px solid #444; border-radius: 8px; padding: 20px; width: 600px; max-width: 92vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.5);"></div>
+</div>
 
 </body>
 

@@ -564,30 +564,30 @@ class UltimateConfigBuilder:
                 "model": model_strings if len(model_strings) > 1 else model_strings[0] if model_strings else "None"
             }
             
-            # Add seed_behavior if set to randomize
+            # Always include all fields with defaults to prevent manifest data loss
+            # when fields are toggled off in the UI and the session is reloaded
             seed_behavior = config_array.get("seed_behavior", "fixed")
-            if seed_behavior == "randomize":
-                config["seed_behavior"] = "randomize"
+            config["seed_behavior"] = seed_behavior
 
             # Full run seed behavior (applied before/after entire grid test session)
             full_run_seed_behavior = config_array.get("full_run_seed_behavior", "fixed")
-            if full_run_seed_behavior and full_run_seed_behavior != "fixed":
-                config["full_run_seed_behavior"] = full_run_seed_behavior
+            config["full_run_seed_behavior"] = full_run_seed_behavior
 
             # Full run seed (overrides node seed when > 0)
             full_run_seed = config_array.get("full_run_seed", 0)
-            if full_run_seed and int(full_run_seed) > 0:
-                config["full_run_seed"] = int(full_run_seed)
+            config["full_run_seed"] = int(full_run_seed) if full_run_seed else 0
 
-            # Process VAEs
+            # Process VAEs — always include (default "None" if unset)
             vaes_raw = config_array.get("vaes", ["None"])
             vae_strings = [str(v) for v in vaes_raw if v and v != "None"]
             if vae_strings:
                 config["vae"] = vae_strings if len(vae_strings) > 1 else vae_strings[0]
+            else:
+                config["vae"] = "None"
 
-            # Add model_type and related fields for non-checkpoint models
+            # Always include model_type and related fields
+            config["model_type"] = model_type
             if model_type != "checkpoint":
-                config["model_type"] = model_type
                 text_encoders = config_array.get("text_encoders", [])
                 if text_encoders:
                     config["text_encoders"] = [te for te in text_encoders if te and te != "None"]
@@ -599,13 +599,11 @@ class UltimateConfigBuilder:
                     if gguf_options:
                         config["gguf_options"] = gguf_options
 
-            # Add omit triggers if present
-            if omit_triggers:
-                config["lora_omit_triggers"] = omit_triggers
+            # Always include omit triggers (empty list if none)
+            config["lora_omit_triggers"] = omit_triggers if omit_triggers else []
 
-            # Add trigger append settings if present
-            if lora_triggerwords_append_settings and any(v != "none" for v in lora_triggerwords_append_settings.values()):
-                config["lora_triggerwords_append_settings"] = lora_triggerwords_append_settings
+            # Always include trigger append settings (empty dict if none)
+            config["lora_triggerwords_append_settings"] = lora_triggerwords_append_settings if lora_triggerwords_append_settings else {}
 
             # Per-config resolutions (override sampler's resolutions_json)
             raw_resolutions = config_array.get("resolutions", [])
@@ -627,31 +625,35 @@ class UltimateConfigBuilder:
                 filtered = [a for a in attention_modes if a and a != "default"]
                 if filtered:
                     config["attention_mode"] = filtered if len(filtered) > 1 else filtered[0]
-            elif isinstance(attention_modes, str) and attention_modes != "default":
+                else:
+                    config["attention_mode"] = "default"
+            elif isinstance(attention_modes, str):
                 config["attention_mode"] = attention_modes
+            else:
+                config["attention_mode"] = "default"
 
             # Model prompt prefix/suffix (quality tags prepended/appended to prompts)
             model_prompt_prefix = config_array.get("model_prompt_prefix", "")
-            if model_prompt_prefix and model_prompt_prefix.strip():
-                config["model_prompt_prefix"] = model_prompt_prefix.strip()
+            config["model_prompt_prefix"] = model_prompt_prefix.strip() if model_prompt_prefix else ""
             model_prompt_suffix = config_array.get("model_prompt_suffix", "")
-            if model_prompt_suffix and model_prompt_suffix.strip():
-                config["model_prompt_suffix"] = model_prompt_suffix.strip()
+            config["model_prompt_suffix"] = model_prompt_suffix.strip() if model_prompt_suffix else ""
 
-            # Add extra model & sampling options if enabled
+            # Always include model sampling options with defaults
+            config["model_sampling_override"] = model_sampling_override if model_sampling_override else "none"
             if model_sampling_override and model_sampling_override != "none":
-                config["model_sampling_override"] = model_sampling_override
                 if model_sampling_override == "flux":
                     config["model_sampling_flux_max_shift"] = model_sampling_flux_max_shift
                     config["model_sampling_flux_base_shift"] = model_sampling_flux_base_shift
+                elif model_sampling_override == "flux2":
+                    config["model_sampling_shift"] = model_sampling_shift if model_sampling_shift else "2.02"
                 else:
                     config["model_sampling_shift"] = model_sampling_shift
+            config["use_advanced_sampling"] = use_advanced_sampling or False
             if use_advanced_sampling:
-                config["use_advanced_sampling"] = True
                 config["advanced_guider"] = advanced_guider
                 config["advanced_scheduler"] = advanced_scheduler
+            config["use_flux_guidance"] = use_flux_guidance or False
             if use_flux_guidance:
-                config["use_flux_guidance"] = True
                 config["flux_guidance_value"] = flux_guidance_value
 
             # ==== PROMPT HANDLING ====
@@ -675,8 +677,20 @@ class UltimateConfigBuilder:
                 config["_prompt_source"] = "global"
             # If neither, omit "positive"/"negative" keys - node inputs will be used as fallback
 
+            # --- CONFIG SCHEMA VALIDATION ---
+            # Catches JS/Python sync drift — warns if expected keys are missing
+            _EXPECTED_CONFIG_KEYS = {
+                "sampler", "scheduler", "steps", "cfg", "denoise", "seed", "seed_behavior",
+                "model", "model_type", "lora", "vae", "clip_type",
+                "model_sampling_override", "use_advanced_sampling", "use_flux_guidance",
+                "model_prompt_prefix", "model_prompt_suffix", "attention_mode",
+            }
+            missing = _EXPECTED_CONFIG_KEYS - set(config.keys())
+            if missing:
+                print(f"[ConfigBuilder] ⚠️ Config schema drift: missing keys {missing} in config for '{config.get('model', '?')}'")
+
             configs_output.append(config)
-        
+
         # Build the output object with configs and optional distribution settings
         output_obj = {"configs": configs_output}
 
@@ -707,6 +721,7 @@ class UltimateConfigBuilder:
                 session_settings["upscaling"] = {
                     "enabled": True,
                     "save_pre_upscale": upscaling_data.get("save_pre_upscale", False),
+                    "run_upscales_at_end": upscaling_data.get("run_upscales_at_end", False),
                     "hires_prompt_adjust": upscaling_data.get("hires_prompt_adjust", False),
                     "hires_prompt_behavior": upscaling_data.get("hires_prompt_behavior", "append_end"),
                     "hires_prompt_text": upscaling_data.get("hires_prompt_text", ""),
@@ -715,6 +730,10 @@ class UltimateConfigBuilder:
         cooldown_data = state.get("cooldown", {})
         if cooldown_data and cooldown_data.get("enabled", False):
             session_settings["cooldown"] = cooldown_data
+        # Start At Job # (skip to a specific job number)
+        start_at_job = state.get("start_at_job", 0)
+        if start_at_job and int(start_at_job) > 0:
+            session_settings["start_at_job"] = int(start_at_job)
         if session_settings:
             output_obj["_session_settings"] = session_settings
 
@@ -1029,6 +1048,26 @@ async def lookup_model_metadata_endpoint(request):
         }, status=500)
 
 
+# Fast count endpoint — returns just file counts per category for change detection
+@server.PromptServer.instance.routes.get("/configbuilder/model_counts")
+async def get_model_counts_endpoint(request):
+    """Return file counts per model category. Very fast — uses folder_paths internal cache."""
+    try:
+        counts = {}
+        for cat in ["checkpoints", "diffusion_models", "text_encoders", "vae", "loras"]:
+            try:
+                counts[cat] = len(folder_paths.get_filename_list(cat))
+            except (KeyError, Exception):
+                counts[cat] = 0
+        for cat in ["unet_gguf", "clip_gguf", "upscale_models"]:
+            try:
+                counts[cat] = len(folder_paths.get_filename_list(cat))
+            except (KeyError, Exception):
+                counts[cat] = 0
+        return web.json_response(counts)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
 # API endpoint to get all model lists for unified model selector
 @server.PromptServer.instance.routes.get("/configbuilder/model_lists")
 async def get_model_lists_endpoint(request):
@@ -1052,10 +1091,10 @@ async def get_model_lists_endpoint(request):
         clip_types = [
             "stable_diffusion", "stable_cascade", "sd3", "stable_audio",
             "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan",
-            "hidream", "chroma", "ace", "flux"
+            "hidream", "chroma", "ace", "flux", "flux2"
         ]
         dual_clip_types = [
-            "sdxl", "sd3", "flux", "hunyuan_video", "hidream",
+            "sdxl", "sd3", "flux", "flux2", "hunyuan_video", "hidream",
             "hunyuan_image", "hunyuan_video_15"
         ]
 

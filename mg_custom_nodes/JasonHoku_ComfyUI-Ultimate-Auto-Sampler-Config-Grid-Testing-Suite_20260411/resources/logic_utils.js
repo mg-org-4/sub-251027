@@ -5,7 +5,9 @@
  */
 
 function toggleFullscreen() {
-    window.parent.postMessage({ type: 'toggle_fullscreen', node_id: TARGET_NODE_ID }, '*');
+    // Send current session name so fullscreen reload uses the right session
+    var currentSession = document.getElementById('session-input')?.value || '';
+    window.parent.postMessage({ type: 'toggle_fullscreen', node_id: TARGET_NODE_ID, session_name: currentSession }, '*');
 }
 
 
@@ -153,7 +155,75 @@ async function loadSession() {
     }
 }
 
+/**
+ * Merge another session's images into the current view.
+ * Appends items from the target session, tagging each with a _session field.
+ * Does not save — the merge is view-only until user explicitly saves.
+ */
+async function mergeSession(sessionName) {
+    if (!sessionName) return;
+    console.log(`[Merge] 🔄 Merging session: ${sessionName}`);
+
+    try {
+        const r = await fetch(`/view?filename=manifest.json&type=output&subfolder=benchmarks/${sessionName}&t=${Date.now()}`);
+        if (!r.ok) throw new Error("Session not found: " + sessionName);
+        const data = await r.json();
+        const newItems = data.items || [];
+
+        if (newItems.length === 0) {
+            alert("No items in session: " + sessionName);
+            return;
+        }
+
+        // Tag items with source session and deduplicate by id
+        const existingIds = new Set(activeData.map(function(d) { return d.id; }));
+        var added = 0;
+        for (var i = 0; i < newItems.length; i++) {
+            newItems[i]._session = sessionName;
+            if (!existingIds.has(newItems[i].id)) {
+                fullManifest.items.push(newItems[i]);
+                added++;
+            }
+        }
+
+        // Update references
+        activeData = fullManifest.items;
+
+        console.log(`[Merge] 📊 Added ${added} items from "${sessionName}" (${newItems.length - added} duplicates skipped)`);
+
+        // Rebuild everything
+        refreshIndices();
+        if (typeof computeLabelGlobalValues === 'function' && labelMode && labelMode.enabled) {
+            computeLabelGlobalValues();
+        }
+        if (typeof initFilters === 'function') initFilters();
+        if (typeof renderSearchFilters === 'function') renderSearchFilters();
+        updateDataPipeline();
+
+        // Show merge notification
+        var notice = document.createElement('div');
+        notice.style.cssText = 'position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: #00aa44; color: #fff; padding: 8px 20px; border-radius: 6px; font-size: 13px; z-index: 9999; pointer-events: none;';
+        notice.textContent = 'Merged ' + added + ' images from "' + sessionName + '"';
+        document.body.appendChild(notice);
+        setTimeout(function() { notice.style.opacity = '0'; notice.style.transition = 'opacity 0.5s'; }, 2000);
+        setTimeout(function() { if (notice.parentNode) notice.parentNode.removeChild(notice); }, 2500);
+
+    } catch (e) {
+        console.error('[Merge] ❌ Merge failed:', e);
+        alert("Merge Error: " + e.message);
+    }
+}
+
 // Load session from picker dropdown or session card
+function filterSessionPicker(query) {
+    const rows = document.querySelectorAll('.session-picker-row');
+    const q = query.toLowerCase().trim();
+    rows.forEach(row => {
+        const name = (row.dataset.name || '').toLowerCase();
+        row.style.display = (!q || name.includes(q)) ? '' : 'none';
+    });
+}
+
 function loadSessionFromPicker(sessionName) {
     if (!sessionName) return;
     const sessInput = document.getElementById('session-input');
@@ -169,18 +239,37 @@ async function fetchAndShowSessions() {
         const sessions = await resp.json();
         if (!sessions || sessions.length === 0) return;
 
-        // Populate the session picker dropdown in cog menu
-        const picker = document.getElementById('session-picker');
-        if (picker) {
-            // Keep the default option
-            picker.innerHTML = '<option value="">-- Select a session --</option>';
+        // Populate the session picker list in cog menu (already sorted by most recent from backend)
+        const pickerList = document.getElementById('session-picker-list');
+        if (pickerList) {
+            pickerList.textContent = ''; // Clear existing entries
+            window._sessionPickerData = sessions; // Store for search filtering
             sessions.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.name;
+                const row = document.createElement('div');
+                row.className = 'session-picker-row';
+                row.dataset.name = s.name;
+                row.style.cssText = 'padding: 5px 8px; cursor: pointer; font-size: 11px; color: #ccc; border-bottom: 1px solid #222;';
+                row.onmouseenter = () => { row.style.background = '#333'; };
+                row.onmouseleave = () => { row.style.background = 'none'; };
+                row.onclick = () => loadSessionFromPicker(s.name);
                 const date = new Date(s.mtime * 1000);
                 const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-                opt.textContent = `${s.name} (${s.item_count} images, ${dateStr})`;
-                picker.appendChild(opt);
+                const nameSpan = document.createElement('span');
+                nameSpan.style.color = '#fff';
+                nameSpan.textContent = s.name;
+                const metaSpan = document.createElement('span');
+                metaSpan.style.cssText = 'color:#666; font-size:10px;';
+                metaSpan.textContent = ` (${s.item_count} imgs, ${dateStr})`;
+                // Merge button — adds this session's images to current view
+                const mergeBtn = document.createElement('button');
+                mergeBtn.textContent = '+Merge';
+                mergeBtn.title = 'Merge this session into current view';
+                mergeBtn.style.cssText = 'float: right; background: #335; color: #88f; border: 1px solid #446; border-radius: 3px; padding: 0 4px; font-size: 9px; cursor: pointer; margin-left: 4px;';
+                mergeBtn.onclick = function(e) { e.stopPropagation(); mergeSession(s.name); };
+                row.appendChild(mergeBtn);
+                row.appendChild(nameSpan);
+                row.appendChild(metaSpan);
+                pickerList.appendChild(row);
             });
         }
 

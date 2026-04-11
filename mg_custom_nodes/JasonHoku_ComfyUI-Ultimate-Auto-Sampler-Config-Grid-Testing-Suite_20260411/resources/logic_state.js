@@ -28,7 +28,10 @@ var filters = filters || {
     positive: new Set(),
     negative: new Set(),
     size: new Set(),
-    seed: new Set()
+    seed: new Set(),
+    steps: new Set(),
+    cfg: new Set(),
+    upscaleMethod: new Set()
 };
 
 // Top-level filter toggles (true = show, false = hide)
@@ -87,6 +90,7 @@ let updateDebounceTimer = null;
 // Which fields to show as overlays on cards (persisted to localStorage)
 var labelMode = labelMode || {
     enabled: false,
+    labelSize: 9,
     fields: {
         model: false,
         lora: false,

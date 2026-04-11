@@ -72,13 +72,78 @@ const REMOTE_VAE_PRESETS = {
 };
 
 // Debounced renderUI to batch rapid state changes and avoid redundant full rebuilds
+// Pass optional arrayIdx for partial re-render of just one config section
 let _renderUITimer = null;
-function debouncedRenderUI(node) {
+function debouncedRenderUI(node, arrayIdx) {
     if (_renderUITimer) clearTimeout(_renderUITimer);
     _renderUITimer = setTimeout(() => {
         _renderUITimer = null;
-        node.renderUI();
+        if (arrayIdx !== undefined && arrayIdx !== null) {
+            rerenderConfigSection(node, arrayIdx);
+        } else {
+            node.renderUI();
+        }
     }, 150);
+}
+
+/**
+ * Partial re-render: rebuild only a specific config array section instead of the entire UI.
+ * Much faster than full renderUI() for structural changes within a single config
+ * (add/remove model, add/remove lora, etc.).
+ * Falls back to full renderUI if the target section isn't found in the DOM.
+ */
+function rerenderConfigSection(node, arrayIdx) {
+    const target = document.getElementById(`cb-config-${arrayIdx}`);
+    if (!target) {
+        // Section not in DOM (collapsed or first render) — fall back to full render
+        debouncedRenderUI(node);
+        return;
+    }
+
+    // Import model lists from cache (already loaded)
+    import('./conf-builder-utilities.js').then(async (utilities) => {
+        const modelLists = {
+            checkpoints: utilities.getAvailableModels ? await utilities.getAvailableModels() : [],
+            diffusionModels: utilities.getAvailableDiffusionModels(),
+            ggufModels: utilities.getAvailableGGUFModels(),
+            textEncoders: utilities.getAvailableTextEncoders(),
+            textEncoderFolders: utilities.getTextEncoderFolders(),
+            vae: utilities.getAvailableVAEs(),
+            vaeFolders: utilities.getVAEFolders(),
+            upscaleModels: utilities.getAvailableUpscaleModels ? utilities.getAvailableUpscaleModels() : [],
+            samplers: utilities.getAvailableSamplers(),
+            schedulers: utilities.getAvailableSchedulers(),
+            clipTypes: utilities.getClipTypes(),
+            dualClipTypes: utilities.getDualClipTypes(),
+        };
+        const availableLoras = await utilities.getAvailableLoras();
+        const loraFolders = await utilities.getLoraFolders();
+        const configArray = node.state.config_arrays[arrayIdx];
+        if (!configArray) return;
+
+        // Save scroll position of the section
+        const scrollParent = target.closest('.cb-main-content');
+        const savedScroll = scrollParent ? scrollParent.scrollTop : 0;
+
+        // Clear and rebuild just this config section
+        target.textContent = '';
+        const freshElement = createConfigArrayElement(node, configArray, arrayIdx, modelLists);
+        // Copy children from fresh element into existing target
+        while (freshElement.firstChild) target.appendChild(freshElement.firstChild);
+        // Copy styles
+        target.style.borderLeft = freshElement.style.borderLeft;
+
+        renderConfigPromptsSection(node, target, configArray, arrayIdx);
+        renderModelsSection(node, target, configArray, arrayIdx, modelLists);
+        renderVAEsSection(node, target, configArray, arrayIdx, modelLists);
+        renderLorasSection(node, target, configArray, arrayIdx, availableLoras, loraFolders);
+
+        // Update preview
+        if (typeof updatePreview === 'function') updatePreview(node);
+
+        // Restore scroll
+        if (scrollParent) scrollParent.scrollTop = savedScroll;
+    });
 }
 
 // --- DRAG-AND-DROP REORDER HELPER ---
@@ -1583,6 +1648,14 @@ export function createLoraElement(node, loraStr, arrayIdx, loraIdx, availableLor
     );
     contentDiv.appendChild(nameSearchable);
 
+    // Check if this LoRA has weight arrays stored
+    if (!node.state.config_arrays[arrayIdx].lora_weight_arrays) {
+        node.state.config_arrays[arrayIdx].lora_weight_arrays = {};
+    }
+    const weightArrays = node.state.config_arrays[arrayIdx].lora_weight_arrays;
+    const hasModelArray = weightArrays[parsed.name + "_model"] && weightArrays[parsed.name + "_model"].length > 1;
+    const hasClipArray = weightArrays[parsed.name + "_clip"] && weightArrays[parsed.name + "_clip"].length > 1;
+
     const modelSlider = createSlider("Model Strength", currentModelStr, 0, 2, 0.05, (val) => {
         currentModelStr = val;
         const currentName = isCombined ? cleanName + "*" : parsed.name;
@@ -1605,6 +1678,53 @@ export function createLoraElement(node, loraStr, arrayIdx, loraIdx, availableLor
     });
     contentDiv.appendChild(modelSlider);
 
+    // Weight Array "+" button and editor for Model Strength
+    const modelArrayDiv = document.createElement("div");
+    modelArrayDiv.style.cssText = "margin: -4px 0 6px 0; display: flex; align-items: center; gap: 4px;";
+    const modelArrayBtn = document.createElement("button");
+    modelArrayBtn.textContent = hasModelArray ? "✕ Array" : "+ Compare Strengths";
+    modelArrayBtn.className = "cb-btn";
+    modelArrayBtn.style.cssText = "font-size: 9px; padding: 1px 6px; color: " + (hasModelArray ? "#f80" : "#0af") + ";";
+
+    const modelArrayInput = document.createElement("input");
+    modelArrayInput.type = "text";
+    modelArrayInput.placeholder = "e.g. 0.5, 0.8, 1.0";
+    modelArrayInput.style.cssText = "flex: 1; background: #1a1a1a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 2px 6px; font-size: 10px; display: " + (hasModelArray ? "block" : "none") + ";";
+    modelArrayInput.value = hasModelArray ? weightArrays[parsed.name + "_model"].join(", ") : "";
+
+    modelArrayBtn.onclick = () => {
+        if (hasModelArray || modelArrayInput.style.display !== "none") {
+            // Remove array
+            delete weightArrays[parsed.name + "_model"];
+            if (isStrengthLocked) delete weightArrays[parsed.name + "_clip"];
+            node.saveState();
+            updatePreview(node);
+            debouncedRenderUI(node);
+        } else {
+            // Show array input
+            modelArrayInput.style.display = "block";
+            modelArrayInput.value = currentModelStr.toFixed(2);
+            modelArrayInput.focus();
+        }
+    };
+
+    modelArrayInput.onchange = () => {
+        const vals = modelArrayInput.value.split(",").map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+        if (vals.length > 1) {
+            weightArrays[parsed.name + "_model"] = vals;
+            if (isStrengthLocked) weightArrays[parsed.name + "_clip"] = vals;
+        } else {
+            delete weightArrays[parsed.name + "_model"];
+            if (isStrengthLocked) delete weightArrays[parsed.name + "_clip"];
+        }
+        node.saveState();
+        updatePreview(node);
+    };
+
+    modelArrayDiv.appendChild(modelArrayBtn);
+    modelArrayDiv.appendChild(modelArrayInput);
+    contentDiv.appendChild(modelArrayDiv);
+
     // CLIP Slider - conditionally visible based on lock state
     let clipSliderContainer = null;
     if (!isStrengthLocked) {
@@ -1615,6 +1735,47 @@ export function createLoraElement(node, loraStr, arrayIdx, loraIdx, availableLor
             node.saveState();
         });
         contentDiv.appendChild(clipSliderContainer);
+
+        // CLIP Weight Array (compare different CLIP strengths) — mirrors Model strength array
+        const clipArrayDiv = document.createElement("div");
+        clipArrayDiv.style.cssText = "display: flex; align-items: center; gap: 4px; margin-top: 2px;";
+
+        const existingClipArr = weightArrays[parsed.name + "_clip"];
+        const clipArrayBtn = document.createElement("button");
+        clipArrayBtn.className = "cb-button";
+        clipArrayBtn.style.cssText = "font-size: 9px; padding: 1px 6px; background: #9966cc33; border: 1px solid #9966cc; color: #cc99ff;";
+        clipArrayBtn.textContent = existingClipArr ? "\u2715 CLIP Array" : "+ Compare CLIP";
+
+        const clipArrayInput = document.createElement("input");
+        clipArrayInput.type = "text";
+        clipArrayInput.className = "cb-input";
+        clipArrayInput.style.cssText = "font-size: 10px; width: 120px; padding: 2px 4px;" + (existingClipArr ? "" : " display: none;");
+        clipArrayInput.placeholder = "0.5, 0.8, 1.0";
+        clipArrayInput.value = existingClipArr ? existingClipArr.join(", ") : "";
+
+        clipArrayBtn.onclick = () => {
+            if (clipArrayInput.style.display === "none") {
+                clipArrayInput.style.display = "";
+                clipArrayBtn.textContent = "\u2715 CLIP Array";
+            } else {
+                clipArrayInput.style.display = "none";
+                clipArrayBtn.textContent = "+ Compare CLIP";
+                delete weightArrays[parsed.name + "_clip"];
+                node.saveState();
+            }
+        };
+        clipArrayInput.onchange = () => {
+            const vals = clipArrayInput.value.split(",").map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+            if (vals.length > 0) {
+                weightArrays[parsed.name + "_clip"] = vals;
+            } else {
+                delete weightArrays[parsed.name + "_clip"];
+            }
+            node.saveState();
+        };
+        clipArrayDiv.appendChild(clipArrayBtn);
+        clipArrayDiv.appendChild(clipArrayInput);
+        contentDiv.appendChild(clipArrayDiv);
     }
 
     // --- COLLAPSIBLE "MORE LORA OPTIONS" SECTION ---
@@ -2518,6 +2679,92 @@ async function showEditTriggersModal(node, arrayIdx, loraName) {
 }
 
 
+// --- SECTION PRESET UI HELPER ---
+// Creates a compact preset dropdown row (Load/Save/Delete) for any section
+function createSectionPresetRow(sectionName, getData, applyData, node) {
+    const row = document.createElement("div");
+    row.style.cssText = "display: flex; gap: 3px; align-items: center; margin-left: auto;";
+
+    const sel = document.createElement("select");
+    sel.style.cssText = "background: #1a1a1a; color: #ccc; border: 1px solid #444; border-radius: 3px; padding: 2px 4px; font-size: 9px; max-width: 100px;";
+    const defOpt = document.createElement("option");
+    defOpt.value = ""; defOpt.textContent = "Presets";
+    sel.appendChild(defOpt);
+    sel._presets = [];
+
+    // Fetch presets
+    fetch(`/configbuilder/section_presets?section=${sectionName}`).then(r => r.json()).then(data => {
+        (data.presets || []).forEach((p, i) => {
+            const opt = document.createElement("option");
+            opt.value = i; opt.textContent = p.name;
+            sel.appendChild(opt);
+        });
+        sel._presets = data.presets || [];
+    }).catch(() => {});
+
+    const loadBtn = document.createElement("button");
+    loadBtn.className = "cb-button";
+    loadBtn.style.cssText = "font-size: 8px; padding: 1px 4px;";
+    loadBtn.textContent = "Load";
+    loadBtn.onclick = () => {
+        const idx = parseInt(sel.value);
+        if (isNaN(idx) || !sel._presets[idx]) return;
+        applyData(JSON.parse(JSON.stringify(sel._presets[idx].data)));
+        node.saveState();
+        debouncedRenderUI(node);
+    };
+
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "cb-button";
+    saveBtn.style.cssText = "font-size: 8px; padding: 1px 4px;";
+    saveBtn.textContent = "Save";
+    saveBtn.onclick = () => {
+        const name = prompt(`Save ${sectionName} preset as:`);
+        if (!name) return;
+        const presets = sel._presets || [];
+        const newPreset = { name, data: JSON.parse(JSON.stringify(getData())) };
+        const existingIdx = presets.findIndex(p => p.name === name);
+        if (existingIdx >= 0) presets[existingIdx] = newPreset;
+        else presets.push(newPreset);
+        fetch(`/configbuilder/section_presets?section=${sectionName}`, {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ presets })
+        }).then(() => {
+            sel._presets = presets;
+            // Refresh dropdown
+            while (sel.options.length > 1) sel.remove(1);
+            presets.forEach((p, i) => {
+                const opt = document.createElement("option");
+                opt.value = i; opt.textContent = p.name;
+                sel.appendChild(opt);
+            });
+        });
+    };
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "cb-button";
+    delBtn.style.cssText = "font-size: 8px; padding: 1px 4px; color: #ff6666;";
+    delBtn.textContent = "\u2715";
+    delBtn.onclick = () => {
+        const idx = parseInt(sel.value);
+        if (isNaN(idx) || !sel._presets[idx]) return;
+        if (!confirm(`Delete "${sel._presets[idx].name}"?`)) return;
+        sel._presets.splice(idx, 1);
+        fetch(`/configbuilder/section_presets?section=${sectionName}`, {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ presets: sel._presets })
+        });
+        sel.remove(idx + 1);
+        sel.value = "";
+    };
+
+    row.appendChild(sel);
+    row.appendChild(loadBtn);
+    row.appendChild(saveBtn);
+    row.appendChild(delBtn);
+    return row;
+}
+
 // --- RENDER MODELS AND LORAS SECTIONS ---
 
 export function renderModelsSection(node, div, configArray, arrayIdx, modelLists) {
@@ -2554,6 +2801,19 @@ export function renderModelsSection(node, div, configArray, arrayIdx, modelLists
     const titleSpan = document.createElement("span");
     titleSpan.textContent = `Models (${configArray.models.length} Entries, Totaling ${totalModels} Models)`;
     modelHeader.appendChild(titleSpan);
+
+    // Models section presets
+    const modelsPresetRow = createSectionPresetRow("models",
+        () => ({ models: configArray.models, text_encoders: configArray.text_encoders || [], clip_type: configArray.clip_type || "stable_diffusion" }),
+        (data) => {
+            node.state.config_arrays[arrayIdx].models = data.models || ["None"];
+            if (data.text_encoders) node.state.config_arrays[arrayIdx].text_encoders = data.text_encoders;
+            if (data.clip_type) node.state.config_arrays[arrayIdx].clip_type = data.clip_type;
+        },
+        node
+    );
+    modelsPresetRow.onclick = (e) => e.stopPropagation(); // Don't toggle collapse on preset clicks
+    modelHeader.appendChild(modelsPresetRow);
 
     const arrowSpan = document.createElement("span");
     arrowSpan.textContent = isSectionCollapsed ? "▶" : "▼";
@@ -2976,7 +3236,7 @@ export function renderExtraModelSamplingSection(node, div, configArray, arrayIdx
     const overrideSelect = document.createElement("select");
     overrideSelect.className = "cb-select";
     overrideSelect.style.cssText = "flex: 1; max-width: 200px;";
-    [["none", "None"], ["aura_flow", "AuraFlow (Qwen Image)"], ["flux", "Flux"], ["sd3", "SD3"]].forEach(([val, label]) => {
+    [["none", "None"], ["aura_flow", "AuraFlow (Qwen Image)"], ["flux", "Flux"], ["flux2", "Flux2"], ["sd3", "SD3"]].forEach(([val, label]) => {
         const opt = document.createElement("option");
         opt.value = val;
         opt.textContent = label;
@@ -3533,6 +3793,19 @@ export function renderLorasSection(node, div, configArray, arrayIdx, availableLo
     titleSpan.textContent = `LoRAs (${totalEntries} Entries, Totaling ${totalLoras} LoRAs)`;
     loraHeader.appendChild(titleSpan);
 
+    // LoRAs section presets
+    const lorasPresetRow = createSectionPresetRow("loras",
+        () => ({ loras: configArray.loras, lora_weight_arrays: configArray.lora_weight_arrays || {}, lora_strength_lock: configArray.lora_strength_lock || {} }),
+        (data) => {
+            node.state.config_arrays[arrayIdx].loras = data.loras || ["None"];
+            if (data.lora_weight_arrays) node.state.config_arrays[arrayIdx].lora_weight_arrays = data.lora_weight_arrays;
+            if (data.lora_strength_lock) node.state.config_arrays[arrayIdx].lora_strength_lock = data.lora_strength_lock;
+        },
+        node
+    );
+    lorasPresetRow.onclick = (e) => e.stopPropagation(); // Don't toggle collapse on preset clicks
+    loraHeader.appendChild(lorasPresetRow);
+
     const arrowSpan = document.createElement("span");
     arrowSpan.textContent = isSectionCollapsed ? "▶" : "▼";
     loraHeader.appendChild(arrowSpan);
@@ -3858,15 +4131,15 @@ export async function showTriggerLookupModal(node, arrayIdx) {
  * @param {string} borderColor - CSS color for left border accent
  * @returns {HTMLElement}
  */
-function createPromptGroupEditor(groups, onChange, label, borderColor = "#0066cc") {
+function createPromptGroupEditor(groups, onChange, label, borderColor = "#0066cc", { rawModeKey = null, uiState = null } = {}) {
     const container = document.createElement("div");
     container.style.cssText = `display: flex; flex-direction: column; gap: 8px; width: 100%;`;
 
     // Track current groups locally so mode switches use latest data
     let currentGroupsState = groups;
 
-    // Track mode state locally (visual vs raw)
-    let isRawMode = false;
+    // Track mode state — persist in uiState if key provided, otherwise local
+    let isRawMode = (rawModeKey && uiState && uiState.promptRawMode) ? (uiState.promptRawMode[rawModeKey] || false) : false;
 
     // --- HEADER ---
     const header = document.createElement("div");
@@ -3881,11 +4154,11 @@ function createPromptGroupEditor(groups, onChange, label, borderColor = "#0066cc
     modeToggleContainer.style.cssText = "display: flex; gap: 4px;";
 
     const visualBtn = document.createElement("button");
-    visualBtn.className = "cb-prompt-mode-toggle active";
+    visualBtn.className = isRawMode ? "cb-prompt-mode-toggle" : "cb-prompt-mode-toggle active";
     visualBtn.textContent = "Visual";
 
     const rawBtn = document.createElement("button");
-    rawBtn.className = "cb-prompt-mode-toggle";
+    rawBtn.className = isRawMode ? "cb-prompt-mode-toggle active" : "cb-prompt-mode-toggle";
     rawBtn.textContent = "JSON";
 
     modeToggleContainer.appendChild(visualBtn);
@@ -3895,11 +4168,11 @@ function createPromptGroupEditor(groups, onChange, label, borderColor = "#0066cc
 
     // --- VISUAL MODE CONTAINER ---
     const visualContainer = document.createElement("div");
-    visualContainer.style.cssText = "display: flex; flex-direction: column; gap: 6px;";
+    visualContainer.style.cssText = `display: ${isRawMode ? "none" : "flex"}; flex-direction: column; gap: 6px;`;
 
     // --- RAW MODE CONTAINER ---
     const rawContainer = document.createElement("div");
-    rawContainer.style.display = "none";
+    rawContainer.style.display = isRawMode ? "block" : "none";
 
     const rawTextarea = document.createElement("textarea");
     rawTextarea.className = "cb-prompt-raw-editor";
@@ -3932,6 +4205,7 @@ function createPromptGroupEditor(groups, onChange, label, borderColor = "#0066cc
         rawContainer.style.display = "none";
         visualBtn.classList.add("active");
         rawBtn.classList.remove("active");
+        if (rawModeKey && uiState && uiState.promptRawMode) uiState.promptRawMode[rawModeKey] = false;
     };
     rawBtn.onclick = () => {
         isRawMode = true;
@@ -3939,6 +4213,7 @@ function createPromptGroupEditor(groups, onChange, label, borderColor = "#0066cc
         rawContainer.style.display = "block";
         rawBtn.classList.add("active");
         visualBtn.classList.remove("active");
+        if (rawModeKey && uiState && uiState.promptRawMode) uiState.promptRawMode[rawModeKey] = true;
         // Sync raw editor with current groups (use tracked state, not stale parameter)
         rawTextarea.value = currentGroupsState.length > 0 ? JSON.stringify(currentGroupsState, null, 2) : "";
     };
@@ -4233,9 +4508,13 @@ export function renderGlobalPromptsSection(node, container) {
             node.saveState();
         },
         "✅ Positive Prompt Groups",
-        "#00aa44"
+        "#00aa44",
+        { rawModeKey: "global_positive", uiState: node.uiState }
     );
     positiveSection.appendChild(positiveEditor);
+    // Scrollable container for positive prompts (can get very long)
+    positiveSection.style.maxHeight = "1000px";
+    positiveSection.style.overflowY = "auto";
     contentDiv.appendChild(positiveSection);
 
     // Negative Prompt (simple text area, not nested groups)
@@ -4339,9 +4618,13 @@ export function renderConfigPromptsSection(node, div, configArray, arrayIdx) {
                 updatePromptCountDisplay();
             },
             "✅ Positive Prompt Groups",
-            "#9966cc"
+            "#9966cc",
+            { rawModeKey: `config_${arrayIdx}_positive`, uiState: node.uiState }
         );
         positiveSection.appendChild(positiveEditor);
+        // Scrollable container for positive prompts (can get very long)
+        positiveSection.style.maxHeight = "1000px";
+        positiveSection.style.overflowY = "auto";
         contentDiv.appendChild(positiveSection);
 
         // Negative Prompt (simple text)
@@ -4486,6 +4769,7 @@ export function renderUpscalingSection(node, container, modelLists) {
         node.state.upscaling = {
             enabled: false,
             save_pre_upscale: false,
+            run_upscales_at_end: false,
             hires_prompt_adjust: false,
             hires_prompt_behavior: "append_end",
             hires_prompt_text: "",
@@ -4560,6 +4844,7 @@ export function renderUpscalingSection(node, container, modelLists) {
     }
     // Migration: add new global upscale settings
     if (node.state.upscaling.save_pre_upscale === undefined) node.state.upscaling.save_pre_upscale = false;
+    if (node.state.upscaling.run_upscales_at_end === undefined) node.state.upscaling.run_upscales_at_end = false;
     if (node.state.upscaling.hires_prompt_adjust === undefined) node.state.upscaling.hires_prompt_adjust = false;
     if (!node.state.upscaling.hires_prompt_behavior) node.state.upscaling.hires_prompt_behavior = "append_end";
     if (node.state.upscaling.hires_prompt_text === undefined) node.state.upscaling.hires_prompt_text = "";
@@ -4607,6 +4892,93 @@ export function renderUpscalingSection(node, container, modelLists) {
     const globalSettings = document.createElement("div");
     globalSettings.style.cssText = "margin-bottom: 8px; padding: 6px 8px; background: #252525; border-radius: 4px; border: 1px solid #444;";
 
+    // Upscale Presets (load/save pipeline configurations)
+    const presetRow = document.createElement("div");
+    presetRow.style.cssText = "display: flex; gap: 4px; align-items: center; margin-bottom: 8px;";
+    const presetLabel = document.createElement("span");
+    presetLabel.textContent = "Preset:";
+    presetLabel.style.cssText = "font-size: 11px; color: #999; white-space: nowrap;";
+    const presetSelect = document.createElement("select");
+    presetSelect.style.cssText = "flex: 1; background: #1a1a1a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 3px 6px; font-size: 11px;";
+    const presetDefaultOpt = document.createElement("option");
+    presetDefaultOpt.value = ""; presetDefaultOpt.textContent = "-- Presets --";
+    presetSelect.appendChild(presetDefaultOpt);
+
+    // Initialize presets array immediately (fetch will populate it)
+    presetSelect._presets = [];
+
+    // Fetch presets async
+    fetch("/configbuilder/upscale_presets").then(r => r.json()).then(data => {
+        const presets = data.presets || [];
+        presets.forEach((p, i) => {
+            const opt = document.createElement("option");
+            opt.value = i; opt.textContent = p.name;
+            presetSelect.appendChild(opt);
+        });
+        presetSelect._presets = presets;
+        console.log("[ConfigBuilder] Loaded " + presets.length + " upscale presets");
+    }).catch(e => { console.error("[ConfigBuilder] Failed to load upscale presets:", e); });
+
+    const presetLoadBtn = document.createElement("button");
+    presetLoadBtn.textContent = "Load";
+    presetLoadBtn.className = "cb-btn";
+    presetLoadBtn.style.cssText = "font-size: 10px; padding: 2px 6px;";
+    presetLoadBtn.onclick = () => {
+        const idx = parseInt(presetSelect.value);
+        if (isNaN(idx) || !presetSelect._presets) return;
+        const preset = presetSelect._presets[idx];
+        if (!preset) return;
+        // Apply preset to current upscaling state
+        ups.pipelines = JSON.parse(JSON.stringify(preset.pipelines));
+        if (preset.hires_prompt_adjust !== undefined) ups.hires_prompt_adjust = preset.hires_prompt_adjust;
+        if (preset.hires_prompt_behavior) ups.hires_prompt_behavior = preset.hires_prompt_behavior;
+        if (preset.hires_prompt_text !== undefined) ups.hires_prompt_text = preset.hires_prompt_text;
+        node.setDirtyCanvas(true);
+        // Re-render to reflect the loaded config
+        renderUpscalingSection(node, container, modelLists);
+    };
+
+    const presetSaveBtn = document.createElement("button");
+    presetSaveBtn.textContent = "Save";
+    presetSaveBtn.className = "cb-btn";
+    presetSaveBtn.style.cssText = "font-size: 10px; padding: 2px 6px;";
+    presetSaveBtn.onclick = () => {
+        const name = prompt("Preset name:");
+        if (!name) return;
+        const presets = presetSelect._presets || [];
+        const newPreset = {
+            name: name,
+            pipelines: JSON.parse(JSON.stringify(ups.pipelines)),
+            hires_prompt_adjust: ups.hires_prompt_adjust || false,
+            hires_prompt_behavior: ups.hires_prompt_behavior || "append_end",
+            hires_prompt_text: ups.hires_prompt_text || "",
+        };
+        // Replace existing preset with same name, or add new
+        const existingIdx = presets.findIndex(p => p.name === name);
+        if (existingIdx >= 0) {
+            presets[existingIdx] = newPreset;
+        } else {
+            presets.push(newPreset);
+        }
+        console.log("[ConfigBuilder] Saving upscale preset:", name, "total:", presets.length);
+        fetch("/configbuilder/upscale_presets", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({presets: presets})
+        }).then(r => {
+            console.log("[ConfigBuilder] Preset save response:", r.status);
+            presetSelect._presets = presets;
+            // Re-render to reflect updated presets without duplicates
+            renderUpscalingSection(node, container, modelLists);
+        }).catch(e => { console.error("[ConfigBuilder] Preset save failed:", e); });
+    };
+
+    presetRow.appendChild(presetLabel);
+    presetRow.appendChild(presetSelect);
+    presetRow.appendChild(presetLoadBtn);
+    presetRow.appendChild(presetSaveBtn);
+    globalSettings.appendChild(presetRow);
+
     // Save Pre-Upscaled Output checkbox
     const preUpscaleLabel = document.createElement("label");
     preUpscaleLabel.style.cssText = "display: flex; align-items: center; gap: 6px; font-size: 12px; color: #ccc; cursor: pointer; margin-bottom: 4px;";
@@ -4617,6 +4989,32 @@ export function renderUpscalingSection(node, container, modelLists) {
     preUpscaleLabel.appendChild(preUpscaleCb);
     preUpscaleLabel.appendChild(document.createTextNode("Also Save & Display Pre-Upscaled Output"));
     globalSettings.appendChild(preUpscaleLabel);
+
+    // Run Upscales At End Of Session checkbox
+    const endUpscaleDiv = document.createElement("div");
+    endUpscaleDiv.style.cssText = "margin-bottom: 4px;";
+    const endUpscaleLabel = document.createElement("label");
+    endUpscaleLabel.style.cssText = "display: flex; align-items: center; gap: 6px; font-size: 12px; color: #ccc; cursor: pointer;";
+    const endUpscaleCb = document.createElement("input");
+    endUpscaleCb.type = "checkbox";
+    endUpscaleCb.checked = ups.run_upscales_at_end || false;
+    endUpscaleCb.onchange = () => {
+        ups.run_upscales_at_end = endUpscaleCb.checked;
+        endUpscaleWarn.style.display = endUpscaleCb.checked ? "block" : "none";
+        node.saveState();
+    };
+    endUpscaleLabel.appendChild(endUpscaleCb);
+    endUpscaleLabel.appendChild(document.createTextNode("Run Upscales At End Of Session Instead Of After Each Gen"));
+    endUpscaleDiv.appendChild(endUpscaleLabel);
+    const endUpscaleDesc = document.createElement("div");
+    endUpscaleDesc.style.cssText = "font-size: 9px; color: #666; margin: 2px 0 4px 24px;";
+    endUpscaleDesc.textContent = "May help speed on VRAM-constrained devices. Groups upscales by model to minimize swaps.";
+    endUpscaleDiv.appendChild(endUpscaleDesc);
+    const endUpscaleWarn = document.createElement("div");
+    endUpscaleWarn.style.cssText = "font-size: 9px; color: #f80; margin: 2px 0 4px 24px; display: " + (endUpscaleCb.checked ? "block" : "none") + ";";
+    endUpscaleWarn.textContent = "WARNING: If \"Also Save & Display Pre-Upscaled Output\" is NOT checked, images won't show up in the Dashboard until the entire run is complete.";
+    endUpscaleDiv.appendChild(endUpscaleWarn);
+    globalSettings.appendChild(endUpscaleDiv);
 
     // Adjust Prompt During HiRes Fix checkbox
     const hiresPromptLabel = document.createElement("label");
@@ -4922,7 +5320,7 @@ export function renderUpscalingSection(node, container, modelLists) {
 
                         const htUniformCb = document.createElement("input");
                         htUniformCb.type = "checkbox";
-                        htUniformCb.checked = ucfg.hires_force_uniform_tiles || true;
+                        htUniformCb.checked = ucfg.hires_force_uniform_tiles !== false;
                         htUniformCb.onchange = () => { ucfg.hires_force_uniform_tiles = htUniformCb.checked; node.saveState(); };
                         grid.appendChild(createInputGroup("Force Uniform Tiles", htUniformCb));
                     }
@@ -5190,6 +5588,59 @@ export function renderCooldownSection(node, container) {
 
 // --- MAIN RENDER UI FUNCTION ---
 
+// ============================================================================
+// RUN SETTINGS (Start At Job #, etc.)
+// ============================================================================
+export function renderRunSettingsSection(node, container) {
+    if (node.state.start_at_job === undefined) node.state.start_at_job = 0;
+
+    const section = document.createElement("div");
+    section.className = "cb-section full-width";
+    section.id = "cb-sec-runsettings";
+
+    const header = document.createElement("div");
+    header.className = "cb-section-header";
+    header.textContent = "▸ Run Settings";
+    header.style.cursor = "pointer";
+
+    const content = document.createElement("div");
+    content.className = "cb-section-content";
+    content.style.display = "none";
+
+    header.onclick = () => {
+        const isOpen = content.style.display !== "none";
+        content.style.display = isOpen ? "none" : "block";
+        header.textContent = (isOpen ? "▸" : "▾") + " Run Settings";
+    };
+
+    // Start At Job # input
+    const jobDiv = document.createElement("div");
+    jobDiv.style.cssText = "margin-bottom: 8px; display: flex; align-items: center; gap: 8px;";
+    const jobLabel = document.createElement("label");
+    jobLabel.textContent = "Start At Job #:";
+    jobLabel.style.cssText = "font-size: 12px; color: #ccc; white-space: nowrap;";
+    const jobInput = document.createElement("input");
+    jobInput.type = "number";
+    jobInput.min = "0";
+    jobInput.value = node.state.start_at_job || 0;
+    jobInput.style.cssText = "width: 70px; background: #1a1a1a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; font-size: 12px;";
+    jobInput.onchange = () => {
+        node.state.start_at_job = parseInt(jobInput.value) || 0;
+        node.setDirtyCanvas(true);
+    };
+    const jobDesc = document.createElement("div");
+    jobDesc.style.cssText = "font-size: 9px; color: #666;";
+    jobDesc.textContent = "Skip to this job number (0 = start from beginning). Useful for resuming at a specific point.";
+    jobDiv.appendChild(jobLabel);
+    jobDiv.appendChild(jobInput);
+    content.appendChild(jobDiv);
+    content.appendChild(jobDesc);
+
+    section.appendChild(header);
+    section.appendChild(content);
+    container.appendChild(section);
+}
+
 export function renderPreviewSection(container) {
     const section = document.createElement("div");
     section.className = "cb-section full-width";
@@ -5340,6 +5791,91 @@ export async function renderUI(node, availableLoras, modelLists, loraFolders, av
     };
     headerBar.appendChild(addConfigBtn);
 
+    // Config Array Presets (save/load entire config arrays)
+    const configPresetSelect = document.createElement("select");
+    configPresetSelect.style.cssText = "background: #1a1a1a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 3px 6px; font-size: 10px; max-width: 140px;";
+    const configPresetDefault = document.createElement("option");
+    configPresetDefault.value = ""; configPresetDefault.textContent = "-- Config Presets --";
+    configPresetSelect.appendChild(configPresetDefault);
+
+    fetch("/configbuilder/config_section_presets").then(r => r.json()).then(data => {
+        (data.presets || []).forEach((p, i) => {
+            const opt = document.createElement("option");
+            opt.value = i; opt.textContent = p.name;
+            configPresetSelect.appendChild(opt);
+        });
+        configPresetSelect._presets = data.presets || [];
+    }).catch(() => { configPresetSelect._presets = []; });
+
+    const configPresetLoadBtn = document.createElement("button");
+    configPresetLoadBtn.className = "cb-btn";
+    configPresetLoadBtn.textContent = "Load";
+    configPresetLoadBtn.style.cssText = "font-size: 10px; padding: 2px 6px;";
+    configPresetLoadBtn.onclick = () => {
+        const idx = parseInt(configPresetSelect.value);
+        if (isNaN(idx) || !configPresetSelect._presets) return;
+        const preset = configPresetSelect._presets[idx];
+        if (!preset || !preset.config_arrays) return;
+        node.state.config_arrays = JSON.parse(JSON.stringify(preset.config_arrays));
+        if (preset.global_positive_groups) node.state.global_positive_groups = JSON.parse(JSON.stringify(preset.global_positive_groups));
+        if (preset.global_negative !== undefined) node.state.global_negative = preset.global_negative;
+        node.saveState();
+        node.renderUI();
+    };
+
+    const configPresetSaveBtn = document.createElement("button");
+    configPresetSaveBtn.className = "cb-btn";
+    configPresetSaveBtn.textContent = "Save";
+    configPresetSaveBtn.style.cssText = "font-size: 10px; padding: 2px 6px;";
+    configPresetSaveBtn.onclick = () => {
+        const name = prompt("Config preset name:");
+        if (!name) return;
+        const presets = configPresetSelect._presets || [];
+        presets.push({
+            name: name,
+            config_arrays: JSON.parse(JSON.stringify(node.state.config_arrays)),
+            global_positive_groups: JSON.parse(JSON.stringify(node.state.global_positive_groups || [])),
+            global_negative: node.state.global_negative || "",
+        });
+        fetch("/configbuilder/config_section_presets", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({presets: presets})
+        }).then(() => {
+            configPresetSelect._presets = presets;
+            const opt = document.createElement("option");
+            opt.value = presets.length - 1; opt.textContent = name;
+            configPresetSelect.appendChild(opt);
+            configPresetSelect.value = presets.length - 1;
+        });
+    };
+
+    const configPresetDelBtn = document.createElement("button");
+    configPresetDelBtn.className = "cb-btn";
+    configPresetDelBtn.textContent = "\uD83D\uDDD1"; // 🗑
+    configPresetDelBtn.style.cssText = "font-size: 10px; padding: 2px 4px; background: var(--danger); color: #fff;";
+    configPresetDelBtn.onclick = () => {
+        const idx = parseInt(configPresetSelect.value);
+        if (isNaN(idx) || !configPresetSelect._presets || idx < 0 || idx >= configPresetSelect._presets.length) return;
+        if (!confirm('Delete preset "' + configPresetSelect._presets[idx].name + '"?')) return;
+        configPresetSelect._presets.splice(idx, 1);
+        fetch("/configbuilder/config_section_presets", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({presets: configPresetSelect._presets})
+        });
+        configPresetSelect.value = "";
+        // Remove the option
+        for (let i = configPresetSelect.options.length - 1; i >= 0; i--) {
+            if (configPresetSelect.options[i].value == idx) configPresetSelect.remove(i);
+        }
+    };
+
+    headerBar.appendChild(configPresetSelect);
+    headerBar.appendChild(configPresetLoadBtn);
+    headerBar.appendChild(configPresetSaveBtn);
+    headerBar.appendChild(configPresetDelBtn);
+
     configSection.appendChild(headerBar);
 
     // Quick-jump navigation bar (only show when there are 2+ configs)
@@ -5385,6 +5921,7 @@ export async function renderUI(node, availableLoras, modelLists, loraFolders, av
     // Session-level settings (applies to all configs)
     renderUpscalingSection(node, mainContent, modelLists);
     renderCooldownSection(node, mainContent);
+    renderRunSettingsSection(node, mainContent);
 
     // JSON Preview Section
     renderPreviewSection(mainContent);

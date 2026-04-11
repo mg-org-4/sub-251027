@@ -37,6 +37,17 @@ os.makedirs(CONFIGS_DIR, exist_ok=True)
 # --- CUSTOM RESOLUTIONS FILE ---
 CUSTOM_RESOLUTIONS_FILE = os.path.join(folder_paths.get_output_directory(), "benchmarks", "USCG-custom-resolutions.json")
 
+# --- UPSCALE PRESETS FILE ---
+UPSCALE_PRESETS_FILE = os.path.join(folder_paths.get_output_directory(), "benchmarks", "USCG-upscale-presets.json")
+
+# --- CONFIG SECTION PRESETS FILE ---
+CONFIG_SECTION_PRESETS_FILE = os.path.join(folder_paths.get_output_directory(), "benchmarks", "USCG-config-section-presets.json")
+
+# --- INDIVIDUAL SECTION PRESETS FILES ---
+MODELS_PRESETS_FILE = os.path.join(folder_paths.get_output_directory(), "benchmarks", "USCG-models-presets.json")
+LORAS_PRESETS_FILE = os.path.join(folder_paths.get_output_directory(), "benchmarks", "USCG-loras-presets.json")
+PROMPTS_PRESETS_FILE = os.path.join(folder_paths.get_output_directory(), "benchmarks", "USCG-prompts-presets.json")
+
 
 # =============================================================================
 # API: CONFIG MANAGEMENT
@@ -102,6 +113,98 @@ async def save_custom_resolutions(request):
         return web.Response(status=200, text="Saved")
     except Exception as e:
         print(f"[ConfigBuilder] Error saving custom resolutions: {e}")
+        return web.Response(status=500, text=str(e))
+
+@server.PromptServer.instance.routes.get("/configbuilder/upscale_presets")
+async def get_upscale_presets(request):
+    try:
+        if os.path.exists(UPSCALE_PRESETS_FILE):
+            with open(UPSCALE_PRESETS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return web.json_response(data)
+        return web.json_response({"presets": []})
+    except Exception as e:
+        return web.json_response({"presets": []})
+
+@server.PromptServer.instance.routes.post("/configbuilder/upscale_presets")
+async def save_upscale_presets(request):
+    try:
+        body = await request.text()
+        if not body or not body.strip():
+            return web.Response(status=400, text="Empty request body")
+        data = json.loads(body)
+        os.makedirs(os.path.dirname(UPSCALE_PRESETS_FILE), exist_ok=True)
+        with open(UPSCALE_PRESETS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        return web.Response(status=200, text="Saved")
+    except Exception as e:
+        print(f"[ConfigBuilder] Error saving upscale presets: {e}")
+        return web.Response(status=500, text=str(e))
+
+@server.PromptServer.instance.routes.get("/configbuilder/config_section_presets")
+async def get_config_section_presets(request):
+    try:
+        if os.path.exists(CONFIG_SECTION_PRESETS_FILE):
+            with open(CONFIG_SECTION_PRESETS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return web.json_response(data)
+        return web.json_response({"presets": []})
+    except Exception as e:
+        return web.json_response({"presets": []})
+
+@server.PromptServer.instance.routes.post("/configbuilder/config_section_presets")
+async def save_config_section_presets(request):
+    try:
+        body = await request.text()
+        if not body or not body.strip():
+            return web.Response(status=400, text="Empty request body")
+        data = json.loads(body)
+        os.makedirs(os.path.dirname(CONFIG_SECTION_PRESETS_FILE), exist_ok=True)
+        with open(CONFIG_SECTION_PRESETS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        return web.Response(status=200, text="Saved")
+    except Exception as e:
+        print(f"[ConfigBuilder] Error saving config section presets: {e}")
+        return web.Response(status=500, text=str(e))
+
+# --- GENERIC SECTION PRESETS (models, loras, prompts) ---
+_SECTION_PRESET_FILES = {
+    "models": MODELS_PRESETS_FILE,
+    "loras": LORAS_PRESETS_FILE,
+    "prompts": PROMPTS_PRESETS_FILE,
+}
+
+@server.PromptServer.instance.routes.get("/configbuilder/section_presets")
+async def get_section_presets(request):
+    section = request.query.get("section", "")
+    filepath = _SECTION_PRESET_FILES.get(section)
+    if not filepath:
+        return web.Response(status=400, text=f"Unknown section: {section}")
+    try:
+        if os.path.exists(filepath):
+            with open(filepath, "r", encoding="utf-8") as f:
+                return web.json_response(json.load(f))
+        return web.json_response({"presets": []})
+    except Exception:
+        return web.json_response({"presets": []})
+
+@server.PromptServer.instance.routes.post("/configbuilder/section_presets")
+async def save_section_presets(request):
+    section = request.query.get("section", "")
+    filepath = _SECTION_PRESET_FILES.get(section)
+    if not filepath:
+        return web.Response(status=400, text=f"Unknown section: {section}")
+    try:
+        body = await request.text()
+        if not body or not body.strip():
+            return web.Response(status=400, text="Empty request body")
+        data = json.loads(body)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        return web.Response(status=200, text="Saved")
+    except Exception as e:
+        print(f"[ConfigBuilder] Error saving {section} presets: {e}")
         return web.Response(status=500, text=str(e))
 
 @server.PromptServer.instance.routes.post("/configbuilder/load_config")
@@ -869,6 +972,61 @@ async def scan_directory_route(request):
         print(f"[DirScanner] Error: {e}")
         import traceback
         traceback.print_exc()
+        return web.json_response({"error": str(e)}, status=500)
+
+
+# =============================================================================
+# API: DASHBOARD UPSCALE
+# =============================================================================
+
+@server.PromptServer.instance.routes.post("/config_tester/upscale_images")
+async def upscale_images(request):
+    """Start an async upscale job from the dashboard."""
+    try:
+        data = await request.json()
+        session_name = data.get("session_name", "")
+        image_ids = data.get("image_ids", [])
+        upscale_config = data.get("upscale_config", {})
+        all_favorited = data.get("all_favorited", False)
+
+        if not session_name:
+            return web.json_response({"error": "Missing session_name"}, status=400)
+        if not upscale_config or not upscale_config.get("pipelines"):
+            return web.json_response({"error": "Missing upscale_config with pipelines"}, status=400)
+
+        from .upscale_runner import start_upscale_job
+        job_id, error = start_upscale_job(session_name, image_ids, upscale_config, all_favorited=all_favorited)
+
+        if error:
+            return web.json_response({"error": error}, status=400)
+
+        from .upscale_runner import get_upscale_status
+        status = get_upscale_status(job_id)
+        return web.json_response({"job_id": job_id, "total_images": status["total"]})
+
+    except Exception as e:
+        print(f"[ConfigTester] Error starting upscale job: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+@server.PromptServer.instance.routes.get("/config_tester/upscale_status")
+async def upscale_status(request):
+    """Check status of an async upscale job."""
+    job_id = request.query.get("job_id", "")
+    if not job_id:
+        return web.json_response({"error": "Missing job_id"}, status=400)
+    from .upscale_runner import get_upscale_status
+    return web.json_response(get_upscale_status(job_id))
+
+@server.PromptServer.instance.routes.post("/config_tester/cancel_upscale")
+async def cancel_upscale(request):
+    """Cancel a running upscale job."""
+    try:
+        data = await request.json()
+        job_id = data.get("job_id", "")
+        from .upscale_runner import cancel_upscale_job
+        cancelled = cancel_upscale_job(job_id)
+        return web.json_response({"cancelled": cancelled})
+    except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
 

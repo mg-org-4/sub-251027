@@ -10,8 +10,9 @@ from comfy.ldm.modules.attention import optimized_attention
 
 from .couple_utils import (
     ModelType, ArchitectureInfo, ARCH_CONFIGS,
-    log_debug, detect_model_architecture, MaskProcessor,
-    pad_conditioning_tensors, ensure_dtype_device
+    log_debug, detect_or_force_architecture, MaskProcessor,
+    pad_conditioning_tensors, ensure_dtype_device,
+    COMFYCOUPLE_REGIONS_LEGACY_KEY, build_region_metadata, save_region_metadata,
 )
 
 def set_model_patch(model: Any, patch: Any, key: Any, attn_type: str = 'attn2') -> None:
@@ -20,6 +21,15 @@ def set_model_patch(model: Any, patch: Any, key: Any, attn_type: str = 'attn2') 
     patches_replace = transformer_options.setdefault("patches_replace", {})
     attn_patches = patches_replace.setdefault(attn_type, {})
     attn_patches[key] = patch
+
+
+def find_attn2_patch(transformer_options: Dict[str, Any]) -> Any:
+    """Return the first registered attn2 patch, if present."""
+    patches_replace = transformer_options.get("patches_replace", {})
+    attn2_patches = patches_replace.get("attn2", {})
+    if not attn2_patches:
+        return None
+    return next(iter(attn2_patches.values()))
 
 class AttentionPatcher:
     """Manages attention coupling for regional prompting"""
@@ -36,18 +46,18 @@ class AttentionPatcher:
     def patch(self) -> Tuple[Any, Any, Any]:
         """Apply attention coupling based on model architecture"""
         self.arch_info = self._get_architecture_info()
-        print(f"[ComfyCouple] Model: {self.arch_info.type.value.upper()}, Dim: {self.arch_info.dim}, Cross-Attention applied")
+        display_name = self.arch_info.display_name or self.arch_info.type.value.upper()
+        print(f"[ComfyCouple] Model: {display_name}, Dim: {self.arch_info.dim}, Cross-Attention applied")
         return self._apply_patch()
 
     def _get_architecture_info(self) -> ArchitectureInfo:
+        arch_info = detect_or_force_architecture(self.model, self.manual_model_type)
+        display_name = arch_info.display_name or arch_info.type.value.upper()
+
         if self.manual_model_type == "auto":
-            arch_info = detect_model_architecture(self.model)
-            print(f"[ComfyCouple] Auto-detected: {arch_info.type.value.upper()}")
+            print(f"[ComfyCouple] Auto-detected: {display_name}")
         else:
-            model_type_enum = ModelType.SDXL if self.manual_model_type == "sdxl" else ModelType.SD15
-            dim = 2048 if model_type_enum == ModelType.SDXL else 768
-            arch_info = ArchitectureInfo(type=model_type_enum, use_cfg=True, dim=dim)
-            print(f"[ComfyCouple] Manual: {self.manual_model_type.upper()}")
+            print(f"[ComfyCouple] Manual: {display_name}")
         return arch_info
 
     def _apply_patch(self) -> Tuple[Any, Any, Any]:
@@ -57,6 +67,29 @@ class AttentionPatcher:
         device = comfy.model_management.get_torch_device()
         
         self._prepare_conditioning(dtype, device)
+        
+        # Save explicitly to model_options for robust extraction by Extractor/Visualizer
+        transformer_options = new_model.model_options.setdefault("transformer_options", {})
+        transformer_options[COMFYCOUPLE_REGIONS_LEGACY_KEY] = {
+            "pos_masks": self.pos_masks,
+            "padded_pos_conds": self.padded_pos_conds,
+            "pos_strengths": self.pos_strengths,
+        }
+        save_region_metadata(
+            transformer_options,
+            build_region_metadata(
+                self.arch_info.profile_key or self.arch_info.type.value,
+                region_masks=self.pos_masks,
+                region_strengths=self.pos_strengths,
+                region_conditioning=self.padded_pos_conds,
+                debug_handles={
+                    "attn_type": "attn2",
+                    "cross_region_attention": self.cross_region_attention,
+                    "cross_region_mode": self.cross_region_mode,
+                },
+            ),
+        )
+        
         self._patch_model_blocks(new_model)
         
         return new_model, self.positive_conds, self.negative_conds
@@ -147,10 +180,28 @@ class AttentionPatcher:
                           padded_pos_conds: List, padded_neg_conds: List,
                           pos_strengths: List[float], neg_strengths: List[float],
                           cross_region_attention: float, cross_region_mode: str) -> torch.Tensor:
-        """Process attention with CFG support"""
-        q_batches = q.chunk(len(extra_options["cond_or_uncond"]), dim=0)
-        batch_size, seq_len, _ = q_batches[0].shape
+        """Process attention with CFG support.
+        
+        Handles two batch layouts:
+        - Normal:       [cond_0, uncond_0]  → split by chunk
+        - TiledDiffusion: [c_t0, u_t0, c_t1, u_t1, ...]  → split by stride
+        """
+        cond_or_uncond = extra_options["cond_or_uncond"]
+        N = len(cond_or_uncond)
         orig_shape = extra_options["original_shape"]
+        
+        # Detect TiledDiffusion interleaved batch layout
+        td_bboxes = extra_options.get("tiled_diffusion_bboxes")
+        is_tiled = td_bboxes is not None and N > 1
+        
+        if is_tiled:
+            q_batches, tile_batch_size = self._split_tiled_q_batches(q, len(td_bboxes), N)
+        else:
+            # Standard layout: [cond_batch, uncond_batch]
+            q_batches = q.chunk(N, dim=0)
+            tile_batch_size = None
+        
+        batch_size, seq_len, _ = q_batches[0].shape
         
         # Calculate masks for current resolution.
         # Pass extra_options so from_query() can use activations_shape for exact H×W.
@@ -162,7 +213,7 @@ class AttentionPatcher:
         k_cond, v_cond = self._compute_kv(padded_pos_conds, module, q)
         
         outputs = []
-        for i, cond_type in enumerate(extra_options["cond_or_uncond"]):
+        for i, cond_type in enumerate(cond_or_uncond):
             masks, k_t, v_t, strengths = (
                 (masks_uncond, k_uncond, v_uncond, neg_strengths) if cond_type == 1 
                 else (masks_cond, k_cond, v_cond, pos_strengths)
@@ -190,7 +241,49 @@ class AttentionPatcher:
             
             outputs.append(attn_output.sum(dim=0))
         
-        return torch.cat(outputs, dim=0)
+        if is_tiled:
+            # Re-interleave: [cond_tiles, uncond_tiles] → [c_t0, u_t0, c_t1, u_t1, ...]
+            result = self._merge_tiled_outputs(outputs, len(td_bboxes), tile_batch_size)
+        else:
+            result = torch.cat(outputs, dim=0)
+        
+        return result
+
+    def _split_tiled_q_batches(self, q: torch.Tensor, num_tiles: int, num_cond_types: int) -> Tuple[List[torch.Tensor], int]:
+        """Split tiled batches without mixing latent samples across cond/uncond groups."""
+        total_batch = q.shape[0]
+        expected_groups = num_tiles * num_cond_types
+
+        if num_tiles <= 0 or total_batch % expected_groups != 0:
+            log_debug(
+                f"Unexpected tiled batch layout: total_batch={total_batch}, "
+                f"num_tiles={num_tiles}, num_cond_types={num_cond_types}. Falling back to legacy stride split."
+            )
+            fallback_tile_batch = max(1, total_batch // max(1, expected_groups))
+            return [q[i::num_cond_types] for i in range(num_cond_types)], fallback_tile_batch
+
+        tile_batch_size = total_batch // expected_groups
+        q_batches = []
+
+        for cond_idx in range(num_cond_types):
+            cond_chunks = []
+            for tile_idx in range(num_tiles):
+                start = (tile_idx * num_cond_types + cond_idx) * tile_batch_size
+                end = start + tile_batch_size
+                cond_chunks.append(q[start:end])
+            q_batches.append(torch.cat(cond_chunks, dim=0))
+
+        return q_batches, tile_batch_size
+
+    def _merge_tiled_outputs(self, outputs: List[torch.Tensor], num_tiles: int, tile_batch_size: int) -> torch.Tensor:
+        """Restore tiled output ordering to tile-major layout expected by TiledDiffusion."""
+        merged = []
+        for tile_idx in range(num_tiles):
+            start = tile_idx * tile_batch_size
+            end = start + tile_batch_size
+            for output in outputs:
+                merged.append(output[start:end])
+        return torch.cat(merged, dim=0)
         
     def _compute_kv(self, cond_tensors: List[torch.Tensor], module: Any, q: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Compute key and value tensors from conditioning"""

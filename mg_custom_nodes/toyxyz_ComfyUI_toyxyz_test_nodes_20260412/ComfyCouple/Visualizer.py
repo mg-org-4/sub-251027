@@ -10,10 +10,12 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from .couple_utils import (
-    log_debug, log_warning, detect_model_architecture, 
-    ArchitectureInfo, ModelType, MASK_EPSILON
+    log_debug, log_warning, ArchitectureInfo, MASK_EPSILON,
+    detect_or_force_architecture, get_model_type_input_options,
+    get_region_metadata,
 )
-from .couple_flux_patching import RegionalMask
+from .couple_flux_patching import find_regional_mask_module
+from .couple_patching import find_attn2_patch
 
 
 class ComfyCoupleRegionVisualizer:
@@ -72,7 +74,7 @@ class ComfyCoupleRegionVisualizer:
                     "default": "medium",
                     "tooltip": "Size of region index labels"
                 }),
-                "model_type": (["auto", "sd15", "sdxl", "flux"], {
+                "model_type": (get_model_type_input_options(), {
                     "default": "auto",
                     "tooltip": "Force specific architecture detection"
                 }),
@@ -139,8 +141,12 @@ class ComfyCoupleRegionVisualizer:
         arch_info = self._detect_architecture(coupled_model, model_type)
         is_flux = arch_info.is_flux
         
-        print(f"[RegionVisualizer] Architecture: {arch_info.type.value.upper()}")
+        display_name = arch_info.display_name or arch_info.type.value.upper()
+        print(f"[RegionVisualizer] Architecture: {display_name}")
         print(f"[RegionVisualizer] Mode: {visualization_mode}, Colors: {color_scheme}")
+
+        if not arch_info.supports("supports_visualizer"):
+            raise ValueError(f"{display_name} does not support Region Visualizer")
         
         # Extract region data
         if is_flux:
@@ -179,39 +185,19 @@ class ComfyCoupleRegionVisualizer:
 
     def _detect_architecture(self, model: Any, model_type_str: str) -> ArchitectureInfo:
         """Detect or force model architecture"""
-        if model_type_str == "auto":
-            return detect_model_architecture(model)
-        elif model_type_str == "flux":
-            return ArchitectureInfo(type=ModelType.FLUX, use_cfg=True, dim=4096, is_flux=True)
-        elif model_type_str == "sdxl":
-            return ArchitectureInfo(type=ModelType.SDXL, use_cfg=True, dim=2048, is_flux=False)
-        else:  # sd15
-            return ArchitectureInfo(type=ModelType.SD15, use_cfg=True, dim=768, is_flux=False)
+        return detect_or_force_architecture(model, model_type_str)
 
     def _extract_flux_regions(self, coupled_model: Any) -> Tuple[List[torch.Tensor], str]:
         """Extract region masks from Flux model"""
         try:
             transformer_options = coupled_model.model_options.get("transformer_options", {})
-            patches_replace = transformer_options.get("patches_replace", {})
-            
-            regional_mask_module = None
-            
-            for block_type in ["double", "single"]:
-                if block_type in patches_replace:
-                    for block_id, patch_content in patches_replace[block_type].items():
-                        if isinstance(patch_content, dict):
-                            for key, module in patch_content.items():
-                                if key == "mask_fn" or (isinstance(key, tuple) and key[0] == "mask_fn"):
-                                    regional_mask_module = module
-                                    break
-                        elif isinstance(patch_content, RegionalMask):
-                            regional_mask_module = patch_content
-                            break
-                    
-                    if regional_mask_module is not None:
-                        break
-            
-            if regional_mask_module is None or not isinstance(regional_mask_module, RegionalMask):
+            region_masks, region_info = self._extract_regions_from_metadata(transformer_options)
+            if region_masks:
+                log_debug("Extracted Flux regions from shared metadata")
+                return region_masks, region_info
+
+            regional_mask_module, _, _ = find_regional_mask_module(transformer_options)
+            if regional_mask_module is None:
                 log_warning("No Flux regional masks found")
                 return [], "No Flux regional masks found"
             
@@ -237,16 +223,16 @@ class ComfyCoupleRegionVisualizer:
         """Extract region masks from SD/SDXL model"""
         try:
             transformer_options = coupled_model.model_options.get("transformer_options", {})
-            patches_replace = transformer_options.get("patches_replace", {})
-            attn2_patches = patches_replace.get("attn2", {})
-            
-            if not attn2_patches:
+            region_masks, region_info = self._extract_regions_from_metadata(transformer_options)
+            if region_masks:
+                log_debug("Extracted SD/SDXL regions from shared metadata")
+                return region_masks, region_info
+
+            first_patch = find_attn2_patch(transformer_options)
+            if first_patch is None:
                 return [], "No SD/SDXL regional patches found"
-            
-            first_patch_key = list(attn2_patches.keys())[0]
-            first_patch = attn2_patches[first_patch_key]
-            
-            region_masks = self._extract_masks_from_closure(first_patch)
+
+            region_masks = self._extract_masks_from_patch(coupled_model, first_patch)
             
             if not region_masks:
                 return [], "Could not extract masks from attention patches"
@@ -260,22 +246,54 @@ class ComfyCoupleRegionVisualizer:
             log_warning(f"Failed to extract SD/SDXL regions: {e}")
             return [], f"Error: {e}"
 
-    def _extract_masks_from_closure(self, patch_function) -> List[torch.Tensor]:
-        """Extract masks from attention patch closure"""
+    def _extract_regions_from_metadata(self, transformer_options: Dict[str, Any]) -> Tuple[List[torch.Tensor], str]:
+        metadata = get_region_metadata(transformer_options)
+        if metadata is None:
+            return [], ""
+
+        masks = []
+        for mask in metadata.get("region_masks", []):
+            if isinstance(mask, torch.Tensor):
+                masks.append(mask.cpu().float())
+
+        if not masks:
+            return [], ""
+
+        display_name = metadata.get("display_name") or metadata.get("model_type") or "ComfyCouple"
+        region_info = f"{display_name}: {len(masks)} regions"
+
+        start_percent = metadata.get("start_percent")
+        end_percent = metadata.get("end_percent")
+        if start_percent is not None and end_percent is not None:
+            region_info += f", timesteps: {start_percent*100:.0f}%-{end_percent*100:.0f}%"
+
+        return masks, region_info
+
+    def _extract_masks_from_patch(self, model: Any, patch_function: Any) -> List[torch.Tensor]:
+        """Extract masks using robust transformer_options or fallback to closure"""
         try:
-            closure = patch_function.__closure__
-            if closure is None:
-                return []
+            pos_masks = []
             
-            closure_vars = {}
-            for i, cell in enumerate(closure):
-                try:
-                    closure_vars[patch_function.__code__.co_freevars[i]] = cell.cell_contents
-                except:
-                    pass
+            transformer_options = model.model_options.get("transformer_options", {})
+            regions_data = get_region_metadata(transformer_options)
             
-            pos_masks = closure_vars.get('pos_masks', [])
-            
+            if regions_data is not None:
+                pos_masks = regions_data.get("region_masks", [])
+                log_debug("Extracted masks from region metadata successfully")
+            else:
+                # Fallback to fragile closure extraction (for backward compatibility)
+                log_warning("comfycouple_regions not found in transformer_options, falling back to closure.")
+                closure = patch_function.__closure__
+                if closure is not None:
+                    closure_vars = {}
+                    for i, cell in enumerate(closure):
+                        try:
+                            closure_vars[patch_function.__code__.co_freevars[i]] = cell.cell_contents
+                        except Exception as e:
+                            log_debug(f"Failed to extract closure variable at index {i}: {e}")
+                    
+                    pos_masks = closure_vars.get('pos_masks', [])
+
             if not pos_masks:
                 return []
             
@@ -290,7 +308,7 @@ class ComfyCoupleRegionVisualizer:
             log_warning(f"Failed to extract from closure: {e}")
             return []
 
-    def _resize_mask(self, mask: torch.Tensor, target_size: int) -> torch.Tensor:
+    def _resize_mask(self, mask: torch.Tensor, target_shape: Tuple[int, int]) -> torch.Tensor:
         """Resize mask to target resolution"""
         if mask.dim() == 2:
             mask = mask.unsqueeze(0).unsqueeze(0)
@@ -299,34 +317,42 @@ class ComfyCoupleRegionVisualizer:
         
         resized = F.interpolate(
             mask,
-            size=(target_size, target_size),
+            size=target_shape,
             mode="bilinear",
             align_corners=False
         )
         
         return resized.squeeze(0).squeeze(0)
 
-    def _get_target_size(self, masks: List[torch.Tensor], resolution: str) -> int:
-        """Get target resolution for visualization"""
+    def _get_target_size(self, masks: List[torch.Tensor], resolution: str) -> Tuple[int, int]:
+        """Get target resolution for visualization maintaining aspect ratio"""
+        h, w = masks[0].shape[-2:]
         if resolution == "latent":
-            return max(masks[0].shape[-2:])
+            return (int(h), int(w))
         else:
-            return int(resolution)
+            target_max = int(resolution)
+            if h >= w:
+                target_h = target_max
+                target_w = int(w * (target_max / h))
+            else:
+                target_w = target_max
+                target_h = int(h * (target_max / w))
+            return (target_h, target_w)
 
     def _visualize_individual(self, masks: List[torch.Tensor], 
                              resolution: str, colors: List[Tuple],
                              show_labels: bool, label_size: str) -> torch.Tensor:
         """Visualize each region as separate image (batch)"""
-        target_size = self._get_target_size(masks, resolution)
+        target_h, target_w = self._get_target_size(masks, resolution)
         
         batch_images = []
         
         for idx, mask in enumerate(masks):
-            resized_mask = self._resize_mask(mask, target_size)
+            resized_mask = self._resize_mask(mask, (target_h, target_w))
             
             # Create colored image
             color = colors[idx % len(colors)]
-            img = torch.zeros(target_size, target_size, 3)
+            img = torch.zeros(target_h, target_w, 3)
             
             for c in range(3):
                 img[:, :, c] = resized_mask * color[c]
@@ -334,8 +360,6 @@ class ComfyCoupleRegionVisualizer:
             # Add label if requested
             if show_labels:
                 label_text = f"Region {idx}"
-                if idx == 0:
-                    label_text += " (BG)"  # Background indicator
                 img = self._add_text_label(img, label_text, color, label_size)
             
             batch_images.append(img)
@@ -346,15 +370,15 @@ class ComfyCoupleRegionVisualizer:
                           resolution: str, colors: List[Tuple],
                           alpha: float, show_labels: bool, label_size: str) -> torch.Tensor:
         """Overlay all regions with transparency"""
-        target_size = self._get_target_size(masks, resolution)
+        target_h, target_w = self._get_target_size(masks, resolution)
         
-        img = torch.zeros(target_size, target_size, 3)
+        img = torch.zeros(target_h, target_w, 3)
         
         # Store label positions to avoid overlap
         label_positions = []
         
         for idx, mask in enumerate(masks):
-            resized_mask = self._resize_mask(mask, target_size)
+            resized_mask = self._resize_mask(mask, (target_h, target_w))
             color = colors[idx % len(colors)]
             
             # Apply alpha blending
@@ -376,14 +400,15 @@ class ComfyCoupleRegionVisualizer:
                        resolution: str, colors: List[Tuple],
                        show_labels: bool, label_size: str) -> torch.Tensor:
         """Create grid layout of all regions"""
-        target_size = self._get_target_size(masks, resolution)
+        target_h, target_w = self._get_target_size(masks, resolution)
         
         num_regions = len(masks)
         grid_size = int(np.ceil(np.sqrt(num_regions)))
         
-        cell_size = target_size // grid_size
+        cell_h = target_h // grid_size
+        cell_w = target_w // grid_size
         
-        img = torch.zeros(target_size, target_size, 3)
+        img = torch.zeros(target_h, target_w, 3)
         
         for idx, mask in enumerate(masks):
             row = idx // grid_size
@@ -392,13 +417,13 @@ class ComfyCoupleRegionVisualizer:
             if row >= grid_size:
                 break
             
-            resized_mask = self._resize_mask(mask, cell_size)
+            resized_mask = self._resize_mask(mask, (cell_h, cell_w))
             color = colors[idx % len(colors)]
             
-            y_start = row * cell_size
-            x_start = col * cell_size
-            y_end = min(y_start + cell_size, target_size)
-            x_end = min(x_start + cell_size, target_size)
+            y_start = row * cell_h
+            x_start = col * cell_w
+            y_end = min(y_start + cell_h, target_h)
+            x_end = min(x_start + cell_w, target_w)
             
             actual_h = y_end - y_start
             actual_w = x_end - x_start
@@ -411,8 +436,6 @@ class ComfyCoupleRegionVisualizer:
             if show_labels:
                 cell_img = img[y_start:y_end, x_start:x_end, :].clone()
                 label_text = f"{idx}"
-                if idx == 0:
-                    label_text = "0(BG)"
                 cell_img = self._add_text_label(cell_img, label_text, color, label_size)
                 img[y_start:y_end, x_start:x_end, :] = cell_img
         
@@ -421,12 +444,12 @@ class ComfyCoupleRegionVisualizer:
     def _visualize_heatmap(self, masks: List[torch.Tensor],
                           resolution: str, show_labels: bool, label_size: str) -> torch.Tensor:
         """Create attention strength heatmap"""
-        target_size = self._get_target_size(masks, resolution)
+        target_h, target_w = self._get_target_size(masks, resolution)
         
-        combined = torch.zeros(target_size, target_size)
+        combined = torch.zeros(target_h, target_w)
         
         for mask in masks:
-            resized_mask = self._resize_mask(mask, target_size)
+            resized_mask = self._resize_mask(mask, (target_h, target_w))
             combined += resized_mask
         
         if combined.max() > 0:
@@ -456,6 +479,26 @@ class ComfyCoupleRegionVisualizer:
         
         return img
 
+    def _get_font_and_settings(self, h: int, size: str) -> Tuple[Any, int, int]:
+        """Determine font size, load font, and calculate outline width"""
+        if size == "small":
+            font_size = max(16, h // 35)
+        elif size == "large":
+            font_size = max(32, h // 20)
+        else:  # medium
+            font_size = max(24, h // 28)
+            
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+        except Exception:
+            try:
+                font = ImageFont.truetype("arial.ttf", font_size)
+            except Exception:
+                font = ImageFont.load_default()
+                
+        outline_width = max(2, font_size // 12)
+        return font, font_size, outline_width
+
     def _add_text_label(self, img: torch.Tensor, text: str, 
                        color: Tuple[float, float, float], size: str) -> torch.Tensor:
         """Add text label to image using PIL - WHITE TEXT with improved sizing"""
@@ -465,23 +508,8 @@ class ComfyCoupleRegionVisualizer:
             pil_img = Image.fromarray(img_np)
             draw = ImageDraw.Draw(pil_img)
             
-            # Determine font size (more conservative sizing)
-            h, w = img.shape[:2]
-            if size == "small":
-                font_size = max(16, h // 35)
-            elif size == "large":
-                font_size = max(32, h // 20)
-            else:  # medium
-                font_size = max(24, h // 28)
-            
-            # Try to load a bold font
-            try:
-                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
-            except:
-                try:
-                    font = ImageFont.truetype("arial.ttf", font_size)
-                except:
-                    font = ImageFont.load_default()
+            h = img.shape[0]
+            font, _, outline_width = self._get_font_and_settings(h, size)
             
             # Calculate text position (top-left with padding)
             padding = max(8, h // 80)
@@ -489,7 +517,6 @@ class ComfyCoupleRegionVisualizer:
             # ✅ WHITE TEXT with black outline for visibility
             text_color = (255, 255, 255)  # White
             outline_color = (0, 0, 0)     # Black
-            outline_width = max(2, font_size // 12)
             
             # Draw thick black outline
             for dx in range(-outline_width, outline_width + 1):
@@ -517,32 +544,18 @@ class ComfyCoupleRegionVisualizer:
     def _add_multiple_labels(self, img: torch.Tensor, 
                             label_positions: List[Tuple[int, torch.Tensor, Tuple]],
                             size: str) -> torch.Tensor:
-        """Add multiple labels at mask centroids - WHITE TEXT"""
+        """Add multiple labels at mask centroids - WHITE TEXT center aligned"""
         try:
             img_np = (img.cpu().numpy() * 255).astype(np.uint8)
             pil_img = Image.fromarray(img_np)
             draw = ImageDraw.Draw(pil_img)
             
-            h, w = img.shape[:2]
-            if size == "small":
-                font_size = max(16, h // 35)
-            elif size == "large":
-                font_size = max(32, h // 20)
-            else:
-                font_size = max(24, h // 28)
-            
-            try:
-                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
-            except:
-                try:
-                    font = ImageFont.truetype("arial.ttf", font_size)
-                except:
-                    font = ImageFont.load_default()
+            h = img.shape[0]
+            font, _, outline_width = self._get_font_and_settings(h, size)
             
             # ✅ WHITE TEXT with black outline
             text_color = (255, 255, 255)  # White
             outline_color = (0, 0, 0)     # Black
-            outline_width = max(2, font_size // 12)
             
             for idx, mask, color in label_positions:
                 # Calculate centroid
@@ -557,18 +570,24 @@ class ComfyCoupleRegionVisualizer:
                 
                 # Draw label
                 label_text = f"{idx}"
-                if idx == 0:
-                    label_text = "0(BG)"
+                
+                # Get text bounding box for centering
+                bbox = draw.textbbox((0, 0), label_text, font=font)
+                text_w = bbox[2] - bbox[0]
+                text_h = bbox[3] - bbox[1]
+                
+                pos_x = centroid_x - text_w // 2
+                pos_y = centroid_y - text_h // 2
                 
                 # Draw thick black outline
                 for dx in range(-outline_width, outline_width + 1):
                     for dy in range(-outline_width, outline_width + 1):
                         if dx != 0 or dy != 0:
-                            draw.text((centroid_x + dx, centroid_y + dy), label_text, 
+                            draw.text((pos_x + dx, pos_y + dy), label_text, 
                                      font=font, fill=outline_color)
                 
                 # Draw white text on top
-                draw.text((centroid_x, centroid_y), label_text, font=font, fill=text_color)
+                draw.text((pos_x, pos_y), label_text, font=font, fill=text_color)
             
             img_with_labels = torch.from_numpy(np.array(pil_img)).float() / 255.0
             return img_with_labels

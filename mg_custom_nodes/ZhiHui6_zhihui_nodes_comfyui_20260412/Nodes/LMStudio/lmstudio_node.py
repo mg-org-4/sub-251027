@@ -13,6 +13,7 @@ import requests
 
 CONFIG_DIR = os.path.dirname(__file__)
 CONFIG_FILE = os.path.join(CONFIG_DIR, "lmstudio_config.json")
+PROMPT_PRESETS_FILE = os.path.join(CONFIG_DIR, "lmstudio_prompt_presets.json")
 
 
 def _load_config():
@@ -40,27 +41,38 @@ def _get_timeout(key, default):
     return config.get("timeouts", {}).get(key, default)
 
 
-LMSTUDIO_PROMPT_PRESETS = {
-    "Ignore": "",
-    "Normal - Describe": "Describe this image.",
-    "Prompt Style - Tags": "Your task is to generate a clean list of comma-separated tags for a text-to-image AI, based *only* on the visual information in the image. Limit the output to a maximum of 50 unique tags. Strictly describe visual elements like subject, clothing, environment, colors, lighting, and composition. Do not include abstract concepts, interpretations, marketing terms, or technical jargon (e.g., no 'SEO', 'brand-aligned', 'viral potential'). The goal is a concise list of visual descriptors. Avoid repeating tags.",
-    "Prompt Style - Simple": "Analyze the image and generate a simple, single-sentence text-to-image prompt. Describe the main subject and the setting concisely.",
-    "Prompt Style - Detailed": "Generate a detailed, artistic text-to-image prompt based on the image. Combine the subject, their actions, the environment, lighting, and overall mood into a single, cohesive paragraph of about 2-3 sentences. Focus on key visual details.",
-    "Prompt Style - Extreme Detailed": "Generate an extremely detailed and descriptive text-to-image prompt from the image. Create a rich paragraph that elaborates on the subject's appearance, textures of clothing, specific background elements, the quality and color of light, shadows, and the overall atmosphere. Aim for a highly descriptive and immersive prompt.",
-    "Prompt Style - Cinematic": "Act as a master prompt engineer. Create a highly detailed and evocative prompt for an image generation AI. Describe the subject, their pose, the environment, the lighting, the mood, and the artistic style (e.g., photorealistic, cinematic, painterly). Weave all elements into a single, natural language paragraph, focusing on visual impact.",
-    "Creative - Detailed Analysis": "Describe this image in detail, breaking down the subject, attire, accessories, background, and composition into separate sections.",
-    "Creative - Short Story": "Write a short, imaginative story inspired by this image.",
-    "Creative - Refine & Expand Prompt": "Refine and enhance the following user prompt for creative text-to-image generation. Keep the meaning and keywords, make it more expressive and visually rich. Output **only the improved prompt text itself**, without any reasoning steps, thinking process, or additional commentary.",
-    "Prompt Style - Structured JSON": "Analyze this image and output a comprehensive JSON structure with detailed visual information. Include these fields: {\"subject\": {\"main_subject\": \"\", \"gender\": \"\", \"age_range\": \"\", \"appearance\": {\"hair\": \"\", \"eyes\": \"\", \"skin_tone\": \"\", \"body_type\": \"\", \"distinctive_features\": []}, \"clothing\": {\"headwear\": \"\", \"top\": \"\", \"bottom\": \"\", \"footwear\": \"\", \"accessories\": [], \"colors\": [], \"textures\": []}, \"pose\": \"\", \"expression\": \"\", \"actions\": []}, \"environment\": {\"location_type\": \"\", \"setting\": \"\", \"architecture\": \"\", \"natural_elements\": [], \"props\": [], \"weather\": \"\", \"time_of_day\": \"\"}, \"composition\": {\"framing\": \"\", \"camera_angle\": \"\", \"depth_of_field\": \"\", \"perspective\": \"\", \"rule_of_thirds\": \"\"}, \"lighting\": {\"type\": \"\", \"direction\": \"\", \"intensity\": \"\", \"color_temperature\": \"\", \"shadows\": \"\", \"highlights\": \"\"}, \"color_palette\": {\"dominant_colors\": [], \"accent_colors\": [], \"color_mood\": \"\", \"saturation\": \"\", \"contrast\": \"\"}, \"mood_and_atmosphere\": {\"overall_mood\": \"\", \"emotional_tone\": \"\", \"style\": \"\", \"genre\": \"\"}, \"technical_aspects\": {\"image_quality\": \"\", \"artifacts\": \"\", \"special_effects\": []}, \"tags\": [], \"text_to_image_prompt\": \"\"}. Fill all fields with detailed, specific descriptions based on visual observation. Output ONLY valid JSON, no additional text.",
-}
+def _get_folder_read_mode():
+    config = _load_config()
+    return config.get("folder_read_mode", "recursive")
 
-LMSTUDIO_PROMPT_PRESETS_OLD = {
-    "Ignore": "",
-    "Tags": "Your task is to generate a clean list of comma-separated tags for a text-to-image AI, based *only* on the visual information in the image. Limit the output to a maximum of 50 unique tags. Strictly describe visual elements like subject, clothing, environment, colors, lighting, and composition. Do not include abstract concepts, interpretations, marketing terms, or technical jargon (e.g., no 'SEO', 'brand-aligned', 'viral potential'). The goal is a concise list of visual descriptors. Avoid repeating tags.",
-    "Extreme Detailed": "Generate an extremely detailed and descriptive text-to-image prompt from the image. Create a rich paragraph that elaborates on the subject's appearance, textures of clothing, specific background elements, the quality and color of light, shadows, and the overall atmosphere. Aim for a highly descriptive and immersive prompt.",
-    "Short Story": "Write a short, imaginative story inspired by this image.",
-    "JSON Detailed": "Analyze this image and output a comprehensive JSON structure with detailed visual information. Include these fields: {\"subject\": {\"main_subject\": \"\", \"gender\": \"\", \"age_range\": \"\", \"appearance\": {\"hair\": \"\", \"eyes\": \"\", \"skin_tone\": \"\", \"body_type\": \"\", \"distinctive_features\": []}, \"clothing\": {\"headwear\": \"\", \"top\": \"\", \"bottom\": \"\", \"footwear\": \"\", \"accessories\": [], \"colors\": [], \"textures\": []}, \"pose\": \"\", \"expression\": \"\", \"actions\": []}, \"environment\": {\"location_type\": \"\", \"setting\": \"\", \"architecture\": \"\", \"natural_elements\": [], \"props\": [], \"weather\": \"\", \"time_of_day\": \"\"}, \"composition\": {\"framing\": \"\", \"camera_angle\": \"\", \"depth_of_field\": \"\", \"perspective\": \"\", \"rule_of_thirds\": \"\"}, \"lighting\": {\"type\": \"\", \"direction\": \"\", \"intensity\": \"\", \"color_temperature\": \"\", \"shadows\": \"\", \"highlights\": \"\"}, \"color_palette\": {\"dominant_colors\": [], \"accent_colors\": [], \"color_mood\": \"\", \"saturation\": \"\", \"contrast\": \"\"}, \"mood_and_atmosphere\": {\"overall_mood\": \"\", \"emotional_tone\": \"\", \"style\": \"\", \"genre\": \"\"}, \"technical_aspects\": {\"image_quality\": \"\", \"artifacts\": \"\", \"special_effects\": []}, \"tags\": [], \"text_to_image_prompt\": \"\"}. Fill all fields with detailed, specific descriptions based on visual observation. Output ONLY valid JSON, no additional text.",
-}
+
+def _save_batch_progress(progress_data):
+    config = _load_config()
+    config["batch_progress"] = progress_data
+    _save_config(config)
+
+
+def _get_batch_progress():
+    config = _load_config()
+    return config.get("batch_progress", {
+        "current_folder": "",
+        "processed_folders": [],
+        "total_folders": 0,
+        "current_folder_index": 0
+    })
+
+
+def _load_prompt_presets():
+    if os.path.exists(PROMPT_PRESETS_FILE):
+        try:
+            with open(PROMPT_PRESETS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+LMSTUDIO_PROMPT_PRESETS = _load_prompt_presets()
 
 LMSTUDIO_PARAM_PRESETS = {
     "Ignore": {},
@@ -155,10 +167,8 @@ class LMStudioNode:
         models = list(_cached_models)
         config = _load_config()
         prompt_version = config.get("prompt_version", "new")
-        if prompt_version == "old":
-            preset_keys = list(LMSTUDIO_PROMPT_PRESETS_OLD.keys())
-        else:
-            preset_keys = list(LMSTUDIO_PROMPT_PRESETS.keys())
+        presets = LMSTUDIO_PROMPT_PRESETS.get(prompt_version, LMSTUDIO_PROMPT_PRESETS.get("new", {}))
+        preset_keys = list(presets.keys())
         return {
             "required": {
                 "preset_prompt": (
@@ -188,7 +198,6 @@ class LMStudioNode:
                     {
                         "default": "",
                         "multiline": True,
-                        "tooltip": "System prompt / persona to guide the model",
                     },
                 ),
                 "endpoint": (
@@ -456,6 +465,57 @@ class LMStudioNode:
         return image_files
 
     @staticmethod
+    def _get_subfolders_sorted(folder_path):
+        if not folder_path or not folder_path.strip():
+            return []
+        
+        folder_path = folder_path.strip()
+        if not os.path.exists(folder_path):
+            raise FileNotFoundError(f"文件夹未找到: {folder_path}")
+        if not os.path.isdir(folder_path):
+            raise ValueError(f"路径不是文件夹: {folder_path}")
+
+        subfolders = []
+        try:
+            for item in os.listdir(folder_path):
+                item_path = os.path.join(folder_path, item)
+                if os.path.isdir(item_path) and os.access(item_path, os.R_OK):
+                    subfolders.append(item_path)
+        except PermissionError:
+            raise PermissionError(f"无权限访问文件夹: {folder_path}")
+        
+        subfolders.sort(key=lambda x: os.path.basename(x).lower())
+        return subfolders
+
+    @staticmethod
+    def _get_images_in_single_folder(folder_path):
+        if not folder_path or not folder_path.strip():
+            return []
+
+        folder_path = folder_path.strip()
+        if not os.path.exists(folder_path):
+            raise FileNotFoundError(f"文件夹未找到: {folder_path}")
+        if not os.path.isdir(folder_path):
+            raise ValueError(f"路径不是文件夹: {folder_path}")
+
+        valid_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+        image_files = []
+
+        try:
+            for file in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, file)
+                if os.path.isfile(file_path):
+                    file_ext = os.path.splitext(file.lower())[1]
+                    if file_ext in valid_extensions:
+                        if os.access(file_path, os.R_OK):
+                            image_files.append(file_path)
+        except PermissionError:
+            raise PermissionError(f"无权限访问文件夹: {folder_path}")
+
+        image_files.sort(key=lambda x: os.path.basename(x).lower())
+        return image_files
+
+    @staticmethod
     def _save_description(image_file, description):
         txt_file = os.path.splitext(image_file)[0] + ".txt"
         with open(txt_file, "w", encoding="utf-8") as f:
@@ -630,6 +690,7 @@ class LMStudioNode:
     ):
         if remove_think_tags:
             result = self._remove_think_content(result)
+        result = result.strip() if isinstance(result, str) else result
         if unload_model:
             self._unload_model(endpoint)
         return {"ui": {"log_info": [log_info]}, "result": (result,)}
@@ -652,7 +713,7 @@ class LMStudioNode:
         unload_model: bool,
         batch_mode: bool,
         batch_folder_path: str,
-        skip_exists: bool,
+        skip_exists: bool = False,
         remove_think_tags: bool = False,
         image=None,
         image_2=None,
@@ -661,6 +722,8 @@ class LMStudioNode:
     ):
         _maybe_refresh(endpoint)
         start_time = time.time()
+        
+        folder_read_mode = _get_folder_read_mode()
 
         if seed == 0:
             import random
@@ -668,10 +731,8 @@ class LMStudioNode:
 
         config = _load_config()
         prompt_version = config.get("prompt_version", "new")
-        if prompt_version == "old":
-            preset_text = LMSTUDIO_PROMPT_PRESETS_OLD.get(preset_prompt, "")
-        else:
-            preset_text = LMSTUDIO_PROMPT_PRESETS.get(preset_prompt, "")
+        presets = LMSTUDIO_PROMPT_PRESETS.get(prompt_version, LMSTUDIO_PROMPT_PRESETS.get("new", {}))
+        preset_text = presets.get(preset_prompt, "")
 
         if preset_prompt == "Ignore":
             full_user_text = user_prompt.strip() if user_prompt.strip() else ""
@@ -840,10 +901,153 @@ class LMStudioNode:
 
             if batch_folder_path and batch_folder_path.strip():
                 try:
-                    image_paths = self._traverse_folder_for_images(
-                        batch_folder_path.strip()
-                    )
-                    if not image_paths:
+                    if folder_read_mode == "sequential":
+                        subfolders = self._get_subfolders_sorted(batch_folder_path.strip())
+                        
+                        if not subfolders:
+                            log_info = self._generate_log_info(
+                                model=model,
+                                endpoint=endpoint,
+                                preset_prompt=preset_prompt,
+                                output_language=output_language,
+                                max_tokens=max_tokens,
+                                temperature=temperature,
+                                top_p=top_p,
+                                top_k=top_k,
+                                repetition_penalty=repetition_penalty,
+                                seed=seed,
+                                size_limitation=size_limitation,
+                                batch_mode=batch_mode,
+                                image_count=0,
+                                success=False,
+                                error_msg="未找到子文件夹",
+                            )
+                            return self._prepare_return(
+                                "", endpoint, unload_model, remove_think_tags, log_info
+                            )
+
+                        total_folders = len(subfolders)
+                        total_processed = 0
+                        total_errors = 0
+                        all_error_details = []
+                        folder_results = []
+
+                        batch_progress = _get_batch_progress()
+                        start_folder_index = 0
+                        processed_folders = set(batch_progress.get("processed_folders", []))
+
+                        for i, subfolder in enumerate(subfolders):
+                            if subfolder in processed_folders:
+                                continue
+                            start_folder_index = i
+                            break
+
+                        for folder_idx in range(start_folder_index, total_folders):
+                            subfolder = subfolders[folder_idx]
+                            folder_name = os.path.basename(subfolder)
+
+                            _save_batch_progress({
+                                "current_folder": subfolder,
+                                "processed_folders": list(processed_folders),
+                                "total_folders": total_folders,
+                                "current_folder_index": folder_idx
+                            })
+
+                            image_paths = self._get_images_in_single_folder(subfolder)
+                            
+                            if not image_paths:
+                                processed_folders.add(subfolder)
+                                continue
+
+                            folder_processed = 0
+                            folder_errors = 0
+                            folder_error_details = []
+
+                            for image_path in image_paths:
+                                try:
+                                    if skip_exists:
+                                        txt_file = os.path.splitext(image_path)[0] + ".txt"
+                                        if os.path.exists(txt_file):
+                                            continue
+
+                                    image_array = self._load_image_from_path(image_path)
+                                    if size_limitation > 0:
+                                        image_array = self._resize_image_array(
+                                            image_array, size_limitation
+                                        )
+
+                                    pil_img = Image.fromarray(
+                                        (image_array * 255).astype(np.uint8)
+                                    )
+                                    buf = BytesIO()
+                                    pil_img.save(buf, format="PNG")
+                                    b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+                                    user_content = [
+                                        {
+                                            "type": "image_url",
+                                            "image_url": {
+                                                "url": f"data:image/png;base64,{b64}"
+                                            },
+                                        },
+                                        {"type": "text", "text": full_user_text},
+                                    ]
+
+                                    messages = []
+                                    if effective_system_prompt.strip():
+                                        messages.append(
+                                            {
+                                                "role": "system",
+                                                "content": effective_system_prompt,
+                                            }
+                                        )
+                                    messages.append({"role": "user", "content": user_content})
+
+                                    result = self._call_api(
+                                        endpoint,
+                                        model,
+                                        messages,
+                                        max_tokens,
+                                        temperature,
+                                        top_p,
+                                        top_k,
+                                        repetition_penalty,
+                                        seed,
+                                    )
+                                    self._save_description(image_path, result)
+                                    folder_processed += 1
+                                    total_processed += 1
+
+                                except Exception as e:
+                                    folder_errors += 1
+                                    total_errors += 1
+                                    error_msg = str(e)
+                                    folder_error_details.append(
+                                        f"[{os.path.basename(image_path)}] {error_msg}"
+                                    )
+                                    all_error_details.append(
+                                        f"[{folder_name}/{os.path.basename(image_path)}] {error_msg}"
+                                    )
+
+                            processed_folders.add(subfolder)
+                            folder_results.append(
+                                f"📁 {folder_name}: {folder_processed} 成功, {folder_errors} 失败"
+                            )
+
+                        _save_batch_progress({
+                            "current_folder": "",
+                            "processed_folders": [],
+                            "total_folders": 0,
+                            "current_folder_index": 0
+                        })
+
+                        duration = time.time() - start_time
+                        log_message = f"顺序轮次模式处理完成!\n总文件夹数: {total_folders}\n总处理图片: {total_processed}\n总失败: {total_errors}\n\n各文件夹详情:\n" + "\n".join(folder_results)
+                        if all_error_details:
+                            log_message += "\n\n失败详情:\n" + "\n".join(all_error_details[:20])
+                            if len(all_error_details) > 20:
+                                log_message += f"\n... 还有 {len(all_error_details) - 20} 个错误"
+                        
                         log_info = self._generate_log_info(
                             model=model,
                             endpoint=endpoint,
@@ -857,108 +1061,134 @@ class LMStudioNode:
                             seed=seed,
                             size_limitation=size_limitation,
                             batch_mode=batch_mode,
-                            image_count=0,
-                            success=False,
-                            error_msg="未找到图片文件",
+                            image_count=total_processed,
+                            success=True,
+                            processed_count=total_processed,
+                            error_count=total_errors,
+                            duration=duration,
                         )
                         return self._prepare_return(
-                            "", endpoint, unload_model, remove_think_tags, log_info
+                            log_message, endpoint, unload_model, remove_think_tags, log_info
                         )
 
-                    total_images = len(image_paths)
-                    processed_count = 0
-                    error_count = 0
-                    error_details = []
-
-                    for i, image_path in enumerate(image_paths):
-                        try:
-                            if skip_exists:
-                                txt_file = os.path.splitext(image_path)[0] + ".txt"
-                                if os.path.exists(txt_file):
-                                    continue
-
-                            image_array = self._load_image_from_path(image_path)
-                            if size_limitation > 0:
-                                image_array = self._resize_image_array(
-                                    image_array, size_limitation
-                                )
-
-                            pil_img = Image.fromarray(
-                                (image_array * 255).astype(np.uint8)
+                    else:
+                        image_paths = self._traverse_folder_for_images(
+                            batch_folder_path.strip()
+                        )
+                        if not image_paths:
+                            log_info = self._generate_log_info(
+                                model=model,
+                                endpoint=endpoint,
+                                preset_prompt=preset_prompt,
+                                output_language=output_language,
+                                max_tokens=max_tokens,
+                                temperature=temperature,
+                                top_p=top_p,
+                                top_k=top_k,
+                                repetition_penalty=repetition_penalty,
+                                seed=seed,
+                                size_limitation=size_limitation,
+                                batch_mode=batch_mode,
+                                image_count=0,
+                                success=False,
+                                error_msg="未找到图片文件",
                             )
-                            buf = BytesIO()
-                            pil_img.save(buf, format="PNG")
-                            b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+                            return self._prepare_return(
+                                "", endpoint, unload_model, remove_think_tags, log_info
+                            )
 
-                            user_content = [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/png;base64,{b64}"
-                                    },
-                                },
-                                {"type": "text", "text": full_user_text},
-                            ]
+                        total_images = len(image_paths)
+                        processed_count = 0
+                        error_count = 0
+                        error_details = []
 
-                            messages = []
-                            if effective_system_prompt.strip():
-                                messages.append(
+                        for i, image_path in enumerate(image_paths):
+                            try:
+                                if skip_exists:
+                                    txt_file = os.path.splitext(image_path)[0] + ".txt"
+                                    if os.path.exists(txt_file):
+                                        continue
+
+                                image_array = self._load_image_from_path(image_path)
+                                if size_limitation > 0:
+                                    image_array = self._resize_image_array(
+                                        image_array, size_limitation
+                                    )
+
+                                pil_img = Image.fromarray(
+                                    (image_array * 255).astype(np.uint8)
+                                )
+                                buf = BytesIO()
+                                pil_img.save(buf, format="PNG")
+                                b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+                                user_content = [
                                     {
-                                        "role": "system",
-                                        "content": effective_system_prompt,
-                                    }
+                                        "type": "image_url",
+                                        "image_url": {
+                                            "url": f"data:image/png;base64,{b64}"
+                                        },
+                                    },
+                                    {"type": "text", "text": full_user_text},
+                                ]
+
+                                messages = []
+                                if effective_system_prompt.strip():
+                                    messages.append(
+                                        {
+                                            "role": "system",
+                                            "content": effective_system_prompt,
+                                        }
+                                    )
+                                messages.append({"role": "user", "content": user_content})
+
+                                result = self._call_api(
+                                    endpoint,
+                                    model,
+                                    messages,
+                                    max_tokens,
+                                    temperature,
+                                    top_p,
+                                    top_k,
+                                    repetition_penalty,
+                                    seed,
                                 )
-                            messages.append({"role": "user", "content": user_content})
+                                self._save_description(image_path, result)
+                                processed_count += 1
 
-                            result = self._call_api(
-                                endpoint,
-                                model,
-                                messages,
-                                max_tokens,
-                                temperature,
-                                top_p,
-                                top_k,
-                                repetition_penalty,
-                                seed,
-                            )
-                            self._save_description(image_path, result)
-                            processed_count += 1
+                            except Exception as e:
+                                error_count += 1
+                                error_msg = str(e)
+                                error_details.append(
+                                    f"[{os.path.basename(image_path)}] {error_msg}"
+                                )
 
-                        except Exception as e:
-                            error_count += 1
-                            error_msg = str(e)
-                            error_details.append(
-                                f"[{os.path.basename(image_path)}] {error_msg}"
-                            )
-
-                    duration = time.time() - start_time
-                    log_message = f"Batch processing completed!\nTotal: {total_images} images\nSuccess: {processed_count}\nFailed: {error_count}"
-                    if error_details:
-                        log_message += "\n\nFailure details:\n" + "\n".join(
-                            error_details
+                        duration = time.time() - start_time
+                        log_message = f"递归遍历模式处理完成!\n总图片数: {total_images}\n成功: {processed_count}\n失败: {error_count}"
+                        if error_details:
+                            log_message += "\n\n失败详情:\n" + "\n".join(error_details)
+                        log_info = self._generate_log_info(
+                            model=model,
+                            endpoint=endpoint,
+                            preset_prompt=preset_prompt,
+                            output_language=output_language,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                            top_p=top_p,
+                            top_k=top_k,
+                            repetition_penalty=repetition_penalty,
+                            seed=seed,
+                            size_limitation=size_limitation,
+                            batch_mode=batch_mode,
+                            image_count=total_images,
+                            success=True,
+                            processed_count=processed_count,
+                            error_count=error_count,
+                            duration=duration,
                         )
-                    log_info = self._generate_log_info(
-                        model=model,
-                        endpoint=endpoint,
-                        preset_prompt=preset_prompt,
-                        output_language=output_language,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                        top_p=top_p,
-                        top_k=top_k,
-                        repetition_penalty=repetition_penalty,
-                        seed=seed,
-                        size_limitation=size_limitation,
-                        batch_mode=batch_mode,
-                        image_count=total_images,
-                        success=True,
-                        processed_count=processed_count,
-                        error_count=error_count,
-                        duration=duration,
-                    )
-                    return self._prepare_return(
-                        log_message, endpoint, unload_model, remove_think_tags, log_info
-                    )
+                        return self._prepare_return(
+                            log_message, endpoint, unload_model, remove_think_tags, log_info
+                        )
 
                 except Exception as e:
                     duration = time.time() - start_time

@@ -1,0 +1,18 @@
+{
+  "timeouts": {
+    "fetch_models": 5,
+    "api_call": 450,
+    "unload_model_list": 10,
+    "unload_model": 30
+  },
+  "preset": "Ignore",
+  "prompt_version": "new",
+  "show_log_panel": false,
+  "folder_read_mode": "recursive",
+  "batch_progress": {
+    "current_folder": "",
+    "processed_folders": [],
+    "total_folders": 0,
+    "current_folder_index": 0
+  }
+}

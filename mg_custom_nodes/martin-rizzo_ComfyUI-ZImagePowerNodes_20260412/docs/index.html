@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify-themeable/dist/css/theme-simple-dark.css">
+<style>
+  :root {
+    --sidebar-width: 400px;
+  }
+  .markdown-section {
+    margin: 0 !important; /* << remove automatic centering */
+    max-width: 900px;
+  }
+</style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    window.$docsify = {
+      name: '⚡ Z-Image Power Nodes',
+      repo: 'https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes',
+      auto2top: true,
+      requestHeaders: {
+          'cache-control': 'no-cache'
+      }
+    }
+  </script>
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/docsify.min.js"></script>
+</body>
+</html>

@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.25.9] - 2026-04-11
+
+### Changed
+
+- Improve RVC model training dataset prep reliability
+
+### Fixed
+
+- Fix RVC model training failing silently when RMVPE pitch extraction files are missing
+- Prevent RVC model training from continuing with a broken voiced dataset
+- Improve RVC model training index build diagnostics when FAISS imports still fail
+## [4.25.8] - 2026-04-11
+
+### Added
+
+- Clarify FAISS installation guidance for RVC model training
+
+### Changed
+
+- Improve RVC model training behavior when FAISS index dependencies are unavailable
+
+### Fixed
+
+- Improve RVC model training dependency compatibility
+- Fix RVC model training failing when only the system ffmpeg CLI is installed
+- Avoid RVC installer dependency conflicts when installing faiss-cpu
+## [4.25.7] - 2026-04-11
+
+### Added
+
+- Restore the example RVC model training workflow in fresh setups
+
+### Fixed
+
+- Fix RVC training startup failures
+- Fix missing bundled RVC training runtime files in clean installs
+- Improve RVC training multiprocessing compatibility on Linux and ROCm systems
 ## [4.25.6] - 2026-04-10
 
 ### Fixed

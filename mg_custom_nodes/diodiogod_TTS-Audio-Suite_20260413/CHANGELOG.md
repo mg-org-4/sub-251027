@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.25.14] - 2026-04-12
+
+### Changed
+
+- Improve RVC training behavior when FAISS is present but unusable
+
+### Fixed
+
+- Fix RVC training FAISS package repair on Linux
+- Fix RVC index building failing when Python imports a broken stub faiss package with no real APIs
+- Reinstall faiss-cpu more aggressively when the environment contains broken FAISS leftovers
+## [4.25.13] - 2026-04-12
+
+### Added
+
+- Resume should no longer fall back to a fresh run just because checkpoint loading is blocked by weights_only defaults
+
+### Changed
+
+- Improve reliability of resumed RVC training runs
+
+### Fixed
+
+- Fix RVC training resume checkpoint loading
+- Fix RVC resume failing on newer PyTorch versions when loading saved training checkpoints
+## [4.25.12] - 2026-04-12
+
+### Added
+
+- Add clearer Higgs config detection logs for troubleshooting
+
+### Fixed
+
+- Fix Higgs Audio compatibility with recent upstream model updates
+- Fix Higgs Audio SRT language-tag processing crash
+- Fix Higgs Audio model loading failure with the latest Hugging Face release
+## [4.25.11] - 2026-04-12
+
+### Added
+
+- Resume now reuses the latest compatible checkpointed RVC job for the same output name, dataset, and sample rate
+
+### Changed
+
+- Improve resume messaging when no compatible saved checkpoints exist
+
+### Fixed
+
+- Fix RVC training resume after config changes
+- Fix RVC resume failing just because training settings changed between runs
+## [4.25.10] - 2026-04-12
+
+### Added
+
+- Show clearer install warnings when faiss is present but unusable
+
+### Changed
+
+- Improve RVC training FAISS setup on Linux
+- Improve RVC training setup when Linux CUDA faiss packages install incorrectly
+
+### Fixed
+
+- Fall back to faiss-cpu automatically if the GPU faiss package is broken
 ## [4.25.9] - 2026-04-11
 
 ### Changed

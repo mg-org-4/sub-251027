@@ -425,7 +425,7 @@ class SaveImage(io.ComfyNode):
                     params["scheduler"]    = get_input_string(node, "scheduler"   , default=""  )
                     break
 
-            if class_type.startswith("ZSamplerTurbo "):
+            if class_type.startswith("ZSamplerTurbo"):
                 latent_node = get_input_node(node,"latent_input", nodes=nodes)
                 if cls.is_empty_latent_node(latent_node):
                     initial_sampler_node = node
@@ -457,17 +457,25 @@ class SaveImage(io.ComfyNode):
             if not isinstance(node,dict):
                 continue
 
-            # verify that all components of a node are present
-            meta = node.get("_meta")
+            # get "meta" and "class_type" from node
+            # ensuring they are dictionary and string
+            meta       = _ if isinstance(_ := node.get("_meta"     ), dict) else {}
+            class_type = _ if isinstance(_ := node.get("class_type"), str ) else ""
 
             # verify that the node has a valid "title" and it is tagged
-            title  = meta.get("title") if isinstance(meta,dict) else None
+            title  = meta.get("title")
             if not isinstance(title,str)  or  (not title_tag in title):
                 continue
 
             params = {}
 
-            prompt = get_input_string(node, "text", default="")
+            # assume that all tagged "String (Multiline)" nodes
+            # contain prompts or negative prompts
+            if class_type == "PrimitiveStringMultiline":
+                prompt = get_input_string(node, "value", default="")
+            else:
+                prompt = get_input_string(node, "text", default="")
+
             if prompt:
                 if "negative" in title.lower():  params["negative"] = prompt
                 else:                            params["positive"] = prompt

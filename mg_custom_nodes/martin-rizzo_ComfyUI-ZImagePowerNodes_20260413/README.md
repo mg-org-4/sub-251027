@@ -22,11 +22,12 @@ There are several ways to do so:
 
 
 ## Table of Contents
-1. [Nodes](#nodes)
-2. [Examples](#examples)
-3. [Installation](#installation)
-4. [Recommended Checkpoints](#recommended-checkpoints)
-5. [License](#license)
+1. [Features](#features)
+2. [Documentation](#power-nodes-documentation)
+3. [Examples](#examples)
+4. [Installation](#installation)
+5. [Recommended Checkpoints](#recommended-checkpoints)
+6. [License](#license)
 
 ## Features
 
@@ -44,7 +45,7 @@ The "Z-Sampler Turbo" node maintains image consistency from 3 steps onwards. Sin
 
 ### Intensity Control
 
-__Intensity__ is a parameter within the "Z-Sampler Turbo" node that tweaks the amplitude of the initial noise to give your images more contrast and saturation. Values above 1.0 boost contrast and sharpen edges, resulting in a more defined and vibrant look. On the flip side, values below 1.0 yield a softer, more "washed-out" look with less micro-detail.
+__Intensity__ is a parameter within the "Z-Sampler Turbo" node that tweaks the amplitude of the initial noise to give your images more contrast and saturation. Values above 0.0 (positives) boost contrast and sharpen edges, resulting in a more defined and vibrant look. On the flip side, values below 0.0 (negatives) yield a softer, more "washed-out" look with less micro-detail.
 
 Just keep in mind that the final result depends a lot on your prompt and the specific style you're using. It's not a hard rule, but lower values usually complement photographic styles better, while higher values tend to work well for illustrations.
 
@@ -62,11 +63,15 @@ Currently, it only affects composition (like posing, framing, and object placeme
 
 <img src="workflows/_z_/__figure__turbo_creativity.jpg" width="90%"></img>
 
+### Other Extras
+
+I've also included some smaller utility nodes to make things easier. There's a VAE encoder for inpainting with Z-Image-specific parameters, a node with one-click activation for your 10 most-used styles, a node to save images with CivitAI-compatible metadata, and a few other bits and pieces.
+
 
 ## Power Nodes Documentation
 
-* __[⚡Z-Sampler Turbo](https://martin-rizzo.github.io/ComfyUI-ZImagePowerNodes/#/zsampler_turbo)__  
-<sub>A specialized sampler designed to Z-Image Turbo that achieves sufficient quality to eliminate the need for further post-processing.</sub>
+* __[⚡Z-Sampler Turbo ^G2](https://martin-rizzo.github.io/ComfyUI-ZImagePowerNodes/#/zsampler_turbo_2)__  
+<sub>A specialized sampler designed for high-quality image generation, allowing you more control over the final result.</sub>
 * __[⚡Style Prompt Encoder](https://martin-rizzo.github.io/ComfyUI-ZImagePowerNodes/#/style_prompt_encoder)__  
 <sub>Applies a selected visual styles to your prompt and encodes both of them using a text-encoder model (clip).
 * __[⚡Style String Injector](https://martin-rizzo.github.io/ComfyUI-ZImagePowerNodes/#/style_string_injector)__  
@@ -150,22 +155,29 @@ The easiest way to install the nodes is through [ComfyUI-Manager](https://github
 
 ## Recommended Checkpoints
 
-### GGUF Format
+The workflows in the [/workflows directory](/workflows) are preconfigured for these checkpoints. The BF16 version is the heaviest and is the one used by ComfyUI in their example workflows. Between FP8 and GGUF, I can tell you that FP8 is a bit faster and ComfyUI has native support for safetensors, but generally, I think GGUF has the best quality for its size, even if it's slower. If it weren't for the speed and native support, I'd recommend GGUF without a second thought.
 
-<sub>GGUF checkpoints tend to run slightly slower in ComfyUI. However, if you are building a complex workflow that involves other models or using heavy LLMs with ollama, GGUF files can help prevent system freezes and OOM errors during generation, especially when VRAM is limited. For simple image generation workflows, a safetensors file (though heavier) might be preferable. When working with GGUF in Z-Image, from my experience, using the Q5_K_S quantization typically offers the best balance between file size and prompt response. </sub>
+Note: if you're going to use FP8 checkpoints other than the ones recommended here, test them carefully because most of the FP8 ones I've tried give pretty bad results, mainly because they use naive truncation to FP8 which significantly reduces precision (instead of using scaling and mixing in higher-precision data types).
 
-Note: ComfyUI does not natively support GGUF format, so you need to install the [ComfyUI-GGUF](https://github.com/city96/ComfyUI-GGUF) nodes.
+### GGUF (Q8/Q5)
 
  - __[z_image_turbo-Q5_K_S.gguf](https://huggingface.co/jayn7/Z-Image-Turbo-GGUF/blob/main/z_image_turbo-Q5_K_S.gguf)__ <sub>[5.19 GB]</sub>\
    Local Directory: __`ComfyUI/models/diffusion_models/`__
- - __[Qwen3-4B.i1-Q5_K_S.gguf](https://huggingface.co/mradermacher/Qwen3-4B-i1-GGUF/blob/main/Qwen3-4B.i1-Q5_K_S.gguf)__ <sub>[2.82 GB]</sub>\
+ - __[Qwen3-4B-Q8_0.gguf](https://huggingface.co/Qwen/Qwen3-4B-GGUF/blob/main/Qwen3-4B-Q8_0.gguf)__ <sub>[4.28 GB]</sub>\
    Local Directory: __`ComfyUI/models/text_encoders/`__
  - __[ae.safetensors](https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors)__ <sub>[335 MB]</sub>\
    Local Directory: __`ComfyUI/models/vae/`__
 
-### Safetensors Format
+### Safetensors (FP8)
 
-<sub>Safetensors files are generally larger, but ComfyUI includes several built-in optimizations to speed up generation even with limited VRAM. It's always a good idea to test the original safetensors checkpoints on your system to see how they perform. However, using safetensors in fp8 format is strongly discouraged as it can significantly reduce quality. If you have an RTX 50 series GPU based on Blackwell architecture, NVFP4 quantized safetensors could be a better choice.</sub>
+ - __[z-image-turbo_fp8_scaled_e4m3fn_KJ.safetensors](https://huggingface.co/Kijai/Z-Image_comfy_fp8_scaled/blob/main/z-image-turbo_fp8_scaled_e4m3fn_KJ.safetensors)__ <sub>(6.16 GB)</sub>\
+   Local Directory: __`ComfyUI/models/diffusion_models/`__
+ - __[qwen3_4b_fp8_scaled.safetensors](https://huggingface.co/hhsebsb/qwen3-4b-fp8-scaled/blob/main/qwen3_4b_fp8_scaled.safetensors)__ <sub>(4.41 GB)</sub>\
+   Local Directory: __`ComfyUI/models/text_encoders/`__
+ - __[ae.safetensors](https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors)__ <sub>(335 MB)</sub>\
+   Local Directory: __`ComfyUI/models/vae/`__
+
+### Safetensors (BF16)
 
  - __[z_image_turbo_bf16.safetensors](https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors)__ <sub>(12.3 GB)</sub>\
    Local Directory: __`ComfyUI/models/diffusion_models/`__

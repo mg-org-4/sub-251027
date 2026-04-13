@@ -5,11 +5,11 @@
   <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify-themeable/dist/css/theme-simple-dark.css">
 <style>
   :root {
-    --sidebar-width: 400px;
+    --sidebar-width: 380px;
   }
   .markdown-section {
-    margin: 0 !important; /* << remove automatic centering */
     max-width: 900px;
+    margin: 0 !important; /* << remove automatic centering */
   }
 </style>
 </head>
@@ -17,9 +17,12 @@
   <div id="app"></div>
   <script>
     window.$docsify = {
-      name: '⚡ Z-Image Power Nodes',
+      name: '[ Z-Image Power Nodes ]',
       repo: 'https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes',
-      auto2top: true,
+      auto2top      : true,
+      subMaxLevel   : 0,
+      loadSidebar   : true,
+      loadNavbar    : true,
       requestHeaders: {
           'cache-control': 'no-cache'
       }

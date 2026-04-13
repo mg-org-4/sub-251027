@@ -1,0 +1,846 @@
+================================================================================
+CAPTURE ONE → DARKROOM CROSS-REFERENCE REPORT
+================================================================================
+
+Total .costyle files: 586
+Base stocks: 106
+Variants: 480 (Cool/Warm/+/-/Portrait/etc.)
+
+Color base stocks: 83
+B&W base stocks: 23
+
+--------------------------------------------------------------------------------
+STOCKS WE HAVE — with C1 curve data available for refinement
+--------------------------------------------------------------------------------
+
+  ✓ C1: Agfa RSX 200 II  →  Ours: Agfa RSX II 100
+    R curve: toe=1.563, shoulder=1.5, slope=1.0116
+    G curve: toe=1.5, shoulder=1.5, slope=1.0
+    B curve: toe=1.531, shoulder=1.688, slope=0.9723
+    Shadow tint: (-0.0375, -0.0375, -0.0375)
+    Highlight tint: (-0.05, -0.05, -0.05)
+    Saturation: 0.0
+    Grain: amount=25.0, type=1, granularity=50.0
+
+  ✓ C1: Agfa Vista 400  →  Ours: Agfa Vista 400
+    R curve: toe=2.049, shoulder=1.0, slope=1.3966
+    G curve: toe=1.939, shoulder=1.0, slope=1.3697
+    B curve: toe=1.829, shoulder=1.0, slope=1.3355
+    Shadow tint: (0.0, 0.0, 0.0)
+    Highlight tint: (0.0, 0.0, 0.0)
+    Saturation: 0.0
+    Grain: amount=20.0, type=4, granularity=50.0
+
+  ✓ C1: Fuji 160C  →  Ours: Fuji Pro 160C
+    R curve: toe=1.657, shoulder=1.641, slope=1.0152
+    G curve: toe=1.516, shoulder=1.625, slope=0.9848
+    B curve: toe=1.61, shoulder=1.625, slope=1.0
+    Shadow tint: (-0.1, -0.1, -0.1)
+    Highlight tint: (-0.1125, -0.1125, -0.1125)
+    Saturation: 0.0
+    Grain: amount=15.0, type=2, granularity=50.0
+
+  ✓ C1: Fuji 160S  →  Ours: Fuji Pro 160S
+    R curve: toe=1.876, shoulder=1.28, slope=1.1896
+    G curve: toe=1.751, shoulder=1.343, slope=1.0841
+    B curve: toe=1.751, shoulder=1.343, slope=1.0868
+    Shadow tint: (0.0, 0.0, 0.0)
+    Highlight tint: (-0.0125, -0.0125, -0.0125)
+    Saturation: 0.0
+    Grain: amount=15.0, type=2, granularity=50.0
+
+  ✓ C1: Fuji 400H  →  Ours: Fuji Pro 400H
+    R curve: toe=1.578, shoulder=1.453, slope=1.0526
+    G curve: toe=1.469, shoulder=1.563, slope=0.9929
+    B curve: toe=1.594, shoulder=1.625, slope=1.0002
+    Shadow tint: (-0.0875, -0.0875, -0.0875)
+    Highlight tint: (-0.1125, -0.1125, -0.1125)
+    Saturation: 0.0
+    Grain: amount=25.0, type=2, granularity=50.0
+
+  ✓ C1: Fuji 800Z  →  Ours: Fuji Pro 800Z
+    R curve: toe=1.636, shoulder=1.406, slope=1.0841
+    G curve: toe=1.469, shoulder=1.375, slope=1.0492
+    B curve: toe=1.573, shoulder=1.531, slope=1.021
+    Shadow tint: (-0.0875, -0.0875, -0.0875)
+    Highlight tint: (-0.05, -0.05, -0.05)
+    Saturation: 0.0
+    Grain: amount=40.0, type=2, granularity=50.0
+
+  ✓ C1: Fuji Astia 100F  →  Ours: Fuji Astia 100F
+    R curve: toe=1.876, shoulder=1.186, slope=1.1467
+    G curve: toe=1.876, shoulder=1.0, slope=1.2012
+    B curve: toe=1.845, shoulder=1.0, slope=1.2142
+    Shadow tint: (-0.0375, -0.0375, -0.0375)
+    Highlight tint: (0.0204, 0.0204, 0.0204)
+    Saturation: 5.0
+    Grain: amount=15.0, type=2, granularity=50.0
+
+  ✓ C1: Fuji Provia 100F  →  Ours: Fuji Provia 100F
+    R curve: toe=2.065, shoulder=1.0, slope=1.3337
+    G curve: toe=2.002, shoulder=1.0, slope=1.3201
+    B curve: toe=2.096, shoulder=1.0, slope=1.3357
+    Shadow tint: (-0.1125, -0.1125, -0.1125)
+    Highlight tint: (0.056, 0.0627, 0.0667)
+    Saturation: 4.0
+    Grain: amount=20.0, type=2, granularity=50.0
+
+  ✓ C1: Fuji Provia 400X  →  Ours: Fuji Provia 400F
+    R curve: toe=2.19, shoulder=1.0, slope=1.3561
+    G curve: toe=2.159, shoulder=1.0, slope=1.3862
+    B curve: toe=2.002, shoulder=1.0, slope=1.3281
+    Shadow tint: (-0.0125, -0.0125, -0.0125)
+    Highlight tint: (0.0, 0.0, 0.0)
+    Saturation: 0.0
+    Grain: amount=25.0, type=2, granularity=50.0
+
+  ✓ C1: Fuji Superia 1600  →  Ours: Fuji Superia 1600
+    R curve: toe=1.751, shoulder=1.265, slope=1.1586
+    G curve: toe=1.641, shoulder=1.28, slope=1.124
+    B curve: toe=1.72, shoulder=1.28, slope=1.151
+    Shadow tint: (-0.1875, -0.1875, -0.1875)
+    Highlight tint: (0.0, 0.0, 0.0)
+    Saturation: -5.0
+    Grain: amount=80.0, type=1, granularity=50.0
+
+  ✓ C1: Fuji Superia 400  →  Ours: Fuji Superia 400
+    R curve: toe=1.861, shoulder=1.171, slope=1.2132
+    G curve: toe=1.751, shoulder=1.202, slope=1.1838
+    B curve: toe=1.814, shoulder=1.218, slope=1.1985
+    Shadow tint: (-0.0775, -0.0775, -0.0775)
+    Highlight tint: (0.0, 0.0, 0.0)
+    Saturation: -5.0
+    Grain: amount=30.0, type=2, granularity=50.0
+
+  ✓ C1: Fuji Superia 800  →  Ours: Fuji Superia 800
+    R curve: toe=1.861, shoulder=1.108, slope=1.2111
+    G curve: toe=1.735, shoulder=1.108, slope=1.176
+    B curve: toe=1.735, shoulder=1.233, slope=1.1409
+    Shadow tint: (-0.175, -0.175, -0.175)
+    Highlight tint: (-0.05, -0.05, -0.05)
+    Saturation: -5.0
+    Grain: amount=70.0, type=1, granularity=50.0
+
+  ✓ C1: Fuji Velvia 100  →  Ours: Fuji Velvia 100
+    R curve: toe=2.159, shoulder=1.0, slope=1.3492
+    G curve: toe=2.19, shoulder=1.0, slope=1.3815
+    B curve: toe=2.127, shoulder=1.0, slope=1.4425
+    Shadow tint: (-0.025, -0.025, -0.025)
+    Highlight tint: (0.0256, 0.0256, 0.0256)
+    Saturation: 5.0
+    Grain: amount=10.0, type=2, granularity=50.0
+
+  ✓ C1: Fuji Velvia 100F  →  Ours: Fuji Velvia 100F
+    R curve: toe=1.939, shoulder=1.0, slope=1.27
+    G curve: toe=1.971, shoulder=1.0, slope=1.2991
+    B curve: toe=1.908, shoulder=1.0, slope=1.285
+    Shadow tint: (-0.08, -0.08, -0.08)
+    Highlight tint: (0.0, 0.0, 0.0)
+    Saturation: 5.0
+    Grain: amount=15.0, type=2, granularity=50.0
+
+  ✓ C1: Fuji Velvia 50  →  Ours: Fuji Velvia 50
+    R curve: toe=2.253, shoulder=1.0, slope=1.3929
+    G curve: toe=2.19, shoulder=1.0, slope=1.3979
+    B curve: toe=2.222, shoulder=1.0, slope=1.4742
+    Shadow tint: (0.0, 0.0, 0.0)
+    Highlight tint: (0.0, 0.0, 0.0)
+    Saturation: 5.0
+    Grain: amount=15.0, type=4, granularity=50.0
+
+  ✓ C1: Kodak E100G  →  Ours: Kodak Ektachrome 100G
+    R curve: toe=2.049, shoulder=1.0, slope=1.3005
+    G curve: toe=2.033, shoulder=1.0, slope=1.3307
+    B curve: toe=2.033, shoulder=1.0, slope=1.3109
+    Shadow tint: (-0.05, -0.05, -0.05)
+    Highlight tint: (0.0, 0.0, 0.0)
+    Saturation: 5.0
+    Grain: amount=20.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak E100VS  →  Ours: Kodak Ektachrome 100VS
+    R curve: toe=2.347, shoulder=1.0, slope=1.4638
+    G curve: toe=2.269, shoulder=1.0, slope=1.469
+    B curve: toe=2.253, shoulder=1.0, slope=1.4677
+    Shadow tint: (-0.06, -0.06, -0.06)
+    Highlight tint: (0.0256, 0.0256, 0.0256)
+    Saturation: 10.0
+    Grain: amount=25.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak Ektar 100  →  Ours: Kodak Ektar 100
+    R curve: toe=2.253, shoulder=1.0, slope=1.4811
+    G curve: toe=2.096, shoulder=1.0, slope=1.4103
+    B curve: toe=1.986, shoulder=1.0, slope=1.379
+    Shadow tint: (0.0, 0.0, 0.0)
+    Highlight tint: (0.0, 0.0, 0.0)
+    Saturation: -5.0
+    Grain: amount=25.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak Gold 100  →  Ours: Kodak Gold 100
+    R curve: toe=2.033, shoulder=1.186, slope=1.2656
+    G curve: toe=2.018, shoulder=1.108, slope=1.2812
+    B curve: toe=1.924, shoulder=1.108, slope=1.2573
+    Shadow tint: (0.0, 0.0, 0.0)
+    Highlight tint: (0.0, 0.0, 0.0)
+    Saturation: -5.0
+    Grain: amount=15.0, type=4, granularity=50.0
+
+  ✓ C1: Kodak Gold 200  →  Ours: Kodak Gold 200
+    R curve: toe=2.19, shoulder=1.0, slope=1.4384
+    G curve: toe=2.143, shoulder=1.0, slope=1.4074
+    B curve: toe=2.065, shoulder=1.0, slope=1.3845
+    Shadow tint: (0.0, 0.0, 0.0)
+    Highlight tint: (0.0, 0.0, 0.0)
+    Saturation: -5.0
+    Grain: amount=25.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak Portra 160  →  Ours: Kodak Portra 160
+    R curve: toe=1.563, shoulder=1.484, slope=1.0308
+    G curve: toe=1.484, shoulder=1.594, slope=0.9773
+    B curve: toe=1.61, shoulder=1.641, slope=1.0002
+    Shadow tint: (-0.1, -0.1, -0.1)
+    Highlight tint: (-0.0625, -0.0625, -0.0625)
+    Saturation: 0.0
+    Grain: amount=20.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak Portra 160 NC  →  Ours: Kodak Portra 160NC
+    R curve: toe=1.798, shoulder=1.327, slope=1.1397
+    G curve: toe=1.72, shoulder=1.375, slope=1.1029
+    B curve: toe=1.735, shoulder=1.296, slope=1.1324
+    Shadow tint: (-0.1375, -0.1375, -0.1375)
+    Highlight tint: (-0.12, -0.12, -0.12)
+    Saturation: -5.0
+    Grain: amount=15.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak Portra 160 VC  →  Ours: Kodak Portra 160VC
+    R curve: toe=1.798, shoulder=1.28, slope=1.1544
+    G curve: toe=1.735, shoulder=1.375, slope=1.1103
+    B curve: toe=1.641, shoulder=1.327, slope=1.0956
+    Shadow tint: (-0.2, -0.2, -0.2)
+    Highlight tint: (-0.12, -0.12, -0.12)
+    Saturation: 0.0
+    Grain: amount=15.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak Portra 400  →  Ours: Kodak Portra 400
+    R curve: toe=1.61, shoulder=1.625, slope=1.0076
+    G curve: toe=1.484, shoulder=1.594, slope=0.9773
+    B curve: toe=1.563, shoulder=1.516, slope=1.0227
+    Shadow tint: (-0.0875, -0.0875, -0.0875)
+    Highlight tint: (-0.0625, -0.0625, -0.0625)
+    Saturation: 5.0
+    Grain: amount=25.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak Portra 400 NC  →  Ours: Kodak Portra 400NC
+    R curve: toe=1.657, shoulder=1.406, slope=1.079
+    G curve: toe=1.646, shoulder=1.453, slope=1.0649
+    B curve: toe=1.584, shoulder=1.437, slope=1.0504
+    Shadow tint: (-0.185, -0.185, -0.185)
+    Highlight tint: (-0.125, -0.125, -0.125)
+    Saturation: -6.0
+    Grain: amount=30.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak Portra 400 UC  →  Ours: Kodak Portra 400
+    R curve: toe=1.761, shoulder=1.186, slope=1.1803
+    G curve: toe=1.699, shoulder=1.218, slope=1.1517
+    B curve: toe=1.72, shoulder=1.218, slope=1.1519
+    Shadow tint: (-0.135, -0.135, -0.135)
+    Highlight tint: (-0.125, -0.125, -0.125)
+    Saturation: 5.0
+    Grain: amount=30.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak Portra 400 VC  →  Ours: Kodak Portra 400VC
+    R curve: toe=1.803, shoulder=1.312, slope=1.1511
+    G curve: toe=1.709, shoulder=1.375, slope=1.1008
+    B curve: toe=1.636, shoulder=1.327, slope=1.0939
+    Shadow tint: (-0.125, -0.125, -0.125)
+    Highlight tint: (-0.125, -0.125, -0.125)
+    Saturation: 0.0
+    Grain: amount=30.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak Portra 800  →  Ours: Kodak Portra 800
+    R curve: toe=1.594, shoulder=1.578, slope=1.0076
+    G curve: toe=1.578, shoulder=1.5, slope=1.0227
+    B curve: toe=1.578, shoulder=1.563, slope=1.0076
+    Shadow tint: (-0.1, -0.1, -0.1)
+    Highlight tint: (-0.05, -0.05, -0.05)
+    Saturation: 0.0
+    Grain: amount=40.0, type=2, granularity=50.0
+
+  ✓ C1: Kodak UltraMax 400  →  Ours: Kodak UltraMax 400
+    R curve: toe=1.971, shoulder=1.0, slope=1.3637
+    G curve: toe=1.924, shoulder=1.0, slope=1.3621
+    B curve: toe=1.814, shoulder=1.0, slope=1.3049
+    Shadow tint: (0.0, 0.0, 0.0)
+    Highlight tint: (0.0, 0.0, 0.0)
+    Saturation: 0.0
+    Grain: amount=20.0, type=4, granularity=50.0
+
+  Total matched: 29
+
+--------------------------------------------------------------------------------
+C1 BASE STOCKS WE DON'T HAVE (candidates to add)
+--------------------------------------------------------------------------------
+
+  ✗ Agfa / Agfa Optima 100 II
+    R curve: toe=1.704, shoulder=1.186, slope=1.1744
+    Sat: -5.0, Grain: amount=20.0 type=1
+    Shadow balance: (0.899999976158142, 0.899999976158142, 0.899999976158142)
+    Highlight balance: (1.02564096450806, 1.02564096450806, 1.02564096450806)
+
+  ✗ Agfa / Agfa Portrait XPS 160
+    R curve: toe=1.861, shoulder=1.0, slope=1.2449
+    Sat: 0.0, Grain: amount=20.0 type=2
+    Shadow balance: (0.975000023841858, 0.975000023841858, 0.975000023841858)
+    Highlight balance: (0.949999988079071, 0.949999988079071, 0.949999988079071)
+
+  ✗ Agfa / Agfa Ultra 100
+    R curve: toe=1.782, shoulder=1.312, slope=1.1611
+    Sat: 5.0, Grain: amount=25.0 type=1
+    Shadow balance: (0.925000011920929, 0.925000011920929, 0.925000011920929)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Agfa / Agfa Ultra 50
+    R curve: toe=1.908, shoulder=1.469, slope=1.1107
+    Sat: 0.0, Grain: amount=20.0 type=1
+    Shadow balance: (0.887499988079071, 0.887499988079071, 0.887499988079071)
+    Highlight balance: (0.9375, 0.9375, 0.9375)
+
+  ✗ Agfa / Agfa Vista 100
+    R curve: toe=2.237, shoulder=1.0, slope=1.4185
+    Sat: -5.0, Grain: amount=20.0 type=1
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Agfa / Agfa Vista 100 +++
+    R curve: toe=2.065, shoulder=1.029, slope=1.3444
+    Sat: -15.0, Grain: amount=32.0 type=1
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Agfa / Agfa Vista 800
+    R curve: toe=2.065, shoulder=1.014, slope=1.3717
+    Sat: -10.0, Grain: amount=30.0 type=2
+    Shadow balance: (0.954189002513885, 0.971436023712158, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Fuji / Fuji FP-100c
+    R curve: toe=1.688, shoulder=1.0, slope=1.2292
+    Sat: -5.0, Grain: amount=10.0 type=0
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Fuji / Fuji FP-100c +++
+    R curve: toe=1.5, shoulder=1.124, slope=1.1413
+    Sat: -8.0, Grain: amount=10.0 type=0
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Fuji / Fuji FP-100c Negative +++
+    R curve: toe=1.375, shoulder=1.0, slope=0.9726
+    Sat: -15.0, Grain: amount=10.0 type=5
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Fuji / Fuji Fortia SP
+    R curve: toe=2.269, shoulder=1.0, slope=1.5767
+    Sat: 5.0, Grain: amount=15.0 type=4
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Fuji / Fuji Fortia SP +++
+    R curve: toe=2.065, shoulder=1.0, slope=1.3447
+    Sat: 5.0, Grain: amount=15.0 type=4
+    Shadow balance: (0.975000023841858, 0.975000023841858, 0.975000023841858)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Fuji / Fuji Provia 100F +++
+    R curve: toe=1.986, shoulder=1.0, slope=1.3523
+    Sat: 0.0, Grain: amount=20.0 type=2
+    Shadow balance: (0.887499988079071, 0.887499988079071, 0.887499988079071)
+    Highlight balance: (1.04533302783966, 1.05863499641418, 1.06666696071625)
+
+  ✗ Fuji / Fuji Provia 100F ++++
+    R curve: toe=1.939, shoulder=1.0, slope=1.407
+    Sat: 0.0, Grain: amount=30.0 type=2
+    Shadow balance: (0.887499988079071, 0.887499988079071, 0.887499988079071)
+    Highlight balance: (1.04533302783966, 1.05863499641418, 1.06666696071625)
+
+  ✗ Fuji / Fuji Provia 400X +++
+    R curve: toe=1.971, shoulder=1.014, slope=1.2806
+    Sat: -10.0, Grain: amount=45.0 type=4
+    Shadow balance: (0.987500011920929, 0.987500011920929, 0.987500011920929)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Fuji / Fuji Provia 400X Balance Warm-2
+    R curve: toe=2.159, shoulder=1.0, slope=1.3821
+    Sat: 0.0, Grain: amount=25.0 type=2
+    Shadow balance: (0.987500011920929, 0.987500011920929, 0.987500011920929)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Fuji / Fuji Sensia 100
+    R curve: toe=1.908, shoulder=1.0, slope=1.3478
+    Sat: 0.0, Grain: amount=15.0 type=2
+    Shadow balance: (0.949999988079071, 0.949999988079071, 0.949999988079071)
+    Highlight balance: (1.01265799999237, 1.01265799999237, 1.01265799999237)
+
+  ✗ Fuji / Fuji Superia 100
+    R curve: toe=1.594, shoulder=1.484, slope=1.0305
+    Sat: -5.0, Grain: amount=15.0 type=2
+    Shadow balance: (0.837499976158142, 0.837499976158142, 0.837499976158142)
+    Highlight balance: (1.0152280330658, 1.0152280330658, 1.0152280330658)
+
+  ✗ Fuji / Fuji T64
+    R curve: toe=2.033, shoulder=1.0, slope=1.3091
+    Sat: 0.0, Grain: amount=15.0 type=2
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Fuji / Fuji Velvia 100 +++
+    R curve: toe=1.531, shoulder=1.045, slope=1.1563
+    Sat: 5.0, Grain: amount=20.0 type=2
+    Shadow balance: (0.975000023841858, 0.975000023841858, 0.975000023841858)
+    Highlight balance: (1.02564096450806, 1.01807904243469, 0.98461502790451)
+
+  ✗ Fuji / Fuji Velvia 100F +++
+    R curve: toe=1.688, shoulder=1.0, slope=1.2252
+    Sat: -5.0, Grain: amount=30.0 type=2
+    Shadow balance: (0.920000016689301, 0.920000016689301, 0.920000016689301)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Fuji / Fuji Velvia 50 +++
+    R curve: toe=2.08, shoulder=1.014, slope=1.4052
+    Sat: -5.0, Grain: amount=45.0 type=2
+    Shadow balance: (0.975000023841858, 0.975000023841858, 0.975000023841858)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak E100G +++
+    R curve: toe=1.625, shoulder=1.0, slope=1.2003
+    Sat: 0.0, Grain: amount=35.0 type=2
+    Shadow balance: (0.949999988079071, 0.949999988079071, 0.949999988079071)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak E100G Balance Warm (GX)
+    R curve: toe=2.08, shoulder=1.0, slope=1.3909
+    Sat: 0.0, Grain: amount=25.0 type=2
+    Shadow balance: (0.949999988079071, 0.949999988079071, 0.949999988079071)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak E100VS +++
+    R curve: toe=1.625, shoulder=1.0, slope=1.2465
+    Sat: 5.0, Grain: amount=45.0 type=2
+    Shadow balance: (0.939999997615814, 0.908814013004303, 0.855400025844574)
+    Highlight balance: (1.02564096450806, 1.02564096450806, 1.02564096450806)
+
+  ✗ Kodak / Kodak E200
+    R curve: toe=2.159, shoulder=1.0, slope=1.3117
+    Sat: -5.0, Grain: amount=30.0 type=2
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak E200 +++
+    R curve: toe=1.751, shoulder=1.218, slope=1.1548
+    Sat: -10.0, Grain: amount=40.0 type=2
+    Shadow balance: (0.987500011920929, 0.987500011920929, 0.987500011920929)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Ektachrome 64
+    R curve: toe=1.782, shoulder=1.312, slope=1.1258
+    Sat: 0.0, Grain: amount=15.0 type=1
+    Shadow balance: (0.962499976158142, 0.962499976158142, 0.962499976158142)
+    Highlight balance: (0.9375, 0.9375, 0.9375)
+
+  ✗ Kodak / Kodak Ektachrome 64T
+    R curve: toe=1.72, shoulder=1.72, slope=1.0051
+    Sat: 0.0, Grain: amount=15.0 type=1
+    Shadow balance: (0.962499976158142, 0.962499976158142, 0.962499976158142)
+    Highlight balance: (1.02564096450806, 1.02564096450806, 1.02564096450806)
+
+  ✗ Kodak / Kodak Ektar 100 + Blue
+    R curve: toe=2.19, shoulder=1.0, slope=1.4423
+    Sat: -5.0, Grain: amount=30.0 type=2
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Ektar 100 + Magenta
+    R curve: toe=2.096, shoulder=1.0, slope=1.4285
+    Sat: -5.0, Grain: amount=30.0 type=2
+    Shadow balance: (1.0, 0.948152005672455, 0.977024018764496)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Ektar 100 ++ Blue
+    R curve: toe=2.19, shoulder=1.0, slope=1.42
+    Sat: -10.0, Grain: amount=30.0 type=2
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Ektar 100 +++
+    R curve: toe=1.908, shoulder=1.0, slope=1.2996
+    Sat: -10.0, Grain: amount=32.0 type=2
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Ektar 25
+    R curve: toe=1.814, shoulder=1.249, slope=1.1407
+    Sat: 0.0, Grain: amount=15.0 type=1
+    Shadow balance: (0.975000023841858, 0.975000023841858, 0.975000023841858)
+    Highlight balance: (0.962499976158142, 0.962499976158142, 0.962499976158142)
+
+  ✗ Kodak / Kodak Elite 50 II
+    R curve: toe=1.924, shoulder=1.124, slope=1.2679
+    Sat: -10.0, Grain: amount=15.0 type=1
+    Shadow balance: (0.962499976158142, 0.962499976158142, 0.962499976158142)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Elite Chrome 160T
+    R curve: toe=1.876, shoulder=1.014, slope=1.2667
+    Sat: 0.0, Grain: amount=20.0 type=2
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.01265799999237, 1.01265799999237, 1.01265799999237)
+
+  ✗ Kodak / Kodak Gold 100 + Alt 2
+    R curve: toe=1.971, shoulder=1.124, slope=1.2685
+    Sat: -15.0, Grain: amount=25.0 type=4
+    Shadow balance: (0.75, 0.75, 0.75)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Gold 100 +++
+    R curve: toe=1.814, shoulder=1.124, slope=1.2196
+    Sat: -15.0, Grain: amount=35.0 type=4
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Gold 200 +++
+    R curve: toe=1.908, shoulder=1.218, slope=1.2093
+    Sat: -10.0, Grain: amount=25.0 type=2
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Max 800
+    R curve: toe=1.861, shoulder=1.0, slope=1.2768
+    Sat: -15.0, Grain: amount=30.0 type=2
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Max 800 +++
+    R curve: toe=1.594, shoulder=1.0, slope=1.1943
+    Sat: -20.0, Grain: amount=40.0 type=2
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Portra 100T
+    R curve: toe=1.688, shoulder=1.5, slope=1.0
+    Sat: 0.0, Grain: amount=15.0 type=2
+    Shadow balance: (0.975000023841858, 0.975000023841858, 0.975000023841858)
+    Highlight balance: (1.01265799999237, 1.01265799999237, 1.01265799999237)
+
+  ✗ Kodak / Kodak Royal Gold 400
+    R curve: toe=1.955, shoulder=1.186, slope=1.2568
+    Sat: 0.0, Grain: amount=20.0 type=4
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak Royal Gold 400 +++
+    R curve: toe=1.688, shoulder=1.186, slope=1.1614
+    Sat: 0.0, Grain: amount=35.0 type=4
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak UltraMax 400 +++
+    R curve: toe=1.845, shoulder=1.0, slope=1.2859
+    Sat: -10.0, Grain: amount=40.0 type=4
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak UltraMax 800
+    R curve: toe=1.892, shoulder=1.029, slope=1.3178
+    Sat: -5.0, Grain: amount=30.0 type=4
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Kodak / Kodak UltraMax 800 +++
+    R curve: toe=1.751, shoulder=1.0, slope=1.354
+    Sat: -5.0, Grain: amount=40.0 type=4
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ PX / PX-680
+    R curve: toe=1.249, shoulder=1.296, slope=0.9308
+    Sat: -20.0, Grain: amount=25.0 type=5
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ PX / PX-70
+    R curve: toe=1.249, shoulder=1.124, slope=1.0711
+    Sat: -30.0, Grain: amount=15.0 type=4
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ PX / PX-70 +++
+    R curve: toe=1.0, shoulder=1.061, slope=1.0176
+    Sat: -40.0, Grain: amount=15.0 type=4
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Polaroid / Polaroid 669
+    R curve: toe=1.798, shoulder=1.28, slope=1.1285
+    Sat: -15.0, Grain: amount=25.0 type=5
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Polaroid / Polaroid 669 +++
+    R curve: toe=1.28, shoulder=1.265, slope=1.0384
+    Sat: -30.0, Grain: amount=25.0 type=5
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Polaroid / Polaroid 690
+    R curve: toe=1.908, shoulder=1.186, slope=1.2023
+    Sat: -5.0, Grain: amount=10.0 type=5
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  ✗ Polaroid / Time-Zero Polaroid (Expired)
+    R curve: toe=1.5, shoulder=1.0, slope=0.6147
+    Sat: -15.0, Grain: amount=25.0 type=5
+    Shadow balance: (1.0, 1.0, 1.0)
+    Highlight balance: (1.0, 1.0, 1.0)
+
+  Total missing from us: 54
+
+--------------------------------------------------------------------------------
+B&W STOCKS IN C1
+--------------------------------------------------------------------------------
+
+  Agfa Scala 200 --+
+    Channel mix: R=-13.0, G=-22.0, B=25.0
+    CMY: C=-10.0, M=18.0, Y=-20.0
+    Grain: amount=25.0, type=1
+
+  Agfa Scala 200 Contrast +++
+    Channel mix: R=-13.0, G=-22.0, B=25.0
+    CMY: C=-10.0, M=18.0, Y=-20.0
+    Grain: amount=30.0, type=2
+
+  Agfa Scala 200
+    Channel mix: R=-13.0, G=-22.0, B=25.0
+    CMY: C=-10.0, M=18.0, Y=-20.0
+    Grain: amount=20.0, type=2
+
+  Fuji FP-3000b +++
+    Channel mix: R=13.0, G=-30.0, B=32.5
+    CMY: C=0.0, M=47.5, Y=1.0
+    Grain: amount=30.0, type=4
+
+  Fuji FP-3000b Negative +++
+    Channel mix: R=16.0, G=-20.0, B=42.5
+    CMY: C=10.0, M=52.5, Y=-9.0
+    Grain: amount=40.0, type=4
+
+  Fuji FP-3000b Negative Early Pull
+    Channel mix: R=16.0, G=-20.0, B=42.5
+    CMY: C=10.0, M=52.5, Y=-9.0
+    Grain: amount=40.0, type=4
+
+  Fuji FP-3000b
+    Channel mix: R=13.0, G=-30.0, B=32.5
+    CMY: C=0.0, M=47.5, Y=1.0
+    Grain: amount=25.0, type=4
+
+  Fuji Neopan 1600
+    Channel mix: R=-8.0, G=-20.0, B=12.5
+    CMY: C=-19.0, M=17.5, Y=-14.0
+    Grain: amount=80.0, type=1
+
+  Fuji Neopan 400 +++
+    Channel mix: R=5.0, G=-20.0, B=10.0
+    CMY: C=0.0, M=20.0, Y=-5.0
+    Grain: amount=45.0, type=1
+
+  Fuji Neopan 400
+    Channel mix: R=5.0, G=-20.0, B=10.0
+    CMY: C=0.0, M=20.0, Y=-5.0
+    Grain: amount=30.0, type=1
+
+  Ilford Delta 3200
+    Channel mix: R=7.0, G=-20.0, B=17.5
+    CMY: C=-20.0, M=27.5, Y=-18.0
+    Grain: amount=40.0, type=1
+
+  Ilford HP5
+    Channel mix: R=2.5, G=-20.0, B=30.0000019073486
+    CMY: C=-10.0, M=35.0, Y=-2.5
+    Grain: amount=45.0, type=1
+
+  Ilford Pan F Plus 50
+    Channel mix: R=0.0, G=-30.0, B=-10.0
+    CMY: C=0.0, M=20.0, Y=-5.0
+    Grain: amount=20.0, type=1
+
+  Kodak BW400CN +++
+    Channel mix: R=-17.5, G=15.0, B=-2.0
+    CMY: C=-20.0, M=13.0, Y=-17.5
+    Grain: amount=60.0, type=1
+
+  Kodak BW400CN
+    Channel mix: R=-2.5, G=15.0, B=-2.0
+    CMY: C=-20.0, M=13.0, Y=-12.5
+    Grain: amount=45.0, type=1
+
+  Kodak Plus-X 125
+    Channel mix: R=0.0, G=-10.0, B=5.0
+    CMY: C=0.0, M=10.0, Y=-10.0
+    Grain: amount=25.0, type=1
+
+  Kodak T-MAX 3200
+    Channel mix: R=-22.5, G=-15.0, B=-12.5
+    CMY: C=-10.0, M=-15.5, Y=-12.5
+    Grain: amount=100.0, type=1
+
+  Kodak TRI-X 320 +++
+    Channel mix: R=0.0, G=-20.0, B=-15.0
+    CMY: C=-15.0, M=0.0, Y=-5.0
+    Grain: amount=40.0, type=1
+
+  Kodak TRI-X 320
+    Channel mix: R=0.0, G=-20.0, B=-15.0
+    CMY: C=-15.0, M=0.0, Y=-5.0
+    Grain: amount=30.0, type=1
+
+  Kodak TRI-X 400
+    Channel mix: R=-10.0, G=-20.0, B=20.0
+    CMY: C=25.0, M=45.0000038146973, Y=0.0
+    Grain: amount=50.0, type=1
+
+  Polaroid 665
+    Channel mix: R=-6.0, G=-21.0, B=45.0000038146973
+    CMY: C=-21.0, M=35.0, Y=-31.0
+    Grain: amount=12.0, type=5
+
+  PX-100UV+ Cold +++
+    Channel mix: R=14.0, G=-25.0, B=45.0
+    CMY: C=-12.0, M=50.0, Y=-26.0
+    Grain: amount=15.0, type=5
+
+  PX-100UV+ Warm +++
+    Channel mix: R=14.0, G=-25.0, B=45.0
+    CMY: C=-12.0, M=50.0, Y=-26.0
+    Grain: amount=15.0, type=5
+
+--------------------------------------------------------------------------------
+VARIANT TYPES AVAILABLE
+--------------------------------------------------------------------------------
+
+  (2): 2 stocks
+    - Fuji Velvia 50
+    - Kodak E200
+
+  +: 121 stocks
+    - Agfa Optima 100 II
+    - Agfa Portrait XPS 160
+    - Agfa RSX 200 II
+    - Agfa RSX 200 II Warm
+    - Agfa RSX 50 II
+    ... and 116 more
+
+  ++: 75 stocks
+    - Agfa Optima 100 II
+    - Agfa Portrait XPS 160
+    - Agfa RSX 200 II
+    - Agfa RSX 50 II
+    - Agfa Scala 200
+    ... and 70 more
+
+  -: 78 stocks
+    - Agfa Optima 100 II
+    - Agfa Portrait XPS 160
+    - Agfa RSX 200 II
+    - Agfa RSX 50 II
+    - Agfa Scala 200
+    ... and 73 more
+
+  - -: 63 stocks
+    - Agfa Optima 100 II
+    - Agfa Portrait XPS 160
+    - Agfa RSX 200 II
+    - Agfa RSX 50 II
+    - Agfa Scala 200
+    ... and 58 more
+
+  Alt: 13 stocks
+    - Fuji 160S
+    - Fuji FP-100c ++
+    - Fuji FP-100c Negative ++
+    - Fuji Sensia 100
+    - Fuji T64 +
+    ... and 8 more
+
+  Cold: 6 stocks
+    - PX-100UV+
+    - PX-680
+    - PX-70
+    - Polaroid 669
+    - Polaroid 690
+    ... and 1 more
+
+  Cool: 33 stocks
+    - Agfa Optima 100 II
+    - Agfa Portrait XPS 160
+    - Agfa RSX 200 II
+    - Agfa Ultra 100
+    - Agfa Ultra 50
+    ... and 28 more
+
+  Green: 3 stocks
+    - Kodak Gold 200
+    - Kodak UltraMax 400 +
+    - Kodak UltraMax 400 ++
+
+  HC: 9 stocks
+    - Fuji Astia 100F
+    - Fuji FP-3000b
+    - Fuji Provia 100F
+    - Fuji Provia 400X
+    - Fuji Velvia 100F
+    ... and 4 more
+
+  Landscape: 4 stocks
+    - Fuji Fortia SP
+    - Fuji Velvia 100F
+    - Fuji Velvia 50
+    - Kodak E100VS
+
+  Negative: 3 stocks
+    - Fuji FP-100c
+    - Fuji FP-3000b
+    - Polaroid 665
+
+  Portrait: 11 stocks
+    - Agfa Vista 100
+    - Agfa Vista 400
+    - Fuji Astia 100F
+    - Fuji Fortia SP
+    - Fuji Provia 100F
+    ... and 6 more
+
+  Soft Highs: 11 stocks
+    - Agfa Vista 100
+    - Agfa Vista 400
+    - Agfa Vista 800
+    - Fuji Neopan 400
+    - Kodak BW400CN
+    ... and 6 more
+
+  Vibrant: 13 stocks
+    - Agfa Vista 100
+    - Agfa Vista 400
+    - Agfa Vista 800
+    - Fuji Provia 400X
+    - Kodak E100G
+    ... and 8 more
+
+  Warm: 35 stocks
+    - Agfa Optima 100 II
+    - Agfa Portrait XPS 160
+    - Agfa RSX 200 II
+    - Agfa Ultra 100
+    - Agfa Ultra 50
+    ... and 30 more

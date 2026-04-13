@@ -1,0 +1,5 @@
+scipy>=1.10.0
+opensimplex>=0.4
+rawpy>=0.18
+exifread>=3.0
+Pillow>=9.0

@@ -2,7 +2,7 @@ torch
 importlib_metadata
 huggingface_hub
 scipy
-opencv-python>=4.7.0.72
+opencv-python
 filelock
 numpy
 Pillow
@@ -11,7 +11,7 @@ torchvision
 pyyaml
 scikit-image
 python-dateutil
-mediapipe
+mediapipe>=0.8.0
 fvcore
 yapf
 omegaconf
@@ -23,3 +23,4 @@ trimesh[easy]
 albumentations
 scikit-learn
 matplotlib
+onnxruntime-gpu

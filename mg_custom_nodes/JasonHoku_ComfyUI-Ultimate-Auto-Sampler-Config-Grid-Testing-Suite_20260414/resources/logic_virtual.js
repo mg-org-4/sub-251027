@@ -145,6 +145,18 @@ const imageObserver = new IntersectionObserver((entries) => {
     });
 }, { rootMargin: '400px' });
 
+// --- VIDEO AUTOPLAY ---
+// Videos in rendered cards (visible range + buffer) auto-play.
+// Videos in pooled/removed cards are paused.
+// Uses virtual scroll range directly instead of IntersectionObserver
+// which has edge cases with CSS transforms on the canvas.
+function _stopVideoPlayback(card) {
+    const vid = card.querySelector('video');
+    if (!vid) return;
+    vid.pause();
+    vid.currentTime = 0;
+}
+
 // --- CALCULATE VISIBLE RANGE ---
 function calculateVisibleRange() {
     const viewport = document.getElementById('viewport');
@@ -246,6 +258,8 @@ function renderVisibleItems(forcePositionUpdate = false) {
     toRemove.forEach(id => {
         const node = nodeMap.get(id);
         if (node) {
+            // Pause any video in this card before pooling/removing
+            _stopVideoPlayback(node);
             if (_cardPool.length < MAX_POOL_SIZE) {
                 // Pool the card for reuse instead of destroying
                 node.style.display = 'none';
@@ -309,6 +323,13 @@ function renderVisibleItems(forcePositionUpdate = false) {
                 img.src = img.dataset.src;
                 img.onload = () => img.style.opacity = '1';
             }
+            // Videos: set src immediately so preload="metadata" fetches poster frame.
+            // Playback starts after fragment is in the DOM (see below).
+            const vid = card.querySelector('video');
+            if (vid && vid.dataset.src && !vid.src) {
+                vid.src = vid.dataset.src;
+                vid.load();
+            }
 
         } else {
             const currentLeft = parseInt(card.style.left) || 0;
@@ -331,6 +352,19 @@ function renderVisibleItems(forcePositionUpdate = false) {
     if (fragment.childNodes.length > 0) {
         grid.appendChild(fragment);
     }
+
+    // After cards are in the DOM, start playback on every video in the rendered set.
+    // This ensures videos play as soon as they enter the virtual scroll range,
+    // regardless of CSS transforms on the canvas (IntersectionObserver can miss these).
+    itemsToShow.forEach(data => {
+        const card = nodeMap.get(data.id);
+        if (card) {
+            const vid = card.querySelector('video');
+            if (vid && vid.paused) {
+                vid.play().catch(() => { /* autoplay policy may block */ });
+            }
+        }
+    });
 
     if (forcePositionUpdate) {
         console.log(`[Grid] Added ${newCardsAdded} new, repositioned ${positionsUpdated} existing cards`);

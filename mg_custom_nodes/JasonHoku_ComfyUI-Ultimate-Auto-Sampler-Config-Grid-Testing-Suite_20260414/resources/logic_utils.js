@@ -343,6 +343,114 @@ function showSessionLandingIfEmpty() {
     }
 }
 
+/**
+ * Export favorited items as a Config Builder JSON — ready to paste into
+ * the Config Builder's lora_config widget to regenerate the same images
+ * with different settings (size, steps, etc.).
+ *
+ * Groups favorites by unique (model, lora, prompt) combos into config
+ * arrays. Reads ALL fields from the manifest items — nothing is defaulted
+ * unless the item genuinely doesn't have that field.
+ */
+function exportFavoritesAsConfigJSON() {
+    if (!activeData || activeData.length === 0) {
+        alert('No data loaded');
+        return;
+    }
+
+    var favorites = activeData.filter(function(d) { return d.favorited; });
+    if (favorites.length === 0) {
+        alert('No favorited items to export');
+        return;
+    }
+
+    // Build flat config entries — one per favorite item.
+    // Each config is a direct match for what the sampler node's expand_configs() expects:
+    // single values for sampler, scheduler, model, etc. (NOT arrays).
+    var flatConfigs = [];
+    var seen = {};
+    for (var fi = 0; fi < favorites.length; fi++) {
+        var d = favorites[fi];
+
+        // Build the flat config from the manifest item's actual fields
+        var flatConfig = {
+            sampler: d.sampler || 'euler',
+            scheduler: d.scheduler || 'normal',
+            steps: d.steps || 20,
+            cfg: d.cfg || 7,
+            denoise: d.denoise || 1,
+            seed: d.seed || 0,
+            seed_behavior: 'fixed',
+            model: d.model || meta.model || 'None',
+            lora: d.lora || 'None',
+            vae: d.vae || (d.model_type && d.model_type !== 'checkpoint' ? 'None' : 'Default'),
+            clip_type: d.clip_type || 'stable_diffusion',
+            positive: d.config_positive || d.positive || meta.positive || '',
+            negative: d.config_negative || d.negative || meta.negative || '',
+            attention_mode: d.attention_mode || 'default'
+        };
+
+        // Copy model_type directly from manifest item
+        if (d.model_type) flatConfig.model_type = d.model_type;
+
+        // Optional fields — only include if present on the item
+        if (d.text_encoders && d.text_encoders.length > 0) flatConfig.text_encoders = d.text_encoders;
+        if (d.gguf_options) flatConfig.gguf_options = d.gguf_options;
+        if (d.model_prompt_prefix) flatConfig.model_prompt_prefix = d.model_prompt_prefix;
+        if (d.model_prompt_suffix) flatConfig.model_prompt_suffix = d.model_prompt_suffix;
+        if (d.model_sampling_override && d.model_sampling_override !== 'none') {
+            flatConfig.model_sampling_override = d.model_sampling_override;
+            if (d.model_sampling_shift) flatConfig.model_sampling_shift = d.model_sampling_shift;
+            if (d.model_sampling_flux_max_shift) flatConfig.model_sampling_flux_max_shift = d.model_sampling_flux_max_shift;
+            if (d.model_sampling_flux_base_shift) flatConfig.model_sampling_flux_base_shift = d.model_sampling_flux_base_shift;
+        }
+        if (d.use_advanced_sampling) {
+            flatConfig.use_advanced_sampling = true;
+            flatConfig.advanced_guider = d.advanced_guider || 'cfg_guider';
+            flatConfig.advanced_scheduler = d.advanced_scheduler || 'basic';
+        }
+        if (d.use_flux_guidance) {
+            flatConfig.use_flux_guidance = true;
+            flatConfig.flux_guidance_value = d.flux_guidance_value || 3.5;
+        }
+        if (d.clip_skip && d.clip_skip !== -1) flatConfig.clip_skip = d.clip_skip;
+
+        // Deduplicate: skip if we already have an identical config
+        // (same model + lora + sampler + scheduler + steps + cfg + seed + prompt)
+        var dedupKey = [flatConfig.model, flatConfig.lora, flatConfig.sampler,
+            flatConfig.scheduler, flatConfig.steps, flatConfig.cfg,
+            flatConfig.seed, flatConfig.positive].join('|');
+        if (seen[dedupKey]) continue;
+        seen[dedupKey] = true;
+
+        flatConfigs.push(flatConfig);
+    }
+
+    // Wrap in the format the sampler node expects: {"configs": [...]}
+    var configOutput = {
+        configs: flatConfigs
+    };
+
+    // Check for GGUF/diffusion models that need a VAE connected
+    var needsVaeWarning = flatConfigs.some(function(c) {
+        return c.model_type && c.model_type !== 'checkpoint' && (!c.vae || c.vae === 'Default' || c.vae === 'None');
+    });
+    var vaeNote = needsVaeWarning
+        ? '\n\n\u26a0\ufe0f Some configs use GGUF/diffusion models \u2014 make sure to connect a VAE to the sampler node\'s optional_vae input.'
+        : '';
+
+    // Copy to clipboard
+    var jsonStr = JSON.stringify(configOutput, null, 2);
+    navigator.clipboard.writeText(jsonStr).then(function() {
+        alert('Config JSON copied to clipboard! (' + favorites.length + ' favorites \u2192 ' + flatConfigs.length + ' config' + (flatConfigs.length !== 1 ? 's' : '') + ')\n\nPaste into the Sampler Grid node\'s configs_json input.' + vaeNote);
+    }).catch(function() {
+        // Fallback: show in a prompt dialog
+        prompt('Copy this Config JSON:', jsonStr);
+    });
+
+    console.log('[Export] Exported ' + favorites.length + ' favorites as ' + flatConfigs.length + ' configs');
+}
+
 // Export favorited images to benchmark_favorites folder
 async function exportFavorites() {
     const statusEl = document.getElementById('export-status');
@@ -570,19 +678,58 @@ function selectJSON(id) {
 
 // Trigger generation from Modal
 async function triggerGen(btn) {
-    const newCfg = [{
+    // Build a complete config from the modal fields + the original item's metadata.
+    // This produces an exact config_json entry that the sampler can run directly.
+    const d = activeData ? activeData.find(x => x.id === window.currentModalId) : null;
+
+    const config = {
         sampler: document.getElementById('f-smp').value,
         scheduler: document.getElementById('f-sch').value,
-        steps: parseInt(document.getElementById('f-stp').value),
-        cfg: parseFloat(document.getElementById('f-cfg').value),
-        denoise: parseFloat(document.getElementById('f-den').value),
-        lora: document.getElementById('f-lor').value
-    }];
-    const jsonStr = JSON.stringify(newCfg, null, 2);
+        steps: parseInt(document.getElementById('f-stp').value) || 20,
+        cfg: parseFloat(document.getElementById('f-cfg').value) || 7,
+        denoise: parseFloat(document.getElementById('f-den').value) || 1,
+        lora: document.getElementById('f-lor').value || 'None',
+        model: document.getElementById('f-model').value || 'None',
+        seed: parseInt(document.getElementById('f-seed').value) || 0,
+        seed_behavior: 'fixed',
+        positive: document.getElementById('f-pos').value || '',
+        negative: document.getElementById('f-neg').value || ''
+    };
+
+    // Carry over additional fields from the original item if available
+    if (d) {
+        if (d.vae && d.vae !== 'Default') config.vae = d.vae;
+        if (d.clip_type) config.clip_type = d.clip_type;
+        if (d.model_type && d.model_type !== 'checkpoint') config.model_type = d.model_type;
+        if (d.text_encoders && d.text_encoders.length > 0) config.text_encoders = d.text_encoders;
+        if (d.attention_mode && d.attention_mode !== 'default') config.attention_mode = d.attention_mode;
+        if (d.clip_skip && d.clip_skip !== -1) config.clip_skip = d.clip_skip;
+        if (d.model_sampling_override && d.model_sampling_override !== 'none') {
+            config.model_sampling_override = d.model_sampling_override;
+            if (d.model_sampling_shift) config.model_sampling_shift = d.model_sampling_shift;
+            if (d.model_sampling_flux_max_shift) config.model_sampling_flux_max_shift = d.model_sampling_flux_max_shift;
+            if (d.model_sampling_flux_base_shift) config.model_sampling_flux_base_shift = d.model_sampling_flux_base_shift;
+        }
+        if (d.use_advanced_sampling) {
+            config.use_advanced_sampling = true;
+            config.advanced_guider = d.advanced_guider || 'cfg_guider';
+            config.advanced_scheduler = d.advanced_scheduler || 'basic';
+        }
+        if (d.use_flux_guidance) {
+            config.use_flux_guidance = true;
+            config.flux_guidance_value = d.flux_guidance_value || 3.5;
+        }
+        if (d.gguf_options) config.gguf_options = d.gguf_options;
+    }
+
+    // Wrap in the format the sampler expects
+    const configOutput = { configs: [config] };
+    const jsonStr = JSON.stringify(configOutput, null, 2);
+
     try {
-        // Communicate with ComfyUI Graph   
+        // Communicate with ComfyUI Graph
         const graph = window.parent.app.graph;
-        node = graph._nodes.find(n => n.type === "UltimateSamplerGrid");
+        const node = graph._nodes.find(n => n.type === "UltimateSamplerGrid");
         if (node) {
             const widget = node.widgets.find(w => w.name === "configs_json");
             if (widget) {

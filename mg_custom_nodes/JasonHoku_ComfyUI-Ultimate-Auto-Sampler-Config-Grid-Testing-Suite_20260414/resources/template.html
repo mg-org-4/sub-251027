@@ -231,6 +231,16 @@
             <!-- Section 4: Export Favorites -->
             <div class="cog-panel-section">
                 <div class="cog-panel-section-title">EXPORT FAVORITES</div>
+
+                <button class="session-action-btn"
+                    style="background: #6366f1; width: 100%; font-size: 11px; padding: 10px; margin-bottom: 8px;"
+                    onclick="exportFavoritesAsConfigJSON()" title="Generate a Config Builder JSON from favorited items — paste into the Builder to re-run with different settings">
+                    📋 EXPORT FAVORITES AS CONFIG JSON
+                </button>
+                <div style="font-size: 9px; color: #666; margin-bottom: 10px;">
+                    Copies a Config Builder JSON to clipboard with all favorited items' settings (models, LoRAs, prompts, samplers, etc.). Paste into the Config Builder's lora_config widget to re-run with different sizes/settings.
+                </div>
+
                 <button class="session-action-btn"
                     style="background: #00d1b2; width: 100%; font-size: 11px; padding: 10px;"
                     onclick="exportFavorites()" title="Export favorited images to benchmark_favorites folder">
@@ -496,6 +506,10 @@
                     <span class="filter-label">Upscale</span>
                     <div id="filter-upscaleMethod" class="filter-buttons-container"></div>
                 </div>
+                <div class="filter-row">
+                    <span class="filter-label">Type</span>
+                    <div id="filter-mediaType" class="filter-buttons-container"></div>
+                </div>
             </div>
 
             <!-- Keyboard Shortcuts Reference -->
@@ -621,8 +635,8 @@
                     style="background: #6366f1; margin-top: 10px;">
                     📋 Copy Configs To Clipboard As Comfy Nodes
                 </button>
-                <div class="field"><label>Model</label><input id="f-model" disabled style="opacity:0.6;"></div>
-                <div class="field"><label>Seed</label><input id="f-seed" type="number" disabled style="opacity:0.6;">
+                <div class="field"><label>Model</label><input id="f-model"></div>
+                <div class="field"><label>Seed</label><input id="f-seed" type="number">
                 </div>
                 <div class="field"><label>Positive Prompt</label><textarea id="f-pos" rows="3"
                         style="background:#000; border:1px solid #333; color:#fff; padding:8px; font-size:12px; font-family:inherit; resize:vertical;"></textarea>

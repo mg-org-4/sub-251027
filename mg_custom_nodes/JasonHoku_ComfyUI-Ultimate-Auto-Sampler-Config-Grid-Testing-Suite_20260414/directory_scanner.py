@@ -317,6 +317,86 @@ def _load_existing_manifest_items(directory_path):
 # =============================================================================
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".m4v"}
+MEDIA_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
+
+
+def _probe_mp4_dimensions(file_path):
+    """
+    Pure-Python MP4/MOV dimension probe. Parses the ISO BMFF container
+    to find the first video track's tkhd box and extracts width/height.
+    No dependencies — reads only the box headers (a few hundred bytes).
+
+    Returns:
+        tuple (width, height) or None if parsing fails or no video track.
+    """
+    def _find_tkhd(f, end_offset):
+        CONTAINER_BOXES = (b'moov', b'trak', b'mdia', b'minf', b'stbl', b'edts')
+        while f.tell() < end_offset:
+            header = f.read(8)
+            if len(header) < 8:
+                return None
+            size = int.from_bytes(header[0:4], 'big')
+            box_type = header[4:8]
+
+            if size == 1:
+                # 64-bit largesize
+                size_bytes = f.read(8)
+                if len(size_bytes) < 8:
+                    return None
+                size = int.from_bytes(size_bytes, 'big')
+                content_size = size - 16
+            elif size == 0:
+                # Box extends to end of file
+                content_size = end_offset - f.tell()
+            else:
+                content_size = size - 8
+
+            if content_size < 0:
+                return None
+
+            content_start = f.tell()
+            content_end = content_start + content_size
+
+            if box_type == b'tkhd':
+                try:
+                    version = f.read(1)[0]
+                    f.read(3)  # flags
+                    if version == 0:
+                        # 32-bit time fields: 4+4+4+4+4 = 20 bytes total
+                        f.read(20)
+                    else:
+                        # 64-bit time fields: 8+8+4+4+8 = 32 bytes
+                        f.read(32)
+                    f.read(8)  # reserved
+                    f.read(8)  # layer, alt_group, volume, reserved
+                    f.read(36)  # unity matrix
+                    width_raw = int.from_bytes(f.read(4), 'big')
+                    height_raw = int.from_bytes(f.read(4), 'big')
+                    # Width/height are 16.16 fixed-point
+                    width = width_raw >> 16
+                    height = height_raw >> 16
+                    if width > 0 and height > 0:
+                        return (width, height)
+                except Exception:
+                    pass
+                f.seek(content_end)
+                continue
+
+            if box_type in CONTAINER_BOXES:
+                result = _find_tkhd(f, content_end)
+                if result:
+                    return result
+
+            f.seek(content_end)
+        return None
+
+    try:
+        file_size = os.path.getsize(file_path)
+        with open(file_path, 'rb') as f:
+            return _find_tkhd(f, file_size)
+    except Exception:
+        return None
 
 
 def scan_directory_for_images(directory_path, max_items=5000, view_subfolder=""):
@@ -356,17 +436,29 @@ def scan_directory_for_images(directory_path, max_items=5000, view_subfolder="")
             for entry in os.scandir(scan_dir):
                 if entry.is_file():
                     ext = os.path.splitext(entry.name)[1].lower()
-                    if ext in IMAGE_EXTENSIONS:
-                        image_files.append(entry.path)
+                    if ext in MEDIA_EXTENSIONS:
+                        try:
+                            mtime = entry.stat().st_mtime
+                        except Exception:
+                            mtime = 0
+                        image_files.append((entry.path, mtime))
     except PermissionError:
         raise ValueError(f"Permission denied: {directory_path}")
 
-    image_files.sort()
+    # Sort by modification time DESCENDING (newest first) to match the
+    # manifest convention used by generated sessions (items are prepended
+    # as they're created). The Dashboard's fast-path for oldest/newest sort
+    # assumes activeData is stored newest-first.
+    image_files.sort(key=lambda x: (-x[1], x[0]))
 
     if len(image_files) > max_items:
         image_files = image_files[:max_items]
 
-    for file_path in image_files:
+    total_files = len(image_files)
+    for i, (file_path, _mtime) in enumerate(image_files):
+        # gen_index: oldest=0, newest=total-1. Since image_files is
+        # newest-first, index 0 is the newest file.
+        gen_idx = total_files - 1 - i
         stats["total"] += 1
         filename = os.path.basename(file_path)
 
@@ -377,16 +469,36 @@ def scan_directory_for_images(directory_path, max_items=5000, view_subfolder="")
             from urllib.parse import quote
             item["file"] = f"/view?filename={quote(filename, safe='')}&type=output&subfolder={quote(view_subfolder, safe='/')}"
             item["source_file"] = filename
+            # Assign gen_index based on mtime-sorted order so Oldest/Newest sort
+            # matches file age (overrides any stale gen_index from cached manifest)
+            item["gen_index"] = gen_idx
             # Ensure it has an ID
             if "id" not in item:
                 item["id"] = int(time.time() * 100000) + random.randint(0, 1000)
+            # For videos: ensure media_type is set and probe real dimensions
+            # if the cached entry has missing or stale (default 1280x720) values.
+            ext_check = os.path.splitext(filename)[1].lower()
+            if ext_check in VIDEO_EXTENSIONS:
+                item["media_type"] = "video"
+                needs_probe = (
+                    not item.get("width")
+                    or not item.get("height")
+                    or (item.get("width") == 1280 and item.get("height") == 720)
+                )
+                if needs_probe:
+                    probed = _probe_mp4_dimensions(file_path)
+                    if probed:
+                        item["width"], item["height"] = probed
+            else:
+                if "media_type" not in item:
+                    item["media_type"] = "image"
             items.append(item)
             stats["from_manifest"] += 1
             continue
 
         # No manifest entry — fall through to normal image processing
         try:
-            item = _process_single_image(file_path, directory_path, view_subfolder)
+            item = _process_single_image(file_path, directory_path, view_subfolder, gen_index=gen_idx)
             if item:
                 items.append(item)
         except Exception as e:
@@ -405,11 +517,13 @@ def scan_directory_for_images(directory_path, max_items=5000, view_subfolder="")
     return items, stats
 
 
-def _process_single_image(file_path, directory_path, view_subfolder=""):
+def _process_single_image(file_path, directory_path, view_subfolder="", gen_index=0):
     """
-    Process a single image file into a manifest-compatible item dict.
+    Process a single image or video file into a manifest-compatible item dict.
     """
     filename = os.path.basename(file_path)
+    ext = os.path.splitext(filename)[1].lower()
+    is_video = ext in VIDEO_EXTENSIONS
 
     # Generate unique ID (matching existing manifest pattern)
     ts = int(time.time() * 100000) + random.randint(0, 1000)
@@ -417,6 +531,36 @@ def _process_single_image(file_path, directory_path, view_subfolder=""):
     # Build URL using ComfyUI's built-in /view endpoint
     from urllib.parse import quote
     file_url = f"/view?filename={quote(filename, safe='')}&type=output&subfolder={quote(view_subfolder, safe='/')}"
+
+    if is_video:
+        # Try to probe real dimensions from MP4/MOV container
+        # Falls back to 16:9 default if probing fails (e.g. WebM, corrupt file)
+        probed = _probe_mp4_dimensions(file_path)
+        vid_w, vid_h = probed if probed else (1280, 720)
+        return {
+            "id": ts,
+            "gen_index": gen_index,
+            "file": file_url,
+            "media_type": "video",
+            "width": vid_w,
+            "height": vid_h,
+            "seed": 0,
+            "steps": 0,
+            "cfg": 0,
+            "sampler": "video",
+            "scheduler": "video",
+            "positive": "",
+            "negative": "",
+            "denoise": 1,
+            "model": "Video",
+            "lora": "None",
+            "clip_skip": -1,
+            "duration": 0,
+            "batch_idx": 0,
+            "rejected": False,
+            "favorited": False,
+            "source_file": filename,
+        }
 
     # Get image dimensions from PIL
     try:
@@ -439,7 +583,9 @@ def _process_single_image(file_path, directory_path, view_subfolder=""):
     # Use parsed metadata, fall back to defaults
     item = {
         "id": ts,
+        "gen_index": gen_index,
         "file": file_url,
+        "media_type": "image",
         "width": parsed.get("width") or width,
         "height": parsed.get("height") or height,
         "seed": parsed.get("seed", 0),

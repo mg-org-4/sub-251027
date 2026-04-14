@@ -1,4 +1,4 @@
-# VAE Encode (for Soft Inpainting)
+# ⚡| VAE Encode (for Soft Inpainting)
 ![text](vae_encode_for_soft_inpainting.jpg)
 
 This node is designed to encode images into a latent representation suitable for inpainting tasks. It includes additional preprocessing steps to adjust the input image and mask, ensuring optimal encoding by the VAE model.

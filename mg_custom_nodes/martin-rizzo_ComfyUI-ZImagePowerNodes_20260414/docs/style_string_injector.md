@@ -1,4 +1,4 @@
-# Style String Injector
+# ⚡| Style String Injector
 ![text](style_string_injector.jpg)
 
 Injects a selected style into your prompt. This node takes an input string containing

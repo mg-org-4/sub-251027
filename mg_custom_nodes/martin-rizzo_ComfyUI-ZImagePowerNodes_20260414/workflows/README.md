@@ -7,6 +7,9 @@ __Folders__
  * `/GGUF`: Contains workflows pre-configured for GGUF format checkpoints.
 
 __Workflows__
+ * `forging_custom_styles`: Example of how to configure your own custom styles.
+ * `injecting_style_into_string`: Example of how to retrieve the complete string combining style and prompt.
+ * `selecting_my_top_10_styles`: Example of how create a list of your 10 most-used styles for quick selection.
  * `z-image-turbo__inpainting.json`: Main reference workflow for inpainting tasks using power nodes.
  * `z-image-turbo__t2i_double_trouble.json`: Text-to-image workflow combining two different styles.
  * `z-image-turbo__text2image.json` : Main reference text-to-image generation workflow.

@@ -1,4 +1,4 @@
-# Empty Z-Image Latent Image
+# ⚡| Empty Z-Image Latent Image
 ![Node](empty_zimage_latent_image.jpg)
 
 This node generates an empty latent image specifically formatted for use in Z-Image workflows. It allows users to define key parameters such as orientation, aspect ratio, scale, and batch size, providing a customizable starting point for image generation.

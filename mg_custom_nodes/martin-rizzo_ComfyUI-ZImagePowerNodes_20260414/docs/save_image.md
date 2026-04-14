@@ -1,4 +1,4 @@
-# Save Image
+# ⚡| Save Image
 ![Node](save_image.jpg)
 
 This node works similarly to the native ComfyUI "Save Image" but includes an option to save metadata compatible with CivitAI.  It streamlines the process of sharing your generation parameters on the CivitAI platform by structuring the image metadata in a format that CivitAI readily recognizes.

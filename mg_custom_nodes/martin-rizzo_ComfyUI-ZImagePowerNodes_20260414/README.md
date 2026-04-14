@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/martin-rizzo/ComfyUI-ZImagePowerNodes?label=license%3A&color=28A745)](#)
 [![Version](https://img.shields.io/github/v/tag/martin-rizzo/ComfyUI-ZImagePowerNodes?label=version%3A&color=D07250)](#)
 [![Last](https://img.shields.io/github/last-commit/martin-rizzo/ComfyUI-ZImagePowerNodes?label=last%20commit%3A)](#)  
-<img src="banner_readme.jpg" width="90%"></img>
+<img src="banner_readme_v20.jpg" width="90%"></img>
 
 </div>
 
@@ -35,13 +35,13 @@ There are several ways to do so:
 
 The "Style & Prompt Encoder" node comes with a library of over 100 predefined styles. Just pick one, and the node automatically handles the prompting to shift your image's artistic direction. You can browse them all via a searchable gallery with thumbnails for quick previews. It's the perfect way to nail a consistent look without wrestling with complex prompts, all while keeping your original subject and composition intact.
 
-<img src="workflows/_z_/__figure__styles.jpg" width="90%"></img>
+<img src="docs/figures/__figure__styles.jpg" width="90%"></img>
 
 ### Consistency with Low Steps
 
 The "Z-Sampler Turbo" node maintains image consistency from 3 steps onwards. Since there are minimal variations in composition, you can quickly test prompt changes with just a few steps and then crank them up later for a high-quality version. Along those lines, the sampler produces a more than acceptable result with only 5 steps, and once you hit 7 or more, the quality is high enough that you won't even need any further post-processing.
 
-<img src="workflows/_z_/__figure__steps.jpg" width="90%"></img>
+<img src="docs/figures/__figure__steps.jpg" width="90%"></img>
 
 ### Intensity Control
 
@@ -49,11 +49,11 @@ __Intensity__ is a parameter within the "Z-Sampler Turbo" node that tweaks the a
 
 Just keep in mind that the final result depends a lot on your prompt and the specific style you're using. It's not a hard rule, but lower values usually complement photographic styles better, while higher values tend to work well for illustrations.
 
-<img src="workflows/_z_/__figure__intensity.jpg" width="90%"></img>
+<img src="docs/figures/__figure__intensity.jpg" width="90%"></img>
 
 __Intensity Bias__ is a companion parameter that lets you calibrate the bias of the initial noise. You'll usually want to keep this at 0.0. You could think of it as adjusting the "brightness". Since its effect depends heavily on the prompt and image style, it doesn't always act as a simple brightness control. In some cases, it can even affect how in-focus the image looks. Just tweak it within the positive or negative range until it looks right to you.
 
-<img src="workflows/_z_/__figure__intensity_bias.jpg" width="90%"></img>
+<img src="docs/figures/__figure__intensity_bias.jpg" width="90%"></img>
 
 ### Turbo Creativity
 
@@ -61,7 +61,7 @@ __Turbo Creativity__ is an option in the "Z-Sampler Turbo" node that uses latent
 
 Currently, it only affects composition (like posing, framing, and object placement) while keeping colors and style consistent. Because this process can lead to hallucinations, I've added "refined" options that throw in some extra sampling steps to keep the image coherent. Note that using these refined options will increase the total generation time.
 
-<img src="workflows/_z_/__figure__turbo_creativity.jpg" width="90%"></img>
+<img src="docs/figures/__figure__turbo_creativity.jpg" width="90%"></img>
 
 ### Other Extras
 
@@ -93,9 +93,6 @@ This folder contains reference workflows demonstrating the use of the Power Node
 These are simple yet powerful examples that serve as an excellent resource for understanding how to utilize
 each node.
 
-[__/styles/samples_wf__](/styles/samples_wf)  
-This folder includes all the workflows used to generate the thumbnail images in the styles gallery.
-
 [__Z-Image Power Nodes on CivitAI__](https://civitai.com/models/2322533)  
 This page contains hundreds of images created using the Z-Image model and the Power Nodes.
 Images posted by me always include the prompt and complete workflow (*), which you can use as a
@@ -103,8 +100,12 @@ starting point for your own generation. Many users share their amazing creations
 
 <img alt="How to extract CivitAI workflow into ComfyUI" src="image-civitai2.jpg" width="60%"></img>  
 <sub>(*) On CivitAI, each image includes a sidebar panel with metadata. To easily extract the workflow,  
-click the "COMFY: N Nodes" button in the Other Metadata section and paste it (CTRL+V) directly into ComfyUI.</sub>
+click the "COMFY 14 Nodes" button in the Other Metadata section and paste it (CTRL+V) directly into ComfyUI.</sub>
 
+<!--
+[__/styles/samples_wf__](/styles/samples_wf)  
+This folder includes all the workflows used to generate the thumbnail images in the styles gallery.
+-->
 
 ## Installation
 _Ensure you have the latest version of [ComfyUi](https://github.com/comfyanonymous/ComfyUI)._

@@ -1,4 +1,4 @@
-# My Top-10 Styles & Editor
+# ⚡| My Top-10 Styles & Editor
 <img src="my_top_10_styles.jpg" width="66%"></img>
 
 The "My Top-10 Styles" and "My Top-10 Styles (Editor)" nodes work together to create a list of favorite styles, allowing for quick selection from this list. If you frequently use a couple of specific styles, these nodes enable you to set up a workflow where those styles are just one click away.

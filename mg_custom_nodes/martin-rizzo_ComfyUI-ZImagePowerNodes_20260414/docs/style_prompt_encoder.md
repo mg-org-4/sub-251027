@@ -1,4 +1,4 @@
-# Style & Prompt Encoder
+# ⚡| Style & Prompt Encoder
 ![text](style_prompt_encoder.jpg)
 
 Encodes the result of fusing a prompt with a visual style, generating embeddings that guide the diffusion process. This node is similar to ComfyUI's native "CLIP Text Encode (Prompt)", but it includes the option to select a visual style for the generated image.

@@ -13,6 +13,7 @@ import logging
 from typing import List, Optional
 
 import folder_paths
+import comfy.model_management as model_management
 from comfy_api.latest import ComfyExtension, io, ui
 
 from .modules.model_info import AVAILABLE_VOXCPM_MODELS, MODEL_CONFIGS
@@ -26,6 +27,7 @@ from .modules.generation import (
     validate_prompt_pairing,
 )
 from .modules.utils import get_available_devices, set_seed
+from src.voxcpm.utils.text_normalize import TEXT_NORMALIZATION_AVAILABLE
 
 from .voxcpm_train_nodes import VoxCPM_TrainConfig, VoxCPM_DatasetMaker, VoxCPM_LoraTrainer
 
@@ -85,7 +87,13 @@ class VoxCPMNode(io.ComfyNode):
                 io.Int.Input("steps", default=10, min=1, max=100, step=1, tooltip="Number of diffusion steps. Higher values may improve quality but are slower."),
                 io.Int.Input("min_tokens", default=2, min=1, max=100, tooltip="Minimum length of generated audio tokens."),
                 io.Int.Input("max_tokens", default=2048, min=64, max=8192, tooltip="Maximum length of generated audio tokens."),
-                io.Boolean.Input("normalize_text", default=True, label_on="Normalize", label_off="Raw", tooltip="Enable text normalization (recommended for general text)."),
+                io.Boolean.Input(
+                    "normalize_text",
+                    default=TEXT_NORMALIZATION_AVAILABLE,
+                    label_on="Normalize",
+                    label_off="Raw",
+                    tooltip="Enable text normalization (requires 'inflect' and 'wetext' packages)." if not TEXT_NORMALIZATION_AVAILABLE else "Enable text normalization (recommended for general text)."
+                ),
                 io.Boolean.Input("trim_silence", default=False, label_on="Trim", label_off="Keep", tooltip="(VoxCPM2 only) Trim silence from reference/prompt audio using VAD."),
 
                 # Advanced generation parameters
@@ -133,13 +141,39 @@ class VoxCPMNode(io.ComfyNode):
         reference_audio: Optional[io.Audio.Type] = None,
     ) -> io.NodeOutput:
 
+        # Send config event at execution time (fallback for browser refresh)
+        # This ensures the frontend knows the normalization state even if WebSocket events were missed
+        if not TEXT_NORMALIZATION_AVAILABLE:
+            try:
+                from server import PromptServer
+                if PromptServer.instance is not None:
+                    PromptServer.instance.send_sync("voxcpm.config", {
+                        "normalization_available": False
+                    })
+            except Exception:
+                pass
+
+        # Send notification if text normalization is disabled and user tries to enable it
+        if normalize_text and not TEXT_NORMALIZATION_AVAILABLE:
+            try:
+                from server import PromptServer
+                if PromptServer.instance is not None:
+                    PromptServer.instance.send_sync("voxcpm.status", {
+                        "severity": "warn",
+                        "summary": "VoxCPM Text Normalization Disabled",
+                        "detail": "Optional packages 'inflect' and 'wetext' are not installed. Install with: pip install inflect wetext",
+                        "life": 10000
+                    })
+            except Exception:
+                pass
+
         # Validate VoxCPM2-only features (graceful degradation for non-fatal issues)
         is_voxcpm2, warning, ignore_reference = validate_voxcpm2_features(
             model_name, MODEL_CONFIGS, reference_audio, voice_design
         )
         if warning:
             logger.warning(warning)
-            voice_design = None  # Ignore for VoxCPM1.5
+            voice_design = None # Ignore for VoxCPM1.5
 
         # Validate prompt audio/text pairing
         validate_prompt_pairing(prompt_audio, prompt_text)
@@ -198,6 +232,9 @@ class VoxCPMNode(io.ComfyNode):
 
             return io.NodeOutput(output_audio, ui=ui.PreviewAudio(output_audio, cls=cls))
 
+        except model_management.InterruptProcessingException:
+            # Clean interrupt - no logging needed
+            raise
         except Exception as e:
             logger.error(f"Generation error: {e}")
             raise

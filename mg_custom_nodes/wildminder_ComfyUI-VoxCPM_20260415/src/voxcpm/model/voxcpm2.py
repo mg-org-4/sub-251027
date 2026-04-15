@@ -25,10 +25,11 @@ from typing import Tuple, Union, Generator, List, Optional
 import torch
 import torch.nn as nn
 import warnings
-import librosa
-import numpy as np
 from einops import rearrange
 from pydantic import BaseModel
+
+# Audio backend selection - prefer torchaudio, fallback to librosa
+from ..utils.audio_backend import get_audio_backend, AudioBackend
 
 try:
     from safetensors.torch import load_file
@@ -45,47 +46,46 @@ from ..modules.layers.lora import apply_lora_to_named_linear_modules
 from ..modules.locdit import CfmConfig, UnifiedCFM, VoxCPMLocDiTV2
 from ..modules.locenc import VoxCPMLocEnc
 from ..modules.minicpm4 import MiniCPM4Config, MiniCPMModel
-from .utils import get_dtype, mask_multichar_chinese_tokens
+from .utils import get_dtype, mask_multichar_chinese_tokens, next_and_close
 
 
 # A simple function to trim audio silence using VAD, not used default
-def _trim_audio_silence_vad(audio: torch.Tensor, sample_rate: int, max_silence_ms: float = 200.0, top_db: float = 35.0) -> torch.Tensor:
+def _trim_audio_silence_vad(
+    audio: torch.Tensor,
+    sample_rate: int,
+    max_silence_ms: float = 200.0,
+    top_db: float = 35.0,
+    backend: Optional[AudioBackend] = None
+) -> torch.Tensor:
+    """Trim silence from audio using configurable backend.
+    
+    This function wraps the audio backend's trim_silence method,
+    providing backward compatibility with the original implementation.
+    
+    Args:
+        audio: Audio tensor of shape (1, samples)
+        sample_rate: Audio sample rate
+        max_silence_ms: Maximum silence to preserve at boundaries (ms)
+        top_db: Threshold in dB below reference for silence detection
+        backend: Audio backend to use (None for default)
+        
+    Returns:
+        Trimmed audio tensor
+    """
     if audio.numel() == 0:
         return audio
-    y = audio.squeeze(0).numpy()
-    n = len(y)
-    frame_length = 2048
-    hop_length = 512
-    ref = np.max(np.abs(y))
-    if ref <= 0:
-        return audio
-    threshold = ref * (10.0 ** (-top_db / 20.0))
-
-    try:
-        _, (start, end) = librosa.effects.trim(
-            y, top_db=top_db, ref=np.max, frame_length=frame_length, hop_length=hop_length
-        )
-    except Exception:
-        start, end = 0, n
-
-    # Find the last frame with continuous energy, trim the long pseudo-silence at the end (low energy background noise, etc.)
-    n_frames = max(0, (n - frame_length) // hop_length + 1)
-    last_voice_frame = -1
-    for j in range(n_frames):
-        idx = j * hop_length
-        if idx + frame_length > n:
-            break
-        rms = np.sqrt(np.mean(y[idx : idx + frame_length] ** 2))
-        if rms >= threshold:
-            last_voice_frame = j
-    if last_voice_frame >= 0:
-        end_by_vad = min(n, (last_voice_frame + 1) * hop_length + (frame_length - hop_length))
-        end = min(end, end_by_vad)
-
-    max_silence_samples = int(max_silence_ms * sample_rate / 1000.0)
-    new_start = max(0, start - max_silence_samples)
-    new_end = min(n, end + max_silence_samples)
-    return audio[:, new_start:new_end]
+    
+    if backend is None:
+        backend = get_audio_backend()
+    
+    return backend.trim_silence(
+        audio,
+        sample_rate,
+        top_db=top_db,
+        frame_length=2048,
+        hop_length=512,
+        max_silence_ms=max_silence_ms
+    )
 
 
 class VoxCPMEncoderConfig(BaseModel):
@@ -390,6 +390,7 @@ class VoxCPM2Model(nn.Module):
         trim_silence_vad: bool = False,
         max_silence_ms: float = 200.0,
         top_db: float = 35.0,
+        backend: Optional[AudioBackend] = None,
     ) -> torch.Tensor:
         """Load, trim, pad and VAE-encode an audio file.
 
@@ -399,19 +400,32 @@ class VoxCPM2Model(nn.Module):
             trim_silence_vad: whether to apply VAD-based silence trimming.
             max_silence_ms: maximum silence to keep at boundaries (ms).
             top_db: threshold for silence detection (dB).
+            backend: Audio backend to use (None for default).
 
         Returns:
             audio_feat: (T, P, D) tensor of latent patches.
         """
-        audio, _ = librosa.load(wav_path, sr=self._encode_sample_rate, mono=True)
-        audio = torch.from_numpy(audio).unsqueeze(0)
+        if backend is None:
+            backend = get_audio_backend()
+        
+        # Load audio using backend (returns torch tensor directly)
+        audio, _ = backend.load(wav_path, sample_rate=self._encode_sample_rate, mono=True)
+        
         if trim_silence_vad:
-            audio = _trim_audio_silence_vad(audio, self._encode_sample_rate, max_silence_ms=max_silence_ms, top_db=top_db)
+            audio = _trim_audio_silence_vad(
+                audio,
+                self._encode_sample_rate,
+                max_silence_ms=max_silence_ms,
+                top_db=top_db,
+                backend=backend
+            )
+        
         patch_len = self.patch_size * self.chunk_size
         if audio.size(1) % patch_len != 0:
             padding_size = patch_len - audio.size(1) % patch_len
             pad = (padding_size, 0) if padding_mode == "left" else (0, padding_size)
             audio = torch.nn.functional.pad(audio, pad)
+        
         feat = self.audio_vae.encode(audio.to(self.device), self._encode_sample_rate).cpu()
         return feat.view(self.audio_vae.latent_dim, -1, self.patch_size).permute(1, 2, 0)
 
@@ -448,7 +462,7 @@ class VoxCPM2Model(nn.Module):
         return tokens, feats, t_mask, a_mask
 
     def generate(self, *args, **kwargs) -> torch.Tensor:
-        return next(self._generate(*args, streaming=False, **kwargs))
+        return next_and_close(self._generate(*args, streaming=False, **kwargs))
 
     def generate_streaming(self, *args, **kwargs) -> Generator[torch.Tensor, None, None]:
         return self._generate(*args, streaming=True, **kwargs)
@@ -654,7 +668,7 @@ class VoxCPM2Model(nn.Module):
                     yield decode_audio
                 break
             else:
-                latent_pred, pred_audio_feat, context_len = next(inference_result)
+                latent_pred, pred_audio_feat, context_len = next_and_close(inference_result)
                 if retry_badcase:
                     if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
                         print(
@@ -697,13 +711,13 @@ class VoxCPM2Model(nn.Module):
 
         Args:
             prompt_text: prompt text for continuation mode.
-            Must be paired with ``prompt_wav_path``.
+                Must be paired with ``prompt_wav_path``.
             prompt_wav_path: prompt audio path for continuation mode.
-            Must be paired with ``prompt_text``.
+                Must be paired with ``prompt_text``.
             reference_wav_path: reference audio path for voice cloning
-            (structurally isolated via ref_audio tokens).
+                (structurally isolated via ref_audio tokens).
             trim_silence_vad: whether to apply VAD-based silence trimming
-            before encoding prompt/reference audio.
+                before encoding prompt/reference audio.
             max_silence_ms: maximum silence to keep at boundaries (ms).
             top_db: threshold for silence detection (dB).
 
@@ -904,7 +918,7 @@ class VoxCPM2Model(nn.Module):
         return merged
 
     def generate_with_prompt_cache(self, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        return next(self._generate_with_prompt_cache(*args, streaming=False, **kwargs))
+        return next_and_close(self._generate_with_prompt_cache(*args, streaming=False, **kwargs))
 
     def generate_with_prompt_cache_streaming(
         self, *args, **kwargs
@@ -928,6 +942,7 @@ class VoxCPM2Model(nn.Module):
         temperature: float = 1.0,
         sway_sampling_coef: float = 1.0,
         use_cfg_zero_star: bool = True,
+        progress_callback = None,
     ) -> Generator[Tuple[torch.Tensor, torch.Tensor, Union[torch.Tensor, List[torch.Tensor]]], None, None]:
         """
         Generate audio using pre-built prompt cache.
@@ -935,7 +950,7 @@ class VoxCPM2Model(nn.Module):
         Args:
             target_text: Text to convert to speech
             prompt_cache: Cache built by ``build_prompt_cache()``. Can be None
-            for zero-shot generation.
+                for zero-shot generation.
             min_len: Minimum audio length to avoid very short audio
             max_len: Maximum audio length
             inference_timesteps: Number of diffusion sampling steps
@@ -951,9 +966,9 @@ class VoxCPM2Model(nn.Module):
 
         Returns:
             Generator of Tuple containing:
-            - Decoded audio tensor for the current step if ``streaming=True``, else final decoded audio tensor
-            - Tensor of new text tokens
-            - New audio features up to the current step as a List if ``streaming=True``, else as a concatenated Tensor
+                - Decoded audio tensor for the current step if ``streaming=True``, else final decoded audio tensor
+                - Tensor of new text tokens
+                - New audio features up to the current step as a List if ``streaming=True``, else as a concatenated Tensor
         """
         if retry_badcase and streaming:
             warnings.warn("Retry on bad cases is not supported in streaming mode, setting retry_badcase=False.")
@@ -1073,6 +1088,7 @@ class VoxCPM2Model(nn.Module):
                 temperature=temperature,
                 sway_sampling_coef=sway_sampling_coef,
                 use_cfg_zero_star=use_cfg_zero_star,
+                progress_callback=progress_callback,
             )
             if streaming:
                 decode_patch_len = self.patch_size * self._decode_chunk_size
@@ -1082,7 +1098,7 @@ class VoxCPM2Model(nn.Module):
                     yield (decode_audio, target_text_token, pred_audio_feat)
                 break
             else:
-                latent_pred, pred_audio_feat, context_len = next(inference_result)
+                latent_pred, pred_audio_feat, context_len = next_and_close(inference_result)
                 if retry_badcase:
                     if pred_audio_feat.shape[0] >= target_text_length * retry_badcase_ratio_threshold:
                         print(
@@ -1105,7 +1121,7 @@ class VoxCPM2Model(nn.Module):
             yield (decode_audio, target_text_token, pred_audio_feat)
 
     def inference(self, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
-        feat_pred, generated_feat, _ = next(self._inference(*args, streaming=False, **kwargs))
+        feat_pred, generated_feat, _ = next_and_close(self._inference(*args, streaming=False, **kwargs))
         return feat_pred, generated_feat
 
     def inference_streaming(self, *args, **kwargs) -> Generator[Tuple[torch.Tensor, List[torch.Tensor]], None, None]:
@@ -1128,6 +1144,7 @@ class VoxCPM2Model(nn.Module):
         temperature: float = 1.0,
         sway_sampling_coef: float = 1.0,
         use_cfg_zero_star: bool = True,
+        progress_callback = None,
     ) -> Generator[Tuple[torch.Tensor, Union[torch.Tensor, List[torch.Tensor]]], None, None]:
         """Core inference method for audio generation.
 
@@ -1151,8 +1168,8 @@ class VoxCPM2Model(nn.Module):
 
         Returns:
             Generator of Tuple containing:
-            - Predicted latent feature at the current step if ``streaming=True``, else final latent features
-            - Predicted audio feature sequence so far as a List if ``streaming=True``, else as a concatenated Tensor
+                - Predicted latent feature at the current step if ``streaming=True``, else final latent features
+                - Predicted audio feature sequence so far as a List if ``streaming=True``, else as a concatenated Tensor
         """
         B, T, P, D = feat.shape
 
@@ -1206,8 +1223,11 @@ class VoxCPM2Model(nn.Module):
         residual_hidden = residual_enc_outputs[:, -1, :]
 
         for i in tqdm(range(max_len)):
-            dit_hidden_1 = self.lm_to_dit_proj(lm_hidden) # [b, h_dit]
-            dit_hidden_2 = self.res_to_dit_proj(residual_hidden) # [b, h_dit]
+            if progress_callback is not None:
+                progress_callback(i + 1, max_len)
+            
+            dit_hidden_1 = self.lm_to_dit_proj(lm_hidden)  # [b, h_dit]
+            dit_hidden_2 = self.res_to_dit_proj(residual_hidden)  # [b, h_dit]
             dit_hidden = torch.cat((dit_hidden_1, dit_hidden_2), dim=-1)
 
             pred_feat = self.feat_decoder(
@@ -1240,6 +1260,9 @@ class VoxCPM2Model(nn.Module):
 
             stop_flag = self.stop_head(self.stop_actn(self.stop_proj(lm_hidden))).argmax(dim=-1)[0].cpu().item()
             if i > min_len and stop_flag == 1:
+                # Final progress update to 100%
+                if progress_callback is not None:
+                    progress_callback(max_len, max_len)
                 break
 
             lm_hidden = self.base_lm.forward_step(
@@ -1259,8 +1282,15 @@ class VoxCPM2Model(nn.Module):
             yield feat_pred, generated_feat, context_len
 
     @classmethod
-    def from_local(cls, path: str, optimize: bool = True, training: bool = False, lora_config: LoRAConfig = None):
-        config = VoxCPMConfig.model_validate_json(open(os.path.join(path, "config.json")).read())
+    def from_local(
+        cls,
+        path: str,
+        optimize: bool = True,
+        training: bool = False,
+        lora_config: LoRAConfig = None,
+    ):
+        with open(os.path.join(path, "config.json"), "r", encoding="utf-8") as _cfg_f:
+            config = VoxCPMConfig.model_validate_json(_cfg_f.read())
         tokenizer = LlamaTokenizerFast.from_pretrained(path)
         audio_vae_config = getattr(config, "audio_vae_config", None)
         audio_vae = AudioVAEV2(config=audio_vae_config) if audio_vae_config else AudioVAEV2()

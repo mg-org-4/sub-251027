@@ -1,0 +1,108 @@
+[OrganicProcesses]
+
+   [OrganicProcesses.N_0]
+      MainStyle = "OrganicProcesses"
+      SubStyle = ""
+      Positive = "Visual emphasis on natural processes of growth and decay over time, materials evolve rather than remain static, subtle transformation is visible in structure and surface, organic change introduces irregularity, asymmetry, and layered complexity, the scene feels alive with progression, erosion, or accumulation."
+
+   [OrganicProcesses.N_1]
+      MainStyle = "OrganicProcesses"
+      SubStyle = "Mold spread"
+      Positive = "Irregular organic growth spreads across surfaces in branching, clustered patterns, soft fuzzy textures and subtle color variation emerge, edges are uneven and creeping, the process feels gradual and invasive, creating a sense of biological expansion over time."
+
+   [OrganicProcesses.N_2]
+      MainStyle = "OrganicProcesses"
+      SubStyle = "Corrosion"
+      Positive = "Chemical degradation alters material surfaces, producing rough textures, oxidation patterns, and color shifts, edges become brittle and uneven, structural integrity appears weakened, the surface tells a story of long-term exposure and environmental interaction."
+
+   [OrganicProcesses.N_3]
+      MainStyle = "OrganicProcesses"
+      SubStyle = "Overgrowth"
+      Positive = "Natural elements such as plants or organic matter reclaim and cover structures, growth follows irregular paths, intertwining and layering over surfaces, blending artificial and natural forms, creating a dense and immersive sense of environmental takeover."
+
+   [OrganicProcesses.N_4]
+      MainStyle = "OrganicProcesses"
+      SubStyle = "Rot decomposition"
+      Positive = "Material breaks down into softer, fragmented forms, textures become uneven, moist, and unstable, structural clarity is lost, organic decay introduces dark tones and irregular patterns, conveying advanced stages of natural breakdown."
+
+   [OrganicProcesses.N_5]
+      MainStyle = "OrganicProcesses"
+      SubStyle = "Crystallization"
+      Positive = "Ordered mineral structures emerge and grow over time, forming sharp geometric patterns, surfaces become encrusted with reflective crystalline formations, growth appears structured yet organic, creating contrast between natural process and precise geometry."
+
+   [OrganicProcesses.N_6]
+      MainStyle = "OrganicProcesses"
+      SubStyle = "Fungal network"
+      Positive = "Interconnected organic filaments spread beneath and across surfaces, forming complex branching networks, subtle translucency and layered depth suggest hidden systems, growth appears intelligent and adaptive, extending in all directions."
+
+   [OrganicProcesses.N_7]
+      MainStyle = "OrganicProcesses"
+      SubStyle = "Erosion"
+      Positive = "Gradual removal of material through environmental forces creates smooth worn surfaces, softened edges, and natural shaping, textures reveal long-term exposure, forms appear sculpted by time rather than designed."
+
+   [OrganicProcesses.N_8]
+      MainStyle = "OrganicProcesses"
+      SubStyle = "Biological layering"
+      Positive = "Multiple layers of organic material accumulate over time, creating stratified textures with variation in color and density, surfaces feel complex and lived-in, with visible history embedded in each layer."
+
+   [OrganicProcesses.N_9]
+      MainStyle = "OrganicProcesses"
+      SubStyle = "Decay contrast"
+      Positive = "Juxtaposition of intact and decayed areas within the same scene, sharp contrast between preservation and degradation, highlights the process of transformation, drawing attention to the boundary between life and breakdown."
+
+   [OrganicProcesses.N_10]
+      MainStyle = "OrganicProcesses"
+      SubStyle = "Organic bloom"
+      Positive = "Rapid natural expansion of organic forms, soft shapes and fluid growth patterns spread outward, colors may intensify or shift subtly, creating a sense of vitality and active biological emergence."
+
+[Organic]
+   [Organic.N_0]
+      MainStyle = "Organic"
+      SubStyle = "Natural flow"
+      Positive = "Forms evolve through asymmetry and gradual transitions, with curved silhouettes and variable texture that feel grown rather than engineered, creating a living visual rhythm."
+   [Organic.N_1]
+      MainStyle = "Organic"
+      SubStyle = "Living surface"
+      Positive = "Surface detail appears layered and biological, with pores, fibers, and micro-irregularities that create tactile realism and natural complexity instead of synthetic uniformity."
+   [Organic.N_2]
+      MainStyle = "Organic"
+      SubStyle = "Adaptive structure"
+      Positive = "Shape language suggests adaptation to environment, where thickness, branching, and directional growth respond to light, pressure, and ecological context in believable ways."
+
+[Botanical]
+   [Botanical.N_0]
+      MainStyle = "Botanical"
+      SubStyle = "Leaf anatomy"
+      Positive = "Plant forms are described with clear anatomical logic, including vein networks, subtle translucency, and localized variation in tone that makes each part feel biologically plausible."
+   [Botanical.N_1]
+      MainStyle = "Botanical"
+      SubStyle = "Canopy depth"
+      Positive = "Layered foliage controls light and space, producing filtered illumination, humid atmosphere, and depth transitions that feel consistent with dense natural environments."
+   [Botanical.N_2]
+      MainStyle = "Botanical"
+      SubStyle = "Seasonal transition"
+      Positive = "Color and surface condition reflect seasonal change, showing growth, maturity, or decay through coherent botanical signals rather than arbitrary decoration."
+
+[Biomorphic]
+   [Biomorphic.N_0]
+      MainStyle = "Biomorphic"
+      SubStyle = "Cell-like"
+      Positive = "Rounded modular forms resemble cellular assemblies, with soft boundaries and clustered organization that suggest biological emergence and internal logic."
+   [Biomorphic.N_1]
+      MainStyle = "Biomorphic"
+      SubStyle = "Membrane forms"
+      Positive = "Thin layered boundaries stretch and fold like living membranes, creating soft tension, internal depth, and gentle translucency across connected structures."
+   [Biomorphic.N_2]
+      MainStyle = "Biomorphic"
+      SubStyle = "Hybrid growth"
+      Positive = "Shapes feel neither purely plant nor animal, but occupy a believable organic middle ground where growth patterns and material behavior remain coherent."
+
+[Ecological]
+   [Ecological.N_0]
+      MainStyle = "Ecological"
+      SubStyle = "Interdependence"
+      Positive = "Multiple organisms and materials interact in a balanced system, with visible relationships between shelter, moisture, nutrient flow, and growth pressure."
+   [Ecological.N_1]
+      MainStyle = "Ecological"
+      SubStyle = "Micro-habitat"
+      Positive = "Small-scale environmental niches are emphasized through moisture gradients, layered debris, and localized life patterns, making the scene feel ecologically specific."

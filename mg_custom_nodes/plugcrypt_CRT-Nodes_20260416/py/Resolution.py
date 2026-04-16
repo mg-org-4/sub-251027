@@ -1,0 +1,99 @@
+import math
+import torch
+import comfy.model_management
+
+
+class Resolution:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "megapixels": (
+                    "FLOAT",
+                    {"default": 1.0, "min": 0.1, "max": 32.0, "step": 0.1},
+                ),
+                "latent_channels": (["4", "16"], {"default": "4"}),
+                "aspect_ratio": (
+                    [
+                        "1:1 (Square)",
+                        "2:3 (Portrait)",
+                        "3:4 (Portrait)",
+                        "4:5 (Portrait)",
+                        "5:7 (Portrait)",
+                        "5:8 (Portrait)",
+                        "7:9 (Portrait)",
+                        "9:16 (Portrait)",
+                        "9:19 (Portrait)",
+                        "9:21 (Portrait)",
+                        "3:2 (Landscape)",
+                        "4:3 (Landscape)",
+                        "5:3 (Landscape)",
+                        "5:4 (Landscape)",
+                        "7:5 (Landscape)",
+                        "8:5 (Landscape)",
+                        "9:7 (Landscape)",
+                        "16:9 (Landscape)",
+                        "19:9 (Landscape)",
+                        "21:9 (Landscape)",
+                    ],
+                    {"default": "3:2 (Landscape)"},
+                ),
+                "divisible_by": (
+                    "INT",
+                    {"default": 8, "min": 1, "max": 256, "step": 1},
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("INT", "INT", "LATENT")
+    RETURN_NAMES = ("width", "height", "latent")
+    FUNCTION = "calculate_dimensions"
+    CATEGORY = "CRT/Utils/Logic & Values"
+
+    def calculate_dimensions(
+        self, megapixels, latent_channels, aspect_ratio, divisible_by
+    ):
+        ratio_str = aspect_ratio.split(" ")[0]
+
+        try:
+            width_ratio, height_ratio = map(int, ratio_str.split(":"))
+        except ValueError:
+            width_ratio, height_ratio = 1, 1
+
+        ratio = width_ratio / max(height_ratio, 1)
+        total_pixels = max(1, int(megapixels * 1_000_000))
+        width = math.sqrt(total_pixels * ratio)
+        height = math.sqrt(total_pixels / ratio)
+
+        # Quantize the width and height to the nearest multiple of divisible_by
+        if divisible_by > 0:
+            quantized_width = round(width / divisible_by) * divisible_by
+            quantized_height = round(height / divisible_by) * divisible_by
+        else:
+            quantized_width = width
+            quantized_height = height
+
+        final_width = int(quantized_width)
+        final_height = int(quantized_height)
+        channels = int(latent_channels)
+
+        latent = torch.zeros(
+            [1, channels, final_height // 8, final_width // 8],
+            device=comfy.model_management.intermediate_device(),
+            dtype=comfy.model_management.intermediate_dtype(),
+        )
+
+        return (
+            final_width,
+            final_height,
+            {"samples": latent, "downscale_ratio_spacial": 8},
+        )
+
+
+NODE_CLASS_MAPPINGS = {
+    "Resolution": Resolution,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "Resolution": "Resolution",
+}

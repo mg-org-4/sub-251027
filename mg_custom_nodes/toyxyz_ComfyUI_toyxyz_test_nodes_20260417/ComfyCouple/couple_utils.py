@@ -1,0 +1,628 @@
+"""
+Utility functions and data classes for Comfy Couple - WITH FLUX SUPPORT
+✅ Updated for Flux dynamic calculation
+"""
+import torch
+import torch.nn.functional as F
+import math
+import copy
+from typing import Dict, List, Tuple, Any, Optional
+from dataclasses import dataclass, field
+from enum import Enum
+
+# Constants
+DEBUG_MODE = False
+MASK_EPSILON = 1e-6
+OVERLAP_THRESHOLD = 1.0
+MIN_STRENGTH = 0.0
+MAX_STRENGTH = 10.0
+COMFYCOUPLE_REGIONS_LEGACY_KEY = "comfycouple_regions"
+COMFYCOUPLE_REGIONS_V2_KEY = "comfycouple_regions_v2"
+COMFYCOUPLE_ANIMA_CONCAT_GROUP_KEY = "comfycouple_anima_concat_group"
+COMFYCOUPLE_ANIMA_CONCAT_ORDER_KEY = "comfycouple_anima_concat_order"
+
+# Flux Block Presets
+FLUX_BLOCK_PRESETS = {
+    'default': {
+        'double': [i for i in range(1, 19, 2)],  # [1,3,5,7,9,11,13,15,17]
+        'single': [i for i in range(1, 38, 2)],  # [1,3,5,...,35,37]
+        'description': 'odd blocks only, balanced coverage'
+    },
+    'balanced': {
+        'double': [0, 2, 4, 6, 8, 10, 12, 14],
+        'single': [1, 3, 5, 7, 9, 11, 13, 15, 18, 20, 22],
+        'description': 'Even double blocks with selective single blocks - smoother transitions'
+    },
+    'input_heavy': {
+        'double': [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        'single': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14],
+        'description': 'Focus on early layers - stronger layout control, may have sharper boundaries'
+    },
+    'output_heavy': {
+        'double': [10, 11, 12, 13, 14, 15, 16, 17, 18],
+        'single': [20, 22, 24, 26, 28, 30, 32, 34, 36],
+        'description': 'Focus on late layers - softer boundaries, may reduce regional precision'
+    },
+    'middle_focus': {
+        'double': [4, 5, 6, 7, 8, 9, 10, 11, 12],
+        'single': [8, 10, 12, 14, 16, 18, 20, 22, 24, 26],
+        'description': 'Middle layers emphasis - balanced control and coherence'
+    },
+    'light': {
+        'double': [2, 4, 6, 8, 10, 12],
+        'single': [5, 10, 15, 20, 25, 30],
+        'description': 'Minimal blocks - fastest, softest boundaries, less precise control'
+    },
+    'aggressive': {
+        'double': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        'single': [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
+        'description': 'Heavy coverage - strongest control, may create visible boundaries'
+    },
+    'all_blocks': {
+        'double': list(range(19)),  # [0,1,2,...,18]
+        'single': list(range(38)),  # [0,1,2,...,37]
+        'description': 'All 56 blocks - maximum control but highest computational cost'
+    }
+}
+
+ARCH_CONFIGS = {
+    'sdxl': {
+        'input_blocks': [4, 5, 7, 8], 
+        'input_indices': {4: 2, 5: 2, 7: 10, 8: 10},
+        'middle_count': 10,
+        'output_blocks': list(range(6)), 
+        'output_indices': {0: 10, 1: 10, 2: 10, 3: 2, 4: 2, 5: 2}
+    },
+    'sd15': {
+        'input_blocks': [1, 2, 4, 5, 7, 8, 10, 11], 
+        'middle_count': 1, 
+        'output_blocks': list(range(3, 12))
+    },
+    'anima': {},
+    'flux': FLUX_BLOCK_PRESETS['default']  # Default preset
+}
+
+class ModelType(Enum):
+    SDXL = "sdxl"
+    SD15 = "sd15"
+    ANIMA = "anima"
+    FLUX = "flux"
+
+@dataclass
+class ArchitectureInfo:
+    type: ModelType
+    use_cfg: bool
+    dim: int = 768
+    is_flux: bool = False
+    profile_key: str = ""
+    strategy_key: str = ""
+    display_name: str = ""
+    capabilities: Dict[str, bool] = field(default_factory=dict)
+
+    def supports(self, capability_name: str) -> bool:
+        return bool(self.capabilities.get(capability_name, False))
+
+
+@dataclass(frozen=True)
+class ModelSupportProfile:
+    key: str
+    model_type: ModelType
+    display_name: str
+    strategy_key: str
+    dim: int
+    use_cfg: bool = True
+    is_flux: bool = False
+    capabilities: Dict[str, bool] = field(default_factory=dict)
+
+
+DEFAULT_CAPABILITIES = {
+    "supports_tiled_diffusion": True,
+    "supports_visualizer": True,
+    "supports_extractor": True,
+    "supports_lora_hooks": True,
+    "supports_cross_region_attention": True,
+    "requires_injection": False,
+}
+
+
+MODEL_SUPPORT_REGISTRY: Dict[str, ModelSupportProfile] = {
+    "sd15": ModelSupportProfile(
+        key="sd15",
+        model_type=ModelType.SD15,
+        display_name="SD 1.5",
+        strategy_key="unet_attn2",
+        dim=768,
+        capabilities={**DEFAULT_CAPABILITIES},
+    ),
+    "sdxl": ModelSupportProfile(
+        key="sdxl",
+        model_type=ModelType.SDXL,
+        display_name="SDXL",
+        strategy_key="unet_attn2",
+        dim=2048,
+        capabilities={**DEFAULT_CAPABILITIES},
+    ),
+    "anima": ModelSupportProfile(
+        key="anima",
+        model_type=ModelType.ANIMA,
+        display_name="Anima",
+        strategy_key="anima_apply_model",
+        dim=4096,
+        capabilities={
+            **DEFAULT_CAPABILITIES,
+            "supports_tiled_diffusion": True,
+            "supports_visualizer": False,
+            "supports_extractor": True,
+            "supports_lora_hooks": False,
+            "supports_cross_region_attention": False,
+            "requires_injection": False,
+        },
+    ),
+    "flux": ModelSupportProfile(
+        key="flux",
+        model_type=ModelType.FLUX,
+        display_name="Flux",
+        strategy_key="flux_mask",
+        dim=4096,
+        is_flux=True,
+        capabilities={
+            **DEFAULT_CAPABILITIES,
+            "supports_lora_hooks": False,
+            "supports_cross_region_attention": False,
+            "requires_injection": True,
+        },
+    ),
+}
+
+
+def get_model_support_profile(profile_key: str) -> ModelSupportProfile:
+    return MODEL_SUPPORT_REGISTRY[profile_key]
+
+
+def get_model_type_input_options(include_auto: bool = True) -> List[str]:
+    options = list(MODEL_SUPPORT_REGISTRY.keys())
+    if include_auto:
+        return ["auto"] + options
+    return options
+
+
+def architecture_info_from_profile(profile: ModelSupportProfile) -> ArchitectureInfo:
+    return ArchitectureInfo(
+        type=profile.model_type,
+        use_cfg=profile.use_cfg,
+        dim=profile.dim,
+        is_flux=profile.is_flux,
+        profile_key=profile.key,
+        strategy_key=profile.strategy_key,
+        display_name=profile.display_name,
+        capabilities=dict(profile.capabilities),
+    )
+
+
+def build_region_metadata(
+    profile_key: str,
+    region_masks: Optional[List[Any]] = None,
+    region_strengths: Optional[List[float]] = None,
+    region_conditioning: Optional[List[Any]] = None,
+    background_present: Optional[bool] = None,
+    debug_handles: Optional[Dict[str, Any]] = None,
+    **extra: Any,
+) -> Dict[str, Any]:
+    profile = get_model_support_profile(profile_key)
+
+    masks = [mask for mask in (region_masks or []) if isinstance(mask, torch.Tensor)]
+    conds = [cond for cond in (region_conditioning or []) if isinstance(cond, torch.Tensor)]
+    strengths = list(region_strengths or [])
+
+    metadata = {
+        "version": 2,
+        "profile_key": profile.key,
+        "model_type": profile.model_type.value,
+        "display_name": profile.display_name,
+        "strategy_key": profile.strategy_key,
+        "region_masks": masks,
+        "region_strengths": strengths,
+        "region_conditioning": conds,
+        "region_count": len(masks),
+        "background_present": bool(background_present) if background_present is not None else False,
+        "supports": dict(profile.capabilities),
+        "debug_handles": debug_handles or {},
+    }
+    metadata.update(extra)
+    return metadata
+
+
+def save_region_metadata(transformer_options: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
+    transformer_options[COMFYCOUPLE_REGIONS_V2_KEY] = metadata
+    return metadata
+
+
+def get_region_metadata(transformer_options: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    metadata = transformer_options.get(COMFYCOUPLE_REGIONS_V2_KEY)
+    if metadata is not None:
+        return metadata
+
+    legacy = transformer_options.get(COMFYCOUPLE_REGIONS_LEGACY_KEY)
+    if legacy is None:
+        return None
+
+    return {
+        "version": 1,
+        "profile_key": None,
+        "model_type": None,
+        "display_name": "Unknown",
+        "strategy_key": None,
+        "region_masks": [mask for mask in legacy.get("pos_masks", []) if isinstance(mask, torch.Tensor)],
+        "region_strengths": list(legacy.get("pos_strengths", [])),
+        "region_conditioning": [
+            cond for cond in legacy.get("padded_pos_conds", []) if isinstance(cond, torch.Tensor)
+        ],
+        "region_count": len([mask for mask in legacy.get("pos_masks", []) if isinstance(mask, torch.Tensor)]),
+        "background_present": False,
+        "supports": {},
+        "debug_handles": {
+            "legacy_key": COMFYCOUPLE_REGIONS_LEGACY_KEY,
+        },
+    }
+
+# Logging
+def log_debug(message: str) -> None:
+    if DEBUG_MODE: 
+        print(f"[ComfyCouple DEBUG] {message}")
+
+def log_warning(message: str) -> None:
+    print(f"[ComfyCouple WARNING] {message}")
+
+def get_flux_preset(preset_name: str) -> Dict[str, List[int]]:
+    """Get Flux block preset by name"""
+    if preset_name not in FLUX_BLOCK_PRESETS:
+        log_warning(f"Unknown preset '{preset_name}', using 'default'")
+        preset_name = 'default'
+    
+    preset = FLUX_BLOCK_PRESETS[preset_name]
+    log_debug(f"Using Flux preset '{preset_name}': {preset['description']}")
+    log_debug(f"  Double blocks ({len(preset['double'])}): {preset['double']}")
+    log_debug(f"  Single blocks ({len(preset['single'])}): {preset['single']}")
+    
+    return {
+        'double': preset['double'],
+        'single': preset['single']
+    }
+
+# Validation
+def validate_strength(strength: float, name: str = "strength", is_flux: bool = False) -> float:
+    if is_flux:
+        # Flux only supports 0 or 1 (will be treated as boolean)
+        if strength > 0.5:
+            return 1.0
+        else:
+            return 0.0
+    
+    clamped = max(MIN_STRENGTH, min(MAX_STRENGTH, strength))
+    if clamped != strength:
+        log_warning(f"{name} ({strength}) clamped to valid range: {clamped}")
+    return clamped
+
+# Tensor utilities
+def ensure_dtype_device(tensor: torch.Tensor, dtype: torch.dtype, device: torch.device) -> torch.Tensor:
+    if tensor.dtype != dtype or tensor.device != device:
+        return tensor.to(dtype=dtype, device=device)
+    return tensor
+
+def create_zero_conditioning(ref_cond: List[Tuple[torch.Tensor, Dict]]) -> List[Tuple[torch.Tensor, Dict]]:
+    """Create zero conditioning with proper dimensions"""
+    zero_cond = []
+    for cond_tensor, metadata in ref_cond:
+        new_metadata = copy.deepcopy(metadata)
+        if "pooled_output" in new_metadata and isinstance(new_metadata["pooled_output"], torch.Tensor):
+            new_metadata["pooled_output"] = torch.zeros_like(new_metadata["pooled_output"])
+        zero_cond.append((torch.zeros_like(cond_tensor), new_metadata))
+    return zero_cond
+
+def find_best_divisors(seq_len: int, aspect_ratio: float) -> Tuple[int, int]:
+    if seq_len <= 0: 
+        raise ValueError("Sequence length must be positive")
+    
+    best_h, best_w, min_diff = 1, seq_len, float('inf')
+    for h in range(1, int(math.sqrt(seq_len)) + 1):
+        if seq_len % h == 0:
+            w = seq_len // h
+            for ch, cw in [(h, w), (w, h)]:
+                diff = abs(cw / ch - aspect_ratio)
+                if diff < min_diff:
+                    min_diff, best_h, best_w = diff, ch, cw
+    return best_h, best_w
+
+def pad_conditioning_tensors(cond_list: List[torch.Tensor]) -> List[torch.Tensor]:
+    if not cond_list: 
+        return []
+    max_len = max(c.shape[1] for c in cond_list if isinstance(c, torch.Tensor))
+    return [
+        F.pad(c, (0, 0, 0, max_len - c.shape[1])) if isinstance(c, torch.Tensor) and c.shape[1] < max_len else c
+        for c in cond_list
+    ]
+
+# Model detection
+def detect_model_architecture(model: Any) -> ArchitectureInfo:
+    """
+    Detect model architecture (SD1.5, SDXL, Anima, or Flux)
+    """
+    try:
+        diff_model = model.model.diffusion_model
+
+        if diff_model.__class__.__name__ == "Anima":
+            log_debug("Detected Anima architecture")
+            return architecture_info_from_profile(get_model_support_profile("anima"))
+
+        if hasattr(diff_model, "llm_adapter") and hasattr(diff_model, "blocks") and hasattr(diff_model, "patch_spatial"):
+            log_debug("Detected Anima-like DiT architecture")
+            return architecture_info_from_profile(get_model_support_profile("anima"))
+        
+        # Check for Flux (DiT architecture with double/single blocks)
+        if hasattr(diff_model, 'double_blocks') and hasattr(diff_model, 'single_blocks'):
+            log_debug("Detected Flux DiT architecture")
+            return architecture_info_from_profile(get_model_support_profile("flux"))
+        
+        # Check for SDXL
+        if hasattr(diff_model, 'label_emb'):
+            return architecture_info_from_profile(get_model_support_profile("sdxl"))
+        
+        # Default to SD1.5
+        return architecture_info_from_profile(get_model_support_profile("sd15"))
+        
+    except Exception as e:
+        log_warning(f"Model detection failed, assuming SD1.5: {e}")
+        return architecture_info_from_profile(get_model_support_profile("sd15"))
+
+def detect_or_force_architecture(model: Any, model_type_str: str) -> ArchitectureInfo:
+    """Detect model architecture automatically or force a specific one."""
+    if model_type_str == "auto":
+        return detect_model_architecture(model)
+
+    if model_type_str in MODEL_SUPPORT_REGISTRY:
+        return architecture_info_from_profile(get_model_support_profile(model_type_str))
+
+    log_warning(f"Unknown model_type '{model_type_str}', falling back to auto-detect")
+    return detect_model_architecture(model)
+
+# Mask processing
+class MaskProcessor:
+    @staticmethod
+    def resize_to_sequence(mask: torch.Tensor, seq_len: int, aspect_ratio: float, 
+                          dtype: torch.dtype, device: torch.device) -> torch.Tensor:
+        """Fallback: estimate H×W via find_best_divisors. Used when activations_shape is unavailable."""
+        m = mask.unsqueeze(0).unsqueeze(0) if mask.dim() == 2 else mask.unsqueeze(1)
+        th, tw = find_best_divisors(seq_len, aspect_ratio)
+        
+        resized = F.interpolate(
+            m.to(dtype=dtype, device=device), 
+            size=(th, tw), 
+            mode="area"
+        )
+        flat = resized.view(1, -1, 1)
+        
+        if flat.shape[1] != seq_len:
+            return F.pad(flat, (0, 0, 0, seq_len - flat.shape[1])) if flat.shape[1] < seq_len else flat[:, :seq_len, :]
+        return flat
+
+    @staticmethod
+    def resize_to_hw_exact(mask: torch.Tensor, h: int, w: int,
+                           dtype: torch.dtype, device: torch.device) -> torch.Tensor:
+        """
+        Resize mask to exact (h, w) from activations_shape.
+        h * w == seq_len is mathematically guaranteed, so no padding/clipping needed.
+        """
+        m = mask.unsqueeze(0).unsqueeze(0) if mask.dim() == 2 else mask.unsqueeze(1)
+        resized = F.interpolate(
+            m.to(dtype=dtype, device=device),
+            size=(h, w),
+            mode="area"
+        )
+        return resized.view(1, -1, 1)  # [1, h*w, 1]
+
+    @staticmethod
+    def from_query(masks: List[Any], q: torch.Tensor, original_shape: Tuple[int, ...],
+                   extra_options: Optional[Dict] = None) -> torch.Tensor:
+        """Convert masks to attention-compatible sequence format.
+        
+        Uses activations_shape from extra_options for exact H×W when available.
+        Falls back to find_best_divisors estimation for backward compatibility.
+        When TiledDiffusion is active, delegates to _from_query_tiled for per-tile mask cropping.
+        """
+        b, seq_len, dim = q.shape
+
+        # --- TiledDiffusion compatibility: per-tile mask cropping ---
+        if extra_options is not None:
+            td_bboxes = extra_options.get("tiled_diffusion_bboxes")
+            td_full_shape = extra_options.get("tiled_diffusion_full_shape")
+            if td_bboxes is not None and td_full_shape is not None:
+                return MaskProcessor._from_query_tiled(
+                    masks, q, td_bboxes, td_full_shape, extra_options
+                )
+
+        # --- Primary path: use exact activations_shape from ComfyUI transformer_options ---
+        act_shape = None
+        if extra_options is not None and "activations_shape" in extra_options:
+            act_shape = extra_options["activations_shape"]  # [B, C, H, W]
+
+        processed = []
+        for m in masks:
+            if isinstance(m, torch.Tensor):
+                if act_shape is not None:
+                    # Exact path: activations_shape gives the real feature map H×W
+                    feat_h, feat_w = act_shape[2], act_shape[3]
+                    resized = MaskProcessor.resize_to_hw_exact(m, feat_h, feat_w, q.dtype, q.device)
+                    log_debug(f"[MaskProcessor] exact HW={feat_h}×{feat_w}, seq_len={seq_len}")
+                else:
+                    # Fallback path: estimate H×W from aspect ratio (may be inaccurate at extreme resolutions)
+                    h, w = (original_shape[2], original_shape[3]) if len(original_shape) > 2 else (64, 64)
+                    aspect = w / h if h > 0 else 1.0
+                    resized = MaskProcessor.resize_to_sequence(m, seq_len, aspect, q.dtype, q.device)
+                    log_debug(f"[MaskProcessor] fallback aspect={aspect:.4f}, seq_len={seq_len}")
+                processed.append(resized.expand(b, -1, dim))
+            else:
+                processed.append(torch.ones((b, seq_len, dim), device=q.device, dtype=q.dtype))
+        
+        return torch.cat(processed, dim=0)
+
+    @staticmethod
+    def _from_query_tiled(masks: List[Any], q: torch.Tensor,
+                          bboxes: List, full_shape: Tuple[int, int],
+                          extra_options: Optional[Dict] = None) -> torch.Tensor:
+        """Generate per-tile cropped masks for TiledDiffusion + ComfyCouple compatibility.
+        
+        Each tile in the batch gets its own cropped portion of the full-image mask,
+        ensuring regional prompting works correctly across tile boundaries.
+        
+        Args:
+            masks: List of mask tensors (or False) from ComfyCouple regions
+            q: Query tensor [batch_size, seq_len, dim] (batch includes all tiles)
+            bboxes: List of BBox objects for current tile batch (latent coordinates)
+            full_shape: (H, W) of full latent (not pixel)
+            extra_options: transformer_options dict with activations_shape, shift info, etc.
+        """
+        b, seq_len, dim = q.shape
+        num_tiles = len(bboxes)
+        N = max(1, b // num_tiles)  # batch size per tile (usually 1)
+        full_h, full_w = full_shape
+
+        # SpotDiffusion shift handling
+        shift = extra_options.get('tiled_diffusion_shift', (0, 0)) if extra_options else (0, 0)
+        shift_condition = extra_options.get('tiled_diffusion_shift_condition', True) if extra_options else True
+
+        # Get tile feature map size from activations_shape
+        act_shape = None
+        if extra_options is not None and "activations_shape" in extra_options:
+            act_shape = extra_options["activations_shape"]
+
+        processed_per_region = []
+        for m in masks:
+            if isinstance(m, torch.Tensor):
+                working_mask = m
+
+                # Apply SpotDiffusion shift to mask (circular roll)
+                if shift != (0, 0):
+                    sh_h, sh_w = shift
+                    mask_h, mask_w = working_mask.shape[-2], working_mask.shape[-1]
+                    sh_h_mask = round(sh_h * mask_h / full_h)
+                    sh_w_mask = round(sh_w * mask_w / full_w)
+                    if sh_h_mask == 0 or sh_w_mask == 0:
+                        working_mask = working_mask.roll(shifts=(sh_h_mask, sh_w_mask), dims=(-2, -1))
+                    else:
+                        if shift_condition:
+                            working_mask = working_mask.roll(shifts=sh_h_mask, dims=-2)
+                        else:
+                            working_mask = working_mask.roll(shifts=sh_w_mask, dims=-1)
+
+                mask_h, mask_w = working_mask.shape[-2], working_mask.shape[-1]
+                scale_h = mask_h / full_h
+                scale_w = mask_w / full_w
+
+                tile_masks = []
+                for bbox in bboxes:
+                    # Map bbox (latent coords) to mask coordinates
+                    y1 = int(bbox.y * scale_h)
+                    x1 = int(bbox.x * scale_w)
+                    y2 = int((bbox.y + bbox.h) * scale_h)
+                    x2 = int((bbox.x + bbox.w) * scale_w)
+
+                    # Clamp to mask bounds
+                    y2 = min(y2, mask_h)
+                    x2 = min(x2, mask_w)
+
+                    cropped = working_mask[..., y1:y2, x1:x2]
+
+                    # Extremely small masks can collapse to an empty crop after
+                    # coordinate scaling. Treat that tile as fully outside region.
+                    if cropped.numel() == 0:
+                        cropped = working_mask.new_zeros((1, 1))
+
+                    # Resize cropped mask to tile's attention resolution
+                    if act_shape is not None:
+                        feat_h, feat_w = act_shape[2], act_shape[3]
+                        resized = MaskProcessor.resize_to_hw_exact(
+                            cropped, feat_h, feat_w, q.dtype, q.device
+                        )
+                    else:
+                        aspect = bbox.w / bbox.h if bbox.h > 0 else 1.0
+                        resized = MaskProcessor.resize_to_sequence(
+                            cropped, seq_len, aspect, q.dtype, q.device
+                        )
+
+                    # [1, seq_len, 1] → [N, seq_len, dim]
+                    tile_masks.append(resized.expand(N, -1, dim))
+
+                # Concat all tiles: [num_tiles * N, seq_len, dim] = [b, seq_len, dim]
+                region_mask = torch.cat(tile_masks, dim=0)
+                processed_per_region.append(region_mask)
+            else:
+                # No mask (False) → all ones
+                processed_per_region.append(
+                    torch.ones((b, seq_len, dim), device=q.device, dtype=q.dtype)
+                )
+
+        # [num_regions * b, seq_len, dim]
+        return torch.cat(processed_per_region, dim=0)
+
+    
+    @staticmethod
+    def apply_feather(mask: torch.Tensor, feather_pixels: int) -> torch.Tensor:
+        if feather_pixels <= 0: 
+            return mask
+        
+        max_feather = int(min(mask.shape[-2:]) * 0.25)
+        pixels = min(feather_pixels, max_feather)
+        if pixels < 1: 
+            return mask
+
+        m = mask.unsqueeze(0).unsqueeze(0) if mask.dim() == 2 else mask.unsqueeze(1)
+        
+        try:
+            import torchvision.transforms.functional as TF
+            blurred = TF.gaussian_blur(m, kernel_size=pixels * 2 + 1)
+        except ImportError:
+            log_warning("torchvision not installed, skipping feathering")
+            return mask
+        
+        return blurred.squeeze(0).squeeze(0) if mask.dim() == 2 else blurred.squeeze(1)
+
+    @staticmethod
+    def normalize_overlaps(regions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if len(regions) <= 1: 
+            return regions
+        
+        masks = torch.stack([r["mask"] for r in regions])
+        mask_sum = masks.sum(dim=0)
+        
+        overlap_area = mask_sum > OVERLAP_THRESHOLD
+        if overlap_area.any():
+            overlap_pct = overlap_area.sum().item() / mask_sum.numel() * 100
+            log_debug(f"Normalizing overlapping masks ({overlap_pct:.2f}%)")
+            clamped_sum = mask_sum.clamp(min=MASK_EPSILON)
+            for i, region in enumerate(regions):
+                region["mask"] = torch.where(overlap_area, masks[i] / clamped_sum, masks[i])
+        
+        return regions
+    
+    @staticmethod
+    def resize_to_match(mask: torch.Tensor, target_shape: Tuple[int, ...]) -> torch.Tensor:
+        """Resize mask to match target shape"""
+        if mask.shape[-2:] == target_shape[-2:]: 
+            return mask.float()  # ✅ float32로 변환
+        
+        # ✅ 수정: 입력을 float32로 변환
+        m = mask.float()
+        if m.dim() == 2:
+            m = m.unsqueeze(0).unsqueeze(0)
+        elif m.dim() == 3:
+            m = m.unsqueeze(1)
+        
+        resized = F.interpolate(
+            m, 
+            size=target_shape[-2:], 
+            mode="area"
+        )
+        
+        return resized.squeeze(0).squeeze(0) if mask.dim() == 2 else resized.squeeze(1)
+    
+

@@ -1,0 +1,3 @@
+﻿/* OpenClaw stylesheet entry point. Keep import order deterministic. */
+@import "./styles/openclaw_core.css";
+@import "./styles/openclaw_legacy_aliases.css";

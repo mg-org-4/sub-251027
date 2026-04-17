@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenClaw Remote Admin</title>
+  <style>
+    :root { --bg:#0b1017; --bg2:#141d28; --line:#2a3a4d; --fg:#e6eef7; --muted:#98abc1; --ok:#36c275; --warn:#f0b44c; --err:#ef6f79; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:"Segoe UI",system-ui,sans-serif; color:var(--fg); background:radial-gradient(circle at top right,#12334f 0%,var(--bg) 42%); }
+    .shell { max-width:1100px; margin:0 auto; padding:12px; display:grid; gap:10px; }
+    .panel { background:rgba(20,29,40,.94); border:1px solid var(--line); border-radius:12px; padding:10px; display:grid; gap:8px; }
+    .hero { background:linear-gradient(120deg,rgba(51,176,255,.15),rgba(89,224,170,.14)); }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .tools { display:flex; flex-wrap:wrap; gap:8px; }
+    .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+    .wide { grid-column:1 / -1; }
+    h1,h2 { margin:0; font-size:15px; letter-spacing:.4px; }
+    h2 { font-size:13px; text-transform:uppercase; color:#c4d5e7; }
+    .muted,.tiny { color:var(--muted); font-size:12px; }
+    .tiny { font-size:11px; }
+    input,textarea,button { font:inherit; color:var(--fg); border-radius:8px; border:1px solid var(--line); background:var(--bg2); padding:8px; }
+    textarea { min-height:80px; resize:vertical; font-family:Consolas,monospace; font-size:12px; }
+    button { cursor:pointer; background:linear-gradient(180deg,#224263,#17314c); }
+    button.subtle { background:#202b38; }
+    button.warn { background:#614315; }
+    button.danger { background:#612029; }
+    .status { font-size:12px; min-height:16px; }
+    .ok { color:var(--ok); } .warn-txt { color:var(--warn); } .err { color:var(--err); }
+    .kv { display:grid; grid-template-columns:auto 1fr; gap:4px 8px; font-size:12px; }
+    .kv .k { color:var(--muted); }
+    .box { max-height:220px; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:8px; background:#101822; white-space:pre-wrap; word-break:break-word; font-family:Consolas,monospace; font-size:12px; }
+    .list { max-height:260px; overflow:auto; display:grid; gap:8px; }
+    .item { border:1px solid var(--line); border-radius:8px; padding:8px; background:#101822; display:grid; gap:6px; font-size:12px; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; }
+    .chip { border:1px solid var(--line); border-radius:999px; padding:3px 8px; font-size:11px; color:var(--muted); background:rgba(14,23,34,.9); }
+    @media (max-width:760px){ .row{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <section class="panel hero">
+    <h1>OpenClaw Remote Admin Console</h1>
+    <div class="muted">Standalone mobile-friendly admin UI. Write APIs still enforce backend token/remote policy.</div>
+    <div class="row">
+      <input id="token" type="password" placeholder="Admin token (X-OpenClaw-Admin-Token)" />
+      <div class="tools">
+        <button id="saveToken">Save</button><button id="clearToken" class="subtle">Clear</button><button id="refreshAll">Refresh All</button>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div id="globalStatus" class="status"></div>
+  </section>
+
+  <section class="grid">
+    <article class="panel"><h2>Dashboard</h2><div class="kv" id="dashKv"></div><div class="box" id="errorsBox"></div></article>
+
+    <article class="panel">
+      <h2>Jobs / Events</h2>
+      <div class="tools"><button id="refreshRuns">Refresh Runs</button><button id="connectSse">Connect SSE</button><button id="disconnectSse" class="subtle">Disconnect SSE</button></div>
+      <div id="eventsStatus" class="status tiny">idle</div>
+      <div class="list" id="runsList"></div>
+      <div class="box" id="eventsBox"></div>
+    </article>
+
+    <article class="panel"><h2>Approvals</h2><button id="refreshApprovals">Refresh Pending</button><div class="list" id="approvalsList"></div></article>
+
+    <article class="panel">
+      <h2>Schedules / Triggers</h2>
+      <button id="refreshSchedules">Refresh Schedules</button><div class="list" id="schedulesList"></div>
+      <div class="tiny">Manual trigger</div>
+      <div class="row"><input id="trigTemplate" placeholder="template_id" /><input id="trigApproval" placeholder="require_approval true/false" /></div>
+      <textarea id="trigInputs" placeholder='{"message":"hello"}'></textarea>
+      <button id="fireTrigger">Fire Trigger</button><div id="trigStatus" class="status"></div>
+    </article>
+
+    <article class="panel">
+      <h2>Config</h2>
+      <div class="row"><input id="cfgProvider" placeholder="provider" /><input id="cfgModel" placeholder="model" /></div>
+      <div class="row"><input id="cfgBase" placeholder="base_url" /><input id="cfgTimeout" type="number" placeholder="timeout_sec" /></div>
+      <div class="row"><input id="cfgRetries" type="number" placeholder="max_retries" /><input id="cfgKey" disabled placeholder="key state" /></div>
+      <div class="tools"><button id="loadCfg">Reload</button><button id="saveCfg">Save</button></div><div id="cfgStatus" class="status"></div>
+    </article>
+
+    <article class="panel"><h2>Doctor / Diagnostics</h2><button id="refreshDoctor">Refresh</button><div class="box" id="doctorBox"></div><div class="box" id="inventoryBox"></div></article>
+
+    <article class="panel wide"><h2>Quick Actions</h2><div class="tools"><button id="qaRetry" class="warn">Retry Last Failed Schedule</button><button id="qaModels">Refresh Model List</button><button id="qaDrill" class="danger">Run Drill</button></div><div class="box" id="quickBox"></div></article>
+  </section>
+</div>
+<script type="module">
+import { mountAdminConsole } from "./admin_console_app.js";
+
+mountAdminConsole(document);
+</script>
+</body>
+</html>

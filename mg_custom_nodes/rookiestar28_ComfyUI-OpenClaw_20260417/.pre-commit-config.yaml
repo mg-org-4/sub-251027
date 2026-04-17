@@ -1,0 +1,100 @@
+# Pre-commit hooks configuration
+# https://pre-commit.com/
+#
+# Install: pip install pre-commit && pre-commit install
+# Update baseline: detect-secrets scan --baseline .secrets.baseline
+
+exclude: |
+  (?x)^(
+    REFERENCE/.*|
+    node_modules/.*|
+    test-results/.*|
+    playwright-report/.*|
+    playwright/\\.cache/.*|
+    \\.venv/.*|
+    \\.tmp/.*|
+    moltbot_state/.*|
+    openclaw_state/.*|
+    media/.*|
+    __pycache__/.*
+  )$
+
+repos:
+  # Prevent committing internal-only docs/plans
+  - repo: local
+    hooks:
+      - id: block-sensitive-files
+        name: block sensitive files (staged)
+        entry: python -B scripts/precommit_block_sensitive_files.py
+        language: python
+        pass_filenames: false
+        always_run: true
+      - id: regen-openapi-spec
+        name: regenerate OpenAPI spec (staged)
+        entry: python -B scripts/regenerate_openapi_if_needed.py --staged
+        language: python
+        pass_filenames: false
+        always_run: true
+      - id: guard-openapi-sync
+        name: guard generated OpenAPI sync (staged)
+        entry: python -B scripts/check_openapi_sync.py --staged
+        language: python
+        pass_filenames: false
+        always_run: true
+
+  # Secret detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args:
+          - --baseline
+          - .secrets.baseline
+        exclude: |
+          (?x)^(
+            REFERENCE/.*|
+            node_modules/.*|
+            test-results/.*|
+            playwright-report/.*|
+            playwright/\.cache/.*|
+            \.venv/.*|
+            \.tmp/.*|
+            moltbot_state/.*|
+            openclaw_state/.*|
+            media/.*|
+            __pycache__/.*|
+            tests/.*|
+            web/tests/.*|
+            .*\.lock$|
+            .*\.min\.js$
+          )$
+
+  # Python code quality
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+
+  # Python formatting (cross-platform, single-file runner to avoid black multiprocessing issues)
+  - repo: local
+    hooks:
+      - id: black-single
+        name: black (single-file)
+        # CRITICAL: keep `language: system` to avoid `pip install .` bootstrap stalls
+        # on mixed Windows/WSL environments.
+        entry: bash scripts/precommit_black_single.sh
+        language: system
+        types: [python]
+        # Remove --check --diff to auto-format
+
+  # Python import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        # Auto-sort imports (same behavior style as black-single autofix hook).

@@ -1,0 +1,204 @@
+"""
+LLM Client for Chat Assistant (F30).
+Fetches config from OpenClaw Settings, not connector-specific envvars.
+
+Privacy:
+- No conversation memory (stateless).
+- Never logs user prompt content.
+- No audit event emission.
+"""
+
+import logging
+import time
+from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
+
+class LLMClient:
+    """
+    LLM client that fetches settings from OpenClaw backend.
+
+    Security:
+    - No conversation memory (stateless).
+    - Never logs user prompt content.
+    - Never auto-executes commands.
+    """
+
+    CONFIG_TTL = 60  # seconds
+
+    def __init__(self, openclaw_client):
+        """
+        Initialize with OpenClawClient to fetch settings from backend.
+
+        Args:
+            openclaw_client: Instance of OpenClawClient for API calls.
+        """
+        self._client = openclaw_client
+        self._config_cache = None
+        self._last_fetch = 0
+        self._configured = None
+
+    async def _fetch_config(self) -> dict:
+        """Fetch LLM config from OpenClaw backend (with TTL)."""
+        now = time.time()
+        if self._config_cache is not None and (
+            now - self._last_fetch < self.CONFIG_TTL
+        ):
+            return self._config_cache
+
+        res = await self._client.get_openclaw_config()
+        if res.get("ok"):
+            data = res.get("data", {})
+            # /openclaw/config returns { ok, config, sources, providers }
+            # Keep only the effective config block.
+            if isinstance(data, dict) and isinstance(data.get("config"), dict):
+                self._config_cache = data.get("config", {})
+            else:
+                self._config_cache = data if isinstance(data, dict) else {}
+            self._last_fetch = now
+            # Reset configured state to force re-evaluation
+            self._configured = None
+        else:
+            # On failure, keep old cache if available (resilience)
+            if self._config_cache is None:
+                self._config_cache = {}
+
+        return self._config_cache
+
+    async def is_configured(self) -> bool:
+        """Check if LLM is properly configured in OpenClaw settings."""
+        if self._configured is not None:
+            # Re-check TTL on is_configured access too?
+            # _fetch_config handles it.
+            # But if config didn't change, _configured is valid.
+            # If TTL expired, we need to re-fetch and re-evaluate.
+            if time.time() - self._last_fetch < self.CONFIG_TTL:
+                return self._configured
+
+        config = await self._fetch_config()
+        provider = config.get("provider")
+
+        # Ollama doesn't require API key
+        if provider == "ollama":
+            self._configured = True
+            return True
+
+        # If backend includes an explicit flag, honor it.
+        if "api_key_configured" in config:
+            self._configured = bool(config.get("api_key_configured"))
+            return self._configured
+
+        # Best-effort: consider configured if provider is set (key lookup happens at call time).
+        self._configured = bool(provider)
+        return self._configured
+
+    async def chat(
+        self,
+        system_prompt: str,
+        user_message: str,
+        temperature: float = 0.7,
+        max_tokens: int = 1024,
+    ) -> str:
+        """
+        Send a chat request and return the assistant response.
+
+        Stateless: single system + user message per call.
+        No logging of user prompts for privacy.
+        """
+        if not await self.is_configured():
+            return "[Error] LLM not configured. Configure in OpenClaw Settings."
+
+        # NOTE: Use backend chat endpoint so we don't bypass server-side key resolution.
+        # Direct provider calls from the connector can miss UI-stored keys and produce 401 errors.
+        try:
+            res = await self._client.chat_llm(
+                system=system_prompt,
+                user_message=user_message,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            if res.get("ok"):
+                data = res.get("text") or res.get("data", {}).get("text")
+                return data or "[No response]"
+
+            error_msg = res.get("error", "Request failed")
+
+            # Harden error messages for user
+            if "401" in error_msg or "unauthorized" in error_msg.lower():
+                return "[LLM Error] API Key Invalid or Missing. Please check Settings."
+            if "429" in error_msg or "quota" in error_msg.lower():
+                return (
+                    "[LLM Error] Rate Limit / Quota Exceeded. Please try again later."
+                )
+            if "503" in error_msg or "overloaded" in error_msg.lower():
+                return "[LLM Error] Service Overloaded. Please try again later."
+
+            return f"[LLM Error] {error_msg}"
+        except Exception:
+            # Log error without user content
+            logger.error("LLM request failed", exc_info=True)
+            return "[LLM Error] Request failed. Please check logs."
+
+    def _get_default_base_url(self, provider: str) -> str:
+        """Get default base URL for provider (matches OpenClaw catalog)."""
+        defaults = {
+            "openai": "https://api.openai.com/v1",
+            "anthropic": "https://api.anthropic.com/v1",
+            "gemini": "https://generativelanguage.googleapis.com/v1beta/openai",
+            "groq": "https://api.groq.com/openai/v1",
+            "deepseek": "https://api.deepseek.com/v1",
+            "ollama": "http://127.0.0.1:11434/v1",
+        }
+        return defaults.get(provider, "https://api.openai.com/v1")
+
+    async def _fallback_chat(
+        self,
+        config: dict,
+        messages: List[Dict],
+        temperature: float,
+        max_tokens: int,
+    ) -> str:
+        """Fallback using aiohttp when services module unavailable."""
+        try:
+            import aiohttp
+        except ImportError:
+            return "[Error] HTTP client not available."
+
+        provider = config.get("provider", "openai")
+        model = config.get("model", "gpt-4o-mini")
+        base_url = config.get("base_url") or self._get_default_base_url(provider)
+
+        # Try to get API key from environment (fallback only)
+        import os
+
+        api_key = os.environ.get(f"OPENCLAW_{provider.upper()}_API_KEY")
+
+        endpoint = f"{base_url.rstrip('/')}/chat/completions"
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(
+                    endpoint, json=payload, headers=headers, timeout=60
+                ) as resp:
+                    if resp.status != 200:
+                        logger.error(f"LLM API error: HTTP {resp.status}")
+                        return f"[LLM Error] HTTP {resp.status}"
+
+                    data = await resp.json()
+                    if "choices" in data and len(data["choices"]) > 0:
+                        return data["choices"][0]["message"]["content"]
+                    return "[No response]"
+            except Exception as e:
+                logger.error(f"LLM fallback error: {type(e).__name__}")
+                return "[LLM Error] Request failed."

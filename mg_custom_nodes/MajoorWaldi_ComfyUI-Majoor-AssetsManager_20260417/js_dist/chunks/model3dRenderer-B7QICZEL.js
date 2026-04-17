@@ -1,4 +1,4 @@
-import { M as s, a as o, P as D, b as t, c as M, f as d, g as l, i as E, d as r, r as i } from "./entry-BonDg2kx.js";
+import { M as s, a as o, P as D, b as t, c as M, f as d, g as l, i as E, d as r, r as i } from "./entry-DyjnHjNW.js";
 export {
   s as MODEL3D_EXTS,
   o as MODEL3D_EXT_TO_LOADER,

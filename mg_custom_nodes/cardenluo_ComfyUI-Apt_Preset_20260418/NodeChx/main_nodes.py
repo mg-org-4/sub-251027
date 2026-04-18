@@ -1072,7 +1072,7 @@ class sum_TextEncode:
             "optional": {
                 "pos": ("STRING", {"default": "", "multiline": True}),
                 "neg": ("STRING", {"default": "", "multiline": False}),
-                "mode": (["normal", "flux2.klein", "z-image", "qwen-image",], {"default": "normal"}),
+                "mode": (["normal", "flux2.klein", "z-image", "qwen-image", "ernie-image-turbo"], {"default": "normal"}),
                 "main_prompt_ratio": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
             }
         }
@@ -1112,6 +1112,9 @@ class sum_TextEncode:
                 positive, prompt_info = prompt_weight_processor.process(clip, pos, main_prompt_ratio)
             elif mode == "qwen-image":
                 prompt_weight_processor = pre_qwenimage_PromptWeight()
+                positive, prompt_info = prompt_weight_processor.process(clip, pos, main_prompt_ratio)
+            elif mode == "ernie-image-turbo":
+                prompt_weight_processor = pre_ERNIE_image_PromptWeight()
                 positive, prompt_info = prompt_weight_processor.process(clip, pos, main_prompt_ratio)
 
             else:
@@ -1413,46 +1416,30 @@ class chx_input_data:
     @classmethod
     def INPUT_TYPES(s):
         return {
-            "required": {"model": ("MODEL",), },
+            "required": {
+            "model": ("MODEL",),                
+            "latent": ("LATENT",),
+            "vae": ("VAE",),
+            "clip": ("CLIP",), 
+            },
 
             "optional": {
-                "positive": ("CONDITIONING",),
-                "negative": ("CONDITIONING",),
-                "latent": ("LATENT",),
-                "vae": ("VAE",),
-                "clip": ("CLIP",),
+
             },
         }
 
-    RETURN_TYPES = ("RUN_CONTEXT","MODEL", "CONDITIONING","CONDITIONING","LATENT","VAE","CLIP",)
-    RETURN_NAMES = ("context", "model","positive","negative","latent","vae","clip",)
+    RETURN_TYPES = ("RUN_CONTEXT","MODEL", "LATENT","VAE","CLIP",)
+    RETURN_NAMES = ("context", "model","latent","vae","clip",)
     FUNCTION = "sample"
     CATEGORY = "Apt_Preset/chx_load"
 
-    def sample(self, model=None,positive=None,negative=None,latent=None,vae =None,clip =None,):
+    def sample(self, model,latent,vae,clip,):
 
-        if clip is None and positive is None :
-            raise ValueError("clip or positive is required")
-        if clip is None and negative is None and positive is not None:
-            negative=self.zero_out(positive)[0]
-
-        if vae is None:
-            raise ValueError("vae is required")
-
-
-        if clip is not None:
-            positive, = CLIPTextEncode().encode(clip, "a girl")
-            negative, = CLIPTextEncode().encode(clip, "worst quality, low quality")
-
-    
-        if latent is None:
-            latent_tensor = torch.zeros([1, 4, 64, 64])
-            latent = {"samples": latent_tensor}
 
         context = {
             "model": model,
-            "positive": positive,
-            "negative": negative,
+            "positive": None,
+            "negative": None,
             "latent": latent,  
             "vae": vae,
             "clip": clip,
@@ -1464,21 +1451,9 @@ class chx_input_data:
             "height": 512,
             "batch": 1,
         }
-        return (context, model, positive, negative, latent, vae, clip,)
+        return (context, model, latent, vae, clip,)
 
-    def zero_out(self, conditioning):
-        c = []
-        for t in conditioning:
-            d = t[1].copy()
-            pooled_output = d.get("pooled_output", None)
-            if pooled_output is not None:
-                d["pooled_output"] = torch.zeros_like(pooled_output)
-            conditioning_lyrics = d.get("conditioning_lyrics", None)
-            if conditioning_lyrics is not None:
-                d["conditioning_lyrics"] = torch.zeros_like(conditioning_lyrics)
-            n = [torch.zeros_like(t[0]), d]
-            c.append(n)
-        return (c, )
+
 
 
 
@@ -1580,7 +1555,7 @@ class basic_Ksampler_mid:
 
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                 "denoise": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "image_output": (["None", "Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),
+                "image_output": (["Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),
             },
             
             "optional": {
@@ -1747,7 +1722,7 @@ class basic_Ksampler_custom:
                     "image": ("IMAGE", ),
                     "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                     "denoise": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                    "image_output": (["None","Hide", "Preview", "Save", "Hide/Save"], {"default": "None", "tooltip": "  output_image will take up CPU resources "}),
+                    "image_output": (["Hide", "Preview", "Save", "Hide/Save"], {"default": "None", "tooltip": "  output_image will take up CPU resources "}),
                     
                     },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO",},
@@ -1837,7 +1812,7 @@ class basic_Ksampler_adv:
                     "start_at_step": ("INT", {"default": 0, "min": 0, "max": 10000}),
                     "end_at_step": ("INT", {"default": 1000, "min": 0, "max": 10000}),
                     "return_with_leftover_noise": (["disable", "enable"], ),
-                    "image_output": (["None", "Hide", "Preview", "Save", "Hide/Save"], {"default": "Hide"}),
+                    "image_output": (["Hide", "Preview", "Save", "Hide/Save"], {"default": "Hide"}),
                     },
                 "optional": {
                     "latent": ("LATENT", ),
@@ -2000,7 +1975,7 @@ class chx_Ksampler_refine:
                 "Add_img_scale": ("FLOAT", {"default": 2, "min": 1, "max": 16.0, "step": 0.1}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                 "denoise": ("FLOAT", {"default": 0.3, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "image_output": (["None", "Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),                
+                "image_output": (["Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),                
                 
             },
             
@@ -2227,7 +2202,7 @@ class basic_Ksampler_low_gpu:
                 "temporal_overlap": ("INT", {"default": 8, "min": 4, "max": 4096, "step": 4, "tooltip": "Only used for video VAEs: Amount of frames to overlap."}),
 
 
-                "image_output": (["None", "Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),
+                "image_output": (["Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),
                                 
             },
             
@@ -2295,7 +2270,7 @@ class chx_ksampler_tile:
                     "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                     "denoise_image": ("FLOAT", {"default": 0.25, "min": 0.0, "max": 1.0, "step": 0.01}),
                     "tile_size": ("INT", {"default": 512, "min": 256, "max": 4096, "step": 64}),
-                    "image_output": (["None", "Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),
+                    "image_output": (["Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),
                     },
                 "optional": {"image_optional": ("IMAGE",),},
                 "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO",},
@@ -3759,7 +3734,7 @@ class sum_Ksampler:
                 "context": ("RUN_CONTEXT",),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                 "denoise": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "image_output": (["None", "Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),                                
+                "image_output": ([ "Hide", "Preview", "Save", "Hide/Save"], {"default": "Preview"}),                                
             },           
             "optional": {
                 "model": ("MODEL",),
@@ -3798,6 +3773,8 @@ class sum_Ksampler:
             negative = context.get("negative","" )
         if model is None:
             model= context.get("model")
+
+
 
 #-------------------------------------------------------------------------------------
 
@@ -3901,8 +3878,7 @@ class sum_Ksampler:
 
         if image_output == "None":
             context = new_context(context, latent=latent, images=None,  )
-            return (context, None, None, )
-
+            return {"ui": {},"result": (context, output_image, resample)}
         results = easySave(output_image, 'easyPreview', image_output, prompt, extra_pnginfo)
         if image_output in ("Hide", "Hide/Save"):
             return {"ui": {},

@@ -222,10 +222,17 @@ NODE_CLASS_MAPPINGS= {
 "AD_sch_mask_weigh":AD_sch_mask_weigh,
 "AD_video_merge": AD_video_merge,
 "AD_VideoSeg": AD_VideoSeg,
-"AD_Latent_Diffusion_Keyframe": AD_Latent_Diffusion_Keyframe,
-"AD_latent_history": AD_latent_history,
-"AD_keyframe_trend_preview": AD_keyframe_trend_preview,
 
+
+"AD_keyframe_trend_preview": AD_keyframe_trend_preview,
+"AD_LTX_load_model": AD_LTX_load_model,
+"AD_LTX_config": AD_LTX_config,
+"AD_LTX_IC_lora": AD_LTX_IC_lora,
+"AD_LTX_MulGuide": AD_LTX_MulGuide,
+"AD_LTX_sampler": AD_LTX_sampler,
+"AD_LTX_audio_input": AD_LTX_audio_input,
+"AD_LTX_vae_combine": AD_LTX_vae_combine,
+"AD_LTX_latent_scale": AD_LTX_latent_scale,
 
 
 "AD_sch_image_merge":AD_sch_image_merge,
@@ -235,6 +242,9 @@ NODE_CLASS_MAPPINGS= {
 "AD_frame_replace": AD_frame_replace,
 "AD_pingpong_vedio":AD_pingpong_vedio,
 "AD_FILM_VFI":AD_FILM_VFI,
+
+
+
 
 
 "Amp_drive_value": Amp_drive_value,
@@ -277,7 +287,8 @@ NODE_CLASS_MAPPINGS= {
 "view_node_Script": view_node_Script, 
 
 #-------------输入输出 IO_Port-------------------
-
+"basicIn_clip": basicIn_clip,
+"basicIn_Vedio": basicIn_Vedio,
 "basicIn_input": basicIn_input,
 "basicIn_Remap_slide": basicIn_Remap_slide,
 "basicIn_int": basicIn_int,
@@ -324,7 +335,7 @@ NODE_CLASS_MAPPINGS= {
 "type_AnyCast": type_AnyCast,
 "type_AnyListUnpack": type_AnyListUnpack, 
 "type_AnyBatchUnpack": type_AnyBatchUnpack,
-
+"type_SubConvert": type_SubConvert,
 
 "math_calculate": math_calculate, 
 "math_Remap_data": math_Remap_data,  
@@ -546,6 +557,7 @@ NODE_CLASS_MAPPINGS= {
 "text_saveText": text_saveText,
 "text_StrMatrix":text_StrMatrix,
 
+"text_mulAngle":text_mulAngle,
 
 
 "Ai_doubao_seedream":Ai_doubao_seedream,
@@ -607,6 +619,11 @@ NODE_CLASS_MAPPINGS= {
 
 
 #region------------------------准备废弃-------------------------
+
+"AD_Latent_Diffusion_Keyframe": AD_Latent_Diffusion_Keyframe,
+"AD_latent_history": AD_latent_history,
+
+
 "pre_ic_light_sd15": pre_ic_light_sd15,#(Deprecated)
 "pre_USO": pre_USO, #(Deprecated)
 "pre_Kontext": pre_Kontext,   #(Deprecated)                        

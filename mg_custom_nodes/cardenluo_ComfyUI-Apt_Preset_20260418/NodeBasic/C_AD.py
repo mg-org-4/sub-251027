@@ -963,7 +963,7 @@ import av
 import torch
 from typing import Optional, List
 from fractions import Fraction
-from comfy_api.latest import ComfyExtension, io, Input, InputImpl, Types
+from comfy_api.latest import io, Input, InputImpl, Types
 
 def normalize_audio(audio_data, default_sample_rate=44100):
     if audio_data is None:
@@ -1473,8 +1473,7 @@ class AD_AutoTileVAEDecode:
                 "width": ("INT", {"default": 1024, "min": 64, "max": 32768, "step": 8}),
                 "height": ("INT", {"default": 1024, "min": 64, "max": 32768, "step": 8}),
                 "total_frames": ("INT", {"default": 64, "min": 1, "max": 4096, "step": 1}),
-                "mode": (["质量优先", "显存优先"], {"default": "质量优先"}),
-                "vram_level": (["12GB", "16GB", "20GB", "≥24GB"], {"default": "16GB"}),
+                "lowGpu_mode": ("BOOLEAN", {"default": False, "display_name": "Low GPU Mode"}),
                 "temporal_compression": ("INT", {"default": 8, "min": 0, "max": 64, "step": 1}),
             },
             "optional": {
@@ -1487,7 +1486,7 @@ class AD_AutoTileVAEDecode:
     FUNCTION = "recommend"
     CATEGORY = "Apt_Preset/AD"
 
-    def recommend(self, width, height, total_frames, mode, vram_level, temporal_compression, vae=None):
+    def recommend(self, width, height, total_frames, lowGpu_mode, temporal_compression, vae=None):
         width = max(64, int(width))
         height = max(64, int(height))
         total_frames = max(1, int(total_frames))
@@ -1499,6 +1498,9 @@ class AD_AutoTileVAEDecode:
         temporal_compression = max(1, temporal_compression)
         short_edge = max(64, min(width, height))
         megapixels = (width * height) / 1000000.0
+
+        mode = "显存优先" if lowGpu_mode else "质量优先"
+        vram_level = "12GB" if lowGpu_mode else "≥24GB"
 
         if vram_level == "12GB":
             base_tile = 512
@@ -1580,17 +1582,48 @@ class AD_AutoTileVAEDecode:
 
 
 
+#region----------LTX---------------
+# 导入需要的节点
+
+import folder_paths
+from comfy_extras.nodes_video import CreateVideo
+from nodes import CheckpointLoader, CLIPTextEncode, VAEDecodeTiled,CheckpointLoaderSimple, LoraLoaderModelOnly
+from comfy_extras.nodes_hunyuan import LatentUpscaleModelLoader
 
 
+from comfy_extras.nodes_custom_sampler import (
+    RandomNoise,
+    CFGGuider,
+    SamplerCustomAdvanced
+)
+
+from comfy_extras.nodes_lt_audio import LTXAVTextEncoderLoader, LTXVEmptyLatentAudio,LTXVAudioVAELoader
+from comfy_extras.nodes_lt_upsampler import LTXVLatentUpsampler
+
+
+from comfy_extras.nodes_lt import (
+    EmptyLTXVLatentVideo,
+    LTXVConcatAVLatent,
+    LTXVSeparateAVLatent,
+    LTXVCropGuides,
+    LTXVAddGuide,
+    LTXVConditioning,
+    get_noise_mask,
+    _append_guide_attention_entry
+)
+
+from comfy_extras.nodes_lt_audio import LTXVAudioVAEDecode
 from comfy_api.latest import io
-from comfy_extras.nodes_lt import LTXVAddGuide
-from comfy_extras.nodes_lt import get_noise_mask
 import torch
 import numpy as np
 from PIL import Image, ImageDraw
 
+
 HISTORY = io.Custom("HISTORY")
 KEYFRAME_TREND = io.Custom("KEYFRAME_TREND")
+LTX_CONFIG = io.Custom("LTX_CONFIG")
+RUN_CONTEXT = io.Custom("RUN_CONTEXT")
+
 
 class AD_Latent_Diffusion_Keyframe(LTXVAddGuide):
     DESCRIPTION = """
@@ -1617,13 +1650,13 @@ class AD_Latent_Diffusion_Keyframe(LTXVAddGuide):
 
         return io.Schema(
             node_id="AD_Latent_Diffusion_Keyframe",
-            category="Apt_Preset/AD",
+            category= "Apt_Preset/🚫Deprecated/🚫",
             description="AD video keyframe auto relay",
             inputs=[
                 io.Conditioning.Input("positive"),
                 io.Conditioning.Input("negative"),
-                io.Latent.Input("latent"),
-                io.Vae.Input("vae"),
+                io.Latent.Input("img_latent"),
+                io.Vae.Input("img_vae"),
                 HISTORY.Input("history", optional=True),
                 io.Float.Input("history_strength", default=0.5, min=0.0, max=1.0, step=0.01, display_name="History Strength"),
                 io.Int.Input("history_fade_frames", default=16, min=1, max=100, step=1, display_name="Fade Frames"),
@@ -1632,7 +1665,8 @@ class AD_Latent_Diffusion_Keyframe(LTXVAddGuide):
             outputs=[
                 io.Conditioning.Output("positive"),
                 io.Conditioning.Output("negative"),
-                io.Latent.Output("latent"),
+                io.Latent.Output("img_latent"),
+                io.Vae.Output(display_name="img_vae"),
                 HISTORY.Output("history"),
                 KEYFRAME_TREND.Output("trend_data"),
             ],
@@ -1683,7 +1717,9 @@ class AD_Latent_Diffusion_Keyframe(LTXVAddGuide):
         }
 
     @classmethod
-    def execute(cls, positive, negative, vae, latent, history=None, history_strength=0.5, history_fade_frames=16, **kwargs):
+    def execute(cls, positive, negative, img_vae, img_latent, history=None, history_strength=0.5, history_fade_frames=16, **kwargs):
+        vae = img_vae
+        latent = img_latent
         keep_history_keyframes = True
         continuity_tail_frames = max(1, history_fade_frames)
         trend_points = []
@@ -1810,7 +1846,8 @@ class AD_Latent_Diffusion_Keyframe(LTXVAddGuide):
         trend_data["segment_length"] = int(latent_length)
         trend_data["total_frame_length"] = int(total_frame_length)
 
-        return io.NodeOutput(positive, negative, {"samples": latent_image, "noise_mask": noise_mask}, output_history, trend_data)
+        return io.NodeOutput(positive, negative, {"samples": latent_image, "noise_mask": noise_mask}, vae, output_history, trend_data)
+
 
 
 class AD_latent_history(io.ComfyNode):
@@ -1821,7 +1858,7 @@ class AD_latent_history(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(
             node_id="AD_latent_history",
-            category="Apt_Preset/AD",
+            category= "Apt_Preset/🚫Deprecated/🚫",
             description="Pack sampled latent tail to HISTORY",
             inputs=[
                 io.Latent.Input("latent"),
@@ -1863,13 +1900,88 @@ class AD_latent_history(io.ComfyNode):
         return io.NodeOutput(output_history)
 
 
+class AD_LTX_MulGuide(LTXVAddGuide):
+    @classmethod
+    def define_schema(cls):
+        options = []
+        for num_guides in range(1, 11):
+            guide_inputs = []
+            for i in range(1, num_guides + 1):
+                guide_inputs.extend([
+                    io.Image.Input(f"image_{i}"),
+                    io.Int.Input(f"frame_idx_{i}", default=0, min=0, max=9999),
+                    io.Float.Input(f"strength_{i}", default=0.85, min=0.0, max=1.0, step=0.01),
+                ])
+            options.append(io.DynamicCombo.Option(key=str(num_guides), inputs=guide_inputs))
+        return io.Schema(
+            node_id="AD_LTX_MulGuide",
+            category="Apt_Preset/AD/LTX_video",
+            description="LTX multi-guide simplified",
+            inputs=[
+                io.Conditioning.Input("positive"),
+                io.Conditioning.Input("negative"),
+                io.Latent.Input("img_latent"),
+                io.Vae.Input("img_vae"),
+                io.DynamicCombo.Input("num_guides", options=options, display_name="Guides"),
+            ],
+            outputs=[
+                io.Conditioning.Output("positive"),
+                io.Conditioning.Output("negative"),
+                io.Latent.Output("img_latent"),
+                io.Vae.Output(display_name="img_vae"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, positive, negative, img_vae, img_latent, **kwargs):
+        scale_factors = img_vae.downscale_index_formula
+        latent_image = img_latent["samples"]
+        noise_mask = get_noise_mask(img_latent)
+        _, _, latent_length, _, _ = latent_image.shape
+        guide_payload = kwargs.get("num_guides", {})
+        guides = []
+        for k in guide_payload:
+            if not k.startswith("image_"):
+                continue
+            idx = k.split("_", 1)[1]
+            img = guide_payload.get(k)
+            if img is None:
+                continue
+            f = int(guide_payload.get(f"frame_idx_{idx}", 0))
+            s = float(guide_payload.get(f"strength_{idx}", 0.85))
+            guides.append((f, img, max(0.0, min(1.0, s))))
+        guides.sort(key=lambda x: x[0])
+
+        for f_idx, img, s in guides:
+            _, g_latent = cls.encode(img_vae, latent_image.shape[4], latent_image.shape[3], img, scale_factors)
+            fi, li = cls.get_latent_index(positive, latent_length, g_latent.shape[2], f_idx, scale_factors)
+            if li + g_latent.shape[2] > latent_length:
+                time_scale_factor = scale_factors[0]
+                max_latent_idx = max(0, latent_length - g_latent.shape[2])
+                if max_latent_idx == 0:
+                    clamped_frame_idx = 0
+                elif g_latent.shape[2] > 1:
+                    clamped_frame_idx = (max_latent_idx - 1) * time_scale_factor + 1
+                else:
+                    clamped_frame_idx = max_latent_idx * time_scale_factor
+                fi, li = cls.get_latent_index(positive, latent_length, g_latent.shape[2], clamped_frame_idx, scale_factors)
+            if li + g_latent.shape[2] > latent_length:
+                continue
+            positive, negative, latent_image, noise_mask = cls.append_keyframe(
+                positive, negative, fi, latent_image, noise_mask, g_latent, s, scale_factors
+            )
+        return io.NodeOutput(positive, negative, {"samples": latent_image, "noise_mask": noise_mask}, img_vae)
+
+
+
+
 class AD_keyframe_trend_preview(io.ComfyNode):
     INPUT_IS_LIST = True
     @classmethod
     def define_schema(cls):
         return io.Schema(
             node_id="AD_keyframe_trend_preview",
-            category="Apt_Preset/AD",
+            category="Apt_Preset/AD/LTX_video",
             description="Preview keyframe trend graph",
             inputs=[
                 KEYFRAME_TREND.Input("trend_data"),
@@ -2025,6 +2137,870 @@ class AD_keyframe_trend_preview(io.ComfyNode):
                     prev_vb = (x, yv1)
         canvas = cls._annotate_axes(canvas, frame_length, left, right, top, bottom)
         return io.NodeOutput(canvas.unsqueeze(0))
+
+
+
+
+class AD_LTX_audio_input(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="AD_LTX_audio_input",
+            category="Apt_Preset/AD/LTX_video",
+            inputs=[
+                io.Audio.Input("audio"),
+                io.Vae.Input("audio_vae"),
+                io.Int.Input("start_index", default=0, min=-0xffffffffffffffff, max=0xffffffffffffffff, step=1),
+                io.Int.Input("frame_rate", default=24, min=1, max=120),
+                io.Int.Input("frames_number", default=97, min=1, max=2000, step=1),
+                io.Float.Input("audio_denoise_scale", default=0.0, min=0.0, max=1.0, step=0.01),
+            ],
+            outputs=[
+                io.Latent.Output(display_name="audio_latent"),
+                io.Vae.Output(display_name="audio_vae"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, audio, audio_vae, start_index, frame_rate, frames_number, audio_denoise_scale) -> io.NodeOutput:
+        waveform = audio["waveform"]
+        sample_rate = audio["sample_rate"]
+        audio_length = waveform.shape[-1]
+
+        start_offset = int(round((float(start_index) * float(sample_rate)) / float(frame_rate)))
+        if start_index < 0:
+            start_frame = audio_length + start_offset
+        else:
+            start_frame = start_offset
+        start_frame = max(0, min(start_frame, audio_length - 1))
+
+        end_frame = start_frame + int(round((float(frames_number) * float(sample_rate)) / float(frame_rate)))
+        end_frame = max(0, min(end_frame, audio_length))
+
+        if start_frame >= end_frame:
+            raise ValueError("AudioTrim: Start time must be less than end time and be within the audio length.")
+
+        trimmed_audio = {"waveform": waveform[..., start_frame:end_frame], "sample_rate": sample_rate}
+        audio_latents = audio_vae.encode(trimmed_audio)
+        audio_latent = {
+            "samples": audio_latents,
+            "sample_rate": int(audio_vae.sample_rate),
+            "type": "audio",
+        }
+
+        samples = audio_latent["samples"]
+        if not isinstance(samples, torch.Tensor) or samples.ndim < 3:
+            raise ValueError("audio_latent samples format is invalid.")
+        mask = torch.full(
+            (int(samples.shape[0]), int(samples.shape[-2]), int(samples.shape[-1])),
+            float(audio_denoise_scale),
+            dtype=torch.float32,
+            device=samples.device
+        )
+        output = audio_latent.copy()
+        output["noise_mask"] = mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1]))
+        return io.NodeOutput(output, audio_vae)
+
+
+
+class AD_LTX_vae_combine(io.ComfyNode):
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="AD_LTX_vae_combine",
+            category="Apt_Preset/AD/LTX_video",
+            inputs=[
+                io.Latent.Input("img_latent"),
+                io.Vae.Input("img_vae"),
+                io.Latent.Input("audio_latent", optional=True),
+                io.Vae.Input("audio_vae", optional=True),
+                io.Int.Input("frame_rate", default=24, min=1, max=120),
+                io.Boolean.Input("lowGpu_mode", default=False,),
+                io.Int.Input("trim_latent_end", default=0, min=0, max=4096, step=1),
+
+            ],
+            outputs=[
+                io.Image.Output(display_name="image"),
+                io.Audio.Output(display_name="audio"),
+                io.Video.Output(display_name="video"),
+                io.Image.Output(display_name="last_image"),
+            ]
+        )
+
+    @classmethod
+    def execute(cls, img_latent, img_vae, audio_latent, audio_vae, frame_rate, lowGpu_mode, trim_latent_end) -> io.NodeOutput:
+        if img_vae is None:
+            raise ValueError("img_vae is None. Please connect a valid VAE to AD_LTX_vae_combine.")
+
+        decode_latent = img_latent
+        samples = img_latent.get("samples", None) if isinstance(img_latent, dict) else None
+        trim_latent_end = int(trim_latent_end)
+        if isinstance(samples, torch.Tensor) and samples.ndim >= 3 and trim_latent_end > 0:
+            frame_count = int(samples.shape[2])
+            if frame_count > 1:
+                keep_frames = max(1, frame_count - trim_latent_end)
+                trimmed = img_latent.copy()
+                trimmed["samples"] = samples[:, :, :keep_frames, ...]
+                if "noise_mask" in trimmed and isinstance(trimmed["noise_mask"], torch.Tensor):
+                    mask = trimmed["noise_mask"]
+                    if mask.ndim == 5:
+                        trimmed["noise_mask"] = mask[:, :, :keep_frames, ...]
+                    elif mask.ndim >= 4:
+                        trimmed["noise_mask"] = mask[:, :keep_frames, ...]
+                decode_latent = trimmed
+
+        temporal_compression = 0
+        if hasattr(img_vae, "temporal_compression_decode"):
+            read_tc = img_vae.temporal_compression_decode()
+            if read_tc is not None:
+                temporal_compression = int(read_tc)
+
+        rec_width = 1024
+        rec_height = 1024
+        rec_total_frames = 1
+        decode_samples = decode_latent.get("samples", None) if isinstance(decode_latent, dict) else None
+        if isinstance(decode_samples, torch.Tensor):
+            if decode_samples.ndim == 5:
+                rec_total_frames = max(1, int(decode_samples.shape[2]))
+                latent_h = max(1, int(decode_samples.shape[3]))
+                latent_w = max(1, int(decode_samples.shape[4]))
+            elif decode_samples.ndim == 4:
+                rec_total_frames = 1
+                latent_h = max(1, int(decode_samples.shape[2]))
+                latent_w = max(1, int(decode_samples.shape[3]))
+            else:
+                latent_h = 128
+                latent_w = 128
+
+            scale_factors = getattr(img_vae, "downscale_index_formula", None)
+            spatial_h_factor = 8
+            spatial_w_factor = 8
+            if isinstance(scale_factors, (list, tuple)) and len(scale_factors) >= 3:
+                try:
+                    spatial_h_factor = max(1, int(scale_factors[1]))
+                    spatial_w_factor = max(1, int(scale_factors[2]))
+                except Exception:
+                    spatial_h_factor = 8
+                    spatial_w_factor = 8
+
+            rec_width = max(64, latent_w * spatial_w_factor)
+            rec_height = max(64, latent_h * spatial_h_factor)
+
+        tile_size, overlap, temporal_size, temporal_overlap, _ = AD_AutoTileVAEDecode().recommend(
+            int(rec_width),
+            int(rec_height),
+            int(rec_total_frames),
+            lowGpu_mode,
+            int(temporal_compression),
+            img_vae,
+        )
+
+        vae_decode_node = VAEDecodeTiled().decode(
+            img_vae,
+            decode_latent,
+            int(tile_size),
+            int(overlap),
+            int(temporal_size),
+            int(temporal_overlap),
+        )
+        image = vae_decode_node[0]
+        if isinstance(image, torch.Tensor) and image.ndim >= 4 and image.shape[0] > 0:
+            last_image = image[-1:].clone()
+        elif isinstance(image, list) and len(image) > 0:
+            last_image = image[-1]
+        else:
+            last_image = image
+
+        audio = None
+        if audio_latent is not None and audio_vae is not None:
+            audio_decode_node = LTXVAudioVAEDecode.execute(audio_latent, audio_vae)
+            audio = audio_decode_node[0]
+
+        video_node = CreateVideo.execute(image, frame_rate, audio)
+        video = video_node[0]
+
+        return io.NodeOutput(image, audio, video,last_image)
+
+
+
+
+class AD_LTX_latent_scale(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="AD_LTX_latent_scale",
+            category="Apt_Preset/AD/LTX_video",
+
+            inputs=[
+                io.Combo.Input("model_name", options=folder_paths.get_filename_list("latent_upscale_models")),
+                io.Latent.Input("img_latent"),
+                io.Vae.Input("img_vae"),
+            ],
+            outputs=[
+                io.Latent.Output(display_name="img_latent"),
+            ]
+        )
+
+    @classmethod
+    def execute(cls, model_name, img_latent, img_vae) -> io.NodeOutput:
+        available_models = folder_paths.get_filename_list("latent_upscale_models")
+        if len(available_models) == 0:
+            raise FileNotFoundError("No latent upscale model found in models/latent_upscale_models.")
+        if model_name not in available_models:
+            model_name = available_models[0]
+        upscale_model_node = LatentUpscaleModelLoader.execute(model_name)
+        upscale_model = upscale_model_node[0]
+
+        upsampler_node = LTXVLatentUpsampler().upsample_latent(img_latent, upscale_model, img_vae)
+        latent = upsampler_node[0]
+
+        return io.NodeOutput(latent)
+
+
+
+
+class AD_LTX_sampler(io.ComfyNode):
+    _SIGMAS_CACHE: dict[int, torch.Tensor] = {}
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema (
+            node_id="AD_LTX_sampler",
+            category="Apt_Preset/AD/LTX_video",
+
+            inputs=[
+
+                io.Model.Input("model"),
+                io.Conditioning.Input("positive"),
+                io.Conditioning.Input("negative"),
+                io.Latent.Input("img_latent"),           
+                io.Int.Input("seed", default=0, min=0, max=0xffffffffffffffff, control_after_generate=True),
+                io.Float.Input("cfg", default=1.0, min=0.0, max=100.0, step=0.1, round=0.01),
+                io.Int.Input("frame_rate", default=24, min=4, max=120),
+                io.Vae.Input("img_vae" ),
+                io.Latent.Input("audio_latent",),
+                io.Vae.Input("audio_vae"),
+                io.Sampler.Input("sampler"),
+                io.Sigmas.Input("sigmas"),
+
+            ],
+            outputs=[
+                io.Model.Output(display_name="model"),
+                io.Conditioning.Output(display_name="crop_positive"),
+                io.Conditioning.Output(display_name="crop_negative"),
+                io.Latent.Output(display_name="crop_img_latent"),
+                io.Vae.Output(display_name="img_vae"),
+                io.Latent.Output(display_name="audio_latent"),
+                io.Vae.Output(display_name="audio_VAE"),
+                io.Int.Output(display_name="frame_rate"),
+            ]
+        )
+
+    @classmethod
+    def _get_sigmas(cls, steps: int) -> torch.Tensor:
+        steps = int(max(4, min(400, steps)))
+        cached = cls._SIGMAS_CACHE.get(steps)
+        if cached is None:
+            cached = torch.linspace(1.0, 0.0, steps + 1, dtype=torch.float32)
+            cls._SIGMAS_CACHE[steps] = cached
+        return cached.clone()
+
+    @classmethod
+    def execute(cls, sampler, sigmas, model, positive, negative, img_latent, seed, cfg, frame_rate, img_vae, audio_latent, audio_vae) -> io.NodeOutput:
+        noise_node = RandomNoise.execute(seed)
+        noise = noise_node[0]
+
+
+        LTXVConditioning_node= LTXVConditioning.execute(positive, negative, frame_rate)
+        positive = LTXVConditioning_node[0]
+        negative =  LTXVConditioning_node[1]
+
+
+        guider_node = CFGGuider.execute(model, positive, negative, cfg)
+        guider = guider_node[0]
+
+
+        if audio_latent is not None:
+            av_latent_node = LTXVConcatAVLatent.execute(img_latent, audio_latent)
+            av_latent = av_latent_node[0]
+        else:
+            av_latent = img_latent
+
+
+        result = SamplerCustomAdvanced.execute(noise, guider, sampler, sigmas, av_latent)
+        denoised_output = result[1]
+
+        if audio_latent is not None:
+            separate_node = LTXVSeparateAVLatent.execute(denoised_output)
+            separated_video_latent = separate_node[0]
+            separated_audio_latent = separate_node[1]
+        else:
+            separated_video_latent = denoised_output
+            separated_audio_latent = None
+
+        crop_node = LTXVCropGuides.execute(positive, negative, separated_video_latent)
+        crop_positive = crop_node[0]
+        crop_negative = crop_node[1]
+        crop_latent = crop_node[2]
+
+        return io.NodeOutput(model, crop_positive, crop_negative, crop_latent, img_vae, separated_audio_latent, audio_vae, frame_rate)
+
+
+
+
+
+class AD_LTX_IC_lora(io.ComfyNode):
+    _LORA_LOADER = LoraLoaderModelOnly()
+
+    @classmethod
+    def _encode_guide(cls, img_vae, latent_width, latent_height, image, scale_factors, tile_size, tile_overlap):
+        time_scale_factor, width_scale_factor, height_scale_factor = scale_factors
+        num_frames_to_keep = ((image.shape[0] - 1) // time_scale_factor) * time_scale_factor + 1
+        image = image[:num_frames_to_keep]
+        with torch.inference_mode():
+            pixels = comfy.utils.common_upscale(
+                image.movedim(-1, 1),
+                latent_width * width_scale_factor,
+                latent_height * height_scale_factor,
+                "bilinear",
+                crop="disabled",
+            ).movedim(1, -1)
+            encode_pixels = pixels[:, :, :, :3]
+            guide_latent = img_vae.encode_tiled(
+                encode_pixels,
+                tile_x=tile_size,
+                tile_y=tile_size,
+                overlap=tile_overlap,
+            )
+        return guide_latent
+
+    @classmethod
+    def _build_segment_plan(
+        cls,
+        guide_preset,
+        latent_length,
+        base_frame_idx,
+        guide_len,
+        base_strength,
+        max_segments,
+    ):
+        latent_length = max(1, int(latent_length))
+        guide_len = max(1, int(guide_len))
+        start_idx = max(0, min(latent_length - 1, int(base_frame_idx)))
+        max_segments = max(1, int(max_segments))
+        base_strength = float(base_strength)
+
+        # 在 [start_idx, end] 范围内按比例落点
+        tail_span = max(0, (latent_length - 1) - start_idx)
+        def at_ratio(r):
+            return max(0, min(latent_length - 1, int(round(start_idx + tail_span * float(r)))))
+
+        if guide_preset == "single_custom":
+            return [(start_idx, max(0.0, min(1.0, base_strength)))]
+
+        if guide_preset == "auto_balanced":
+            if latent_length < 96:
+                ratios = [0.0, 0.55]
+                weights = [1.0, 0.78]
+            elif latent_length < 192:
+                ratios = [0.0, 0.35, 0.68]
+                weights = [1.0, 0.82, 0.68]
+            else:
+                ratios = [0.0, 0.28, 0.56, 0.82]
+                weights = [1.0, 0.84, 0.72, 0.62]
+        elif guide_preset == "auto_stable_subject":
+            ratios = [0.0, 0.22, 0.50, 0.78]
+            weights = [1.0, 0.90, 0.78, 0.66]
+        elif guide_preset == "auto_full_timeline":
+            seg_n = min(max_segments, 12)
+            seg_n = max(2, seg_n)
+            ratios = [i / float(seg_n - 1) for i in range(seg_n)]
+            weights = [max(0.45, 1.0 - i * 0.08) for i in range(seg_n)]
+        elif guide_preset == "auto_low_vram_long":
+            # 长视频低显存：段数适中、强度更温和，避免过约束
+            if latent_length < 160:
+                seg_n = min(max_segments, 3)
+            elif latent_length < 320:
+                seg_n = min(max_segments, 4)
+            else:
+                seg_n = min(max_segments, 5)
+            seg_n = max(2, seg_n)
+            ratios = [i / float(seg_n - 1) for i in range(seg_n)]
+            weights = [max(0.40, 0.92 - i * 0.10) for i in range(seg_n)]
+        else:
+            ratios = [0.0]
+            weights = [1.0]
+
+        plan = []
+        seen = set()
+        for r, w in zip(ratios, weights):
+            idx = at_ratio(r)
+            if idx in seen:
+                continue
+            seen.add(idx)
+            s = max(0.0, min(1.0, base_strength * float(w)))
+            plan.append((idx, s))
+        if not plan:
+            plan = [(start_idx, max(0.0, min(1.0, base_strength)))]
+        return plan
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="AD_LTX_IC_lora",
+            category="Apt_Preset/AD/LTX_video",
+            inputs=[
+                io.Model.Input("model"),
+                io.Conditioning.Input("positive"),
+                io.Conditioning.Input("negative"),
+                io.Latent.Input("img_latent"),
+                io.Vae.Input("img_vae"),
+                io.Image.Input("image"),
+                io.Combo.Input("lora_name", options=["None"] + folder_paths.get_filename_list("loras")),
+                io.Float.Input("strength_model", default=1.0, min=-100.0, max=100.0, step=0.01),
+                io.Int.Input("frame_idx", default=0, min=0, max=9999, step=1),
+                io.Float.Input("guide_strength", default=1.0, min=0.0, max=1.0, step=0.01),
+                io.Boolean.Input("lowGpu_mode", default=False,),
+                io.Combo.Input(
+                    "guide_preset",
+                    options=["single_custom", "auto_balanced", "auto_stable_subject", "auto_full_timeline", "auto_low_vram_long"],
+                    default="auto_balanced",
+                ),
+                io.Int.Input("max_segments", default=4, min=1, max=12, step=1),
+                io.Int.Input("max_guide_frames", default=17, min=1, max=257, step=1),
+            ],
+            outputs=[
+                io.Model.Output("model"),
+                io.Conditioning.Output("positive"),
+                io.Conditioning.Output("negative"),
+                io.Latent.Output("img_latent"),
+                io.Vae.Output("img_vae"),
+            ],
+        )
+
+    @classmethod
+    def execute(
+        cls,
+        model,
+        positive,
+        negative,
+        img_latent,
+        img_vae,
+        image,
+        lora_name,
+        strength_model,
+        frame_idx,
+        guide_strength,
+        lowGpu_mode,
+        guide_preset,
+        max_segments,
+        max_guide_frames,
+    ) -> io.NodeOutput:
+        if lora_name != "None" and float(strength_model) != 0.0:
+            model = cls._LORA_LOADER.load_lora_model_only(model, lora_name, strength_model)[0]
+
+        scale_factors = img_vae.downscale_index_formula
+        latent_image = img_latent["samples"]
+        noise_mask = get_noise_mask(img_latent)
+        _, _, latent_length, latent_height, latent_width = latent_image.shape
+        time_scale_factor = scale_factors[0]
+        num_frames_to_keep = ((image.shape[0] - 1) // time_scale_factor) * time_scale_factor + 1
+        if max_guide_frames is not None:
+            aligned_max_frames = ((int(max_guide_frames) - 1) // time_scale_factor) * time_scale_factor + 1
+            num_frames_to_keep = min(num_frames_to_keep, aligned_max_frames)
+        image = image[:num_frames_to_keep]
+        causal_fix = num_frames_to_keep == 1
+
+        temporal_compression = 0
+        if hasattr(img_vae, "temporal_compression_decode"):
+            read_tc = img_vae.temporal_compression_decode()
+            if read_tc is not None:
+                temporal_compression = int(read_tc)
+        rec_tile_size, rec_overlap, _, _, _ = AD_AutoTileVAEDecode().recommend(
+            int(image.shape[2]),
+            int(image.shape[1]),
+            int(image.shape[0]),
+            lowGpu_mode,
+            int(temporal_compression),
+            img_vae,
+        )
+        if lowGpu_mode:
+            tile_size = max(64, min(128, int(rec_tile_size)))
+            tile_overlap = max(16, min(48, int(rec_overlap)))
+        else:
+            tile_size = max(96, min(256, int(rec_tile_size)))
+            tile_overlap = max(24, min(96, int(rec_overlap)))
+
+        if not causal_fix:
+            image = torch.cat([image[:1], image], dim=0)
+
+        guide_latent = cls._encode_guide(
+            img_vae, latent_width, latent_height, image, scale_factors, tile_size, tile_overlap
+        )
+
+        if not causal_fix:
+            guide_latent = guide_latent[:, :, 1:, :, :]
+
+        guide_orig_shape = list(guide_latent.shape[2:])
+        pre_filter_count = guide_latent.shape[2] * guide_latent.shape[3] * guide_latent.shape[4]
+        segment_plan = cls._build_segment_plan(
+            guide_preset=guide_preset,
+            latent_length=latent_length,
+            base_frame_idx=frame_idx,
+            guide_len=int(guide_latent.shape[2]),
+            base_strength=float(guide_strength),
+            max_segments=max_segments,
+        )
+        appended_count = 0
+        for seg_frame_idx, seg_strength in segment_plan:
+            resolved_frame_idx, latent_idx = LTXVAddGuide.get_latent_index(
+                positive, latent_length, guide_latent.shape[2], int(seg_frame_idx), scale_factors
+            )
+            if latent_idx + guide_latent.shape[2] > latent_length:
+                continue
+            positive, negative, latent_image, noise_mask = LTXVAddGuide.append_keyframe(
+                positive, negative, resolved_frame_idx,
+                latent_image, noise_mask, guide_latent,
+                float(seg_strength), scale_factors,
+                guide_mask=None,
+                latent_downscale_factor=1.0,
+                causal_fix=causal_fix,
+            )
+            positive, negative = _append_guide_attention_entry(
+                positive, negative, pre_filter_count, guide_orig_shape, strength=float(seg_strength)
+            )
+            appended_count += 1
+        if appended_count == 0:
+            raise ValueError("No valid guide segment could be appended (segment out of range).")
+
+        return io.NodeOutput(
+            model, positive, negative, {"samples": latent_image, "noise_mask": noise_mask}, img_vae
+        )
+
+
+
+
+
+from ..main_unit import *
+
+
+
+class xxxAD_LTX_load_model:
+    CATEGORY = "Apt_Preset/AD/LTX_video"
+    name = "AD_LTX_load_model(test)"
+    _MODEL_CACHE = {}
+    _LORA_MODEL_CACHE = {}
+    _LORA_LOADER = LoraLoaderModelOnly()
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "ckpt_name": (["None"] + folder_paths.get_filename_list("checkpoints"),),
+                "text_encoder": (["None"] + folder_paths.get_filename_list("text_encoders") ,),
+                "lora_name": (["None"] + folder_paths.get_filename_list("loras"),),
+                "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
+                "width": ("INT", {"default": 768, "min": 64, "max": 4096, "step": 32}),
+                "height": ("INT", {"default": 512, "min": 64, "max": 4096, "step": 32}),
+                "frame_rate": ("INT", {"default": 24, "min": 1, "max": 120}),
+                "frames_number": ("INT", {"default": 97, "min": 1, "max": 2000, "step": 8}),
+            },
+        }
+
+    RETURN_TYPES = ("RUN_CONTEXT", "LTX_CONFIG", )
+    RETURN_NAMES = ("context", "audio_config", )
+    FUNCTION = "run"
+
+    @classmethod
+    def _compute_model_cache_key(cls, ckpt_name, text_encoder):
+        return hashlib.md5(f"{ckpt_name}|{text_encoder}".encode()).hexdigest()
+
+    @classmethod
+    def _compute_lora_cache_key(cls, ckpt_name, text_encoder, lora_name, strength_model):
+        return hashlib.md5(f"{ckpt_name}|{text_encoder}|{lora_name}|{round(float(strength_model), 6)}".encode()).hexdigest()
+
+    def run(self, ckpt_name, text_encoder, lora_name, strength_model, width, height, frames_number, frame_rate):
+        cached_model = None
+        cached_vae = None
+        cached_audio_clip = None
+        cached_audio_vae = None
+        if ckpt_name != "None":
+            cache_key = type(self)._compute_model_cache_key(ckpt_name, text_encoder)
+            cached = type(self)._MODEL_CACHE.get(cache_key)
+            if cached is None:
+                base_model, base_clip, base_vae = CheckpointLoaderSimple().load_checkpoint(ckpt_name)
+                if text_encoder != "None":
+                    audio_clip_output = LTXAVTextEncoderLoader.execute(text_encoder, ckpt_name, "default")
+                    base_audio_clip = audio_clip_output[0] if audio_clip_output is not None else base_clip
+                else:
+                    base_audio_clip = base_clip
+                base_audio_vae = LTXVAudioVAELoader.execute(ckpt_name)[0]
+                cached = (base_model, base_audio_clip, base_vae, base_audio_vae)
+                type(self)._MODEL_CACHE[cache_key] = cached
+            cached_model, cached_audio_clip, cached_vae, cached_audio_vae = cached
+
+        model = cached_model
+        vae = cached_vae
+        audio_clip = cached_audio_clip
+        audio_vae = cached_audio_vae
+
+        if model is None or vae is None:
+            raise ValueError("AD_LTX_load_model: model/vae 为空，请提供有效 ckpt_name。")
+        if audio_vae is None:
+            raise ValueError("AD_LTX_load_model: audio_vae 为空，请提供有效 ckpt_name。")
+
+        use_lora_cache = (ckpt_name != "None")
+        if lora_name != "None" and float(strength_model) != 0.0:
+            if use_lora_cache:
+                lora_cache_key = type(self)._compute_lora_cache_key(ckpt_name, text_encoder, lora_name, strength_model)
+                lora_cached_model = type(self)._LORA_MODEL_CACHE.get(lora_cache_key)
+                if lora_cached_model is None:
+                    lora_cached_model = type(self)._LORA_LOADER.load_lora_model_only(model, lora_name, strength_model)[0]
+                    type(self)._LORA_MODEL_CACHE[lora_cache_key] = lora_cached_model
+                model = lora_cached_model
+            else:
+                model = type(self)._LORA_LOADER.load_lora_model_only(model, lora_name, strength_model)[0]
+
+        video_latent = EmptyLTXVLatentVideo.execute(width, height, frames_number, 1)[0]
+        audio_latent = LTXVEmptyLatentAudio.execute(frames_number, frame_rate, 1, audio_vae)[0]
+
+        audio_config = {
+            "audio_latent": audio_latent,
+            "audio_vae": audio_vae,
+            "width": width,
+            "height": height,
+            "frame_rate": frame_rate,
+            "frames_number": frames_number,
+        }
+
+        context = {
+            "model": model,
+            "latent": video_latent,
+            "vae": vae,
+            "clip": audio_clip,
+            "width": width,
+            "height": height,
+            "frame_rate": frame_rate,
+            "frames_number": frames_number,
+            "batch": 1,
+        }
+        return ( context, audio_config, )
+
+
+
+class xxxAD_LTX_config(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="AD_LTX_config",
+            category="Apt_Preset/AD/LTX_video",
+            inputs=[
+                LTX_CONFIG.Input("audio_config"),
+            ],
+            outputs=[
+                LTX_CONFIG.Output("audio_config"),
+                io.Int.Output(display_name="width"),
+                io.Int.Output(display_name="height"),
+                io.Latent.Output(display_name="audio_latent"),
+                io.Vae.Output(display_name="audio_vae"),
+                io.Int.Output(display_name="frame_rate"),
+                io.Int.Output(display_name="frames_number"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, audio_config) -> io.NodeOutput:
+        if not isinstance(audio_config, dict):
+            raise ValueError("audio_config must be dict.")
+
+        merged_config = dict(audio_config)
+        if "audio_latent" not in merged_config:
+            raise ValueError("audio_config 缺少 audio_latent。")
+        if "audio_vae" not in merged_config:
+            raise ValueError("audio_config 缺少 audio_vae。")
+
+        width = int(merged_config.get("width", 0))
+        height = int(merged_config.get("height", 0))
+        frame_rate = int(merged_config.get("frame_rate", 24))
+        frames_number = int(merged_config.get("frames_number", 1))
+        return io.NodeOutput(
+            merged_config,
+            width,
+            height,
+            merged_config["audio_latent"],
+            merged_config["audio_vae"],
+            frame_rate,
+            frames_number,
+        )
+
+
+
+
+
+
+class AD_LTX_load_model:
+    CATEGORY = "Apt_Preset/AD/LTX_video"
+    name = "AD_LTX_load_model(test)"
+    _MODEL_CACHE = {}
+    _LORA_MODEL_CACHE = {}
+    _LORA_LOADER = LoraLoaderModelOnly()
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "ckpt_name": (["None"] + folder_paths.get_filename_list("checkpoints"),),
+                "text_encoder": (["None"] + folder_paths.get_filename_list("text_encoders") ,),
+                "lora_name": (["None"] + folder_paths.get_filename_list("loras"),),
+                "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
+                "width": ("INT", {"default": 768, "min": 64, "max": 4096, "step": 32}),
+                "height": ("INT", {"default": 512, "min": 64, "max": 4096, "step": 32}),
+                "frame_rate": ("INT", {"default": 24, "min": 1, "max": 120}),
+                "frames_number": ("INT", {"default": 97, "min": 1, "max": 2000, "step": 8}),
+            },
+            "optional": {
+                "over_model": ("MODEL",),
+                "over_vae": ("VAE",),
+                "over_clip": ("CLIP",),
+                "over_audio_vae": ("VAE",),
+            }
+        }
+
+    RETURN_TYPES = ("LTX_CONFIG", "MODEL", "CLIP", "LATENT", "VAE", "LATENT", "VAE")
+    RETURN_NAMES = ("config", "model", "clip", "img_latent", "img_vae", "audio_latent", "audio_vae")
+    FUNCTION = "run"
+
+    @classmethod
+    def _compute_model_cache_key(cls, ckpt_name, text_encoder):
+        return hashlib.md5(f"{ckpt_name}|{text_encoder}".encode()).hexdigest()
+
+    @classmethod
+    def _compute_lora_cache_key(cls, ckpt_name, text_encoder, lora_name, strength_model):
+        return hashlib.md5(f"{ckpt_name}|{text_encoder}|{lora_name}|{round(float(strength_model), 6)}".encode()).hexdigest()
+
+    def run(self, ckpt_name, text_encoder, lora_name, strength_model, width, height, frames_number, frame_rate, over_model=None, over_vae=None, over_clip=None, over_audio_vae=None):
+        cached_model = None
+        cached_vae = None
+        cached_audio_clip = None
+        cached_audio_vae = None
+        if ckpt_name != "None":
+            cache_key = type(self)._compute_model_cache_key(ckpt_name, text_encoder)
+            cached = type(self)._MODEL_CACHE.get(cache_key)
+            if cached is None:
+                base_model, base_clip, base_vae = CheckpointLoaderSimple().load_checkpoint(ckpt_name)
+                if text_encoder != "None":
+                    audio_clip_output = LTXAVTextEncoderLoader.execute(text_encoder, ckpt_name, "default")
+                    base_audio_clip = audio_clip_output[0] if audio_clip_output is not None else base_clip
+                else:
+                    base_audio_clip = base_clip
+                base_audio_vae = LTXVAudioVAELoader.execute(ckpt_name)[0]
+                cached = (base_model, base_audio_clip, base_vae, base_audio_vae)
+                type(self)._MODEL_CACHE[cache_key] = cached
+            cached_model, cached_audio_clip, cached_vae, cached_audio_vae = cached
+
+        model = over_model if over_model is not None else cached_model
+        vae = over_vae if over_vae is not None else cached_vae
+        audio_clip = over_clip if over_clip is not None else cached_audio_clip
+        audio_vae = over_audio_vae if over_audio_vae is not None else cached_audio_vae
+
+        if model is None or vae is None or audio_clip is None or audio_vae is None:
+            raise ValueError("AD_LTX_load_model: override inputs not complete and ckpt/text_encoder fallback unavailable.")
+
+        use_lora_cache = (over_model is None and ckpt_name != "None")
+        if lora_name != "None" and float(strength_model) != 0.0:
+            if use_lora_cache:
+                lora_cache_key = type(self)._compute_lora_cache_key(ckpt_name, text_encoder, lora_name, strength_model)
+                lora_cached_model = type(self)._LORA_MODEL_CACHE.get(lora_cache_key)
+                if lora_cached_model is None:
+                    lora_cached_model = type(self)._LORA_LOADER.load_lora_model_only(model, lora_name, strength_model)[0]
+                    type(self)._LORA_MODEL_CACHE[lora_cache_key] = lora_cached_model
+                model = lora_cached_model
+            else:
+                model = type(self)._LORA_LOADER.load_lora_model_only(model, lora_name, strength_model)[0]
+
+        video_latent = EmptyLTXVLatentVideo.execute(width, height, frames_number, 1)[0]
+        audio_latent = LTXVEmptyLatentAudio.execute(frames_number, frame_rate, 1, audio_vae)[0]
+
+        config = {
+            "model": model,
+            "clip": audio_clip,
+            "img_latent": video_latent,
+            "img_vae": vae,
+            "audio_latent": audio_latent,
+            "audio_vae": audio_vae,
+            "width": width,
+            "height": height,
+            "frame_rate": frame_rate,
+            "frames_number": frames_number,
+        }
+        return (config, model, audio_clip, video_latent, vae, audio_latent, audio_vae)
+
+
+class AD_LTX_config(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="AD_LTX_config",
+            category="Apt_Preset/AD/LTX_video",
+            inputs=[
+                LTX_CONFIG.Input("config"),
+            ],
+            outputs=[
+                LTX_CONFIG.Output("config"),
+                io.Model.Output(display_name="model"),
+                io.Clip.Output(display_name="clip"),
+                io.Latent.Output(display_name="img_latent"),
+                io.Vae.Output(display_name="img_vae"),
+                io.Latent.Output(display_name="audio_latent"),
+                io.Vae.Output(display_name="audio_vae"),
+                io.Int.Output(display_name="width"),
+                io.Int.Output(display_name="height"),
+                io.Int.Output(display_name="frame_rate"),
+                io.Int.Output(display_name="frames_number"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, config) -> io.NodeOutput:
+        if not isinstance(config, dict):
+            raise ValueError("config must be dict.")
+        width = config.get("width", None)
+        height = config.get("height", None)
+        if width is None or height is None:
+            img_latent = config["img_latent"]["samples"]
+            scale_factors = config["img_vae"].downscale_index_formula
+            if width is None:
+                width = int(img_latent.shape[-1] * scale_factors[1])
+            if height is None:
+                height = int(img_latent.shape[-2] * scale_factors[2])
+        return io.NodeOutput(
+            config,
+            config["model"],
+            config["clip"],
+            config["img_latent"],
+            config["img_vae"],
+            config["audio_latent"],
+            config["audio_vae"],
+            int(width),
+            int(height),
+            int(config["frame_rate"]),
+            int(config["frames_number"]),
+        )
+
+
+
+
+
+
+
+
+
+#endregion----------LTX---------------
+
+
+
+
+
+
 
 
 

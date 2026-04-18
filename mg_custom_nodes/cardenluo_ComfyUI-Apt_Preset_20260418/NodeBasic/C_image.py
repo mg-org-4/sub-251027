@@ -4663,7 +4663,7 @@ class Mask_simple_adjust:
                 "input_mask": ("MASK",),
                 "mask_min": ("FLOAT", {"default": 0.0, "min": -10.0, "max": 1.0, "step": 0.01}),
                 "mask_max": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
-                "extract_to_block": ("BOOLEAN", {"default": False}),  # 矩形化开关（与参考代码一致）
+                "extract_to_block": ("BOOLEAN", {"default": False}),
                 "block_size": ("INT", {"default": 0, "min": 0, "max": 500, "step": 1}),
             },
             "optional": {}
@@ -4680,76 +4680,75 @@ class Mask_simple_adjust:
             empty_mask = torch.zeros(1, 64, 64, dtype=torch.float32)
             return (empty_mask,)
         
-        def tensorMask2cv2img(tensor_mask):
-            mask_np = tensor_mask.cpu().numpy().squeeze()
-            if len(mask_np.shape) == 3:
-                mask_np = mask_np[:, :, 0]
+        def tensorMask2cv2img(single_mask):
+            mask_np = single_mask.detach().cpu().numpy()
             return (mask_np * 255).astype(np.uint8)
         
         def cv2img2tensorMask(cv2_mask):
             mask_np = cv2_mask.astype(np.float32) / 255.0
-            # 应用mask_min和mask_max调整蒙版动态范围
             mask_max_val = np.max(mask_np) if np.max(mask_np) > 0 else 1.0
             mask_np = (mask_np / mask_max_val) * (mask_max - mask_min) + mask_min
             mask_np = np.clip(mask_np, 0.0, 1.0)
-            return torch.from_numpy(mask_np).unsqueeze(0)
-        
-        opencv_gray_mask = tensorMask2cv2img(input_mask)
-        _, binary_mask = cv2.threshold(opencv_gray_mask, 1, 255, cv2.THRESH_BINARY)
-        
-        # 完全复用参考代码的轮廓检测逻辑：提取外部轮廓，简化轮廓
-        contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        valid_contours = [cnt for cnt in contours if cv2.contourArea(cnt) >= 1]
-        
-        final_mask = np.zeros_like(binary_mask)
-        expand_kernel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=np.uint8)
-        
-        for contour in valid_contours:
-            temp_mask = np.zeros_like(binary_mask)
-            
-            # 核心修改：完全复用参考代码的矩形化逻辑
-            if extract_to_block:
-                # 1. 计算轮廓的最小外接矩形（与参考代码一致）
-                x, y, w, h = cv2.boundingRect(contour)
-                # 2. 绘制填充矩形（与参考代码的 cv2.rectangle + FILLED 逻辑一致）
-                cv2.rectangle(temp_mask, (x, y), (x + w, y + h), 255, thickness=cv2.FILLED)
-                
-                # 3. 非填充模式兼容：如果 is_fill=False，矩形内保留原mask灰度（保持原逻辑）
-                if not is_fill:
-                    # 提取原mask的矩形区域灰度信息
-                    roi = opencv_gray_mask[y:y+h, x:x+w]
-                    # 用原灰度信息替换矩形内的纯白填充
-                    temp_mask[y:y+h, x:x+w] = roi
-            else:
-                # 保持原逻辑：使用原始轮廓
-                if is_fill:
-                    cv2.drawContours(temp_mask, [contour], 0, 255, thickness=cv2.FILLED)
+            return torch.from_numpy(mask_np)
+
+        if input_mask.ndim == 2:
+            input_masks = input_mask.unsqueeze(0)
+        elif input_mask.ndim == 3:
+            input_masks = input_mask
+        elif input_mask.ndim == 4 and input_mask.shape[-1] == 1:
+            input_masks = input_mask[..., 0]
+        elif input_mask.ndim == 4 and input_mask.shape[1] == 1:
+            input_masks = input_mask[:, 0, ...]
+        else:
+            raise ValueError("input_mask shape is invalid.")
+
+        processed_masks = []
+        for i in range(input_masks.shape[0]):
+            opencv_gray_mask = tensorMask2cv2img(input_masks[i])
+            _, binary_mask = cv2.threshold(opencv_gray_mask, 1, 255, cv2.THRESH_BINARY)
+
+            contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            valid_contours = [cnt for cnt in contours if cv2.contourArea(cnt) >= 1]
+
+            final_mask = np.zeros_like(binary_mask)
+            expand_kernel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=np.uint8)
+
+            for contour in valid_contours:
+                temp_mask = np.zeros_like(binary_mask)
+                if extract_to_block:
+                    x, y, w, h = cv2.boundingRect(contour)
+                    cv2.rectangle(temp_mask, (x, y), (x + w, y + h), 255, thickness=cv2.FILLED)
+                    if not is_fill:
+                        roi = opencv_gray_mask[y:y+h, x:x+w]
+                        temp_mask[y:y+h, x:x+w] = roi
                 else:
-                    cv2.drawContours(temp_mask, [contour], 0, 255, -1)
-                    temp_mask = cv2.bitwise_and(opencv_gray_mask, temp_mask)
-            
-            # 扩展/收缩处理（保持原逻辑不变）
-            if mask_expand != 0:
-                expand_iter = abs(int(mask_expand))
-                if mask_expand > 0:
-                    temp_mask = cv2.dilate(temp_mask, expand_kernel, iterations=expand_iter)
-                else:
-                    temp_mask = cv2.erode(temp_mask, expand_kernel, iterations=expand_iter)
-            
-            final_mask = cv2.bitwise_or(final_mask, temp_mask)
-        
-        # 平滑处理（保持原逻辑不变）
-        if smoothness > 0:
-            mask_pil = Image.fromarray(final_mask)
-            mask_pil = mask_pil.filter(ImageFilter.GaussianBlur(radius=smoothness))
-            final_mask = np.array(mask_pil)
-        
-        # 反转处理（保持原逻辑不变）
-        if is_invert:
-            final_mask = cv2.bitwise_not(final_mask)
-            _, final_mask = cv2.threshold(final_mask, 127, 255, cv2.THRESH_BINARY)
-        
-        processed_mask_tensor = cv2img2tensorMask(final_mask)
+                    if is_fill:
+                        cv2.drawContours(temp_mask, [contour], 0, 255, thickness=cv2.FILLED)
+                    else:
+                        cv2.drawContours(temp_mask, [contour], 0, 255, -1)
+                        temp_mask = cv2.bitwise_and(opencv_gray_mask, temp_mask)
+
+                if mask_expand != 0:
+                    expand_iter = abs(int(mask_expand))
+                    if mask_expand > 0:
+                        temp_mask = cv2.dilate(temp_mask, expand_kernel, iterations=expand_iter)
+                    else:
+                        temp_mask = cv2.erode(temp_mask, expand_kernel, iterations=expand_iter)
+
+                final_mask = cv2.bitwise_or(final_mask, temp_mask)
+
+            if smoothness > 0:
+                mask_pil = Image.fromarray(final_mask)
+                mask_pil = mask_pil.filter(ImageFilter.GaussianBlur(radius=smoothness))
+                final_mask = np.array(mask_pil)
+
+            if is_invert:
+                final_mask = cv2.bitwise_not(final_mask)
+                _, final_mask = cv2.threshold(final_mask, 127, 255, cv2.THRESH_BINARY)
+
+            processed_masks.append(cv2img2tensorMask(final_mask))
+
+        processed_mask_tensor = torch.stack(processed_masks, dim=0)
 
         if block_size > 0:  
             processed_mask_tensor = BlockifyMask(processed_mask_tensor, block_size)

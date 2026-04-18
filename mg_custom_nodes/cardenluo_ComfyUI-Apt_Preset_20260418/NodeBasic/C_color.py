@@ -3389,6 +3389,7 @@ class Image_crop_visual:
                 "fill": (["none", "white", "black", "grey", "edge"], {"default": "none"}),
                 "margin": ("INT", {"default": 0, "min": 0, "max": 500, "step": 1}),
                 "crop_state": ("STRING", {"default": '{"cx":0.5,"cy":0.5,"zoom":1.0}'}),
+                "crop_byScale": ("BOOLEAN", {"default": True}),
             }
         }
 
@@ -3398,10 +3399,22 @@ class Image_crop_visual:
     CATEGORY = "Apt_Preset/image/visualize_edit"
     OUTPUT_NODE = True
     DESCRIPTION = """滚动鼠标，缩放裁剪框"""
-    def crop_image(self, image, crop_width, crop_height, fill, margin, crop_state):
+    def crop_image(self, image, crop_width, crop_height, crop_byScale, fill, margin, crop_state):
         crop_w = int(max(1, crop_width))
         crop_h = int(max(1, crop_height))
+        if isinstance(crop_byScale, bool):
+            crop_by_scale = crop_byScale
+        else:
+            crop_by_scale = str(crop_byScale).strip().lower() not in ("0", "false", "no", "off", "")
         cx, cy, zoom = _crop_visual_parse_state(crop_state)
+        effective_zoom = zoom if crop_by_scale else 1.0
+        if (not crop_by_scale) and image.shape[0] > 0:
+            # false 模式禁止拉伸：最大尺寸不超过可裁底图尺寸（含 fill/margin 后）
+            prepared0 = _crop_visual_prepare_image(image[0], fill, margin)
+            max_w = int(max(1, int(prepared0.shape[1])))
+            max_h = int(max(1, int(prepared0.shape[0])))
+            crop_w = int(max(1, min(crop_w, max_w)))
+            crop_h = int(max(1, min(crop_h, max_h)))
 
         out_list = []
         mask_list = []
@@ -3409,25 +3422,41 @@ class Image_crop_visual:
         image_for_meta = image[0]
         for img in image:
             prepared = _crop_visual_prepare_image(img, fill, margin)
-            cropped_img = _crop_visual_apply_single(prepared, crop_w, crop_h, cx, cy, zoom)
+            cropped_img = _crop_visual_apply_single(prepared, crop_w, crop_h, cx, cy, effective_zoom)
             out_list.append(cropped_img)
             
-            # Generate mask for the cropped image
-            h = int(img.shape[0])
-            w = int(img.shape[1])
-            left, top, right, bottom = _crop_visual_compute_box(w, h, crop_w, crop_h, cx, cy, zoom)
-            
-            # Create coordinate grid
+            # 生成与裁切图同尺寸的内容有效掩码：
+            # 原图内容区域=1，fill/margin 产生的填充区域=0
+            h = int(prepared.shape[0])
+            w = int(prepared.shape[1])
+            src_h = int(img.shape[0])
+            src_w = int(img.shape[1])
+            fill_mode = str(fill or "none").lower()
+            if fill_mode == "none":
+                valid_canvas = torch.ones((h, w), device=img.device, dtype=img.dtype)
+            else:
+                valid_canvas = torch.zeros((h, w), device=img.device, dtype=img.dtype)
+                top0 = max(0, (h - src_h) // 2)
+                left0 = max(0, (w - src_w) // 2)
+                valid_canvas[top0:top0 + src_h, left0:left0 + src_w] = 1.0
+            left, top, right, bottom = _crop_visual_compute_box(w, h, crop_w, crop_h, cx, cy, effective_zoom)
+
             x = torch.linspace(left, right, crop_w, device=img.device, dtype=img.dtype)
             y = torch.linspace(top, bottom, crop_h, device=img.device, dtype=img.dtype)
             yy, xx = torch.meshgrid(y, x, indexing="ij")
-            
-            # Create mask: 1.0 inside original canvas, 0.0 outside
-            mask = torch.ones((crop_h, crop_w), device=img.device, dtype=img.dtype)
-            mask[xx < 0] = 0.0
-            mask[xx >= w] = 0.0
-            mask[yy < 0] = 0.0
-            mask[yy >= h] = 0.0
+            denom_w = float(max(1, w - 1))
+            denom_h = float(max(1, h - 1))
+            grid_x = (xx / denom_w) * 2.0 - 1.0
+            grid_y = (yy / denom_h) * 2.0 - 1.0
+            grid = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(0)
+            valid_nchw = valid_canvas.unsqueeze(0).unsqueeze(0)
+            mask = torch.nn.functional.grid_sample(
+                valid_nchw,
+                grid,
+                mode="nearest",
+                padding_mode="zeros",
+                align_corners=True,
+            )[0, 0].clamp(0.0, 1.0)
             mask_list.append(mask)
             
         if image.shape[0] > 0:
@@ -3463,6 +3492,7 @@ class Image_mask_crop_visual:
                 "crop_height": ("INT", {"default": 512, "min": 1, "max": 8192, "step": 1}),
                 "crop_img_bj": (["image", "white", "black", "red", "green", "blue", "yellow", "cyan", "magenta", "gray"], {"default": "image"}),
                 "crop_state": ("STRING", {"default": '{"cx":0.5,"cy":0.5,"zoom":1.0}'}),
+                "crop_byScale": ("BOOLEAN", {"default": True}),
             },
             "optional": {
                 "mask_stack": ("MASK_STACK2",),
@@ -3495,9 +3525,13 @@ class Image_mask_crop_visual:
         x, y, w, h = cv2.boundingRect(coords)
         return w, h, x, y
 
-    def crop_image(self, image, mask, crop_width, crop_height, crop_img_bj, crop_state, mask_stack=None):
+    def crop_image(self, image, mask, crop_width, crop_height, crop_byScale, crop_img_bj, crop_state, mask_stack=None):
         crop_w = int(max(1, crop_width))
         crop_h = int(max(1, crop_height))
+        if isinstance(crop_byScale, bool):
+            crop_by_scale = crop_byScale
+        else:
+            crop_by_scale = str(crop_byScale).strip().lower() not in ("0", "false", "no", "off", "")
         cx, cy, zoom = _crop_visual_parse_state(crop_state)
 
         # 处理遮罩
@@ -3536,13 +3570,32 @@ class Image_mask_crop_visual:
 
         # 获取遮罩边界框
         mask_w, mask_h, mask_x, mask_y = self.get_mask_bounding_box(processed_mask)
+        if not crop_by_scale:
+            min_w = int(max(1, int(mask_w)))
+            min_h = int(max(1, int(mask_h)))
+            max_w = int(max(1, int(width)))
+            max_h = int(max(1, int(height)))
+            crop_w = int(max(min_w, min(crop_w, max_w)))
+            crop_h = int(max(min_h, min(crop_h, max_h)))
 
         original_h, original_w = height, width
-        left, top, right, bottom = _crop_visual_compute_box(original_w, original_h, crop_w, crop_h, cx, cy, zoom)
-        x0 = max(0, int(math.floor(left)))
-        y0 = max(0, int(math.floor(top)))
-        x1 = min(int(original_w), int(math.ceil(right)))
-        y1 = min(int(original_h), int(math.ceil(bottom)))
+        if crop_by_scale:
+            left, top, right, bottom = _crop_visual_compute_box(original_w, original_h, crop_w, crop_h, cx, cy, zoom)
+            x0 = max(0, int(math.floor(left)))
+            y0 = max(0, int(math.floor(top)))
+            x1 = min(int(original_w), int(math.ceil(right)))
+            y1 = min(int(original_h), int(math.ceil(bottom)))
+        else:
+            src_w = min(int(original_w), int(crop_w))
+            src_h = min(int(original_h), int(crop_h))
+            cx_px = min(float(original_w), max(0.0, float(cx) * float(original_w)))
+            cy_px = min(float(original_h), max(0.0, float(cy) * float(original_h)))
+            x0 = int(round(cx_px - (src_w * 0.5)))
+            y0 = int(round(cy_px - (src_h * 0.5)))
+            x0 = max(0, min(int(original_w) - src_w, x0))
+            y0 = max(0, min(int(original_h) - src_h, y0))
+            x1 = x0 + src_w
+            y1 = y0 + src_h
         if x1 <= x0:
             x1 = min(int(original_w), x0 + 1)
         if y1 <= y0:

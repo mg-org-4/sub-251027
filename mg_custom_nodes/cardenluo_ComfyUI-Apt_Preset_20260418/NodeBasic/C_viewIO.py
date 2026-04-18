@@ -4626,8 +4626,56 @@ class view_node_Script:
 
 
 
+# ==================== 节点1：尺寸帧率传递 ====================
+class basicIn_Vedio:
+    CATEGORY = "Apt_Preset/IO_Port"
+    
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "width": ("INT", {"default": 512, "min": 1, "max": 8192}),
+                "height": ("INT", {"default": 512, "min": 1, "max": 8192}),
+                "length": ("INT", {"default": 16, "min": 1, "max": 9999}),
+                "frame_rate": ("INT", {"default": 24, "min": 1, "max": 120}),
+            }
+        }
+    
+    RETURN_TYPES = ("INT", "INT", "INT", "INT")
+    RETURN_NAMES = ("width", "height", "length", "frame_rate")
+    FUNCTION = "forward"
+    
+    def forward(self, width, height, length, frame_rate):
+        return (width, height, length, frame_rate)
 
 
+from nodes import  CLIPTextEncode
 
+# 老版本 CLIP 文本编码节点 → 输入clip，输入正反文本，输出正反条件
+class basicIn_clip:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "clip": ("CLIP",),
+                "positive": ("STRING", {"multiline": True, }),
+                "negative": ("STRING", {"multiline": False, }),
+            }
+        }
+    
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING")
+    RETURN_NAMES = ("positive", "negative")
+    FUNCTION = "encode"
+    CATEGORY = "Apt_Preset/IO_Port"
 
+    def encode(self, clip, positive, negative):
+        if clip is not None:
+            (positive,) = CLIPTextEncode().encode(clip, positive)
+            (negative,) = CLIPTextEncode().encode(clip, negative)
+        else:
+            positive = None
+            negative = None       
 
+        return (positive, negative)
+
+        

@@ -9,6 +9,7 @@ import node_helpers
 import comfy.utils
 from nodes import common_ksampler, CLIPTextEncode
 import torch.nn.functional as F
+from comfy_extras.nodes_flux import EmptyFlux2LatentImage
 
 
 
@@ -2051,27 +2052,23 @@ class sum_stack_flux2_Klein:
         
         if latent_image is not None:
             positive, negative, latent = self.addConditioning(positive, negative, latent_image, vae, latent_mask)
+        else:
+            width = context.get("width", None)
+            height = context.get("height", None)
+            latent = EmptyFlux2LatentImage.execute(int(width), int(height), 1)[0]
 
 
-        if ref_latent_img1 is not None:
-            encoded_latent = vae.encode(ref_latent_img1) * img1_strength
-            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent]},  append=True)
-
-        if ref_latent_img2 is not None:
-            encoded_latent2 = vae.encode(ref_latent_img2) * img2_strength
-            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent2]},  append=True)
-
-        if ref_latent_img3 is not None:
-            encoded_latent3 = vae.encode(ref_latent_img3) * img3_strength
-            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent3]},  append=True)
-            
-        if ref_latent_img4 is not None:
-            encoded_latent4 = vae.encode(ref_latent_img4) * img4_strength
-            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent4]},  append=True)
-
-        if ref_latent_img5 is not None:
-            encoded_latent5 = vae.encode(ref_latent_img5) * img5_strength
-            positive = node_helpers.conditioning_set_values( positive, {"reference_latents": [encoded_latent5]},  append=True)
+        reference_images = (
+            (ref_latent_img1, img1_strength),
+            (ref_latent_img2, img2_strength),
+            (ref_latent_img3, img3_strength),
+            (ref_latent_img4, img4_strength),
+            (ref_latent_img5, img5_strength),
+        )
+        for ref_img, ref_strength in reference_images:
+            if ref_img is not None:
+                encoded_latent = vae.encode(ref_img) * ref_strength
+                positive = node_helpers.conditioning_set_values(positive, {"reference_latents": [encoded_latent]}, append=True)
 
 
         context = new_context(context, model=model, positive=positive, negative=negative, latent=latent)
@@ -2086,18 +2083,19 @@ class sum_stack_flux2_Klein:
     
     def addConditioning(self, positive, negative, pixels, vae, mask=None):
         pixels = self._process_image_channels(pixels)
-        orig_pixels = pixels.clone()
         x = (pixels.shape[1] // 8) * 8
         y = (pixels.shape[2] // 8) * 8
         if pixels.shape[1] != x or pixels.shape[2] != y:
             x_offset = (pixels.shape[1] - x) // 2
             y_offset = (pixels.shape[2] - y) // 2
             pixels = pixels[:, x_offset:x + x_offset, y_offset:y + y_offset, :]
-        
-        concat_latent = vae.encode(pixels)
-        out_latent = {"samples": concat_latent}
 
-        if mask is not None:
+        if mask is None:
+            concat_latent = vae.encode(pixels)
+            out_latent = {"samples": concat_latent}
+        else:
+            orig_pixels = pixels.clone()
+
             mask = torch.nn.functional.interpolate(
                 mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])),
                 size=(x, y),
@@ -2114,15 +2112,14 @@ class sum_stack_flux2_Klein:
                 "samples": vae.encode(self._process_image_channels(orig_pixels)),
                 "noise_mask": mask
             }
-        
-        out = []
-        for cond in [positive, negative]:
-            c = node_helpers.conditioning_set_values(cond, {"concat_latent_image": concat_latent})
-            if mask is not None:
-                c = node_helpers.conditioning_set_values(c, {"concat_mask": mask})
-            out.append(c)
-        
-        return (out[0], out[1], out_latent,)
+
+        positive_out = node_helpers.conditioning_set_values(positive, {"concat_latent_image": concat_latent})
+        negative_out = node_helpers.conditioning_set_values(negative, {"concat_latent_image": concat_latent})
+        if mask is not None:
+            positive_out = node_helpers.conditioning_set_values(positive_out, {"concat_mask": mask})
+            negative_out = node_helpers.conditioning_set_values(negative_out, {"concat_mask": mask})
+
+        return (positive_out, negative_out, out_latent,)
 
 
 

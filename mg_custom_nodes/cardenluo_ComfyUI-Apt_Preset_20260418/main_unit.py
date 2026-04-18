@@ -1807,6 +1807,261 @@ class pre_qwenimage_PromptWeight:
         return ([[fused_feat, {"pooled_output": fused_pooled}]], prompt_info)
 
 
+class pre_ERNIE_image_PromptWeight:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "clip": ("CLIP",),
+                "prompt": ("STRING", {"multiline": True}),
+            },
+            "optional": {
+                "main_prompt_ratio": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING", "STRING")
+    FUNCTION = "process"
+    CATEGORY = "Apt_Preset/chx_tool/conditioning"
+
+    def __init__(self):
+        pass
+
+    def clean_text(self, text):
+        clean_chars = ",，.。 \t\n"
+        return text.strip(clean_chars)
+
+    def parse_with_auto_pack(self, prompt):
+        pattern = re.compile(r"\[([^\]]+)@([0-9.]+)\]")
+        matches = list(pattern.finditer(prompt))
+        segments = []
+        weights = []
+        all_text_parts = []
+        last_end = 0
+
+        for match in matches:
+            start = match.start()
+            end = match.end()
+            prefix_text = prompt[last_end:start]
+            cleaned_prefix = self.clean_text(prefix_text)
+            if cleaned_prefix:
+                segments.append(cleaned_prefix)
+                weights.append(1.0)
+                all_text_parts.append(cleaned_prefix)
+
+            anchor_content = match.group(1).strip()
+            anchor_weight = float(match.group(2)) if match.group(2).replace(".", "").isdigit() else 1.0
+            segments.append(anchor_content)
+            weights.append(anchor_weight)
+            all_text_parts.append(anchor_content)
+            last_end = end
+
+        suffix_text = prompt[last_end:]
+        cleaned_suffix = self.clean_text(suffix_text)
+        if cleaned_suffix:
+            segments.append(cleaned_suffix)
+            weights.append(1.0)
+            all_text_parts.append(cleaned_suffix)
+
+        whole_content = "，".join(all_text_parts)
+        return segments, weights, whole_content
+
+    def get_pooled_from_cond(self, cond_feature, fallback_dim=768, device=None, dtype=None):
+        if cond_feature is None:
+            use_device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+            use_dtype = dtype or torch.float16
+            return torch.zeros((int(fallback_dim),), dtype=use_dtype, device=use_device)
+
+        embed_dim = int(cond_feature.shape[-1])
+        pooled = torch.mean(cond_feature, dim=0)
+        pooled = F.layer_norm(pooled, normalized_shape=[embed_dim])
+        return pooled
+
+    def _encode_text(self, clip, text):
+        try:
+            tokens = clip.tokenize(text)
+            cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
+            feat = cond.squeeze(0) if cond is not None else None
+            return feat, pooled
+        except:
+            return None, None
+
+    def _probe_reference(self, clip):
+        feat_ref, pooled_ref = self._encode_text(clip, "")
+        if feat_ref is not None:
+            if pooled_ref is None:
+                pooled_ref = self.get_pooled_from_cond(
+                    feat_ref,
+                    fallback_dim=int(feat_ref.shape[-1]),
+                    device=feat_ref.device,
+                    dtype=feat_ref.dtype,
+                )
+            return feat_ref, pooled_ref
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        dtype = torch.float16
+        feat_ref = torch.zeros((77, 768), dtype=dtype, device=device)
+        pooled_ref = torch.zeros((768,), dtype=dtype, device=device)
+        return feat_ref, pooled_ref
+
+    def align_features(self, feat1, feat2):
+        len1 = feat1.shape[-2]
+        len2 = feat2.shape[-2]
+        dim1 = feat1.shape[-1]
+        dim2 = feat2.shape[-1]
+
+        target_len = max(len1, len2)
+        target_dim = max(dim1, dim2)
+        device = feat1.device
+        dtype = feat1.dtype
+
+        def _pad_or_trim(feat):
+            cur_len = feat.shape[-2]
+            cur_dim = feat.shape[-1]
+
+            if cur_dim < target_dim:
+                pad_dim = target_dim - cur_dim
+                pad = torch.zeros((feat.shape[0], cur_len, pad_dim), device=device, dtype=dtype)
+                feat = torch.cat([feat, pad], dim=-1)
+            elif cur_dim > target_dim:
+                feat = feat[..., :target_dim]
+
+            if cur_len < target_len:
+                pad_len = target_len - cur_len
+                pad = torch.zeros((feat.shape[0], pad_len, target_dim), device=device, dtype=dtype)
+                feat = torch.cat([feat, pad], dim=-2)
+            elif cur_len > target_len:
+                feat = feat[:, :target_len, :]
+            return feat
+
+        return _pad_or_trim(feat1), _pad_or_trim(feat2)
+
+    def fuse_conditions_equal(self, cond_features, cond_strengths, ref_feat):
+        if len(cond_features) == 0 or len(cond_strengths) == 0:
+            return None, None, None
+
+        valid_feats = [cf for cf in cond_features if cf is not None]
+        if valid_feats:
+            device = valid_feats[0].device
+            dtype = valid_feats[0].dtype
+            embed_dim = int(valid_feats[0].shape[-1])
+            max_len = max(cf.shape[0] for cf in valid_feats)
+        else:
+            device = ref_feat.device
+            dtype = ref_feat.dtype
+            embed_dim = int(ref_feat.shape[-1])
+            max_len = int(ref_feat.shape[0])
+
+        total_w = sum(cond_strengths)
+        norm_w = [s / total_w if total_w > 1e-6 else 1.0 / len(cond_strengths) for s in cond_strengths]
+
+        padded_feats = []
+        for cf in cond_features:
+            if cf is None:
+                cf = torch.zeros((max_len, embed_dim), dtype=dtype, device=device)
+            else:
+                if cf.shape[-1] < embed_dim:
+                    pad_dim = embed_dim - cf.shape[-1]
+                    cf = torch.cat([cf, torch.zeros((cf.shape[0], pad_dim), device=device, dtype=dtype)], dim=-1)
+                elif cf.shape[-1] > embed_dim:
+                    cf = cf[:, :embed_dim]
+
+                if cf.shape[0] < max_len:
+                    pad_len = max_len - cf.shape[0]
+                    cf = torch.cat([cf, torch.zeros((pad_len, embed_dim), device=device, dtype=dtype)], dim=0)
+                elif cf.shape[0] > max_len:
+                    cf = cf[:max_len, :]
+            padded_feats.append(cf)
+
+        fused_feat = torch.zeros_like(padded_feats[0], device=device, dtype=dtype)
+        for feat, w in zip(padded_feats, norm_w):
+            fused_feat += feat * w
+
+        pooled_list = [
+            self.get_pooled_from_cond(
+                cf,
+                fallback_dim=embed_dim,
+                device=device,
+                dtype=dtype,
+            )
+            for cf in cond_features
+        ]
+        fused_pooled = torch.zeros_like(pooled_list[0], device=device, dtype=dtype)
+        for pl, w in zip(pooled_list, norm_w):
+            fused_pooled += pl * w
+
+        return fused_feat.unsqueeze(0), fused_pooled, norm_w
+
+    def process(self, clip, prompt, main_prompt_ratio=0.5):
+        prompt_info = ""
+        segments, weights, whole_content = self.parse_with_auto_pack(prompt)
+        ref_feat, ref_pooled = self._probe_reference(clip)
+
+        has_custom_weight = any(w != 1.0 for w in weights)
+        if not has_custom_weight and len(segments) > 0:
+            main_prompt_ratio = 1.0
+
+        if len(segments) == 0 or not whole_content:
+            c_empty = torch.zeros_like(ref_feat).unsqueeze(0)
+            p_empty = torch.zeros_like(ref_pooled)
+            prompt_info = "权重分配：main_prompt()0%|无有效个体"
+            return ([[c_empty, {"pooled_output": p_empty}]], prompt_info)
+
+        feat_whole, pooled_whole = self._encode_text(clip, whole_content)
+        if feat_whole is None:
+            feat_whole = torch.zeros_like(ref_feat)
+        if pooled_whole is None:
+            pooled_whole = self.get_pooled_from_cond(
+                feat_whole,
+                fallback_dim=int(feat_whole.shape[-1]),
+                device=feat_whole.device,
+                dtype=feat_whole.dtype,
+            )
+
+        cond_features = []
+        for seg in segments:
+            seg_feat, _ = self._encode_text(clip, seg)
+            cond_features.append(seg_feat)
+
+        fused_individual, pooled_individual, norm_w = self.fuse_conditions_equal(cond_features, weights, ref_feat)
+        if fused_individual is None:
+            fused_individual = torch.zeros_like(feat_whole.unsqueeze(0))
+            pooled_individual = torch.zeros_like(pooled_whole)
+            norm_w = [1.0 / len(segments)] * len(segments)
+
+        w_overall = main_prompt_ratio
+        w_individual_total = 1.0 - main_prompt_ratio
+
+        feat_whole_aligned, fused_individual_aligned = self.align_features(
+            feat_whole.unsqueeze(0),
+            fused_individual,
+        )
+
+        fused_feat = feat_whole_aligned * w_overall + fused_individual_aligned * w_individual_total
+        fused_pooled = pooled_whole * w_overall + pooled_individual * w_individual_total
+
+        final_parts = []
+        main_pct = int(round(w_overall * 100))
+        final_parts.append(f"main_prompt({whole_content}){main_pct}%")
+
+        part_pcts = []
+        for seg, nw in zip(segments, norm_w):
+            pct = int(round(nw * w_individual_total * 100))
+            part_pcts.append(pct)
+            final_parts.append(f"{seg}{pct}%")
+
+        total_pct = main_pct + sum(part_pcts)
+        if total_pct != 100 and len(part_pcts) > 0:
+            diff = 100 - total_pct
+            part_pcts[0] += diff
+            final_parts = [f"main_prompt({whole_content}){main_pct}%"]
+            for i, seg in enumerate(segments):
+                final_parts.append(f"{seg}{part_pcts[i]}%")
+
+        prompt_info = "权重分配：" + "|".join(final_parts)
+        return ([[fused_feat, {"pooled_output": fused_pooled}]], prompt_info)
+
+
 class pre_zimage_PromptWeight:
     @classmethod
     def INPUT_TYPES(cls):

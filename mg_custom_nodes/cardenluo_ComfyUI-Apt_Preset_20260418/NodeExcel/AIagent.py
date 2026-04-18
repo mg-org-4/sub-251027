@@ -22,16 +22,20 @@ PROXIES = {
 custom_nodes_paths = folder_paths.get_folder_paths("custom_nodes")
 comfy_root = os.path.dirname(custom_nodes_paths[0]) if custom_nodes_paths else os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
 
-key_path = os.path.join(comfy_root, "models", "Apt_File", "UNIT_API_KEY", "ApiKey_doubao.txt")
+doubao_key_path = os.path.join(comfy_root, "models", "Apt_File", "UNIT_API_KEY", "ApiKey_doubao.txt")
+GLM_key_path = os.path.join(comfy_root, "models", "Apt_File", "UNIT_API_KEY", "ApiKey_GLM.txt")
+Qwen_key_path = os.path.join(comfy_root, "models", "Apt_File", "UNIT_API_KEY", "ApiKey_AI_Qwen.txt")
+MOTA_key_path = os.path.join(comfy_root, "models", "Apt_File", "UNIT_API_KEY", "ApiKey_AI_MOTA.txt")
+json_path = os.path.join(comfy_root, "models", "Apt_File", "UNIT_API_KEY", "AiPromptPreset.json")
 
 
 def get_oubao_api_key():
     env_api_key = os.getenv("DOUBAO_API_KEY")
     if env_api_key and env_api_key.strip():
         return env_api_key.strip()
-    if os.path.exists(key_path):
+    if os.path.exists(doubao_key_path):
         try:
-            with open(key_path, "r", encoding="utf-8") as f:
+            with open(doubao_key_path, "r", encoding="utf-8") as f:
                 api_key = f.read().strip()
                 if api_key:
                     return api_key
@@ -357,9 +361,6 @@ import os
 import json
 import folder_paths
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-json_path = os.path.join(current_dir, "AiPromptPreset.json")
-
 # 确保JSON文件存在，不存在则创建默认文件
 def init_json_file():
     if not os.path.exists(json_path):
@@ -480,9 +481,6 @@ except:
     OLLAMA_MODEL_PATH = os.path.join(PLUGIN_ROOT, "ollama_models")
     os.makedirs(OLLAMA_MODEL_PATH, exist_ok=True, mode=0o755)
     os.environ["OLLAMA_MODELS"] = OLLAMA_MODEL_PATH
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-json_path = os.path.join(current_dir, "AiPromptPreset.json")
 
 def load_Image_Analysis():
     if not os.path.exists(json_path):
@@ -688,7 +686,7 @@ class AI_Ollama_text:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model_name": (OLLMAMA_MODEL_NAME_TEXT, {"default": "qwen2.5-coder:7b"}),
+                "model_name": (OLLMAMA_MODEL_NAME_TEXT, {"default": "qwen3.5:latest"}),
                 "preset": (list(TEXT_PROMPTS.keys()), {"default": "None"}),
                 "custom_system_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "custom_system_prompt：在预设preset=None时生效"}),
                 "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "user prompt"}),
@@ -975,23 +973,14 @@ except (ImportError, TypeError):
     ZHIPUAI_AVAILABLE = False
     print("[GLM_Nodes] 警告：zhipuai 库导入失败，可能是 httpx 版本不兼容。GLM相关节点将不可用。")
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-json_path = os.path.join(current_dir, "AiPromptPreset.json")
-
 def get_zhipuai_api_key():
     env_api_key = os.getenv("ZHIPUAI_API_KEY")
     if env_api_key and env_api_key.strip():
         return env_api_key.strip()
     
-    custom_nodes_paths = []
-    custom_nodes_paths = folder_paths.get_folder_paths("custom_nodes")
-
-    comfy_root = os.path.dirname(custom_nodes_paths[0]) if custom_nodes_paths else os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
-    key_path = os.path.join(comfy_root, "custom_nodes", "ComfyUI-Apt_Preset", "NodeExcel", "ApiKey_GLM.txt")
-    
-    if os.path.exists(key_path):
+    if os.path.exists(GLM_key_path):
         try:
-            with open(key_path, "r", encoding="utf-8") as f:
+            with open(GLM_key_path, "r", encoding="utf-8") as f:
                 api_key = f.read().strip()
                 if api_key:
                     return api_key
@@ -1245,10 +1234,6 @@ import io
 import base64
 import folder_paths
 from PIL import Image
-
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-json_path = os.path.join(current_dir, "AiPromptPreset.json")
 QWEN_TEXT_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
 QWEN_MULTIMODAL_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
 
@@ -1256,19 +1241,10 @@ def get_aliyun_api_key():
     env_api_key = os.getenv("aliyun_API_KEY")
     if env_api_key and env_api_key.strip():
         return env_api_key.strip()
-    
-    custom_nodes_paths = []
-    try:
-        custom_nodes_paths = folder_paths.get_folder_paths("custom_nodes")
-    except ImportError:
-        pass
-    
-    comfy_root = os.path.dirname(custom_nodes_paths[0]) if custom_nodes_paths else os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
-    key_path = os.path.join(comfy_root, "models", "Apt_File", "UNIT_API_KEY", "ApiKey_AI_Qwen.txt")
 
-    if os.path.exists(key_path):
+    if os.path.exists(Qwen_key_path):
         try:
-            with open(key_path, "r", encoding="utf-8") as f:
+            with open(Qwen_key_path, "r", encoding="utf-8") as f:
                 api_key = f.read().strip()
                 if api_key:
                     return api_key
@@ -1667,6 +1643,16 @@ def _get_mota_api_key(api_key_input: str = "") -> Optional[str]:
         val = os.environ.get(env_key)
         if val and val.strip():
             return val.strip()
+
+    # 从文件中获取API key
+    if os.path.exists(MOTA_key_path):
+        try:
+            with open(MOTA_key_path, "r", encoding="utf-8") as f:
+                api_key = f.read().strip()
+                if api_key:
+                    return api_key
+        except Exception as e:
+            print(f"读取API Key文件失败: {e}")
 
     return None
 

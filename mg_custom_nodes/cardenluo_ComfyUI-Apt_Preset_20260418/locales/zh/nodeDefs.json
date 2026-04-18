@@ -12953,6 +12953,9 @@
         },
         "margin": {
             "name": "边距"
+        },
+        "crop_byScale": {
+            "name": "按缩放裁剪"
         }
     },
     "outputs": {
@@ -12986,6 +12989,9 @@
         },
         "mask_stack": {
             "name": "遮罩堆栈"
+        },
+        "crop_byScale": {
+            "name": "按缩放裁剪"
         }
     },
     "outputs": {
@@ -13240,6 +13246,10 @@
 },
 
 
+
+
+
+
 "AD_Latent_Diffusion_Keyframe": {
     "display_name": "AD_扩散关键帧",
     "inputs": {
@@ -13277,13 +13287,27 @@
             "name": "负向条件"
         },
         "2": {
-            "name": "latent"
+            "name": "Video_Latent"
         },
         "3": {
+            "name": "Video_vae"
+        },
+        "4": {
             "name": "历史数据"
+        },
+        "5": {
+            "name": "趋势图"
         }
     }
 },
+
+
+
+
+
+
+
+
 
 
 "type_AnyListUnpack": {
@@ -13315,9 +13339,37 @@
     }
 },
 
-
-
-
+"basicIn_Vedio": {
+    "display_name": "basicIn_视频",
+    "inputs": {
+        "width": {
+            "name": "宽度"
+        },
+        "height": {
+            "name": "高度"
+        },
+        "length": {
+            "name": "长度"
+        },
+        "frame_rate": {
+            "name": "帧率"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "宽度"
+        },
+        "1": {
+            "name": "高度"
+        },
+        "2": {
+            "name": "长度"
+        },
+        "3": {
+            "name": "帧率"
+        }
+    }
+},
 
   "csv_write_data": {
     "display_name": "CSV_写入数据",

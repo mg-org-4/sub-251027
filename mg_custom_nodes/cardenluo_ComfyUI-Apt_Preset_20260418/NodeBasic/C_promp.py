@@ -1796,6 +1796,42 @@ class text_StrMatrix:
 
 
 
+class text_mulAngle:
+    CATEGORY = "Apt_Preset/prompt"
+    FUNCTION = "process"
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("lighting_prompt", "camera_prompt")
+    OUTPUT_IS_LIST = (True, True)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {}),
+                "lighting_prompt": ("STRING", {"default": "", "multiline": True}),
+                "camera_prompt": ("STRING", {"default": "", "multiline": True}),
+            },
+            "hidden": {"unique_id": "UNIQUE_ID"},
+        }
+
+    def process(self, image, lighting_prompt="", camera_prompt="", unique_id=None):
+        light_list = [line.strip() for line in str(lighting_prompt or "").splitlines() if line.strip()]
+        camera_list = [line.strip() for line in str(camera_prompt or "").splitlines() if line.strip()]
+        return (light_list, camera_list)
+
+    @classmethod
+    def IS_CHANGED(cls, image, lighting_prompt="", camera_prompt="", unique_id=None):
+        return f"{lighting_prompt}_{camera_prompt}"
+
+
+
+
+
+
+
+
+
+
 
 
 

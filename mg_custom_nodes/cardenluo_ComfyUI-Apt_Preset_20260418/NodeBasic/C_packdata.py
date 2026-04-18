@@ -59,6 +59,7 @@ class Unpack_param:
 
 
 
+
 class Model_Preset:
     def __init__(self):
         pass
@@ -67,15 +68,15 @@ class Model_Preset:
     def INPUT_TYPES(cls):
         return {
             "optional": {
-                "ckpt_name": (folder_paths.get_filename_list("checkpoints"), {"default": "flux1-dev-fp8.safetensors"}),
-                "unet_name": (folder_paths.get_filename_list("unet"), {"default": "flux1-dev.safetensors"}),
-                "clip_name1": (available_clips, {"default": "t5xxl_fp8_e4m3fn.safetensors"}),
-                "clip_name2": (available_clips, {"default": "clip_g.safetensors"}),
-                "clip_name3": (available_clips, {"default": "clip_l.safetensors"}),
-                "clip_vision": (folder_paths.get_filename_list("clip_vision"), {"default": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"}),
-                "control_net_name": (folder_paths.get_filename_list("controlnet"), {"default": "Flux.1-dev-ControlNet-Union-Pro-fp8.safetensors"}),
-                "style_model_name": (folder_paths.get_filename_list("style_models"), {"default": "flux1-redux-dev.safetensors"}),
-                "loras_name": (folder_paths.get_filename_list("loras"), {"default": "add_detail.safetensors"}),
+                "ckpt_name": (["None"] + folder_paths.get_filename_list("checkpoints"), {"default": "flux1-dev-fp8.safetensors"}),
+                "unet_name": (["None"] + folder_paths.get_filename_list("unet"), {"default": "flux1-dev.safetensors"}),
+                "clip_name1": (["None"] + available_clips, {"default": "t5xxl_fp8_e4m3fn.safetensors"}),
+                "clip_name2": (["None"] + available_clips, {"default": "clip_g.safetensors"}),
+                "clip_name3": (["None"] + available_clips, {"default": "clip_l.safetensors"}),
+                "clip_vision": (["None"] + folder_paths.get_filename_list("clip_vision"), {"default": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"}),
+                "control_net_name": (["None"] + folder_paths.get_filename_list("controlnet"), {"default": "Flux.1-dev-ControlNet-Union-Pro-fp8.safetensors"}),
+                "style_model_name": (["None"] + folder_paths.get_filename_list("style_models"), {"default": "flux1-redux-dev.safetensors"}),
+                "loras_name": (["None"] + folder_paths.get_filename_list("loras"), {"default": "add_detail.safetensors"}),
             }
         }
 

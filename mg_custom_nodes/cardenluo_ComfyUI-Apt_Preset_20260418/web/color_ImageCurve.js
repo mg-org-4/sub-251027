@@ -1816,6 +1816,7 @@ app.registerExtension({
                 const cropStateWidget = this.widgets?.find(w => w.name === "crop_state");
                 const cropWidthWidget = this.widgets?.find(w => w.name === "crop_width");
                 const cropHeightWidget = this.widgets?.find(w => w.name === "crop_height");
+                const cropByScaleWidget = this.widgets?.find(w => w.name === "crop_byScale");
                 const fillWidget = this.widgets?.find(w => w.name === "fill");
                 const marginWidget = this.widgets?.find(w => w.name === "margin");
 
@@ -1958,10 +1959,43 @@ app.registerExtension({
                 let dragInfo = null;
 
                 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+                const parseBool = (v, fallback = true) => {
+                    if (typeof v === "boolean") return v;
+                    if (typeof v === "string") {
+                        const s = v.trim().toLowerCase();
+                        if (s === "true") return true;
+                        if (s === "false") return false;
+                    }
+                    if (typeof v === "number") return v !== 0;
+                    return fallback;
+                };
+                const isCropByScaleEnabled = () => parseBool(cropByScaleWidget?.value, true);
                 const getCropDims = () => {
                     const cw = Math.max(1, parseInt(cropWidthWidget?.value ?? 512));
                     const ch = Math.max(1, parseInt(cropHeightWidget?.value ?? 512));
                     return { cw, ch };
+                };
+                const setCropDims = (w, h) => {
+                    const nextW = Math.max(1, parseInt(w ?? 1));
+                    const nextH = Math.max(1, parseInt(h ?? 1));
+                    if (cropWidthWidget) {
+                        cropWidthWidget.value = nextW;
+                        if (cropWidthWidget.inputEl) cropWidthWidget.inputEl.value = String(nextW);
+                    }
+                    if (cropHeightWidget) {
+                        cropHeightWidget.value = nextH;
+                        if (cropHeightWidget.inputEl) cropHeightWidget.inputEl.value = String(nextH);
+                    }
+                };
+                const ensureNoScaleCropDims = () => {
+                    const { cw, ch } = getCropDims();
+                    if (isCropByScaleEnabled()) return { cw, ch };
+                    const maxW = imageMeta.img_w ? Math.max(1, Math.floor(imageMeta.img_w)) : Number.MAX_SAFE_INTEGER;
+                    const maxH = imageMeta.img_h ? Math.max(1, Math.floor(imageMeta.img_h)) : Number.MAX_SAFE_INTEGER;
+                    const nextW = Math.max(1, Math.min(cw, maxW));
+                    const nextH = Math.max(1, Math.min(ch, maxH));
+                    if (nextW !== cw || nextH !== ch) setCropDims(nextW, nextH);
+                    return { cw: nextW, ch: nextH };
                 };
                 const parseState = () => {
                     const cx = Number.isFinite(+cropState.cx) ? +cropState.cx : 0.5;
@@ -1996,6 +2030,28 @@ app.registerExtension({
                 };
                 const getSourceRect = () => {
                     if (!imageMeta.img_w || !imageMeta.img_h) return null;
+                    if (!isCropByScaleEnabled()) {
+                        const { cw, ch } = ensureNoScaleCropDims();
+                        const oldCx = cropState.cx;
+                        const oldCy = cropState.cy;
+                        const oldZoom = cropState.zoom;
+                        cropState.zoom = 1.0;
+                        const srcW = Math.min(imageMeta.img_w, Math.max(1, cw));
+                        const srcH = Math.min(imageMeta.img_h, Math.max(1, ch));
+                        let cxPx = clamp(cropState.cx * imageMeta.img_w, 0, imageMeta.img_w);
+                        let cyPx = clamp(cropState.cy * imageMeta.img_h, 0, imageMeta.img_h);
+                        cxPx = clamp(cxPx, srcW * 0.5, imageMeta.img_w - srcW * 0.5);
+                        cyPx = clamp(cyPx, srcH * 0.5, imageMeta.img_h - srcH * 0.5);
+                        cropState.cx = cxPx / imageMeta.img_w;
+                        cropState.cy = cyPx / imageMeta.img_h;
+                        if (cropState.cx !== oldCx || cropState.cy !== oldCy || cropState.zoom !== oldZoom) syncState();
+                        return {
+                            x: cxPx - srcW * 0.5,
+                            y: cyPx - srcH * 0.5,
+                            w: srcW,
+                            h: srcH
+                        };
+                    }
                     const { cw, ch } = getCropDims();
                     const oldCx = cropState.cx;
                     const oldCy = cropState.cy;
@@ -2020,7 +2076,7 @@ app.registerExtension({
                 };
                 const initState = () => {
                     if (!imageMeta.img_w || !imageMeta.img_h) return;
-                    const z = fitZoom();
+                    const z = isCropByScaleEnabled() ? fitZoom() : 1.0;
                     cropState.cx = 0.5;
                     cropState.cy = 0.5;
                     cropState.zoom = z;
@@ -2190,6 +2246,7 @@ app.registerExtension({
 
                 canvas.addEventListener("wheel", (e) => {
                     if (!imageMeta.img_w || !imageMeta.img_h) return;
+                    if (!isCropByScaleEnabled()) return;
                     e.preventDefault();
                     const m = getMouse(e);
                     const imgPt = canvasToImage(m.x, m.y);
@@ -2225,24 +2282,39 @@ app.registerExtension({
                     const originalCallback = w.callback;
                     w.callback = function (value) {
                         if (originalCallback) originalCallback.apply(this, arguments);
-                        const maxZoom = getMaxZoom();
-                        // 当裁剪尺寸变化时，如果当前 zoom 超过了新的 maxZoom，需要调整
-                        cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                        if (isCropByScaleEnabled()) {
+                            const maxZoom = getMaxZoom();
+                            // 当裁剪尺寸变化时，如果当前 zoom 超过了新的 maxZoom，需要调整
+                            cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                        } else {
+                            ensureNoScaleCropDims();
+                            cropState.zoom = 1.0;
+                        }
                         if (!userAdjusted) initState();
                         syncState();
                         draw();
                     };
                     if (w.inputEl) {
                         w.inputEl.addEventListener("change", () => {
-                            const maxZoom = getMaxZoom();
-                            cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                            if (isCropByScaleEnabled()) {
+                                const maxZoom = getMaxZoom();
+                                cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                            } else {
+                                ensureNoScaleCropDims();
+                                cropState.zoom = 1.0;
+                            }
                             if (!userAdjusted) initState();
                             syncState();
                             draw();
                         });
                         w.inputEl.addEventListener("input", () => {
-                            const maxZoom = getMaxZoom();
-                            cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                            if (isCropByScaleEnabled()) {
+                                const maxZoom = getMaxZoom();
+                                cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                            } else {
+                                ensureNoScaleCropDims();
+                                cropState.zoom = 1.0;
+                            }
                             if (!userAdjusted) initState();
                             syncState();
                             draw();
@@ -2251,6 +2323,28 @@ app.registerExtension({
                 };
                 bindCropDim(cropWidthWidget);
                 bindCropDim(cropHeightWidget);
+                const bindCropByScale = (w) => {
+                    if (!w) return;
+                    const onModeChange = () => {
+                        if (!isCropByScaleEnabled()) {
+                            ensureNoScaleCropDims();
+                            cropState.zoom = 1.0;
+                        }
+                        if (!userAdjusted) initState();
+                        syncState();
+                        draw();
+                    };
+                    const originalCallback = w.callback;
+                    w.callback = function (value) {
+                        if (originalCallback) originalCallback.apply(this, arguments);
+                        onModeChange();
+                    };
+                    if (w.inputEl) {
+                        w.inputEl.addEventListener("change", onModeChange);
+                        w.inputEl.addEventListener("input", onModeChange);
+                    }
+                };
+                bindCropByScale(cropByScaleWidget);
 
                 let fillAutoTimer = null;
                 const triggerFillAutoPreview = () => {
@@ -2265,6 +2359,7 @@ app.registerExtension({
                     const originalCallback = w.callback;
                     w.callback = function (value) {
                         if (originalCallback) originalCallback.apply(this, arguments);
+                        if (!isCropByScaleEnabled()) ensureNoScaleCropDims();
                         if (!userAdjusted) initState();
                         syncState();
                         draw();
@@ -2272,12 +2367,14 @@ app.registerExtension({
                     };
                     if (w.inputEl) {
                         w.inputEl.addEventListener("change", () => {
+                            if (!isCropByScaleEnabled()) ensureNoScaleCropDims();
                             if (!userAdjusted) initState();
                             syncState();
                             draw();
                             triggerFillAutoPreview();
                         });
                         w.inputEl.addEventListener("input", () => {
+                            if (!isCropByScaleEnabled()) ensureNoScaleCropDims();
                             if (!userAdjusted) initState();
                             syncState();
                             draw();
@@ -2375,6 +2472,7 @@ app.registerExtension({
                 const cropStateWidget = this.widgets?.find(w => w.name === "crop_state");
                 const cropWidthWidget = this.widgets?.find(w => w.name === "crop_width");
                 const cropHeightWidget = this.widgets?.find(w => w.name === "crop_height");
+                const cropByScaleWidget = this.widgets?.find(w => w.name === "crop_byScale");
                 const cropImgBjWidget = this.widgets?.find(w => w.name === "crop_img_bj");
 
                 let cropState = { cx: 0.5, cy: 0.5, zoom: 1.0 };
@@ -2517,10 +2615,47 @@ app.registerExtension({
                 let dragInfo = null;
 
                 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+                const parseBool = (v, fallback = true) => {
+                    if (typeof v === "boolean") return v;
+                    if (typeof v === "string") {
+                        const s = v.trim().toLowerCase();
+                        if (s === "true") return true;
+                        if (s === "false") return false;
+                    }
+                    if (typeof v === "number") return v !== 0;
+                    return fallback;
+                };
+                const isCropByScaleEnabled = () => parseBool(cropByScaleWidget?.value, true);
                 const getCropDims = () => {
                     const cw = Math.max(1, parseInt(cropWidthWidget?.value ?? 512));
                     const ch = Math.max(1, parseInt(cropHeightWidget?.value ?? 512));
                     return { cw, ch };
+                };
+                const setCropDims = (w, h) => {
+                    const nextW = Math.max(1, parseInt(w ?? 1));
+                    const nextH = Math.max(1, parseInt(h ?? 1));
+                    if (cropWidthWidget) {
+                        cropWidthWidget.value = nextW;
+                        if (cropWidthWidget.inputEl) cropWidthWidget.inputEl.value = String(nextW);
+                    }
+                    if (cropHeightWidget) {
+                        cropHeightWidget.value = nextH;
+                        if (cropHeightWidget.inputEl) cropHeightWidget.inputEl.value = String(nextH);
+                    }
+                };
+                const ensureMaskContainDims = () => {
+                    const { cw, ch } = getCropDims();
+                    if (isCropByScaleEnabled()) {
+                        return { cw, ch };
+                    }
+                    const minW = (maskMeta.mask_w && maskMeta.mask_h) ? Math.max(1, Math.ceil(maskMeta.mask_w)) : 1;
+                    const minH = (maskMeta.mask_w && maskMeta.mask_h) ? Math.max(1, Math.ceil(maskMeta.mask_h)) : 1;
+                    const maxW = imageMeta.img_w ? Math.max(1, Math.floor(imageMeta.img_w)) : Number.MAX_SAFE_INTEGER;
+                    const maxH = imageMeta.img_h ? Math.max(1, Math.floor(imageMeta.img_h)) : Number.MAX_SAFE_INTEGER;
+                    const nextW = Math.max(minW, Math.min(cw, maxW));
+                    const nextH = Math.max(minH, Math.min(ch, maxH));
+                    if (nextW !== cw || nextH !== ch) setCropDims(nextW, nextH);
+                    return { cw: nextW, ch: nextH };
                 };
                 const parseState = () => {
                     const cx = Number.isFinite(+cropState.cx) ? +cropState.cx : 0.5;
@@ -2591,6 +2726,48 @@ app.registerExtension({
                 // 获取源矩形（基于当前zoom和中心点）
                 const getSourceRect = () => {
                     if (!imageMeta.img_w || !imageMeta.img_h) return null;
+                    if (!isCropByScaleEnabled()) {
+                        const { cw, ch } = ensureMaskContainDims();
+                        const oldCx = cropState.cx;
+                        const oldCy = cropState.cy;
+                        const oldZoom = cropState.zoom;
+                        cropState.zoom = 1.0;
+                        const srcW = Math.min(imageMeta.img_w, Math.max(1, cw));
+                        const srcH = Math.min(imageMeta.img_h, Math.max(1, ch));
+                        let cxPx = clamp(cropState.cx * imageMeta.img_w, 0, imageMeta.img_w);
+                        let cyPx = clamp(cropState.cy * imageMeta.img_h, 0, imageMeta.img_h);
+                        if (maskMeta.mask_w > 0 && maskMeta.mask_h > 0) {
+                            const maskLeft = maskMeta.mask_x;
+                            const maskRight = maskMeta.mask_x + maskMeta.mask_w;
+                            const maskTop = maskMeta.mask_y;
+                            const maskBottom = maskMeta.mask_y + maskMeta.mask_h;
+                            const imgMinCx = srcW * 0.5;
+                            const imgMaxCx = imageMeta.img_w - srcW * 0.5;
+                            const imgMinCy = srcH * 0.5;
+                            const imgMaxCy = imageMeta.img_h - srcH * 0.5;
+                            const maskMinCx = maskRight - srcW * 0.5;
+                            const maskMaxCx = maskLeft + srcW * 0.5;
+                            const maskMinCy = maskBottom - srcH * 0.5;
+                            const maskMaxCy = maskTop + srcH * 0.5;
+                            const finalMinCx = Math.max(imgMinCx, maskMinCx);
+                            const finalMaxCx = Math.min(imgMaxCx, maskMaxCx);
+                            const finalMinCy = Math.max(imgMinCy, maskMinCy);
+                            const finalMaxCy = Math.min(imgMaxCy, maskMaxCy);
+                            if (finalMinCx <= finalMaxCx) cxPx = clamp(cxPx, finalMinCx, finalMaxCx);
+                            if (finalMinCy <= finalMaxCy) cyPx = clamp(cyPx, finalMinCy, finalMaxCy);
+                        }
+                        cxPx = clamp(cxPx, srcW * 0.5, imageMeta.img_w - srcW * 0.5);
+                        cyPx = clamp(cyPx, srcH * 0.5, imageMeta.img_h - srcH * 0.5);
+                        cropState.cx = cxPx / imageMeta.img_w;
+                        cropState.cy = cyPx / imageMeta.img_h;
+                        if (cropState.cx !== oldCx || cropState.cy !== oldCy || cropState.zoom !== oldZoom) syncState();
+                        return {
+                            x: cxPx - srcW * 0.5,
+                            y: cyPx - srcH * 0.5,
+                            w: srcW,
+                            h: srcH
+                        };
+                    }
                     const { cw, ch } = getCropDims();
                     const oldCx = cropState.cx;
                     const oldCy = cropState.cy;
@@ -2703,6 +2880,15 @@ app.registerExtension({
                 
                 const initState = () => {
                     if (!imageMeta.img_w || !imageMeta.img_h) return;
+                    if (!isCropByScaleEnabled()) {
+                        setCropDims(Math.floor(imageMeta.img_w), Math.floor(imageMeta.img_h));
+                        ensureMaskContainDims();
+                        cropState.zoom = 1.0;
+                        cropState.cx = 0.5;
+                        cropState.cy = 0.5;
+                        syncState();
+                        return;
+                    }
                     const maxZoom = getMaxZoom();
                     // 初始状态：zoom = maxZoom（红框刚好包裹遮罩，最小状态）
                     cropState.zoom = maxZoom;
@@ -2894,6 +3080,7 @@ app.registerExtension({
 
                 canvas.addEventListener("wheel", (e) => {
                     if (!imageMeta.img_w || !imageMeta.img_h) return;
+                    if (!isCropByScaleEnabled()) return;
                     e.preventDefault();
                     const m = getMouse(e);
                     const imgPt = canvasToImage(m.x, m.y);
@@ -2965,23 +3152,38 @@ app.registerExtension({
                     const originalCallback = w.callback;
                     w.callback = function (value) {
                         if (originalCallback) originalCallback.apply(this, arguments);
-                        const maxZoom = getMaxZoom();
-                        cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                        if (isCropByScaleEnabled()) {
+                            const maxZoom = getMaxZoom();
+                            cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                        } else {
+                            ensureMaskContainDims();
+                            cropState.zoom = 1.0;
+                        }
                         if (!userAdjusted) initState();
                         syncState();
                         draw();
                     };
                     if (w.inputEl) {
                         w.inputEl.addEventListener("change", () => {
-                            const maxZoom = getMaxZoom();
-                            cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                            if (isCropByScaleEnabled()) {
+                                const maxZoom = getMaxZoom();
+                                cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                            } else {
+                                ensureMaskContainDims();
+                                cropState.zoom = 1.0;
+                            }
                             if (!userAdjusted) initState();
                             syncState();
                             draw();
                         });
                         w.inputEl.addEventListener("input", () => {
-                            const maxZoom = getMaxZoom();
-                            cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                            if (isCropByScaleEnabled()) {
+                                const maxZoom = getMaxZoom();
+                                cropState.zoom = Math.min(cropState.zoom, maxZoom);
+                            } else {
+                                ensureMaskContainDims();
+                                cropState.zoom = 1.0;
+                            }
                             if (!userAdjusted) initState();
                             syncState();
                             draw();
@@ -2990,6 +3192,29 @@ app.registerExtension({
                 };
                 bindCropDim(cropWidthWidget);
                 bindCropDim(cropHeightWidget);
+                const bindCropByScale = (w) => {
+                    if (!w) return;
+                    const onModeChange = () => {
+                        if (!isCropByScaleEnabled()) {
+                            userAdjusted = false;
+                            initState();
+                        } else {
+                            if (!userAdjusted) initState();
+                        }
+                        syncState();
+                        draw();
+                    };
+                    const originalCallback = w.callback;
+                    w.callback = function (value) {
+                        if (originalCallback) originalCallback.apply(this, arguments);
+                        onModeChange();
+                    };
+                    if (w.inputEl) {
+                        w.inputEl.addEventListener("change", onModeChange);
+                        w.inputEl.addEventListener("input", onModeChange);
+                    }
+                };
+                bindCropByScale(cropByScaleWidget);
 
                 let fillAutoTimer = null;
                 const triggerFillAutoPreview = () => {

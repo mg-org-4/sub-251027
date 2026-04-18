@@ -921,6 +921,37 @@ class type_ImageAlphaSplit:
 
         return (output_images, output_masks)
 
+class type_SubConvert:
+    CATEGORY = "Apt_Preset/data"
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {},
+            "optional": {
+                "int_in": ("INT", {"forceInput": True}),
+                "float_in": ("FLOAT", {"forceInput": True}),
+                "text_in": ("STRING", {"forceInput": True}),
+            }
+        }
+
+    RETURN_TYPES = ("INT", "FLOAT", "STRING")
+    RETURN_NAMES = ("int", "float", "text")
+    FUNCTION = "convert"
+
+    def convert(self, int_in=None, float_in=None, text_in=None):
+        if int_in is not None:
+            return (int_in, float(int_in), str(int_in))
+        elif float_in is not None:
+            return (int(float_in), float_in, str(float_in))
+        elif text_in is not None:
+            try:
+                f = float(text_in)
+                return (int(f), f, text_in)
+            except:
+                return (0, 0.0, text_in)
+        else:
+            return (0, 0.0, "")
 
 
 

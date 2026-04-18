@@ -1,0 +1,76 @@
+name: Create Stable Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*" # Se déclenche sur les tags comme v1.0.0, v0.2.1, etc.
+
+permissions:
+  contents: write
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Create Archive
+        # Réutilisation de la logique d'exclusion du ps1
+        run: |
+          rm -f .mjr_channel .majoor_channel .mjr_release_channel
+          zip -r ComfyUI-Majoor-AssetsManager_release.zip . \
+          -x "*.git/*" \
+          -x ".github/*" \
+          -x ".claude/*" \
+          -x "*/__pycache__/*" \
+          -x "node_modules/*" \
+          -x "*/.pytest_cache/*" \
+          -x "tests/*" \
+          -x "scripts/make_release_zip.ps1" \
+          -x "*.zip"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v3 # upgraded from v1; TODO: pin to commit SHA
+        with:
+          files: ComfyUI-Majoor-AssetsManager_release.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Intégration de votre workflow existant pour publier aussi sur le registre Comfy
+  publish-registry:
+    needs: create-release
+    name: Publish to Comfy Registry
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # Condition extraite de votre fichier publish.yml original
+    if: ${{ github.repository_owner == 'MajoorWaldi' }} 
+    steps:
+      - name: Check out code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: false
+      - name: Publish Custom Node
+        uses: Comfy-Org/publish-node-action@v1 # 1.0.1
+        with:
+          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}

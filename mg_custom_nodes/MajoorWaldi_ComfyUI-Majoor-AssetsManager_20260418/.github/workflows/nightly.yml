@@ -1,0 +1,52 @@
+name: Nightly Build
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - nightly
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/**'
+      - 'tests/**'
+
+permissions: {}
+
+jobs:
+  build-nightly:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create Archive
+        # Nous reproduisons ici la logique d'exclusion de votre script make_release_zip.ps1
+        run: |
+          echo "nightly" > .mjr_channel
+          zip -r ComfyUI-Majoor-AssetsManager_nightly.zip . \
+          -x "*.git/*" \
+          -x ".github/*" \
+          -x ".claude/*" \
+          -x "*/__pycache__/*" \
+          -x "node_modules/*" \
+          -x "*/.pytest_cache/*" \
+          -x "tests/*" \
+          -x "scripts/make_release_zip.ps1" \
+          -x "coverage_*.json" \
+          -x "audit_findings.md" \
+          -x ".vscode/*" \
+          -x "*.zip"
+
+      - name: Update Nightly Release
+        uses: softprops/action-gh-release@v3 # TODO: pin to commit SHA for supply-chain safety
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: nightly
+          name: "Nightly Build (Development)"
+          prerelease: true
+          overwrite_files: true
+          files: |
+            ./ComfyUI-Majoor-AssetsManager_nightly.zip

@@ -391,8 +391,9 @@ waitForApp((app) => {
         }
 
         // 为不同的按钮使用不同的ID，避免冲突（必须在使用前声明）
-        let promptBoxRandomID = ""
-        let loraStackRandomID = ""
+        // 修复Bug：初始化时直接生成唯一UUID，防止被全局窗口(空ID)广播的消息意外覆盖
+        let promptBoxRandomID = generateUUID();
+        let loraStackRandomID = generateUUID();
 
         // 监听lora数据变化，通知UI窗口同步
         if (nodeData.name === "WeiLinPromptUI" || nodeData.name === "WeiLinPromptUIOnlyLoraStack") {
@@ -495,6 +496,7 @@ waitForApp((app) => {
 
         // console.log(this)
 
+        // 修改的是这部分
         if (nodeData.name === "WeiLinPromptUI" ||
           nodeData.name === "WeiLinPromptUIWithoutLora") {
           globalNodeList.push({ seed: thisNodeSeed, text: nodeTextAreaList[0].value, id: this.id })
@@ -503,10 +505,12 @@ waitForApp((app) => {
 
           textarea.addEventListener('input', (event) => {
             const newValue = event.target.value;
-            updateNodeTextBySeed(newValue);
+            // 修复Bug：补充缺失的 thisNodeSeed 参数
+            updateNodeTextBySeed(thisNodeSeed, newValue);
             window.parent.postMessage({ type: 'weilin_prompt_ui_update_node_list_info', nodeList: globalNodeList }, '*')
           });
         }
+
 
         // 监听节点ID
         let currentThisId = this.id

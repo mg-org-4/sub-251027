@@ -181,10 +181,72 @@ class RunConfig:
 
 
 @dataclass
+class WarmupConfig:
+    enabled: bool = True
+    prompt: str = ("A cinematic drone shot over coastal cliffs at sunrise, "
+                   "golden light, gentle ocean waves, ultra detailed")
+    timeout_seconds: int = 2400
+
+
+@dataclass
+class GpuPoolConfig:
+    num_workers: int | None = None
+    enable_audio_reencode: bool = True
+    conditioning_num_frames: int = 9
+    conditioning_end_offset: int = 0
+
+
+@dataclass
+class PromptEnhancerConfig:
+    enabled: bool = False
+    provider: Literal["cerebras", "groq"] = "cerebras"
+    model: str = "gpt-oss-120b"
+    timeout_ms: int = 20000
+    system_prompt_dir: str | None = None
+
+
+@dataclass
+class PromptSafetyConfig:
+    enabled: bool = False
+    classifier_path: str | None = None
+
+
+@dataclass
+class StreamingConfig:
+    session_timeout_seconds: int = 300
+    generation_segment_cap: int = 6
+    stream_mode: Literal["av_fmp4", "legacy_jpeg"] = "av_fmp4"
+    warmup: WarmupConfig = field(default_factory=WarmupConfig)
+    pool: GpuPoolConfig = field(default_factory=GpuPoolConfig)
+    prompt: PromptEnhancerConfig = field(default_factory=PromptEnhancerConfig)
+    safety: PromptSafetyConfig = field(default_factory=PromptSafetyConfig)
+
+
+@dataclass
 class ServeConfig:
+    """Typed serve config loaded from ``fastvideo serve --config``.
+
+    ``default_request`` is a full :class:`GenerationRequest` — the same type
+    clients POST to ``/v1/videos``. At request time the server merges it into
+    the incoming body as the operator-pinned baseline.
+
+    Important nuance: only fields the operator **explicitly wrote** in the
+    serve YAML/JSON count as defaults. Although the in-memory object is
+    fully populated (schema defaults fill every unset field), the merge
+    walks ``_fastvideo_explicit_paths`` — populated during parse — so
+    unset fields are *not* forced onto requests. Per-request precedence:
+
+        body (client-explicit) > default_request (operator-explicit)
+                               > hardcoded fallback (e.g. ``fps=24``)
+
+    See :func:`fastvideo.api.compat.explicit_request_updates` for the
+    projection and ``entrypoints/openai/video_api.py::_build_generation_kwargs``
+    for the merge.
+    """
     generator: GeneratorConfig
     server: ServerConfig = field(default_factory=ServerConfig)
     default_request: GenerationRequest = field(default_factory=GenerationRequest)
+    streaming: StreamingConfig | None = None
 
 
 __all__ = [
@@ -195,16 +257,21 @@ __all__ = [
     "GenerationPlan",
     "GenerationRequest",
     "GeneratorConfig",
+    "GpuPoolConfig",
     "InputConfig",
     "OffloadConfig",
     "OutputConfig",
     "ParallelismConfig",
     "PipelineSelection",
     "PlannedStage",
+    "PromptEnhancerConfig",
+    "PromptSafetyConfig",
     "QuantizationConfig",
     "RequestRuntimeConfig",
     "RunConfig",
     "SamplingConfig",
     "ServeConfig",
     "ServerConfig",
+    "StreamingConfig",
+    "WarmupConfig",
 ]

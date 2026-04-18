@@ -74,7 +74,7 @@ class UNetLoaderINTW8A8:
             ]
         elif model_type == "ernie":
             Int8TensorwiseOps.excluded_names = [
-                'time', 'x_embedder', 'adaLN', 'final' 'text_proj', 'norm', 'layers.0.', 'layers.35',
+                'time', 'x_embedder', 'adaLN', 'final', 'text_proj', 'norm', 'layers.0.', 'layers.35',
             ]
         elif model_type == "anima":
             Int8TensorwiseOps.excluded_names = [
@@ -82,7 +82,7 @@ class UNetLoaderINTW8A8:
             ]
         elif model_type == "wan":
             Int8TensorwiseOps.excluded_names = [
-                'patch_embedding', 'text_embedding', 'time_embedding', 'time_projection' 'head',
+                'patch_embedding', 'text_embedding', 'time_embedding', 'time_projection', 'head',
                 'img_emb',
             ]
         elif model_type == "ltx2":

@@ -17,7 +17,24 @@ def srgb_to_linear(img):
 
 
 def linear_to_srgb(img):
-    """Apply sRGB gamma — convert scene-linear to display-referred."""
+    """Apply sRGB gamma — convert scene-linear to display-referred.
+
+    Routes through torch on CUDA when available; the numpy path spends ~4 s
+    on a 51 MP image because np.power runs serial on CPU. GPU path is ~20x
+    faster. Falls back to numpy when torch/CUDA isn't usable so this stays
+    safe to call from any test harness.
+    """
+    try:
+        import torch
+        if torch.cuda.is_available():
+            t = torch.from_numpy(np.ascontiguousarray(img, dtype=np.float32)).cuda()
+            t = torch.clamp(t, 0.0, 1.0)
+            lo = t * 12.92
+            hi = 1.055 * torch.pow(t, 1.0 / 2.4) - 0.055
+            out = torch.where(t <= 0.0031308, lo, hi)
+            return out.cpu().numpy().astype(np.float32)
+    except Exception:
+        pass
     img = np.clip(img, 0.0, 1.0).astype(np.float32)
     return np.where(
         img <= 0.0031308,

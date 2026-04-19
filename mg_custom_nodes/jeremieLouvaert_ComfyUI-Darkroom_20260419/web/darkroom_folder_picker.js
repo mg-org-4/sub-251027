@@ -56,6 +56,30 @@ const CSS = `
     text-overflow: ellipsis;
 }
 .drfp-quick:hover { background: #2a2a2a; color: #fff; }
+.drfp-pin-row {
+    display: flex; align-items: center;
+    padding: 7px 8px 7px 16px;
+    cursor: pointer; color: #ccc;
+    white-space: nowrap;
+}
+.drfp-pin-row:hover { background: #2a2a2a; color: #fff; }
+.drfp-pin-name {
+    flex: 1;
+    overflow: hidden; text-overflow: ellipsis;
+}
+.drfp-pin-remove {
+    width: 20px; height: 20px; margin-left: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: #666; font-size: 14px;
+    border-radius: 3px;
+    visibility: hidden;
+}
+.drfp-pin-row:hover .drfp-pin-remove { visibility: visible; }
+.drfp-pin-remove:hover { background: #3a1818; color: #e09090; }
+.drfp-pin-empty {
+    padding: 6px 16px 10px;
+    color: #555; font-size: 11px; font-style: italic;
+}
 .drfp-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .drfp-pathbar {
     padding: 11px 16px;
@@ -157,6 +181,34 @@ async function createDir(path) {
     return data;
 }
 
+async function fetchPins() {
+    try {
+        const resp = await fetch("/darkroom/pins");
+        if (!resp.ok) return [];
+        const data = await resp.json();
+        return Array.isArray(data?.pins) ? data.pins : [];
+    } catch (_e) {
+        return [];
+    }
+}
+
+async function addPin(path, name) {
+    const resp = await fetch("/darkroom/pins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, name }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    return Array.isArray(data?.pins) ? data.pins : [];
+}
+
+async function removePin(path) {
+    const params = new URLSearchParams({ path });
+    const resp = await fetch(`/darkroom/pins?${params.toString()}`, { method: "DELETE" });
+    const data = await resp.json().catch(() => ({}));
+    return Array.isArray(data?.pins) ? data.pins : [];
+}
+
 /**
  * Open the path picker modal.
  *
@@ -191,12 +243,15 @@ function openPathPicker(options, onSelect) {
                 <div class="drfp-sidebar">
                     <div class="drfp-sidebar-section">Quick access</div>
                     <div data-slot="quick"></div>
+                    <div class="drfp-sidebar-section">Pinned</div>
+                    <div data-slot="pins"></div>
                 </div>
                 <div class="drfp-main">
                     <div class="drfp-pathbar" data-slot="path">(no path)</div>
                     <div class="drfp-error" data-slot="error" style="display:none;"></div>
                     <div class="drfp-toolbar">
                         <button class="drfp-btn" data-act="up">Up</button>
+                        <button class="drfp-btn" data-act="pin" data-slot="pin" title="Pin current folder to the sidebar">★ Pin folder</button>
                         <button class="drfp-btn" data-act="newfolder" data-slot="newfolder">+ New folder</button>
                     </div>
                     <div class="drfp-list" data-slot="list"></div>
@@ -215,6 +270,7 @@ function openPathPicker(options, onSelect) {
         viewParent: "",
         selectedPath: "",
         selectionIsFile: false,
+        pins: [],
     };
 
     const $ = (sel) => overlay.querySelector(sel);
@@ -280,6 +336,63 @@ function openPathPicker(options, onSelect) {
             el.appendChild(item);
         }
         el.dataset.rendered = "1";
+    }
+
+    function renderPins(pins) {
+        const el = $("[data-slot=pins]");
+        el.innerHTML = "";
+        if (!pins || !pins.length) {
+            const empty = document.createElement("div");
+            empty.className = "drfp-pin-empty";
+            empty.textContent = "(none yet — use ★ Pin folder)";
+            el.appendChild(empty);
+            refreshPinBtn();
+            return;
+        }
+        for (const p of pins) {
+            const row = document.createElement("div");
+            row.className = "drfp-pin-row";
+            row.title = p.path;
+
+            const label = document.createElement("div");
+            label.className = "drfp-pin-name";
+            label.textContent = p.name || p.path;
+            label.addEventListener("click", () => navigate(p.path));
+
+            const rm = document.createElement("div");
+            rm.className = "drfp-pin-remove";
+            rm.textContent = "\u00D7";
+            rm.title = "Unpin";
+            rm.addEventListener("click", async (ev) => {
+                ev.stopPropagation();
+                try {
+                    const pins2 = await removePin(p.path);
+                    state.pins = pins2;
+                    renderPins(pins2);
+                } catch (e) {
+                    showError(`Unpin failed: ${e.message || e}`);
+                }
+            });
+
+            row.appendChild(label);
+            row.appendChild(rm);
+            el.appendChild(row);
+        }
+        refreshPinBtn();
+    }
+
+    function refreshPinBtn() {
+        const btn = $("[data-slot=pin]");
+        if (!btn) return;
+        if (!state.viewPath) {
+            btn.disabled = true;
+            btn.textContent = "\u2605 Pin folder";
+            return;
+        }
+        const current = String(state.viewPath).toLowerCase();
+        const already = (state.pins || []).some(p => String(p.path).toLowerCase() === current);
+        btn.disabled = false;
+        btn.textContent = already ? "\u2605 Unpin" : "\u2605 Pin folder";
     }
 
     function makeEntry(item, isFile) {
@@ -351,6 +464,7 @@ function openPathPicker(options, onSelect) {
             renderList(data.subdirs, data.files);
             updatePathbar();
             refreshSubmitState();
+            refreshPinBtn();
             if (data.error) showError(data.error);
         } catch (e) {
             showError(String(e.message || e));
@@ -383,9 +497,28 @@ function openPathPicker(options, onSelect) {
             } catch (err) {
                 showError(String(err.message || err));
             }
+        } else if (act === "pin") {
+            if (!state.viewPath) return;
+            const current = String(state.viewPath).toLowerCase();
+            const already = (state.pins || []).some(p => String(p.path).toLowerCase() === current);
+            try {
+                const updated = already
+                    ? await removePin(state.viewPath)
+                    : await addPin(state.viewPath, state.viewPath.split("/").filter(Boolean).pop() || state.viewPath);
+                state.pins = updated;
+                renderPins(updated);
+            } catch (err) {
+                showError(String(err.message || err));
+            }
         }
     });
 
+    // Initial pin-list fetch runs in parallel with the first navigate call so
+    // the sidebar populates without extra latency.
+    fetchPins().then((pins) => {
+        state.pins = pins;
+        renderPins(pins);
+    });
     navigate(initialPath || "");
 }
 
@@ -452,8 +585,81 @@ app.registerExtension({
                     title: "Choose camera RAW file",
                     selectLabel: "Select this file",
                 });
+                wireBrandLookDropdowns(this);
+                return r;
+            };
+
+            const origConfigure = nodeType.prototype.onConfigure;
+            nodeType.prototype.onConfigure = function (info) {
+                const r = origConfigure?.apply(this, arguments);
+                // Workflow deserialization restores widget values after
+                // onNodeCreated, so re-sync the look dropdown once values land.
+                setTimeout(() => syncLooksForBrand(this), 0);
                 return r;
             };
         }
     },
 });
+
+
+const LOOK_PLACEHOLDER = "(not used)";
+
+function wireBrandLookDropdowns(node) {
+    const brandWidget = node.widgets?.find(w => w.name === "camera_brand");
+    const lookWidget  = node.widgets?.find(w => w.name === "camera_look");
+    if (!brandWidget || !lookWidget) return;
+
+    // Remember the full static union ComfyUI validates against, so we can
+    // always restore a valid value if the user switches away and back.
+    if (!lookWidget._fullOptionValues) {
+        lookWidget._fullOptionValues = [...(lookWidget.options?.values || [])];
+    }
+
+    const origCb = brandWidget.callback;
+    brandWidget.callback = function (value, ...rest) {
+        const result = origCb?.apply(this, [value, ...rest]);
+        syncLooksForBrand(node);
+        return result;
+    };
+
+    // Initial populate for a freshly-dropped node.
+    syncLooksForBrand(node);
+}
+
+async function syncLooksForBrand(node) {
+    const brandWidget = node.widgets?.find(w => w.name === "camera_brand");
+    const lookWidget  = node.widgets?.find(w => w.name === "camera_look");
+    if (!brandWidget || !lookWidget) return;
+
+    const brand = String(brandWidget.value || "Adobe Standard");
+    const full  = lookWidget._fullOptionValues || [...(lookWidget.options?.values || [])];
+
+    if (brand === "Adobe Standard") {
+        // Variant is irrelevant; show a placeholder so it's obvious.
+        lookWidget.options.values = [LOOK_PLACEHOLDER];
+        lookWidget.value = LOOK_PLACEHOLDER;
+        node.setDirtyCanvas(true, true);
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/darkroom/camera_looks?brand=${encodeURIComponent(brand)}`);
+        const data = await resp.json();
+        let looks = Array.isArray(data?.looks) ? data.looks : [];
+        if (!looks.length) looks = [LOOK_PLACEHOLDER];
+
+        // ComfyUI validates widget values against INPUT_TYPES, so every
+        // brand-specific look must exist in the static union we registered.
+        const valid = new Set(full);
+        looks = looks.filter(l => valid.has(l) || l === LOOK_PLACEHOLDER);
+        if (!looks.length) looks = [LOOK_PLACEHOLDER];
+
+        lookWidget.options.values = looks;
+        if (!looks.includes(lookWidget.value)) {
+            lookWidget.value = looks[0];
+        }
+        node.setDirtyCanvas(true, true);
+    } catch (e) {
+        console.warn("[Darkroom] camera_looks fetch failed:", e);
+    }
+}

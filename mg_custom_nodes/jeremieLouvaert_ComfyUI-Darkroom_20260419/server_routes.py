@@ -4,6 +4,7 @@ Registers aiohttp endpoints on ComfyUI's PromptServer for the folder picker
 used by LUT Export.
 """
 
+import json
 import os
 import string
 
@@ -19,6 +20,57 @@ except ImportError:
 
 def _norm(path):
     return path.replace("\\", "/") if path else path
+
+
+# --- Pinned folders (cross-node quick-access) -----------------------------
+#
+# User-added favourites, shared by every node that opens the path picker.
+# Lives under ComfyUI's user/ dir so it survives ComfyUI-Darkroom updates
+# and follows the user's settings-follow-dotfiles workflow if any.
+
+_PINS_REL_PATH = os.path.join("default", "darkroom", "pinned_folders.json")
+
+
+def _pins_file():
+    if not _HAS_FOLDER_PATHS:
+        return None
+    try:
+        return os.path.join(folder_paths.get_user_directory(), _PINS_REL_PATH)
+    except Exception:
+        return None
+
+
+def _load_pins():
+    p = _pins_file()
+    if not p or not os.path.isfile(p):
+        return []
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return []
+    if not isinstance(data, list):
+        return []
+    out = []
+    for item in data:
+        if isinstance(item, dict) and item.get("path"):
+            path = _norm(str(item["path"]))
+            name = str(item.get("name") or os.path.basename(path.rstrip("/")) or path)
+            out.append({"name": name, "path": path})
+        elif isinstance(item, str) and item:
+            path = _norm(item)
+            out.append({"name": os.path.basename(path.rstrip("/")) or path, "path": path})
+    return out
+
+
+def _save_pins(pins):
+    p = _pins_file()
+    if not p:
+        return False
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(pins, f, indent=2)
+    return True
 
 
 def _get_roots():
@@ -174,4 +226,58 @@ async def darkroom_mkdir(request):
     return web.json_response({"ok": True, "path": path})
 
 
-print("[ComfyUI-Darkroom] registered HTTP routes: /darkroom/list_dir, /darkroom/mkdir")
+@PromptServer.instance.routes.get("/darkroom/pins")
+async def darkroom_pins_get(_request):
+    return web.json_response({"ok": True, "pins": _load_pins()})
+
+
+@PromptServer.instance.routes.post("/darkroom/pins")
+async def darkroom_pins_add(request):
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "Invalid JSON body"}, status=400)
+
+    raw_path = (data.get("path") or "").strip()
+    if not raw_path:
+        return web.json_response({"ok": False, "error": "Missing path"}, status=400)
+    path = _norm(raw_path)
+    if not os.path.isdir(path):
+        return web.json_response({"ok": False, "error": "Path is not a directory"}, status=400)
+
+    name = (data.get("name") or os.path.basename(path.rstrip("/")) or path).strip()
+    pins = _load_pins()
+    if any(p["path"].lower() == path.lower() for p in pins):
+        return web.json_response({"ok": True, "pins": pins, "duplicate": True})
+    pins.append({"name": name, "path": path})
+    _save_pins(pins)
+    return web.json_response({"ok": True, "pins": pins})
+
+
+@PromptServer.instance.routes.delete("/darkroom/pins")
+async def darkroom_pins_remove(request):
+    raw_path = (request.query.get("path") or "").strip()
+    if not raw_path:
+        return web.json_response({"ok": False, "error": "Missing path"}, status=400)
+    path = _norm(raw_path).lower()
+    pins = _load_pins()
+    new_pins = [p for p in pins if p["path"].lower() != path]
+    _save_pins(new_pins)
+    return web.json_response({"ok": True, "pins": new_pins})
+
+
+@PromptServer.instance.routes.get("/darkroom/camera_looks")
+async def darkroom_camera_looks(request):
+    """Return the prettified look names for one brand, used by the RAW Load
+    node's frontend to narrow the camera_look combo after the brand changes."""
+    brand = (request.query.get("brand") or "").strip()
+    try:
+        from .utils.dcp import list_looks_for_brand
+        looks = list_looks_for_brand(brand)
+    except Exception as e:
+        return web.json_response({"ok": False, "error": f"{type(e).__name__}: {e}"}, status=500)
+    return web.json_response({"ok": True, "brand": brand, "looks": looks})
+
+
+print("[ComfyUI-Darkroom] registered HTTP routes: /darkroom/list_dir, /darkroom/mkdir, "
+      "/darkroom/camera_looks, /darkroom/pins (GET/POST/DELETE)")

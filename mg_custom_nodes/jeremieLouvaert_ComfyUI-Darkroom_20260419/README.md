@@ -55,6 +55,27 @@ The most complete color toolset in the ComfyUI ecosystem. From physics-based fil
 | **Perspective Correct** | Keystone and trapezoid correction for architectural shots. |
 | **Lens Profile** | All-in-one lens correction — distortion + CA + vignette from 102 real lens models (Canon, Nikon, Sony, Zeiss, Leica, vintage). |
 
+### RAW Pipeline (2 nodes)
+
+| Node | Description |
+|------|-------------|
+| **RAW Load** | Decodes camera RAW files (.cr3, .nef, .arw, .raf, .dng, .rw2, .orf, .pef, .x3f, .iiq, and more) via rawpy/LibRaw. Exposes demosaic algorithm, white balance, highlight mode, output colorspace, linear-scene vs sRGB-display output, and a **Camera Look** profile selector (see below). Outputs an IMAGE and a `RAW_METADATA` sidecar. |
+| **RAW Metadata Split** | Splits `RAW_METADATA` into 15 typed primitives: camera make/model, lens make/model, ISO, aperture, shutter, focal length, datetime, sensor type, resolution, Fuji film sim, and more. Wire any primitive directly into a text node or downstream tool. |
+
+#### Camera Look Profiles — `ComfyUI/models/camera_profiles/`
+
+RAW Load can apply Adobe `.dcp` profiles — per-body color calibration (`Adobe Standard`) or creative looks (`Camera Standard`, `Camera Landscape`, Fuji film sims, etc.). The `camera_look` dropdown on the node is a union of every `.dcp` found across these locations, in priority order:
+
+1. **`ComfyUI/models/camera_profiles/<Make Model>/`** — drop user-installed packs here. Respects `extra_model_paths.yaml`. Example: `ComfyUI/models/camera_profiles/Fujifilm X-T5/Fujifilm X-T5 Camera VELVIA.dcp`.
+2. **`ComfyUI-Darkroom/data/dcp_looks/`** — reserved for profiles bundled with the pack.
+3. **Adobe install paths** (auto-discovered if Camera Raw / Lightroom is installed on the same machine): `C:/ProgramData/Adobe/CameraRaw/CameraProfiles/Camera/` and the Lightroom Classic resources equivalent.
+
+**What ships with Adobe:** Camera Look profiles for Canon, Nikon, Sony, Panasonic, Olympus, Pentax, and others (Camera Standard / Landscape / Portrait / Faithful / Neutral / Monochrome, etc.). If you have Camera Raw or Lightroom installed, these work with zero setup.
+
+**Fujifilm users:** Adobe does not ship Fuji Camera Look profiles as .dcp files (Fuji's in-camera film sims are baked into the Camera Raw engine binary, not exposed on disk). To get Velvia / Provia / Astia / Classic Chrome / Eterna / Acros / Pro Neg / Classic Negative / Nostalgic Neg / Reala ACE as DCPs, install a third-party pack (Stuart Sowerby maintains a widely-used one) into `ComfyUI/models/camera_profiles/Fujifilm <body>/`.
+
+If the selected Camera Look isn't available for the detected body, the node silently falls back to Adobe Standard and logs a console warning.
+
 ### Pipeline — LUT & Color Management (7 nodes)
 
 | Node | Description |
@@ -111,7 +132,7 @@ git clone https://github.com/jeremieLouvaert/ComfyUI-Darkroom.git
 pip install -r ComfyUI-Darkroom/requirements.txt
 ```
 
-Restart ComfyUI. All 36 nodes appear under **AKURATE/Darkroom/** with subcategories: Film, Raw, Grading, Lens, Pipeline.
+Restart ComfyUI. All 38 nodes appear under **AKURATE/Darkroom/** with subcategories: Film, Raw, Grading, Lens, Pipeline, RAW.
 
 ### Dependencies
 

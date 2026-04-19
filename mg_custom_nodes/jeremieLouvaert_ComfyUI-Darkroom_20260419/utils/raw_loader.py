@@ -15,23 +15,39 @@ import os
 import numpy as np
 
 from .color import linear_to_srgb
+from .dcp import apply_dcp, resolve_profile
 from .grading import cubic_spline_curve
 
 
-# "Camera Raw-like default" tone curve, applied in linear light before sRGB encoding.
-# Approximates the combination of Adobe Standard profile's value lift (from the DCP
-# LookTable — which we don't yet parse) + Camera Raw's default Medium Contrast user
-# tone curve (applied globally on top of every profile). Lifts shadows and quarter-
-# tones aggressively, preserves midtone character, gentle on highlights.
+# Empirical transfer function that closes most of the gap between our
+# (rawpy + DCP) output and ACR's default sRGB export, fitted against a
+# GFX 50S reference (test.RAF / test.PNG, Adobe Standard profile, PV2012
+# Linear tone curve, default sharpening/NR/CA).
 #
-# Session 2 will replace this with a real DCP LookTable application (per-camera).
-# For now this is camera-agnostic and gives ~70% of the visual match to Camera Raw.
+# This is NOT "ACR's Medium Contrast curve" — ACR's default global tone curve
+# has been Linear since PV2012. The lift encoded here is whatever rawpy's
+# decode + our DCP apply + linear_to_srgb is missing relative to ACR's full
+# pipeline. Applied per-channel, camera-agnostic.
+#
+# Residual after this curve on the reference scene: ~0.028 MAE in sRGB at
+# 256 px long edge (i.e. with sharpening/NR/lateral-CA high-frequency effects
+# collapsed) — essentially invisible. Full-res MAE is ~0.047 but that is
+# dominated by ACR's default sharpening/NR/lateral-CA, which we deliberately
+# do not replicate (those are grading-layer decisions, not calibration).
+# See tools/diagnose_acr_match.py and tools/extract_acr_curve.py for the
+# methodology that led to this conclusion.
+#
+# Do not refit this curve on a single scene — it will overfit. A multi-scene
+# or colorchecker-based refit is the right next step if higher accuracy is
+# ever needed.
 CAMERA_RAW_DEFAULT_CURVE = [
     (0.000, 0.000),
-    (0.045, 0.110),   # deep shadow lift
-    (0.180, 0.340),   # middle gray pushed to ~34% (matches ACR display baseline)
-    (0.500, 0.680),   # strong midtone lift
-    (0.800, 0.920),   # gentle highlight rolloff
+    (0.040, 0.105),
+    (0.100, 0.335),
+    (0.200, 0.540),
+    (0.350, 0.790),
+    (0.500, 0.890),
+    (0.700, 0.955),
     (1.000, 1.000),
 ]
 
@@ -293,30 +309,19 @@ def extract_metadata(path, raw_handle):
     return meta
 
 
-def load_raw(path,
-             demosaic="Auto (best for sensor)",
-             colorspace="Linear sRGB",
-             white_balance="As shot",
-             highlight_mode="Rebuild (default)",
-             output_mode="sRGB display",
-             baseline_exposure=1.5,
-             half_size=False):
+def decode_raw_linear(path,
+                      demosaic="Auto (best for sensor)",
+                      colorspace="Linear sRGB",
+                      white_balance="As shot",
+                      highlight_mode="Rebuild (default)",
+                      half_size=False):
     """
-    Decode a RAW file to (image_float32_hwc in [0,1], metadata_dict).
+    Run the expensive rawpy/LibRaw stage and return (linear_f32_hwc, meta).
 
-    output_mode:
-        "sRGB display"    — linear decode + baseline_exposure (in stops) +
-                            sRGB gamma encoding + hard clip to [0,1]. Matches
-                            Camera Raw's default view on open (flatter than
-                            JPEG, same brightness). Drop-in compatible with
-                            every Darkroom grading node.
-        "Linear scene"    — pure linear light, no gamma, no exposure boost,
-                            no clip. For ACES pipelines. Mean around 0.05 for
-                            a typical outdoor shot — looks very dark in a raw
-                            preview and needs a tonemap to view.
-
-    baseline_exposure is applied in linear space, before sRGB encoding.
-    Ignored when output_mode is "Linear scene".
+    This is the heavy 11-second step on a 51 MP GFX 50S. It only depends on
+    parameters that affect the raw decode itself — the caller can cache it
+    per (file, mtime, decode-params) and replay apply_post_processing cheaply
+    when the user only changes look/exposure/output-mode.
     """
     if not _HAS_RAWPY:
         raise RuntimeError(
@@ -351,22 +356,102 @@ def load_raw(path,
         meta = extract_metadata(path, raw)
 
     img = np.ascontiguousarray(img_u16).astype(np.float32) / 65535.0
+    return img, meta
+
+
+def apply_post_processing(img_linear, meta,
+                          output_mode="sRGB display",
+                          baseline_exposure=0.0,
+                          camera_look="Adobe Standard"):
+    """
+    Apply DCP + tone curve + sRGB OETF to a cached linear rawpy output.
+
+    Cheap relative to decode_raw_linear (~7 s full-res vs 11 s for decode)
+    and the part that changes as the user tweaks camera_look / exposure /
+    output_mode. meta is mutated in place with dcp_profile / dcp_look fields.
+    """
+    # Don't mutate the cached linear input.
+    img = np.array(img_linear, copy=True)
+
+    # Baseline exposure applies in both modes. In sRGB display mode it's the
+    # first step before DCP + tone curve + OETF. In Linear scene mode it's
+    # the only optional lift — needed when the linear output feeds a LUT
+    # that assumes display-scaled linear input (e.g. abpy's Fuji sims expect
+    # midtones near 0.18-0.25; rawpy's pure linear decode puts them near
+    # 0.05, so +2 EV lands a daylight scene in range).
+    if abs(baseline_exposure) > 0.001:
+        img = img * (2.0 ** baseline_exposure)
 
     if output_mode == "sRGB display":
-        # 1. Baseline exposure in linear light (user override, 0 by default).
-        if abs(baseline_exposure) > 0.001:
-            img = img * (2.0 ** baseline_exposure)
-
-        # 2. Camera Raw-like default tone curve (lifts mids, approximates Adobe
-        #    Standard LookTable + Medium Contrast combo until session 2 DCP Apply).
+        # DCP profile stage.
+        #    camera_look == "Adobe Standard"  → body's color-calibration DCP
+        #                                        (HSM + LUT, no tone curve).
+        #    camera_look == anything else     → body's Camera Look DCP
+        #                                        (LUT + ProfileToneCurve, no HSM).
+        #    apply_dcp runs whatever stages are present on the chosen profile.
+        #    Silent fallback to Adobe Standard if the requested look isn't
+        #    installed for this body.
         img = np.clip(img, 0.0, 1.0)
-        img[..., 0] = cubic_spline_curve(img[..., 0], CAMERA_RAW_DEFAULT_CURVE)
-        img[..., 1] = cubic_spline_curve(img[..., 1], CAMERA_RAW_DEFAULT_CURVE)
-        img[..., 2] = cubic_spline_curve(img[..., 2], CAMERA_RAW_DEFAULT_CURVE)
+        profile = resolve_profile(
+            meta.get("camera_make", ""),
+            meta.get("camera_model", ""),
+            look_name=camera_look,
+        )
+        if profile is not None and (profile.has_hsm or profile.has_lut or profile.has_tone_curve):
+            img = apply_dcp(img, profile, illuminant_weight=1.0)
+            img = np.clip(img, 0.0, 1.0)
+            meta["dcp_profile"] = os.path.basename(profile.path)
+            meta["dcp_look"] = profile.profile_name or camera_look
+            print(f"[Darkroom RAW Load] DCP: {meta['dcp_profile']} ({profile.summary()})")
+        else:
+            meta["dcp_profile"] = ""
+            meta["dcp_look"] = ""
 
-        # 3. sRGB OETF + clip to [0, 1].
+        # Empirical gap curve — closes the remaining brightness/contrast gap
+        #    between (rawpy + Adobe Standard DCP) and ACR's default sRGB export.
+        #    Skipped when the chosen profile already carries a ProfileToneCurve
+        #    (Camera Look DCPs do; Adobe Standard DCPs don't) — otherwise we'd
+        #    double-curve and crush the look.
+        profile_has_own_curve = profile is not None and profile.has_tone_curve
+        if not profile_has_own_curve:
+            img[..., 0] = cubic_spline_curve(img[..., 0], CAMERA_RAW_DEFAULT_CURVE)
+            img[..., 1] = cubic_spline_curve(img[..., 1], CAMERA_RAW_DEFAULT_CURVE)
+            img[..., 2] = cubic_spline_curve(img[..., 2], CAMERA_RAW_DEFAULT_CURVE)
+
+        # sRGB OETF + clip to [0, 1].
         img = linear_to_srgb(np.clip(img, 0.0, None))
         img = np.clip(img, 0.0, 1.0).astype(np.float32)
     # Linear scene mode: return raw normalized linear data, no further processing.
 
     return img, meta
+
+
+def load_raw(path,
+             demosaic="Auto (best for sensor)",
+             colorspace="Linear sRGB",
+             white_balance="As shot",
+             highlight_mode="Rebuild (default)",
+             output_mode="sRGB display",
+             baseline_exposure=0.0,
+             half_size=False,
+             camera_look="Adobe Standard"):
+    """
+    Convenience wrapper: decode_raw_linear + apply_post_processing back-to-back.
+    The node's execute() should use the two stages separately to benefit from
+    the split cache; this wrapper is for direct callers (test scripts, build
+    tools) that just want the final image.
+    """
+    img_linear, meta = decode_raw_linear(
+        path,
+        demosaic=demosaic,
+        colorspace=colorspace,
+        white_balance=white_balance,
+        highlight_mode=highlight_mode,
+        half_size=half_size,
+    )
+    return apply_post_processing(
+        img_linear, meta,
+        output_mode=output_mode,
+        baseline_exposure=baseline_exposure,
+        camera_look=camera_look,
+    )

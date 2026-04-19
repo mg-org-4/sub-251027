@@ -1,24 +1,5 @@
 # Changelog
 
-## v2.9.13 - GitHub Issues Fixes
-
-### Fixed
-
-**Import Error in Advanced Encoder** (Issue #1)
-- Fixed `ModuleNotFoundError: No module named 'nodes.qwen_model_wrapper'`
-- Inlined `ensure_even_dimensions()` and `wrap_reference_latents()` into `qwen_vl_encoder_advanced.py`
-
-**Template Connection UX** (Issue #2)
-- `text` and `mode` inputs now optional in `QwenVLTextEncoder`
-- Only `clip` is required - template_output provides everything else
-- Auto-converts QWEN_TEMPLATE if accidentally connected to `text` input (backward compatibility)
-
-**Z-Image Conditioning Format** (Issue #3, untested)
-- Changed conditioning output from tuples to lists in `filter_embeddings_by_mask()`
-- Should fix `'tuple' object does not support item assignment` error with ComfyUI-NAG
-
----
-
 ## v2.9.12 - Token Counting
 
 ### Added
@@ -534,19 +515,19 @@ After testing actual tokenizers, we found:
 
 ### Fixed
 
-**Debug patches no longer applied by default** ([#11](https://github.com/fredbliss/ComfyUI-QwenImageWanBridge/issues/11))
+**Debug patches no longer applied by default** ([#11](https://github.com/fblissjr/ComfyUI-QwenImageWanBridge/issues/11))
 - Removed automatic monkey-patching of `QwenImageTransformer2DModel._forward`
 - Debug patches are now opt-in via `QWEN_ENABLE_DEBUG_PATCHES=true` environment variable
 - Eliminates wrapper overhead on forward passes for all users
 - Verbose tracing still available via `QWEN_DEBUG_VERBOSE=true` when patches enabled
 
-**Wrapper nodes archived** ([#12](https://github.com/fredbliss/ComfyUI-QwenImageWanBridge/issues/12))
+**Wrapper nodes archived** ([#12](https://github.com/fblissjr/ComfyUI-QwenImageWanBridge/issues/12))
 - Moved all wrapper nodes to `nodes/archive/wrapper/` (11 nodes)
 - Moved custom DiT implementation (`models/`) to archive
 - Addresses VRAM leak concerns (unbounded RoPE cache, unmanaged model memory)
 - Main workflow uses ComfyUI's native Qwen support - no wrapper nodes needed
 
-**Debug controller RAM leak fixed** ([#12](https://github.com/fredbliss/ComfyUI-QwenImageWanBridge/issues/12))
+**Debug controller RAM leak fixed** ([#12](https://github.com/fblissjr/ComfyUI-QwenImageWanBridge/issues/12))
 - Replaced unbounded lists with `deque` ring buffers (auto-evict oldest entries)
 - Limits: 1000 execution logs, 500 memory snapshots, 200 errors, 100 perf entries/component
 

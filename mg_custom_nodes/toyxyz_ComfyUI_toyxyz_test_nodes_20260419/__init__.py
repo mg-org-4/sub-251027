@@ -1,0 +1,71 @@
+from .ComfyCouple.comfy_couple import ComfyCoupleBackgroundPrompt, ComfyCoupleBasePrompt, ComfyCoupleMask, ComfyCoupleRegion, ComfyCoupleRegionMulti
+from .ComfyCouple.Extractor import ComfyCoupleRegionExtractor
+from .ComfyCouple.Visualizer import ComfyCoupleRegionVisualizer
+from .nodes.crop_area_mask import CropAreaMask
+from .nodes.draw_area_mask import DrawAreaMask
+from .nodes.toyxyz_test_nodes import CaptureWebcam, LoadWebcamImage, SaveImagetoPath, LatentDelay, ImageResize_Padding, Direct_screenCap, Depth_to_normal, Remove_noise, Export_glb, Load_Random_Text_From_File
+from .nodes.visual_area_mask import VisualAreaMask
+from .openposeeditor.openpose_editor_nodes import OpenposeEditorNode, PoseToMaskNode
+from .openposeeditor.poseinter import Pose_Inter, PoseKeypointToCoordStr, JoinPose
+from .TiledDiffusion import NODE_CLASS_MAPPINGS as TD_NCM, NODE_DISPLAY_NAME_MAPPINGS as TD_NDNM
+
+
+NODE_CLASS_MAPPINGS = {
+    "ComfyCoupleMask": ComfyCoupleMask,
+    "ComfyCoupleBackgroundPrompt": ComfyCoupleBackgroundPrompt,
+    "ComfyCoupleBasePrompt": ComfyCoupleBasePrompt,
+    "ComfyCoupleRegion": ComfyCoupleRegion,
+    "ComfyCoupleRegionMulti": ComfyCoupleRegionMulti,
+    "CropAreaMask": CropAreaMask,
+    "DrawAreaMask": DrawAreaMask,
+    "VisualAreaMask": VisualAreaMask,
+    "CaptureWebcam": CaptureWebcam,
+    "LoadWebcamImage": LoadWebcamImage,
+    "SaveImagetoPath": SaveImagetoPath,
+    "LatentDelay": LatentDelay,
+    "ImageResize_Padding": ImageResize_Padding,
+    "Direct Screen Capture": Direct_screenCap,
+    "Depth to normal": Depth_to_normal,
+    "Remove noise": Remove_noise,
+    "Export glb": Export_glb,
+    "Load Random Text From File": Load_Random_Text_From_File,
+    "OpenposeEditorNode": OpenposeEditorNode,
+    "PoseToMaskNode": PoseToMaskNode,
+    "Pose_Inter": Pose_Inter,
+    "PoseKeypointToCoordStr": PoseKeypointToCoordStr,
+    "JoinPose": JoinPose,
+    "ComfyCoupleRegionExtractor": ComfyCoupleRegionExtractor,
+    "ComfyCoupleRegionVisualizer": ComfyCoupleRegionVisualizer,
+    **TD_NCM,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "ComfyCoupleMask": "ComfyCouple Mask",
+    "ComfyCoupleBackgroundPrompt": "ComfyCouple Background Prompt",
+    "ComfyCoupleBasePrompt": "ComfyCouple Base Prompt",
+    "ComfyCoupleRegion": "ComfyCouple Region",
+    "ComfyCoupleRegionMulti": "ComfyCouple Region multi",
+    "CropAreaMask": "Crop area mask",
+    "DrawAreaMask": "Draw area mask",
+    "VisualAreaMask": "Visual Area Mask",
+    "CaptureWebcam": "Capture Webcam",
+    "LoadWebcamImage": "Load Webcam Image",
+    "SaveImagetoPath": "Save Image to Path",
+    "LatentDelay": "LatentDelay",
+    "ImageResize_Padding": "ImageResize_Padding",
+    "Direct_screenCap": "Direct_screenCap",
+    "Depth_to_normal": "Depth_to_normal",
+    "Remove_noise": "Remove_noise",
+    "Export_glb": "Export_glb",
+    "Load_Random_Text_From_File": "Load_Random_Text_From_File",
+    "OpenposeEditorNode": "Openpose Editor Node",
+    "PoseToMaskNode": "Pose Keypoints to Mask",
+    "Pose_Inter": "Pose Interpolation",
+    "PoseKeypointToCoordStr": "POSE_KEYPOINT to Coord_str",
+    "JoinPose": "join_pose",
+    "ComfyCoupleRegionExtractor": "Comfy Couple Region Extractor",
+    "ComfyCoupleRegionVisualizer": "Region Visualizer (Comfy Couple)",
+    **TD_NDNM,
+}
+
+WEB_DIRECTORY = "./web"

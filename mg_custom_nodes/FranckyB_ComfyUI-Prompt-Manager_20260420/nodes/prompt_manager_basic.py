@@ -1,0 +1,380 @@
+import os
+import json
+import shutil
+import time
+import folder_paths
+import server
+
+
+class PromptManager:
+
+    @staticmethod
+    def get_weekly_backup_path():
+        """Get the path to the weekly rotating backup file."""
+        return PromptManager.get_prompts_path() + "_bak"
+
+    @staticmethod
+    def _refresh_weekly_backup_if_due(source_path, backup_path, interval_days=7):
+        """Refresh backup only when missing or older than interval_days."""
+        if not os.path.exists(source_path):
+            return
+
+        should_refresh = not os.path.exists(backup_path)
+        if not should_refresh:
+            try:
+                age_seconds = time.time() - os.path.getmtime(backup_path)
+                should_refresh = age_seconds >= (interval_days * 24 * 60 * 60)
+            except Exception:
+                should_refresh = True
+
+        if should_refresh:
+            shutil.copy2(source_path, backup_path)
+
+    @classmethod
+    def INPUT_TYPES(s):
+        prompts_data = PromptManager.load_prompts()
+        categories = list(prompts_data.keys()) if prompts_data else ["Character"]
+
+        all_prompts = set()
+        for category_prompts in prompts_data.values():
+            all_prompts.update(k for k in category_prompts.keys() if k != "__meta__")
+
+        all_prompts.add("")
+        all_prompts_list = sorted(list(all_prompts))
+
+        first_category = categories[0] if categories else "Character"
+
+        # Get first prompt from first category
+        first_prompt = ""
+        first_prompt_text = ""
+        if prompts_data and first_category in prompts_data and prompts_data[first_category]:
+            first_category_prompts = [k for k in prompts_data[first_category].keys() if k != "__meta__"]
+            first_prompt = sorted(first_category_prompts, key=str.lower)[0] if first_category_prompts else ""
+            if first_prompt:
+                first_prompt_text = prompts_data[first_category][first_prompt].get("prompt", "")
+
+        return {
+            "required": {
+                "category": (categories, {"default": first_category}),
+                "name": (all_prompts_list, {"default": first_prompt}),
+                "use_external": ("BOOLEAN", {"default": False, "label_on": "on", "label_off": "off", "tooltip": "Toggle to use LLM input instead of internal text"}),
+                "text": ("STRING", {"multiline": True, "default": first_prompt_text, "placeholder": "Enter prompt text", "dynamicPrompts": False, "tooltip": "Enter prompt text directly"}),
+            },
+            "optional": {
+                "llm_input": ("STRING", {"multiline": True, "forceInput": True, "lazy": True, "tooltip": "Connect LLM text input here"}),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+            }
+        }
+
+    CATEGORY = "Prompt Manager"
+    DESCRIPTION = "Simple prompt manager for saving and loading prompts by category. Prompt-only, no LoRA support."
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("prompt",)
+    FUNCTION = "get_prompt"
+    OUTPUT_NODE = True
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, name, **kwargs):
+        """Allow any name value, including temporary unsaved prompts"""
+        # Return True to accept any value - this allows new prompts to be tested before saving
+        return True
+
+    @staticmethod
+    def get_prompts_path():
+        """Get the path to the prompts JSON file in user/default folder"""
+        return os.path.join(folder_paths.get_user_directory(), "default", "prompt_manager_data.json")
+
+    @staticmethod
+    def get_default_prompts_path():
+        """Get the path to the default prompts JSON file"""
+        return os.path.join(os.path.dirname(os.path.dirname(__file__)), "default_prompts.json")
+
+    @classmethod
+    def load_prompts(cls):
+        """Load prompts from user folder or default"""
+        user_path = cls.get_prompts_path()
+        default_path = cls.get_default_prompts_path()
+
+        if os.path.exists(user_path):
+            try:
+                with open(user_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"[PromptManager] Error loading user prompts: {e}")
+                # Try backup variants before falling back to defaults.
+                # Never overwrite a user file just because parsing failed.
+                backup_candidates = [
+                    cls.get_weekly_backup_path(),
+                    user_path + ".bak",
+                    user_path + ".backup",
+                    user_path + ".tmp",
+                ]
+                for backup_path in backup_candidates:
+                    if not os.path.exists(backup_path):
+                        continue
+                    try:
+                        with open(backup_path, 'r', encoding='utf-8') as f:
+                            backup_data = json.load(f)
+                        print(f"[PromptManager] Recovered prompts from backup: {backup_path}")
+                        return backup_data
+                    except Exception as be:
+                        print(f"[PromptManager] Backup load failed ({backup_path}): {be}")
+                print("[PromptManager] User prompt file exists but could not be parsed; not overwriting with defaults.")
+                return {}
+
+        if os.path.exists(default_path):
+            try:
+                with open(default_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    cls.save_prompts(data)
+                    return data
+            except Exception as e:
+                print(f"[PromptManager] Error loading default prompts: {e}")
+
+        # Return empty structure if all else fails
+        print("[PromptManager] Warning: No prompt files found, starting with empty data")
+        return {}
+
+    @staticmethod
+    def sort_prompts_data(data):
+        """Sort categories and prompts alphabetically (case-insensitive), preserving __meta__"""
+        sorted_data = {}
+        for category in sorted(data.keys(), key=str.lower):
+            cat_data = data[category]
+            meta = cat_data.get("__meta__")
+            sorted_prompts = dict(sorted(
+                ((k, v) for k, v in cat_data.items() if k != "__meta__"),
+                key=lambda item: item[0].lower()
+            ))
+            if meta is not None:
+                sorted_prompts["__meta__"] = meta
+            sorted_data[category] = sorted_prompts
+        return sorted_data
+        return sorted_data
+
+    @classmethod
+    def save_prompts(cls, data):
+        """Save prompts to user folder"""
+        user_path = cls.get_prompts_path()
+        sorted_data = cls.sort_prompts_data(data)
+        tmp_path = user_path + ".tmp"
+        bak_path = cls.get_weekly_backup_path()
+
+        try:
+            os.makedirs(os.path.dirname(user_path), exist_ok=True)
+            # Weekly rotating backup: refresh at most once every 7 days.
+            cls._refresh_weekly_backup_if_due(user_path, bak_path)
+
+            # Atomic write: write temp then replace to avoid truncated/corrupt files.
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                json.dump(sorted_data, f, indent=2, ensure_ascii=False)
+            os.replace(tmp_path, user_path)
+        except Exception as e:
+            print(f"[PromptManager] Error saving prompts: {e}")
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                pass
+
+    def get_prompt(self, category, name, use_external, text="", llm_input="", unique_id=None):
+        """Return the appropriate text based on use_external toggle and broadcast update"""
+
+        # Choose which text to use based on the toggle
+        if use_external and llm_input:
+            output_text = llm_input
+        else:
+            output_text = text
+
+        # Broadcast the current prompt text to the frontend
+        if unique_id is not None:
+            server.PromptServer.instance.send_sync("prompt-manager-update-text", {
+                "node_id": unique_id,
+                "prompt": output_text,
+                "use_external": use_external,
+                "llm_input": llm_input if use_external else ""
+            })
+        return (output_text,)
+
+    def check_lazy_status(self, category, name, use_external, text, llm_input=None, unique_id=None):
+        needed = []
+        if use_external:
+            needed.append("llm_input")
+        return needed
+
+
+@server.PromptServer.instance.routes.get("/prompt-manager/get-prompts")
+async def get_prompts(request):
+    """API endpoint to get all prompts"""
+    try:
+        prompts = PromptManager.load_prompts()
+        return server.web.json_response(prompts)
+    except Exception as e:
+        print(f"[PromptManager] Error in get_prompts API: {e}")
+        return server.web.json_response({"error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.post("/prompt-manager/save-category")
+async def save_category(request):
+    """API endpoint to create a new category"""
+    try:
+        data = await request.json()
+        category_name = data.get("category_name", "").strip()
+
+        if not category_name:
+            return server.web.json_response({"success": False, "error": "Category name is required"})
+
+        prompts = PromptManager.load_prompts()
+
+        # Case-insensitive check for existing category
+        existing_categories_lower = {k.lower(): k for k in prompts.keys()}
+        if category_name.lower() in existing_categories_lower:
+            return server.web.json_response({"success": False, "error": f"Category already exists as '{existing_categories_lower[category_name.lower()]}'"})
+
+        prompts[category_name] = {}
+        PromptManager.save_prompts(prompts)
+
+        return server.web.json_response({"success": True, "prompts": prompts})
+    except Exception as e:
+        print(f"[PromptManager] Error in save_category API: {e}")
+        return server.web.json_response({"success": False, "error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.post("/prompt-manager/save-prompt")
+async def save_prompt(request):
+    """API endpoint to save a prompt"""
+    try:
+        data = await request.json()
+        category = data.get("category", "").strip()
+        name = data.get("name", "").strip()
+        text = data.get("text", "").strip()
+
+        if not category or not name:
+            return server.web.json_response({"success": False, "error": "Category and name are required"})
+
+        prompts = PromptManager.load_prompts()
+
+        if category not in prompts:
+            prompts[category] = {}
+
+        # Case-insensitive check - find if name exists with different casing
+        existing_prompts_lower = {k.lower(): k for k in prompts[category].keys()}
+        if name.lower() in existing_prompts_lower:
+            old_name = existing_prompts_lower[name.lower()]
+            if old_name != name:
+
+                # Delete the old casing version
+                print(f"[PromptManager] Removing old casing '{old_name}' before saving as '{name}'")
+                del prompts[category][old_name]
+
+        # Save prompt in dict, preserving any existing lora data, trigger words, thumbnail, and nsfw from PromptManagerAdvanced
+        existing_data = prompts[category].get(name, {})
+        prompts[category][name] = {
+            "prompt": text,
+            "loras_a": existing_data.get("loras_a", []),
+            "loras_b": existing_data.get("loras_b", []),
+            "trigger_words": existing_data.get("trigger_words", []),
+            "thumbnail": existing_data.get("thumbnail")
+        }
+        # Preserve nsfw flag if it was set
+        if existing_data.get("nsfw"):
+            prompts[category][name]["nsfw"] = existing_data["nsfw"]
+        PromptManager.save_prompts(prompts)
+
+        return server.web.json_response({"success": True, "prompts": prompts})
+    except Exception as e:
+        print(f"[PromptManager] Error in save_prompt API: {e}")
+        return server.web.json_response({"success": False, "error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.post("/prompt-manager/delete-category")
+async def delete_category(request):
+    """API endpoint to delete a category"""
+    try:
+        data = await request.json()
+        category = data.get("category", "").strip()
+
+        if not category:
+            return server.web.json_response({"success": False, "error": "Category name is required"})
+
+        prompts = PromptManager.load_prompts()
+
+        if category not in prompts:
+            return server.web.json_response({"success": False, "error": "Category not found"})
+
+        del prompts[category]
+        PromptManager.save_prompts(prompts)
+
+        return server.web.json_response({"success": True, "prompts": prompts})
+    except Exception as e:
+        print(f"[PromptManager] Error in delete_category API: {e}")
+        return server.web.json_response({"success": False, "error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.post("/prompt-manager/delete-prompt")
+async def delete_prompt(request):
+    """API endpoint to delete a prompt"""
+    try:
+        data = await request.json()
+        category = data.get("category", "").strip()
+        name = data.get("name", "").strip()
+
+        if not category or not name:
+            return server.web.json_response({"success": False, "error": "Category and prompt name are required"})
+
+        prompts = PromptManager.load_prompts()
+
+        if category not in prompts or name not in prompts[category]:
+            return server.web.json_response({"success": False, "error": "Prompt not found"})
+
+        del prompts[category][name]
+        PromptManager.save_prompts(prompts)
+
+        return server.web.json_response({"success": True, "prompts": prompts})
+    except Exception as e:
+        print(f"[PromptManager] Error in delete_prompt API: {e}")
+        return server.web.json_response({"success": False, "error": str(e)}, status=500)
+
+
+@server.PromptServer.instance.routes.post("/prompt-manager/import-prompts")
+async def import_prompts(request):
+    """API endpoint to import prompts from JSON"""
+    try:
+        data = await request.json()
+        imported_data = data.get("data", {})
+        mode = data.get("mode", "merge")
+
+        if not isinstance(imported_data, dict):
+            return server.web.json_response({"success": False, "error": "Invalid data format"})
+
+        if mode == "replace":
+            # Replace all existing prompts
+            PromptManager.save_prompts(imported_data)
+            return server.web.json_response({"success": True, "prompts": imported_data})
+        else:
+            # Merge with existing prompts
+            prompts = PromptManager.load_prompts()
+
+            for category, category_prompts in imported_data.items():
+                if not isinstance(category_prompts, dict):
+                    continue
+
+                if category not in prompts:
+                    prompts[category] = {}
+
+                for prompt_name, prompt_data in category_prompts.items():
+                    # Merge prompt data, preserving structure
+                    if isinstance(prompt_data, dict):
+                        prompts[category][prompt_name] = prompt_data
+                    elif isinstance(prompt_data, str):
+                        # Legacy format: just the prompt text
+                        prompts[category][prompt_name] = {"prompt": prompt_data}
+
+            PromptManager.save_prompts(prompts)
+            return server.web.json_response({"success": True, "prompts": prompts})
+
+    except Exception as e:
+        print(f"[PromptManager] Error in import_prompts API: {e}")
+        return server.web.json_response({"success": False, "error": str(e)}, status=500)

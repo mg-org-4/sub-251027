@@ -1,21 +1,35 @@
-from .common import ShowAnythingMie, SaveAnythingAsFile, CompareFiles, GetAbsolutePath, GetFileInfo, \
-    GetDirectoryFilesInfo, CopyFiles, DeleteFiles, ClassicAspectRatio
-from .caption_file_operator import BatchRenameFiles, BatchDeleteFiles, BatchEditTextFiles, BatchSyncImageCaptionFiles, \
-    SummaryTextFiles, BatchConvertImageFiles, DedupImageFiles
-from .downloader import ModelDownloader, HFRepoDownloader
-from .translator import TextTranslator
-from .prompt_generator import PromptGenerator, KontextPromptGenerator, AddUserKontextPreset, RemoveUserKontextPreset, \
+import sys
+import types
+from pathlib import Path
+
+_INTERNAL_PACKAGE = "_mienodes_internal"
+_ROOT_DIR = Path(__file__).resolve().parent
+if _INTERNAL_PACKAGE not in sys.modules:
+    _pkg = types.ModuleType(_INTERNAL_PACKAGE)
+    _pkg.__path__ = [str(_ROOT_DIR)]
+    _pkg.__package__ = _INTERNAL_PACKAGE
+    sys.modules[_INTERNAL_PACKAGE] = _pkg
+
+from _mienodes_internal.nodes.common import ShowAnythingMie, SaveAnythingAsFile, CompareFiles, GetAbsolutePath, GetFileInfo, \
+    GetDirectoryFilesInfo, CopyFiles, DeleteFiles, ClassicAspectRatio, StringConcat
+from _mienodes_internal.nodes.files import BatchRenameFiles, BatchDeleteFiles, BatchEditTextFiles, BatchSyncImageCaptionFiles, \
+    SummaryTextFiles, BatchConvertImageFiles, DedupImageFiles, ModelDownloader, HFRepoDownloader
+from _mienodes_internal.nodes.llm import TextTranslator, PromptGenerator, KontextPromptGenerator, AddUserKontextPreset, RemoveUserKontextPreset, \
     FrameTransitionPromptGenerator, HunyuanVideoI2VPromptGenerator, HunyuanVideoT2VPromptGenerator, ZImagePromptGenerator, Flux2PromptGenerator, FluxKleinT2VPromptGenerator, LTX2PromptGenerator
-from .llm_service_connector import SetGeneralLLMServiceConnector, SetSiliconFlowLLMServiceConnector, \
+from _mienodes_internal.services.llm import SetGeneralLLMServiceConnector, SetSiliconFlowLLMServiceConnector, \
     SetGithubModelsLLMServiceConnector, SetZhiPuLLMServiceConnector, SetKimiLLMServiceConnector, \
     SetDeepSeekLLMServiceConnector, SetGeminiLLMServiceConnector, SetBailianLLMServiceConnector, \
     CheckLLMServiceConnectivity, CallLLMService
-from .audio_operator import WavConcat
-from .tts_generator import QwenTTSNode
-from .tts_service_connector import SetBailianTTSConnector
-from .string_operator import StringConcat
-from .image_operator import SingleImageToVideo, AddNumberWatermarkForImage
-from .utils import add_suffix, add_emoji
+from _mienodes_internal.nodes.media import WavConcat, QwenTTSNode, SingleImageToVideo, AddNumberWatermarkForImage
+from _mienodes_internal.services.tts import SetBailianTTSConnector
+from _mienodes_internal.nodes.loop import MieLoopStart, MieLoopResume, MieLoopBodyIn, MieLoopBodyOut, MieLoopEnd, MieLoopGetIndex, MieLoopParamGetInt, MieLoopParamGetFloat, \
+    MieLoopParamGetString, MieLoopParamGetBool, MieLoopStateGetInt, MieLoopStateGetFloat, MieLoopStateGetString, \
+    MieLoopStateGetBool, MieLoopStateSet, MieImageSelectFrame, MieLoopStateSetImage, MieLoopStateGetImage, MieLoopStateCleanupImage, \
+    MieLoopStateSetInt, \
+    MieLoopCollectImage, MieLoopFinalizeImages, MieLoopCleanupImages, MieImageGrid, \
+    MieLoopCollectText, MieLoopFinalizeTextList, MieLoopCleanupText, MieLoopCollectJSON, MieLoopFinalizeJSONList, MieLoopCleanupJSON, \
+    MieLoopCollectAudio, MieLoopFinalizeAudio, MieLoopCleanupAudio
+from _mienodes_internal.core.utils import add_suffix, add_emoji
 
 WEB_DIRECTORY = "./js"
 
@@ -66,6 +80,39 @@ NODE_CLASS_MAPPINGS = {
     add_suffix("SingleImageToVideo"): SingleImageToVideo,
     add_suffix("AddNumberWatermarkForImage"): AddNumberWatermarkForImage,
     add_suffix("ClassicAspectRatio"): ClassicAspectRatio,
+    add_suffix("MieLoopStart"): MieLoopStart,
+    add_suffix("MieLoopResume"): MieLoopResume,
+    add_suffix("MieLoopBodyIn"): MieLoopBodyIn,
+    add_suffix("MieLoopBodyOut"): MieLoopBodyOut,
+    add_suffix("MieLoopEnd"): MieLoopEnd,
+    add_suffix("MieLoopGetIndex"): MieLoopGetIndex,
+    add_suffix("MieLoopParamGetInt"): MieLoopParamGetInt,
+    add_suffix("MieLoopParamGetFloat"): MieLoopParamGetFloat,
+    add_suffix("MieLoopParamGetString"): MieLoopParamGetString,
+    add_suffix("MieLoopParamGetBool"): MieLoopParamGetBool,
+    add_suffix("MieLoopStateGetInt"): MieLoopStateGetInt,
+    add_suffix("MieLoopStateGetFloat"): MieLoopStateGetFloat,
+    add_suffix("MieLoopStateGetString"): MieLoopStateGetString,
+    add_suffix("MieLoopStateGetBool"): MieLoopStateGetBool,
+    add_suffix("MieLoopStateSet"): MieLoopStateSet,
+    add_suffix("MieImageSelectFrame"): MieImageSelectFrame,
+    add_suffix("MieLoopStateSetImage"): MieLoopStateSetImage,
+    add_suffix("MieLoopStateSetInt"): MieLoopStateSetInt,
+    add_suffix("MieLoopStateGetImage"): MieLoopStateGetImage,
+    add_suffix("MieLoopStateCleanupImage"): MieLoopStateCleanupImage,
+    add_suffix("MieLoopCollectImage"): MieLoopCollectImage,
+    add_suffix("MieLoopFinalizeImages"): MieLoopFinalizeImages,
+    add_suffix("MieLoopCleanupImages"): MieLoopCleanupImages,
+    add_suffix("MieImageGrid"): MieImageGrid,
+    add_suffix("MieLoopCollectText"): MieLoopCollectText,
+    add_suffix("MieLoopFinalizeTextList"): MieLoopFinalizeTextList,
+    add_suffix("MieLoopCleanupText"): MieLoopCleanupText,
+    add_suffix("MieLoopCollectJSON"): MieLoopCollectJSON,
+    add_suffix("MieLoopFinalizeJSONList"): MieLoopFinalizeJSONList,
+    add_suffix("MieLoopCleanupJSON"): MieLoopCleanupJSON,
+    add_suffix("MieLoopCollectAudio"): MieLoopCollectAudio,
+    add_suffix("MieLoopFinalizeAudio"): MieLoopFinalizeAudio,
+    add_suffix("MieLoopCleanupAudio"): MieLoopCleanupAudio,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -115,6 +162,39 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     add_suffix("SingleImageToVideo"): add_emoji("Single Image To Video"),
     add_suffix("AddNumberWatermarkForImage"): add_emoji("Add Number Watermark For Image"),
     add_suffix("ClassicAspectRatio"): add_emoji("Classic Aspect Ratio"),
+    add_suffix("MieLoopStart"): add_emoji("Mie Loop Start"),
+    add_suffix("MieLoopResume"): add_emoji("Mie Loop Resume"),
+    add_suffix("MieLoopBodyIn"): add_emoji("Mie Loop Body In"),
+    add_suffix("MieLoopBodyOut"): add_emoji("Mie Loop Body Out"),
+    add_suffix("MieLoopEnd"): add_emoji("Mie Loop End"),
+    add_suffix("MieLoopGetIndex"): add_emoji("Mie Loop Get Index"),
+    add_suffix("MieLoopParamGetInt"): add_emoji("Mie Loop Param Get Int"),
+    add_suffix("MieLoopParamGetFloat"): add_emoji("Mie Loop Param Get Float"),
+    add_suffix("MieLoopParamGetString"): add_emoji("Mie Loop Param Get String"),
+    add_suffix("MieLoopParamGetBool"): add_emoji("Mie Loop Param Get Bool"),
+    add_suffix("MieLoopStateGetInt"): add_emoji("Mie Loop State Get Int"),
+    add_suffix("MieLoopStateGetFloat"): add_emoji("Mie Loop State Get Float"),
+    add_suffix("MieLoopStateGetString"): add_emoji("Mie Loop State Get String"),
+    add_suffix("MieLoopStateGetBool"): add_emoji("Mie Loop State Get Bool"),
+    add_suffix("MieLoopStateSet"): add_emoji("Mie Loop State Set"),
+    add_suffix("MieImageSelectFrame"): add_emoji("Mie Image Select Frame"),
+    add_suffix("MieLoopStateSetImage"): add_emoji("Mie Loop State Set Image"),
+    add_suffix("MieLoopStateSetInt"): add_emoji("Mie Loop State Set Int"),
+    add_suffix("MieLoopStateGetImage"): add_emoji("Mie Loop State Get Image"),
+    add_suffix("MieLoopStateCleanupImage"): add_emoji("Mie Loop State Cleanup Image"),
+    add_suffix("MieLoopCollectImage"): add_emoji("Mie Loop Collect Image"),
+    add_suffix("MieLoopFinalizeImages"): add_emoji("Mie Loop Finalize Images"),
+    add_suffix("MieLoopCleanupImages"): add_emoji("Mie Loop Cleanup Images"),
+    add_suffix("MieImageGrid"): add_emoji("Mie Image Grid"),
+    add_suffix("MieLoopCollectText"): add_emoji("Mie Loop Collect Text"),
+    add_suffix("MieLoopFinalizeTextList"): add_emoji("Mie Loop Finalize Text List"),
+    add_suffix("MieLoopCleanupText"): add_emoji("Mie Loop Cleanup Text"),
+    add_suffix("MieLoopCollectJSON"): add_emoji("Mie Loop Collect JSON"),
+    add_suffix("MieLoopFinalizeJSONList"): add_emoji("Mie Loop Finalize JSON List"),
+    add_suffix("MieLoopCleanupJSON"): add_emoji("Mie Loop Cleanup JSON"),
+    add_suffix("MieLoopCollectAudio"): add_emoji("Mie Loop Collect Audio"),
+    add_suffix("MieLoopFinalizeAudio"): add_emoji("Mie Loop Finalize Audio"),
+    add_suffix("MieLoopCleanupAudio"): add_emoji("Mie Loop Cleanup Audio"),
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]

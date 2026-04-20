@@ -1,0 +1,16 @@
+mie_llm_keys.json
+
+.claude/
+.idea/
+.trae/
+.sisyphus/
+.ruff_cache/
+%TEMP%/
+
+
+ref/
+debug_logs/
+
+*.excalidraw
+
+__pycache__/

@@ -21,6 +21,7 @@ import nodes
 from .modules.exif_data_checker import check_model_from_exif
 from ..utils import comfy_dir
 from ..components import hypernetwork
+from ..components.path_selector_state import get_node_path
 import json
 from ..components import llm_enhancer
 import datetime
@@ -103,7 +104,7 @@ class PrimereRefinerPrompt:
         REFINER_EMBEDDING = ["EMBEDDING\\" + x for x in folder_paths.get_filename_list("embeddings")]
         REFINER_HYPERNETWORK = ["HYPERNETWORK\\" + x for x in folder_paths.get_filename_list("hypernetworks")]
 
-        CONCEPT_LIST = utility.SUPPORTED_MODELS[0:27]
+        CONCEPT_LIST = utility.SUPPORTED_MODELS[0:28]
         CONCEPT_INPUTS = {}
         for concept in CONCEPT_LIST:
             CONCEPT_INPUTS["process_" + concept.lower()] = ("BOOLEAN", {"default": True, "label_on": "PROCESS " + concept.upper(), "label_off": "IGNORE " + concept.upper()})
@@ -1793,3 +1794,33 @@ class PrimereMultiImage:
             image_list = None
 
         return (image_list, image_batch, image_concat)
+
+class PrimerePathSelector:
+    RETURN_TYPES = ("STRING", "BOOLEAN",)
+    RETURN_NAMES = ("final_path", "path_type")
+    FUNCTION = "select_path"
+    CATEGORY = TREE_INPUTS
+    OUTPUT_NODE = True
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "select_file": ("BOOLEAN", {"default": True, "label_on": "File", "label_off": "Directory"}),
+            },
+            "hidden": {
+                "extra_pnginfo": "EXTRA_PNGINFO",
+                "id": "UNIQUE_ID",
+            },
+        }
+
+    @classmethod
+    def IS_CHANGED(cls, select_file=True, id=None, **_kwargs):
+        node_id = str(id) if id is not None else None
+        return get_node_path(node_id)
+
+    def select_path(self, select_file=True, id=None, **_kwargs):
+        node_id = str(id) if id is not None else None
+        final_path = get_node_path(node_id)
+        display_path = final_path if final_path else "No path selected"
+        return {"ui": {"path_display": [display_path]}, "result": (final_path, select_file,)}

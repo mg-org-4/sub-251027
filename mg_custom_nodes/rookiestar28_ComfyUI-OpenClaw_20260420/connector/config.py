@@ -3,11 +3,154 @@ Connector Configuration (F29).
 Loads environment variables and validates allowlists.
 """
 
+import logging
 import os
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Set
+
+logger = logging.getLogger("ComfyUI-OpenClaw.connector.config")
+
+DEFAULT_DELIVERY_MAX_IMAGES = 4
+MIN_DELIVERY_MAX_IMAGES = 1
+MAX_DELIVERY_MAX_IMAGES = 16
+
+DEFAULT_DELIVERY_MAX_BYTES = 10 * 1024 * 1024
+MIN_DELIVERY_MAX_BYTES = 64 * 1024
+MAX_DELIVERY_MAX_BYTES = 50 * 1024 * 1024
+
+DEFAULT_DELIVERY_TIMEOUT_SEC = 600
+MIN_DELIVERY_TIMEOUT_SEC = 30
+MAX_DELIVERY_TIMEOUT_SEC = 3600
+
+DEFAULT_LINE_BIND_PORT = 8099
+DEFAULT_WHATSAPP_BIND_PORT = 8098
+DEFAULT_WECHAT_BIND_PORT = 8097
+DEFAULT_KAKAO_BIND_PORT = 8096
+DEFAULT_SLACK_BIND_PORT = 8095
+DEFAULT_FEISHU_BIND_PORT = 8094
+MIN_BIND_PORT = 1
+MAX_BIND_PORT = 65535
+
+DEFAULT_SLACK_OAUTH_STATE_TTL_SEC = 600
+MIN_SLACK_OAUTH_STATE_TTL_SEC = 60
+MAX_SLACK_OAUTH_STATE_TTL_SEC = 3600
+
+DEFAULT_RATE_LIMIT_USER_RPM = 10
+DEFAULT_RATE_LIMIT_CHANNEL_RPM = 30
+MIN_RATE_LIMIT_RPM = 1
+MAX_RATE_LIMIT_RPM = 600
+
+DEFAULT_MAX_COMMAND_LENGTH = 4096
+MIN_MAX_COMMAND_LENGTH = 128
+MAX_MAX_COMMAND_LENGTH = 32768
+
+DEFAULT_MEDIA_TTL_SEC = 300
+MIN_MEDIA_TTL_SEC = 60
+MAX_MEDIA_TTL_SEC = 86400
+
+DEFAULT_MEDIA_MAX_MB = 8
+MIN_MEDIA_MAX_MB = 1
+MAX_MEDIA_MAX_MB = 64
+
+
+def _warn_default_env(
+    env_key: str, raw_value: str, *, default: int, reason: str
+) -> None:
+    logger.warning(
+        "Connector env %s=%r %s; using default %s.",
+        env_key,
+        raw_value,
+        reason,
+        default,
+    )
+
+
+def _warn_clamped_env(
+    env_key: str,
+    raw_value: str,
+    *,
+    bound_name: str,
+    bound_value: int,
+    resolved: int,
+) -> None:
+    logger.warning(
+        (
+            "Connector env %s=%r is below %s %s; clamped to %s."
+            if bound_name == "minimum"
+            else "Connector env %s=%r is above %s %s; clamped to %s."
+        ),
+        env_key,
+        raw_value,
+        bound_name,
+        bound_value,
+        resolved,
+    )
+
+
+def _load_bounded_int_env(
+    env_key: str,
+    *,
+    default: int,
+    minimum: Optional[int] = None,
+    maximum: Optional[int] = None,
+    clamp: bool = True,
+) -> int:
+    raw_value = os.environ.get(env_key)
+    if raw_value is None:
+        return default
+    raw_value = raw_value.strip()
+    if not raw_value:
+        return default
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        _warn_default_env(
+            env_key,
+            raw_value,
+            default=default,
+            reason="is not a valid integer",
+        )
+        return default
+
+    if minimum is not None and value < minimum:
+        if clamp:
+            _warn_clamped_env(
+                env_key,
+                raw_value,
+                bound_name="minimum",
+                bound_value=minimum,
+                resolved=minimum,
+            )
+            return minimum
+        _warn_default_env(
+            env_key,
+            raw_value,
+            default=default,
+            reason=f"is outside supported range {minimum}..{maximum or 'inf'}",
+        )
+        return default
+
+    if maximum is not None and value > maximum:
+        if clamp:
+            _warn_clamped_env(
+                env_key,
+                raw_value,
+                bound_name="maximum",
+                bound_value=maximum,
+                resolved=maximum,
+            )
+            return maximum
+        _warn_default_env(
+            env_key,
+            raw_value,
+            default=default,
+            reason=f"is outside supported range {minimum or '-inf'}..{maximum}",
+        )
+        return default
+
+    return value
 
 
 class CommandClass(str, Enum):
@@ -40,9 +183,9 @@ class ConnectorConfig:
 
     # Results Delivery
     delivery_enabled: bool = True
-    delivery_max_images: int = 4
-    delivery_max_bytes: int = 10 * 1024 * 1024  # 10MB
-    delivery_timeout_sec: int = 600
+    delivery_max_images: int = DEFAULT_DELIVERY_MAX_IMAGES
+    delivery_max_bytes: int = DEFAULT_DELIVERY_MAX_BYTES
+    delivery_timeout_sec: int = DEFAULT_DELIVERY_TIMEOUT_SEC
 
     # Telegram
     telegram_bot_token: Optional[str] = None
@@ -60,7 +203,7 @@ class ConnectorConfig:
     line_allowed_users: List[str] = field(default_factory=list)
     line_allowed_groups: List[str] = field(default_factory=list)
     line_bind_host: str = "127.0.0.1"
-    line_bind_port: int = 8099
+    line_bind_port: int = DEFAULT_LINE_BIND_PORT
     line_webhook_path: str = "/line/webhook"
 
     # WhatsApp
@@ -70,7 +213,7 @@ class ConnectorConfig:
     whatsapp_phone_number_id: Optional[str] = None
     whatsapp_allowed_users: List[str] = field(default_factory=list)
     whatsapp_bind_host: str = "127.0.0.1"
-    whatsapp_bind_port: int = 8098
+    whatsapp_bind_port: int = DEFAULT_WHATSAPP_BIND_PORT
     whatsapp_webhook_path: str = "/whatsapp/webhook"
 
     # WeChat Official Account (R74/S31/F43)
@@ -80,13 +223,13 @@ class ConnectorConfig:
     wechat_encoding_aes_key: Optional[str] = None  # R82: AES encrypted mode
     wechat_allowed_users: List[str] = field(default_factory=list)
     wechat_bind_host: str = "127.0.0.1"
-    wechat_bind_port: int = 8097
+    wechat_bind_port: int = DEFAULT_WECHAT_BIND_PORT
     wechat_webhook_path: str = "/wechat/webhook"
 
     # KakaoTalk (F44 Phase A)
     kakao_enabled: bool = False
     kakao_bind_host: str = "127.0.0.1"
-    kakao_bind_port: int = 8096
+    kakao_bind_port: int = DEFAULT_KAKAO_BIND_PORT
     kakao_webhook_path: str = "/kakao/webhook"
     kakao_allowed_users: List[str] = field(default_factory=list)
 
@@ -96,7 +239,7 @@ class ConnectorConfig:
     slack_allowed_users: List[str] = field(default_factory=list)
     slack_allowed_channels: List[str] = field(default_factory=list)
     slack_bind_host: str = "127.0.0.1"
-    slack_bind_port: int = 8095
+    slack_bind_port: int = DEFAULT_SLACK_BIND_PORT
     slack_webhook_path: str = "/slack/events"
     slack_require_mention: bool = True
     slack_reply_in_thread: bool = True
@@ -118,7 +261,7 @@ class ConnectorConfig:
             "mpim:history",
         ]
     )
-    slack_oauth_state_ttl_sec: int = 600
+    slack_oauth_state_ttl_sec: int = DEFAULT_SLACK_OAUTH_STATE_TTL_SEC
 
     # Feishu / Lark (F67)
     feishu_app_id: Optional[str] = None
@@ -133,7 +276,7 @@ class ConnectorConfig:
     feishu_allowed_users: List[str] = field(default_factory=list)
     feishu_allowed_chats: List[str] = field(default_factory=list)
     feishu_bind_host: str = "127.0.0.1"
-    feishu_bind_port: int = 8094
+    feishu_bind_port: int = DEFAULT_FEISHU_BIND_PORT
     feishu_webhook_path: str = "/feishu/events"
     feishu_callback_path: str = "/feishu/callback"
     feishu_domain: str = "feishu"  # feishu | lark
@@ -147,13 +290,19 @@ class ConnectorConfig:
     # Media Host (F33)
     public_base_url: Optional[str] = None
     media_path: str = "/media"
-    media_ttl_sec: int = 300
-    media_max_mb: int = 8
+    media_ttl_sec: int = DEFAULT_MEDIA_TTL_SEC
+    media_max_mb: int = DEFAULT_MEDIA_MAX_MB
 
     # Security (F32)
-    rate_limit_user_rpm: int = 10  # Requests per minute per user
-    rate_limit_channel_rpm: int = 30  # Requests per minute per channel
-    max_command_length: int = 4096  # Max characters in a single command
+    rate_limit_user_rpm: int = (
+        DEFAULT_RATE_LIMIT_USER_RPM  # Requests per minute per user
+    )
+    rate_limit_channel_rpm: int = (
+        DEFAULT_RATE_LIMIT_CHANNEL_RPM  # Requests per minute per channel
+    )
+    max_command_length: int = (
+        DEFAULT_MAX_COMMAND_LENGTH  # Max characters in a single command
+    )
     llm_max_tokens_per_request: int = 1024  # LLM token budget
 
     # R80: Command Auth Policy
@@ -186,14 +335,23 @@ def load_config() -> ConnectorConfig:
     cfg.state_path = os.environ.get("OPENCLAW_CONNECTOR_STATE_PATH")
 
     # Delivery
-    cfg.delivery_max_images = int(
-        os.environ.get("OPENCLAW_CONNECTOR_DELIVERY_MAX_IMAGES", "4")
+    cfg.delivery_max_images = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_DELIVERY_MAX_IMAGES",
+        default=DEFAULT_DELIVERY_MAX_IMAGES,
+        minimum=MIN_DELIVERY_MAX_IMAGES,
+        maximum=MAX_DELIVERY_MAX_IMAGES,
     )
-    cfg.delivery_max_bytes = int(
-        os.environ.get("OPENCLAW_CONNECTOR_DELIVERY_MAX_BYTES", str(10 * 1024 * 1024))
+    cfg.delivery_max_bytes = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_DELIVERY_MAX_BYTES",
+        default=DEFAULT_DELIVERY_MAX_BYTES,
+        minimum=MIN_DELIVERY_MAX_BYTES,
+        maximum=MAX_DELIVERY_MAX_BYTES,
     )
-    cfg.delivery_timeout_sec = int(
-        os.environ.get("OPENCLAW_CONNECTOR_DELIVERY_TIMEOUT_SEC", "600")
+    cfg.delivery_timeout_sec = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_DELIVERY_TIMEOUT_SEC",
+        default=DEFAULT_DELIVERY_TIMEOUT_SEC,
+        minimum=MIN_DELIVERY_TIMEOUT_SEC,
+        maximum=MAX_DELIVERY_TIMEOUT_SEC,
     )
 
     # Telegram
@@ -229,9 +387,13 @@ def load_config() -> ConnectorConfig:
         cfg.line_allowed_groups = [u.strip() for u in l_groups.split(",") if u.strip()]
 
     cfg.line_bind_host = os.environ.get("OPENCLAW_CONNECTOR_LINE_BIND", "127.0.0.1")
-    if l_port := os.environ.get("OPENCLAW_CONNECTOR_LINE_PORT"):
-        if l_port.isdigit():
-            cfg.line_bind_port = int(l_port)
+    cfg.line_bind_port = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_LINE_PORT",
+        default=DEFAULT_LINE_BIND_PORT,
+        minimum=MIN_BIND_PORT,
+        maximum=MAX_BIND_PORT,
+        clamp=False,
+    )
     cfg.line_webhook_path = os.environ.get(
         "OPENCLAW_CONNECTOR_LINE_PATH", "/line/webhook"
     )
@@ -254,9 +416,13 @@ def load_config() -> ConnectorConfig:
     cfg.whatsapp_bind_host = os.environ.get(
         "OPENCLAW_CONNECTOR_WHATSAPP_BIND", "127.0.0.1"
     )
-    if wa_port := os.environ.get("OPENCLAW_CONNECTOR_WHATSAPP_PORT"):
-        if wa_port.isdigit():
-            cfg.whatsapp_bind_port = int(wa_port)
+    cfg.whatsapp_bind_port = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_WHATSAPP_PORT",
+        default=DEFAULT_WHATSAPP_BIND_PORT,
+        minimum=MIN_BIND_PORT,
+        maximum=MAX_BIND_PORT,
+        clamp=False,
+    )
     cfg.whatsapp_webhook_path = os.environ.get(
         "OPENCLAW_CONNECTOR_WHATSAPP_PATH", "/whatsapp/webhook"
     )
@@ -271,9 +437,13 @@ def load_config() -> ConnectorConfig:
     if wc_users := os.environ.get("OPENCLAW_CONNECTOR_WECHAT_ALLOWED_USERS"):
         cfg.wechat_allowed_users = [u.strip() for u in wc_users.split(",") if u.strip()]
     cfg.wechat_bind_host = os.environ.get("OPENCLAW_CONNECTOR_WECHAT_BIND", "127.0.0.1")
-    if wc_port := os.environ.get("OPENCLAW_CONNECTOR_WECHAT_PORT"):
-        if wc_port.isdigit():
-            cfg.wechat_bind_port = int(wc_port)
+    cfg.wechat_bind_port = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_WECHAT_PORT",
+        default=DEFAULT_WECHAT_BIND_PORT,
+        minimum=MIN_BIND_PORT,
+        maximum=MAX_BIND_PORT,
+        clamp=False,
+    )
     cfg.wechat_webhook_path = os.environ.get(
         "OPENCLAW_CONNECTOR_WECHAT_PATH", "/wechat/webhook"
     )
@@ -283,9 +453,13 @@ def load_config() -> ConnectorConfig:
         cfg.kakao_enabled = True
 
     cfg.kakao_bind_host = os.environ.get("OPENCLAW_CONNECTOR_KAKAO_BIND", "127.0.0.1")
-    if kp := os.environ.get("OPENCLAW_CONNECTOR_KAKAO_PORT"):
-        if kp.isdigit():
-            cfg.kakao_bind_port = int(kp)
+    cfg.kakao_bind_port = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_KAKAO_PORT",
+        default=DEFAULT_KAKAO_BIND_PORT,
+        minimum=MIN_BIND_PORT,
+        maximum=MAX_BIND_PORT,
+        clamp=False,
+    )
     cfg.kakao_webhook_path = os.environ.get(
         "OPENCLAW_CONNECTOR_KAKAO_PATH", "/kakao/webhook"
     )
@@ -300,9 +474,13 @@ def load_config() -> ConnectorConfig:
     if sc := os.environ.get("OPENCLAW_CONNECTOR_SLACK_ALLOWED_CHANNELS"):
         cfg.slack_allowed_channels = [u.strip() for u in sc.split(",") if u.strip()]
     cfg.slack_bind_host = os.environ.get("OPENCLAW_CONNECTOR_SLACK_BIND", "127.0.0.1")
-    if sp := os.environ.get("OPENCLAW_CONNECTOR_SLACK_PORT"):
-        if sp.isdigit():
-            cfg.slack_bind_port = int(sp)
+    cfg.slack_bind_port = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_SLACK_PORT",
+        default=DEFAULT_SLACK_BIND_PORT,
+        minimum=MIN_BIND_PORT,
+        maximum=MAX_BIND_PORT,
+        clamp=False,
+    )
     cfg.slack_webhook_path = os.environ.get(
         "OPENCLAW_CONNECTOR_SLACK_PATH", "/slack/events"
     )
@@ -335,11 +513,12 @@ def load_config() -> ConnectorConfig:
         ]
         if parsed_scopes:
             cfg.slack_oauth_scopes = parsed_scopes
-    if slack_oauth_ttl := os.environ.get(
-        "OPENCLAW_CONNECTOR_SLACK_OAUTH_STATE_TTL_SEC"
-    ):
-        if slack_oauth_ttl.isdigit():
-            cfg.slack_oauth_state_ttl_sec = max(60, int(slack_oauth_ttl))
+    cfg.slack_oauth_state_ttl_sec = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_SLACK_OAUTH_STATE_TTL_SEC",
+        default=DEFAULT_SLACK_OAUTH_STATE_TTL_SEC,
+        minimum=MIN_SLACK_OAUTH_STATE_TTL_SEC,
+        maximum=MAX_SLACK_OAUTH_STATE_TTL_SEC,
+    )
 
     # Feishu / Lark (F67)
     cfg.feishu_app_id = os.environ.get("OPENCLAW_CONNECTOR_FEISHU_APP_ID")
@@ -362,9 +541,13 @@ def load_config() -> ConnectorConfig:
     if fc := os.environ.get("OPENCLAW_CONNECTOR_FEISHU_ALLOWED_CHATS"):
         cfg.feishu_allowed_chats = [u.strip() for u in fc.split(",") if u.strip()]
     cfg.feishu_bind_host = os.environ.get("OPENCLAW_CONNECTOR_FEISHU_BIND", "127.0.0.1")
-    if fp := os.environ.get("OPENCLAW_CONNECTOR_FEISHU_PORT"):
-        if fp.isdigit():
-            cfg.feishu_bind_port = int(fp)
+    cfg.feishu_bind_port = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_FEISHU_PORT",
+        default=DEFAULT_FEISHU_BIND_PORT,
+        minimum=MIN_BIND_PORT,
+        maximum=MAX_BIND_PORT,
+        clamp=False,
+    )
     cfg.feishu_webhook_path = os.environ.get(
         "OPENCLAW_CONNECTOR_FEISHU_PATH", "/feishu/events"
     )
@@ -393,25 +576,40 @@ def load_config() -> ConnectorConfig:
         cfg.admin_users = [u.strip() for u in admins.split(",") if u.strip()]
 
     # Security (F32)
-    if rpm := os.environ.get("OPENCLAW_CONNECTOR_RATE_LIMIT_USER_RPM"):
-        if rpm.isdigit():
-            cfg.rate_limit_user_rpm = int(rpm)
-    if rpm := os.environ.get("OPENCLAW_CONNECTOR_RATE_LIMIT_CHANNEL_RPM"):
-        if rpm.isdigit():
-            cfg.rate_limit_channel_rpm = int(rpm)
-    if max_len := os.environ.get("OPENCLAW_CONNECTOR_MAX_COMMAND_LENGTH"):
-        if max_len.isdigit():
-            cfg.max_command_length = int(max_len)
+    cfg.rate_limit_user_rpm = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_RATE_LIMIT_USER_RPM",
+        default=DEFAULT_RATE_LIMIT_USER_RPM,
+        minimum=MIN_RATE_LIMIT_RPM,
+        maximum=MAX_RATE_LIMIT_RPM,
+    )
+    cfg.rate_limit_channel_rpm = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_RATE_LIMIT_CHANNEL_RPM",
+        default=DEFAULT_RATE_LIMIT_CHANNEL_RPM,
+        minimum=MIN_RATE_LIMIT_RPM,
+        maximum=MAX_RATE_LIMIT_RPM,
+    )
+    cfg.max_command_length = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_MAX_COMMAND_LENGTH",
+        default=DEFAULT_MAX_COMMAND_LENGTH,
+        minimum=MIN_MAX_COMMAND_LENGTH,
+        maximum=MAX_MAX_COMMAND_LENGTH,
+    )
 
     # Media Host (F33)
     cfg.public_base_url = os.environ.get("OPENCLAW_CONNECTOR_PUBLIC_BASE_URL")
     cfg.media_path = os.environ.get("OPENCLAW_CONNECTOR_MEDIA_PATH", "/media")
-    if ttl := os.environ.get("OPENCLAW_CONNECTOR_MEDIA_TTL_SEC"):
-        if ttl.isdigit():
-            cfg.media_ttl_sec = int(ttl)
-    if mb := os.environ.get("OPENCLAW_CONNECTOR_MEDIA_MAX_MB"):
-        if mb.isdigit():
-            cfg.media_max_mb = int(mb)
+    cfg.media_ttl_sec = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_MEDIA_TTL_SEC",
+        default=DEFAULT_MEDIA_TTL_SEC,
+        minimum=MIN_MEDIA_TTL_SEC,
+        maximum=MAX_MEDIA_TTL_SEC,
+    )
+    cfg.media_max_mb = _load_bounded_int_env(
+        "OPENCLAW_CONNECTOR_MEDIA_MAX_MB",
+        default=DEFAULT_MEDIA_MAX_MB,
+        minimum=MIN_MEDIA_MAX_MB,
+        maximum=MAX_MEDIA_MAX_MB,
+    )
 
     # R80: Command Auth Policy
     import json

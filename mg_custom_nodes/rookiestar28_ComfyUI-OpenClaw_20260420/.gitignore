@@ -25,6 +25,7 @@ playwright-report/
 test-results/
 playwright/.cache/
 openclaw_state/
+moltbot_state/
 .tmp/
 *.log
 test_output.txt

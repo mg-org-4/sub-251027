@@ -140,7 +140,7 @@ Controls the `connector` sidecar process and outbound delivery.
 | `OPENCLAW_CONNECTOR_SLACK_OAUTH_INSTALL_PATH` | Slack | Local install route path (default `/slack/install`). |
 | `OPENCLAW_CONNECTOR_SLACK_OAUTH_CALLBACK_PATH` | Slack | Local OAuth callback route path (default `/slack/oauth/callback`). |
 | `OPENCLAW_CONNECTOR_SLACK_OAUTH_SCOPES` | Slack | Comma-separated bot scopes for install URL generation. |
-| `OPENCLAW_CONNECTOR_SLACK_OAUTH_STATE_TTL_SEC` | Slack | TTL for single-use OAuth state tokens (default `600`). |
+| `OPENCLAW_CONNECTOR_SLACK_OAUTH_STATE_TTL_SEC` | Slack | TTL for single-use OAuth state tokens (default `600`, clamped to `60..3600`). |
 | `OPENCLAW_CONNECTOR_SLACK_ALLOWED_USERS` | Slack | Comma-separated trusted user IDs. |
 | `OPENCLAW_CONNECTOR_SLACK_ALLOWED_CHANNELS` | Slack | Comma-separated trusted channel IDs. |
 | `OPENCLAW_CONNECTOR_FEISHU_APP_ID` | Feishu/Lark | App ID for the default binding. |
@@ -157,20 +157,28 @@ Controls the `connector` sidecar process and outbound delivery.
 | `OPENCLAW_CONNECTOR_FEISHU_DOMAIN` | Feishu/Lark | API domain selector (`feishu` or `lark`). |
 | `OPENCLAW_CONNECTOR_FEISHU_MODE` | Feishu/Lark | Transport mode (`websocket` or `webhook`). |
 | `OPENCLAW_CONNECTOR_FEISHU_CALLBACK_PATH` | Feishu/Lark | Local interactive callback route path (default `/feishu/callback`). |
+| `OPENCLAW_CONNECTOR_RATE_LIMIT_USER_RPM` | Core | Per-user connector rate limit (default `10`, clamped to `1..600`). |
+| `OPENCLAW_CONNECTOR_RATE_LIMIT_CHANNEL_RPM` | Core | Per-channel connector rate limit (default `30`, clamped to `1..600`). |
+| `OPENCLAW_CONNECTOR_MAX_COMMAND_LENGTH` | Core | Max accepted connector command text length (default `4096`, clamped to `128..32768`). |
 
 Connector posture rules:
 - In strict posture (`OPENCLAW_DEPLOYMENT_PROFILE=public` or `OPENCLAW_RUNTIME_PROFILE=hardened`), active connector platforms without allowlist coverage are fail-closed.
 - Public deployment profile check surfaces this as `DP-PUBLIC-009`.
 - Slack multi-workspace installs persist only encrypted token refs in `connector_installations.json`; raw bot/app tokens remain in encrypted secret storage and must not appear in diagnostics or exported config surfaces.
 - Feishu/Lark bindings persist normalized installation identity plus secret references only; app secrets and callback signing material must stay in encrypted/local secret storage and must not appear in diagnostics or exported config surfaces.
+- Connector bind-port envs (`OPENCLAW_CONNECTOR_LINE_PORT`, `...WHATSAPP_PORT`, `...WECHAT_PORT`, `...KAKAO_PORT`, `...SLACK_PORT`, `...FEISHU_PORT`) must stay within `1..65535`; invalid or out-of-range values fall back to the documented platform defaults instead of crashing startup.
 
 **Delivery & Media:**
 
 | Variable | Description |
 | :--- | :--- |
-| `OPENCLAW_CONNECTOR_DELIVERY_TIMEOUT_SEC` | Timeout (sec) for delivering results to chat (default: `600`). |
+| `OPENCLAW_CONNECTOR_DELIVERY_TIMEOUT_SEC` | Timeout (sec) for delivering results to chat (default `600`, clamped to `30..3600`). |
 | `OPENCLAW_CONNECTOR_PUBLIC_BASE_URL` | Public base URL for serving images to LINE/Webhooks. |
 | `OPENCLAW_CONNECTOR_MEDIA_PATH` | Local directory for staging media files. |
+| `OPENCLAW_CONNECTOR_DELIVERY_MAX_IMAGES` | Max completed images delivered per job (default `4`, clamped to `1..16`). |
+| `OPENCLAW_CONNECTOR_DELIVERY_MAX_BYTES` | Per-image delivery cap in bytes (default `10485760`, clamped to `65536..52428800`). |
+| `OPENCLAW_CONNECTOR_MEDIA_TTL_SEC` | Media expiry in seconds (default `300`, clamped to `60..86400`). |
+| `OPENCLAW_CONNECTOR_MEDIA_MAX_MB` | Max staged media size in MB (default `8`, clamped to `1..64`). |
 
 ### 2.5 Execution Budgets & Limits
 

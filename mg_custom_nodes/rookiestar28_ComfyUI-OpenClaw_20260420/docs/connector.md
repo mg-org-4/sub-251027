@@ -171,7 +171,7 @@ Set the following environment variables (or put them in a `.env` file if you use
 - `OPENCLAW_CONNECTOR_SLACK_OAUTH_INSTALL_PATH`: Local install route (default `/slack/install`).
 - `OPENCLAW_CONNECTOR_SLACK_OAUTH_CALLBACK_PATH`: Local callback route (default `/slack/oauth/callback`).
 - `OPENCLAW_CONNECTOR_SLACK_OAUTH_SCOPES`: Comma-separated bot scopes used for install URL generation.
-- `OPENCLAW_CONNECTOR_SLACK_OAUTH_STATE_TTL_SEC`: TTL in seconds for single-use OAuth state tokens (default `600`).
+- `OPENCLAW_CONNECTOR_SLACK_OAUTH_STATE_TTL_SEC`: TTL in seconds for single-use OAuth state tokens (default `600`, clamped to `60..3600`).
 - `OPENCLAW_CONNECTOR_SLACK_ALLOWED_USERS`: Comma-separated user IDs (e.g. `U12345, U67890`).
 - `OPENCLAW_CONNECTOR_SLACK_ALLOWED_CHANNELS`: Comma-separated channel IDs (e.g. `C12345`).
 - `OPENCLAW_CONNECTOR_SLACK_BIND`: Host to bind (default `127.0.0.1`).
@@ -206,10 +206,20 @@ Set the following environment variables (or put them in a `.env` file if you use
 
 **Image Delivery:**
 
+- `OPENCLAW_CONNECTOR_DELIVERY_MAX_IMAGES`: Max completed images delivered per job (default `4`, clamped to `1..16`).
+- `OPENCLAW_CONNECTOR_DELIVERY_MAX_BYTES`: Per-image delivery cap in bytes (default `10485760`, clamped to `65536..52428800`).
+- `OPENCLAW_CONNECTOR_DELIVERY_TIMEOUT_SEC`: Result delivery timeout in seconds (default `600`, clamped to `30..3600`).
 - `OPENCLAW_CONNECTOR_PUBLIC_BASE_URL`: Public HTTPS URL of your connector (e.g. `https://your-tunnel.example.com`). Required for sending images.
 - `OPENCLAW_CONNECTOR_MEDIA_PATH`: URL path for serving temporary media (default `/media`).
-- `OPENCLAW_CONNECTOR_MEDIA_TTL_SEC`: Image expiry in seconds (default `300`).
-- `OPENCLAW_CONNECTOR_MEDIA_MAX_MB`: Max image size in MB (default `8`).
+- `OPENCLAW_CONNECTOR_MEDIA_TTL_SEC`: Image expiry in seconds (default `300`, clamped to `60..86400`).
+- `OPENCLAW_CONNECTOR_MEDIA_MAX_MB`: Max image size in MB (default `8`, clamped to `1..64`).
+
+**Connector numeric guardrails:**
+
+- Platform bind ports (`OPENCLAW_CONNECTOR_LINE_PORT`, `...WHATSAPP_PORT`, `...WECHAT_PORT`, `...KAKAO_PORT`, `...SLACK_PORT`, `...FEISHU_PORT`) must stay within `1..65535`; invalid or out-of-range values fall back to the platform default port.
+- `OPENCLAW_CONNECTOR_RATE_LIMIT_USER_RPM`: Per-user connector rate limit (default `10`, clamped to `1..600`).
+- `OPENCLAW_CONNECTOR_RATE_LIMIT_CHANNEL_RPM`: Per-channel connector rate limit (default `30`, clamped to `1..600`).
+- `OPENCLAW_CONNECTOR_MAX_COMMAND_LENGTH`: Max accepted command text length (default `4096`, clamped to `128..32768`).
 
 > **Note:** Media URLs are signed with a secret derived from `OPENCLAW_CONNECTOR_ADMIN_TOKEN` or a random key.
 > To ensure URLs remain valid after connector restarts, **you must set `OPENCLAW_CONNECTOR_ADMIN_TOKEN`**.

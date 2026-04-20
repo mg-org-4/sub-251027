@@ -480,6 +480,72 @@ def parse_abpy_xml_table(text: str):
     return lut, (H, S, V), tone_curve
 
 
+def build_bw_look_table(channel_weights, dims=(72, 12, 16)):
+    """
+    Synthesize a ProfileLookTable that converts color input to grayscale
+    using per-channel luma weights, while leaving neutral (S=0) inputs
+    unchanged.
+
+    channel_weights: (R_wt, G_wt, B_wt). Need not sum to 1; normalized here.
+    dims: (hueDivisions, satDivisions, valDivisions). Default matches abpy.
+
+    Mechanism:
+      sat_scale = 0 at every bin (forces output to neutral gray).
+      val_scale varies linearly with sat: 1.0 at S=0, luma-of-hue at S=1.
+      luma-of-hue = Rn*r + Gn*g + Bn*b where (r,g,b) is the pure hue at
+      (S=1, V=1). For a pure-hue input at arbitrary sat s and value V,
+      the luma-weighted target is V * [1 - s * (1 - luma)]. Linear
+      interpolation between val_scale=1 at s=0 and val_scale=luma at s=1
+      reproduces exactly this factor. Desaturated inputs interpolate
+      smoothly toward neutral gray. V axis is left flat because the
+      channel-mix weighting is brightness-independent.
+
+    Returns (lut_data, dims) with lut_data shape (H, S, V, 3) of
+    (HueShift, SatScale, ValScale) -- the same shape write_dcp_profile
+    expects for lut_data.
+    """
+    R, G, B = channel_weights
+    total = float(R + G + B)
+    if total <= 0:
+        raise ValueError("channel_weights must sum to positive")
+    Rn, Gn, Bn = R / total, G / total, B / total
+
+    H, S, V = dims
+    lut = np.zeros((H, S, V, 3), dtype=np.float32)
+
+    for h_idx in range(H):
+        hue_deg = (h_idx / H) * 360.0
+        pure_hsv = np.array([[[hue_deg, 1.0, 1.0]]], dtype=np.float32)
+        pure_rgb = hsv_to_rgb(pure_hsv)[0, 0]
+        r, g, b = float(pure_rgb[0]), float(pure_rgb[1]), float(pure_rgb[2])
+        luma = Rn * r + Gn * g + Bn * b
+
+        for s_idx in range(S):
+            s_frac = s_idx / (S - 1) if S > 1 else 0.0
+            val_scale = (1.0 - s_frac) * 1.0 + s_frac * luma
+            for v_idx in range(V):
+                lut[h_idx, s_idx, v_idx] = (0.0, 0.0, float(val_scale))
+
+    return lut, dims
+
+
+def build_tone_curve_from_points(points, n=128):
+    """
+    PchipInterpolate a list of (h, v) control points into a 128-point
+    ProfileToneCurve. Endpoints should be (0, 0) and (1, 1).
+    """
+    try:
+        from scipy.interpolate import PchipInterpolator
+    except ImportError:
+        raise RuntimeError("scipy required for tone curve interpolation")
+    pts = np.asarray(points, dtype=np.float64)
+    pts = pts[pts[:, 0].argsort()]
+    pchip = PchipInterpolator(pts[:, 0], pts[:, 1])
+    h = np.linspace(0.0, 1.0, n)
+    v = np.clip(pchip(h), 0.0, 1.0)
+    return np.stack([h.astype(np.float32), v.astype(np.float32)], axis=-1)
+
+
 # --- Profile lookup -------------------------------------------------------
 
 _profile_cache: dict = {}

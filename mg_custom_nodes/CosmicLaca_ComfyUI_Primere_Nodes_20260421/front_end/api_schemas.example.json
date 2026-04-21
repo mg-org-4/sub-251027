@@ -1,0 +1,333 @@
+{
+  "Gemini": {
+    "Nanobanana": {
+      "provider": "Gemini",
+      "service": "Nanobanana",
+      "response_handler": "Gemini_Nanobanana.py",
+      "import_modules": [
+        "from google import genai",
+        "from google.genai import types"
+      ],
+      "possible_parameters": {
+        "aspect_ratio": ["1:1","1:4","1:8","2:3","3:2","3:4","4:1","4:3","4:5","5:4","8:1","9:16","16:9","21:9"],
+        "resolution": ["1K", "512px", "2K", "4K"],
+        "model": ["gemini-2.5-flash-image", "gemini-3-pro-image-preview", "gemini-3.1-flash-image-preview"],
+        "thinking_level": ["minimal", "high"],
+        "include_thoughts": [false, true]
+      },
+      "request_exclusions": [
+        {
+          "when": { "path": "model", "equals": "gemini-2.5-flash-image" },
+          "remove": ["config.thinking_config", "thinking_level", "include_thoughts"]
+        },
+        {
+          "when": { "path": "model", "equals": "gemini-3-pro-image-preview" },
+          "remove": ["config.thinking_config"]
+        }
+      ],
+      "request": {
+        "method": "SDK",
+        "endpoint": "client.models.generate_content",
+        "sdk_call": {
+          "args": [],
+          "kwargs": {
+            "model": "{{model}}",
+            "contents": [
+              "{{prompt}}",
+              "{{reference_images}}"
+            ],
+            "config": {
+              "$call": "types.GenerateContentConfig",
+              "$args": [],
+              "$kwargs": {
+                "response_modalities": [
+                  "{{config_response_modalities_0}}"
+                ],
+                "image_config": {
+                  "$call": "types.ImageConfig",
+                  "$args": [],
+                  "$kwargs": {
+                    "aspect_ratio": "{{aspect_ratio}}",
+                    "image_size": "{{image_size}}"
+                  }
+                },
+                "thinking_config": {
+                  "$call": "types.ThinkingConfig",
+                  "$args": [],
+                  "$kwargs": {
+                    "thinking_level": "{{thinking_level}}",
+                    "include_thoughts": "{{include_thoughts}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Imagen": {
+      "provider": "Gemini",
+      "service": "Imagen",
+      "import_modules": [
+        "from google import genai",
+        "from google.genai import types"
+      ],
+      "possible_parameters": {
+        "aspect_ratio": ["1:1", "3:4", "4:3", "9:16", "16:9"],
+        "resolution": ["1K", "2K"],
+        "model": ["imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001", "imagen-4.0-fast-generate-001"]
+      },
+      "request_exclusions": [
+        {
+          "when": {"path": "model", "equals": "imagen-4.0-fast-generate-001"},
+          "remove": ["config.image_size"]
+        }
+      ],
+      "request": {
+        "method": "SDK",
+        "endpoint": "client.models.generate_images",
+        "sdk_call": {
+          "args": [],
+          "kwargs": {
+            "model": "{{model}}",
+            "prompt": "{{prompt}}",
+            "config": {
+              "$call": "types.GenerateImagesConfig",
+              "$args": [],
+              "$kwargs": {
+                "number_of_images": "{{batch}}",
+                "aspect_ratio": "{{aspect_ratio}}",
+                "image_size": "{{resolution}}"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "BlackForest": {
+    "Flux": {
+      "provider": "BlackForest",
+      "service": "Flux",
+      "response_handler": "Blackforest_Image.py",
+      "import_modules": [
+      ],
+      "possible_parameters": {
+        "model_name": ["flux-kontext-pro", "flux-kontext-max", "flux-dev", "flux-pro", "flux-pro-1.1", "flux-pro-1.1-ultra", "flux-2-flex", "flux-2-pro-preview", "flux-2-pro", "flux-2-max", "flux-2-flex", "flux-2-klein-4b", "flux-2-klein-9b", "flux-pro-1.0-fill", "flux-pro-1.0-expand"],
+        "regions": ["api.bfl.ai", "api.eu.bfl.ai", "api.us.bfl.ai"],
+        "version": ["v1"],
+        "safety_tolerance": [0, 1, 2, 3, 4, 5, 6],
+        "prompt_upsampling": [false, true],
+        "guidance": "FLOAT",
+        "steps": "INT",
+        "image_prompt_strength": "FLOAT"
+      },
+      "request_exclusions": [
+        {
+          "when": {"path": "model_name", "equals": "flux-pro"},
+          "remove": ["steps", "guidance", "aspect_ratio", "image", "mask", "reference_mask", "image_prompt_strength", "input_image", "input_image_2", "input_image_3", "input_image_4", "input_image_5", "input_image_6", "input_image_7", "input_image_8"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-pro-1.1"},
+          "remove": ["steps", "guidance", "aspect_ratio", "image", "mask", "reference_mask", "image_prompt_strength", "input_image", "input_image_2", "input_image_3", "input_image_4", "input_image_5", "input_image_6", "input_image_7", "input_image_8"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-dev"},
+          "remove": ["aspect_ratio", "image", "mask", "reference_mask", "image_prompt_strength", "input_image", "input_image_2", "input_image_3", "input_image_4", "input_image_5", "input_image_6", "input_image_7", "input_image_8"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-pro-1.1-ultra"},
+          "remove": ["steps", "guidance", "width", "height", "image", "mask", "reference_mask", "input_image", "input_image_2", "input_image_3", "input_image_4", "input_image_5", "input_image_6", "input_image_7", "input_image_8"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-pro-1.0-fill"},
+          "remove": ["width", "height", "aspect_ratio", "input_image", "image_prompt", "input_image_2", "input_image_3", "input_image_4", "input_image_5", "input_image_6", "input_image_7", "input_image_8", "image_prompt_strength"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-pro-1.0-expand"},
+          "remove": ["width", "height", "aspect_ratio", "mask", "reference_mask", "input_image", "image_prompt", "input_image_2", "input_image_3", "input_image_4", "input_image_5", "input_image_6", "input_image_7", "input_image_8", "image_prompt_strength"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-kontext-pro"},
+          "remove": ["width", "height", "mask", "reference_mask", "image", "image_prompt", "input_image_5", "input_image_6", "input_image_7", "input_image_8", "image_prompt_strength"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-kontext-max"},
+          "remove": ["width", "height", "mask", "reference_mask", "image", "image_prompt", "input_image_5", "input_image_6", "input_image_7", "input_image_8", "image_prompt_strength"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-2-max"},
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-2-klein-9b"},
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "input_image_5", "input_image_6", "input_image_7", "input_image_8", "image_prompt_strength"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-2-klein-4b"},
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "input_image_5", "input_image_6", "input_image_7", "input_image_8", "image_prompt_strength"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-2-pro-preview"},
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-2-pro"},
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
+        },
+        {
+          "when": {"path": "model_name", "equals": "flux-2-flex"},
+          "remove": ["steps", "guidance", "aspect_ratio", "mask", "reference_mask", "image", "image_prompt", "image_prompt_strength"]
+        }
+      ],
+      "parameter_constraints": {
+        "width":  {"min": 256, "max": 1440, "step": 32},
+        "height": {"min": 256, "max": 1440, "step": 32},
+        "safety_tolerance": [
+          {"when": {"path": "model_name", "equals": "flux-2-max"}, "max": 5},
+          {"when": {"path": "model_name", "equals": "flux-2-klein-9b"}, "max": 5},
+          {"when": {"path": "model_name", "equals": "flux-2-klein-4b"}, "max": 5},
+          {"when": {"path": "model_name", "equals": "flux-2-pro-preview"}, "max": 5},
+          {"when": {"path": "model_name", "equals": "flux-2-pro"}, "max": 5},
+          {"when": {"path": "model_name", "equals": "flux-2-flex"}, "max": 5}
+        ]
+      },
+      "request": {
+        "method": "SDK",
+        "endpoint": "requests.post",
+        "sdk_call": {
+          "args": [
+            "https://{{regions}}/{{version}}/{{model_name}}"
+          ],
+          "kwargs": {
+            "headers": {
+              "accept": "application/json",
+              "x-key": {
+                "$call": "os.environ.get",
+                "$args": ["{{BFL_API_KEY}}"],
+                "$kwargs": {}
+              },
+              "Content-Type": "application/json"
+            },
+            "json": {
+              "output_format": "png",
+              "safety_tolerance": "{{safety_tolerance}}",
+              "prompt": "{{prompt}}",
+              "image": "{{input_image}}",
+              "mask": "{{reference_mask}}",
+              "image_prompt": "{{input_image}}",
+              "input_image": "{{input_image}}",
+              "input_image_2": "{{input_image_2}}",
+              "input_image_3": "{{input_image_3}}",
+              "input_image_4": "{{input_image_4}}",
+              "input_image_5": "{{input_image_5}}",
+              "input_image_6": "{{input_image_6}}",
+              "input_image_7": "{{input_image_7}}",
+              "input_image_8": "{{input_image_8}}",
+              "image_prompt_strength": "{{image_prompt_strength}}",
+              "seed": "{{seed}}",
+              "aspect_ratio": "{{aspect_ratio}}",
+              "width": "{{width}}",
+              "height": "{{height}}",
+              "prompt_upsampling": "{{prompt_upsampling}}",
+              "guidance": "{{guidance}}",
+              "steps": "{{steps}}"
+            }
+          }
+        }
+      }
+    }
+  },
+  "OpenAI": {
+    "OpenAI_GPT": {
+      "provider": "OpenAI",
+      "service": "OpenAI_GPT",
+      "response_handler": "OpenAI_Image.py",
+      "import_modules": [
+        "from openai import OpenAI"
+      ],
+      "possible_parameters": {
+        "model": ["chatgpt-image-latest", "gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini"],
+        "gen_method": ["generate", "edit"],
+        "background": ["auto", "transparent", "opaque"],
+        "moderation": ["low", "auto"],
+        "input_fidelity": ["high", "low"],
+        "output_format": ["jpeg", "png", "webp"],
+        "output_compression": "INT",
+        "quality": ["high", "low", "medium", "auto"],
+        "size": ["1024x1024", "1536x1024", "1024x1536", "auto"]
+      },
+      "request_exclusions": [
+        {
+          "when": {"path": "output_format", "equals": "png"},
+          "remove": ["output_compression"]
+        },
+        {
+          "when": {"path": "gen_method", "equals": "edit"},
+          "remove": ["moderation"]
+        },
+        {
+          "when": {"path": "gen_method", "equals": "generate"},
+          "remove": ["image", "reference_images", "input_fidelity"]
+        }
+      ],
+      "request": {
+        "method": "SDK",
+        "endpoint": "client.images.{{gen_method}}",
+        "sdk_call": {
+          "args": [],
+          "kwargs": {
+            "model": "{{model}}",
+            "image": "{{reference_images}}",
+            "prompt": "{{prompt}}",
+            "n": "{{batch}}",
+            "moderation": "{{moderation}}",
+            "input_fidelity": "{{input_fidelity}}",
+            "background": "{{background}}",
+            "output_format": "{{output_format}}",
+            "output_compression": "{{output_compression}}",
+            "size": "{{size}}",
+            "quality": "{{quality}}"
+          }
+        }
+      }
+    },
+    "OpenAI_DALL-E_T2I": {
+      "provider": "OpenAI",
+      "service": "OpenAI_DALL-E_T2I",
+      "response_handler": "OpenAI_Image.py",
+      "import_modules": [
+        "from openai import OpenAI"
+      ],
+      "possible_parameters": {
+        "model": ["dall-e-2", "dall-e-3"],
+        "quality": ["standard", "hd"],
+        "response_format": ["b64_json", "url"],
+        "size": ["1024x1024", "1792x1024", "1024x1792"],
+        "style": ["vivid", "natural"]
+      },
+      "request_exclusions": [
+        {
+          "when": {"path": "model", "equals": "dall-e-2"},
+          "remove": ["quality", "style"]
+        }
+      ],
+      "request": {
+        "method": "SDK",
+        "endpoint": "client.images.generate",
+        "sdk_call": {
+          "args": [],
+          "kwargs": {
+            "model": "{{model}}",
+            "prompt": "{{prompt}}",
+            "n": 1,
+            "size": "{{size}}",
+            "quality": "{{quality}}",
+            "response_format": "{{response_format}}",
+            "style": "{{style}}"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviews": [
+    {
+      "cycle_id": "2026-04-20-baseline-cycle-1",
+      "stage_id": "baseline-35",
+      "reviewed_at": "2026-04-20",
+      "overall_percent_covered": 68.14,
+      "reviewed_hotspot_families": [
+        "connector_config",
+        "config_bootstrap"
+      ],
+      "hotspot_percent_covered": {
+        "connector_config": 64.94,
+        "config_bootstrap": 63.2
+      },
+      "artifact_reference": "2026-04-20 Windows backend coverage review cycle 1 via scripts/run_backend_coverage.py (.tmp/coverage/coverage_probe.json)"
+    },
+    {
+      "cycle_id": "2026-04-20-baseline-cycle-2",
+      "stage_id": "baseline-35",
+      "reviewed_at": "2026-04-20",
+      "overall_percent_covered": 68.17,
+      "reviewed_hotspot_families": [
+        "connector_config",
+        "config_bootstrap"
+      ],
+      "hotspot_percent_covered": {
+        "connector_config": 64.94,
+        "config_bootstrap": 63.2
+      },
+      "artifact_reference": "2026-04-20 Windows backend coverage review cycle 2 via scripts/run_backend_coverage.py (.tmp/coverage/r181_r182_cycle2.json)"
+    }
+  ]
+}

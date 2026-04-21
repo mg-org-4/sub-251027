@@ -38,6 +38,12 @@ class PrimereApiProcessor:
     API_SCHEMAS_RAW = utility.json2tuple(_schema_file if Path(_schema_file).is_file() else _schema_example)
     API_SCHEMA_REGISTRY = api_schema_registry.normalize_registry(API_SCHEMAS_RAW)
 
+    SECTION_TITLES = [
+        {"before": "processor", "name": "primere_api_proc", "title": "🧭 API Setup", "color": "#1B263B", "text_color": "#EAF1F8", "label": "Setup API processor, select related provider and service."},
+        {"before": "auto_save_result", "name": "primere_save_api_result", "title": "💾 API result save", "color": "#1B263B", "text_color": "#EAF1F8", "label": "Save API results. Define main path, add subdirectory structure, add filename prefixes. Save related data to .txt or .json file."},
+        {"after": "save_data_to_txt", "name": "primere_api_body", "title": "⚙ API body parameters", "color": "#1B263B", "text_color": "#EAF1F8", "label": "Set API body custom parameters."},
+    ]
+
     @classmethod
     def INPUT_TYPES(cls):
         cls.required_inputs = {
@@ -71,15 +77,15 @@ class PrimereApiProcessor:
             "first_image": ("IMAGE", {"default": None, "forceInput": True}),
             "last_image": ("IMAGE", {"default": None, "forceInput": True}),
             "frontal_image": ("IMAGE", {"default": None, "forceInput": True}),
-            "reference_video": ("STRING", {"default": None, "forceInput": True}),
+            "reference_video": ("PATH", {"default": None, "forceInput": True}),
             "width": ("INT", {"default": 1024, "max": 8192, "min": 64, "step": 64, "forceInput": True}),
             "height": ("INT", {"default": 1024, "max": 8192, "min": 64, "step": 64, "forceInput": True}),
             "aspect_ratio": ("STRING", {"forceInput": True, "default": "1:1"}),
             "seed": ("INT", {"default": 1, "min": 0, "max": (2 ** 32) - 1, "forceInput": True}),
-            "custom_path_1": ("STRING", {"forceInput": True, "default": None}),
-            "custom_path_2": ("STRING", {"forceInput": True, "default": None}),
-            "custom_path_3": ("STRING", {"forceInput": True, "default": None}),
-            "custom_path_4": ("STRING", {"forceInput": True, "default": None}),
+            "custom_path_1": ("PATH", {"forceInput": True, "default": None}),
+            "custom_path_2": ("PATH", {"forceInput": True, "default": None}),
+            "custom_path_3": ("PATH", {"forceInput": True, "default": None}),
+            "custom_path_4": ("PATH", {"forceInput": True, "default": None}),
         }
 
         hidden_inputs = {

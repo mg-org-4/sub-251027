@@ -776,6 +776,7 @@ class PrimereModelControl:
 
                 "refiner": ("BOOLEAN", {"default": False, "label_on": "Refiner ON", "label_off": "Refiner OFF"}),
                 "refiner_model": (cls.REFINER_MODELS,),
+                "refiner_vae": (['Baked'] + cls.VAELIST,),
                 "refiner_sampler": (comfy.samplers.KSampler.SAMPLERS, {"default": "dpmpp_2m"}),
                 "refiner_scheduler": (comfy.samplers.KSampler.SCHEDULERS, {"default": "normal"}),
                 "refiner_cfg": ("FLOAT", {"default": 2.0, "min": 0.1, "max": 100, "step": 0.01}),

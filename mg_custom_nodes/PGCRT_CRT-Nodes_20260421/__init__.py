@@ -1,7 +1,7 @@
 """
 @author: CRT
 @title: CRT-Nodes
-@version: 2.3.2
+@version: 2.3.5
 @project: "https://github.com/PGCRT/CRT-Nodes",
 @description: Set of nodes for ComfyUI
 https://discord.gg/8wYS9MBQqp
@@ -31,8 +31,6 @@ if "CRT_NODES_INITIALIZED" not in globals():
     from .py.Mask_Empty_Float_Node import MaskEmptyFloatNode
     from .py.Mask_Pass_Or_Placeholder import MaskPassOrPlaceholder
     from .py.Latent_Injection_Sampler import LatentNoiseInjectionSampler
-    from .py.Flux1_Cnet_Sampler_With_Injection import FluxControlnetSamplerWithInjection
-    from .py.Flux1_Cnet_Ultralytics_Multi import Flux1CnetUltralyticMulti
     from .py.Face_Enhancement_Pipeline_With_Injection import (
         UltralyticsEnhancer as FaceEnhancementWithInjection,
     )
@@ -122,7 +120,6 @@ if "CRT_NODES_INITIALIZED" not in globals():
         CRT_LTX23USModelsPipe,
         CRT_LTX23UnifiedSampler,
     )
-
     CRT_LTX23AutoDownload = None
     LTX23AutoDownloadAPI = None
     try:
@@ -207,8 +204,6 @@ NODE_CLASS_MAPPINGS = {
     "MaskEmptyFloatNode": MaskEmptyFloatNode,
     "MaskPassOrPlaceholder": MaskPassOrPlaceholder,
     "LatentNoiseInjectionSampler": LatentNoiseInjectionSampler,
-    "FluxControlnetSamplerWithInjection": FluxControlnetSamplerWithInjection,
-    "Flux1CnetUltralyticMulti": Flux1CnetUltralyticMulti,
     "PonyUpscaleSamplerWithInjection": PonyUpscaleSamplerWithInjection,
     "FaceEnhancementWithInjection": FaceEnhancementWithInjection,
     "FaceEnhancementWithInjectionSEGS": FaceEnhancementWithInjectionSEGS,
@@ -309,8 +304,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MaskEmptyFloatNode": "Mask Empty Float (CRT)",
     "MaskPassOrPlaceholder": "Mask Pass or Placeholder (CRT)",
     "LatentNoiseInjectionSampler": "Latent Noise Injection Sampler (CRT)",
-    "FluxControlnetSamplerWithInjection": "Flux1 Cnet Sampler with Injection (CRT)",
-    "Flux1CnetUltralyticMulti": "Flux1 Cnet Ultralytics Multi (CRT)",
     "PonyUpscaleSamplerWithInjection": "Image Upscale Sampler (CRT)",
     "FaceEnhancementWithInjection": "Ultralytics Enhancer (CRT)",
     "FaceEnhancementWithInjectionSEGS": "SEGS Enhancer Multi (CRT)",

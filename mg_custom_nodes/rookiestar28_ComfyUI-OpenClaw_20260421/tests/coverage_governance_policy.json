@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_stage": "baseline-35",
+  "current_stage": "ratchet-45",
   "stages": [
     {
       "id": "baseline-35",
@@ -77,26 +77,5 @@
       ]
     }
   ],
-  "exceptions": [
-    {
-      "id": "connector-config-ratchet-gap",
-      "family": "connector_config",
-      "paths": [
-        "connector/config.py",
-        "connector/router.py"
-      ],
-      "reason": "Current governance remains global-floor only; connector coverage must be reviewed explicitly before the ratchet-45 promotion.",
-      "review_by": "2026-06-01"
-    },
-    {
-      "id": "config-bootstrap-ratchet-gap",
-      "family": "config_bootstrap",
-      "paths": [
-        "config.py",
-        "services/runtime_config.py"
-      ],
-      "reason": "Config/bootstrap hotspots still need staged cleanup and targeted review evidence before the next floor promotion.",
-      "review_by": "2026-06-01"
-    }
-  ]
+  "exceptions": []
 }

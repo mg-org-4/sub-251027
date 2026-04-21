@@ -20,6 +20,12 @@ The standard local and CI-parity validation flow includes two explicit governanc
   - fails closed on stale or under-documented entries in `tests/skip_policy.json`
   - fails closed on stale or under-documented entries in `tests/mutation_survivor_allowlist.json`
 
+Backend unit coverage should be gathered through the shared helper instead of ad hoc `coverage run` invocations:
+
+```bash
+python scripts/run_backend_coverage.py --start-dir tests --pattern "test_*.py" --enforce-skip-policy tests/skip_policy.json --coverage-json .tmp/coverage/backend_unit_coverage.json
+```
+
 ## Coverage Review Surface
 
 Before any future coverage-floor promotion, review hotspot-family coverage with:
@@ -35,9 +41,16 @@ This report is the governed review surface for critical families such as:
 - connector config and ingress seams
 - config and bootstrap seams
 
+Retained release-cycle review evidence lives in:
+
+- `tests/coverage_promotion_reviews.json`
+
+The current enforced stage is `ratchet-45`, which means the repository floor is now `fail_under = 45.0` and future promotions must retain at least two reviewed cycles for the previous stage.
+
 ## Governance Baseline
 
 - `tests/coverage_governance_policy.json` is the source of truth for the current enforced floor, next planned ratchet target, hotspot families, and temporary exceptions.
 - `pyproject.toml` coverage settings must stay aligned with the active stage floor declared in `tests/coverage_governance_policy.json`.
+- `tests/coverage_promotion_reviews.json` is the retained promotion-evidence ledger for reviewed hotspot summaries across release cycles.
 - Test-debt governance remains fail-closed; review metadata such as `reason` and `review_after` must stay current for governed skip-policy and mutation-survivor entries.
 - Detailed CI-gate composition and merge requirements remain documented in `docs/release/ci_regression_policy.md` and `tests/TEST_SOP.md`.

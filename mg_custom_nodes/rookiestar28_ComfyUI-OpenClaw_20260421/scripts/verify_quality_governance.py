@@ -12,12 +12,15 @@ import argparse
 import json
 import re
 import sys
+from datetime import date
 from pathlib import Path
 from typing import List, Optional
 
 from quality_governance_common import (
+    MIN_PROMOTION_REVIEW_CYCLES,
     current_stage_threshold,
     load_and_validate_policy,
+    load_and_validate_review_evidence,
     next_stage,
 )
 
@@ -76,11 +79,51 @@ def verify_governance(
     test_sop_path: Path,
     survivor_allowlist_path: Path,
     coverage_policy_path: Path,
+    coverage_review_evidence_path: Path,
     release_policy_doc_path: Path,
 ) -> List[str]:
     failures: List[str] = []
     policy_payload, policy_failures = load_and_validate_policy(coverage_policy_path)
     failures.extend(policy_failures)
+    review_payload = None
+    if policy_payload is not None:
+        review_payload, review_failures = load_and_validate_review_evidence(
+            coverage_review_evidence_path,
+            policy=policy_payload,
+        )
+        failures.extend(review_failures)
+
+        for entry in policy_payload.get("exceptions", []):
+            review_by = entry.get("review_by")
+            entry_id = entry.get("id", "<unknown>")
+            if isinstance(review_by, str):
+                if date.fromisoformat(review_by) < date.today():
+                    failures.append(
+                        "coverage policy: stale exception review date for "
+                        f"{entry_id}: {review_by}"
+                    )
+
+        stages = policy_payload.get("stages", [])
+        current_stage = policy_payload.get("current_stage")
+        if review_payload is not None and isinstance(stages, list):
+            stage_ids = [stage.get("id") for stage in stages if isinstance(stage, dict)]
+            if current_stage in stage_ids:
+                current_index = stage_ids.index(current_stage)
+                if current_index > 0:
+                    previous_stage = stage_ids[current_index - 1]
+                    reviews = review_payload.get("reviews", [])
+                    previous_stage_reviews = [
+                        review
+                        for review in reviews
+                        if isinstance(review, dict)
+                        and review.get("stage_id") == previous_stage
+                    ]
+                    if len(previous_stage_reviews) < MIN_PROMOTION_REVIEW_CYCLES:
+                        failures.append(
+                            "coverage review evidence: promoted stage "
+                            f"{current_stage} requires at least {MIN_PROMOTION_REVIEW_CYCLES} "
+                            f"promotion review cycles for previous stage {previous_stage}"
+                        )
 
     pyproject_text = _read_text(pyproject_path)
     report_section = _extract_toml_section(pyproject_text, "tool.coverage.report")
@@ -220,6 +263,11 @@ def main() -> int:
         help="Path to the staged coverage governance policy JSON.",
     )
     parser.add_argument(
+        "--coverage-review-evidence",
+        default="tests/coverage_promotion_reviews.json",
+        help="Path to the retained coverage promotion review evidence JSON.",
+    )
+    parser.add_argument(
         "--release-policy-doc",
         default="docs/release/ci_regression_policy.md",
         help="Path to the release/CI regression policy document.",
@@ -232,6 +280,7 @@ def main() -> int:
         test_sop_path=Path(args.test_sop),
         survivor_allowlist_path=Path(args.mutation_survivor_allowlist),
         coverage_policy_path=Path(args.coverage_policy),
+        coverage_review_evidence_path=Path(args.coverage_review_evidence),
         release_policy_doc_path=Path(args.release_policy_doc),
     )
     if failures:

@@ -13,6 +13,7 @@ REQUIRED_HOTSPOT_FAMILIES = (
     "connector_config",
     "config_bootstrap",
 )
+MIN_PROMOTION_REVIEW_CYCLES = 2
 
 
 @dataclass(frozen=True)
@@ -186,6 +187,113 @@ def load_and_validate_policy(path: Path) -> tuple[dict[str, Any] | None, list[st
     return payload, failures
 
 
+def load_and_validate_review_evidence(
+    path: Path, *, policy: dict[str, Any]
+) -> tuple[dict[str, Any] | None, list[str]]:
+    failures: list[str] = []
+    if not path.is_file():
+        return None, [f"coverage review evidence: missing review evidence file: {path}"]
+
+    try:
+        payload = read_json(path)
+    except json.JSONDecodeError as exc:
+        return None, [f"coverage review evidence: invalid JSON: {exc}"]
+
+    if not isinstance(payload, dict):
+        return None, ["coverage review evidence: root must be an object"]
+
+    schema_version = payload.get("schema_version")
+    if schema_version != 1:
+        failures.append(
+            f"coverage review evidence: schema_version must be 1, got {schema_version!r}"
+        )
+
+    reviews = payload.get("reviews")
+    if not isinstance(reviews, list):
+        failures.append("coverage review evidence: reviews must be a list")
+        return payload, failures
+
+    stage_ids = {stage["id"] for stage in policy.get("stages", [])}
+    family_ids = {family["id"] for family in policy.get("hotspot_families", [])}
+    seen_cycle_ids: set[str] = set()
+
+    for entry in reviews:
+        if not isinstance(entry, dict):
+            failures.append("coverage review evidence: each review must be an object")
+            continue
+        cycle_id = entry.get("cycle_id")
+        if not isinstance(cycle_id, str) or not cycle_id.strip():
+            failures.append("coverage review evidence: review missing string cycle_id")
+        elif cycle_id in seen_cycle_ids:
+            failures.append(
+                f"coverage review evidence: duplicate review cycle_id: {cycle_id}"
+            )
+        else:
+            seen_cycle_ids.add(cycle_id)
+
+        stage_id = entry.get("stage_id")
+        if not isinstance(stage_id, str) or stage_id not in stage_ids:
+            failures.append(
+                f"coverage review evidence: review {cycle_id!r} references unknown stage_id"
+            )
+
+        reviewed_at = entry.get("reviewed_at")
+        if not isinstance(reviewed_at, str):
+            failures.append(
+                f"coverage review evidence: review {cycle_id!r} must include reviewed_at"
+            )
+        else:
+            try:
+                date.fromisoformat(reviewed_at)
+            except ValueError:
+                failures.append(
+                    f"coverage review evidence: review {cycle_id!r} has invalid reviewed_at date"
+                )
+
+        overall_percent = entry.get("overall_percent_covered")
+        if not isinstance(overall_percent, (int, float)):
+            failures.append(
+                f"coverage review evidence: review {cycle_id!r} missing numeric overall_percent_covered"
+            )
+
+        reviewed_families = entry.get("reviewed_hotspot_families")
+        if not isinstance(reviewed_families, list) or not reviewed_families:
+            failures.append(
+                f"coverage review evidence: review {cycle_id!r} must include reviewed_hotspot_families"
+            )
+            reviewed_families = []
+        elif any(
+            not isinstance(family, str) or family not in family_ids
+            for family in reviewed_families
+        ):
+            failures.append(
+                f"coverage review evidence: review {cycle_id!r} includes unknown hotspot family"
+            )
+
+        hotspot_percent_covered = entry.get("hotspot_percent_covered")
+        if not isinstance(hotspot_percent_covered, dict):
+            failures.append(
+                f"coverage review evidence: review {cycle_id!r} must include hotspot_percent_covered map"
+            )
+            hotspot_percent_covered = {}
+        else:
+            for family in reviewed_families:
+                value = hotspot_percent_covered.get(family)
+                if not isinstance(value, (int, float)):
+                    failures.append(
+                        "coverage review evidence: review "
+                        f"{cycle_id!r} missing numeric hotspot percent for {family}"
+                    )
+
+        artifact_reference = entry.get("artifact_reference")
+        if not isinstance(artifact_reference, str) or not artifact_reference.strip():
+            failures.append(
+                f"coverage review evidence: review {cycle_id!r} must include artifact_reference"
+            )
+
+    return payload, failures
+
+
 def current_stage_threshold(policy: dict[str, Any]) -> float:
     current_id = policy["current_stage"]
     for raw_stage in policy["stages"]:
@@ -236,14 +344,20 @@ def summarize_coverage(
     if not isinstance(files, dict) or not isinstance(totals, dict):
         raise ValueError("coverage payload must contain files and totals objects")
 
+    normalized_files = {
+        normalize_repo_path(path): payload for path, payload in files.items()
+    }
+
     hotspot_summary: dict[str, Any] = {}
     for family in policy["hotspot_families"]:
         family_id = family["id"]
-        matched_files, missing_paths = _matching_coverage_files(files, family["paths"])
+        matched_files, missing_paths = _matching_coverage_files(
+            normalized_files, family["paths"]
+        )
         covered_lines = 0
         num_statements = 0
         for file_path in matched_files:
-            summary = files[file_path].get("summary", {})
+            summary = normalized_files[file_path].get("summary", {})
             covered_lines += int(summary.get("covered_lines", 0))
             num_statements += int(summary.get("num_statements", 0))
         percent = (

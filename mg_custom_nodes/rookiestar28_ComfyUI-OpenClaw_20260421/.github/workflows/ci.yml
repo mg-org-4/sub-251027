@@ -94,8 +94,10 @@ jobs:
           python -m pip install --upgrade pip
           # Keep aligned with local pre-push/full-test scripts.
           # aiohttp is required by multiple unit-test import paths.
+          # CRITICAL: Python 3.10 coverage reads pyproject.toml only when the
+          # TOML extra is present; do not downgrade this back to plain coverage.
           python -m pip install -r requirements.txt
-          python -m pip install numpy pillow aiohttp
+          python -m pip install numpy pillow aiohttp "coverage[toml]"
       - name: R120 preflight
         run: |
           python scripts/preflight_check.py --strict
@@ -113,7 +115,10 @@ jobs:
         env:
           MOLTBOT_STATE_DIR: ${{ github.workspace }}/moltbot_state/_ci_unit
         run: |
-          python scripts/run_unittests.py --start-dir tests --pattern "test_*.py" --enforce-skip-policy tests/skip_policy.json
+          python scripts/run_backend_coverage.py --start-dir tests --pattern "test_*.py" --enforce-skip-policy tests/skip_policy.json --coverage-json .tmp/coverage/backend_unit_coverage.json
+      - name: Coverage hotspot report
+        run: |
+          python scripts/report_coverage_governance.py --coverage-json .tmp/coverage/backend_unit_coverage.json
 
   backend-e2e-real:
     name: Backend E2E (real-backend lane, low-mock)

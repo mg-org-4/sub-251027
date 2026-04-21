@@ -183,6 +183,18 @@ if (-not $hasDefusedXml) {
   Invoke-Checked "pip install defusedxml" { & $venvPython -m pip install defusedxml }
 }
 
+$hasCoverageTomlSupport = $true
+# CRITICAL: keep this aligned with CI/pre-push bootstrap so Python 3.10 lanes
+# install coverage[toml] before the shared backend coverage gate runs.
+& $venvPython -c "import sys, importlib.util; has_coverage = importlib.util.find_spec('coverage') is not None; has_toml = sys.version_info >= (3, 11) or importlib.util.find_spec('tomli') is not None; sys.exit(0 if has_coverage and has_toml else 1)" | Out-Null
+if ($LASTEXITCODE -ne 0) {
+  $hasCoverageTomlSupport = $false
+}
+if (-not $hasCoverageTomlSupport) {
+  Write-Host "[tests] Installing coverage[toml] into project venv (R184 backend coverage gate) ..."
+  Invoke-Checked "pip install coverage[toml]" { & $venvPython -m pip install "coverage[toml]" }
+}
+
 # Ensure Node >= 18
 $nodeMajor = [int]((& node -p "process.versions.node.split('.')[0]").Trim())
 if ($nodeMajor -lt 18) {
@@ -279,7 +291,12 @@ Invoke-Checked "test debt governance check" {
 Write-Host "[tests] 5/10 backend unit tests"
 $env:MOLTBOT_STATE_DIR = "$root\moltbot_state\_local_unit"
 Invoke-Checked "backend unit tests" {
-  & $venvPython scripts\run_unittests.py --start-dir tests --pattern "test_*.py" --enforce-skip-policy tests\skip_policy.json
+  & $venvPython scripts\run_backend_coverage.py --start-dir tests --pattern "test_*.py" --enforce-skip-policy tests\skip_policy.json --coverage-json .tmp\coverage\backend_unit_coverage.json
+}
+
+Write-Host "[tests] 5.1/10 backend coverage hotspot report"
+Invoke-Checked "backend coverage hotspot report" {
+  & $venvPython scripts\report_coverage_governance.py --coverage-json .tmp\coverage\backend_unit_coverage.json
 }
 
 if ($env:OPENCLAW_IMPL_RECORD_PATH) {

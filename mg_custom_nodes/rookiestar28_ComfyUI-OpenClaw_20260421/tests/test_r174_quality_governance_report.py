@@ -163,3 +163,101 @@ class TestR174QualityGovernanceReport(unittest.TestCase):
                 payload["hotspot_families"]["security_boundary"]["missing_paths"],
                 ["services/security_gate.py"],
             )
+
+    def test_windows_style_coverage_paths_are_normalized_for_hotspot_matching(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            policy = tmp / "coverage_governance_policy.json"
+            coverage_json = tmp / "coverage.json"
+
+            policy.write_text(
+                json.dumps(
+                    sample_policy_payload(
+                        hotspot_families=[
+                            {"id": "safe_io", "paths": ["services/safe_io.py"]},
+                            {
+                                "id": "connector_config",
+                                "paths": ["connector/config.py", "connector/router.py"],
+                            },
+                            {
+                                "id": "security_boundary",
+                                "paths": ["services/security_gate.py"],
+                            },
+                            {
+                                "id": "config_bootstrap",
+                                "paths": ["config.py", "services/runtime_config.py"],
+                            },
+                        ]
+                    ),
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            coverage_json.write_text(
+                json.dumps(
+                    {
+                        "meta": {"version": "7.13.5"},
+                        "files": {
+                            "services\\safe_io.py": {
+                                "summary": {
+                                    "covered_lines": 50,
+                                    "num_statements": 100,
+                                    "percent_covered": 50.0,
+                                }
+                            },
+                            "connector\\config.py": {
+                                "summary": {
+                                    "covered_lines": 45,
+                                    "num_statements": 50,
+                                    "percent_covered": 90.0,
+                                }
+                            },
+                            "connector\\router.py": {
+                                "summary": {
+                                    "covered_lines": 40,
+                                    "num_statements": 80,
+                                    "percent_covered": 50.0,
+                                }
+                            },
+                            "services\\runtime_config.py": {
+                                "summary": {
+                                    "covered_lines": 28,
+                                    "num_statements": 40,
+                                    "percent_covered": 70.0,
+                                }
+                            },
+                        },
+                        "totals": {
+                            "covered_lines": 163,
+                            "num_statements": 270,
+                            "percent_covered": 60.37,
+                        },
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self._run_script(
+                "--coverage-policy",
+                str(policy),
+                "--coverage-json",
+                str(coverage_json),
+                "--format",
+                "json",
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(
+                payload["hotspot_families"]["connector_config"]["covered_lines"], 85
+            )
+            self.assertEqual(
+                payload["hotspot_families"]["connector_config"]["num_statements"], 130
+            )
+            self.assertAlmostEqual(
+                payload["hotspot_families"]["connector_config"]["percent_covered"],
+                65.38,
+                places=2,
+            )

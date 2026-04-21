@@ -248,7 +248,7 @@ bash scripts/pre_push_checks.sh
 2) all `pre-commit` hooks
 3) coverage governance check (`scripts/verify_quality_governance.py`)
 4) test debt governance check (`scripts/verify_test_debt_governance.py`)
-5) backend unit tests (`scripts/run_unittests.py --pattern "test_*.py" --enforce-skip-policy tests/skip_policy.json`)
+5) backend unit coverage gate (`scripts/run_backend_coverage.py --start-dir tests --pattern "test_*.py" --enforce-skip-policy tests/skip_policy.json --coverage-json .tmp/coverage/backend_unit_coverage.json`)
 6) backend real E2E lanes (`tests.test_r122_real_backend_lane` + `tests.test_r123_real_backend_model_list_lane`)
 7) R121 retry partition contract (`tests.test_r121_retry_partition_contract`)
 8) R118 adversarial adaptive gate (`scripts/run_adversarial_gate.py --profile auto --seed 42`)
@@ -258,7 +258,8 @@ IMPORTANT:
 
 - Do not remove stage (3). If governance drift is not checked locally, coverage / mutation protections can silently weaken while the main test suite still looks green.
 - Do not remove stage (4). If stale skip-policy or mutation allowlist debt is not checked locally, CI can silently accumulate unreviewed governance exceptions.
-- Do not remove stage (5). If pre-push skips backend unit tests, local pushes can pass while GitHub CI fails later.
+- Do not remove stage (5). If pre-push skips the shared backend coverage gate, local pushes can pass while GitHub CI fails later.
+  - Stage (5) must remain the shared coverage-backed helper so the active `fail_under` floor is enforced locally and in CI with the same artifact path.
 - Do not remove stage (6). If pre-push skips real-backend lanes, model-list/webhook wiring regressions can bypass local checks and fail later in CI.
 - Do not remove stage (7) or stage (8). If pre-push skips retry partition or adversarial gates, verification hardening regressions can bypass local checks and fail later in CI.
 - Do not downgrade stage (8) back to fixed smoke profile. Adaptive mode is required so high-risk diffs auto-escalate to `extended`.
@@ -280,12 +281,20 @@ IMPORTANT:
 ## Coverage Governance Baseline (Required)
 
 - Coverage configuration lives in `pyproject.toml` and must keep:
-  - `fail_under >= 35.0`
+  - `fail_under >= 45.0`
   - `show_missing = true`
   - `skip_covered = true`
 - staged coverage ratchet policy (`tests/coverage_governance_policy.json`) lives in the repo and governs the current floor plus future ratchet targets.
   - `pyproject.toml` must keep `fail_under` aligned with the current stage floor declared there.
   - Planned ratchet targets are governance metadata, not implicit permission to change `fail_under` ad hoc.
+- retained promotion evidence lives in `tests/coverage_promotion_reviews.json`.
+- backend unit coverage should be gathered with:
+
+```bash
+python scripts/run_backend_coverage.py --start-dir tests --pattern "test_*.py" --enforce-skip-policy tests/skip_policy.json --coverage-json .tmp/coverage/backend_unit_coverage.json
+```
+
+  - This helper is the shared local/CI path that both enforces the active `fail_under` floor and emits the JSON artifact used by hotspot-family review reporting.
 - Coverage governance summary report:
 
 ```bash

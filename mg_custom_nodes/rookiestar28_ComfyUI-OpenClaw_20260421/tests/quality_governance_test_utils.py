@@ -100,6 +100,7 @@ def write_governance_baseline_fixture(
     *,
     fail_under: Optional[float] = 35.0,
     coverage_policy_payload: Optional[Dict[str, Any]] = None,
+    coverage_review_evidence_payload: Optional[Dict[str, Any]] = None,
     mutation_allowlist_payload: Optional[Dict[str, Any]] = None,
     include_test_debt_phrase: bool = False,
 ) -> Dict[str, Path]:
@@ -143,6 +144,20 @@ def write_governance_baseline_fixture(
         encoding="utf-8",
     )
 
+    coverage_review_evidence = tmp / "coverage_promotion_reviews.json"
+    coverage_review_evidence.write_text(
+        json.dumps(
+            coverage_review_evidence_payload
+            or {
+                "schema_version": 1,
+                "reviews": [],
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     release_policy_doc = tmp / "ci_regression_policy.md"
     release_policy_doc.write_text(
         sample_release_policy_text(include_test_debt_phrase=include_test_debt_phrase),
@@ -155,5 +170,6 @@ def write_governance_baseline_fixture(
         "test_sop": test_sop,
         "survivor_allowlist": survivor_allowlist,
         "coverage_policy": coverage_policy,
+        "coverage_review_evidence": coverage_review_evidence,
         "release_policy_doc": release_policy_doc,
     }

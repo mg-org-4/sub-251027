@@ -1,4 +1,4 @@
-import { E as S, w as L, e as s } from "./entry-Cn6KiPQv.js";
+import { E as S, w as L, e as s } from "./entry-CuODMrGh.js";
 let l = null, c = null, d = null, m = !1, u = null, g = null, h = 0, _ = 0, f = null;
 const v = /* @__PURE__ */ new WeakMap();
 function k() {
@@ -170,10 +170,10 @@ async function G(e) {
       var a;
       m = !0;
       try {
-        const { blob: o, nodeId: b, jobId: w } = r.detail || {};
-        if (!o || !(o instanceof Blob) || g && w && w !== g) return;
+        const { blob: o, nodeId: w, jobId: b } = r.detail || {};
+        if (!o || !(o instanceof Blob) || g && b && b !== g) return;
         s.feedPreviewBlob(o, {
-          sourceLabel: b ? `Node ${b}` : null
+          sourceLabel: w ? `Node ${w}` : null
         });
       } catch (o) {
         (a = console.debug) == null || a.call(console, "[MFV] b_preview_with_metadata error", o);
@@ -235,11 +235,11 @@ function R(e) {
     } catch (r) {
       (i = console.debug) == null || i.call(console, "[MFV] generation output error", r);
     }
-  }, window.addEventListener(S.NEW_GENERATION_OUTPUT, l), O(e), G(e), console.debug("[Majoor] LiveStreamTracker initialized"));
+  }, typeof window < "u" && window.addEventListener(S.NEW_GENERATION_OUTPUT, l), O(e), G(e), console.debug("[Majoor] LiveStreamTracker initialized"));
 }
 function B(e) {
   var t;
-  l && (window.removeEventListener(S.NEW_GENERATION_OUTPUT, l), l = null), h += 1, A(), _ += 1, k(), g = null;
+  l && (typeof window < "u" && window.removeEventListener(S.NEW_GENERATION_OUTPUT, l), l = null), h += 1, A(), _ += 1, k(), g = null;
   try {
     e != null && e.canvas && j(e.canvas);
   } catch (n) {

@@ -1,4 +1,4 @@
-import { h as C } from "./entry-Cn6KiPQv.js";
+import { h as C } from "./entry-CuODMrGh.js";
 function H(t, n, o) {
   return 0.2126 * t + 0.7152 * n + 0.0722 * o;
 }

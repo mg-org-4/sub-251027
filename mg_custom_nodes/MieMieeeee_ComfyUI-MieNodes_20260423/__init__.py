@@ -17,15 +17,16 @@ from _mienodes_internal.nodes.files import BatchRenameFiles, BatchDeleteFiles, B
 from _mienodes_internal.nodes.llm import TextTranslator, PromptGenerator, KontextPromptGenerator, AddUserKontextPreset, RemoveUserKontextPreset, \
     FrameTransitionPromptGenerator, HunyuanVideoI2VPromptGenerator, HunyuanVideoT2VPromptGenerator, ZImagePromptGenerator, Flux2PromptGenerator, FluxKleinT2VPromptGenerator, LTX2PromptGenerator
 from _mienodes_internal.services.llm import SetGeneralLLMServiceConnector, SetSiliconFlowLLMServiceConnector, \
-    SetGithubModelsLLMServiceConnector, SetZhiPuLLMServiceConnector, SetKimiLLMServiceConnector, \
+    SetGithubModelsLLMServiceConnector, SetZhiPuLLMServiceConnector, SetZhiPuCodeLLMServiceConnector, SetKimiLLMServiceConnector, \
     SetDeepSeekLLMServiceConnector, SetGeminiLLMServiceConnector, SetBailianLLMServiceConnector, \
+    SetMiniMaxLLMServiceConnector, \
     CheckLLMServiceConnectivity, CallLLMService
 from _mienodes_internal.nodes.media import WavConcat, QwenTTSNode, SingleImageToVideo, AddNumberWatermarkForImage
 from _mienodes_internal.services.tts import SetBailianTTSConnector
 from _mienodes_internal.nodes.loop import MieLoopStart, MieLoopResume, MieLoopBodyIn, MieLoopBodyOut, MieLoopEnd, MieLoopGetIndex, MieLoopParamGetInt, MieLoopParamGetFloat, \
     MieLoopParamGetString, MieLoopParamGetBool, MieLoopStateGetInt, MieLoopStateGetFloat, MieLoopStateGetString, \
     MieLoopStateGetBool, MieLoopStateSet, MieImageSelectFrame, MieLoopStateSetImage, MieLoopStateGetImage, MieLoopStateCleanupImage, \
-    MieLoopStateSetInt, \
+    MieLoopStateSetInt, MieLoopStateSetFloat, MieLoopStateSetString, MieLoopStateSetBool, \
     MieLoopCollectImage, MieLoopFinalizeImages, MieLoopCleanupImages, MieImageGrid, \
     MieLoopCollectText, MieLoopFinalizeTextList, MieLoopCleanupText, MieLoopCollectJSON, MieLoopFinalizeJSONList, MieLoopCleanupJSON, \
     MieLoopCollectAudio, MieLoopFinalizeAudio, MieLoopCleanupAudio
@@ -51,9 +52,11 @@ NODE_CLASS_MAPPINGS = {
     add_suffix("SetGithubModelsLLMServiceConnector"): SetGithubModelsLLMServiceConnector,
     add_suffix("SetKimiLLMServiceConnector"): SetKimiLLMServiceConnector,
     add_suffix("SetZhiPuLLMServiceConnector"): SetZhiPuLLMServiceConnector,
+    add_suffix("SetZhiPuCodeLLMServiceConnector"): SetZhiPuCodeLLMServiceConnector,
     add_suffix("SetDeepSeekLLMServiceConnector"): SetDeepSeekLLMServiceConnector,
     add_suffix("SetGeminiLLMServiceConnector"): SetGeminiLLMServiceConnector,
     add_suffix("SetBailianLLMServiceConnector"): SetBailianLLMServiceConnector,
+    add_suffix("SetMiniMaxLLMServiceConnector"): SetMiniMaxLLMServiceConnector,
     add_suffix("CheckLLMServiceConnectivity"): CheckLLMServiceConnectivity,
     add_suffix("CallLLMService"): CallLLMService,
     add_suffix("Translator"): TextTranslator,
@@ -98,6 +101,9 @@ NODE_CLASS_MAPPINGS = {
     add_suffix("MieImageSelectFrame"): MieImageSelectFrame,
     add_suffix("MieLoopStateSetImage"): MieLoopStateSetImage,
     add_suffix("MieLoopStateSetInt"): MieLoopStateSetInt,
+    add_suffix("MieLoopStateSetFloat"): MieLoopStateSetFloat,
+    add_suffix("MieLoopStateSetString"): MieLoopStateSetString,
+    add_suffix("MieLoopStateSetBool"): MieLoopStateSetBool,
     add_suffix("MieLoopStateGetImage"): MieLoopStateGetImage,
     add_suffix("MieLoopStateCleanupImage"): MieLoopStateCleanupImage,
     add_suffix("MieLoopCollectImage"): MieLoopCollectImage,
@@ -130,10 +136,12 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     add_suffix("SetSiliconFlowLLMServiceConnector"): add_emoji("Set SiliconFlow LLM Service Connector"),
     add_suffix("SetGithubModelsLLMServiceConnector"): add_emoji("Set Github Models LLM Service Connector"),
     add_suffix("SetZhiPuLLMServiceConnector"): add_emoji("Set ZhiPu LLM Service Connector"),
+    add_suffix("SetZhiPuCodeLLMServiceConnector"): add_emoji("Set ZhiPu Code LLM Service Connector"),
     add_suffix("SetKimiLLMServiceConnector"): add_emoji("Set Kimi LLM Service Connector"),
     add_suffix("SetDeepSeekLLMServiceConnector"): add_emoji("Set DeepSeek LLM Service Connector"),
     add_suffix("SetGeminiLLMServiceConnector"): add_emoji("Set Gemini LLM Service Connector"),
     add_suffix("SetBailianLLMServiceConnector"): add_emoji("Set Bailian LLM Service Connector"),
+    add_suffix("SetMiniMaxLLMServiceConnector"): add_emoji("Set MiniMax LLM Service Connector"),
     add_suffix("CheckLLMServiceConnectivity"): add_emoji("Check LLM Service Connectivity"),
     add_suffix("CallLLMService"): add_emoji("Call LLM Service"),
     add_suffix("ModelDownloader"): add_emoji("Model Downloader"),
@@ -180,6 +188,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     add_suffix("MieImageSelectFrame"): add_emoji("Mie Image Select Frame"),
     add_suffix("MieLoopStateSetImage"): add_emoji("Mie Loop State Set Image"),
     add_suffix("MieLoopStateSetInt"): add_emoji("Mie Loop State Set Int"),
+    add_suffix("MieLoopStateSetFloat"): add_emoji("Mie Loop State Set Float"),
+    add_suffix("MieLoopStateSetString"): add_emoji("Mie Loop State Set String"),
+    add_suffix("MieLoopStateSetBool"): add_emoji("Mie Loop State Set Bool"),
     add_suffix("MieLoopStateGetImage"): add_emoji("Mie Loop State Get Image"),
     add_suffix("MieLoopStateCleanupImage"): add_emoji("Mie Loop State Cleanup Image"),
     add_suffix("MieLoopCollectImage"): add_emoji("Mie Loop Collect Image"),

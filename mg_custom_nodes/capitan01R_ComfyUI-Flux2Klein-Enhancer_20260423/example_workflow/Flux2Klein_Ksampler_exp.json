@@ -1,15 +1,15 @@
 {
   "id": "9637208c-c8e4-41f8-92be-6bf1e7920194",
   "revision": 1,
-  "last_node_id": 306,
-  "last_link_id": 839,
+  "last_node_id": 307,
+  "last_link_id": 844,
   "nodes": [
     {
       "id": 286,
       "type": "VAELoader",
       "pos": [
-        -206.27914275394926,
-        2703.678899731477
+        -405.6050233888802,
+        2241.4124957057884
       ],
       "size": [
         270,
@@ -42,8 +42,8 @@
       "id": 285,
       "type": "UNETLoader",
       "pos": [
-        -259.2857699341215,
-        2419.300280066207
+        -458.61165056905236,
+        1957.033876040517
       ],
       "size": [
         364.42708333333337,
@@ -58,7 +58,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            837
+            840
           ]
         }
       ],
@@ -76,8 +76,8 @@
       "id": 288,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        -206.64590036865056,
-        2892.625455683829
+        -405.97178100358155,
+        2430.3590516581403
       ],
       "size": [
         270,
@@ -119,8 +119,8 @@
       "id": 289,
       "type": "VAEEncode",
       "pos": [
-        205.37892264913995,
-        2893.055406184817
+        6.053042014209069,
+        2430.7890021591284
       ],
       "size": [
         140,
@@ -162,8 +162,8 @@
       "id": 293,
       "type": "GetImageSize",
       "pos": [
-        185.4084253967214,
-        2712.9281086979504
+        -13.91745523820946,
+        2250.6617046722617
       ],
       "size": [
         187.5,
@@ -211,8 +211,8 @@
       "id": 298,
       "type": "EmptyFlux2LatentImage",
       "pos": [
-        565.26414593233,
-        2685.8356592370164
+        365.9382652973992,
+        2223.569255211328
       ],
       "size": [
         270,
@@ -244,7 +244,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            833
+            842
           ]
         }
       ],
@@ -263,8 +263,8 @@
       "id": 296,
       "type": "Image Comparer (rgthree)",
       "pos": [
-        150.80099059084915,
-        3189.845832891976
+        -48.524890044081815,
+        2727.5794288662873
       ],
       "size": [
         772.2887778972612,
@@ -300,12 +300,12 @@
           {
             "name": "A",
             "selected": true,
-            "url": "/api/view?filename=rgthree.compare._temp_myrvd_00009_.png&type=temp&subfolder=&rand=0.8423867790067452"
+            "url": "/api/view?filename=rgthree.compare._temp_hazpd_00001_.png&type=temp&subfolder=&rand=0.3089198819962079"
           },
           {
             "name": "B",
             "selected": true,
-            "url": "/api/view?filename=rgthree.compare._temp_myrvd_00010_.png&type=temp&subfolder=&rand=0.3585170498972504"
+            "url": "/api/view?filename=rgthree.compare._temp_hazpd_00002_.png&type=temp&subfolder=&rand=0.6446405697574952"
           }
         ]
       ]
@@ -314,8 +314,8 @@
       "id": 295,
       "type": "SaveImage",
       "pos": [
-        944.9222925606495,
-        3191.4457658398724
+        745.596411925719,
+        2729.1793618141837
       ],
       "size": [
         867.0767145551818,
@@ -1240,12 +1240,12 @@
           {
             "name": "A",
             "selected": true,
-            "url": "/api/view?filename=rgthree.compare._temp_pgpor_00017_.png&type=temp&subfolder=&rand=0.16388668204368395"
+            "url": "/api/view?filename=rgthree.compare._temp_vbuky_00001_.png&type=temp&subfolder=&rand=0.1883294683758473"
           },
           {
             "name": "B",
             "selected": true,
-            "url": "/api/view?filename=rgthree.compare._temp_pgpor_00018_.png&type=temp&subfolder=&rand=0.41881279040785035"
+            "url": "/api/view?filename=rgthree.compare._temp_vbuky_00002_.png&type=temp&subfolder=&rand=0.4512954483007482"
           }
         ]
       ],
@@ -1256,8 +1256,8 @@
       "id": 303,
       "type": "CLIPTextEncode",
       "pos": [
-        225.5193211290213,
-        2427.6864278466032
+        26.193440494090392,
+        1965.4200238209135
       ],
       "size": [
         400,
@@ -1296,8 +1296,8 @@
       "id": 290,
       "type": "CLIPLoader",
       "pos": [
-        -242.6686352295007,
-        2548.2384559023476
+        -441.99451586443166,
+        2085.972051876659
       ],
       "size": [
         364.42708333333337,
@@ -1328,69 +1328,11 @@
       ]
     },
     {
-      "id": 306,
-      "type": "Flux2KleinKSampler",
-      "pos": [
-        908.7830994982467,
-        2513.6563743363263
-      ],
-      "size": [
-        270,
-        474
-      ],
-      "flags": {},
-      "order": 29,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 837
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 831
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 832
-        },
-        {
-          "name": "latent_image",
-          "type": "LATENT",
-          "link": 833
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            834
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "Flux2KleinKSampler"
-      },
-      "widgets_values": [
-        4,
-        1,
-        698812818227665,
-        "fixed",
-        1,
-        0.5,
-        1.15
-      ]
-    },
-    {
       "id": 297,
       "type": "ReferenceLatent",
       "pos": [
-        644.6913444197129,
-        2569.1986717253726
+        445.36546378478204,
+        2106.932267699684
       ],
       "size": [
         204.1666717529297,
@@ -1419,7 +1361,7 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            832
+            843
           ]
         }
       ],
@@ -1434,8 +1376,8 @@
       "id": 287,
       "type": "ConditioningZeroOut",
       "pos": [
-        645.0265102766591,
-        2501.3968524729444
+        445.70062964172826,
+        2039.130448447256
       ],
       "size": [
         204.1666717529297,
@@ -1471,8 +1413,8 @@
       "id": 291,
       "type": "ReferenceLatent",
       "pos": [
-        655.5307556901245,
-        2413.5776771368587
+        456.20487505519367,
+        1951.3112731111687
       ],
       "size": [
         210,
@@ -1501,7 +1443,7 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            831
+            841
           ]
         }
       ],
@@ -1516,8 +1458,8 @@
       "id": 292,
       "type": "LoadImage",
       "pos": [
-        -756.759980235343,
-        2319.9065715805236
+        -956.0858608702739,
+        1857.6401675548334
       ],
       "size": [
         490.0483104595037,
@@ -1591,12 +1533,12 @@
           {
             "name": "A",
             "selected": true,
-            "url": "/api/view?filename=rgthree.compare._temp_muaqc_00009_.png&type=temp&subfolder=&rand=0.13096095633942695"
+            "url": "/api/view?filename=rgthree.compare._temp_nkbxg_00001_.png&type=temp&subfolder=&rand=0.8622074700106485"
           },
           {
             "name": "B",
             "selected": true,
-            "url": "/api/view?filename=rgthree.compare._temp_muaqc_00010_.png&type=temp&subfolder=&rand=0.3761010067688281"
+            "url": "/api/view?filename=rgthree.compare._temp_nkbxg_00002_.png&type=temp&subfolder=&rand=0.05294510449189338"
           }
         ]
       ]
@@ -1605,8 +1547,8 @@
       "id": 294,
       "type": "VAEDecode",
       "pos": [
-        1440.5954009119191,
-        2587.1349380770866
+        1241.2695202769876,
+        2124.868534051398
       ],
       "size": [
         140,
@@ -1619,7 +1561,7 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 834
+          "link": 844
         },
         {
           "name": "vae",
@@ -1688,6 +1630,66 @@
         "Node name for S&R": "VAEDecode"
       },
       "widgets_values": []
+    },
+    {
+      "id": 307,
+      "type": "Flux2KleinKSamplerExperimental",
+      "pos": [
+        796.6040883876141,
+        2004.5448361626086
+      ],
+      "size": [
+        326.4703125,
+        498
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 840
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 841
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 842
+        },
+        {
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 843
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            844
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Flux2KleinKSamplerExperimental"
+      },
+      "widgets_values": [
+        4,
+        698812818227665,
+        "fixed",
+        1,
+        0.5,
+        1.15,
+        1,
+        1
+      ]
     }
   ],
   "links": [
@@ -2068,52 +2070,52 @@
       "IMAGE"
     ],
     [
-      831,
-      291,
-      0,
-      306,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      832,
-      297,
-      0,
-      306,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      833,
-      298,
-      0,
-      306,
-      3,
-      "LATENT"
-    ],
-    [
-      834,
-      306,
-      0,
-      294,
-      0,
-      "LATENT"
-    ],
-    [
-      837,
-      285,
-      0,
-      306,
-      0,
-      "MODEL"
-    ],
-    [
       839,
       100,
       0,
       284,
       0,
       "MODEL"
+    ],
+    [
+      840,
+      285,
+      0,
+      307,
+      0,
+      "MODEL"
+    ],
+    [
+      841,
+      291,
+      0,
+      307,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      842,
+      298,
+      0,
+      307,
+      2,
+      "LATENT"
+    ],
+    [
+      843,
+      297,
+      0,
+      307,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      844,
+      307,
+      0,
+      294,
+      0,
+      "LATENT"
     ]
   ],
   "groups": [
@@ -2121,8 +2123,8 @@
       "id": 1,
       "title": "Flux.2Klein Ksampler",
       "bounding": [
-        -765.9424402812108,
-        2170.388810618521,
+        -965.2683209161418,
+        1708.1224065928302,
         2587.941447397042,
         2361.284451552941
       ],
@@ -2147,10 +2149,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.16105100000011063,
+      "scale": 0.235794769100163,
       "offset": [
-        7076.604582423611,
-        2365.693495347243
+        3340.5617416203067,
+        1500.2595501266505
       ]
     },
     "frontendVersion": "1.42.11",

@@ -1,0 +1,24 @@
+[project]
+name = "comfyui-rookieui"
+version = "0.5.0"
+description = "The ultimate A1111-style sidebar. Bring the classic UX you know and love into ComfyUI."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "opencv-python-headless>=4.10.0",
+    "ultralytics>=8.3.0",
+]
+
+[project.urls]
+Repository = "https://github.com/rookiestar28/ComfyUI-RookieUI"
+Documentation = "https://github.com/rookiestar28/ComfyUI-RookieUI#readme"
+"Bug Tracker" = "https://github.com/rookiestar28/ComfyUI-RookieUI/issues"
+
+[tool.comfy]
+PublisherId = "rookiestar"
+DisplayName = "ComfyUI RookieUI"
+Icon = ""
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

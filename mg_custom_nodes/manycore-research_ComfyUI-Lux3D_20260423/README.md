@@ -3,9 +3,115 @@
 <div align="center">
 
 [English](README.md)/[中文](README_CN.md)
+
+🌐 Official Website: [Lux3D China](https://www.luxreal.com/lux3d/home) | [Lux3D Global](https://www.luxreal.ai/lux3d/home)
 </div>
 
 A ComfyUI extension for converting 2D images into 3D models in your workflow. Supports real-time rendering, scene template switching, material preview, and rendering of various render passes (channel maps).
+
+## Industry Applications
+
+From gaming to e-commerce, Lux3D powers the next generation of 3D content creation.
+
+### E-Commerce
+
+Create 3D product visualizations for immersive shopping experiences.
+
+- Product configurators
+- AR Try-On
+- Virtual Showrooms
+
+<table>
+<tr>
+<th align="center" width="50%">Input Image</th>
+<th align="center" width="50%">Generated Result</th>
+</tr>
+<tr>
+<td align="center" width="50%">
+<img src="figures/ecommerce.jpg" width="100%" alt="Input">
+</td>
+<td align="center" width="50%">
+<video src="https://github.com/user-attachments/assets/25df0ee3-1100-4201-9670-22ada6e43374" controls width="100%"></video>
+</td>
+</tr>
+</table>
+
+
+
+### Game Development
+
+Rapidly prototype and generate assets for your game worlds.
+
+- Props & Environment
+- Character Accessories
+- Level Design
+
+<table>
+<tr>
+<th align="center" width="50%">Input Images</th>
+<th align="center" width="50%">Generated Result</th>
+</tr>
+<tr>
+<td align="center" width="50%">
+<!-- 使用统一高度，使其整齐对齐 -->
+<img src="figures/game1.jpg" height="180" alt="Input 1">
+<img src="figures/game2.jpg" height="180" alt="Input 2">
+<img src="figures/game3.jpg" height="180" alt="Input 3">
+</td>
+<td align="center" width="50%">
+<video src="https://github.com/user-attachments/assets/5f026961-f276-4ab2-ba0f-a5809d54363a" controls width="100%"></video>
+</td>
+</tr>
+</table>
+
+### Industrial Design
+
+Visualize concepts and prototypes with speed and precision.
+
+- Concept Visualization
+- Digital Twins
+- Rapid Prototyping
+
+<table>
+<tr>
+<th align="center" width="50%">Input Images</th>
+<th align="center" width="50%">Generated Result</th>
+</tr>
+<tr>
+<td align="center" width="50%">
+<!-- 使用统一高度，使其整齐对齐 -->
+<img src="figures/industrial1.jpg" height="180" alt="Input 1">
+<img src="figures/industrial2.jpg" height="180" alt="Input 2">
+<img src="figures/industrial3.jpg" height="180" alt="Input 3">
+</td>
+<td align="center" width="50%">
+<video src="https://github.com/user-attachments/assets/67ed25c7-a843-4484-a509-fbc53fc11630" controls width="100%"></video>
+</td>
+</tr>
+</table>
+
+### Furniture & Interior
+
+Rapidly digitize furniture and create realistic 3D assets for interior planning.
+
+- Furniture Digitization
+- Room Planning
+- Virtual Staging
+
+<table>
+<tr>
+<th align="center" width="50%">Input Image</th>
+<th align="center" width="50%">Generated Result</th>
+</tr>
+<tr>
+<td align="center" width="50%">
+  <img src="figures/furniture.png" width="100%" alt="Input Image">
+</td>
+<td align="center" width="50%">
+  <video src="https://github.com/user-attachments/assets/3ca88eb5-5cc3-4952-aedd-74ab8df1fede" controls autoplay loop muted width="100%"></video>
+</td>
+</tr>
+</table>
 
 ## Features
 

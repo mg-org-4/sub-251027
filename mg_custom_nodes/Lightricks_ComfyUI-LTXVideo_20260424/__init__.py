@@ -13,6 +13,7 @@ from .gemma_api_conditioning import GemmaAPITextEncode
 from .gemma_encoder import LTXVGemmaCLIPModelLoader, LTXVGemmaEnhancePrompt
 from .guide import LTXVAddGuideAdvanced, LTXVAddGuideAdvancedAttention
 from .guiders import GuiderParametersNode, MultimodalGuiderNode
+from .hdr import LTXVHDRDecodePostprocess
 from .iclora import (
     LTXAddVideoICLoRAGuide,
     LTXAddVideoICLoRAGuideAdvanced,
@@ -113,6 +114,7 @@ NODE_CLASS_MAPPINGS = {
     "LTXVDilateVideoMask": LTXVDilateVideoMask,
     "LTXVInpaintPreprocess": LTXVInpaintPreprocess,
     "LTXVLaplacianPyramidBlend": LTXVLaplacianPyramidBlend,
+    "LTXVHDRDecodePostprocess": LTXVHDRDecodePostprocess,
 }
 
 # Consistent display names between static and dynamic node mappings in nodes_registry.py,

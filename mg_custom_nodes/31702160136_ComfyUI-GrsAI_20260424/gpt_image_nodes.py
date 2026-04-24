@@ -79,7 +79,7 @@ class GrsaiGPTImage_Node:
                     "prompt": final_prompt,
                     "model": model,
                     "urls": urls,
-                    "size": aspect_ratio,
+                    "aspect_ratio": aspect_ratio,
                 }
                 api_params.update(kwargs)
                 pil_imgs, img_urls, errs = api_client.gpt_image_generate_image(
@@ -124,10 +124,9 @@ class GrsaiGPTImage_Node:
                 "apikey": ("STRING", {"default": "请输入您的APIKEY: sk-xxxxxxx"}),
                 "model": (
                     [
-                        "sora-image",
-                        "gpt-image-1.5",
+                        "gpt-image-2",
                     ],
-                    {"default": "sora-image"},
+                    {"default": "gpt-image-2"},
                 ),
                 "num_images": ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], {"default": 1}),
             },
@@ -135,9 +134,22 @@ class GrsaiGPTImage_Node:
                 "aspect_ratio": (
                     [
                         "auto",
+                        "auto",
                         "1:1",
-                        "2:3",
                         "3:2",
+                        "2:3",
+                        "16:9",
+                        "9:16",
+                        "5:4",
+                        "4:5",
+                        "4:3",
+                        "3:4",
+                        "21:9",
+                        "9:21",
+                        "1:3",
+                        "3:1",
+                        "2:1",
+                        "1:2",
                     ],
                     {"default": "auto"},
                 ),
@@ -147,6 +159,8 @@ class GrsaiGPTImage_Node:
                 "image_4": ("IMAGE",),
                 "image_5": ("IMAGE",),
                 "image_6": ("IMAGE",),
+                "image_7": ("IMAGE",),
+                "image_8": ("IMAGE",),
             },
         }
 
@@ -181,10 +195,10 @@ class GrsaiGPTImage_Node:
         # 收集可选输入图像
         images_in: List[torch.Tensor] = [
             kwargs.get(f"image_{i}")
-            for i in range(1, 11)
+            for i in range(1, 9)
             if kwargs.get(f"image_{i}") is not None
         ]
-        for i in range(1, 11):
+        for i in range(1, 9):
             kwargs.pop(f"image_{i}", None)
 
         uploaded_urls: List[str] = []

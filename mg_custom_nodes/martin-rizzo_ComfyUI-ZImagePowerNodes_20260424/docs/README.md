@@ -35,7 +35,7 @@ To install **Z-Image Power Nodes** in your ComfyUI setup:
 
 ## Additional Information
 
- * __[Official page on CivitAI](https://civitai.com/models/2322533/z-image-power-nodes)__
+ * __[Official page on CivitAI](https://civitai.red/models/2322533/z-image-power-nodes)__
  * __[GitHub Repository](https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes)__
 
 

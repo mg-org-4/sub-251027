@@ -112,11 +112,16 @@ const RUNWARE_NODE_TYPES = {
     REFERENCEVOICES_LEGACY: "Runware Reference Voices",
     REFERENCEAUDIOS: "Runware Video Inference Inputs Reference Audios",
     VIDEOINPUTSREFERENCES_LEGACY: "Runware Video Inputs References",
+    VIDEOINPUTSREFERENCEMULTIIMAGES: "Runware Video Inference Inputs Reference Images Multiple Images Connector",
     VIDEOINFERENCEINPUTS: "Runware Video Inference Inputs",
     VIDEOINFERENCEELEMENTS: "Runware Video Inference Elements",
     VIDEOINFERENCEELEMENTSCOMBINE: "Runware Video Inference Elements Combine",
     VIDEOINFERENCESPEECHINPUT: "Runware Video Inference Speech Input",
     VIDEOSETTINGS: "Runware Video Inference Settings",
+    VIDEOINFERENCESETTINGSTTS: "Runware Video Inference Settings TTS",
+    VIDEOINFERENCESETTINGSACTIVESPEAKERDETECTION: "Runware Video Inference Settings Active Speaker Detection",
+    VIDEOINFERENCESETTINGSACTIVESPEAKERBOUNDINGBOXES: "Runware Video Inference Settings Active Speaker Bounding Boxes",
+    VIDEOINFERENCESETTINGSSEGMENTS: "Runware Video Inference Settings Segments",
     LIGHTRICKSPROVIDERSETTINGS: "Runware Lightricks Provider Settings",
     KLINGPROVIDERSETTINGS: "Runware KlingAI Provider Settings",
     KLINGMULTIPROMPTSEGMENT: "Runware Kling MultiPrompt Segment",
@@ -430,6 +435,10 @@ const RUNWARE_NODE_PROPS = {
         bgColor: DEFAULT_BGCOLOR,
         colorModeOnly: true,
     },
+    [RUNWARE_NODE_TYPES.VIDEOINPUTSREFERENCEMULTIIMAGES]: {
+        bgColor: DEFAULT_BGCOLOR,
+        colorModeOnly: true,
+    },
     [RUNWARE_NODE_TYPES.VIDEOINFERENCEELEMENTS]: {
         bgColor: DEFAULT_BGCOLOR,
         colorModeOnly: true,
@@ -546,6 +555,22 @@ const RUNWARE_NODE_PROPS = {
     },
     [RUNWARE_NODE_TYPES.VIDEOSETTINGS]: {
         bgColor: DEFAULT_BGCOLOR,
+    },
+    [RUNWARE_NODE_TYPES.VIDEOINFERENCESETTINGSTTS]: {
+        bgColor: DEFAULT_BGCOLOR,
+        colorModeOnly: true,
+    },
+    [RUNWARE_NODE_TYPES.VIDEOINFERENCESETTINGSACTIVESPEAKERDETECTION]: {
+        bgColor: DEFAULT_BGCOLOR,
+        colorModeOnly: true,
+    },
+    [RUNWARE_NODE_TYPES.VIDEOINFERENCESETTINGSACTIVESPEAKERBOUNDINGBOXES]: {
+        bgColor: DEFAULT_BGCOLOR,
+        colorModeOnly: true,
+    },
+    [RUNWARE_NODE_TYPES.VIDEOINFERENCESETTINGSSEGMENTS]: {
+        bgColor: DEFAULT_BGCOLOR,
+        colorModeOnly: true,
     },
     [RUNWARE_NODE_TYPES.ACCELERATOROPTIONS]: {
         bgColor: DEFAULT_BGCOLOR,

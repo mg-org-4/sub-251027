@@ -1,0 +1,345 @@
+{
+  "id": "332f7ac5-c30f-44aa-991a-aff51b05038a",
+  "revision": 0,
+  "last_node_id": 25,
+  "last_link_id": 43,
+  "nodes": [
+    {
+      "id": 6,
+      "type": "MarkdownNote",
+      "pos": [
+        -2640,
+        -1070
+      ],
+      "size": [
+        710,
+        860
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## 🎤 Achieving High-Quality Voice Clones\n\nTo achieve the best voice cloning results, providing an accurate `prompt_text` is **critical**. This text acts as a transcript that aligns the sound of the `prompt_audio` with the words being spoken, teaching the model the speaker's unique vocal characteristics.\n\n### How to Use `prompt_text` Effectively\n\n#### 1. **Provide a Verbatim Transcript**\nThe `prompt_text` must be a word-for-word transcript of the `prompt_audio`. Do not summarize or describe the audio.\n\n✅ **Correct:** `The quick brown fox jumps over the lazy dog.`\n\n❌ **Incorrect:** `A person saying a sentence about a fox.`\n\n#### 2. **Punctuation is Important**\nUse accurate punctuation to capture the speaker's intonation. The model learns how the speaker ends sentences, asks questions, or shows excitement.\n\n-   **For a statement:** `This is a great example.`\n-   **For a question:** `Is this a great example?`\n-   **For excitement:** `This is a great example!`\n\n#### 3. **Match Audio and Text Length**\nThe audio clip should be long enough to capture the speaker's natural pacing and rhythm.\n\n👍 **Good:** A 5-15 second clip of continuous, clear speech.\n\n👌 **Okay:** A 3-5 second clip.\n\n⚠️ **Warning:** Very short clips (< 3 seconds) may result in a less stable or robotic-sounding clone.\n\n\n> **Note:**\n> For the best results, use a clean, high-quality `prompt_audio` with minimal background noise, reverb, or music. The model will try to clone the *entire* acoustic environment, not just the voice."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 4,
+      "type": "MarkdownNote",
+      "pos": [
+        -2630,
+        -160
+      ],
+      "size": [
+        700,
+        640
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note",
+      "properties": {},
+      "widgets_values": [
+        "# ComfyUI-VoxCPM\n\n**VoxCPM**  a novel tokenizer-free TTS system for context-aware speech generation and true-to-life voice cloning.\n\n## Models\nThis node automatically downloads the required model files.\n\n| Model | Parameters | Sampling Rate | Languages | Description | Hugging Face Link |\n|:---|:---:|:---:|:---:|:---|:---|\n| **VoxCPM2** | 2B | 48kHz | 30+ | **New!** Voice design, reference cloning, multilingual | [openbmb/VoxCPM2](https://huggingface.co/openbmb/VoxCPM2) |\n| **VoxCPM1.5** | 800M | 44.1kHz | 2 | Recommended for v1. LoRA support, improved fidelity | [openbmb/VoxCPM1.5](https://huggingface.co/openbmb/VoxCPM1.5) |\n| VoxCPM-0.5B | 640M | 16kHz | 2 | Original version | [openbmb/VoxCPM-0.5B](https://huggingface.co/openbmb/VoxCPM-0.5B) |\n\n\n---\n\n### Check TG for more interesting stuff: [TokenDiffusion](https://t.me/TokenDiff)"
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 24,
+      "type": "VoxCPM_TTS",
+      "pos": [
+        -1440,
+        -1060
+      ],
+      "size": [
+        400,
+        600
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "voice_config",
+          "shape": 7,
+          "type": "VOICE_CLONING_CONFIG",
+          "link": 41
+        },
+        {
+          "name": "advanced_params",
+          "shape": 7,
+          "type": "ADVANCED_PARAMS",
+          "link": 42
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Generated Audio",
+          "type": "AUDIO",
+          "links": [
+            43
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VoxCPM_TTS"
+      },
+      "widgets_values": [
+        "VoxCPM-0.5B",
+        "VoxCPM-0.5B",
+        "None",
+        "VoxCPM is an innovative TTS model designed to generate highly expressive speech.",
+        "",
+        2,
+        10,
+        true,
+        44049569499043,
+        "randomize",
+        false,
+        "cuda",
+        "auto"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 22,
+      "type": "VoxCPM_VoiceCloning",
+      "pos": [
+        -1880,
+        -810
+      ],
+      "size": [
+        380,
+        200
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prompt_audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 39
+        },
+        {
+          "name": "reference_audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 40
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VOICE_CONFIG",
+          "type": "VOICE_CLONING_CONFIG",
+          "links": [
+            41
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VoxCPM_VoiceCloning"
+      },
+      "widgets_values": [
+        false,
+        "Hope I'm not bothering you. Just doing some stretching, maybe a few poses. You'll tell me if I'm bothering you, right? I've even been singled out a few times. Probably because it's mostly pregnant women in the group. Still Brody must see something. Although I certainly don't. But then again I'm not the instructor, am I? Oh yuck! What happened to my ear?"
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    },
+    {
+      "id": 2,
+      "type": "LoadAudio",
+      "pos": [
+        -1880,
+        -1060
+      ],
+      "size": [
+        380,
+        180
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            39,
+            40
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.52",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "audio": true,
+            "audioUI": true,
+            "upload": true
+          },
+          "version": "7.0.1"
+        }
+      },
+      "widgets_values": [
+        "male_stewie.mp3",
+        null,
+        null
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 1,
+      "type": "SaveAudio",
+      "pos": [
+        -990,
+        -1060
+      ],
+      "size": [
+        270,
+        180
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 43
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveAudio",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.52",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "filename_prefix": true,
+            "audioUI": true
+          },
+          "version": "7.0.1"
+        }
+      },
+      "widgets_values": [
+        "audio/VoxCPM"
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#3f5159"
+    },
+    {
+      "id": 23,
+      "type": "VoxCPM_AdvancedParams",
+      "pos": [
+        -1880,
+        -540
+      ],
+      "size": [
+        380,
+        300
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ADVANCED_PARAMS",
+          "type": "ADVANCED_PARAMS",
+          "links": [
+            42
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VoxCPM_AdvancedParams"
+      },
+      "widgets_values": [
+        2,
+        2048,
+        1,
+        1,
+        true,
+        3,
+        6
+      ],
+      "color": "#332922",
+      "bgcolor": "#593930"
+    }
+  ],
+  "links": [
+    [
+      39,
+      2,
+      0,
+      22,
+      0,
+      "AUDIO"
+    ],
+    [
+      40,
+      2,
+      0,
+      22,
+      1,
+      "AUDIO"
+    ],
+    [
+      41,
+      22,
+      0,
+      24,
+      0,
+      "VOICE_CLONING_CONFIG"
+    ],
+    [
+      42,
+      23,
+      0,
+      24,
+      1,
+      "ADVANCED_PARAMS"
+    ],
+    [
+      43,
+      24,
+      0,
+      1,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.683013455365071,
+      "offset": [
+        2740,
+        1170
+      ]
+    },
+    "workflowRendererVersion": "LG",
+    "frontendVersion": "1.42.10",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

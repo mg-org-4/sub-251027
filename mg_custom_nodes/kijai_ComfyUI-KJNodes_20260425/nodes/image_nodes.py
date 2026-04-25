@@ -3641,21 +3641,51 @@ class FastPreview:
         arr = image[0].cpu().mul(255).clamp(0, 255).byte().numpy()
         h, w = arr.shape[:2]
 
-        if HAS_CV2 and (w > max_size or h > max_size):
+        if w > max_size or h > max_size:
             scale = max_size / max(w, h)
-            arr = cv2.resize(arr, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_LINEAR)
+            new_w, new_h = int(w * scale), int(h * scale)
+            if HAS_CV2:
+                arr = cv2.resize(arr, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                pil_image = Image.fromarray(arr)
+            else:
+                pil_image = Image.fromarray(arr).resize((new_w, new_h), Image.BILINEAR)
+        else:
+            pil_image = Image.fromarray(arr)
 
-        pil_image = Image.fromarray(arr)
+        if format == "JPEG" and pil_image.mode != "RGB":
+            pil_image = pil_image.convert("RGB")
 
         if PromptServer is not None and unique_id is not None:
-            PromptServer.instance.send_sync(
-                BinaryEventTypes.PREVIEW_IMAGE_WITH_METADATA,
-                (
+            server = PromptServer.instance
+            client_supports_metadata = False
+            if hasattr(BinaryEventTypes, "PREVIEW_IMAGE_WITH_METADATA"):
+                try:
+                    from comfy_api import feature_flags
+                    client_supports_metadata = feature_flags.supports_feature(
+                        server.sockets_metadata, server.client_id, "supports_preview_metadata"
+                    )
+                except Exception:
+                    client_supports_metadata = False
+
+            if client_supports_metadata:
+                server.send_sync(
+                    BinaryEventTypes.PREVIEW_IMAGE_WITH_METADATA,
+                    (
+                        (format, pil_image, None),
+                        {
+                            "node_id": unique_id,
+                            "display_node_id": unique_id,
+                            "prompt_id": prompt_id or "",
+                        },
+                    ),
+                    server.client_id,
+                )
+            else:
+                server.send_sync(
+                    BinaryEventTypes.UNENCODED_PREVIEW_IMAGE,
                     (format, pil_image, None),
-                    {"node_id": unique_id, "prompt_id": prompt_id or ""},
-                ),
-                PromptServer.instance.client_id,
-            )
+                    server.client_id,
+                )
 
         return {"ui": {"fast_preview": [True]}, "result": ()}
 

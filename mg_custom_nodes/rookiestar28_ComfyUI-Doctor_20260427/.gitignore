@@ -1,0 +1,77 @@
+*.pyc
+*.pyo
+*.pyd
+docs/reference/
+docs/artifacts/
+logs/*
+!logs/.gitkeep
+AGEN*.md
+.claude/
+.coverage.*
+.tox/
+*.cover
+.dmypy.json
+dmypy.json
+.venv-wsl/
+.venv_cache/
+playwright/.cache/
+doctor_state/
+
+# Keep the repo-local runtime data root, but ignore Doctor-generated contents.
+user/*
+!user/.gitkeep
+
+# Agent/local project exclusions
+.pla*/
+ref*/
+REF*/
+ROA*.md
+roa*.md
+AG*.md
+
+# Secrets and local environment
+.env
+.env.*
+*.env
+!.env.example
+!.env.sample
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+.venv-*/
+venv/
+ENV/
+
+# Node / frontend tests
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+playwright-report/
+test-results/
+coverage/
+
+# Build, cache, temp, and local tool output
+dist/
+build/
+.cache/
+.tmp/
+tmp/
+temp/
+*.log
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

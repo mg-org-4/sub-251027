@@ -1,6 +1,12 @@
-import { app } from "../../scripts/app.js";
+﻿import { app } from "../../scripts/app.js";
 
 const NODE_NAME = "IAMCCS_WanLoRASchedule";
+const NODE_NAMES = new Set([
+    "IAMCCS_WanLoRASchedule",
+    "IAMCCS_WanLoRAHookSchedule",
+    "IAMCCS_ApplyScheduledWanLoRAFromConditioning",
+    "IAMCCS_BuildScheduledWanModelBank",
+]);
 const MODE_WIDGET = "_iamccs_schedule_mode";
 const LOAD_WIDGET = "_iamccs_schedule_load_preset";
 const SAVE_WIDGET = "_iamccs_schedule_save_preset";
@@ -28,6 +34,45 @@ const EXTRA_HEIGHT = 30;
 const SLOT_BLOCK = 5;
 const SLOTS_START_IDX = 3;
 const VISIBLE_PRESET_OPTIONS = ["custom range", "all generations", "gen 0 only", "gen 1 onwards"];
+
+function getSerializedHeadWidgetNames(node) {
+    const names = [];
+    if (getWidget(node, "generation_count")) {
+        names.push("generation_count");
+    } else if (getWidget(node, "generation_index")) {
+        names.push("generation_index");
+    }
+    names.push("log_prefix", "model_type");
+    return names;
+}
+
+function expectedSerializedValueCount(node, slotCount = MAX_SLOTS) {
+    return getSerializedHeadWidgetNames(node).length + (slotCount * SLOT_BLOCK);
+}
+
+function getSerializedWidgetNames(node, slotCount = MAX_SLOTS) {
+    const names = [...getSerializedHeadWidgetNames(node)];
+    for (let slot = 1; slot <= slotCount; slot += 1) {
+        const prefix = `slot_${String(slot).padStart(2, "0")}`;
+        names.push(`${prefix}_lora_name`);
+        names.push(`${prefix}_strength`);
+        names.push(`${prefix}_preset`);
+        names.push(`${prefix}_start`);
+        names.push(`${prefix}_end`);
+    }
+    return names;
+}
+
+function reapplySerializedWidgetValues(node, values) {
+    if (!Array.isArray(values) || !node) return;
+    let index = 0;
+    for (const name of getSerializedWidgetNames(node)) {
+        if (index >= values.length) break;
+        const widget = getWidget(node, name);
+        if (!widget) continue;
+        widget.value = values[index++];
+    }
+}
 
 const SLOT_META = [
     { slot: 1, label: "Gen 0", preset: "gen 0 only", start: 0, end: 0 },
@@ -62,6 +107,82 @@ function getWidget(node, name) {
     return node?.widgets?.find((widget) => widget?.name === name || widget?.label === name) || null;
 }
 
+function setButtonText(widget, text) {
+    if (!widget) return;
+    widget.label = text;
+    widget.options = { ...(widget.options || {}), label: text };
+    widget._iamccsButtonText = text;
+}
+
+function getButtonText(widget, fallback = "") {
+    return String(widget?._iamccsButtonText || widget?.label || widget?.options?.label || fallback);
+}
+
+function waitForNextPaint() {
+    return new Promise((resolve) => {
+        if (typeof requestAnimationFrame === "function") {
+            requestAnimationFrame(() => setTimeout(resolve, 0));
+            return;
+        }
+        setTimeout(resolve, 0);
+    });
+}
+
+async function runButtonAction(node, widget, busyText, action) {
+    if (!widget || widget._iamccsBusy) return;
+    const originalText = getButtonText(widget);
+    widget._iamccsBusy = true;
+    setButtonText(widget, busyText);
+    node.setDirtyCanvas?.(true, true);
+    await waitForNextPaint();
+    try {
+        await action();
+    } finally {
+        widget._iamccsBusy = false;
+        setButtonText(widget, originalText);
+        node.setDirtyCanvas?.(true, true);
+    }
+}
+
+function beginBatchUpdate(node) {
+    node._iamccsBatchDepth = Number(node._iamccsBatchDepth || 0) + 1;
+}
+
+function endBatchUpdate(node) {
+    node._iamccsBatchDepth = Math.max(0, Number(node._iamccsBatchDepth || 0) - 1);
+    if (!node._iamccsBatchDepth && node._iamccsPendingSyncLowNodes) {
+        node._iamccsPendingSyncLowNodes = false;
+        requestSyncAllLinkedLowNodes(node);
+    }
+}
+
+function isBatchUpdating(node) {
+    return Number(node?._iamccsBatchDepth || 0) > 0;
+}
+
+function isRestoringNodeState(node) {
+    return Boolean(node?._iamccsRestoringState);
+}
+
+function requestSyncAllLinkedLowNodes(node) {
+    if (!node) return;
+    if (isBatchUpdating(node)) {
+        node._iamccsPendingSyncLowNodes = true;
+        return;
+    }
+    if (isRestoringNodeState(node)) {
+        node._iamccsPendingSyncLowNodes = true;
+        return;
+    }
+    if (node._iamccsSyncLowNodesTimer) return;
+    node._iamccsSyncLowNodesTimer = setTimeout(() => {
+        node._iamccsSyncLowNodesTimer = 0;
+        void syncAllLinkedLowNodes(node).finally(() => {
+            node.setDirtyCanvas?.(true, true);
+        });
+    }, 0);
+}
+
 function markUiWidgetNonSerializable(widget) {
     if (!widget) return widget;
     widget.options = { ...(widget.options || {}), serialize: false };
@@ -78,9 +199,9 @@ function isModelTypeValue(value) {
     return value === "wan2x" || value === "flow" || value === "standard";
 }
 
-// Correct serialized count: generation_index(1) + log_prefix(1) + model_type(1) + 6 slots × 5 = 33
+// Correct serialized count: generation_index(1) + log_prefix(1) + model_type(1) + 6 slots Ã— 5 = 33
 // (generation_index stays as a widget even when wired, in ComfyUI's serialization model)
-const EXPECTED_SERIALIZED_VALUES_CONNECTED = EXPECTED_SERIALIZED_VALUES; // 33 – gen_idx present as wired widget
+const EXPECTED_SERIALIZED_VALUES_CONNECTED = EXPECTED_SERIALIZED_VALUES; // 33 â€“ gen_idx present as wired widget
 
 function slotCountFromSerializedLength(length) {
     if (typeof length !== "number" || length < 3) return 0;
@@ -103,7 +224,7 @@ function sanitizePresetValue(value) {
     return aliases[raw] || raw;
 }
 
-function normalizeLegacyWidgetValues(config) {
+function normalizeLegacyWidgetValues(config, node = null) {
     const values = config?.widgets_values;
     if (!Array.isArray(values)) return;
 
@@ -141,13 +262,67 @@ function normalizeLegacyWidgetValues(config) {
         normalized = [generationIndex, logPrefix, modelType, ...slotValues];
     }
 
+    const hasGenerationCount = Boolean(node && getWidget(node, "generation_count"));
+    const genericExpected = node ? expectedSerializedValueCount(node) : EXPECTED_SERIALIZED_VALUES;
+    const maxSlotValuesLength = MAX_SLOTS * SLOT_BLOCK;
+
+    // Pattern C (bank nodes): generation_count is serialized last, while log_prefix/model_type
+    // stay at the front and UI-only widgets are inserted before the slot payload.
+    // Example observed on disk:
+    //   log_prefix, model_type, mode, null..., slot_01..., ..., slot_64..., generation_count
+    if (
+        !normalized
+        && hasGenerationCount
+        && values.length > genericExpected
+        && maxSlotValuesLength > 0
+        && typeof values[0] === "string"
+        && isModelTypeValue(values[1])
+    ) {
+        const slotStart = values.length - maxSlotValuesLength - 1;
+        if (slotStart > 2) {
+            const generationCount = values[values.length - 1] ?? 1;
+            const logPrefix = values[0] ?? "WAN LoRA schedule";
+            const modelType = values[1] ?? "flow";
+            const slotValues = values.slice(slotStart, values.length - 1);
+            const inferredMode = values.slice(2, slotStart).find((value) => isModeValue(value));
+            if (slotValues.length === maxSlotValuesLength) {
+                modeValue = isModeValue(inferredMode) ? inferredMode : modeValue;
+                normalized = [generationCount, logPrefix, modelType, ...slotValues];
+            }
+        }
+    }
+
+    // Pattern D (bank nodes): current head widgets are already first, but UI-only widgets
+    // were serialized before the slot payload. Example:
+    //   generation_count, log_prefix, model_type, <ui widgets...>, slot_01..., ..., slot_64...
+    if (
+        !normalized
+        && hasGenerationCount
+        && values.length > genericExpected
+        && typeof values[0] === "number"
+        && typeof values[1] === "string"
+        && isModelTypeValue(values[2])
+    ) {
+        const extraCount = values.length - genericExpected;
+        const slotStart = 3 + extraCount;
+        const generationCount = values[0] ?? 1;
+        const logPrefix = values[1] ?? "WAN LoRA schedule";
+        const modelType = values[2] ?? "flow";
+        const uiValues = values.slice(3, slotStart);
+        const slotValues = values.slice(slotStart);
+        const inferredMode = uiValues.find((value) => isModeValue(value));
+        if (slotValues.length === maxSlotValuesLength) {
+            modeValue = isModeValue(inferredMode) ? inferredMode : modeValue;
+            normalized = [generationCount, logPrefix, modelType, ...slotValues];
+        }
+    }
     // Determine what to work on: use normalized if we reordered, else work on original (in-place)
     // for preset-migration-only case (already-correct 33-value arrays with legacy preset names).
     const inferredSlots = slotCountFromSerializedLength(values.length);
     const target = normalized ?? (inferredSlots > 0 ? values : null);
     if (!target) return;
 
-    // Migrate legacy internal preset names → current _PRESET_OPTIONS names.
+    // Migrate legacy internal preset names â†’ current _PRESET_OPTIONS names.
     // "manual_range" was an internal alias for "custom range" in early builds.
     // ComfyUI server REJECTS it as an invalid combo value because it is not in _PRESET_OPTIONS.
     let presetPatched = false;
@@ -197,13 +372,16 @@ function showWidget(widget) {
     }
 }
 
-function setWidgetValue(node, name, value) {
+function setWidgetValue(node, name, value, options = {}) {
+    const { invokeCallback = true } = options;
     const widget = getWidget(node, name);
     if (!widget) return false;
     widget.value = value;
-    try {
-        widget.callback?.(value, app.canvas, node);
-    } catch {}
+    if (invokeCallback && !isBatchUpdating(node)) {
+        try {
+            widget.callback?.(value, app.canvas, node);
+        } catch {}
+    }
     return true;
 }
 
@@ -261,26 +439,84 @@ function resetScheduleRules(node) {
     node.properties[INIT_PROP] = {};
     node.properties[AUTO_PROP] = {};
     setVisibleSlots(node, 3);
+    beginBatchUpdate(node);
     for (let slot = 1; slot <= MAX_SLOTS; slot += 1) {
         const meta = slotMeta(slot);
         const prefix = `slot_${String(slot).padStart(2, "0")}`;
-        setWidgetValue(node, `${prefix}_lora_name`, "no");
-        setWidgetValue(node, `${prefix}_strength`, 1);
-        setWidgetValue(node, `${prefix}_preset`, meta.preset);
-        setWidgetValue(node, `${prefix}_start`, meta.start);
-        setWidgetValue(node, `${prefix}_end`, meta.end);
+        setWidgetValue(node, `${prefix}_lora_name`, "no", { invokeCallback: false });
+        setWidgetValue(node, `${prefix}_strength`, 1, { invokeCallback: false });
+        setWidgetValue(node, `${prefix}_preset`, meta.preset, { invokeCallback: false });
+        setWidgetValue(node, `${prefix}_start`, meta.start, { invokeCallback: false });
+        setWidgetValue(node, `${prefix}_end`, meta.end, { invokeCallback: false });
         node.properties[INIT_PROP][slot] = true;
     }
+    endBatchUpdate(node);
     clearDropHoverSlot(node);
 }
 
-function notifyScheduleUi(message, isError = false) {
+function notifyScheduleUi(message, isError = false, node = null, options = {}) {
     const prefix = "[IAMCCS_WanLoRASchedule UI]";
     if (isError) {
         console.error(prefix, message);
     } else {
         console.info(prefix, message);
     }
+    if (node) {
+        showNodeToast(node, message, { isError, ...options });
+    }
+}
+
+function showNodeToast(node, message, options = {}) {
+    if (!node || !message) return;
+    const { isError = false, anchorWidgetName = null, durationMs = 1800 } = options;
+    node._iamccsToast = {
+        message: String(message),
+        isError: Boolean(isError),
+        anchorWidgetName,
+        until: Date.now() + Math.max(800, Number(durationMs) || 1800),
+    };
+    node.setDirtyCanvas?.(true, true);
+}
+
+function drawNodeToast(node, ctx) {
+    const toast = node?._iamccsToast;
+    if (!toast?.message) return;
+    if ((Number(toast.until) || 0) <= Date.now()) {
+        delete node._iamccsToast;
+        node.setDirtyCanvas?.(true, true);
+        return;
+    }
+
+    const message = toast.message.length > 72 ? `${toast.message.slice(0, 69)}...` : toast.message;
+    const anchorWidget = toast.anchorWidgetName ? getWidget(node, toast.anchorWidgetName) : null;
+    const fallbackWidth = Number(node?.size?.[0]) || SIMPLE_WIDTH;
+    const toastHeight = 24;
+    const paddingX = 10;
+    const textWidth = Math.ceil(ctx.measureText(message).width);
+    const toastWidth = Math.min(Math.max(textWidth + (paddingX * 2), 110), Math.max(120, fallbackWidth - 12));
+
+    let anchorY = 18;
+    if (anchorWidget) {
+        anchorY = getWidgetBodyY(node, anchorWidget) + (getWidgetHeight(anchorWidget) / 2);
+    }
+
+    const x = Math.max(6, fallbackWidth - toastWidth - 8);
+    const maxY = Math.max(8, (Number(node?.size?.[1]) || 200) - toastHeight - 8);
+    const y = Math.min(Math.max(8, anchorY - (toastHeight / 2)), maxY);
+
+    ctx.save();
+    ctx.fillStyle = toast.isError ? "rgba(120, 24, 24, 0.96)" : "rgba(24, 30, 36, 0.96)";
+    ctx.strokeStyle = toast.isError ? "rgba(255, 126, 126, 0.95)" : "rgba(110, 214, 156, 0.95)";
+    ctx.lineWidth = 1.25;
+    ctx.beginPath();
+    ctx.roundRect(x, y, toastWidth, toastHeight, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#f5f7fa";
+    ctx.font = "12px sans-serif";
+    ctx.textBaseline = "middle";
+    ctx.fillText(message, x + paddingX, y + (toastHeight / 2) + 0.5);
+    ctx.restore();
 }
 
 function isAbortError(error) {
@@ -316,7 +552,7 @@ function buildSchedulePreset(node) {
     return {
         kind: PRESET_KIND,
         version: PRESET_VERSION,
-        node_type: NODE_NAME,
+        node_type: node?.type || NODE_NAME,
         exported_at: new Date().toISOString(),
         mode,
         visible_slots: getVisibleSlots(node),
@@ -362,11 +598,32 @@ async function applySchedulePreset(node, payload) {
         }
     }
 
+    if (hasConnectedInput(node, "linx")) {
+        const optionSet = getOptionSetForNode(node) ?? await getLoraSet();
+        for (const [slot, record] of slotMap.entries()) {
+            const sourceName = String(record?.lora_name || "no");
+            if (!sourceName || sourceName === "no") continue;
+
+            const candidates = candidateLowNames(sourceName);
+            let resolvedName = sourceName;
+            if (optionSet && optionSet.size > 0) {
+                resolvedName = candidates.find((candidate) => optionSet.has(candidate)) || sourceName;
+            } else {
+                resolvedName = candidates.find((candidate) => candidate !== sourceName) || sourceName;
+            }
+
+            if (resolvedName !== sourceName) {
+                slotMap.set(slot, { ...record, lora_name: resolvedName });
+            }
+        }
+    }
+
     const nextMode = isModeValue(payload.mode) ? payload.mode : "simple";
     const nextVisibleSlots = Math.max(3, Math.min(MAX_SLOTS, Math.trunc(Number(payload.visible_slots ?? payload.visibleSlots) || 3)));
     const nextModelType = isModelTypeValue(payload.model_type || payload.modelType) ? String(payload.model_type || payload.modelType) : "flow";
     const nextLogPrefix = String(payload.log_prefix || payload.logPrefix || "WAN LoRA schedule");
 
+    beginBatchUpdate(node);
     resetScheduleRules(node);
     node.properties = node.properties || {};
     node.properties[MODE_PROP] = nextMode;
@@ -395,10 +652,11 @@ async function applySchedulePreset(node, payload) {
         if (endWidget) endWidget.value = record.end;
         node.properties[INIT_PROP][slot] = true;
     }
+    endBatchUpdate(node);
 
     clearDropHoverSlot(node);
     applyLayout(node);
-    await syncAllLinkedLowNodes(node);
+    requestSyncAllLinkedLowNodes(node);
     node.setDirtyCanvas?.(true, true);
 }
 
@@ -441,7 +699,7 @@ async function saveSchedulePresetAs(node) {
         downloadTextFile(suggestedName, text);
     }
 
-    notifyScheduleUi(`Preset saved: ${suggestedName}`);
+    notifyScheduleUi(`Preset saved: ${suggestedName}`, false, node, { anchorWidgetName: SAVE_WIDGET });
 }
 
 async function pickPresetTextFile() {
@@ -485,7 +743,7 @@ async function loadSchedulePreset(node) {
     const text = await pickPresetTextFile();
     const payload = JSON.parse(text);
     await applySchedulePreset(node, payload);
-    notifyScheduleUi("Preset loaded.");
+    notifyScheduleUi("Preset loaded.", false, node, { anchorWidgetName: LOAD_WIDGET });
 }
 
 function applyLabels(node) {
@@ -546,7 +804,7 @@ function ensureModeWidget(node) {
         (value) => {
             node.properties[MODE_PROP] = String(value || "simple");
             applyLayout(node);
-            syncAllLinkedLowNodes(node);
+            requestSyncAllLinkedLowNodes(node);
             node.setDirtyCanvas(true, true);
         },
         { values: ["simple", "advanced"], serialize: false }
@@ -558,22 +816,28 @@ function ensureModeWidget(node) {
 function ensureActionWidgets(node) {
     if (!getWidget(node, LOAD_WIDGET)) {
         const widget = node.addWidget("button", "Load Preset", null, () => {
-            void loadSchedulePreset(node).catch((error) => {
+            void runButtonAction(node, widget, "Loading...", async () => {
+                await loadSchedulePreset(node);
+            }).catch((error) => {
                 if (isAbortError(error)) return;
-                notifyScheduleUi(`Load preset failed: ${error?.message || error}`, true);
+                notifyScheduleUi(`Load preset failed: ${error?.message || error}`, true, node, { anchorWidgetName: LOAD_WIDGET, durationMs: 2600 });
             });
         });
         widget.name = LOAD_WIDGET;
+        setButtonText(widget, "Load Preset");
         markUiWidgetNonSerializable(widget);
     }
     if (!getWidget(node, SAVE_WIDGET)) {
         const widget = node.addWidget("button", "Save As...", null, () => {
-            void saveSchedulePresetAs(node).catch((error) => {
+            void runButtonAction(node, widget, "Saving...", async () => {
+                await saveSchedulePresetAs(node);
+            }).catch((error) => {
                 if (isAbortError(error)) return;
-                notifyScheduleUi(`Save preset failed: ${error?.message || error}`, true);
+                notifyScheduleUi(`Save preset failed: ${error?.message || error}`, true, node, { anchorWidgetName: SAVE_WIDGET, durationMs: 2600 });
             });
         });
         widget.name = SAVE_WIDGET;
+        setButtonText(widget, "Save As...");
         markUiWidgetNonSerializable(widget);
     }
     if (!getWidget(node, ADD_WIDGET)) {
@@ -584,30 +848,36 @@ function ensureActionWidgets(node) {
             setVisibleSlots(node, newSlot);
             ensureVisibleDefaults(node);
             applyLayout(node);
-            syncAllLinkedLowNodes(node);
+            requestSyncAllLinkedLowNodes(node);
             node.setDirtyCanvas(true, true);
         });
         widget.name = ADD_WIDGET;
+        setButtonText(widget, "+ Add Slot");
         markUiWidgetNonSerializable(widget);
     }
     if (!getWidget(node, DELETE_WIDGET)) {
         const widget = node.addWidget("button", "- Delete Slot", null, () => {
             setVisibleSlots(node, getVisibleSlots(node) - 1);
             applyLayout(node);
-            syncAllLinkedLowNodes(node);
+            requestSyncAllLinkedLowNodes(node);
             node.setDirtyCanvas(true, true);
         });
         widget.name = DELETE_WIDGET;
+        setButtonText(widget, "- Delete Slot");
         markUiWidgetNonSerializable(widget);
     }
     if (!getWidget(node, RESET_WIDGET)) {
         const widget = node.addWidget("button", "Reset Rules", null, () => {
-            resetScheduleRules(node);
-            applyLayout(node);
-            syncAllLinkedLowNodes(node);
-            node.setDirtyCanvas(true, true);
+            void runButtonAction(node, widget, "Resetting...", async () => {
+                resetScheduleRules(node);
+                applyLayout(node);
+                requestSyncAllLinkedLowNodes(node);
+                node.setDirtyCanvas(true, true);
+                notifyScheduleUi("Rules reset.", false, node, { anchorWidgetName: RESET_WIDGET, durationMs: 1400 });
+            });
         });
         widget.name = RESET_WIDGET;
+        setButtonText(widget, "Reset Rules");
         markUiWidgetNonSerializable(widget);
     }
 }
@@ -618,6 +888,12 @@ function getOutputIndexByName(node, name) {
 
 function getInputIndexByName(node, name) {
     return (node?.inputs || []).findIndex((input) => input?.name === name);
+}
+
+function hasConnectedInput(node, name) {
+    const inputIndex = getInputIndexByName(node, name);
+    if (inputIndex < 0) return false;
+    return node?.inputs?.[inputIndex]?.link != null;
 }
 
 function getLinkedLinxTargets(node) {
@@ -792,7 +1068,7 @@ function hasDroppedLoraCandidate(event) {
 // The canvas is translated to node.pos before drawNode/onDrawForeground, so the coordinate
 // system for drawing starts at (0,0) = top-left of node (including title).
 // widget.y is set by _arrangeWidgets and starts at NODE_TITLE_HEIGHT (approximately),
-// so no extra correction is needed — just subtract node.pos to get node-local coords.
+// so no extra correction is needed â€” just subtract node.pos to get node-local coords.
 function resolveLocalDropPoint(node, event) {
     try {
         const canvas = app?.canvas?.canvas;
@@ -854,7 +1130,7 @@ function getWidgetHeight(widget, nodeWidth) {
 // widget.y is set by _arrangeWidgets(), widget.last_y is set during drawWidgets().
 // Both are relative to the node body (not including the title bar).
 function getWidgetBodyY(widget) {
-    // widget.y is set by _arrangeWidgets() — always > 0 for arranged widgets (title adds ~30px offset).
+    // widget.y is set by _arrangeWidgets() â€” always > 0 for arranged widgets (title adds ~30px offset).
     // A value of 0 means the widget hasn't been arranged yet (default from addWidget), treat as unknown.
     const y = widget?.y;
     if (typeof y === "number" && Number.isFinite(y) && y > 0) return y;
@@ -1029,7 +1305,7 @@ function assignDroppedLora(node, event) {
     try {
         targetWidget.callback?.(loraName, app.canvas, node);
     } catch {}
-    syncAllLinkedLowNodes(node);
+    requestSyncAllLinkedLowNodes(node);
     clearDropHoverSlot(node);
     node.setDirtyCanvas?.(true, true);
     return true;
@@ -1057,7 +1333,7 @@ async function getLoraSet() {
         const nodeType = Object.keys(app.graph?._nodes_by_id || {});
         for (const id of nodeType) {
             const n = app.graph.getNodeById(id);
-            if (n?.type !== NODE_NAME) continue;
+            if (!NODE_NAMES.has(n?.type)) continue;
             const w = getWidget(n, "slot_01_lora_name");
             const v = w?.options?.values ?? (Array.isArray(w?.options) ? w.options : null);
             if (Array.isArray(v) && v.length > 1) {
@@ -1070,7 +1346,7 @@ async function getLoraSet() {
     return _loraSetCache;
 }
 
-async function syncSlotToLowNode(highNode, lowNode, slot) {
+async function syncSlotToLowNode(highNode, lowNode, slot, providedOptionSet = null) {
     const prefix = `slot_${String(slot).padStart(2, "0")}`;
     const highWidget = getWidget(highNode, `${prefix}_lora_name`);
     const lowWidget = getWidget(lowNode, `${prefix}_lora_name`);
@@ -1097,7 +1373,7 @@ async function syncSlotToLowNode(highNode, lowNode, slot) {
     if (!candidates.length) return; // no _HIGH_/_LOW_ pattern in name
 
     // Build option set: prefer widget options, then server cache
-    let optionSet = null;
+    let optionSet = providedOptionSet;
     const rawOpts = lowWidget?.options?.values ?? (Array.isArray(lowWidget?.options) ? lowWidget.options : null);
     if (Array.isArray(rawOpts) && rawOpts.length > 1) {
         optionSet = new Set(rawOpts);
@@ -1122,16 +1398,33 @@ async function syncSlotToLowNode(highNode, lowNode, slot) {
     } catch {}
 }
 
+function syncSlotSettingsToLowNode(highNode, lowNode, slot) {
+    const prefix = `slot_${String(slot).padStart(2, "0")}`;
+    const fieldNames = ["strength", "preset", "start", "end"];
+    for (const fieldName of fieldNames) {
+        const highWidget = getWidget(highNode, `${prefix}_${fieldName}`);
+        const lowWidget = getWidget(lowNode, `${prefix}_${fieldName}`);
+        if (!highWidget || !lowWidget) continue;
+        lowWidget.value = highWidget.value;
+        try {
+            lowWidget.callback?.(highWidget.value, app.canvas, lowNode);
+        } catch {}
+    }
+}
+
 async function syncAllLinkedLowNodes(highNode) {
     const targets = getLinkedLinxTargets(highNode);
     if (!targets.length) return;
+    const optionSet = await getLoraSet();
     for (const lowNode of targets) {
         syncLowNodePresentation(highNode, lowNode);
         ensureVisibleDefaults(lowNode);
         applyLayout(lowNode);
         for (let slot = 1; slot <= getVisibleSlots(highNode); slot += 1) {
-            await syncSlotToLowNode(highNode, lowNode, slot);
+            await syncSlotToLowNode(highNode, lowNode, slot, optionSet);
+            syncSlotSettingsToLowNode(highNode, lowNode, slot);
         }
+        applyLayout(lowNode);
         lowNode.setDirtyCanvas?.(true, true);
     }
 }
@@ -1140,27 +1433,42 @@ function wrapSlotCallbacks(node) {
     if (node._iamccsScheduleWrappedCallbacks) return;
     for (let slot = 1; slot <= MAX_SLOTS; slot += 1) {
         const prefix = `slot_${String(slot).padStart(2, "0")}`;
-        // Wrap lora_name → triggers linx sync
+        // Wrap lora_name â†’ triggers linx sync
         const loraWidget = getWidget(node, `${prefix}_lora_name`);
         if (loraWidget && !loraWidget._iamccsWrapped) {
             const origLora = loraWidget.callback;
             loraWidget.callback = (value, canvas, targetNode) => {
                 try { origLora?.(value, canvas, targetNode); } finally {
-                    syncAllLinkedLowNodes(node);
+                    requestSyncAllLinkedLowNodes(node);
                 }
             };
             loraWidget._iamccsWrapped = true;
         }
-        // Wrap preset → refreshes start/end visibility
+        // Wrap preset â†’ refreshes start/end visibility
         const presetWidget = getWidget(node, `${prefix}_preset`);
         if (presetWidget && !presetWidget._iamccsWrapped) {
             const origPreset = presetWidget.callback;
             presetWidget.callback = (value, canvas, targetNode) => {
                 try { origPreset?.(value, canvas, targetNode); } finally {
-                    setTimeout(() => { applyLayout(node); node.setDirtyCanvas(true, true); }, 0);
+                    setTimeout(() => {
+                        applyLayout(node);
+                        requestSyncAllLinkedLowNodes(node);
+                        node.setDirtyCanvas(true, true);
+                    }, 0);
                 }
             };
             presetWidget._iamccsWrapped = true;
+        }
+        for (const fieldName of ["strength", "start", "end"]) {
+            const widget = getWidget(node, `${prefix}_${fieldName}`);
+            if (!widget || widget._iamccsWrapped) continue;
+            const origCallback = widget.callback;
+            widget.callback = (value, canvas, targetNode) => {
+                try { origCallback?.(value, canvas, targetNode); } finally {
+                    requestSyncAllLinkedLowNodes(node);
+                }
+            };
+            widget._iamccsWrapped = true;
         }
     }
     node._iamccsScheduleWrappedCallbacks = true;
@@ -1207,9 +1515,7 @@ function setSlotVisibility(node, slot, visible, advanced) {
 
 function reorderWidgets(node) {
     const orderedNames = [
-        "generation_index",
-        "log_prefix",
-        "model_type",
+        ...getSerializedHeadWidgetNames(node),
         MODE_WIDGET,
         LOAD_WIDGET,
         SAVE_WIDGET,
@@ -1281,7 +1587,7 @@ app.registerExtension({
     name: "iamccs.wan_lora_schedule_ui",
 
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData?.name !== NODE_NAME) return;
+        if (!NODE_NAMES.has(nodeData?.name)) return;
 
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
@@ -1293,7 +1599,6 @@ app.registerExtension({
             ensureActionWidgets(this);
             setTimeout(() => {
                 applyLayout(this);
-                syncAllLinkedLowNodes(this);
                 this.setDirtyCanvas(true, true);
             }, 0);
             return result;
@@ -1344,26 +1649,23 @@ app.registerExtension({
         nodeType.prototype.onDrawForeground = function (ctx) {
             const result = onDrawForeground?.apply(this, arguments);
             drawDropHover(this, ctx);
+            drawNodeToast(this, ctx);
             return result;
         };
 
         const onConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function (config) {
+            this._iamccsRestoringState = true;
             // 1. Normalize legacy corrupt widget-value arrays (modifies config in place)
-            normalizeLegacyWidgetValues(config);
+            normalizeLegacyWidgetValues(config, this);
+            const restoredValues = Array.isArray(config?.widgets_values) ? [...config.widgets_values] : null;
 
             // 2. Re-apply normalized values to widgets explicitly.
-            //    LiteGraph assigns widgets_values → widget.value BEFORE calling onConfigure,
+            //    LiteGraph assigns widgets_values â†’ widget.value BEFORE calling onConfigure,
             //    so if the values were corrupt, they are already set wrong.  Re-assigning here
-            //    (in the same iteration order, skipping non-serializable UI widgets) corrects them.
-            if (Array.isArray(config.widgets_values) && this.widgets) {
-                let j = 0;
-                for (const widget of this.widgets) {
-                    if (!widget || widget.options?.serialize === false || widget._iamccsUiOnly) continue;
-                    if (j < config.widgets_values.length) {
-                        widget.value = config.widgets_values[j++];
-                    }
-                }
+            //    by explicit serialized-widget name order avoids bank-node slot shifts.
+            if (restoredValues && this.widgets) {
+                reapplySerializedWidgetValues(this, restoredValues);
             }
 
             const result = onConfigure?.apply(this, arguments);
@@ -1372,6 +1674,9 @@ app.registerExtension({
             if (!this.properties[SLOTS_PROP]) this.properties[SLOTS_PROP] = 3;
             ensureModeWidget(this);
             ensureActionWidgets(this);
+            if (restoredValues && this.widgets) {
+                reapplySerializedWidgetValues(this, restoredValues);
+            }
             setTimeout(() => {
                 // Mark ALL slots as already-initialized so ensureSlotDefaults won't clobber
                 // values that were restored from the saved workflow.
@@ -1379,8 +1684,15 @@ app.registerExtension({
                 for (let s = 1; s <= MAX_SLOTS; s++) {
                     this.properties[INIT_PROP][s] = true;
                 }
+                if (restoredValues && this.widgets) {
+                    reapplySerializedWidgetValues(this, restoredValues);
+                }
                 applyLayout(this);
-                syncAllLinkedLowNodes(this);
+                this._iamccsRestoringState = false;
+                if (this._iamccsPendingSyncLowNodes) {
+                    this._iamccsPendingSyncLowNodes = false;
+                    requestSyncAllLinkedLowNodes(this);
+                }
                 this.setDirtyCanvas(true, true);
             }, 0);
             return result;
@@ -1391,7 +1703,9 @@ app.registerExtension({
             const result = onConnectionsChange?.apply(this, arguments);
             setTimeout(() => {
                 applyLayout(this);
-                syncAllLinkedLowNodes(this);
+                if (!isRestoringNodeState(this)) {
+                    requestSyncAllLinkedLowNodes(this);
+                }
                 this.setDirtyCanvas(true, true);
             }, 0);
             return result;
@@ -1402,7 +1716,9 @@ app.registerExtension({
             nodeType.prototype.collapse = function () {
                 const result = collapse?.apply(this, arguments);
                 setTimeout(() => {
-                    syncAllLinkedLowNodes(this);
+                    if (!isRestoringNodeState(this)) {
+                        requestSyncAllLinkedLowNodes(this);
+                    }
                     this.setDirtyCanvas(true, true);
                 }, 0);
                 return result;

@@ -12,9 +12,12 @@ const TIMEFRAME_TYPE = "IAMCCS_LTX2_TimeFrameCount";
 const VALIDATOR_TYPE = "IAMCCS_LTX2_Validator";
 const FRAMERATE_SYNC_TYPE = "IAMCCS_LTX2_FrameRateSync";
 const SEGMENT_PLANNER_TYPE = "IAMCCS_SegmentPlanner";
+const SEGMENT_PLANNER_LINKED_TYPE = "IAMCCS_SegmentPlannerLinked";
+const SEGMENT_PLANNER_SETTINGS_TYPE = "IAMCCS_SegmentPlannerSettings";
 const SEGMENT_PLANNER_PREVIEW_WIDGET = "iamccs_segmentplanner_live_preview";
 const SEGMENT_PLANNER_DETAILS_WIDGET = "iamccs_segmentplanner_live_details";
 const SEGMENT_PLANNER_COPY_BUTTON = "iamccs_segmentplanner_copy_button";
+const SEGMENT_PLANNER_SETTINGS_REPORT_WIDGET = "iamccs_segmentplanner_settings_live_report";
 
 console.log("[IAMCCS LTX2] Loading seconds/length sync...");
 
@@ -23,10 +26,75 @@ function getWidget(node, name) {
     return node.widgets.find(w => w?.name === name || w?.label === name) || null;
 }
 
+function getInput(node, name) {
+    if (!node?.inputs?.length) return null;
+    return node.inputs.find(i => i?.name === name) || null;
+}
+
+function getNodeById(nodeId) {
+    if (nodeId == null) return null;
+    return app?.graph?._nodes_by_id?.[nodeId] || app?.graph?._nodes?.find(n => n?.id === nodeId) || null;
+}
+
+function getLinkedSource(node, inputName) {
+    const input = getInput(node, inputName);
+    const linkId = input?.link;
+    if (linkId == null) return null;
+
+    const link = app?.graph?.links?.[linkId];
+    if (!link) return null;
+
+    const originId = Array.isArray(link) ? link[1] : link.origin_id;
+    const originSlot = Array.isArray(link) ? link[2] : link.origin_slot;
+    const sourceNode = getNodeById(originId);
+    if (!sourceNode) return null;
+
+    // Defensive: outputs must exist and be an array, originSlot must be valid
+    let sourceOutput = null;
+    if (Array.isArray(sourceNode.outputs) && originSlot != null && originSlot >= 0 && originSlot < sourceNode.outputs.length) {
+        sourceOutput = sourceNode.outputs[originSlot];
+    }
+
+    return {
+        sourceNode,
+        sourceOutput,
+    };
+}
+
+function getLinkedPrimitiveValue(node, inputName) {
+    const source = getLinkedSource(node, inputName);
+    if (!source?.sourceNode) return null;
+
+    const sourceNode = source.sourceNode;
+    const outputName = String(source.sourceOutput?.name || "");
+    const candidateWidgetNames = [outputName, inputName, "value", "float", "int", "string", "text"];
+
+    // Defensive: try to get value from output if present
+    if (source.sourceOutput && typeof source.sourceOutput.value !== "undefined") {
+        return source.sourceOutput.value;
+    }
+
+    for (const widgetName of candidateWidgetNames) {
+        const widget = getWidget(sourceNode, widgetName);
+        if (widget?.value != null) return widget.value;
+    }
+
+    if (Array.isArray(sourceNode.widgets) && sourceNode.widgets.length > 0) {
+        const widgetValue = sourceNode.widgets[0]?.value;
+        if (widgetValue != null) return widgetValue;
+    }
+
+    return null;
+}
+
 function clampNumber(v, min, max) {
     const n = Number(v);
     if (!Number.isFinite(n)) return min;
     return Math.max(min, Math.min(max, n));
+}
+
+function numbersClose(a, b, epsilon = 0.0001) {
+    return Math.abs(Number(a) - Number(b)) <= epsilon;
 }
 
 function getGraphFpsOrDefault(defaultFps = 25) {
@@ -118,44 +186,163 @@ function ensurePlannerCopyButton(node) {
     return widget;
 }
 
+function ensurePlannerSettingsReportWidget(node) {
+    let widget = getWidget(node, SEGMENT_PLANNER_SETTINGS_REPORT_WIDGET);
+    if (widget) {
+        widget.label = "Live Preview";
+        return widget;
+    }
+
+    widget = node.addWidget("text", "Live Preview", "", () => {}, { multiline: true });
+    widget.name = SEGMENT_PLANNER_SETTINGS_REPORT_WIDGET;
+    widget.serialize = false;
+    try {
+        widget.inputEl?.setAttribute?.("readonly", true);
+    } catch {
+        // ignore
+    }
+    return widget;
+}
+
 function ensurePlannerNodeSize(node) {
     try {
         const width = Math.max(460, Number(node.size?.[0] || 0));
-        const height = Math.max(520, Number(node.size?.[1] || 0));
+        const height = Math.max(node?.type === SEGMENT_PLANNER_SETTINGS_TYPE ? 300 : 520, Number(node.size?.[1] || 0));
         node.size = [width, height];
     } catch {
         // ignore
     }
 }
 
+function refreshLinkedPlannerPreviews() {
+    try {
+        const nodes = app?.graph?._nodes || [];
+        for (const node of nodes) {
+            if (node?.type === SEGMENT_PLANNER_LINKED_TYPE) {
+                updateSegmentPlannerPreview(node);
+            }
+        }
+    } catch {
+        // ignore
+    }
+}
+
+function updateSegmentPlannerSettingsReport(node) {
+    const wSeg = getWidget(node, "segment_duration_s");
+    const wPlanning = getWidget(node, "planning_mode");
+    const wProfile = getWidget(node, "segment_preset") || getWidget(node, "content_profile");
+    const wOverlap = getWidget(node, "overlap_frames");
+    const wAutoSync = getWidget(node, "auto_sync_overlap");
+    if (!wSeg || !wPlanning || !wProfile || !wOverlap || !wAutoSync) return;
+
+    const segmentDuration = clampNumber(wSeg.value, 0.01, 3600.0);
+    const planningMode = String(wPlanning.value || "manual_segment_seconds");
+    const segmentPreset = String(wProfile.value || "10sec");
+    const autoSyncOverlap = Boolean(wAutoSync.value);
+
+    const rec = getPlannerProfile(segmentPreset);
+    const explicitPresetMode = planningMode === "explicit_preset_seconds" || planningMode === "auto_profile";
+    const autoDurationProfile = !explicitPresetMode ? getAutoOverlapProfileForDuration(segmentDuration) : null;
+    const effectiveSegmentDuration = explicitPresetMode ? rec.segmentSeconds : segmentDuration;
+    const effectiveOverlapFrames = clampNumber(wOverlap.value, 0, 4096);
+
+    if (explicitPresetMode && !numbersClose(wSeg.value, effectiveSegmentDuration)) {
+        wSeg.value = effectiveSegmentDuration;
+    }
+
+    const previewFps = getGraphFpsOrDefault(24);
+    const uniqueFrames = Math.max(1, Math.round(effectiveSegmentDuration * previewFps));
+    const firstRawFrames = snapLengthToLtx2Rule(uniqueFrames, "up");
+    const continuationRawFrames = snapLengthToLtx2Rule(uniqueFrames + effectiveOverlapFrames, "up");
+
+    const report = [
+        `segment_duration_s = ${effectiveSegmentDuration.toFixed(3)}`,
+        `planning_mode = ${planningMode}`,
+        `segment_preset = ${segmentPreset}`,
+        `overlap_frames = ${effectiveOverlapFrames}`,
+        `preview_fps = ${previewFps}`,
+        `unique_segment_frames = ${uniqueFrames}`,
+        `first_segment_raw_frames = ${firstRawFrames}`,
+        `continuation_raw_frames = ${continuationRawFrames}`,
+        `auto_sync_overlap = ${autoSyncOverlap}`,
+        `auto_duration_profile = ${autoDurationProfile?.profileLabel || "none"}`,
+        `overlap_policy = manual/default_9`,
+        `recommended_extension_preset = ${rec.preset}`,
+    ].join("\n");
+
+    const widget = ensurePlannerSettingsReportWidget(node);
+    widget.value = report;
+    node.properties = node.properties || {};
+    node.properties.iamccs_segmentplanner_settings_live_report = report;
+    ensurePlannerNodeSize(node);
+    try {
+        node.setDirtyCanvas(true, true);
+    } catch {
+        // ignore
+    }
+}
+
+function getPlannerProfile(presetOrLegacyProfile) {
+    const value = String(presetOrLegacyProfile || "15sec");
+    if (value === "20sec") {
+        return { segmentSeconds: 20.0, overlap: 9, leftContext: 1.0, preset: "monologue_audio_24fps", profileLabel: "20sec" };
+    }
+    if (value === "15sec" || value === "monologue") {
+        return { segmentSeconds: 15.0, overlap: 9, leftContext: 0.75, preset: "monologue_audio_24fps", profileLabel: "15sec" };
+    }
+    if (value === "5sec") {
+        return { segmentSeconds: 5.0, overlap: 9, leftContext: 0.25, preset: "videoclip_audio_24fps", profileLabel: "5sec" };
+    }
+    return { segmentSeconds: 10.0, overlap: 9, leftContext: 0.5, preset: "videoclip_audio_24fps", profileLabel: "10sec" };
+}
+
+function getAutoOverlapProfileForDuration(segmentDuration) {
+    const duration = Number(segmentDuration);
+    if (!Number.isFinite(duration)) return null;
+    const profiles = [
+        getPlannerProfile("5sec"),
+        getPlannerProfile("10sec"),
+        getPlannerProfile("15sec"),
+        getPlannerProfile("20sec"),
+    ];
+    return profiles.find(profile => Math.abs(duration - profile.segmentSeconds) <= 0.1) || null;
+}
+
 function updateSegmentPlannerPreview(node) {
     const wSong = getWidget(node, "song_duration_s");
     const wFps = getWidget(node, "fps");
     const wSeg = getWidget(node, "segment_duration_s");
-    const wPlanning = getWidget(node, "planning_mode");
-    const wProfile = getWidget(node, "content_profile");
-    const wOverlap = getWidget(node, "overlap_frames");
+    const wPlanning = getWidget(node, "planning_mode") || getWidget(node, "planning_mode_in");
+    const wProfile = getWidget(node, "segment_preset") || getWidget(node, "segment_preset_in") || getWidget(node, "content_profile");
+    const wOverlap = getWidget(node, "overlap_frames") || getWidget(node, "overlap_frames_in");
     const wRound = getWidget(node, "ltx_round_mode");
     const wIndex = getWidget(node, "segment_index");
     if (!wSong || !wFps || !wSeg || !wPlanning || !wProfile || !wOverlap || !wRound || !wIndex) return;
 
     const songDuration = clampNumber(wSong.value, 0.01, 36000);
     const fps = clampNumber(wFps.value, 0.001, 240.0);
-    const segmentDuration = clampNumber(wSeg.value, 0.01, 3600.0);
-    const planningMode = String(wPlanning.value || "manual_segment_seconds");
-    const contentProfile = String(wProfile.value || "videoclip");
-    const overlapFrames = clampNumber(wOverlap.value, 0, 4096);
+    const linkedSegmentDuration = node?.type === SEGMENT_PLANNER_LINKED_TYPE ? getLinkedPrimitiveValue(node, "segment_duration_s") : null;
+    const linkedPlanningMode = node?.type === SEGMENT_PLANNER_LINKED_TYPE ? getLinkedPrimitiveValue(node, "planning_mode_in") : null;
+    const linkedSegmentPreset = node?.type === SEGMENT_PLANNER_LINKED_TYPE ? getLinkedPrimitiveValue(node, "segment_preset_in") : null;
+    const linkedOverlapFrames = node?.type === SEGMENT_PLANNER_LINKED_TYPE ? getLinkedPrimitiveValue(node, "overlap_frames_in") : null;
+
+    const segmentDuration = clampNumber(linkedSegmentDuration ?? wSeg.value, 0.01, 3600.0);
+    const planningMode = String(linkedPlanningMode ?? wPlanning.value || "manual_segment_seconds");
+    const segmentPreset = String(linkedSegmentPreset ?? wProfile.value || "15sec");
+    const inputOverlapFrames = clampNumber(linkedOverlapFrames ?? wOverlap.value, 0, 4096);
     const roundMode = String(wRound.value || "up");
     const segmentIndex = Math.max(0, Math.trunc(Number(wIndex.value || 0)));
 
-    const rec = contentProfile === "monologue"
-        ? { baseTargetS: 15.0, minS: 8.0, maxS: 15.0, overlap: 13, leftContext: 0.75, preset: "monologue_audio_24fps" }
-        : { baseTargetS: 10.0, minS: 5.0, maxS: 10.0, overlap: 9, leftContext: 0.5, preset: "videoclip_audio_24fps" };
+    const rec = getPlannerProfile(segmentPreset);
+    const explicitPresetMode = planningMode === "explicit_preset_seconds" || planningMode === "auto_profile";
+    const autoDurationProfile = !explicitPresetMode ? getAutoOverlapProfileForDuration(segmentDuration) : null;
+    const effectiveSegmentDuration = explicitPresetMode ? rec.segmentSeconds : segmentDuration;
+    const effectiveOverlapFrames = inputOverlapFrames;
 
-    const effectiveSegmentDuration = planningMode === "auto_profile"
-        ? Math.max(rec.minS, Math.min(rec.maxS, songDuration / Math.max(1, Math.ceil(songDuration / rec.baseTargetS))))
-        : segmentDuration;
-    const effectiveOverlapFrames = planningMode === "auto_profile" ? rec.overlap : overlapFrames;
+    if (explicitPresetMode && node?.type !== SEGMENT_PLANNER_LINKED_TYPE && !numbersClose(wSeg.value, effectiveSegmentDuration)) {
+        wSeg.value = effectiveSegmentDuration;
+    }
+    const overlapFrames = clampNumber(wOverlap.value, 0, 4096);
 
     const totalFrames = Math.max(1, Math.round(songDuration * fps));
     const uniqueFrames = Math.max(1, Math.round(effectiveSegmentDuration * fps));
@@ -178,7 +365,7 @@ function updateSegmentPlannerPreview(node) {
         `total=${totalFrames}f`,
         `unique=${uniqueFrames}f`,
         `mode=${planningMode}`,
-        `profile=${contentProfile}`,
+        `profile=${segmentPreset}`,
         `first_raw=${firstRaw}f`,
         `next_raw=${nextRaw}f`,
         `segments=${segments}`,
@@ -197,9 +384,10 @@ function updateSegmentPlannerPreview(node) {
         `segment_duration_s = ${segmentDuration.toFixed(3)}`,
         `effective_segment_duration_s = ${effectiveSegmentDuration.toFixed(3)}`,
         `planning_mode = ${planningMode}`,
-        `content_profile = ${contentProfile}`,
+        `segment_preset = ${segmentPreset}`,
         `overlap_frames = ${overlapFrames}`,
         `effective_overlap_frames = ${effectiveOverlapFrames}`,
+        `overlap_policy = manual/default_9`,
         `ltx_round_mode = ${roundMode}`,
         `segment_index = ${clampedIndex}`,
         `total_frames = ${totalFrames}`,
@@ -218,6 +406,7 @@ function updateSegmentPlannerPreview(node) {
         `current_segment_end_s = ${currentEndS.toFixed(3)}`,
         `recommended_audio_left_context_s = ${rec.leftContext.toFixed(2)}`,
         `recommended_extension_preset = ${rec.preset}`,
+        `auto_duration_profile = ${autoDurationProfile?.profileLabel || "none"}`,
     ].join("\n");
 
     const widget = ensurePlannerPreviewWidget(node);
@@ -241,9 +430,9 @@ function installSegmentPlannerSync(node) {
         getWidget(node, "song_duration_s"),
         getWidget(node, "fps"),
         getWidget(node, "segment_duration_s"),
-        getWidget(node, "planning_mode"),
-        getWidget(node, "content_profile"),
-        getWidget(node, "overlap_frames"),
+        getWidget(node, "planning_mode") || getWidget(node, "planning_mode_in"),
+        getWidget(node, "segment_preset") || getWidget(node, "segment_preset_in") || getWidget(node, "content_profile"),
+        getWidget(node, "overlap_frames") || getWidget(node, "overlap_frames_in"),
         getWidget(node, "ltx_round_mode"),
         getWidget(node, "segment_index"),
     ].filter(Boolean);
@@ -269,6 +458,38 @@ function installSegmentPlannerSync(node) {
     }
 
     updateSegmentPlannerPreview(node);
+}
+
+function installSegmentPlannerSettingsSync(node) {
+    const widgets = [
+        getWidget(node, "segment_duration_s"),
+        getWidget(node, "planning_mode"),
+        getWidget(node, "segment_preset"),
+        getWidget(node, "overlap_frames"),
+        getWidget(node, "auto_sync_overlap"),
+    ].filter(Boolean);
+
+    if (!widgets.length || node._iamccsSegmentPlannerSettingsSyncInstalled) {
+        updateSegmentPlannerSettingsReport(node);
+        return;
+    }
+
+    node._iamccsSegmentPlannerSettingsSyncInstalled = true;
+    ensurePlannerSettingsReportWidget(node);
+    ensurePlannerNodeSize(node);
+
+    for (const widget of widgets) {
+        const prev = widget.callback;
+        widget.callback = function () {
+            const r = prev?.apply(this, arguments);
+            updateSegmentPlannerSettingsReport(node);
+            refreshLinkedPlannerPreviews();
+            return r;
+        };
+    }
+
+    updateSegmentPlannerSettingsReport(node);
+    refreshLinkedPlannerPreviews();
 }
 
 function installSecondsLengthSync(node, { snapRule = false } = {}) {
@@ -321,13 +542,15 @@ app.registerExtension({
         if (!nodeData?.name) return;
         const name = nodeData.name;
 
-        if (name !== TIMEFRAME_TYPE && name !== VALIDATOR_TYPE && name !== SEGMENT_PLANNER_TYPE) return;
+        if (name !== TIMEFRAME_TYPE && name !== VALIDATOR_TYPE && name !== SEGMENT_PLANNER_TYPE && name !== SEGMENT_PLANNER_LINKED_TYPE && name !== SEGMENT_PLANNER_SETTINGS_TYPE) return;
 
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             const r = onNodeCreated?.apply(this, arguments);
-            if (name === SEGMENT_PLANNER_TYPE) {
+            if (name === SEGMENT_PLANNER_TYPE || name === SEGMENT_PLANNER_LINKED_TYPE) {
                 installSegmentPlannerSync(this);
+            } else if (name === SEGMENT_PLANNER_SETTINGS_TYPE) {
+                installSegmentPlannerSettingsSync(this);
             } else {
                 // Snap to 8n+1 on both nodes, since LTX-2 VAE encode requires it.
                 installSecondsLengthSync(this, { snapRule: true });
@@ -338,9 +561,12 @@ app.registerExtension({
         const onConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function () {
             const r = onConfigure?.apply(this, arguments);
-            if (name === SEGMENT_PLANNER_TYPE) {
+            if (name === SEGMENT_PLANNER_TYPE || name === SEGMENT_PLANNER_LINKED_TYPE) {
                 installSegmentPlannerSync(this);
                 updateSegmentPlannerPreview(this);
+            } else if (name === SEGMENT_PLANNER_SETTINGS_TYPE) {
+                installSegmentPlannerSettingsSync(this);
+                updateSegmentPlannerSettingsReport(this);
             }
             return r;
         };

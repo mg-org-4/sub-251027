@@ -1,0 +1,50 @@
+[apt]
+packages = ["libgl1-mesa-glx", "libgl1", "libopengl0", "libglu1-mesa"]
+
+[dependencies]
+cgal = "*"
+igl = "*"
+scipy = "*"
+
+[pypi-dependencies]
+numpy = "*"
+tqdm = ">=4.60.0"
+requests = ">=2.25.0"
+trimesh = { version = ">=4.0.0", extras = ["easy"] }
+rtree = "*"
+point-cloud-utils = ">=0.30.0"
+fast-simplification = ">=0.1.5"
+pymeshfix = ">=0.17.0"
+xatlas = ">=0.0.11"
+skeletor = ">=1.2.0"
+pynanoinstantmeshes = "*"
+pyquadriflow = { version = ">=0.2.0", index = "https://pozzettiandrea.github.io/pyQuadriFlow/simple/" }
+pygeogram-ap = { version = ">=0.1.0", index = "https://pozzettiandrea.github.io/pygeogram/simple/" }
+pypmp = { version = ">=0.1.0", index = "https://pozzettiandrea.github.io/pypmp/simple/" }
+pyquadwild = { version = ">=0.1.0", index = "https://pozzettiandrea.github.io/pyquadwild/simple/" }
+pymesh2 = { version = ">=0.3", index = "https://pozzettiandrea.github.io/PyMesh/simple/" }
+matplotlib = ">=3.5.0"
+pillow = ">=9.0.0"
+pyvista = ">=0.43.0"
+pyopengl = ">=3.1.10"
+torch = "*"
+
+[target.win-64.pypi-dependencies]
+embreex = "*"
+msvc-runtime = "*"
+pymeshlab = "==2025.7"
+
+[target.linux-64.dependencies]
+pymeshlab = "*"
+
+[target.linux-64.pypi-dependencies]
+embreex = "*"
+mmgpy = ">=0.5.2"
+
+[target.osx-arm64.pypi-dependencies]
+mmgpy = ">=0.5.2"
+pymeshlab = "==2025.7"
+
+[env_vars]
+KMP_DUPLICATE_LIB_OK = "TRUE"
+OMP_NUM_THREADS = 1

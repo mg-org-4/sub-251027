@@ -3,6 +3,7 @@ import os
 import io
 import json
 import time
+import mimetypes
 
 import hashlib
 
@@ -567,8 +568,9 @@ class view_Data:
             },
         }
 
-    RETURN_TYPES = ()  
-    RETURN_NAMES = ()  
+    RETURN_TYPES = (anyType,)
+    RETURN_NAMES = ("any",)
+    OUTPUT_IS_LIST = (True,)
     OUTPUT_NODE = True
     NAME = "view_Data"
     CATEGORY = "Apt_Preset/PreView"
@@ -579,26 +581,33 @@ class view_Data:
         displayText = self.render(any)
 
         updateTextWidget(unique_id, "data", displayText)
-        return {"ui": {"data": displayText}, "result": ()}
+        return {"ui": {"data": displayText}, "result": (any,)}
 
     def render(self, any):
-        if not isinstance(any, list):
-            return str(any)
+        if isinstance(any, list):
+            listLen = len(any)
+            if listLen > 1:
+                result = "List:\n"
+                for i, element in enumerate(any):
+                    result += f"[#{i}] {str(any[i])}\n"
+                return result
+            if listLen == 1:
+                value = any[0]
+            else:
+                value = ""
+        else:
+            value = any
 
-        listLen = len(any)
-
-        if listLen == 0:
-            return ""
-
-        if listLen == 1:
-            return str(any[0])
-
-        result = "List:\n"
-
-        for i, element in enumerate(any):
-            result += f"[No.{i}] {str(any[i])}\n"
-
-        return result
+        if value is None:
+            return "None"
+        if isinstance(value, str):
+            return value
+        if isinstance(value, (int, float, bool)):
+            return str(value)
+        try:
+            return json.dumps(value, indent=2, ensure_ascii=False)
+        except Exception:
+            return str(value)
 
 
 
@@ -1736,7 +1745,7 @@ class IO_LoadTextBatch:
         }
 
     NAME = "IO_LoadTextBatch"
-    CATEGORY = "Apt_Preset/IO_Port"
+    CATEGORY = "Apt_Preset/IO_Port/batch_input"
     RETURN_TYPES = ("STRING", "STRING", "INT", "INT")
     RETURN_NAMES = ("text_list", "text_index", "index", "total")
     FUNCTION = "load_text_list"
@@ -1986,7 +1995,7 @@ class IO_LoadImgBatch:
         }
 
     NAME = "IO_LoadImgBatch"
-    CATEGORY = "Apt_Preset/IO_Port"
+    CATEGORY = "Apt_Preset/IO_Port/batch_input"
     RETURN_TYPES = ("IMAGE", "IMAGE", "STRING", "INT", "INT")
     RETURN_NAMES = ("img_list", "img_index", "name_index", "index", "total")
     FUNCTION = "load_img_batch"
@@ -2089,6 +2098,337 @@ class IO_LoadImgBatch:
     @classmethod
     def VALIDATE_INPUTS(s, image_list: str, card_size: int = 120, index: int = 0, image_list_in=None):
         return True
+
+
+class _IO_LoadMediaBatchBase:
+    INPUT_IS_LIST = True
+    _last_pushed_hash_by_node: dict = {}
+
+    EXTENSIONS = ()
+    EVENT_NAME = ""
+    LIST_NAME = "media_list"
+    INDEX_NAME = "media_index"
+    NODE_NAME = "IO_LoadMediaBatch"
+
+    def _first_scalar(self, v, default=None):
+        if isinstance(v, list):
+            return v[0] if len(v) > 0 else default
+        return v
+
+    def _normalize_line_list(self, raw_text: str):
+        lines = [x.strip() for x in str(raw_text or "").splitlines()]
+        return [x for x in lines if x]
+
+    def _resolve_media_path(self, raw_path: str):
+        if not raw_path:
+            return None
+        p = str(raw_path).strip().strip('"').strip("'")
+        if not p:
+            return None
+        if os.path.isfile(p):
+            return os.path.abspath(p)
+        p2 = os.path.join(folder_paths.get_input_directory(), p)
+        if os.path.isfile(p2):
+            return os.path.abspath(p2)
+        p3 = os.path.join(folder_paths.get_input_directory(), os.path.basename(p))
+        if os.path.isfile(p3):
+            return os.path.abspath(p3)
+        return None
+
+    def _is_valid_ext(self, path: str):
+        if not self.EXTENSIONS:
+            return True
+        ext = os.path.splitext(path)[1].lower()
+        return ext in self.EXTENSIONS
+
+    def _import_from_input_list(self, media_list_in, existing_paths: list):
+        if media_list_in is None:
+            return []
+        out = []
+        existing_set = {str(x).lower() for x in (existing_paths or [])}
+        values = media_list_in if isinstance(media_list_in, list) else [media_list_in]
+        for item in values:
+            candidate = None
+            if isinstance(item, str):
+                candidate = item
+            elif isinstance(item, (list, tuple)):
+                for v in item:
+                    if isinstance(v, str):
+                        resolved = self._resolve_media_path(v)
+                        if resolved and self._is_valid_ext(resolved):
+                            low = resolved.lower()
+                            if low not in existing_set:
+                                out.append(resolved)
+                                existing_set.add(low)
+                continue
+            if candidate:
+                resolved = self._resolve_media_path(candidate)
+                if resolved and self._is_valid_ext(resolved):
+                    low = resolved.lower()
+                    if low not in existing_set:
+                        out.append(resolved)
+                        existing_set.add(low)
+        return out
+
+    def _filter_valid_names(self, names: list):
+        valid = []
+        for n in names:
+            resolved = self._resolve_media_path(n)
+            if resolved and self._is_valid_ext(resolved):
+                valid.append(resolved)
+        return valid
+
+    def _emit_ui_sync(self, unique_id: str, names: list, index: int, card_size: int):
+        if not unique_id or not self.EVENT_NAME:
+            return
+        try:
+            uid = str(unique_id)
+            payload = {"items": names, "index": int(index), "card_size": int(card_size)}
+            h = hashlib.sha256(
+                json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            if self._last_pushed_hash_by_node.get(uid) == h:
+                return
+            self._last_pushed_hash_by_node[uid] = h
+            ps = getattr(PromptServer, "instance", None)
+            if ps is not None and hasattr(ps, "send_sync"):
+                ps.send_sync(self.EVENT_NAME, {"node": uid, **payload})
+        except Exception:
+            pass
+
+    @classmethod
+    def IS_CHANGED(cls, media_list: str = "", card_size: int = 120, index: int = 0, media_list_in=None, **_kwargs):
+        m = hashlib.sha256()
+        if isinstance(media_list, list):
+            media_list = media_list[0] if len(media_list) > 0 else ""
+        if isinstance(index, list):
+            index = index[0] if len(index) > 0 else 0
+        if isinstance(card_size, list):
+            card_size = card_size[0] if len(card_size) > 0 else 120
+        m.update((str(media_list) if media_list is not None else "").encode("utf-8"))
+        m.update(str(index).encode("utf-8"))
+        m.update(str(card_size).encode("utf-8"))
+        if media_list_in is not None:
+            try:
+                if isinstance(media_list_in, list):
+                    m.update(str(len(media_list_in)).encode("utf-8"))
+                else:
+                    m.update(b"1")
+            except Exception:
+                pass
+        return m.digest().hex()
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, media_list: str = "", card_size: int = 120, index: int = 0, media_list_in=None, **_kwargs):
+        return True
+
+
+class IO_LoadVideoBatch(_IO_LoadMediaBatchBase):
+    EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}
+    EVENT_NAME = "IO_LoadVideoBatch_set"
+    NODE_NAME = "IO_LoadVideoBatch"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video_list": ("STRING", {"multiline": True, "default": ""}),
+                "card_size": ("INT", {"default": 64, "min": 64, "max": 384, "step": 1}),
+                "index": ("INT", {"default": 0, "min": 0, "max": 9999, "step": 1}),
+            },
+            "optional": {
+                "video_list_in": ("STRING", {"forceInput": True}),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    NAME = "IO_LoadVideoBatch"
+    CATEGORY = "Apt_Preset/IO_Port/batch_input"
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "INT", "INT")
+    RETURN_NAMES = ("video_list", "video_index", "name_index", "index", "total")
+    FUNCTION = "load_video_batch"
+    OUTPUT_IS_LIST = (True, False, False, False, False)
+    OUTPUT_NODE = True
+
+    @classmethod
+    def IS_CHANGED(cls, video_list: str = "", card_size: int = 120, index: int = 0, video_list_in=None, **kwargs):
+        return super().IS_CHANGED(video_list, card_size, index, video_list_in, **kwargs)
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, video_list: str = "", card_size: int = 120, index: int = 0, video_list_in=None, **kwargs):
+        return super().VALIDATE_INPUTS(video_list, card_size, index, video_list_in, **kwargs)
+
+    def load_video_batch(self, video_list: str, card_size: int = 120, index: int = 0, video_list_in=None, unique_id: str = ""):
+        video_list = self._first_scalar(video_list, "")
+        card_size = self._first_scalar(card_size, 64)
+        index = self._first_scalar(index, 0)
+        unique_id = self._first_scalar(unique_id, "")
+
+        names = self._normalize_line_list(video_list)
+        imported = self._import_from_input_list(video_list_in, existing_paths=names)
+        if imported:
+            names.extend(imported)
+        names = self._filter_valid_names(names)
+
+        total = len(names)
+        if total == 0:
+            return ([], "", "", 0, 0)
+
+        try:
+            i = int(index)
+        except Exception:
+            i = 0
+        i = max(0, min(i, total - 1))
+        current_path = names[i]
+        name_without_ext = os.path.splitext(os.path.basename(current_path))[0] if current_path else ""
+
+        self._emit_ui_sync(str(unique_id), names, i, int(card_size))
+        return (names, current_path, name_without_ext, int(i), int(total))
+
+
+class IO_LoadAudioBatch(_IO_LoadMediaBatchBase):
+    EXTENSIONS = {".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac"}
+    EVENT_NAME = "IO_LoadAudioBatch_set"
+    NODE_NAME = "IO_LoadAudioBatch"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio_list": ("STRING", {"multiline": True, "default": ""}),
+                "card_size": ("INT", {"default": 64, "min": 64, "max": 384, "step": 1}),
+                "index": ("INT", {"default": 0, "min": 0, "max": 9999, "step": 1}),
+            },
+            "optional": {
+                "audio_list_in": ("STRING", {"forceInput": True}),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    NAME = "IO_LoadAudioBatch"
+    CATEGORY = "Apt_Preset/IO_Port/batch_input"
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "INT", "INT")
+    RETURN_NAMES = ("audio_list", "audio_index", "name_index", "index", "total")
+    FUNCTION = "load_audio_batch"
+    OUTPUT_IS_LIST = (True, False, False, False, False)
+    OUTPUT_NODE = True
+
+    @classmethod
+    def IS_CHANGED(cls, audio_list: str = "", card_size: int = 120, index: int = 0, audio_list_in=None, **kwargs):
+        return super().IS_CHANGED(audio_list, card_size, index, audio_list_in, **kwargs)
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, audio_list: str = "", card_size: int = 120, index: int = 0, audio_list_in=None, **kwargs):
+        return super().VALIDATE_INPUTS(audio_list, card_size, index, audio_list_in, **kwargs)
+
+    def load_audio_batch(self, audio_list: str, card_size: int = 120, index: int = 0, audio_list_in=None, unique_id: str = ""):
+        audio_list = self._first_scalar(audio_list, "")
+        card_size = self._first_scalar(card_size, 64)
+        index = self._first_scalar(index, 0)
+        unique_id = self._first_scalar(unique_id, "")
+
+        names = self._normalize_line_list(audio_list)
+        imported = self._import_from_input_list(audio_list_in, existing_paths=names)
+        if imported:
+            names.extend(imported)
+        names = self._filter_valid_names(names)
+
+        total = len(names)
+        if total == 0:
+            return ([], "", "", 0, 0)
+
+        try:
+            i = int(index)
+        except Exception:
+            i = 0
+        i = max(0, min(i, total - 1))
+        current_path = names[i]
+        name_without_ext = os.path.splitext(os.path.basename(current_path))[0] if current_path else ""
+
+        self._emit_ui_sync(str(unique_id), names, i, int(card_size))
+        return (names, current_path, name_without_ext, int(i), int(total))
+
+
+def _resolve_media_preview_path(raw_path: str):
+    if not raw_path:
+        return None
+    p = str(raw_path).strip().strip('"').strip("'")
+    if not p:
+        return None
+    if os.path.isfile(p):
+        return os.path.abspath(p)
+    input_dir = folder_paths.get_input_directory()
+    p2 = os.path.join(input_dir, p)
+    if os.path.isfile(p2):
+        return os.path.abspath(p2)
+    p3 = os.path.join(input_dir, os.path.basename(p))
+    if os.path.isfile(p3):
+        return os.path.abspath(p3)
+    return None
+
+
+@routes.get("/Apt_Preset_IO_LoadMedia_preview")
+async def apt_preset_io_load_media_preview(request):
+    raw_path = request.query.get("path", "")
+    resolved = _resolve_media_preview_path(raw_path)
+    if not resolved or not os.path.exists(resolved):
+        return web.Response(status=404, text="media not found")
+    mime = mimetypes.guess_type(resolved)[0] or "application/octet-stream"
+    return web.FileResponse(resolved, headers={"Content-Type": mime})
+
+
+@routes.post("/Apt_Preset_IO_LoadMedia_upload")
+async def apt_preset_io_load_media_upload(request):
+    media_type = str(request.query.get("media_type", "")).lower().strip()
+    if media_type == "audio":
+        allowed_exts = {".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac"}
+    else:
+        allowed_exts = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}
+
+    saved_items = []
+    try:
+        reader = await request.multipart()
+    except Exception as e:
+        return web.json_response({"ok": False, "error": f"multipart 解析失败: {e}"}, status=400)
+
+    input_dir = folder_paths.get_input_directory()
+    os.makedirs(input_dir, exist_ok=True)
+
+    while True:
+        part = await reader.next()
+        if part is None:
+            break
+        if part.name != "media":
+            continue
+        filename = os.path.basename(part.filename or "").strip()
+        if not filename:
+            continue
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in allowed_exts:
+            continue
+
+        stem = re.sub(r"[^a-zA-Z0-9_\-\u4e00-\u9fff]+", "_", os.path.splitext(filename)[0])[:64] or "media"
+        base_name = f"{stem}{ext}"
+        save_path = os.path.join(input_dir, base_name)
+        if os.path.exists(save_path):
+            save_path = os.path.join(input_dir, f"{stem}_{int(time.time() * 1000)}{ext}")
+
+        try:
+            with open(save_path, "wb") as f:
+                while True:
+                    chunk = await part.read_chunk()
+                    if not chunk:
+                        break
+                    f.write(chunk)
+            saved_items.append(os.path.basename(save_path))
+        except Exception:
+            continue
+
+    return web.json_response({"ok": True, "items": saved_items})
 
 
 
@@ -3782,8 +4122,6 @@ class IO_LoadShotBatch:
             },
             "optional": {
                 "shot": ("SHOTINFO", {"forceInput": True}),
-                "img_list": ("IMAGE", {"forceInput": True}),
-                "text_list": ("STRING", {"forceInput": True}),
                 "index": ("INT", {"default": 0, "min": 0, "max": 9999, "step": 1}),
             },
             "hidden": {
@@ -3792,7 +4130,7 @@ class IO_LoadShotBatch:
         }
 
     NAME = "IO_LoadShotBatch"
-    CATEGORY = "Apt_Preset/IO_Port"
+    CATEGORY = "Apt_Preset/IO_Port/batch_input"
     RETURN_TYPES = ("IMAGE", "STRING", "INT", "INT")
     RETURN_NAMES = ("img_index", "text_index", "index", "total")
     FUNCTION = "load_shot_list"
@@ -4651,7 +4989,6 @@ class basicIn_Vedio:
 
 from nodes import  CLIPTextEncode
 
-# 老版本 CLIP 文本编码节点 → 输入clip，输入正反文本，输出正反条件
 class basicIn_clip:
     @classmethod
     def INPUT_TYPES(s):
@@ -4678,4 +5015,5 @@ class basicIn_clip:
 
         return (positive, negative)
 
-        
+
+

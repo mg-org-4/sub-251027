@@ -35,6 +35,9 @@ from .NodeBasic.C_imgEffect import *
 from .NodeBasic.C_type import *
 from .NodeExcel.ExcelOP import *
 from .NodeExcel.AIagent import *
+from .NodeExcel.Gemini3 import *
+from .NodeExcel.doubao_web_node import *
+
 from .NodeBasic.C_flow import *
 from .NodeBasic.mask_RMBG import *
 from .NodeBasic.mulPreview import *
@@ -222,6 +225,7 @@ NODE_CLASS_MAPPINGS= {
 "AD_sch_mask_weigh":AD_sch_mask_weigh,
 "AD_video_merge": AD_video_merge,
 "AD_VideoSeg": AD_VideoSeg,
+"AD_media_trim_visual": AD_media_trim_visual,
 
 
 "AD_keyframe_trend_preview": AD_keyframe_trend_preview,
@@ -282,8 +286,6 @@ NODE_CLASS_MAPPINGS= {
 "view_GetLength": view_GetLength, #wed----utils
 "view_mask": view_mask,
 "view_mulView": view_mulView,
-
-
 "view_node_Script": view_node_Script, 
 
 #-------------输入输出 IO_Port-------------------
@@ -302,6 +304,8 @@ NODE_CLASS_MAPPINGS= {
 
 "IO_LoadImgList": IO_LoadImgList,
 "IO_LoadImgBatch": IO_LoadImgBatch,
+"IO_LoadVideoBatch": IO_LoadVideoBatch,
+"IO_LoadAudioBatch": IO_LoadAudioBatch,
 "IO_LoadTextBatch": IO_LoadTextBatch,
 "IO_LoadShotBatch": IO_LoadShotBatch,
 "IO_ShotCreate": IO_ShotCreate,
@@ -466,6 +470,7 @@ NODE_CLASS_MAPPINGS= {
 "Coordinate_MarkRender":Coordinate_MarkRender,
 "Coordinate_fromMask":Coordinate_fromMask,
 "Coordinate_pointCombine":Coordinate_pointCombine,
+"Coordinate_create_mask":Coordinate_create_mask,
 "Coordinate_loadImage":Coordinate_loadImage,#错开
 "Coordinate_Index2Text":Coordinate_Index2Text,
 
@@ -557,10 +562,11 @@ NODE_CLASS_MAPPINGS= {
 "text_saveText": text_saveText,
 "text_StrMatrix":text_StrMatrix,
 
-"text_mulAngle":text_mulAngle,
+"text_interPrompt":text_interPrompt,
 
 
 "Ai_doubao_seedream":Ai_doubao_seedream,
+"AI_DoubaoWebPreview": AI_DoubaoWebPreview,
 "AI_PresetSave":AI_PresetSave,
 "AI_Qwen":AI_Qwen,
 "AI_Qwen_text":AI_Qwen_text,
@@ -573,6 +579,12 @@ NODE_CLASS_MAPPINGS= {
 "AI_ModelScope_image": AI_ModelScope_image,
 "AI_ModelScopeT2I": AI_ModelScopeT2I,
 "AI_ModelScope_text": AI_ModelScope_text,
+"AI_Gemini3_Img2T": AI_Gemini3_Img2T,
+"AI_Gemini3_ImageEdit": AI_Gemini3_ImageEdit,
+
+
+
+
 
 #---****------------------
 

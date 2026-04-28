@@ -456,7 +456,11 @@ class Amp_audio_Normalized:
     def load_audio(self, audio):
         waveform = audio["waveform"]
         sample_rate = audio["sample_rate"]
-        waveform_np = waveform.squeeze().numpy()
+        # 兼容 Tensor 和 numpy array
+        if isinstance(waveform, torch.Tensor):
+            waveform_np = waveform.squeeze().cpu().numpy()
+        else:
+            waveform_np = np.asarray(waveform).squeeze()
         
         waveform_int16 = (waveform_np * 32767).astype(np.int16)
         audio_segment = AudioSegment(
@@ -1147,9 +1151,14 @@ import cv2
 import zipfile
 import traceback
 import datetime
+import subprocess
+import base64
+import json
 import numpy as np
 import folder_paths
 from PIL import Image
+from aiohttp import web
+from server import PromptServer
 
 # ========== 安全导入 ==========
 try:
@@ -1234,6 +1243,480 @@ def check_ffmpeg():
     if os.path.exists(ffmpeg_path):
         return True, ffmpeg_path
     return auto_install_ffmpeg()
+
+
+def get_ffprobe_path():
+    _, ffmpeg_path = get_ffmpeg_path()
+    ffprobe_path = os.path.join(os.path.dirname(ffmpeg_path), "ffprobe.exe")
+    if os.path.exists(ffprobe_path):
+        return ffprobe_path
+    return None
+
+
+def _run_process(cmd):
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        err = (result.stderr or result.stdout or "").strip()
+        # Prefer tail lines so ffmpeg banner doesn't hide the actual reason.
+        if err:
+            lines = [ln for ln in err.splitlines() if ln.strip()]
+            err = "\n".join(lines[-15:]) if lines else err
+        raise RuntimeError(err[:1600] if err else f"Command failed: {' '.join(cmd)}")
+    return result.stdout
+
+
+def _run_process_bytes(cmd):
+    result = subprocess.run(cmd, capture_output=True)
+    if result.returncode != 0:
+        err = (result.stderr or result.stdout or b"").decode("utf-8", errors="replace").strip()
+        raise RuntimeError(err[:1200] if err else f"Command failed: {' '.join(cmd)}")
+    return result.stdout
+
+
+def _resolve_media_input_path(raw_path: str):
+    if not raw_path:
+        return None
+    candidate = str(raw_path).strip().strip('"').strip("'")
+    if candidate.lower().startswith("file://"):
+        candidate = candidate[7:]
+    # Remove url query/hash parts if user pasted browser-style path.
+    candidate = candidate.split("?", 1)[0].split("#", 1)[0]
+    # Normalize common slash variants.
+    candidate = candidate.replace("\\\\", "\\")
+    if not candidate:
+        return None
+    if os.path.exists(candidate):
+        return os.path.abspath(candidate)
+    try:
+        annotated = folder_paths.get_annotated_filepath(candidate)
+        if annotated and os.path.exists(annotated):
+            return os.path.abspath(annotated)
+    except Exception:
+        pass
+    in_dir = folder_paths.get_input_directory()
+    p1 = os.path.join(in_dir, candidate)
+    if os.path.exists(p1):
+        return os.path.abspath(p1)
+    p2 = os.path.join(in_dir, os.path.basename(candidate))
+    if os.path.exists(p2):
+        return os.path.abspath(p2)
+    return None
+
+
+def _resolve_media_from_video_input(video):
+    if video is None:
+        return None
+    visited = set()
+
+    def _iter_strings(obj, depth=0):
+        if depth > 6:
+            return
+        oid = id(obj)
+        if oid in visited:
+            return
+        visited.add(oid)
+
+        if isinstance(obj, str):
+            s = obj.strip()
+            if s:
+                yield s
+            if (s.startswith("[") and s.endswith("]")) or (s.startswith("{") and s.endswith("}")):
+                try:
+                    parsed = json.loads(s)
+                    yield from _iter_strings(parsed, depth + 1)
+                except Exception:
+                    pass
+            return
+
+        if isinstance(obj, dict):
+            for v in obj.values():
+                yield from _iter_strings(v, depth + 1)
+            return
+
+        if isinstance(obj, (list, tuple, set)):
+            for v in obj:
+                yield from _iter_strings(v, depth + 1)
+            return
+
+        if hasattr(obj, "video_info") and isinstance(getattr(obj, "video_info", None), dict):
+            yield from _iter_strings(obj.video_info, depth + 1)
+
+        for attr in ("path", "video_path", "file_path", "filepath", "url", "name"):
+            if hasattr(obj, attr):
+                try:
+                    v = getattr(obj, attr)
+                except Exception:
+                    continue
+                yield from _iter_strings(v, depth + 1)
+        if hasattr(obj, "__dict__"):
+            try:
+                yield from _iter_strings(vars(obj), depth + 1)
+            except Exception:
+                pass
+
+    for candidate in _iter_strings(video):
+        resolved = _resolve_media_input_path(candidate)
+        if resolved:
+            return resolved
+
+    # Last-resort: parse repr/str for path-like substrings
+    try:
+        text = str(video)
+    except Exception:
+        text = ""
+    if text:
+        path_like = re.findall(
+            r"[A-Za-z]:[\\/][^\s'\"<>|]+?\.(?:mp4|mov|mkv|webm|avi|m4v|wav|mp3|flac|ogg|m4a|aac)|"
+            r"[^\\/:*?\"<>|\r\n]+?\.(?:mp4|mov|mkv|webm|avi|m4v|wav|mp3|flac|ogg|m4a|aac)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        for candidate in path_like:
+            resolved = _resolve_media_input_path(candidate)
+            if resolved:
+                return resolved
+    return None
+
+
+def _probe_media_info(path: str):
+    # Prefer ffprobe; fall back to ffmpeg stderr parsing when ffprobe is unavailable.
+    ffprobe_path = get_ffprobe_path()
+    if ffprobe_path:
+        try:
+            cmd = [
+                ffprobe_path, "-v", "error",
+                "-show_entries", "format=duration:stream=codec_type",
+                "-of", "json", path,
+            ]
+            out = _run_process(cmd)
+            data = json.loads(out) if out else {}
+            duration = float((data.get("format") or {}).get("duration") or 0.0)
+            has_video = False
+            has_audio = False
+            for s in data.get("streams", []):
+                codec_type = (s.get("codec_type") or "").lower()
+                if codec_type == "video":
+                    has_video = True
+                elif codec_type == "audio":
+                    has_audio = True
+            if duration > 0 or has_video or has_audio:
+                return {"duration": duration, "has_video": has_video, "has_audio": has_audio}
+        except Exception:
+            pass
+
+    ffmpeg_ok, ffmpeg_path = check_ffmpeg()
+    if not ffmpeg_ok:
+        raise RuntimeError("未找到 ffmpeg，无法探测媒体信息。")
+
+    probe_cmd = [ffmpeg_path, "-hide_banner", "-i", path]
+    proc = subprocess.run(probe_cmd, capture_output=True, text=True)
+    probe_text = f"{proc.stderr or ''}\n{proc.stdout or ''}"
+    text_lower = probe_text.lower()
+
+    has_video = "video:" in text_lower
+    has_audio = "audio:" in text_lower
+
+    duration = 0.0
+    marker = "Duration:"
+    idx = probe_text.find(marker)
+    if idx >= 0:
+        # Example: Duration: 00:01:23.45, start: 0.000000, bitrate: ...
+        tail = probe_text[idx + len(marker):].strip()
+        clock = tail.split(",", 1)[0].strip()
+        parts = clock.split(":")
+        if len(parts) == 3:
+            try:
+                h = float(parts[0])
+                m = float(parts[1])
+                s = float(parts[2])
+                duration = h * 3600 + m * 60 + s
+            except Exception:
+                duration = 0.0
+
+    if duration <= 0 and not has_video and not has_audio:
+        raise RuntimeError("ffmpeg/ffprobe 均未能识别媒体信息，请确认文件可播放且路径有效。")
+
+    return {"duration": duration, "has_video": has_video, "has_audio": has_audio}
+
+
+def _extract_waveform_peaks(path: str, bins: int = 1400):
+    ffmpeg_ok, ffmpeg_path = check_ffmpeg()
+    if not ffmpeg_ok:
+        raise RuntimeError("未找到 ffmpeg，无法生成波形。")
+    bins = max(64, min(int(bins), 4096))
+    cmd = [
+        ffmpeg_path, "-v", "error",
+        "-i", path,
+        "-vn",
+        "-ac", "1",
+        "-ar", "16000",
+        "-f", "f32le",
+        "-",
+    ]
+    raw = _run_process_bytes(cmd)
+    if not raw or not isinstance(raw, (bytes, bytearray, memoryview)):
+        return []
+    # 确保是 bytes 类型
+    if isinstance(raw, memoryview):
+        raw = bytes(raw)
+    samples = np.frombuffer(raw, dtype=np.float32)
+    if samples.size == 0:
+        return []
+    abs_samples = np.abs(samples)
+    edges = np.linspace(0, abs_samples.size, num=bins + 1, dtype=np.int64)
+    peaks = []
+    for i in range(bins):
+        s = edges[i]
+        e = edges[i + 1]
+        if e <= s:
+            peaks.append(0.0)
+        else:
+            peaks.append(float(np.max(abs_samples[s:e])))
+    return peaks
+
+
+def _parse_marker_seconds(markers_json: str, duration: float):
+    text = (markers_json or "").strip()
+    if not text:
+        return []
+    try:
+        parsed = json.loads(text)
+    except Exception:
+        return []
+    if isinstance(parsed, dict):
+        parsed = parsed.get("markers", [])
+    if not isinstance(parsed, list):
+        return []
+    seen = set()
+    markers = []
+    for item in parsed:
+        try:
+            sec = float(item)
+        except Exception:
+            continue
+        sec = max(0.0, min(sec, max(0.0, duration)))
+        key = int(round(sec * 1000))
+        if key in seen:
+            continue
+        seen.add(key)
+        markers.append(sec)
+    markers.sort()
+    return markers
+
+
+def _build_segments_by_markers(markers, duration):
+    points = [0.0] + list(markers) + [max(0.0, float(duration))]
+    segments = []
+    for i in range(len(points) - 1):
+        s = float(points[i])
+        e = float(points[i + 1])
+        if e - s >= 0.01:
+            segments.append((s, e))
+    return segments
+
+
+def _load_image_tensor(image_path: str):
+    with Image.open(image_path).convert("RGB") as img:
+        arr = np.array(img).astype(np.float32) / 255.0
+    # Comfy IMAGE standard shape: [B, H, W, C]
+    return torch.from_numpy(arr).unsqueeze(0)
+
+
+def _encode_media_token(path: str) -> str:
+    return base64.urlsafe_b64encode(path.encode("utf-8")).decode("ascii")
+
+
+def _decode_media_token(token: str):
+    if not token:
+        return None
+    try:
+        padded = token + "=" * (-len(token) % 4)
+        decoded = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
+        return decoded
+    except Exception:
+        return None
+
+
+@PromptServer.instance.routes.post("/apt_preset/media_trim/resolve")
+async def apt_media_trim_resolve(request):
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    media_path = _resolve_media_input_path(payload.get("path", ""))
+    if not media_path or not os.path.exists(media_path):
+        return web.json_response({"ok": False, "error": "未找到媒体文件，请检查路径。"}, status=400)
+    try:
+        info = _probe_media_info(media_path)
+        peaks = _extract_waveform_peaks(media_path, bins=1400)
+    except Exception as e:
+        return web.json_response({"ok": False, "error": f"探测媒体信息失败: {e}"}, status=500)
+    token = _encode_media_token(media_path)
+    media_type = "video" if info.get("has_video") else "audio"
+    return web.json_response(
+        {
+            "ok": True,
+            "media_url": f"/apt_preset/media_trim/file?token={token}",
+            "duration": float(info.get("duration", 0.0)),
+            "media_type": media_type,
+            "peaks": peaks,
+        }
+    )
+
+
+@PromptServer.instance.routes.get("/apt_preset/media_trim/file")
+async def apt_media_trim_file(request):
+    token = request.query.get("token", "")
+    media_path = _decode_media_token(token)
+    if not media_path:
+        return web.Response(status=400, text="invalid token")
+    media_path = os.path.abspath(media_path)
+    if not os.path.exists(media_path):
+        return web.Response(status=404, text="file not found")
+    return web.FileResponse(media_path)
+
+
+class AD_media_trim_visual:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "media_path": ("STRING", {"default": "", "tooltip": "可留空。若连接 video 端口，优先使用端口视频路径。"}),
+                "start_sec": ("FLOAT", {"default": 0.0, "min": 0.0, "step": 0.01}),
+                "end_sec": ("FLOAT", {"default": 0.0, "min": 0.0, "step": 0.01}),
+                "markers_json": ("STRING", {"default": "[]", "multiline": False, "tooltip": "前端打标记后自动写入。格式: [1.2, 3.4]"}),
+                "output_name": ("STRING", {"default": "trim"}),
+                "reencode": ("BOOLEAN", {"default": False}),
+            },
+            "optional": {
+                "video": (ANY, {"default": None}),
+                "audio": (ANY, {"default": None}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "STRING", "IMAGE")
+    RETURN_NAMES = ("audio_list", "video_list", "image_list")
+    OUTPUT_IS_LIST = (True, True, True)
+    FUNCTION = "execute"
+    CATEGORY = "Apt_Preset/AD"
+    name="AD_media_trim_visual"
+    @staticmethod
+    def _safe_name(name: str):
+        name = (name or "trim").strip()
+        name = re.sub(r"[^a-zA-Z0-9_\-\u4e00-\u9fff]+", "_", name)
+        return name[:80] or "trim"
+
+    def execute(self, media_path, start_sec, end_sec, markers_json, output_name, reencode, video=None, audio=None):
+        input_path = _resolve_media_from_video_input(video)
+        if not input_path:
+            input_path = _resolve_media_from_video_input(audio)
+        if not input_path:
+            input_path = _resolve_media_input_path(media_path)
+        if not input_path or not os.path.exists(input_path):
+            raise ValueError("未找到媒体文件。请优先连接 video/audio 端口，或填写可访问的 media_path。")
+
+        ffmpeg_ok, ffmpeg_path = check_ffmpeg()
+        if not ffmpeg_ok:
+            raise RuntimeError("缺少 FFmpeg，请先安装或检查 models/Apt_File/ffmpeg.exe。")
+
+        info = _probe_media_info(input_path)
+        duration = float(info.get("duration", 0.0))
+        has_video = bool(info.get("has_video"))
+        has_audio = bool(info.get("has_audio"))
+        if duration <= 0:
+            raise RuntimeError("无法读取媒体时长，可能是格式不支持或文件损坏。")
+
+        markers = _parse_marker_seconds(markers_json, duration)
+        if markers:
+            segments = _build_segments_by_markers(markers, duration)
+        else:
+            start = max(0.0, min(float(start_sec), duration))
+            end = max(0.0, min(float(end_sec), duration))
+            if end <= start:
+                raise ValueError(f"结束时间必须大于起始时间。当前 start={start:.3f}, end={end:.3f}")
+            segments = [(start, end)]
+        if not segments:
+            # Keep behavior stable even when markers are out of range or duplicated.
+            segments = [(0.0, max(0.01, duration))]
+
+        out_dir = os.path.join(folder_paths.get_output_directory(), "apt_media_trim")
+        os.makedirs(out_dir, exist_ok=True)
+        # Use stable containers for trimming to avoid codec/container mismatch.
+        ext = ".mp4" if has_video else ".wav"
+        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        base = f"{self._safe_name(output_name)}_{stamp}"
+        audio_list = []
+        video_list = []
+        image_tensors = []
+
+        for idx, (seg_start, seg_end) in enumerate(segments):
+            seg_tag = f"{base}_{idx:03d}"
+            clip_path = os.path.join(out_dir, f"{seg_tag}_clip{ext}")
+
+            # Stable trim: try stream-copy first for speed, then fall back to re-encode.
+            copy_cmd = [
+                ffmpeg_path, "-hide_banner", "-loglevel", "error",
+                "-y", "-ss", f"{seg_start:.3f}", "-to", f"{seg_end:.3f}",
+                "-i", input_path, "-c", "copy", "-avoid_negative_ts", "make_zero", clip_path,
+            ]
+            reencode_cmd = [
+                ffmpeg_path, "-hide_banner", "-loglevel", "error",
+                "-y", "-ss", f"{seg_start:.3f}", "-to", f"{seg_end:.3f}", "-i", input_path,
+            ]
+            if has_video:
+                reencode_cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "192k"]
+            else:
+                reencode_cmd += ["-c:a", "pcm_s16le", "-ar", "44100", "-ac", "2"]
+            reencode_cmd.append(clip_path)
+
+            if reencode:
+                _run_process(reencode_cmd)
+            else:
+                try:
+                    _run_process(copy_cmd)
+                except Exception:
+                    _run_process(reencode_cmd)
+
+            if has_audio:
+                audio_path = os.path.join(out_dir, f"{seg_tag}_audio.wav")
+                _run_process([ffmpeg_path, "-hide_banner", "-loglevel", "error", "-y", "-i", clip_path, "-vn", "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "2", audio_path])
+                audio_list.append(audio_path)
+            else:
+                audio_list.append("")
+
+            if has_video:
+                video_path = os.path.join(out_dir, f"{seg_tag}_video.mp4")
+                try:
+                    _run_process([ffmpeg_path, "-hide_banner", "-loglevel", "error", "-y", "-i", clip_path, "-an", "-c:v", "copy", video_path])
+                except Exception:
+                    _run_process([ffmpeg_path, "-hide_banner", "-loglevel", "error", "-y", "-i", clip_path, "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", video_path])
+                video_list.append(video_path)
+
+                shot_time = seg_start + max(0.0, (seg_end - seg_start) * 0.5)
+                img_path = os.path.join(out_dir, f"{seg_tag}_shot.png")
+                _run_process([ffmpeg_path, "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{shot_time:.3f}", "-i", input_path, "-frames:v", "1", img_path])
+                if os.path.exists(img_path):
+                    image_tensors.append(_load_image_tensor(img_path))
+                else:
+                    image_tensors.append(torch.zeros((1, 64, 64, 3), dtype=torch.float32))
+            else:
+                video_list.append("")
+                image_tensors.append(torch.zeros((1, 64, 64, 3), dtype=torch.float32))
+
+        # Ensure list outputs have identical lengths to avoid list-mapping index errors.
+        target_len = max(len(audio_list), len(video_list), len(image_tensors), len(segments), 1)
+        while len(audio_list) < target_len:
+            audio_list.append("")
+        while len(video_list) < target_len:
+            video_list.append("")
+        while len(image_tensors) < target_len:
+            image_tensors.append(torch.zeros((1, 64, 64, 3), dtype=torch.float32))
+
+        return (
+            audio_list,
+            video_list,
+            image_tensors,
+        )
 
 def pil2tensor(img):
     return np.array(img).astype(np.float32) / 255.0

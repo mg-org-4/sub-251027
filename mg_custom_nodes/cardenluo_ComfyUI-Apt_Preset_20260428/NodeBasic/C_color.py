@@ -16,7 +16,7 @@ import copy
 import ast
 import torch.nn.functional as F
 from typing import Tuple
-
+from .C_image import Mask_transform_sum
 
 
 from ..main_unit import *

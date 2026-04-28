@@ -13,6 +13,14 @@ function getShotPreviewWidget(node) {
     return getWidgetByName(node, "shot_preview");
 }
 
+function getShotThumbMap(node) {
+    if (!node) return new Map();
+    if (!(node._ioLoadShotThumbMap instanceof Map)) {
+        node._ioLoadShotThumbMap = new Map();
+    }
+    return node._ioLoadShotThumbMap;
+}
+
 function getIndexWidget(node) {
     return getWidgetByName(node, "index");
 }
@@ -38,23 +46,50 @@ function getShotPreviewItems(node) {
     const w = getShotPreviewWidget(node);
     const raw = String(w?.value ?? "[]").trim();
     const v = safeJsonParse(raw, []);
+    const thumbMap = getShotThumbMap(node);
     if (!Array.isArray(v)) return [];
-    return v
+    const items = v
         .filter((x) => x && typeof x === "object")
         .map((x) => ({
             orig_index: normalizeOrigIndex(x.orig_index),
             title: x.title == null ? "" : String(x.title),
             content: x.content == null ? "" : String(x.content),
-            thumb: x.thumb == null ? "" : String(x.thumb),
+            thumb: "",
         }))
         .filter((x) => x.orig_index != null);
+
+    for (const it of items) {
+        const t = thumbMap.get(String(it.orig_index));
+        if (typeof t === "string" && t.startsWith("data:image/")) {
+            it.thumb = t;
+        }
+    }
+    return items;
 }
 
 function setShotPreviewItems(node, items) {
     const w = getShotPreviewWidget(node);
     if (!w) return;
     const next = Array.isArray(items) ? items : [];
-    w.value = JSON.stringify(next);
+    const thumbMap = getShotThumbMap(node);
+    for (const x of next) {
+        if (!x || typeof x !== "object") continue;
+        const oi = normalizeOrigIndex(x.orig_index);
+        if (oi == null) continue;
+        const thumb = x.thumb == null ? "" : String(x.thumb);
+        if (thumb.startsWith("data:image/")) {
+            thumbMap.set(String(oi), thumb);
+        }
+    }
+    // CRITICAL: Persist metadata only. Never store base64 thumbnails in workflow JSON.
+    const compact = next
+        .map((x) => ({
+            orig_index: normalizeOrigIndex(x?.orig_index),
+            title: x?.title == null ? "" : String(x.title),
+            content: x?.content == null ? "" : String(x.content),
+        }))
+        .filter((x) => x.orig_index != null);
+    w.value = JSON.stringify(compact);
     w.callback?.(w.value);
 }
 
@@ -228,6 +263,9 @@ function clearShotUI(node) {
     setShotPreviewItems(node, []);
     setShotStateItems(node, []);
     setIndex(node, 0);
+    try {
+        getShotThumbMap(node).clear();
+    } catch {}
     try {
         node._ioLoadShotListHistory = [];
     } catch {}
@@ -495,6 +533,9 @@ function createShotListUI(node) {
                 const prev = getShotPreviewItems(node);
                 const k = prev.findIndex((x) => x.orig_index === item.orig_index);
                 if (k >= 0) {
+                    try {
+                        getShotThumbMap(node).delete(String(item.orig_index));
+                    } catch {}
                     prev.splice(k, 1);
                     setShotPreviewItems(node, prev);
                 }

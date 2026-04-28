@@ -938,6 +938,74 @@ class Coordinate_SplitIndex:
             return (0.0, 0.0, 0, 0)
 
 
+class Coordinate_create_mask:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "x_min": ("FLOAT", {"default": 0.2, "min": 0.0, "max": 1.0, "step": 0.001}),
+                "y_min": ("FLOAT", {"default": 0.2, "min": 0.0, "max": 1.0, "step": 0.001}),
+                "x_max": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.0, "step": 0.001}),
+                "y_max": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.0, "step": 0.001}),
+            }
+        }
+
+    RETURN_TYPES = ("MASK", "IMAGE")
+    RETURN_NAMES = ("mask", "image")
+    FUNCTION = "create_mask_and_crop"
+    CATEGORY = "Apt_Preset/image/ImgCoordinate"
+
+    def _ensure_bhwc(self, image: torch.Tensor) -> torch.Tensor:
+        # 兼容单图与非常见输入，统一转为 [B, H, W, C]
+        if len(image.shape) == 4:
+            return image
+
+        if len(image.shape) == 3:
+            # HWC
+            if image.shape[-1] in (1, 3, 4):
+                return image.unsqueeze(0)
+            # CHW -> HWC
+            if image.shape[0] in (1, 3, 4):
+                return image.permute(1, 2, 0).unsqueeze(0)
+            # 兜底按 HWC 处理
+            return image.unsqueeze(0)
+
+        if len(image.shape) == 2:
+            # HW -> HWC(1) -> B,H,W,C
+            return image.unsqueeze(-1).unsqueeze(0)
+
+        raise ValueError(f"Invalid image shape: {image.shape}, expected HW/HWC/CHW/BHWC")
+
+    def create_mask_and_crop(self, image, x_min, y_min, x_max, y_max):
+        image = self._ensure_bhwc(image)
+
+        batch, height, width, channels = image.shape
+        if channels == 1:
+            image = image.repeat(1, 1, 1, 3)
+
+        x0 = max(0.0, min(float(x_min), float(x_max)))
+        x1 = min(1.0, max(float(x_min), float(x_max)))
+        y0 = max(0.0, min(float(y_min), float(y_max)))
+        y1 = min(1.0, max(float(y_min), float(y_max)))
+
+        px0 = int(np.floor(x0 * width))
+        py0 = int(np.floor(y0 * height))
+        px1 = int(np.ceil(x1 * width))
+        py1 = int(np.ceil(y1 * height))
+
+        px0 = max(0, min(px0, width - 1))
+        py0 = max(0, min(py0, height - 1))
+        px1 = max(px0 + 1, min(px1, width))
+        py1 = max(py0 + 1, min(py1, height))
+
+        cropped_image = image[:, py0:py1, px0:px1, :]
+
+        # 遮罩保持原图尺寸，仅在矩形区域内为 1，其余为 0
+        full_mask = torch.zeros((batch, height, width), dtype=image.dtype, device=image.device)
+        full_mask[:, py0:py1, px0:px1] = 1.0
+        return (full_mask, cropped_image)
+
 
 
 

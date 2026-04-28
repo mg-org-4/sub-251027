@@ -5939,7 +5939,7 @@
     },
     "outputs": {
       "0": {
-        "name": "记录"
+        "name": "任意"
       }
     }
   },
@@ -12459,7 +12459,7 @@
               "name": "卡片大小"
           },
           "index": {
-              "name": "编号"
+              "name": "索引"
           }
       },
       "outputs": {
@@ -12467,10 +12467,10 @@
               "name": "文本列表"
           },
           "1": {
-              "name": "编号_文本"
+              "name": "索引_文本"
           },
           "2": {
-              "name": "编号"
+              "name": "索引"
           },
           "3": {
               "name": "总数"
@@ -12491,18 +12491,18 @@
               "name": "文本列表"
           },
           "index": {
-              "name": "编号"
+              "name": "索引"
           }
       },
       "outputs": {
           "0": {
-              "name": "编号_图像"
+              "name": "索引_图像"
           },
           "1": {
-              "name": "编号_文本"
+              "name": "索引_文本"
           },
           "2": {
-              "name": "编号"
+              "name": "索引"
           },
           "3": {
               "name": "总数"
@@ -12590,7 +12590,7 @@
         "name": "导入图片"
       },
       "index": {
-        "name": "编号"
+        "name": "索引"
       }
     },
     "outputs": {
@@ -12598,13 +12598,13 @@
         "name": "图像列表"
       },
       "1": {
-        "name": "编号_图像"
+        "name": "索引_图像"
       },      
       "2": {
         "name": "图像名称"
       },
       "3": {
-        "name": "编号"
+        "name": "索引"
       },   
       "4": {
         "name": "总数"
@@ -13370,6 +13370,190 @@
         }
     }
 },
+
+
+
+
+
+
+    "IO_LoadVideoBatch": {
+        "display_name": "IO_加载视频批次",
+        "inputs": {
+            "video_list": {
+                "name": "视频list"
+            },
+            "card_size": {
+                "name": "卡片大小"
+            },
+            "index": {
+                "name": "索引"
+            },
+            "video_list_in": {
+                "name": "输入视频list"
+            }
+        },
+        "outputs": {
+            "0": {
+                "name": "视频list"
+            },
+            "1": {
+                "name": "视频索引"
+            },
+            "2": {
+                "name": "名称索引"
+            },
+            "3": {
+                "name": "索引"
+            },
+            "4": {
+                "name": "总数"
+            }
+        }
+    },
+    "IO_LoadAudioBatch": {
+        "display_name": "IO_加载音频批次",
+        "inputs": {
+            "audio_list": {
+                "name": "音频list"
+            },
+            "card_size": {
+                "name": "卡片大小"
+            },
+            "index": {
+                "name": "索引"
+            },
+            "audio_list_in": {
+                "name": "输入音频list"
+            }
+        },
+        "outputs": {
+            "0": {
+                "name": "音频list"
+            },
+            "1": {
+                "name": "音频索引"
+            },
+            "2": {
+                "name": "名称索引"
+            },
+            "3": {
+                "name": "索引"
+            },
+            "4": {
+                "name": "总数"
+            }
+        }
+    },
+
+
+"AD_media_trim_visual": {
+    "display_name": "AD_媒体修剪",
+    "inputs": {
+        "media_path": {
+            "name": "媒体路径"
+        },
+        "start_sec": {
+            "name": "开始时间（秒）"
+        },
+        "end_sec": {
+            "name": "结束时间（秒）"
+        },
+        "output_name": {
+            "name": "输出名称"
+        },
+        "reencode": {
+            "name": "重新编码"
+        },
+        "video": {
+            "name": "视频"
+        },
+        "audio": {
+            "name": "音频"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "音频list"
+        },
+        "1": {
+            "name": "视频list"
+        },
+        "2": {
+            "name": "图像list"
+        }
+    }
+},
+
+
+"text_interPrompt": {
+    "display_name": "text_交互提示词",
+    "inputs": {
+        "lighting_prompt": {
+            "name": "光照3d"
+        },
+        "camera_prompt": {
+            "name": "相机3d"
+        },
+        "color_prompt": {
+            "name": "配色"
+        },
+        "light2d_prompt": {
+            "name": "光照2D"
+        },
+        "image": {
+            "name": "图像"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "光照3d"
+        },
+        "1": {
+            "name": "相机3d"
+        },
+        "2": {
+            "name": "配色"
+        },
+        "3": {
+            "name": "光照2D"
+        },
+        "4": {
+            "name": "位置"
+        }
+    }
+},
+
+
+
+"Coordinate_create_mask": {
+    "display_name": "Coordinate_创建遮罩",
+    "inputs": {
+        "image": {
+            "name": "图像"
+        },
+        "x_min": {
+            "name": "X最小值"
+        },
+        "y_min": {
+            "name": "Y最小值"
+        },
+        "x_max": {
+            "name": "X最大值"
+        },
+        "y_max": {
+            "name": "Y最大值"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "遮罩"
+        },
+        "1": {
+            "name": "图像"
+        }
+    }
+},
+
 
   "csv_write_data": {
     "display_name": "CSV_写入数据",

@@ -1796,36 +1796,44 @@ class text_StrMatrix:
 
 
 
-class text_mulAngle:
+class text_interPrompt:
     CATEGORY = "Apt_Preset/prompt"
     FUNCTION = "process"
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("lighting_prompt", "camera_prompt")
-    OUTPUT_IS_LIST = (True, True)
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("light3d_prompt", "camera_prompt", "color_prompt", "light2d_prompt", "position_prompt")
+    OUTPUT_IS_LIST = (True, True, True, True, True)
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "image": ("IMAGE", {}),
+
                 "lighting_prompt": ("STRING", {"default": "", "multiline": True}),
                 "camera_prompt": ("STRING", {"default": "", "multiline": True}),
+                "color_prompt": ("STRING", {"default": "", "multiline": True}),
+                "light2d_prompt": ("STRING", {"default": "", "multiline": True}),
+                "position_prompt": ("STRING", {"default": "", "multiline": True}),
             },
+          "optional": {
+               "image": ("IMAGE", {}),
+            },
+
+
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
-    def process(self, image, lighting_prompt="", camera_prompt="", unique_id=None):
+    def process(self, image=None, lighting_prompt="", camera_prompt="", color_prompt="", light2d_prompt="", position_prompt="", unique_id=None):
         light_list = [line.strip() for line in str(lighting_prompt or "").splitlines() if line.strip()]
         camera_list = [line.strip() for line in str(camera_prompt or "").splitlines() if line.strip()]
-        return (light_list, camera_list)
+        color_list = [line.strip() for line in str(color_prompt or "").splitlines() if line.strip()]
+        light2d_list = [line.strip() for line in str(light2d_prompt or "").splitlines() if line.strip()]
+        position_list = [line.strip() for line in str(position_prompt or "").splitlines() if line.strip()]
+        return (light_list, camera_list, color_list, light2d_list, position_list)
 
     @classmethod
-    def IS_CHANGED(cls, image, lighting_prompt="", camera_prompt="", unique_id=None):
-        return f"{lighting_prompt}_{camera_prompt}"
-
-
-
-
+    def IS_CHANGED(cls, image, lighting_prompt="", camera_prompt="", color_prompt="", light2d_prompt="", position_prompt="", unique_id=None):
+        return f"{lighting_prompt}_{camera_prompt}_{color_prompt}_{light2d_prompt}_{position_prompt}"
+text_mulAngle = text_interPrompt
 
 
 

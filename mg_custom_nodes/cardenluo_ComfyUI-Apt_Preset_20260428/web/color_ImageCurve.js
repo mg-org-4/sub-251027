@@ -2213,10 +2213,11 @@ app.registerExtension({
                     const dx = imgPt.x - dragInfo.mouseX;
                     const dy = imgPt.y - dragInfo.mouseY;
                     
-                    // 计算新的中心点
-                    const { cw, ch } = getCropDims();
-                    const srcW = cw / cropState.zoom;
-                    const srcH = ch / cropState.zoom;
+                    // 计算新的中心点（使用实际源框尺寸，避免 false 模式被锁死）
+                    const srcRect = getSourceRect();
+                    if (!srcRect) return;
+                    const srcW = srcRect.w;
+                    const srcH = srcRect.h;
                     
                     let newCx = dragInfo.cx + dx;
                     let newCy = dragInfo.cy + dy;
@@ -2881,11 +2882,15 @@ app.registerExtension({
                 const initState = () => {
                     if (!imageMeta.img_w || !imageMeta.img_h) return;
                     if (!isCropByScaleEnabled()) {
-                        setCropDims(Math.floor(imageMeta.img_w), Math.floor(imageMeta.img_h));
                         ensureMaskContainDims();
                         cropState.zoom = 1.0;
-                        cropState.cx = 0.5;
-                        cropState.cy = 0.5;
+                        if (maskMeta.mask_w && maskMeta.mask_h) {
+                            cropState.cx = (maskMeta.mask_x + maskMeta.mask_w * 0.5) / imageMeta.img_w;
+                            cropState.cy = (maskMeta.mask_y + maskMeta.mask_h * 0.5) / imageMeta.img_h;
+                        } else {
+                            cropState.cx = 0.5;
+                            cropState.cy = 0.5;
+                        }
                         syncState();
                         return;
                     }
@@ -3080,8 +3085,24 @@ app.registerExtension({
 
                 canvas.addEventListener("wheel", (e) => {
                     if (!imageMeta.img_w || !imageMeta.img_h) return;
-                    if (!isCropByScaleEnabled()) return;
                     e.preventDefault();
+                    if (!isCropByScaleEnabled()) {
+                        const cur = ensureMaskContainDims();
+                        const minW = (maskMeta.mask_w && maskMeta.mask_h) ? Math.max(1, Math.ceil(maskMeta.mask_w)) : 1;
+                        const minH = (maskMeta.mask_w && maskMeta.mask_h) ? Math.max(1, Math.ceil(maskMeta.mask_h)) : 1;
+                        const maxW = Math.max(1, Math.floor(imageMeta.img_w));
+                        const maxH = Math.max(1, Math.floor(imageMeta.img_h));
+                        const factorSize = e.deltaY < 0 ? 1.08 : (1 / 1.08);
+                        const nextW = clamp(Math.round(cur.cw * factorSize), minW, maxW);
+                        const nextH = clamp(Math.round(cur.ch * factorSize), minH, maxH);
+                        setCropDims(nextW, nextH);
+                        ensureMaskContainDims();
+                        getSourceRect();
+                        userAdjusted = true;
+                        syncState();
+                        draw();
+                        return;
+                    }
                     const m = getMouse(e);
                     const imgPt = canvasToImage(m.x, m.y);
                     if (!imgPt) return;

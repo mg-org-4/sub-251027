@@ -5,8 +5,8 @@ import MCR from 'monocart-coverage-reports'
 
 import { COVERAGE_OUTPUT_DIR } from '@e2e/coverageConfig'
 import { NodeBadgeMode } from '@/types/nodeSource'
-import { ComfyActionbar } from '@e2e/helpers/actionbar'
-import { ComfyTemplates } from '@e2e/helpers/templates'
+import { ComfyActionbar } from '@e2e/fixtures/components/Actionbar'
+import { ComfyTemplates } from '@e2e/fixtures/components/Templates'
 import { ComfyMouse } from '@e2e/fixtures/ComfyMouse'
 import { TestIds } from '@e2e/fixtures/selectors'
 import { comfyExpect } from '@e2e/fixtures/utils/customMatchers'
@@ -137,6 +137,7 @@ class ComfyMenu {
 
 export class ComfyPage {
   public readonly url: string
+  public readonly apiUrl: string
   // All canvas position operations are based on default view of canvas.
   public readonly canvas: Locator
   public readonly selectionToolbox: Locator
@@ -195,6 +196,7 @@ export class ComfyPage {
     public readonly request: APIRequestContext
   ) {
     this.url = process.env.PLAYWRIGHT_TEST_URL || 'http://localhost:8188'
+    this.apiUrl = process.env.PLAYWRIGHT_SETUP_API_URL || this.url
     this.canvas = page.locator('#graph-canvas')
     this.selectionToolbox = page.getByTestId(TestIds.selectionToolbox.root)
     this.widgetTextBox = page.getByPlaceholder('text').nth(1)
@@ -236,7 +238,7 @@ export class ComfyPage {
   }
 
   async setupUser(username: string) {
-    const res = await this.request.get(`${this.url}/api/users`)
+    const res = await this.request.get(`${this.apiUrl}/api/users`)
     if (res.status() !== 200)
       throw new Error(`Failed to retrieve users: ${await res.text()}`)
 
@@ -250,7 +252,7 @@ export class ComfyPage {
   }
 
   async createUser(username: string) {
-    const resp = await this.request.post(`${this.url}/api/users`, {
+    const resp = await this.request.post(`${this.apiUrl}/api/users`, {
       data: { username }
     })
 
@@ -262,7 +264,7 @@ export class ComfyPage {
 
   async setupSettings(settings: Record<string, unknown>) {
     const resp = await this.request.post(
-      `${this.url}/api/devtools/set_settings`,
+      `${this.apiUrl}/api/devtools/set_settings`,
       {
         data: settings
       }

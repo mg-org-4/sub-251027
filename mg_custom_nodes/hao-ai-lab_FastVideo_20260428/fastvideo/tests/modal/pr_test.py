@@ -71,8 +71,9 @@ def run_test(pytest_command: str):
                             stderr=sys.stderr,
                             check=False)
 
-    sys.exit(result.returncode)
-
+    if result.returncode != 0:
+        raise RuntimeError(f"Test command failed with exit code {result.returncode}")
+    # On success, just return — don't call sys.exit()
 
 @app.function(gpu="H100:1",
               image=image,
@@ -206,7 +207,7 @@ def run_self_forcing_tests():
 @app.function(gpu="L40S:1", image=image, timeout=900)
 def run_unit_test():
     run_test(
-        "pytest ./fastvideo/tests/api/ ./fastvideo/tests/dataset/ ./fastvideo/tests/workflow/ ./fastvideo/tests/entrypoints/ --ignore=./fastvideo/tests/entrypoints/test_openai_api_integration.py -vs"
+        "pytest ./fastvideo/tests/api/ ./fastvideo/tests/dataset/ ./fastvideo/tests/workflow/ ./fastvideo/tests/entrypoints/ ./fastvideo/tests/train/ --ignore=./fastvideo/tests/entrypoints/test_openai_api_integration.py -vs"
     )
 
 

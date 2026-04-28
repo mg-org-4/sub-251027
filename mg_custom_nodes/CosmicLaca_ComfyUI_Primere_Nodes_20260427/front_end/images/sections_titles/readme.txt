@@ -1,1 +1,0 @@
-Copy here section titles by name parameter with .jpg extension.

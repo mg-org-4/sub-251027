@@ -61,6 +61,7 @@ class videoModelSearch:
             "pixverse:1@7 (PixVerse v5.6)",
             "pixverse:1@8 (PixVerse v6)",
             "pixverse:lipsync@1 (PixVerse LipSync)",
+            "pixverse:modify@0 (PixVerse Modify)",
         ],
         "Vidu": [
             "vidu:1@0 (Vidu Q1 Classic)",
@@ -70,7 +71,7 @@ class videoModelSearch:
             "vidu:4@1 (Vidu Q3)",
             "vidu:4@2 (Vidu Q3 Turbo)",
         ],
-        "Wan": [
+        "Alibaba": [
             "runware:200@1 (Wan 2.1 1.3B)",
             "runware:200@2 (Wan 2.1 14B)",
             "runware:200@6 (Wan 2.2)",
@@ -78,6 +79,7 @@ class videoModelSearch:
             "alibaba:wan@2.6 (Wan 2.6)",
             "alibaba:wan@2.6-flash (Wan 2.6 Flash)",
             "alibaba:wan@2.7 (Wan 2.7)",
+            "alibaba:happyhorse@1.0 (Alibaba Happy Horse 1.0)",
         ],
         "OpenAI": [
             "openai:3@1 (OpenAI Sora 3.1)",
@@ -201,6 +203,7 @@ class videoModelSearch:
         "pixverse:1@7": {"width": 640, "height": 360},
         "pixverse:1@8": {"width": 640, "height": 360},
         "pixverse:lipsync@1": {"width": 640, "height": 360},
+        "pixverse:modify@0": {"width": 640, "height": 360},
         
         # Vidu Models
         "vidu:1@0": {"width": 1920, "height": 1080},
@@ -218,6 +221,7 @@ class videoModelSearch:
         "alibaba:wan@2.6": {"width": 1280, "height": 720},
         "alibaba:wan@2.6-flash": {"width": 1280, "height": 720},
         "alibaba:wan@2.7": {"width": 1280, "height": 720},
+        "alibaba:happyhorse@1.0": {"width": 1280, "height": 720},
         
         # OpenAI Models
         "openai:3@1": {"width": 1280, "height": 720},
@@ -340,6 +344,7 @@ class videoModelSearch:
         "pixverse:1@7": "360p",
         "pixverse:1@8": "360p",
         "pixverse:lipsync@1": "360p",
+        "pixverse:modify@0": "360p",
         
         # Vidu Models
         "vidu:1@0": "1080p",
@@ -357,6 +362,7 @@ class videoModelSearch:
         "alibaba:wan@2.6": "720p",
         "alibaba:wan@2.6-flash": "720p",
         "alibaba:wan@2.7": "720p",
+        "alibaba:happyhorse@1.0": "720p",
         
         # OpenAI Models
         "openai:3@1": "720p",
@@ -427,7 +433,8 @@ class videoModelSearch:
         "MiniMax",
         "PixVerse",
         "Vidu",
-        "Wan",
+        "Wan",  # Backward-compatible alias for existing workflows
+        "Alibaba",
         "OpenAI",
         "Lightricks",
         "Ovi",

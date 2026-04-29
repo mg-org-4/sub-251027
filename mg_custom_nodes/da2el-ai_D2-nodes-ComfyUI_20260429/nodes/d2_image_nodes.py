@@ -91,6 +91,7 @@ class D2_SaveImage:
             self.prefix_append = ""
             compress_level = 4
 
+
         # プレフィックスのテンプレート処理
         filename_prefix = template_util.replace_template(filename_prefix, {}, prompt)
 

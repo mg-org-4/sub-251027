@@ -1,4 +1,13 @@
 # ComfyUI SUPIR upscaler wrapper node
+
+# FINAL update
+
+SUPIR is now available to use in ComfyUI core after this PR: 
+
+https://github.com/Comfy-Org/ComfyUI/pull/13250
+
+These nodes won't be updated beyond simple breaking bugfixes.
+
 # UPDATE3:
 Pruned models in safetensors format now available here:
 https://huggingface.co/Kijai/SUPIR_pruned/tree/main

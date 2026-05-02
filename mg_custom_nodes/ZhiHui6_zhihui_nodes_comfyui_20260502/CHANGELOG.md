@@ -1,4 +1,14 @@
 # 更新日志 / Changelog
+## 1.0.36 2026-5-2
+- 图像比例节点(ImageAspectRatio)：修复自定义尺寸控件显示问题并优化尺寸切换逻辑
+  <br>
+- ImageAspectRatio node: Fixed custom size widget display issue and optimized size switch logic
+
+
+## 1.0.35 2026-5-1
+- 标签选择器 节点(TagSelector)：优化代码结构，改进渲染性能
+  <br>
+- TagSelector node: Optimized code structure, improved rendering performance
 
 ## 1.0.35 2026-4-30
 - 标签选择器 节点(TagSelector)：修复题材锁定问题并优化角色提取器功能

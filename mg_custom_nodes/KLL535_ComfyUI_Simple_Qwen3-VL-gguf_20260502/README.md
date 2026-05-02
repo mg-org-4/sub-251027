@@ -12,7 +12,7 @@ In the latest update added a new `keep_vram` mode, which allows you to keep the 
 
 # Last update:
 **27.04.2026 - Nightly**
-- Added support for `n_cpu_moe` (requires llama_cpp_python patch)
+- Added support for `n_cpu_moe`, `cpu_moe` (requires llama_cpp_python update)
 - Standard parameter names are now supported
 - Added debug calculate `token/sec`
 - Added options for running encoder (to obtain `embeddings` or `conditioning`)
@@ -347,7 +347,8 @@ Possible model configurations that can be passed to the `config_override` input.
 | swa_full | bool | False | Enable full Stochastic Weight Averaging (SWA). 💡 Enabling this setting may cause higher memory consumption. |
 | use_mmap | bool |  | Enable mmap. 💡 Observation. For Windows, it's better to turn it off. |
 | use_mlock | bool |  | Enable mlock. |
-| n_cpu_moe | bool |  | For MoE models that don't fit in VRAM. The number of expert layers that will be in RAM and processed by the CPU. This is a more advanced replacement for `n_gpu_layers`, which is twice as fast. Python_llama_cpp needs to be patched. |
+| n_cpu_moe | int |  | For MoE models that don't fit in VRAM. The number of expert layers that will be in RAM and processed by the CPU. This is a more advanced replacement for `n_gpu_layers`, which is twice as fast. |
+| cpu_moe | bool |  | For MoE models unloads all experts into RAM. Allows to save VRAM memory |
 | pool_size | int | 4194304 | Memory pool size for the model (llama.cpp). |
 | n_threads or cpu_threads | int | os.cpu_count() or 8 | Number of CPU threads to use for inference. |
 | image_quality | int | 95 | JPEG quality (1–100) when encoding images to data URIs. Higher values give better quality but larger size. |
@@ -628,28 +629,42 @@ Allows select a user prompt from templates:
 
 <details>
 
-<summary>Qwen3.6-35B-A3B-Q4_K_M</summary>
+<summary>Qwen3.6-35B-A3B</summary>
 
 - https://lmstudio.ai/models/qwen/qwen3.6-35b-a3b
 
 For example:
 `Qwen3.6-35B-A3B-Q4_K_M.gguf` + `mmproj-Qwen3.6-35B-A3B-BF16.gguf`
 
-Not fit in 16 Gb VRAM.
+> 💡 **Tip:** Q4_K_M is already quite an old quantization. Search for models on huggingface and choose models with better quantization, such as UD_IQ from unsloth. They will be smarter and lighter.
+
+- https://huggingface.co/mudler/Qwen3.6-35B-A3B-APEX-GGUF
+
+For example:
+`Qwen3.6-35B-A3B-APEX-I-Quality.gguf` + `mmproj.gguf`
+
+- https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF
+
+For example:
+`Qwen3.6-35B-A3B-UD-IQ4_XS.gguf` + `mmproj-BF16.gguf`
+
+> 💡 **Tip:** If there is a BF16 version for mmproj, choose it, it is better than F16.
+
+
+Examples:
+
+This model not fit in 16 Gb VRAM.
 Settings for `n_cpu_moe` offloading:
 
-> 💡 **Warning:** `n_cpu_moe` in llama_cpp_python is not supported yet. A patch is required.
-If `n_cpu_moe` doesn't work, use NGL offloading. Set `n_gpu_layers = 22`, `n_cpu_moe: 0`. 
-
 > 💡 **Tip:** `use_mmap = false` - Provides better speed, but the model may take longer to load, it needs to be tested.
-> 
+
 > 💡 **Tip:** `split_mode = 0` - Provides better speed on a single GPU, eliminating performance drops after launch.
 
 ```json
         "Qwen3.6-35B-A3B-Q4_K_M": {
             "model_path": "H:\\LLM\\lmstudio-community\\Qwen3.6-35B-A3B-GGUF\\Qwen3.6-35B-A3B-Q4_K_M.gguf",
             "mmproj_path": "H:\\LLM\\lmstudio-community\\Qwen3.6-35B-A3B-GGUF\\mmproj-Qwen3.6-35B-A3B-BF16.gguf",
-            "max_tokens": 2048,
+            "max_tokens": 4096,
             "image_min_tokens": 1024,
             "image_max_tokens": 2048,
             "n_ctx": 8192,
@@ -659,7 +674,65 @@ If `n_cpu_moe` doesn't work, use NGL offloading. Set `n_gpu_layers = 22`, `n_cpu
             "n_threads": 8,
             "n_cpu_moe": 20,
             "use_mmap": false,
-            "split_mode": 0
+            "split_mode": 0,
+            "temperature": 0.8,
+            "top_p": 0.95,
+            "min_p": 0.05,
+            "repeat_penalty": 1.1,
+            "presence_penalty": 0.0,
+            "top_k": 40,
+            "chat_handler": "qwen35",
+            "enable_thinking": true,
+            "script": "qwen3vl_run.py",
+            "debug": true,
+            "verbose": false
+        },
+```
+
+```json
+        "Qwen3.6-35B-A3B-UD-IQ4_XS": {
+            "model_path": "H:\\LLM2\\qwen\\Qwen3.6-35B-A3B-UD\\Qwen3.6-35B-A3B-UD-IQ4_XS.gguf",
+            "mmproj_path": "H:\\LLM2\\qwen\\Qwen3.6-35B-A3B-UD\\mmproj-BF16.gguf",
+            "max_tokens": 4096,
+            "image_min_tokens": 1024,
+            "image_max_tokens": 2048,
+            "n_ctx": 8192,
+            "n_batch": 2048,
+            "n_ubatch": 512,
+            "n_gpu_layers": -1,
+            "n_threads": 8,
+            "n_cpu_moe": 16,
+            "use_mmap": false,
+            "split_mode": 0,
+            "temperature": 0.8,
+            "top_p": 0.95,
+            "min_p": 0.05,
+            "repeat_penalty": 1.1,
+            "presence_penalty": 0.0,
+            "top_k": 40,
+            "chat_handler": "qwen35",
+            "enable_thinking": true,
+            "script": "qwen3vl_run.py",
+            "debug": true,
+            "verbose": false
+        },
+```
+
+```json
+        "Qwen3.6-35B-A3B-APEX-I-Quality": {
+            "model_path": "H:\\LLM2\\qwen\\Qwen3.6-35B-A3B-APEX\\Qwen3.6-35B-A3B-APEX-I-Quality.gguf",
+            "mmproj_path": "H:\\LLM2\\qwen\\Qwen3.6-35B-A3B-APEX\\mmproj.gguf",
+            "max_tokens": 4096,
+            "image_min_tokens": 1024,
+            "image_max_tokens": 2048,
+            "n_ctx": 8192,
+            "n_batch": 2048,
+            "n_ubatch": 512,
+            "n_gpu_layers": -1,
+            "n_threads": 8,
+            "n_cpu_moe": 20,
+            "use_mmap": false,
+            "split_mode": 0,
             "temperature": 0.8,
             "top_p": 0.95,
             "min_p": 0.05,
@@ -1151,40 +1224,43 @@ https://huggingface.co/Tongyi-MAI/Z-Image-Turbo/tree/main/tokenizer.
 LLM and CLIP cannot be split (as can be done with UNET). They must be loaded in their entirety.
 But if the model is MoE, you can unload some of the experts into RAM so that they can be processed by the CPU. This way you can run large models.
 
-In any case, make sure your VRAM doesn't overflow. If you allow your VRAM to overflow, some layers will be loaded into slower RAM, which will inevitably lead to a 5-7x performance degradation or crash!
+In any case, make sure your VRAM doesn't overflow. If you allow your VRAM to overflow, some layers will be loaded into slower RAM, the GPU will be forced to read from RAM, which will inevitably lead to a 5-7x performance degradation!
 
-Open **Task Manager** (Ctrl+Alt+Del) → Performance tab → GPU → set 'CUDA' engine graph. Check the memory usage during execution. It shouldn't exceed the VRAM memory limit. Even nearing the upper limit can be considered overflow, which will cause catastrophic performance slowdowns.
+Open **Task Manager** (Ctrl+Alt+Del) → Performance tab → GPU → set 'CUDA' engine graph. Check the memory usage during execution in middle graph. It shouldn't exceed the VRAM memory limit. Even nearing the upper limit can be considered overflow, which will cause catastrophic performance slowdowns.
+GPU drivers often reserve a small amount of VRAM for system needs, so 100% VRAM usage will not be possible.
 
-Model fits (good speed) ✅
+Model fits (good speed) ✅:
 
 <img width="439" height="438" alt="image" src="https://github.com/user-attachments/assets/d463c17c-f591-436b-b524-f9cce2aad993" />
 
 The bottom graph (shared memory) should be empty!
 
-> 💡 **Warning:** If you do `use_mmap = false` then you can see the shared memory filling up even when there is no VRAM overflow - this is not scary.
+> 💡 **Nuance:** When using `use_mmap=false` the operating system may use RAM for file caching, which Task Manager may display as "used" shared memory, but this does not always mean that VRAM is full.
 
-Memory overflow (speed down ) ❌
+Memory overflow (speed down ) ❌:
 
 <img width="450" height="434" alt="image" src="https://github.com/user-attachments/assets/f44905f2-b6b5-4e6b-b1eb-c922f643972c" />
 
-VRAM reached its maximum and then shared memory started to fill up.
+VRAM reached its maximum and then shared memory started to fill up → performance degradation.
 
 | Mode | Speed for Qwen3.6-35B-A3B-Q4_K_M in 16 Gb VRAM | 
 |--------|--------|
-| n_cpu_moe | 55-60 tok/sec | 
+| n_cpu_moe | 50-60 tok/sec | 
 | NGL | 29 tok/sec  | 
 | Memory overflow ❌ | 10.8 tok/sec | 
 
 > 💡 **Tip:** Search for models on huggingface and choose models with better quantization, such as UD_IQ from unsloth. They will be smarter and lighter. I downloaded the model suggested by LM_Studio purely for testing `n_cpu_moe`.
 
 To make the model fit:
-1. Use stronger quantization Q8->Q6->Q4->Q3...
+1. Use stronger quantization Q8->Q6->Q4->Q3... (But the stronger the quantization, the more the quality of the model may suffer; below Q4 it may already be unacceptable.)
 2. Reduce `n_ctx`, but not too much, otherwise the response may be cut off.
 3. In a larger context enable KV cache quantization `"type_k": 8`, `"type_v": 8`
-4. Use MoE model with expert unloading (`n_cpu_moe` > 0). Some experts will be stored in RAM and processed by the CPU. This is a more efficient method than NGL.
-5. If nothing else is possible use NGL offload (`n_gpu_layers` > 0). Some layers will be stored in RAM and processed by the CPU.
+4. Use MoE model with expert unloading (n_cpu_moe > 0 or cpu_moe = true). Some experts will be stored in RAM and processed by the CPU. This is a more efficient method than NGL.
+- n_cpu_moe = 20 (You need to choose the best number) → put 20 experts on CPU, rest on GPU → All available VRAM is full, higher speed.
+- cpu_moe = true → All experts on CPU → minimal VRAM consumption.
+5. If nothing else is possible use NGL offload (n_gpu_layers > 0). Some layers will be stored in RAM and processed by the CPU.
 - n_gpu_layers = -1 → try to put ALL layers on GPU (if VRAM allows)
-- n_gpu_layers = 24 → put 24 layers on GPU, rest on CPU. In some cases, this can speed things up by up to 2x.
+- n_gpu_layers = 22 (You need to choose the best number) → put 22 layers on GPU, rest on CPU. 
 - n_gpu_layers = 0 → all layers on CPU (slower)
 
 Please note that in addition to the model weights, you also need to fit the mmproj projector into memory.
@@ -1192,6 +1268,10 @@ Please note that in addition to the model weights, you also need to fit the mmpr
 Please note that in addition to the model and projector weights, you also need to fit the KV cache into memory. Increasing the context increases the KV cache size.
 
 If the memory is full before this node starts use `unload_all_models = true`.
+
+Also, keep in mind that LM Studio does a "warm-up" immediately after loading a model. That is, it runs a fake prompt, which allows for stable speed later. 
+
+This node always performs a "cold start". This may reduces the speed.
 
 ---
 

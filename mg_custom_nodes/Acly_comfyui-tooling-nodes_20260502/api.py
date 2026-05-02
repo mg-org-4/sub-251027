@@ -56,7 +56,9 @@ model_names = {
     "ACEStep": "ace-step",
     "Omnigen2": "omnigen2",
     "QwenImage": "qwen-image",
+    "ErnieImage": "ernie-image",
     "Flux2": "flux2",
+    "Anima": "anima",
 }
 
 gguf_architectures = {

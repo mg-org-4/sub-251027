@@ -8,6 +8,10 @@ from comfy.ldm.cosmos.predict2 import Attention as CosmosAttention
 from comfy.ldm.cosmos.predict2 import apply_rotary_pos_emb
 
 
+COND_NEGPIP_MASK_KEY = "c_negpip_mask"
+NEGPIP_MASK_KEY = "negpip_mask"
+
+
 def anima_extra_conds_negpip(
     extra_conds: Callable[..., dict],
     **kwargs,
@@ -28,25 +32,22 @@ def anima_extra_conds_negpip(
 
     out = extra_conds(**kwargs)
     if negpip_mask is not None:
-        out["c_negpip_mask"] = comfy.conds.CONDRegular(negpip_mask)
+        out[COND_NEGPIP_MASK_KEY] = comfy.conds.CONDRegular(negpip_mask)
 
     return out
 
 
-def cosmos_forward_negpip(
-    _forward: Callable[..., torch.Tensor],
-    x: torch.Tensor,
-    timesteps: torch.Tensor,
-    context: torch.Tensor,
-    fps: torch.Tensor | None = None,
-    padding_mask: torch.Tensor | None = None,
-    **kwargs,
-):
+def cosmos_diffusion_negpip_wrapper(executor, *args, **kwargs):
+    context: torch.Tensor = args[2]
     transformer_options: dict[str, Any] = kwargs.get("transformer_options", {})
-    transformer_options["negpip_mask"] = kwargs.get("c_negpip_mask", torch.ones(context.shape[0], context.shape[1], 1))
+    negpip_mask: torch.Tensor | None = kwargs.get(COND_NEGPIP_MASK_KEY)
+
+    if negpip_mask is not None:
+        transformer_options[NEGPIP_MASK_KEY] = negpip_mask.to(context)
+
     kwargs["transformer_options"] = transformer_options
 
-    return _forward(x, timesteps, context, fps, padding_mask, **kwargs)
+    return executor(*args, **kwargs)
 
 
 def cosmos_attention_forward_negpip(
@@ -56,7 +57,7 @@ def cosmos_attention_forward_negpip(
     rope_emb: torch.Tensor | None = None,
     transformer_options: dict | None = {},
 ) -> torch.Tensor:
-    negpip_mask = transformer_options.get("negpip_mask") if transformer_options else None
+    negpip_mask = transformer_options.get(NEGPIP_MASK_KEY) if transformer_options else None
     q, k, v = cosmos_attention_compute_qkv_negpip(
         self,
         x,
@@ -76,7 +77,7 @@ def cosmos_attention_compute_qkv_negpip(
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     q = self.q_proj(x)
     context_k = x if context is None else context
-    context_v = context_k if negpip_mask is None else context_k * negpip_mask.to(context_k)
+    context_v = context_k if negpip_mask is None else context_k * negpip_mask
     k = self.k_proj(context_k)
     v = self.v_proj(context_v)
 

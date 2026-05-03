@@ -573,56 +573,70 @@ Concatenates the 9 input images into a 3x3 grid.
         bottom_row = torch.cat((image7, image8, image9), dim=2)
         grid = torch.cat((top_row, mid_row, bottom_row), dim=1)
         return (grid,)
-    
-class ImageBatchTestPattern:
+
+
+class ImageBatchTestPattern(io.ComfyNode):
     @classmethod
-    def INPUT_TYPES(s):
-        return {"required": {
-            "batch_size": ("INT", {"default": 1,"min": 1, "max": 255, "step": 1}),
-            "start_from": ("INT", {"default": 0,"min": 0, "max": 255, "step": 1}),
-            "text_x": ("INT", {"default": 256,"min": 0, "max": 4096, "step": 1}),
-            "text_y": ("INT", {"default": 256,"min": 0, "max": 4096, "step": 1}),
-            "width": ("INT", {"default": 512,"min": 16, "max": 4096, "step": 1}),
-            "height": ("INT", {"default": 512,"min": 16, "max": 4096, "step": 1}),
-            "font": (folder_paths.get_filename_list("kjnodes_fonts"), ),
-            "font_size": ("INT", {"default": 255,"min": 8, "max": 4096, "step": 1}),
-        }}
+    def define_schema(cls):
+        return io.Schema(
+            node_id="ImageBatchTestPattern",
+            category="KJNodes/text",
+            description="Generate a batch of images with sequential numbers rendered in a chosen font.",
+            inputs=[
+                io.Int.Input("batch_size", default=1, min=1, max=4096, step=1),
+                io.Int.Input("start_from", default=0, min=0, max=4096, step=1),
+                io.Int.Input("text_x", default=256, min=0, max=4096, step=1),
+                io.Int.Input("text_y", default=256, min=0, max=4096, step=1),
+                io.Int.Input("width", default=512, min=16, max=4096, step=1),
+                io.Int.Input("height", default=512, min=16, max=4096, step=1),
+                io.Combo.Input("font", options=folder_paths.get_filename_list("kjnodes_fonts")),
+                io.Int.Input("font_size", default=255, min=8, max=4096, step=1),
+            ],
+            outputs=[
+                io.Image.Output(display_name="image"),
+            ],
+        )
 
-    RETURN_TYPES = ("IMAGE",)
-    FUNCTION = "generatetestpattern"
-    CATEGORY = "KJNodes/text"
-
-    def generatetestpattern(self, batch_size, font, font_size, start_from, width, height, text_x, text_y):
-        out = []
-        # Generate the sequential numbers for each image
-        numbers = np.arange(start_from, start_from + batch_size)
+    @classmethod
+    def execute(cls, batch_size, font, font_size, start_from, width, height, text_x, text_y) -> io.NodeOutput:
         font_path = folder_paths.get_full_path("kjnodes_fonts", font)
+        pil_font = ImageFont.truetype(font_path, font_size)
 
-        for number in numbers:
-            # Create a black image with the number as a random color text
-            image = Image.new("RGB", (width, height), color='black')
-            draw = ImageDraw.Draw(image)
-            
-            # Generate a random color for the text
+        # Probe once whether the '-liga' feature is supported by this PIL build/font
+        use_liga = True
+        try:
+            ImageDraw.Draw(Image.new("RGB", (1, 1))).text(
+                (0, 0), "0", font=pil_font, fill=(0, 0, 0), features=['-liga']
+            )
+        except Exception:
+            use_liga = False
+
+        image = Image.new("RGB", (width, height), color='black')
+        draw = ImageDraw.Draw(image)
+
+        out_buf = np.empty((batch_size, height, width, 3), dtype=np.uint8)
+        pbar = ProgressBar(batch_size)
+
+        for i in range(batch_size):
+            # Reset canvas to black instead of allocating a new PIL image
+            draw.rectangle((0, 0, width, height), fill='black')
+
             font_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-            
-            font = ImageFont.truetype(font_path, font_size)
-            
-            # Get the size of the text and position it in the center
-            text = str(number)
-           
-            try:
-                draw.text((text_x, text_y), text, font=font, fill=font_color, features=['-liga'])
-            except:
-                draw.text((text_x, text_y), text, font=font, fill=font_color,)
-            
-            # Convert the image to a numpy array and normalize the pixel values
-            image_np = np.array(image).astype(np.float32) / 255.0
-            image_tensor = torch.from_numpy(image_np).unsqueeze(0)
-            out.append(image_tensor)
-        out_tensor = torch.cat(out, dim=0)
-  
-        return (out_tensor,)
+            text = str(start_from + i)
+
+            if use_liga:
+                draw.text((text_x, text_y), text, font=pil_font, fill=font_color, features=['-liga'])
+            else:
+                draw.text((text_x, text_y), text, font=pil_font, fill=font_color)
+
+            out_buf[i] = np.asarray(image)
+            pbar.update(1)
+
+        out_tensor = torch.from_numpy(out_buf).to(
+            device=model_management.intermediate_device(),
+            dtype=model_management.intermediate_dtype(),
+        ).div_(255.0)
+        return io.NodeOutput(out_tensor)
 
 class ImageGrabPIL:
 
@@ -1969,6 +1983,94 @@ Returns a range of images from a batch.
             chosen_masks = masks[start_index:end_index]
 
         return (chosen_images, chosen_masks,)
+
+class RandomImageFromBatch(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        template = io.MatchType.Template("input_type", [io.Image, io.Mask])
+        return io.Schema(
+            node_id="RandomImageFromBatch",
+            display_name="Random Image From Batch",
+            search_aliases=["random", "mask", "sequence", "frame"],
+            category="KJNodes/image",
+            description="Picks a sequence of frames from an image or mask batch within a selected index range. "
+                        "At randomness=0 the picks are evenly spaced across the range; at randomness=1 they are "
+                        "uniformly random without replacement; values in between blend linearly. "
+                        "Output is always sorted by batch index. Negative indices count from the end (-1 = last).",
+            inputs=[
+                io.MatchType.Input("input", template=template,
+                                   tooltip="Image or mask batch to sample from."),
+                io.Int.Input("start_index", default=0, min=-4096, max=4096,
+                             tooltip="Inclusive start of the sampling range. Negative values count from the end."),
+                io.Int.Input("end_index", default=-1, min=-4096, max=4096,
+                             tooltip="Inclusive end of the sampling range. -1 means the last frame."),
+                io.Int.Input("num_frames", default=1, min=1, max=4096,
+                             tooltip="How many frames to pick from the range."),
+                io.Float.Input("randomness", default=1.0, min=0.0, max=1.0, step=0.01,
+                               tooltip="0 = evenly spaced across the range, 1 = uniformly random without replacement, "
+                                       "in-between = linear blend (jittered even spacing)."),
+                io.Int.Input("min_distance", default=0, min=0, max=4096,
+                             tooltip="Minimum gap (in frames) between consecutive picks. 0 = no minimum. "
+                                     "Picks are pushed forward to satisfy this; later picks may clamp to the range end."),
+                io.Int.Input("max_distance", default=0, min=0, max=4096,
+                             tooltip="Maximum gap (in frames) between consecutive picks. 0 = no maximum. "
+                                     "Picks are pulled in to satisfy this, which may compress the sequence toward the start."),
+                io.Int.Input("seed", default=0, min=0, max=0xffffffffffffffff, step=1,
+                             tooltip="Random seed for reproducible sampling. Ignored when randomness is 0."),
+            ],
+            outputs=[
+                io.MatchType.Output(template=template, display_name="output"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, input, start_index, end_index, num_frames, randomness, min_distance, max_distance, seed) -> io.NodeOutput:
+        n = input.shape[0]
+        if n == 0:
+            raise ValueError("Input batch is empty.")
+
+        s = start_index if start_index >= 0 else n + start_index
+        e = end_index if end_index >= 0 else n + end_index
+        s = max(0, min(s, n - 1))
+        e = max(0, min(e, n - 1))
+        if e < s:
+            s, e = e, s
+        range_size = e - s + 1
+
+        if num_frames == 1:
+            even = [(s + e) / 2]
+        else:
+            even = [s + i * (e - s) / (num_frames - 1) for i in range(num_frames)]
+
+        if randomness <= 0:
+            picks_float = even
+        else:
+            rng = random.Random(seed)
+            if num_frames <= range_size:
+                random_picks = rng.sample(range(s, e + 1), num_frames)
+            else:
+                random_picks = [rng.randint(s, e) for _ in range(num_frames)]
+            random_picks.sort()
+            picks_float = [(1 - randomness) * ev + randomness * rp for ev, rp in zip(even, random_picks)]
+
+        picks = sorted(max(s, min(e, int(round(p)))) for p in picks_float)
+
+        if num_frames > 1 and (min_distance > 0 or max_distance > 0):
+            adjusted = [picks[0]]
+            for i in range(1, len(picks)):
+                prev = adjusted[-1]
+                target = picks[i]
+                if min_distance > 0 and target - prev < min_distance:
+                    target = prev + min_distance
+                if max_distance > 0 and target - prev > max_distance:
+                    target = prev + max_distance
+                adjusted.append(min(e, max(s, target)))
+            picks = adjusted
+
+        idx = torch.tensor(picks, dtype=torch.long, device=input.device)
+        chosen = input.index_select(0, idx)
+
+        return io.NodeOutput(chosen)
 
 class ImageBatchExtendWithOverlap:
 
@@ -3696,7 +3798,163 @@ class FastPreview:
 
         return {"ui": {"fast_preview": [True]}, "result": ()}
 
-    
+
+class FastPreviewBatch(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="FastPreviewBatch",
+            display_name="Fast Preview Batch",
+            category="KJNodes/experimental",
+            description="Encodes an image batch as an all-I-frame H.264 MP4 thumbnail strip "
+                        "and shows it as an interactive grid. Click a tile to enlarge with "
+                        "prev/next browsing. Avoids materializing N PNGs.",
+            inputs=[
+                io.MultiType.Input("input", [io.Image, io.Mask], tooltip="Image or mask batch to preview."),
+                io.Int.Input("max_thumb_size", default=512, min=512, max=1024, step=8,
+                             tooltip="Detail-view (mp4) thumbnail max side. Strip thumbs for the grid are auto-capped at 256."),
+                io.Int.Input("crf", default=25, min=0, max=51, step=1,
+                             tooltip="H.264 CRF. Lower = higher quality / larger file."),
+                io.Int.Input("max_grid_frames", default=1024, min=1, max=4096, step=1,
+                             tooltip="If batch exceeds this, frames are stride-sampled evenly."),
+            ],
+            is_output_node=True,
+        )
+
+    @classmethod
+    def execute(cls, input, max_thumb_size, crf, max_grid_frames) -> io.NodeOutput:
+        import av
+        import threading
+        import queue as _queue
+        if input.ndim == 3:
+            images = input.reshape((-1, 1, input.shape[-2], input.shape[-1])).movedim(1, -1).expand(-1, -1, -1, 3)
+        else:
+            images = input
+        B, H, W, _ = images.shape
+
+        if B > max_grid_frames:
+            idx = torch.linspace(0, B - 1, max_grid_frames).round().long().tolist()
+        else:
+            idx = list(range(B))
+        total = len(idx)
+
+        scale = min(1.0, max_thumb_size / max(H, W))
+        new_w = max(2, int(round(W * scale)))
+        new_h = max(2, int(round(H * scale)))
+        # yuv420p needs even dimensions
+        new_w -= new_w & 1
+        new_h -= new_h & 1
+
+        # Strip thumbs serve the grid only; cap at 256 so the tiled JPEG stays well
+        # under any browser image-decode limit regardless of detail-view size.
+        STRIP_MAX = 256
+        strip_scale = min(1.0, STRIP_MAX / max(new_h, new_w))
+        strip_w = max(2, int(round(new_w * strip_scale)))
+        strip_h = max(2, int(round(new_h * strip_scale)))
+
+        output_dir = folder_paths.get_temp_directory()
+        prefix = "kj_batch_preview_" + ''.join(random.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(6))
+        full_output_folder, filename, counter, subfolder, _ = folder_paths.get_save_image_path(
+            prefix, output_dir, new_w, new_h
+        )
+        file = f"{filename}_{counter:05}_.mp4"
+        filepath = os.path.join(full_output_folder, file)
+        strip_file = f"{filename}_{counter:05}_grid.jpg"
+        strip_path = os.path.join(full_output_folder, strip_file)
+
+        # Square-ish tiling for the JS grid renderer.
+        strip_cols = max(1, int(math.ceil(math.sqrt(total))))
+        strip_rows = int(math.ceil(total / strip_cols))
+        strip_arr = np.zeros((strip_rows * strip_h, strip_cols * strip_w, 3), dtype=np.uint8)
+
+        fps = 30
+        container = av.open(filepath, mode="w")
+        try:
+            stream = container.add_stream("libx264", rate=Fraction(fps, 1))
+            stream.width = new_w
+            stream.height = new_h
+            stream.pix_fmt = "yuv420p"
+            stream.options = {"crf": str(crf), "preset": "ultrafast", "g": "1", "tune": "fastdecode"}
+
+            chunk_size = 32
+            need_resize = (new_h, new_w) != (H, W)
+            need_strip_resize = (strip_h, strip_w) != (new_h, new_w)
+            mode = 'area' if scale < 1.0 else 'bilinear'
+            work_device = model_management.get_torch_device()
+
+            def _to_numpy_nhwc_u8(t):
+                return (t.mul(255).clamp(0, 255)
+                         .to(dtype=torch.uint8, device='cpu')
+                         .permute(0, 2, 3, 1).contiguous().numpy())
+
+            # Producer: GPU resize + transfer; consumer (this thread): PyAV encode.
+            # PyTorch GPU ops, host transfers, and PyAV's libx264 call all release the
+            # GIL, so threading actually overlaps the two stages.
+            frame_queue = _queue.Queue(maxsize=2)
+            producer_error = [None]
+
+            def producer():
+                try:
+                    for c_start in range(0, total, chunk_size):
+                        c_idx = idx[c_start:c_start + chunk_size]
+                        sel = (images[c_idx, ..., :3].permute(0, 3, 1, 2).contiguous()
+                                                      .to(device=work_device, non_blocking=True))
+                        sel_video = F.interpolate(sel, size=(new_h, new_w), mode=mode) if need_resize else sel
+                        sel_strip = F.interpolate(sel_video, size=(strip_h, strip_w), mode='area') if need_strip_resize else sel_video
+                        video_frames = _to_numpy_nhwc_u8(sel_video)
+                        strip_frames = video_frames if sel_strip is sel_video else _to_numpy_nhwc_u8(sel_strip)
+                        del sel, sel_video, sel_strip
+                        frame_queue.put((c_start, video_frames, strip_frames))
+                except Exception as e:
+                    producer_error[0] = e
+                finally:
+                    frame_queue.put(None)
+
+            producer_thread = threading.Thread(target=producer, daemon=True)
+            producer_thread.start()
+
+            pbar = ProgressBar(total)
+            while True:
+                item = frame_queue.get()
+                if item is None:
+                    break
+                c_start, video_frames, strip_frames = item
+                for i in range(video_frames.shape[0]):
+                    global_idx = c_start + i
+                    sr = global_idx // strip_cols
+                    sc = global_idx % strip_cols
+                    strip_arr[sr * strip_h:(sr + 1) * strip_h, sc * strip_w:(sc + 1) * strip_w] = strip_frames[i]
+                    frame = av.VideoFrame.from_ndarray(video_frames[i], format="rgb24")
+                    for packet in stream.encode(frame):
+                        container.mux(packet)
+                    pbar.update(1)
+
+            producer_thread.join()
+            if producer_error[0] is not None:
+                raise producer_error[0]
+
+            for packet in stream.encode():
+                container.mux(packet)
+        finally:
+            container.close()
+
+        Image.fromarray(strip_arr).save(strip_path, quality=85)
+
+        return io.NodeOutput(ui={"kj_batch_preview": [{
+            "filename": file,
+            "subfolder": subfolder,
+            "type": "temp",
+            "frame_count": total,
+            "fps": fps,
+            "thumb_w": new_w,
+            "thumb_h": new_h,
+            "strip_filename": strip_file,
+            "strip_cols": strip_cols,
+            "strip_cell_w": strip_w,
+            "strip_cell_h": strip_h,
+        }]})
+
+
 class ImageCropByMaskAndResize:
     @classmethod
     def INPUT_TYPES(s):

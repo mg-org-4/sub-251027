@@ -1,8 +1,9 @@
 import os
 import subprocess
-from ..func import video_type
+from datetime import datetime
+from ..func import video_type,set_file_name,validate_time_format
 
-class MultiCuttingVideo:
+class SingleCuttingVideo:
     def __init__(self):
         pass
 
@@ -12,18 +13,19 @@ class MultiCuttingVideo:
             "required": { 
                 "video_path": ("STRING", {"default":"C:/Users/Desktop/video.mp4",}),
                 "output_path": ("STRING", {"default":"C:/Users/Desktop/output",}),
-                "segment_time": ("INT",{"default":10,"min":1,}),
+                "start_time": ("STRING", {"default":"00:00:00",}),
+                "end_time": ("STRING", {"default":"00:00:10",}),
             },
         }
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("video_complete_path",)
-    FUNCTION = "multi_cutting_video"
+    FUNCTION = "single_cutting_video"
     OUTPUT_NODE = True
     CATEGORY = "🔥FFmpeg"
   
     # 视频切割,根据关键帧切割，所以时间不能太短，不能保证每一段视频都有关键帧，所以每一段时长不一定是segment_time，只是最接近的
-    def multi_cutting_video(self, video_path, output_path,segment_time):
+    def single_cutting_video(self, video_path, output_path,start_time,end_time):
         try:
             video_path = os.path.abspath(video_path).strip()
             output_path = os.path.abspath(output_path).strip()
@@ -37,25 +39,32 @@ class MultiCuttingVideo:
             if not os.path.isdir(output_path):
                 raise ValueError("output_path："+output_path+"不是目录（output_path:"+output_path+" is not a directory）")
             
-            file_full_name = os.path.basename(video_path)
-            file_name = os.path.splitext(file_full_name)[0]
-            file_extension = os.path.splitext(file_full_name)[1]
+            if not validate_time_format(start_time) or not validate_time_format(end_time):
+                raise ValueError("start_time或者end_time时间格式不对（start_time or end_time is not in time format）")
             
-            #ffmpeg -i input.mp4 -f segment -segment_time 30 -c copy output%03d.mp4
+            time_format = "%H:%M:%S"
+            start_dt = datetime.strptime(start_time, time_format)
+            end_dt = datetime.strptime(end_time, time_format)
             
+            if start_dt >= end_dt:
+                raise ValueError("start_time必须小于end_time（start_time must be less than end_time）")
+            
+            file_name = set_file_name(video_path)
+            output_path = os.path.join(output_path, file_name)
+            #ffmpeg -i input.mp4 -ss START_TIME -to END_TIME -c copy output.mp4
             command = [
                 'ffmpeg', '-i', video_path,  # 输入视频路径
-                '-f', 'segment','-reset_timestamps','1',"-segment_time",str(segment_time),  # 使用scale滤镜缩放帧
-                '-c','copy',output_path+os.sep+file_name+"_%08d"+file_extension,  # 输出视频路径
+                '-ss', start_time,'-to', end_time,
+                '-c','copy',output_path
             ]
             
             # 执行命令并检查错误
-            result = subprocess.run(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            result = subprocess.run(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='utf-8')
             # 检查返回码
             if result.returncode != 0:
                 # 如果有错误，输出错误信息
-                 print(f"Error: {result.stderr.decode('utf-8')}")
-                 raise ValueError(f"Error: {result.stderr.decode('utf-8')}")
+                 print(f"Error: {result.stderr}")
+                 raise ValueError(f"Error: {result.stderr}")
             else:
                 # 输出标准输出信息
                 print(result.stdout)

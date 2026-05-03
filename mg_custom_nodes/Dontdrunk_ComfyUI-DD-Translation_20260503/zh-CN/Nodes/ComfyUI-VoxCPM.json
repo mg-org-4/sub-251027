@@ -1,0 +1,102 @@
+{
+    "VoxCPM_TTS": {
+        "title": "VoxCPM TTS",
+        "inputs": {
+            "prompt_audio": "提示音频",
+            "lora_name": "LoRA 名称",
+            "reference_audio": "参考音频"
+        },
+        "widgets": {
+            "model_name": "模型名称",
+            "cfg": "CFG 值",
+            "inference_timesteps": "推理时间步长",
+            "seed": "种子",
+            "force_offload": "强制卸载",
+            "device": "设备",
+            "retry_max_attempts": "最大重试次数",
+            "retry_threshold": "重试阈值",
+            "normalize_text": "规范文本",
+            "min_tokens": "最小 Token 数",
+            "max_tokens": "最大 Token 数",
+            "steps": "步骤",
+            "trim_silence": "修剪静音",
+            "temperature": "温度",
+            "sway": "偏移",
+            "use_cfg_zero_star": "开启 CFG 零采样",
+            "voice_design": "语音设计",
+            "Device to run inference on.": "运行推理的设备。",
+            "(VoxCPM2 only) Voice design instruction (e.g., 'warm female voice', 'deep male voice').": "(仅限 VoxCPM2) 语音设计指导 (例如： '温暖的女声', '深沉的男声')。",
+            "Select the VoxCPM model to use. VoxCPM2 supports voice design and reference cloning.": "选择要使用的VoxCPM模型。VoxCPM2支持语音设计和参考克隆。",
+            "Select a LoRA to apply for style/fine-tuning.": "选择一个LoRA来申请风格/微调。",
+            "Text to synthesize.": "要合成的文本。",
+            "Transcript of the prompt audio. Required when using prompt_audio.": "提示音频的转录。使用 prompt_audio 时需要。",
+            "Prompt audio for voice cloning (continuation mode). Requires prompt_text.": "语音克隆提示音频（继续模式）。需Prompt audio for voice cloning (continuation mode). Requires pro要prompt_text。",
+            "(VoxCPM2 only) Reference audio for voice cloning (isolated mode). No transcript needed.": "(仅限 VoxCPM2) 用于语音克隆的参考音频（隔离模式）。不需要成绩单。",
+            "Guidance scale. Higher values adhere more to the prompt but may sound less natural.": "指导尺度。较高的值更符合提示，但听起来可能不太自然。",
+            "Number of diffusion steps. Higher values may improve quality but are slower.": "扩散步骤数。较高的值可以提高质量，但速度较慢。",
+            "Minimum length of generated audio tokens.": "生成的音频令牌的最小长度。",
+            "Maximum length of generated audio tokens.": "生成的音频令牌的最大长度。",
+            "(VoxCPM2 only) Trim silence from reference/prompt audio using VAD.": "(仅限 VoxC(VoxCPM2 only) Trim silence from reference/prompt PM2) 使用 VAD 修剪参考/提示音频中的静音。",
+            "Sampling temperature. Lower = more stable/consistent, Higher = more varied/expressive.": "取样温度。低=更稳定/一致，高=更多样/更有表现力。",
+            "Sway sampling coefficient. Affects sampling trajectory in diffusion.": "偏置采样系数。影响扩散过程中的采样轨迹。",
+            "Use CFG-Zero* optimization for better quality.": "使用零 CFG * 优化以获得更好的质量。",
+            "Max retry attempts for bad cases (e.g., babbling). Set to 0 to disable.": "不良情况下的最大重试次数 (例如，牙牙学语)。设置为0以禁用。",
+            "Audio/text length ratio to trigger a retry.": "触发重试的音频/文本长度比。",
+            "Seed for reproducibility. -1 for random.": "种子可重复性。-1表示随机。",
+            "Force the model to be offloaded from VRAM after generation.": "强制模型在生成后从VRAM卸载。",
+            "Enable text normalization (requires 'inflect' and 'wetext' packages).": "启用文本规范化（需要“infact”和“wetext”包）。",
+            "Enable text normalization (recommended for general text).": "启用文本规范化（建议用于一般文本）。"
+        },
+        "outputs": {
+            "Generated Audio": "生成的音频"
+        }
+    },
+    "VoxCPM_TrainConfig": {
+        "title": "VoxCPM 训练配置",
+        "widgets": {
+            "learning_rate": "学习率",
+            "lora_rank": "LoRA 秩",
+            "lora_alpha": "LoRA 缩放因子",
+            "lora_dropout": "LoRA 丢弃率",
+            "warmup_steps": "学习率预热步数",
+            "grad_accum_steps": "梯度累积步数",
+            "max_batch_tokens": "批次最大 Token 数",
+            "sample_rate": "采样率",
+            "weight_decay": "权重衰减系数",
+            "enable_lm_lora": "启用语言模型 LoRA",
+            "enable_dit_lora": "启用 DiT LoRA",
+            "enable_proj_lora": "启用投影层 LoRA"
+        },
+        "outputs": {
+            "Train Config": "训练配置"
+        }
+    },
+    "VoxCPM_DatasetMaker": {
+        "title": "VoxCPM 数据集生成器",
+        "widgets": {
+            "audio_directory": "音频目录",
+            "output_filename": "输出文件名"
+        },
+        "outputs": {
+            "Dataset Path": "数据集路径"
+        }
+    },
+    "VoxCPM_LoraTrainer": {
+        "title": "VoxCPM LoRA 训练器",
+        "inputs": {
+            "train_config": "训练配置"
+        },
+        "widgets": {
+            "base_model_name": "基础模型名称",
+            "train_config": "训练配置",
+            "dataset_path": "数据集路径",
+            "output_name": "输出名称",
+            "max_steps": "最大训练步数",
+            "save_every_steps": "保存间隔步数",
+            "num_workers": "数据加载线程数"
+        },
+        "outputs": {
+            "LoRA Output Path": "LoRA 输出路径"
+        }
+    }
+}

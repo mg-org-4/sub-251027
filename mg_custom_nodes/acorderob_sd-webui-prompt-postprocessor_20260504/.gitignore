@@ -1,0 +1,12 @@
+**/__pycache__
+.venv
+venv
+
+.vscode/**/*
+!.vscode/settings.json
+!.vscode/launch.json
+
+logs
+tests/tests_local.py
+tests/local_wildcards
+tests/logs

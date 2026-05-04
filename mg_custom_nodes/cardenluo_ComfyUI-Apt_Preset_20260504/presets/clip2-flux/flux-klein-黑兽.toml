@@ -1,7 +1,7 @@
 run_Mode = "None"
 ckpt_name = "None"
 clipnum = -2
-unet_name = "flux-2-klein-9b-kv-fp8.safetensors"
+unet_name = "flux\\F2K-9b-darkBeastMar0326Latest_dbkleinv2BFS.safetensors"
 unet_Weight_Dtype = "default"
 clip_type = "flux2"
 clip1 = "qwen_3_8b_fp8mixed.safetensors"

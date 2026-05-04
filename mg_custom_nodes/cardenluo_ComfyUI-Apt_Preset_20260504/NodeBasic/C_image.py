@@ -4665,6 +4665,8 @@ class Mask_simple_adjust:
                 "mask_max": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
                 "extract_to_block": ("BOOLEAN", {"default": False}),
                 "block_size": ("INT", {"default": 0, "min": 0, "max": 500, "step": 1}),
+                "output_max_mask": ("BOOLEAN", {"default": False}),
+                "threshold": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001}),
             },
             "optional": {}
         }
@@ -4674,8 +4676,8 @@ class Mask_simple_adjust:
     FUNCTION = "process_mask"
     CATEGORY = "Apt_Preset/mask"
     
-    def process_mask(self, smoothness=0, mask_expand=0, is_fill=False, is_invert=False, 
-                    input_mask=None, mask_min=0.0, mask_max=1.0, extract_to_block=True,block_size=0):
+    def process_mask(self, smoothness=0, mask_expand=0, is_fill=False, is_invert=False, output_max_mask=False,
+                    input_mask=None, mask_min=0.0, mask_max=1.0, extract_to_block=True, block_size=0, threshold=0.0):
         if input_mask is None:
             empty_mask = torch.zeros(1, 64, 64, dtype=torch.float32)
             return (empty_mask,)
@@ -4708,12 +4710,19 @@ class Mask_simple_adjust:
             _, binary_mask = cv2.threshold(opencv_gray_mask, 1, 255, cv2.THRESH_BINARY)
 
             contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            valid_contours = [cnt for cnt in contours if cv2.contourArea(cnt) >= 1]
+            
+            total_area = opencv_gray_mask.shape[0] * opencv_gray_mask.shape[1]
+            min_area = max(1, threshold * total_area)
+            
+            valid_contours = [cnt for cnt in contours if cv2.contourArea(cnt) >= min_area]
+            contours_to_process = valid_contours
+            if output_max_mask and valid_contours:
+                contours_to_process = [max(valid_contours, key=cv2.contourArea)]
 
             final_mask = np.zeros_like(binary_mask)
             expand_kernel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=np.uint8)
 
-            for contour in valid_contours:
+            for contour in contours_to_process:
                 temp_mask = np.zeros_like(binary_mask)
                 if extract_to_block:
                     x, y, w, h = cv2.boundingRect(contour)
@@ -6320,7 +6329,7 @@ class Image_expand_canvase_visual:
                 "width": ("INT", {"default": 2048, "min": 1, "max": 8192, "step": 1}),
                 "height": ("INT", {"default": 2048, "min": 1, "max": 8192, "step": 1}),
                 "constant_color": (["white", "black", "red", "gray"], {"default": "black"}),
-                "transform_state": ("STRING", {"default": '{"x":0,"y":0,"scale":1.0,"angle":0,"shear":0}' }),
+                "transform_state": ("STRING", {"default": '{"x":0,"y":0,"scale":1.0,"angle":0}' }),
                 "align_position": (["left-top", "mid-top", "right-top", "left-center", "mid-center", "right-center", "left-bottom", "mid-bottom", "right-bottom"], {"default": "mid-center"}),   
             },
             "optional": {
@@ -6346,13 +6355,11 @@ class Image_expand_canvase_visual:
         y = float(data.get("y", 0))
         scale = float(data.get("scale", 1.0))
         angle = float(data.get("angle", 0))
-        shear = float(data.get("shear", 0))
         if not np.isfinite(x): x = 0
         if not np.isfinite(y): y = 0
         if not np.isfinite(scale): scale = 1.0
         if not np.isfinite(angle): angle = 0
-        if not np.isfinite(shear): shear = 0
-        return x, y, scale, angle, shear
+        return x, y, scale, angle
 
     def _resolve_align_anchor(self, align_position):
         align_map = {
@@ -6388,7 +6395,7 @@ class Image_expand_canvase_visual:
             mask = torch.zeros((1, canvas_height, canvas_width), dtype=torch.float32)
             return {"ui": {"preview": []}, "result": (blank_tensor, mask)}
         
-        x_offset, y_offset, scale, angle, shear = self._parse_state(transform_state)
+        x_offset, y_offset, scale, angle = self._parse_state(transform_state)
         
         frames_count, frame_height, frame_width, frame_channel_count = image.size()
         
@@ -6426,7 +6433,7 @@ class Image_expand_canvase_visual:
             # 创建遮罩画布（反转：背景为0，图片区域为255）
             mask_canvas = Image.new("L", (canvas_width, canvas_height), 0)
             
-            # 使用 affine 变换同时应用缩放、旋转和 shear
+            # 使用 affine 变换同时应用缩放和旋转
             # 计算变换参数
             translate_x = int(x_offset)
             translate_y = int(y_offset)
@@ -6437,7 +6444,7 @@ class Image_expand_canvase_visual:
                 angle=-angle,  # PIL 角度方向与 Canvas 相反
                 scale=final_scale,
                 translate=[translate_x, translate_y],
-                shear=shear,
+                shear=0.0,
                 interpolation=Image.BILINEAR,
                 fill=None if constant_color == "edge" else color_map.get(constant_color, (0, 0, 0))
             ))
@@ -6449,7 +6456,7 @@ class Image_expand_canvase_visual:
                 angle=-angle,
                 scale=final_scale,
                 translate=[translate_x, translate_y],
-                shear=shear,
+                shear=0.0,
                 interpolation=Image.NEAREST,
                 fill=0
             ))

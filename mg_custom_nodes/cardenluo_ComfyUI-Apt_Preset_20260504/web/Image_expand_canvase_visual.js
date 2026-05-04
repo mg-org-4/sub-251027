@@ -66,6 +66,7 @@ const _aptPadEnsurePointerHooks = () => {
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const rad2deg = (r) => r * 180 / Math.PI;
 const deg2rad = (d) => d * Math.PI / 180;
+const SNAP_DISTANCE_PX = 16;
 
 app.registerExtension({
     name: "apt.Image_expand_canvase_visual",
@@ -226,10 +227,8 @@ app.registerExtension({
             let canvasHeight = 512;
             let imgWidth = 0;
             let imgHeight = 0;
-            let baseScale = 1.0;
-            
             // 变换状态
-            let transformState = { x: 0, y: 0, scale: 1.0, angle: 0, shear: 0 };
+            let transformState = { x: 0, y: 0, scale: 1.0, angle: 0 };
             let dragInfo = null;
             let userAdjusted = false;
 
@@ -238,7 +237,15 @@ app.registerExtension({
                 if (typeof transformStateWidget.value !== "string") return;
                 try {
                     const parsed = JSON.parse(transformStateWidget.value || "{}");
-                    if (parsed && typeof parsed === "object") transformState = { ...transformState, ...parsed };
+                    if (parsed && typeof parsed === "object") {
+                        transformState = {
+                            ...transformState,
+                            x: Number.isFinite(+parsed.x) ? +parsed.x : transformState.x,
+                            y: Number.isFinite(+parsed.y) ? +parsed.y : transformState.y,
+                            scale: Number.isFinite(+parsed.scale) ? +parsed.scale : transformState.scale,
+                            angle: Number.isFinite(+parsed.angle) ? +parsed.angle : transformState.angle
+                        };
+                    }
                 } catch (e) {}
             };
             
@@ -248,8 +255,7 @@ app.registerExtension({
                     x: +transformState.x,
                     y: +transformState.y,
                     scale: +transformState.scale,
-                    angle: +transformState.angle,
-                    shear: +transformState.shear
+                    angle: +transformState.angle
                 });
                 if (app.graph) app.graph.setDirtyCanvas(true);
             };
@@ -333,31 +339,113 @@ app.registerExtension({
                 syncState();
             };
 
-            const getImageDisplayRect = () => {
+            const getImageDisplayRect = (state = transformState) => {
                 if (!imgWidth || !imgHeight) return null;
-                
-                // 保持图像原始尺寸，不自动缩放
-                baseScale = 1.0;
-                
-                // 应用用户缩放
-                const finalScale = baseScale * transformState.scale;
-                
-                // 保持图片原始宽高比例
+
+                const finalScale = Math.max(0.01, +state.scale || 1.0);
                 const w = imgWidth * finalScale;
                 const h = imgHeight * finalScale;
-                
+
                 const anchor = getAlignAnchor();
-                const centerX = (canvasWidth - w) * anchor.x + w / 2 + transformState.x;
-                const centerY = (canvasHeight - h) * anchor.y + h / 2 + transformState.y;
-                
+                const centerX = (canvasWidth - w) * anchor.x + w / 2 + (+state.x || 0);
+                const centerY = (canvasHeight - h) * anchor.y + h / 2 + (+state.y || 0);
+
                 return {
                     cx: centerX,
                     cy: centerY,
-                    w: w,
-                    h: h,
+                    w,
+                    h,
                     scale: finalScale,
                     imgAspect: imgWidth / imgHeight
                 };
+            };
+
+            const getTransformedBounds = (state = transformState) => {
+                const rect = getImageDisplayRect(state);
+                if (!rect) return null;
+
+                const angle = deg2rad(-(Number.isFinite(+state.angle) ? +state.angle : 0));
+                const ca = Math.abs(Math.cos(angle));
+                const sa = Math.abs(Math.sin(angle));
+                const halfW = (rect.w * ca + rect.h * sa) * 0.5;
+                const halfH = (rect.w * sa + rect.h * ca) * 0.5;
+
+                return {
+                    left: rect.cx - halfW,
+                    right: rect.cx + halfW,
+                    top: rect.cy - halfH,
+                    bottom: rect.cy + halfH
+                };
+            };
+
+            const getSnapDelta = (candidates) => {
+                let best = null;
+                for (const c of candidates) {
+                    if (!Number.isFinite(c.delta) || Math.abs(c.distance) > SNAP_DISTANCE_PX) continue;
+                    if (!best || Math.abs(c.distance) < Math.abs(best.distance)) best = c;
+                }
+                return best?.delta ?? 0;
+            };
+
+            const snapMoveState = (state) => {
+                const bounds = getTransformedBounds(state);
+                if (!bounds) return state;
+
+                const dx = getSnapDelta([
+                    { distance: bounds.left, delta: -bounds.left },
+                    { distance: bounds.right - canvasWidth, delta: canvasWidth - bounds.right }
+                ]);
+                const dy = getSnapDelta([
+                    { distance: bounds.top, delta: -bounds.top },
+                    { distance: bounds.bottom - canvasHeight, delta: canvasHeight - bounds.bottom }
+                ]);
+
+                return {
+                    ...state,
+                    x: state.x + dx,
+                    y: state.y + dy
+                };
+            };
+
+            const snapScaleValue = (scale, baseState = transformState) => {
+                const candidateState = {
+                    x: Number.isFinite(+baseState.x) ? +baseState.x : 0,
+                    y: Number.isFinite(+baseState.y) ? +baseState.y : 0,
+                    scale: Math.max(0.1, Math.min(10.0, Number.isFinite(+scale) ? +scale : 1.0)),
+                    angle: Number.isFinite(+baseState.angle) ? +baseState.angle : 0
+                };
+                const bounds = getTransformedBounds(candidateState);
+                if (!bounds) return candidateState.scale;
+
+                const anchor = getAlignAnchor();
+                const angle = deg2rad(-candidateState.angle);
+                const absCos = Math.abs(Math.cos(angle));
+                const absSin = Math.abs(Math.sin(angle));
+                const halfSpanX = 0.5 * (imgWidth * absCos + imgHeight * absSin);
+                const halfSpanY = 0.5 * (imgWidth * absSin + imgHeight * absCos);
+                const centerCoeffX = imgWidth * (0.5 - anchor.x);
+                const centerCoeffY = imgHeight * (0.5 - anchor.y);
+                const baseX = canvasWidth * anchor.x + candidateState.x;
+                const baseY = canvasHeight * anchor.y + candidateState.y;
+
+                const maybePush = (list, distance, target, denom) => {
+                    if (Math.abs(distance) > SNAP_DISTANCE_PX || Math.abs(denom) < 1e-6) return;
+                    const nextScale = target / denom;
+                    if (Number.isFinite(nextScale) && nextScale > 0) {
+                        list.push({ scale: nextScale, distance });
+                    }
+                };
+
+                const candidates = [];
+                maybePush(candidates, bounds.left, -baseX, centerCoeffX - halfSpanX);
+                maybePush(candidates, bounds.right - canvasWidth, canvasWidth - baseX, centerCoeffX + halfSpanX);
+                maybePush(candidates, bounds.top, -baseY, centerCoeffY - halfSpanY);
+                maybePush(candidates, bounds.bottom - canvasHeight, canvasHeight - baseY, centerCoeffY + halfSpanY);
+
+                if (candidates.length === 0) return candidateState.scale;
+
+                candidates.sort((a, b) => Math.abs(a.distance) - Math.abs(b.distance));
+                return clamp(candidates[0].scale, 0.1, 10.0);
             };
 
             const draw = () => {
@@ -417,21 +505,11 @@ app.registerExtension({
                         const previewW = rect.w * ir.scale;
                         const previewH = rect.h * ir.scale;
                         
-                        // 应用变换：先移动到中心，然后旋转和shear
+                        // 应用变换：先移动到中心，然后旋转
                         ctx.translate(previewX, previewY);
                         // 旋转方向取反，与后端一致
                         ctx.rotate(deg2rad(-transformState.angle));
-                        
-                        // 应用 shear 变换
-                        // shear 值需要转换为弧度
-                        const shearRad = deg2rad(transformState.shear * 0.5);
-                        if (Math.abs(shearRad) > 0.001) {
-                            // 使用 transform 方法应用 shear
-                            // [1, shearY, shearX, 1, 0, 0]
-                            // 取反使方向与后端一致
-                            ctx.transform(1, 0, -Math.tan(shearRad), 1, 0, 0);
-                        }
-                        
+
                         // 绘制图片 - 保持原始宽高比
                         ctx.drawImage(bgImg, -previewW / 2, -previewH / 2, previewW, previewH);
                         
@@ -498,7 +576,7 @@ app.registerExtension({
                 const rotHandleDist = Math.sqrt(lx * lx + (ly - rotHandleY) * (ly - rotHandleY));
                 const hitRotHandle = rotHandleDist <= 10 / ir.scale;
                 
-                // 检查四个角点（用于 shear 控制）
+                // 检查四个角点（用于等比缩放）
                 const corners = [
                     { id: "tl", x: -halfW, y: -halfH },
                     { id: "tr", x: halfW, y: -halfH },
@@ -509,7 +587,7 @@ app.registerExtension({
                 for (const c of corners) {
                     const dist = Math.sqrt((lx - c.x) ** 2 + (ly - c.y) ** 2);
                     if (dist <= handleR) {
-                        return { mode: "shear", corner: c.id };
+                        return { mode: "scale", corner: c.id };
                     }
                 }
                 
@@ -560,7 +638,7 @@ app.registerExtension({
                         const hit = hitTest(imgPt);
                         if (hit?.mode === "rotate") {
                             canvas.style.cursor = "crosshair";
-                        } else if (hit?.mode === "shear") {
+                        } else if (hit?.mode === "scale") {
                             canvas.style.cursor = "nwse-resize";
                         } else if (hit?.mode === "move") {
                             canvas.style.cursor = "move";
@@ -576,8 +654,13 @@ app.registerExtension({
                 if (dragInfo.mode === "move") {
                     const dx = imgPt.x - dragInfo.startX;
                     const dy = imgPt.y - dragInfo.startY;
-                    transformState.x = dragInfo.startState.x + dx;
-                    transformState.y = dragInfo.startState.y + dy;
+                    const nextState = snapMoveState({
+                        ...dragInfo.startState,
+                        x: dragInfo.startState.x + dx,
+                        y: dragInfo.startState.y + dy
+                    });
+                    transformState.x = nextState.x;
+                    transformState.y = nextState.y;
                 } else if (dragInfo.mode === "rotate") {
                     const rect = getImageDisplayRect();
                     if (rect) {
@@ -586,17 +669,25 @@ app.registerExtension({
                         // 旋转方向取反，与后端一致
                         transformState.angle = dragInfo.startState.angle - rad2deg(delta);
                     }
-                } else if (dragInfo.mode === "shear") {
-                    // Shear 控制：通过拖拽角点水平移动来实现
-                    const dx = imgPt.x - dragInfo.startX;
-                    // 根据角点位置决定 shear 方向
-                    const shearFactor = 0.5;
-                    if (dragInfo.corner === "tl" || dragInfo.corner === "bl") {
-                        transformState.shear = dragInfo.startState.shear + dx * shearFactor;
-                    } else {
-                        transformState.shear = dragInfo.startState.shear - dx * shearFactor;
+                } else if (dragInfo.mode === "scale") {
+                    const startRect = getImageDisplayRect(dragInfo.startState);
+                    if (startRect) {
+                        const cx = startRect.cx;
+                        const cy = startRect.cy;
+                        const a = deg2rad(-dragInfo.startState.angle);
+                        const ca = Math.cos(a), sa = Math.sin(a);
+                        const dx = imgPt.x - cx;
+                        const dy = imgPt.y - cy;
+                        const lx = dx * ca - dy * sa;
+                        const ly = dx * sa + dy * ca;
+                        const scaleFactor = Math.max(
+                            Math.abs(lx) / Math.max(1, startRect.w * 0.5),
+                            Math.abs(ly) / Math.max(1, startRect.h * 0.5),
+                            0.01
+                        );
+                        const nextScale = clamp(dragInfo.startState.scale * scaleFactor, 0.1, 10.0);
+                        transformState.scale = snapScaleValue(nextScale, dragInfo.startState);
                     }
-                    transformState.shear = clamp(transformState.shear, -100, 100);
                 }
                 
                 userAdjusted = true;
@@ -607,17 +698,6 @@ app.registerExtension({
             window.addEventListener("mouseup", () => {
                 dragInfo = null;
             });
-
-            // 滚轮缩放
-            canvas.addEventListener("wheel", (e) => {
-                if (!bgImg) return;
-                e.preventDefault();
-                const factor = e.deltaY < 0 ? 1.1 : (1 / 1.1);
-                transformState.scale = clamp(transformState.scale * factor, 0.1, 10.0);
-                userAdjusted = true;
-                syncState();
-                draw();
-            }, { passive: false });
 
             // 绑定widget变化重绘
             const bindWidgetRedraw = (w) => {
@@ -639,7 +719,7 @@ app.registerExtension({
 
             // 重置按钮
             resetBtn.onclick = () => {
-                transformState = { x: 0, y: 0, scale: 1.0, angle: 0, shear: 0 };
+                transformState = { x: 0, y: 0, scale: 1.0, angle: 0 };
                 userAdjusted = false;
                 syncState();
                 draw();

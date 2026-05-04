@@ -521,186 +521,6 @@ class Coordinate_Index2Text:
 from collections import namedtuple
 BoundingBox = namedtuple('BoundingBox', ['x', 'y', 'width', 'height'])
 
-class XXXCoordinate_fromMask:
-    
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "image": ("IMAGE",),
-                "mask": ("MASK",),
-                "coordinate_align": ([ "top_left", "top_right", "bottom_left", "bottom_right","center", "top_center", "bottom_center", "left_center", "right_center"], {
-                    "default": "center",
-                }),
-                "index": ("INT", {"default": 0, "min": 0, "max": 99, "step": 1}),
-                "ignore_threshold": ("INT", {"default": 0, "min": 0, "max": 2048, "step": 1}),
-            },
-            "optional": {
-            }
-        }
-    
-    RETURN_TYPES = ("STRING", "BBOX", "FLOAT", "FLOAT", "INT", "INT")
-    RETURN_NAMES = ("coordinates", "bbox", "norm_x", "norm_y", "px_x", "px_y")
-    FUNCTION = "extract_coordinates"
-    CATEGORY = "Apt_Preset/image/ImgCoordinate"
-    
-    def extract_coordinates(self, mask, coordinate_align, index=0, ignore_threshold=0, image=None):
-        try:
-            if not isinstance(mask, torch.Tensor):
-                mask = torch.from_numpy(np.array(mask))
-            
-            opencv_gray_image = self.tensorMask2cv2img(mask)
-            _, binary_mask = cv2.threshold(opencv_gray_image, 1, 255, cv2.THRESH_BINARY)
-            contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            valid_contours = []
-            for contour in contours:
-                area = cv2.contourArea(contour)
-                if area >= ignore_threshold:
-                    valid_contours.append(contour)
-            
-            if not valid_contours:
-                default_point = {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "index": 1
-                }
-                coordinates_json = json.dumps([default_point], ensure_ascii=False)
-                # 返回 BoundingBox 对象
-                bbox = BoundingBox(0, 0, 0, 0)
-                return (coordinates_json, bbox, 0.0, 0.0, 0, 0)
-            
-            if index >= len(valid_contours):
-                index = len(valid_contours) - 1
-            
-            contour = valid_contours[index]
-            
-            x, y, w, h = cv2.boundingRect(contour)
-            
-            height, width = mask.shape[-2:]
-            
-            if coordinate_align == "center":
-                center_y = y + h / 2.0
-                center_x = x + w / 2.0
-                x_norm = center_x / width
-                y_norm = center_y / height
-                px_x = int(center_x)
-                px_y = int(center_y)
-                
-            elif coordinate_align == "top_left":
-                x_norm = x / width
-                y_norm = y / height
-                px_x = x
-                px_y = y
-                
-            elif coordinate_align == "top_right":
-                x_norm = (x + w) / width
-                y_norm = y / height
-                px_x = x + w
-                px_y = y
-                
-            elif coordinate_align == "bottom_left":
-                x_norm = x / width
-                y_norm = (y + h) / height
-                px_x = x
-                px_y = y + h
-                
-            elif coordinate_align == "bottom_right":
-                x_norm = (x + w) / width
-                y_norm = (y + h) / height
-                px_x = x + w
-                px_y = y + h
-                
-            elif coordinate_align == "top_center":
-                center_x = x + w / 2.0
-                x_norm = center_x / width
-                y_norm = y / height
-                px_x = int(center_x)
-                px_y = y
-                
-            elif coordinate_align == "bottom_center":
-                center_x = x + w / 2.0
-                x_norm = center_x / width
-                y_norm = (y + h) / height
-                px_x = int(center_x)
-                px_y = y + h
-                
-            elif coordinate_align == "left_center":
-                center_y = y + h / 2.0
-                x_norm = x / width
-                y_norm = center_y / height
-                px_x = x
-                px_y = int(center_y)
-                
-            elif coordinate_align == "right_center":
-                center_y = y + h / 2.0
-                x_norm = (x + w) / width
-                y_norm = center_y / height
-                px_x = x + w
-                px_y = int(center_y)
-                
-            else:
-                center_y = y + h / 2.0
-                center_x = x + w / 2.0
-                x_norm = center_x / width
-                y_norm = center_y / height
-                px_x = int(center_x)
-                px_y = int(center_y)
-            
-            x_norm = max(0.0, min(1.0, x_norm))
-            y_norm = max(0.0, min(1.0, y_norm))
-            
-            if image is not None:
-                img_height = image.shape[1]
-                img_width = image.shape[2]
-                px_x = max(0, min(px_x, img_width - 1))
-                px_y = max(0, min(px_y, img_height - 1))
-            else:
-                px_x = max(0, min(px_x, width - 1))
-                px_y = max(0, min(px_y, height - 1))
-            
-            index_mapping = {
-                "top_left": 1,
-                "top_center": 2,
-                "top_right": 3,
-                "left_center": 4,
-                "center": 5,
-                "right_center": 6,
-                "bottom_left": 7,
-                "bottom_center": 8,
-                "bottom_right": 9
-            }
-            
-            point_data = {
-                "x": float(x_norm),
-                "y": float(y_norm),
-                "index": index_mapping.get(coordinate_align, 5)
-            }
-            coordinates_json = json.dumps([point_data], ensure_ascii=False)
-            
-            # 返回 BoundingBox 对象
-            bbox = BoundingBox(int(x), int(y), int(w), int(h))
-                 
-            return (coordinates_json, bbox, float(x_norm), float(y_norm), px_x, px_y)
-            
-        except Exception as e:
-            print(f"遮罩坐标提取错误: {e}")
-
-            default_point = {
-                "x": 0.0,
-                "y": 0.0,
-                "index": 1
-            }
-            coordinates_json = json.dumps([default_point], ensure_ascii=False)
-            bbox = BoundingBox(0, 0, 0, 0)
-            return (coordinates_json, bbox, 0.0, 0.0, 0, 0)
-    
-    def tensorMask2cv2img(self, tensor) -> np.ndarray:   
-        tensor = tensor.cpu().squeeze(0)
-        array = tensor.numpy()
-        array = (array * 255).astype(np.uint8)
-        return array
-
 
 
 class Coordinate_fromMask:
@@ -721,7 +541,7 @@ class Coordinate_fromMask:
             }
         }
     
-    RETURN_TYPES = ("STRING", "BBOX", "FLOAT", "FLOAT", "INT", "INT")
+    RETURN_TYPES = ("STRING", "BOUNDING_BOX", "FLOAT", "FLOAT", "INT", "INT")
     RETURN_NAMES = ("coordinates", "bbox", "norm_x", "norm_y", "px_x", "px_y")
     FUNCTION = "extract_coordinates"
     CATEGORY = "Apt_Preset/image/ImgCoordinate"
@@ -883,20 +703,17 @@ class Coordinate_fromMask:
 
 
 
-
-
-
-
 class Coordinate_SplitIndex:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "coordinates": ("STRING", {"default": "[]", "multiline": False}),
+                "Mark_image": ("IMAGE",), 
+                "coordinates": ("STRING",{"forceInput": True}),
                 "index": ("INT", {"default": 1, "min": 1, "step": 1}),     
             },
             "optional": {
-                "Mark_image": ("IMAGE",), 
+
             }
         }
     
@@ -1005,6 +822,264 @@ class Coordinate_create_mask:
         full_mask = torch.zeros((batch, height, width), dtype=image.dtype, device=image.device)
         full_mask[:, py0:py1, px0:px1] = 1.0
         return (full_mask, cropped_image)
+
+
+
+
+
+
+
+import re
+import json
+from typing import List
+
+
+def robust_extract_bbox(text: str) -> List[List[float]]:
+    if not text or not text.strip():
+        return []
+    pat = re.findall(r'\[([^\[\]]+?)\]', text, re.DOTALL)
+    res = []
+    for g in pat:
+        clean = re.sub(r'[^-0-9,.]', '', g)
+        parts = [p.strip() for p in clean.split(",") if p.strip()]
+        nums = []
+        for p in parts:
+            try:
+                nums.append(float(p))
+            except:
+                continue
+        if len(nums) == 4:
+            res.append(nums)
+    return res
+
+
+class Bbox_strToBbox:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "index": ("INT", {"default":0, "min":0}),
+            },
+            "optional": {
+                "normalized_str": ("STRING", {"default": "", "forceInput": True}),
+                "permil_str": ("STRING", {"default": "", "forceInput": True}),
+            }
+        }
+    
+    # 🔥 新增输出：normalized_output
+    RETURN_TYPES = ("BOUNDING_BOX", "STRING", "MASK")
+    RETURN_NAMES = ("bbox", "normalized_str", "mask")
+    
+    FUNCTION = "exec"
+    CATEGORY = "Apt_Preset/image/ImgCoordinate"
+
+    DESCRIPTION = """
+     将边界框字符串转为实际边界框与掩码。
+    - normalized_str对角框：含归一化对坐标生成的边界框字符串【手绘生成】
+    - permil_str千分比对角框：含千分比对坐标生成的边界框字符串【AI生成】
+    - index：默认0，是所有边界框，1是第一个边界框
+""" 
+    @staticmethod
+    def _ensure_bhwc(image: torch.Tensor) -> torch.Tensor:
+        if len(image.shape) == 4:
+            return image
+        if len(image.shape) == 3:
+            if image.shape[-1] in (1, 3, 4):
+                return image.unsqueeze(0)
+            if image.shape[0] in (1, 3, 4):
+                return image.permute(1, 2, 0).unsqueeze(0)
+            return image.unsqueeze(0)
+        if len(image.shape) == 2:
+            return image.unsqueeze(-1).unsqueeze(0)
+        raise ValueError(f"Invalid image shape: {image.shape}")
+
+    def exec(self, image, index, normalized_str="", permil_str=""):
+        image = self._ensure_bhwc(image)
+        batch, img_h, img_w, _ = image.shape
+
+        boxes = []
+        use_normalized = False
+
+        # 优先使用归一化
+        norm_boxes = robust_extract_bbox(normalized_str)
+        if norm_boxes:
+            boxes = norm_boxes
+            use_normalized = True
+        else:
+            # 使用千分比
+            permil_boxes = robust_extract_bbox(permil_str)
+            if permil_boxes:
+                boxes = permil_boxes
+                use_normalized = False
+            else:
+                fallback_bbox = {"x": 0, "y": 0, "width": 100, "height": 100}
+                fallback_mask = torch.zeros((batch, img_h, img_w), dtype=image.dtype, device=image.device)
+                y2 = min(img_h, 100)
+                x2 = min(img_w, 100)
+                fallback_mask[:, 0:y2, 0:x2] = 1.0
+                return (fallback_bbox, "[[0.0, 0.0, 0.1, 0.1]]", fallback_mask)
+
+        # index 选择
+        if index == 0:
+            sel = boxes
+        else:
+            idx = index - 1
+            if 0 <= idx < len(boxes):
+                sel = [boxes[idx]]
+            else:
+                sel = [boxes[0]]
+
+        # --------------------------
+        # 1. 计算像素框
+        # --------------------------
+        out = []
+        full_mask = torch.zeros((batch, img_h, img_w), dtype=image.dtype, device=image.device)
+        for x1,y1,x2,y2 in sel:
+            if use_normalized:
+                px1 = x1 * img_w
+                py1 = y1 * img_h
+                px2 = x2 * img_w
+                py2 = y2 * img_h
+            else:
+                px1 = x1 * img_w / 1000
+                py1 = y1 * img_h / 1000
+                px2 = x2 * img_w / 1000
+                py2 = y2 * img_h / 1000
+
+            px1 = max(0, min(int(round(px1)), img_w))
+            py1 = max(0, min(int(round(py1)), img_h))
+            px2 = max(0, min(int(round(px2)), img_w))
+            py2 = max(0, min(int(round(py2)), img_h))
+
+            if px2 < px1:
+                px1, px2 = px2, px1
+            if py2 < py1:
+                py1, py2 = py2, py1
+
+            bw = max(1, px2 - px1)
+            bh = max(1, py2 - py1)
+            out.append([px1, py1, bw, bh])
+            full_mask[:, py1:py2, px1:px2] = 1.0
+
+        # --------------------------
+        # 2. 🔥 生成归一化坐标输出（你要的核心）
+        # --------------------------
+        normalized_result = []
+        for x1, y1, x2, y2 in sel:
+            if use_normalized:
+                # 输入本身就是归一化 → 直接保留
+                nx1 = round(x1, 4)
+                ny1 = round(y1, 4)
+                nx2 = round(x2, 4)
+                ny2 = round(y2, 4)
+            else:
+                # 输入是千分比 → 转换成归一化
+                nx1 = round(x1 / 1000, 4)
+                ny1 = round(y1 / 1000, 4)
+                nx2 = round(x2 / 1000, 4)
+                ny2 = round(y2 / 1000, 4)
+
+            # 限制 0~1 范围
+            nx1 = max(0.0, min(1.0, nx1))
+            ny1 = max(0.0, min(1.0, ny1))
+            nx2 = max(0.0, min(1.0, nx2))
+            ny2 = max(0.0, min(1.0, ny2))
+
+            normalized_result.append([nx1, ny1, nx2, ny2])
+
+        # 转成字符串输出
+        normalized_str_out = json.dumps(normalized_result)
+
+        # --------------------------
+        # 与系统 BoundingBox 结构对齐：{x, y, width, height}
+        bbox_items = [
+            {"x": int(px1), "y": int(py1), "width": int(bw), "height": int(bh)}
+            for px1, py1, bw, bh in out
+        ]
+        bbox_out = bbox_items[0] if len(bbox_items) == 1 else bbox_items
+        return (bbox_out, normalized_str_out, full_mask)
+
+
+class Bbox_BboxToStr:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "bbox": ("BOUNDING_BOX",{"forceInput": True}),
+            }
+        }
+    RETURN_TYPES = ("STRING", "MASK")
+    RETURN_NAMES = ("normalized_str", "mask")
+    FUNCTION = "exec"
+    CATEGORY = "Apt_Preset/image/ImgCoordinate"
+
+    @staticmethod
+    def _ensure_bhwc(image: torch.Tensor) -> torch.Tensor:
+        if len(image.shape) == 4:
+            return image
+        if len(image.shape) == 3:
+            if image.shape[-1] in (1, 3, 4):
+                return image.unsqueeze(0)
+            if image.shape[0] in (1, 3, 4):
+                return image.permute(1, 2, 0).unsqueeze(0)
+            return image.unsqueeze(0)
+        if len(image.shape) == 2:
+            return image.unsqueeze(-1).unsqueeze(0)
+        raise ValueError(f"Invalid image shape: {image.shape}")
+
+    def exec(self, image, bbox):
+        image = self._ensure_bhwc(image)
+        batch, img_h, img_w, _ = image.shape
+        norm_list = []
+        permil_list = []
+        full_mask = torch.zeros((batch, img_h, img_w), dtype=image.dtype, device=image.device)
+
+        # 兼容系统 BoundingBox 数据结构：dict / 单个 bbox / bbox 列表
+        normalized_boxes = []
+        if isinstance(bbox, dict):
+            normalized_boxes = [[bbox.get("x", 0), bbox.get("y", 0), bbox.get("width", 0), bbox.get("height", 0)]]
+        elif hasattr(bbox, "x") and hasattr(bbox, "y") and hasattr(bbox, "width") and hasattr(bbox, "height"):
+            normalized_boxes = [[bbox.x, bbox.y, bbox.width, bbox.height]]
+        elif isinstance(bbox, (list, tuple)):
+            if len(bbox) == 4 and all(isinstance(v, (int, float)) for v in bbox):
+                normalized_boxes = [[bbox[0], bbox[1], bbox[2], bbox[3]]]
+            else:
+                for item in bbox:
+                    if isinstance(item, dict):
+                        normalized_boxes.append([item.get("x", 0), item.get("y", 0), item.get("width", 0), item.get("height", 0)])
+                    elif hasattr(item, "x") and hasattr(item, "y") and hasattr(item, "width") and hasattr(item, "height"):
+                        normalized_boxes.append([item.x, item.y, item.width, item.height])
+                    elif isinstance(item, (list, tuple)) and len(item) == 4:
+                        normalized_boxes.append([item[0], item[1], item[2], item[3]])
+
+        for box in normalized_boxes:
+            x1, y1, w, h = box
+            x1 = max(0, min(int(round(x1)), img_w))
+            y1 = max(0, min(int(round(y1)), img_h))
+            w = max(1, int(round(w)))
+            h = max(1, int(round(h)))
+            x2 = x1 + w
+            y2 = y1 + h
+            x2 = max(x1 + 1, min(x2, img_w))
+            y2 = max(y1 + 1, min(y2, img_h))
+
+            nx1 = round(x1 / img_w, 4)
+            ny1 = round(y1 / img_h, 4)
+            nx2 = round(x2 / img_w, 4)
+            ny2 = round(y2 / img_h, 4)
+            norm_list.append([nx1, ny1, nx2, ny2])
+
+            px1 = int(round(nx1 * 1000))
+            py1 = int(round(ny1 * 1000))
+            px2 = int(round(nx2 * 1000))
+            py2 = int(round(ny2 * 1000))
+            permil_list.append([px1, py1, px2, py2])
+            full_mask[:, y1:y2, x1:x2] = 1.0
+
+        return (json.dumps(norm_list), full_mask)
+
 
 
 

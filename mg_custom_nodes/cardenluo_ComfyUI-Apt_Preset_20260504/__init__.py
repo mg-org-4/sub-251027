@@ -35,7 +35,6 @@ from .NodeBasic.C_imgEffect import *
 from .NodeBasic.C_type import *
 from .NodeExcel.ExcelOP import *
 from .NodeExcel.AIagent import *
-from .NodeExcel.Gemini3 import *
 from .NodeExcel.doubao_web_node import *
 
 from .NodeBasic.C_flow import *
@@ -473,9 +472,8 @@ NODE_CLASS_MAPPINGS= {
 "Coordinate_create_mask":Coordinate_create_mask,
 "Coordinate_loadImage":Coordinate_loadImage,#错开
 "Coordinate_Index2Text":Coordinate_Index2Text,
-
-
-
+"Bbox_BboxToStr":Bbox_BboxToStr,
+"Bbox_strToBbox":Bbox_strToBbox,
 
 
 
@@ -519,6 +517,7 @@ NODE_CLASS_MAPPINGS= {
 
 "Mask_transform_sum":Mask_transform_sum, 
 "Mask_simple_adjust":Mask_simple_adjust,
+"mask_sam_detctor": mask_sam_detctor,
 
 #----------***------------------
 
@@ -566,6 +565,7 @@ NODE_CLASS_MAPPINGS= {
 
 
 "Ai_doubao_seedream":Ai_doubao_seedream,
+"AI_web_tool": AI_web_tool,
 "AI_DoubaoWebPreview": AI_DoubaoWebPreview,
 "AI_PresetSave":AI_PresetSave,
 "AI_Qwen":AI_Qwen,
@@ -579,8 +579,10 @@ NODE_CLASS_MAPPINGS= {
 "AI_ModelScope_image": AI_ModelScope_image,
 "AI_ModelScopeT2I": AI_ModelScopeT2I,
 "AI_ModelScope_text": AI_ModelScope_text,
-"AI_Gemini3_Img2T": AI_Gemini3_Img2T,
-"AI_Gemini3_ImageEdit": AI_Gemini3_ImageEdit,
+
+
+#"AI_Gemini3_Img2T": AI_Gemini3_Img2T,
+#"AI_Gemini3_ImageEdit": AI_Gemini3_ImageEdit,
 
 
 

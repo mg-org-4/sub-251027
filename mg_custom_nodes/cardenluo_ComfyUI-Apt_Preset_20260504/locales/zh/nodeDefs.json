@@ -8697,6 +8697,60 @@
       }
     }
   },
+
+
+"mask_sam_detctor": {
+    "display_name": "mask_sam检测器(3.1)",
+    "inputs": {
+        "image": {
+            "name": "图像"
+        },
+        "threshold": {
+            "name": "阈值"
+        },
+        "refine_iterations": {
+            "name": "细化迭代次数"
+        },
+        "individual_masks": {
+            "name": "单独掩码"
+        },
+        "ckpt_name": {
+            "name": "模型"
+        },
+        "pos": {
+            "name": "文本"
+        },
+        "permil_str": {
+            "name": "千分比对角框"
+        },
+        "ui_positive_coords": {
+            "name": "正坐标",
+            "default": ""
+        },
+        "ui_negative_coords": {
+            "name": "负坐标",
+            "default": ""
+        },
+        "ui_bboxes_json": {
+            "name": "边界框JSON",
+            "default": ""
+        }
+    },
+    "outputs": {
+        "masks": {
+            "name": "掩码"
+        },
+        "bboxes": {
+            "name": "边界框"
+        }
+    }
+},
+
+
+
+
+
+
   "Image_safe_size": {
     "display_name": "Image_安全尺寸",
     "inputs": {
@@ -9848,7 +9902,14 @@
       },
       "block_size": {
         "name": "区块大小"
+      },
+      "output_max_mask": {
+        "name": "输出最大遮罩"
+      },
+      "threshold": {
+        "name": "阈值"
       }
+
     },
     "outputs": {
       "0": {
@@ -13553,6 +13614,97 @@
         }
     }
 },
+
+
+
+
+"AI_DoubaoWebPreview": {
+    "display_name": "AI_豆包网页预览",
+    "inputs": {
+        "download_dir": {
+            "name": "下载路径"
+        },
+        "image_count": {
+            "name": "图像数量"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "图像"
+        },
+        "1": {
+            "name": "状态"
+        }
+    }
+},
+
+"AI_web_tool": {
+    "display_name": "AI_网页百宝箱",
+    "inputs": {
+        "download_dir": {
+            "name": "下载路径",
+            "default": ""
+        },
+        "page_url": {
+            "name": "网页地址"
+        },
+        "image_address": {
+            "name": "在线图像地址"
+        },
+        "image_count": {
+            "name": "图像数量"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "图像"
+        }
+    }
+},
+
+
+    "Bbox_strToBbox": {
+        "display_name": "Bbox_对角框转bbox",
+        "inputs": {
+            "image": {
+                "name": "图像"
+            },
+            "normalized_str": {
+                "name": "对角框"
+            },
+            "permil_str": {
+                "name": "千分比对角框"
+            },
+            "index": {
+                "name": "索引"
+            }
+        },
+        "outputs": {
+            "0": {
+                "name": "Bbox"
+            },
+            "1": {
+                "name": "对角框"
+            }
+        }
+    },
+    "Bbox_BboxToStr": {
+        "display_name": "Bbox_bbox转对角框",
+        "inputs": {
+            "image": {
+                "name": "图像"
+            },
+            "bbox": {
+                "name": "Bbox"
+            }
+        },
+        "outputs": {
+            "0": {
+                "name": "对角框"
+            }
+        }
+    },
+
 
 
   "csv_write_data": {

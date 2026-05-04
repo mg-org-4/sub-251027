@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import io
+import json
 
 import folder_paths as comfy_paths
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw, ImageChops
@@ -1022,6 +1023,263 @@ class create_mask_array:
         mask_tensors = [pil2tensor(mask).squeeze(0) for mask in masks]
 
         return (composite_tensor, mask_tensors)
+
+
+class mask_sam_detctor:
+    _model_cache = {}
+
+    @classmethod
+    def _compute_cache_key(cls, ckpt_name, pos):
+        """计算模型加载参数的缓存键"""
+        import hashlib
+        key_data = f"{ckpt_name}|{pos}"
+        return hashlib.md5(key_data.encode()).hexdigest()
+
+    @classmethod
+    def _load_model_cached(cls, ckpt_name, pos):
+        """带缓存的模型加载和提示词编码"""
+        cache_key = cls._compute_cache_key(ckpt_name, pos)
+
+        if cache_key in cls._model_cache:
+            print(f"[mask_sam_detctor] Cache hit, reusing loaded model and conditioning")
+            return cls._model_cache[cache_key]
+
+        print(f"[mask_sam_detctor] Cache miss, loading model and encoding prompts...")
+        model = None
+        conditioning = None
+        
+        if ckpt_name:
+            try:
+                from nodes import CheckpointLoaderSimple, CLIPTextEncode
+                model, clip, vae2 = CheckpointLoaderSimple().load_checkpoint(ckpt_name)
+                # 只有当 pos 确实有内容时，才生成 conditioning
+                if clip is not None and pos and pos.strip():
+                    (conditioning,) = CLIPTextEncode().encode(clip, pos.strip())
+            except Exception as e:
+                print(f"mask_sam_detctor: 加载模型失败 -> {e}")
+                
+        cls._model_cache[cache_key] = (model, conditioning)
+        return model, conditioning
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "threshold": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "refine_iterations": ("INT", {"default": 2, "min": 0, "max": 5, "step": 1}),
+                "individual_masks": ("BOOLEAN", {"default": False}),
+            },
+            "optional": {
+                "ckpt_name": (folder_paths.get_filename_list("checkpoints"),{"default":"sam3.1_multiplex_fp16.safetensors"}),
+                "pos":  ("STRING", {"default": "", "multiline": False}),
+                "permil_str": ("STRING", {"default": "", "forceInput": True}),
+                "ui_positive_coords": ("STRING", {"default": "", "multiline": True}),
+                "ui_negative_coords": ("STRING", {"default": "", "multiline": True}),
+                "ui_bboxes_json": ("STRING", {"default": "", "multiline": True}),
+            },
+        }
+
+    RETURN_TYPES = ("MASK", "BOUNDING_BOX")
+    RETURN_NAMES = ("masks", "bboxes")
+    FUNCTION = "run"
+    CATEGORY = "Apt_Preset/mask"
+    OUTPUT_NODE = True
+    DESCRIPTION = """
+文本输入多个相同名称,例如3个男孩,输入：boy:3
+四者不能同时作用，多种同时存在，则按优先级：外部输入框>点>文本>手动框，
+permil_str千分比对角框，批量格式："[[x1, y1, x2, y2], [x1, y1, x2, y2], ...]"
+"""
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
+
+    @staticmethod
+    def _parse_bboxes_json(raw_text):
+        if raw_text is None:
+            return None
+        text = str(raw_text).strip()
+        if not text:
+            return None
+        try:
+            data = json.loads(text)
+        except Exception:
+            return None
+
+        def _norm_item(item):
+            if not isinstance(item, dict):
+                return None
+            try:
+                x = float(item.get("x", 0))
+                y = float(item.get("y", 0))
+                w = float(item.get("width", 0))
+                h = float(item.get("height", 0))
+            except Exception:
+                return None
+            if w <= 0 or h <= 0:
+                return None
+            return {"x": x, "y": y, "width": w, "height": h}
+
+        if isinstance(data, dict):
+            one = _norm_item(data)
+            return one
+        if isinstance(data, list):
+            out = []
+            for it in data:
+                norm = _norm_item(it)
+                if norm is not None:
+                    out.append(norm)
+            return out if out else None
+        return None
+
+    @staticmethod
+    def _normalize_points_text(raw_text):
+        if raw_text is None:
+            return None
+        text = str(raw_text).strip()
+        if not text or text in ("[]", "{}", "null", "None"):
+            return None
+        try:
+            data = json.loads(text)
+            if isinstance(data, list) and len(data) == 0:
+                return None
+            if isinstance(data, dict) and len(data) == 0:
+                return None
+        except Exception:
+            pass
+        return text
+
+    def run(
+        self,
+        image,
+        threshold=0.5,
+        refine_iterations=2,
+        individual_masks=False,
+        permil_str="",
+        ui_positive_coords="",
+        ui_negative_coords="",
+        ui_bboxes_json="",
+        ckpt_name="",
+        pos=None,
+    ):
+        from .set_location import robust_extract_bbox
+
+        # 使用缓存机制处理模型加载和文本编码
+        model, conditioning = self._load_model_cached(ckpt_name, pos)
+
+        batch, img_h, img_w, _ = image.shape
+        # 解析外部输入的千分比框
+        external_bboxes_ui = []
+        parsed_bboxes = []
+        if permil_str:
+            permil_boxes = robust_extract_bbox(permil_str)
+            if permil_boxes:
+                for x1, y1, x2, y2 in permil_boxes:
+                    px1 = x1 * img_w / 1000
+                    py1 = y1 * img_h / 1000
+                    px2 = x2 * img_w / 1000
+                    py2 = y2 * img_h / 1000
+                    
+                    px1 = max(0, min(int(round(px1)), img_w))
+                    py1 = max(0, min(int(round(py1)), img_h))
+                    px2 = max(0, min(int(round(px2)), img_w))
+                    py2 = max(0, min(int(round(py2)), img_h))
+                    
+                    if px2 < px1: px1, px2 = px2, px1
+                    if py2 < py1: py1, py2 = py2, py1
+                    
+                    bw = max(1, px2 - px1)
+                    bh = max(1, py2 - py1)
+                    parsed_bboxes.append([px1, py1, px2, py2])
+                    external_bboxes_ui.append({"x": px1, "y": py1, "width": bw, "height": bh})
+
+        # 控制优先级逻辑：外部输入框 > 手动画框 > 点选 > 文本
+        
+        # 预设所有变量为 None
+        merged_bboxes = None
+        final_pos = None
+        final_neg = None
+        final_conditioning = None
+
+        if parsed_bboxes:
+            # 1. 外部输入框优先级最高，如果有外部框，屏蔽手动框、点、文本
+            # SAM3_Detect.execute 内部会调用 _boxes_to_tensor() 将字典列表解析为正确的 Tensor。
+            # 所以这里必须原样传递字典列表格式（List[Dict]），千万不能提前转成 Tensor！
+            merged_bboxes = external_bboxes_ui
+            
+        else:
+            # 没有外部框，检查手动框
+            manual_bboxes = self._parse_bboxes_json(ui_bboxes_json)
+            # 如果 manual_bboxes 解析出来是空的列表 []，应当视为“没有框”
+            if manual_bboxes is not None and (not isinstance(manual_bboxes, list) or len(manual_bboxes) > 0):
+                # 2. 有手动框，屏蔽点、文本
+                # _parse_bboxes_json 返回的已经是单个 dict 或者 List[Dict] 了，直接用即可
+                merged_bboxes = manual_bboxes
+                
+            else:
+                # 3. 检查点选输入
+                pos_str = self._normalize_points_text(ui_positive_coords)
+                neg_str = self._normalize_points_text(ui_negative_coords)
+                if pos_str or neg_str:
+                    # 3. 有点选输入，屏蔽文本
+                    final_pos = pos_str or None
+                    final_neg = neg_str or None
+                    
+                else:
+                    # 4. 只有当没有任何框和点时，才允许文本生效
+                    # conditioning 保持从缓存加载的有效值
+                    final_conditioning = conditioning
+
+        # 生成用于前端预览的背景图，直接使用输入的 image
+        bg_results = []
+        try:
+            import random
+            import os
+            import folder_paths
+            import numpy as np
+            from PIL import Image
+            
+            temp_dir = folder_paths.get_temp_directory()
+            if image.shape[0] > 0:
+                src_np = (255.0 * image[0].cpu().numpy()).clip(0, 255).astype(np.uint8)
+                src_pil = Image.fromarray(src_np)
+                filename = f"mask_sam3_detctor_bg_{random.randint(1, 1000000)}.png"
+                src_pil.save(os.path.join(temp_dir, filename))
+                bg_results.append({"filename": filename, "subfolder": "", "type": "temp"})
+        except Exception as e:
+            print(f"mask_sam_detctor: Preview 生成失败 -> {e}")
+
+        ui = {"bg_image": bg_results}
+        
+        # 通知前端
+        if external_bboxes_ui:
+            ui["external_bboxes"] = external_bboxes_ui
+
+        if model is None:
+            b, h, w, _ = image.shape
+            empty = torch.zeros((b, h, w), dtype=image.dtype, device=image.device)
+            return {"ui": ui, "result": (empty, [])}
+
+        try:
+            from comfy_extras.nodes_sam3 import SAM3_Detect as _SAM3Detect
+            result = _SAM3Detect.execute(
+                model=model,
+                image=image,
+                conditioning=final_conditioning,
+                bboxes=merged_bboxes,
+                positive_coords=final_pos,
+                negative_coords=final_neg,
+                threshold=float(threshold),
+                refine_iterations=int(refine_iterations),
+                individual_masks=bool(individual_masks),
+            )
+            return {"ui": ui, "result": (result[0], result[1])}
+        except Exception as e:
+            print(f"mask_sam_detctor: SAM3 执行失败 -> {e}")
+            b, h, w, _ = image.shape
+            empty = torch.zeros((b, h, w), dtype=image.dtype, device=image.device)
+            return {"ui": ui, "result": (empty, [])}
 
 
 

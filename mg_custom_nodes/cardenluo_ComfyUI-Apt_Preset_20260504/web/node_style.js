@@ -47,6 +47,7 @@ app.registerExtension({
             nodeData.name.startsWith('Coordinate_')||
             nodeData.name.startsWith('texture')|| 
             nodeData.name.startsWith('file_') || 
+            nodeData.name.startsWith('Bbox_') ||
             nodeData.name.startsWith('csv_')
 
 

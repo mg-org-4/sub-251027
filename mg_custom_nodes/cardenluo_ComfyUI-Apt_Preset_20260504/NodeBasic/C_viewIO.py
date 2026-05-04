@@ -578,10 +578,16 @@ class view_Data:
     INPUT_IS_LIST = True
 
     def process(self, data, unique_id, any=None):
+        # 兼容 INPUT_IS_LIST=True 时可能传入空列表的情况
+        if any is None or (isinstance(any, list) and len(any) == 0):
+            return {"ui": {"data": "None"}, "result": ([],)}
+
         displayText = self.render(any)
 
-        updateTextWidget(unique_id, "data", displayText)
-        return {"ui": {"data": displayText}, "result": (any,)}
+        # 这里 unique_id 是个列表
+        uid = unique_id[0] if isinstance(unique_id, list) and len(unique_id) > 0 else unique_id
+        updateTextWidget(uid, "data", displayText)
+        return {"ui": {"data": [displayText]}, "result": (any,)}
 
     def render(self, any):
         if isinstance(any, list):
@@ -1815,7 +1821,8 @@ class IO_LoadTextBatch:
         return (texts, str(texts[i]), int(i), int(total))
 
     @classmethod
-    def IS_CHANGED(s, text_list: str, card_size: int = 120, index: int = 0, text_list_in=None):
+    def IS_CHANGED(s, text_list: str, card_size: int = 120, index: int = 0, text_list_in=None, unique_id=None, **kwargs):
+        _ = (unique_id, kwargs)
         m = hashlib.sha256()
         if isinstance(text_list, list):
             text_list = text_list[0] if len(text_list) > 0 else ""
@@ -5014,6 +5021,5 @@ class basicIn_clip:
             negative = None       
 
         return (positive, negative)
-
 
 

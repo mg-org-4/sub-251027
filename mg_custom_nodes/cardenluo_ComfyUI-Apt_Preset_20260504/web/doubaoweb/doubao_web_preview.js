@@ -69,7 +69,9 @@ app.registerExtension({
 
       const container = document.createElement("div");
       container.style.width = "100%";
-      container.style.height = "900px";
+      container.style.height = "100%";
+      container.style.minWidth = "0";
+      container.style.minHeight = "0";
       container.style.display = "flex";
       container.style.flexDirection = "column";
       container.style.background = "#151515";
@@ -171,6 +173,7 @@ app.registerExtension({
       const iframe = document.createElement("iframe");
       iframe.src = DOU_BAO_URL;
       iframe.style.flex = "1";
+      iframe.style.minHeight = "0";
       iframe.style.width = "100%";
       iframe.style.border = "none";
       iframe.referrerPolicy = "no-referrer";
@@ -242,8 +245,19 @@ app.registerExtension({
         window.removeEventListener("message", onWindowMessage);
         oldRemoved?.apply(this, arguments);
       };
-      this.size = [1200, 1000];
-      domWidget.computeSize = (width) => [width || this.size[0], 900];
+      if (!this.size || this.size[1] < 600) {
+        this.setSize([Math.max(this.size?.[0] || 0, 1200), Math.max(this.size?.[1] || 0, 600)]);
+      }
+      this.minHeight = Math.max(this.minHeight || 0, 600);
+      this.maxHeight = 2000;
+      this.resizable = true;
+      const prevOnResize = this.onResize;
+      this.onResize = function (size) {
+        if (Array.isArray(size) && size.length >= 2 && size[1] > 2000) {
+          this.setSize([size[0], 2000]);
+        }
+        return prevOnResize?.apply(this, arguments);
+      };
     };
   },
 });

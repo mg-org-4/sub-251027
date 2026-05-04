@@ -1,3 +1,8 @@
+> **🍴 Fork notice** — this is a downstream fork of [smthemex/ComfyUI_Sonic](https://github.com/smthemex/ComfyUI_Sonic). Default branch [`fix/torchaudio-soundfile`](https://github.com/svilendotorg/ComfyUI-Sonic/tree/fix/torchaudio-soundfile) replaces `torchaudio.save` with `soundfile.write` to sidestep the `torchcodec` ABI mismatch on torch 2.11+cu130.
+> See [**IMPROVEMENTS.md**](IMPROVEMENTS.md) for the full list of downstream changes and rationale.
+
+---
+
 # ComfyUI_Sonic
 [Sonic](https://github.com/jixiaozhong/Sonic) is a method about ' Shifting Focus to Global Audio Perception in Portrait Animation',you can use it in comfyUI
 

@@ -262,7 +262,7 @@ class DFloat11ModelPatcher(comfy.model_patcher.ModelPatcher):
 
                 # Register LoRA hooks ONLY if we need new ones
                 weight_key = f"{n}.weight"
-                if need_new_hooks and weight_key in self.patches:
+                if need_new_hooks and weight_key in self.patches and "weight" not in params:
                     handle = m.register_forward_pre_hook(get_hook_lora(self.patches[weight_key], weight_key))
                     self.lora_hook_handles.append(handle)
 
@@ -453,7 +453,7 @@ class DFloat11ModelPatcher(comfy.model_patcher.ModelPatcher):
                     self.patch_weight_to_device(key, device_to=device_to)
 
                 weight_key = f"{n}.weight"
-                if need_new_hooks and weight_key in self.patches:
+                if need_new_hooks and weight_key in self.patches and "weight" not in params:
                     handle = m.register_forward_pre_hook(get_hook_lora(self.patches[weight_key], weight_key))
                     self.lora_hook_handles.append(handle)
 

@@ -386,7 +386,9 @@ class InpaintWithModel(io.ComfyNode):
                 io.Image.Input("image"),
                 io.Mask.Input("mask"),
                 io.Int.Input("seed", default=0, min=0, max=0xFFFFFFFFFFFFFFFF, step=1),
-                io.Model.Input("optional_upscale_model", "upscale model (optional)", optional=True),
+                io.UpscaleModel.Input(
+                    "optional_upscale_model", "upscale model (optional)", optional=True
+                ),
             ],
             outputs=[io.Image.Output("inpainted image")],
         )

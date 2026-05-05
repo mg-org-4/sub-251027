@@ -1,5 +1,25 @@
 # ComfyUI-SAM3
 
+## Installation
+
+Three options, in order of speed → reliability:
+
+1. **ComfyUI Manager (nightly, recommended)** — search for `ComfyUI-SAM3` in the Manager and click Install **from the nightly version**. Do **NOT** use any numbered version like `0.2.4` — they are outdated.
+2. **Manager via Git URL** — in ComfyUI Manager: "Install via Git URL" with `https://github.com/PozzettiAndrea/ComfyUI-SAM3.git`.
+3. **Manual (most reliable)**:
+   ```bash
+   cd ComfyUI/custom_nodes
+   git clone https://github.com/PozzettiAndrea/ComfyUI-SAM3.git
+   cd ComfyUI-SAM3
+   pip install -r requirements.txt --upgrade
+   python install.py
+   ```
+
+> **Please report any problems** you hit during installation or use of my nodes — open a [Discussion](https://github.com/PozzettiAndrea/ComfyUI-SAM3/discussions) or [Issue](https://github.com/PozzettiAndrea/ComfyUI-SAM3/issues). Very grateful for your help! 🙏
+
+---
+
+
 <div align="center">
 <a href="https://pozzettiandrea.github.io/ComfyUI-SAM3/">
 <img src="https://pozzettiandrea.github.io/ComfyUI-SAM3/gallery-preview.png" alt="Workflow Test Gallery" width="800">
@@ -12,21 +32,7 @@ ComfyUI integration for Meta's SAM3 (Segment Anything Model 3). Open-vocabulary 
 
 https://github.com/user-attachments/assets/323df482-1f05-4c69-8681-9bfb4073f766
 
-## Installation
 
-Install via ComfyUI Manager.
-
-### Examples
-
-![bbox](docs/bbox.png)
-
-![point](docs/point.png)
-
-![text_prompt](docs/text_prompt.png)
-
-![video](docs/video.png)
-
-https://github.com/user-attachments/assets/57721801-f599-4ef1-8647-13468211ef63
 
 ## Credits
 

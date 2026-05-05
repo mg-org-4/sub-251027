@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 
 from ..config import ConnectorConfig
 from ..contract import CommandRequest
+from ..reply_visibility import decide_reply_visibility
 from ..router import CommandRouter
 from ..security_profile import AllowlistPolicy, ReplayGuard
 from .feishu_installation_manager import FeishuBinding, FeishuInstallationManager
@@ -638,6 +639,7 @@ class FeishuWebhookServer:
             metadata={
                 "account_id": binding.account_id,
                 "chat_type": chat_type,
+                "mentioned_bot": mentioned_bot,
                 "message_type": str(message.get("message_type", "") or "").strip(),
                 "sender_open_id": sender_open_id,
             },
@@ -690,7 +692,17 @@ class FeishuWebhookServer:
         if buttons:
             await self._send_interactive_reply(target, resp_text, buttons)
         elif resp_text:
-            await self._send_reply(target, resp_text)
+            await self._send_reply(
+                target,
+                resp_text,
+                delivery_context={
+                    "workspace_id": request.workspace_id,
+                    "thread_id": request.thread_id,
+                    "account_id": str(request.metadata.get("account_id", "") or ""),
+                    "chat_type": str(request.metadata.get("chat_type", "") or ""),
+                    "mentioned_bot": bool(request.metadata.get("mentioned_bot")),
+                },
+            )
 
     def _resolve_delivery_binding(
         self, *, workspace_id: str = "", account_id: str = ""
@@ -775,9 +787,19 @@ class FeishuWebhookServer:
             if decision.requires_approval
             else request.text
         )
-        contract.acknowledge_request(envelope_dict.get("request_id", ""))
-        response = await self.router.handle(request)
-        contract.complete_request(envelope_dict.get("request_id", ""))
+        request_id = str(envelope_dict.get("request_id", "") or "")
+        contract.acknowledge_request(request_id)
+        try:
+            response = await self.router.handle(request)
+        except Exception:
+            # IMPORTANT: failures before route completion remain retryable.
+            # After router.handle returns, the action may already have side effects,
+            # so completion failures must not release the claim for rerouting.
+            contract.release_request_retryable(
+                request_id, reason="feishu_callback_failed_before_commit"
+            )
+            raise
+        contract.complete_request(request_id)
         response_text = str(getattr(response, "text", "") or "").strip() or (
             "Action processed."
         )
@@ -1100,7 +1122,34 @@ class FeishuWebhookServer:
                 "Feishu interactive reply failed: %s", data.get("msg", "unknown")
             )
 
-    async def _send_reply(self, target: FeishuDeliveryTarget, text: str) -> None:
+    async def _send_reply(
+        self,
+        target: FeishuDeliveryTarget,
+        text: str,
+        *,
+        delivery_context: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        ctx = dict(delivery_context or {})
+        if target.workspace_id:
+            ctx.setdefault("workspace_id", target.workspace_id)
+        if target.account_id:
+            ctx.setdefault("account_id", target.account_id)
+        if target.reply_to_message_id:
+            ctx.setdefault("thread_id", target.reply_to_message_id)
+        decision = decide_reply_visibility(
+            delivery_context=ctx,
+            platform="feishu",
+            channel_kind=str(ctx.get("chat_type", "") or ""),
+            in_thread=bool(target.reply_to_message_id),
+            text=text,
+        )
+        if decision.suppressed:
+            logger.info(
+                "Suppressed Feishu reply channel=%s reason=%s",
+                target.channel_id,
+                decision.reason,
+            )
+            return
         resolution, binding, _ = self._resolve_delivery_binding(
             workspace_id=target.workspace_id,
             account_id=target.account_id,
@@ -1183,6 +1232,7 @@ class FeishuWebhookServer:
                 account_id=str(ctx.get("account_id", "") or "").strip(),
             ),
             text,
+            delivery_context=ctx,
         )
 
     async def send_image(

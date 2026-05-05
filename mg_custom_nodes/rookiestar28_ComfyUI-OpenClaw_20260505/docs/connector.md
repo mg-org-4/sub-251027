@@ -22,6 +22,7 @@ The connector runs alongside ComfyUI on your machine.
 - **Strict Profile Gate**: In `public` deployment or `hardened` runtime posture, enabling connector ingress without platform allowlist coverage is fail-closed at startup/deployment checks.
 - **Local Secrets**: Bot tokens are stored in your local environment, never sent to ComfyUI.
 - **Admin Boundary**: Control-plane actions call admin endpoints on the local OpenClaw server and require connector-side admin token configuration for admin command paths.
+- **Reply Visibility**: Shared visibility policy can suppress text-only silent/internal/tool-only/no-mention replies without suppressing approval cards, action buttons, or the underlying trust checks.
 
 ### Installation and callback contract baseline
 
@@ -33,6 +34,8 @@ OpenClaw now includes a platform-agnostic baseline for multi-workspace connector
 - workspace resolution is fail-closed on missing/ambiguous/inactive/stale bindings
 - installation diagnostics can also surface stable health states such as `ok`, `invalid_token`, `revoked`, `workspace_unbound`, and `degraded`
 - interactive callback contract enforces signed envelope checks, timestamp window, payload-hash validation, replay/idempotency guardrails, and command-policy mapping (`public`/`run`/`admin`) with explicit force-approval outcomes for untrusted `run` callbacks
+- connector replay handling acknowledges duplicate committed events as no-ops while allowing retryable failures before delivery commit to be retried
+- text reply visibility is resolved through one connector policy for direct-message, shared-chat, thread, internal-delivery, and tool-only contexts; suppressed text is logged/diagnostic and treated as successful no-op delivery
 
 Admin diagnostics APIs:
 
@@ -56,6 +59,7 @@ Slack multi-workspace notes:
 - Slack lifecycle events such as `tokens_revoked`, `app_uninstalled`, and rate-limit degradation update installation health so outbound replies fail closed or degrade predictably for the affected workspace.
 - In multi-workspace mode, outbound replies and delayed result deliveries resolve the bot token by workspace binding and keep Slack thread context when replying back to the originating conversation.
 - Slack interactive callbacks use the configured interactions path, signature verification, replay/idempotency checks, and connector policy mapping before accepting action payloads.
+- Slack text replies honor the shared reply-visibility policy when context metadata is available; channel no-mention or tool-only text can be suppressed while Block Kit/action responses remain deliverable.
 
 Feishu / Lark notes:
 
@@ -63,6 +67,7 @@ Feishu / Lark notes:
 - The connector supports both `feishu` and `lark` API domains through one shared binding contract, so region-specific app hosts do not require a different adapter.
 - Websocket-mode Feishu deployments still host a callback route so interactive approval cards and command buttons remain available when message ingress itself is long-connection based.
 - Feishu callback actions are signed, replay-guarded, tenant-aware, and deduplicated. Untrusted actors pressing run-affecting buttons are downgraded to approval flow instead of executing directly.
+- Feishu text replies honor the shared reply-visibility policy when context metadata is available; group no-mention or tool-only text can be suppressed while interactive cards remain deliverable.
 
 ### Multi-tenant boundary behavior
 
@@ -75,7 +80,7 @@ When backend multi-tenant mode is enabled (`OPENCLAW_MULTI_TENANT_ENABLED=1`):
 
 ## Supported Platforms
 
-- **Telegram**: Long-polling (instant response), including forum topic reply context.
+- **Telegram**: Long-polling (instant response), including forum topic reply context for immediate replies and delayed result delivery.
 - **Discord**: Gateway WebSocket (instant response).
 - **LINE**: Webhook (requires inbound HTTPS).
 - **WhatsApp**: Webhook (requires inbound HTTPS).
@@ -679,6 +684,14 @@ Notes:
 - **Access Denied**:
   - Sender is not in `OPENCLAW_CONNECTOR_ADMIN_USERS`.
   - Fix: Add ID to `.env` and restart connector.
+
+- **No visible chat reply after a command**:
+  - The command may have completed in a context where text-only replies are intentionally suppressed, such as internal delivery, tool-only handling, or a shared chat/channel without an active mention.
+  - Fix: check connector logs and job/approval state. Approval cards and action buttons should still be delivered when the action requires visible operator input.
+
+- **Duplicate platform event is acknowledged but not executed again**:
+  - The connector has already committed the action and treats the retry/replay as a successful no-op.
+  - Fix: check the original event, job, or approval record instead of resending the same action payload. Retry only failures that happened before delivery/action commit.
 
 - **HTTP 403 (Admin Token)**:
   - Connector has the right user allowlist, but the upstream OpenClaw server rejected the Admin Token.

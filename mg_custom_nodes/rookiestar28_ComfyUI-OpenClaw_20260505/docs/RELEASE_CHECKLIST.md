@@ -18,8 +18,9 @@ If the deployment enables remote control or bridge features, it must also pass *
 - [ ] **Admin Boundaries**:
   - [ ] Server-side admin write boundary uses `OPENCLAW_ADMIN_TOKEN` (legacy `MOLTBOT_ADMIN_TOKEN`).
   - [ ] Connector admin command paths use `OPENCLAW_CONNECTOR_ADMIN_TOKEN`, and must match server admin token when server admin auth is enabled.
-- [ ] **Connector Ingress Defaults**: Platform adapters remain disabled unless required token/enable vars are configured (Telegram/Discord/LINE/WhatsApp/WeChat/Kakao/Slack).
+- [ ] **Connector Ingress Defaults**: Platform adapters remain disabled unless required token/enable vars are configured (Telegram/Discord/LINE/WhatsApp/WeChat/Kakao/Slack/Feishu).
 - [ ] **Connector Allowlists (Strict Posture)**: In `public` deployment or `hardened` runtime posture, active connector platforms must have allowlist coverage before startup (fail-closed; public check code `DP-PUBLIC-009`).
+- [ ] **Connector Replay & Visibility**: Duplicate committed connector events are no-ops, retryable pre-commit failures can be retried, and text-only reply suppression does not hide approval/action controls.
 - [ ] **Observability**: `/openclaw/logs/tail` and `/openclaw/config` require `OPENCLAW_OBSERVABILITY_TOKEN` (legacy: `MOLTBOT_OBSERVABILITY_TOKEN`) if accessed remotely, or are loopback-only.
 - [ ] **SSRF**: LLM `base_url` defaults to known providers. Custom public URLs require `OPENCLAW_ALLOW_ANY_PUBLIC_LLM_HOST=1` or explicit allowlist; private/reserved IP targets require the scoped LLM private-network setting or the broader `OPENCLAW_ALLOW_INSECURE_BASE_URL=1` override.
 - [ ] **Public Boundary Contract (S69)**: for `OPENCLAW_DEPLOYMENT_PROFILE=public`, set `OPENCLAW_PUBLIC_SHARED_SURFACE_BOUNDARY_ACK=1` only after reverse-proxy path allowlist + network ACL deny ComfyUI-native high-risk routes.

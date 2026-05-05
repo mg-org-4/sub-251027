@@ -165,6 +165,8 @@ Controls the `connector` sidecar process and outbound delivery.
 Connector posture rules:
 - In strict posture (`OPENCLAW_DEPLOYMENT_PROFILE=public` or `OPENCLAW_RUNTIME_PROFILE=hardened`), active connector platforms without allowlist coverage are fail-closed.
 - Public deployment profile check surfaces this as `DP-PUBLIC-009`.
+- Connector reply visibility is policy-driven and does not introduce new secret/config knobs: text-only silent/internal/tool-only/no-mention replies can be suppressed by context, while approval cards and action buttons remain deliverable.
+- Connector replay handling treats duplicate committed events as successful no-ops and allows retry only for failures before action/delivery commit.
 - Slack multi-workspace installs persist only encrypted token refs in `connector_installations.json`; raw bot/app tokens remain in encrypted secret storage and must not appear in diagnostics or exported config surfaces.
 - Feishu/Lark bindings persist normalized installation identity plus secret references only; app secrets and callback signing material must stay in encrypted/local secret storage and must not appear in diagnostics or exported config surfaces.
 - Connector service-env propagation preserves only structured env-backed SecretRef metadata for supported connector credential variables. It reports secret-blind status/reason fields and rejects raw secrets, legacy marker strings, unsupported env names, missing envs, and runtime-only auth tokens such as admin, worker, and bridge tokens. Raw token values must not be written into diagnostics or service metadata.

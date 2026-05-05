@@ -228,16 +228,17 @@ OPENCLAW_LOCALHOST_ALLOW_NO_ORIGIN=0
 5. Enforce split control plane in public posture (`OPENCLAW_CONTROL_PLANE_MODE=split` + external URL/TOKEN).
 6. Keep `OPENCLAW_DEBUG_REASONING_REVEAL=0`; privileged reasoning reveal is for local debugging only and must not be enabled on public user planes.
 7. If any connector platform token/enable flag is configured, set corresponding platform allowlist vars before startup (`DP-PUBLIC-009` fail-closed).
-8. Keep risky features disabled on public user-facing plane.
-9. Keep `OPENCLAW_LOCALHOST_ALLOW_NO_ORIGIN=0` in public deployments.
-9. Verify split posture from capabilities:
+8. For connector approvals/actions, verify duplicate platform retries do not re-run completed actions and text-only reply suppression does not hide approval/action controls.
+9. Keep risky features disabled on public user-facing plane.
+10. Keep `OPENCLAW_LOCALHOST_ALLOW_NO_ORIGIN=0` in public deployments.
+11. Verify split posture from capabilities:
    - `GET /openclaw/capabilities` and confirm `control_plane.mode=split`
-10. Run:
+12. Run:
     - `python scripts/check_deployment_profile.py --profile public`
-11. Validate with project test and release gates before rollout:
+13. Validate with project test and release gates before rollout:
     - `tests/TEST_SOP.md`
     - [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
-12. Ensure `/openclaw/admin` is blocked at public edge unless a separately hardened private admin plane is in place.
+14. Ensure `/openclaw/admin` is blocked at public edge unless a separately hardened private admin plane is in place.
 
 ## 6. Bridge in Public Profile (only when absolutely required)
 

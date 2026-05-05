@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 from .config import ConnectorConfig
 from .contract import Platform
 from .openclaw_client import OpenClawClient
+from .reply_visibility import decide_reply_visibility
 
 logger = logging.getLogger(__name__)
 
@@ -363,13 +364,28 @@ class ResultsPoller:
         *,
         delivery_context: Optional[Dict[str, Any]] = None,
     ):
+        ctx = dict(delivery_context or {})
+        decision = decide_reply_visibility(
+            delivery_context=ctx,
+            platform=platform_name,
+            text=text,
+        )
+        if decision.suppressed:
+            # IMPORTANT: a suppressed visible reply is a successful delivery no-op.
+            logger.info(
+                "Suppressed connector text reply platform=%s channel=%s reason=%s",
+                platform_name,
+                channel_id,
+                decision.reason,
+            )
+            return
         platform = self.platforms.get(platform_name)
         if platform:
             try:
                 await platform.send_message(
                     channel_id,
                     text,
-                    delivery_context=dict(delivery_context or {}),
+                    delivery_context=ctx,
                 )
             except Exception as e:
                 logger.error(f"Failed to send text to {platform_name}: {e}")

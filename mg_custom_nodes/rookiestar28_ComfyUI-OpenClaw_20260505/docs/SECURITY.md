@@ -180,6 +180,8 @@ For interactive connector callbacks (actions/modals/workflow style payloads), th
 - stale timestamp, replay/duplicate request ID, payload-hash mismatch, or unknown action type are rejected
 - workspace-to-installation resolution is fail-closed on missing/ambiguous/inactive/stale-token-ref binding
 - policy mapping is explicit (`public`/`run`/`admin`) and untrusted `run` callbacks degrade to approval instead of direct privileged execution
+- duplicate committed connector events are acknowledged without re-running completed actions, while retryable failures before action/delivery commit can be retried
+- reply visibility is policy-driven; text-only silent/internal/tool-only/no-mention replies can be suppressed without suppressing approval cards, action buttons, allowlist checks, or callback replay checks
 
 Operational note:
 

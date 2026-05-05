@@ -7,6 +7,16 @@ Newest entries appear first.
 
 <details>
 
+<summary><strong>Connector replay, reply visibility, and scheduled delivery behavior aligned with current chat workflows</strong></summary>
+
+- Connector event handling now distinguishes duplicate committed actions from retryable pre-delivery failures across supported chat adapters, reducing accidental re-execution while still allowing safe retries.
+- Reply visibility is now governed by a shared connector policy for direct messages, shared chats, threads, internal delivery, and tool-only contexts; suppressed text is logged as a successful no-op instead of a delivery failure.
+- Telegram topics, Slack threads/workspaces, and Feishu account/workspace context are preserved for immediate replies and delayed result or approval follow-up, while approval/action buttons remain visible.
+
+</details>
+
+<details>
+
 <summary><strong>Startup lifecycle diagnostics, connector SecretRef service boundaries, and internal prompt isolation aligned with the current runtime</strong></summary>
 
 - Health diagnostics now distinguish required startup readiness, optional warmup degradation, and fatal startup failures; optional warmups run after route registration and no longer block baseline API availability.

@@ -18,6 +18,8 @@
   - Feishu/Lark: `OPENCLAW_CONNECTOR_FEISHU_ALLOWED_USERS` / `_ALLOWED_CHATS`
 - [ ] Verify startup banner shows "No trusted users" warning if allowlists are empty.
 - [ ] For strict posture (`OPENCLAW_DEPLOYMENT_PROFILE=public` or `OPENCLAW_RUNTIME_PROFILE=hardened`), do not enable connector ingress without allowlists; startup/deployment checks fail closed.
+- [ ] Verify duplicate or retried connector events are acknowledged without re-running completed actions.
+- [ ] Verify reply-visibility suppression only applies to text-only silent/internal/tool-only/no-mention contexts and does not suppress approval cards or action buttons.
 
 ### 2. Webhook Security (LINE)
 
@@ -68,6 +70,7 @@
 | Rate limiting | Enabled | 10 req/min/user, 30 req/min/channel |
 | Debug mode | Disabled | No sensitive logging |
 | Replay protection | Enabled | LINE webhooks reject replays >5min old |
+| Connector replay and reply visibility | Enabled | Duplicate committed events are no-ops; text-only suppressed replies do not suppress approval/action controls |
 | Slack / Feishu interactive callbacks | Signed + deduped | Callback actions reject stale/replayed envelopes and degrade untrusted run actions to approval flow |
 
 ## 📞 Support

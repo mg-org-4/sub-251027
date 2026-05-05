@@ -66,6 +66,7 @@ This project is designed to make **ComfyUI a reliable automation target** with a
 - Admin writes, webhook ingress, and bridge worker paths are protected as explicit trust boundaries rather than convenience-only localhost helpers.
 - Connector ingress keeps allowlist and policy checks as first-class controls, with degraded/public posture handled deliberately instead of silently widening access.
 - Interactive connector actions are treated as a security boundary too: callback-capable platforms use signed envelopes, timestamp/replay guards, dedupe, and explicit policy mapping instead of trusting button actions as implicit admin intent.
+- Connector reply visibility is policy-driven: silent, internal, tool-only, and no-mention text replies can be suppressed without bypassing allowlists, replay checks, approvals, or action-button delivery.
 - Outbound egress is constrained: callback delivery and custom LLM base URLs stay behind SSRF-safe validation, exact-host policy, scoped private-network allowance, and explicit insecure overrides.
 - Secret handling stays server-side: browser storage is not used for secrets, local secret-manager integration is opt-in, and secrets-at-rest / token lifecycle controls are treated as operational boundaries.
 - Multi-tenant mode is isolation-first: tenant mismatches fail closed across config, secret sources, connector installations, approvals, visibility, and execution budgets.
@@ -79,13 +80,23 @@ Deployment profiles and hardening references:
 - [Security Checklist](docs/security_checklist.md)
 - [Runtime Hardening and Startup](docs/runtime_hardening_and_startup.md)
 - [Threat Model](docs/release/threat_model.md)
-- [Frontend Migration Decision](docs/r69_ui_framework_migration_decision.md)
+- [Frontend Migration Decision](docs/ui_framework_migration_decision.md)
 
 </details>
 
 
 
 <details><summary><h2>Latest Updates - Click to expand</h2></summary>
+
+<details>
+
+<summary><strong>Connector replay, reply visibility, and scheduled delivery behavior aligned with current chat workflows</strong></summary>
+
+- Connector event handling now distinguishes duplicate committed actions from retryable pre-delivery failures across supported chat adapters, reducing accidental re-execution while still allowing safe retries.
+- Reply visibility is now governed by a shared connector policy for direct messages, shared chats, threads, internal delivery, and tool-only contexts; suppressed text is logged as a successful no-op instead of a delivery failure.
+- Telegram topics, Slack threads/workspaces, and Feishu account/workspace context are preserved for immediate replies and delayed result or approval follow-up, while approval/action buttons remain visible.
+
+</details>
 
 <details>
 
@@ -129,18 +140,6 @@ Deployment profiles and hardening references:
 - Consolidated the remaining high-churn package-boundary import hotspots onto shared import-fallback helpers so minimal or partially optional environments degrade predictably instead of crashing on module import.
 - Split runtime-config ownership into focused storage, policy, and operator-projection seams while keeping the public runtime-config facade and precedence contract stable for existing callers and operators.
 - Added admin-only connector extraction diagnostics at `/openclaw/connector/extraction-contract` (with legacy `/moltbot/*` parity) so maintainers can query the current no-split recommendation, seam families, and blockers from one machine-readable source of truth.
-
-</details>
-
-<details>
-
-<summary><strong>Verification governance, config bootstrap hygiene, and connector env hardening aligned with the current runtime</strong></summary>
-
-- Promoted the staged coverage-ratchet baseline to the enforced `45%` floor, added retained review-cycle evidence for hotspot families, and wired backend coverage collection through one shared local/CI helper instead of ad hoc `fail_under` edits.
-- Added focused connector and config/bootstrap hotspot regressions, reviewed the governed hotspot-family coverage summaries, and retired the temporary promotion-gap exceptions now that both promotion-blocking families are represented by explicit review evidence.
-- Added fail-closed test-debt governance for no-skip modules and mutation-survivor allowlist entries, with explicit `reason` and `review_after` metadata now enforced by the standard full-test flow.
-- Hardened pack metadata/version fallback parsing and made config/bootstrap imports side-effect-safe, so pack version fallback stays deterministic and importing config helpers no longer creates the state directory or log file before first real use.
-- Added bounded connector numeric env parsing for delivery, media, timeout, rate-limit, command-length, OAuth TTL, and bind-port settings, so malformed values degrade to documented defaults or clamps with warnings instead of crashing startup.
 
 </details>
 
@@ -670,6 +669,8 @@ The connector currently remains an **optional attached subsystem inside this rep
 - **Approvals**: Approve/Reject paused workflows from your phone.
 - **Secure**: Outbound-only for Telegram/Discord. LINE/WhatsApp/WeChat/KakaoTalk/Slack require inbound HTTPS (webhook), while Slack can also use Socket Mode and Feishu can run in either webhook or long-connection mode with a dedicated callback ingress path.
 - **Telegram topics**: Forum topic commands keep their topic context for immediate replies and delayed result delivery.
+- **Replay-safe actions and replies**: Duplicate or retried platform events are acknowledged without re-running completed actions; retryable failures before delivery commit can be retried.
+- **Reply visibility policy**: Direct-message, group/channel, thread, internal, and tool-only contexts share one visible/suppressed text decision; suppressed text is treated as a successful no-op and action/approval controls stay visible.
 - **WeChat encrypted mode**: Official Account encrypted webhook mode is supported when AES settings are configured.
 - **KakaoTalk response safety**: QuickReply limits and safe fallback handling are enforced for reliable payload behavior.
 - **Slack multi-workspace and interactive mode**: Workspace installs can be handled through connector-managed OAuth install/callback routes with per-workspace token binding, fail-closed health diagnostics, and signed interactive callback handling for action payloads.

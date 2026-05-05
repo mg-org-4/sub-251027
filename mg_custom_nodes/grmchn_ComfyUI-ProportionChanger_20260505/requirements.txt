@@ -1,0 +1,14 @@
+# Core ML libraries
+torch
+numpy
+
+# Computer vision
+opencv-python
+
+# Progress bars and utilities  
+tqdm
+huggingface_hub
+
+# ONNX Runtime for Mascot OpenPose nodes. Install onnxruntime-gpu instead if
+# your ComfyUI environment manages CUDA providers separately.
+onnxruntime

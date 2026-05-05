@@ -1,6 +1,6 @@
 """
 ProportionChanger nodes package
-Provides organized node classes for DWPose detection and rendering
+Provides organized node classes for pose detection and rendering
 """
 
 # Import detector node classes
@@ -34,6 +34,15 @@ from .converter_nodes import (
     PoseKeypointResize,
 )
 
+# Mascot OpenPose nodes
+from .mascot_nodes import (
+    DownloadAndLoadMascotDWPoseModel,
+    DownloadAndLoadMascotBBoxModel,
+    MascotDWPoseDetector,
+    MascotBBoxDetector,
+    ConvertToSCAILPose,
+)
+
 # Import keypoint denoiser node classes
 from .keypoint_denoiser_node import (
     ProportionChangerKeypointDenoiser,
@@ -59,6 +68,13 @@ __all__ = [
     # Converter nodes
     "PoseDataToPoseKeypoint",
     "PoseKeypointResize",
+
+    # Mascot OpenPose nodes
+    "DownloadAndLoadMascotDWPoseModel",
+    "DownloadAndLoadMascotBBoxModel",
+    "MascotDWPoseDetector",
+    "MascotBBoxDetector",
+    "ConvertToSCAILPose",
     
     # KeyPoint Denoiser nodes
     "ProportionChangerKeypointDenoiser",

@@ -4,22 +4,27 @@
 
 > **Note**: This README was automatically generated using [Claude Code](https://claude.ai/code) AI-assisted development tools.
 
-This custom node is created by decomposing and porting the WanVideo UniAnimate DWPose Detector node from [kijai's ComfyUI-WanVideoWrapper](https://github.com/kijai/ComfyUI-WanVideoWrapper). The key difference is that instead of using image inputs, it now accepts DWPose KeyPoint data as input, enabling manipulation of body types that cannot be estimated by DWPose alone.
+This custom node is created by decomposing and porting the WanVideo UniAnimate pose detector node from [kijai's ComfyUI-WanVideoWrapper](https://github.com/kijai/ComfyUI-WanVideoWrapper). The key difference is that instead of using image inputs, it now accepts KeyPoint data as input, enabling manipulation of body types that cannot be estimated by the pose detector alone.
 
 Additionally, the Openpose Editor node from [toyxyz/ComfyUI-ultimate-openpose-editor](https://github.com/toyxyz/ComfyUI-ultimate-openpose-editor) has been similarly decomposed and ported, enabling fine-tuning of individual parts.
 
 ## Features
 
 ### Node Overview
-- **ProportionChanger DWPose Detector**: Detects DWPose KeyPoints from images
+- **ProportionChanger Pose Detector**: Detects KeyPoints from images
 - **ProportionChanger Reference**: Transforms proportions to reference poses
-- **ProportionChanger DWPose Render**: Converts KeyPoints to images
+- **ProportionChanger Pose Render**: Converts KeyPoints to images
 - **ProportionChanger Params**: Adjusts parameters for individual KeyPoint parts
 - **ProportionChanger Interpolator**: Interpolates KeyPoint videos with in-betweening
 - **PoseData to pose_keypoint**: Converts WanAnimate `POSEDATA` into `POSE_KEYPOINT`
 - **pose_keypoint resize**: Resizes `POSE_KEYPOINT` to a target size (pads then scales to avoid stretching when aspect differs)
 - **pose_keypoint input**: Converts JSON text to KeyPoints
 - **pose_keypoint preview**: Converts KeyPoints to JSON
+- **(Down)Load Mascot Pose Model**: Downloads and loads a mascot pose ONNX model from HuggingFace
+- **(Down)Load Mascot BBox Model**: Downloads and loads a mascot bbox ONNX model from HuggingFace
+- **Mascot Pose Detector**: Detects mascot body pose as `POSE_KEYPOINT`
+- **Mascot BBox Detector**: Detects mascot part bounding boxes as `BOUNDING_BOX`
+- **pose_keypoint to SCAIL-Pose**: Converts 25-point `POSE_KEYPOINT` to SCAIL-Pose data
 
 ## Installation
 ### Install via ComfyUI Manager
@@ -60,9 +65,13 @@ Please refer to example_workflows.
 ## Troubleshooting
 
 ### Common Issues
-1. **Model Loading Errors**: Models should be automatically downloaded from HuggingFace. Please ensure DWPose models are in the correct directory.
+1. **Model Loading Errors**: Models should be automatically downloaded from HuggingFace. Please ensure pose models are in the correct directory.
 2. **Incorrect body proportions after transformation with reference image**: The `pose_keypoint` and `reference_pose_keypoint` aspect ratios (canvas width/height) may not match. **ProportionChanger Reference** has `auto_resize_reference` (default ON) to automatically align the reference to the pose canvas size. If needed, use **pose_keypoint resize** to explicitly align `width`/`height`. Fine-tune individual body parts using the "ProportionChanger Params" node.
-3. **Nothing displays after transformation with reference image**: The reference image's pose estimation by DWPose has failed. Use OpenposeEditor or similar tools to input parameter values manually.
+3. **Nothing displays after transformation with reference image**: The reference image's pose estimation has failed. Use OpenposeEditor or similar tools to input parameter values manually.
+
+### Mascot Pose Models
+
+Mascot pose nodes download model artifacts from `grmchn/mascot-pose-detect` on HuggingFace into `ComfyUI/models/mascot_body_detect`. The official model package is Apache 2.0 and uses the `keypoint/dinov2_vitpose_l` variant. The node code remains part of this repository, and use of the downloaded models is subject to the model package license.
 
 ## Attribution and Credits
 ### Special Thanks
@@ -80,7 +89,7 @@ When combining code from Apache 2.0 and GPL 3.0 licensed projects, the resulting
 
 ### Copyright Notice
 
-- Original WanVideo UniAnimate DWPose Detector: Copyright by kijai
+- Original WanVideo UniAnimate pose detector: Copyright by kijai
 - ProportionChanger Params functionality: Copyright by toyxyz  
 - Modifications and integration: This project's contributors
 

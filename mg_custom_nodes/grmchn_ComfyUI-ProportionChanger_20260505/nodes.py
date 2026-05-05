@@ -5,6 +5,16 @@ Backward compatibility maintained for existing workflows
 
 from .utils import log
 import json
+import os
+
+try:
+    import folder_paths
+    folder_paths.add_model_folder_path(
+        "mascot_body_detect",
+        os.path.join(folder_paths.models_dir, "mascot_body_detect"),
+    )
+except ImportError:
+    folder_paths = None
 
 # Import all nodes from our organized structure
 from .proportion_changer import (
@@ -15,6 +25,11 @@ from .proportion_changer import (
     ProportionChangerInterpolator,
     PoseDataToPoseKeypoint,
     PoseKeypointResize,
+    DownloadAndLoadMascotDWPoseModel,
+    DownloadAndLoadMascotBBoxModel,
+    MascotDWPoseDetector,
+    MascotBBoxDetector,
+    ConvertToSCAILPose,
     # TODO: Re-enable after fixing Kalman filter issues
     # ProportionChangerKeypointDenoiser,
     # ProportionChangerKeypointDenoiserAdvanced
@@ -191,7 +206,7 @@ class PoseKeypointPreview:
 
 
 NODE_CLASS_MAPPINGS = {
-    # Main DWPose detector nodes
+    # Main pose detector nodes
     "ProportionChangerDWPoseRender": ProportionChangerDWPoseRender,
     "ProportionChangerDWPoseDetector": ProportionChangerDWPoseDetector,
     "ProportionChangerReference": ProportionChangerReference,
@@ -208,12 +223,19 @@ NODE_CLASS_MAPPINGS = {
     "PoseKeypointResize": PoseKeypointResize,
     "PoseJSONToPoseKeypoint": PoseJSONToPoseKeypoint,
     "PoseKeypointPreview": PoseKeypointPreview,
+
+    # Mascot pose nodes
+    "DownloadAndLoadMascotDWPoseModel": DownloadAndLoadMascotDWPoseModel,
+    "DownloadAndLoadMascotBBoxModel": DownloadAndLoadMascotBBoxModel,
+    "MascotDWPoseDetector": MascotDWPoseDetector,
+    "MascotBBoxDetector": MascotBBoxDetector,
+    "ConvertToSCAILPose": ConvertToSCAILPose,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    # Main DWPose detector nodes
-    "ProportionChangerDWPoseRender": "ProportionChanger DWPose Render",
-    "ProportionChangerDWPoseDetector": "ProportionChanger DWPose Detector",
+    # Main pose detector nodes
+    "ProportionChangerDWPoseRender": "ProportionChanger Pose Render",
+    "ProportionChangerDWPoseDetector": "ProportionChanger Pose Detector",
     "ProportionChangerReference": "ProportionChanger Reference",
     "ProportionChangerParams": "ProportionChanger Params",
     "ProportionChangerInterpolator": "ProportionChanger Interpolator",
@@ -227,4 +249,11 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointResize": "pose_keypoint resize",
     "PoseJSONToPoseKeypoint": "pose_keypoint input",
     "PoseKeypointPreview": "pose_keypoint preview",
+
+    # Mascot pose nodes
+    "DownloadAndLoadMascotDWPoseModel": "(Down)Load Mascot Pose Model",
+    "DownloadAndLoadMascotBBoxModel": "(Down)Load Mascot BBox Model",
+    "MascotDWPoseDetector": "Mascot Pose Detector",
+    "MascotBBoxDetector": "Mascot BBox Detector",
+    "ConvertToSCAILPose": "pose_keypoint to SCAIL-Pose",
 }

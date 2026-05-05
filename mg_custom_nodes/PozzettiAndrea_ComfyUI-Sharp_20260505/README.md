@@ -1,5 +1,25 @@
 # ComfyUI-Sharp
 
+## Installation
+
+Three options, in order of speed → reliability:
+
+1. **ComfyUI Manager (nightly, recommended)** — search for `ComfyUI-Sharp` in the Manager and click Install **from the nightly version**. Do **NOT** use any numbered version like `0.2.4` — they are outdated.
+2. **Manager via Git URL** — in ComfyUI Manager: "Install via Git URL" with `https://github.com/PozzettiAndrea/ComfyUI-Sharp.git`.
+3. **Manual (most reliable)**:
+   ```bash
+   cd ComfyUI/custom_nodes
+   git clone https://github.com/PozzettiAndrea/ComfyUI-Sharp.git
+   cd ComfyUI-Sharp
+   pip install -r requirements.txt --upgrade
+   python install.py
+   ```
+
+> **Please report any problems** you hit during installation or use of my nodes — open a [Discussion](https://github.com/PozzettiAndrea/ComfyUI-Sharp/discussions) or [Issue](https://github.com/PozzettiAndrea/ComfyUI-Sharp/issues). Very grateful for your help! 🙏
+
+---
+
+
 <div align="center">
 <a href="https://pozzettiandrea.github.io/ComfyUI-Sharp/">
 <img src="https://pozzettiandrea.github.io/ComfyUI-Sharp/gallery-preview.png" alt="Workflow Test Gallery" width="800">
@@ -29,6 +49,8 @@ https://github.com/user-attachments/assets/b0c3e196-aa93-4380-8f8b-9c19b833b818
 Note: for PLY inference this model is good on its own, but for the Gaussian Viewer node, you're going to need to install this node as well! https://github.com/PozzettiAndrea/ComfyUI-GeometryPack
 
 Model auto-downloads on first run. For offline use, place `sharp_2572gikvuh.pt` in `ComfyUI/models/sharp/`.
+
+
 
 ## Nodes
 

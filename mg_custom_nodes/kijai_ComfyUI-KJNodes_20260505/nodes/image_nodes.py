@@ -18,7 +18,7 @@ from io import BytesIO
 try:
     import cv2
     HAS_CV2 = True
-except:
+except ImportError:
     logging.warning("OpenCV not installed")
     HAS_CV2 = False
 
@@ -39,7 +39,7 @@ from ..utility.utility import string_to_color
 
 try:
     from server import PromptServer, BinaryEventTypes
-except:
+except ImportError:
     PromptServer = None
     BinaryEventTypes = None
 from concurrent.futures import ThreadPoolExecutor
@@ -73,15 +73,7 @@ class ColorMatch:
             "required": {
                 "image_ref": ("IMAGE",),
                 "image_target": ("IMAGE",),
-                "method": (
-            [   
-                'mkl',
-                'hm', 
-                'reinhard', 
-                'mvgd', 
-                'hm-mvgd-hm', 
-                'hm-mkl-hm',
-            ], {
+                "method": (['mkl','hm', 'reinhard', 'mvgd', 'hm-mvgd-hm', 'hm-mkl-hm'], {
                "default": 'mkl'
             }),
             },
@@ -90,12 +82,13 @@ class ColorMatch:
                 "multithread": ("BOOLEAN", {"default": True}),
             }
         }
-    
+
     CATEGORY = "KJNodes/image"
 
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "colormatch"
+    DEPRECATED = True
     DESCRIPTION = """
 color-matcher enables color transfer across images which comes in handy for automatic  
 color-grading of photographs, paintings and film sequences as well as light-field  
@@ -108,7 +101,7 @@ matching. As shown below our HM-MVGD-HM compound outperforms existing methods.
 https://github.com/hahnec/color-matcher/
 
 """
-    
+
     def colormatch(self, image_ref, image_target, method, strength=1.0, multithread=True):
         # Skip unnecessary processing
         if strength == 0:
@@ -116,13 +109,13 @@ https://github.com/hahnec/color-matcher/
 
         try:
             from color_matcher import ColorMatcher
-        except:
-            raise Exception("Can't import color-matcher, did you install requirements.txt? Manual install: pip install color-matcher")
-        
+        except ImportError as e:
+            raise ImportError("Can't import color-matcher, did you install requirements.txt? Manual install: pip install color-matcher") from e
+
         image_ref = image_ref.cpu()
         image_target = image_target.cpu()
         batch_size = image_target.size(0)
-        
+
         images_target = image_target.squeeze()
         images_ref = image_ref.squeeze()
 
@@ -137,9 +130,9 @@ https://github.com/hahnec/color-matcher/
                 image_result = cm.transfer(src=image_target_np_i, ref=image_ref_np_i, method=method) # Avoid potential blur when only the fully color-matched image is used
                 if strength != 1:
                     image_result = image_target_np_i + strength * (image_result - image_target_np_i)
-                    
+
                 return torch.from_numpy(image_result)
-                
+
             except Exception as e:
                 logging.warning(f"Thread {i} error: {e}")
                 return torch.from_numpy(image_target_np_i)  # fallback
@@ -229,8 +222,8 @@ https://github.com/hahnec/color-matcher/
 
         try:
             from color_matcher import ColorMatcher
-        except:
-            raise Exception("Can't import color-matcher, did you install requirements.txt? Manual install: pip install color-matcher")
+        except ImportError as e:
+            raise ImportError("Can't import color-matcher, did you install requirements.txt? Manual install: pip install color-matcher") from e
 
         batch_size = image_target.size(0)
         ref_batch_size = image_ref.size(0)
@@ -849,25 +842,25 @@ Can be used for realtime diffusion with autoqueue.
             try:
                 self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
                 self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-            except:
+            except cv2.error:
                 pass
             if not self.cap.isOpened():
-                raise Exception("Could not open webcam")
-    
+                raise RuntimeError("Could not open webcam")
+
         ret, frame = self.cap.read()
         if not ret:
-            raise Exception("Failed to capture image from webcam")
-    
+            raise RuntimeError("Failed to capture image from webcam")
+
         # Crop the frame to the specified bbox
         frame = frame[y:y+height, x:x+width]
         img_torch = torch.from_numpy(frame[..., [2, 1, 0]]).float() / 255.0
-    
+
         if release:
             self.cap.release()
             self.cap = None
-    
+
         return (img_torch.unsqueeze(0),)
-    
+
 class AddLabel:
     @classmethod
     def INPUT_TYPES(s):
@@ -968,7 +961,7 @@ ComfyUI/custom_nodes/ComfyUI-KJNodes/fonts
             for line in lines:
                 try:
                     draw.text((text_x, y_offset), line, font=font, fill=font_color_tuple, features=['-liga'])
-                except:
+                except Exception:
                     draw.text((text_x, y_offset), line, font=font, fill=font_color_tuple)
                 y_offset += font_size
 
@@ -2961,7 +2954,7 @@ highest dimension.
 
         if device == "gpu":
             if upscale_method == "lanczos":
-                raise Exception("Lanczos is not supported on the GPU")
+                raise ValueError("Lanczos is not supported on the GPU")
             device = model_management.get_torch_device()
         else:
             device = torch.device("cpu")
@@ -3048,11 +3041,11 @@ highest dimension.
                 if unique_id and PromptServer is not None:
                     try:
                         PromptServer.instance.send_progress_text(msg, unique_id)
-                    except:
+                    except Exception:
                         pass
                 else:
                     logging.info(f"[ImageResizeKJv2] estimated output ~{est_mb:.2f} MB; batching {per_batch}/{B}")
-            except:
+            except Exception:
                 pass
 
         # NVIDIA RTX Video Super Resolution setup
@@ -3061,7 +3054,7 @@ highest dimension.
         if upscale_method == "nvidia_rtx_vsr":
             try:
                 import nvvfx
-            except:
+            except ImportError:
                 raise ImportError("NVIDIA RTX Video Super Resolution is not available. Please install the nvidia-vfx library and ensure you have a compatible NVIDIA GPU.")
             nvvfx_ctx = nvvfx.VideoSuperRes(nvvfx.effects.QualityLevel.ULTRA)
             nvvfx_sr = nvvfx_ctx.__enter__()
@@ -3171,13 +3164,10 @@ highest dimension.
                             f"<tr><td>Resize v2</td><td>batch {current_batch}/{total_batches} · images {end_idx}/{B}</td></tr>",
                             unique_id
                         )
-                    except:
+                    except Exception:
                         pass
                 else:
-                    try:
-                        logging.info(f"[ImageResizeKJv2] batch {current_batch}/{total_batches} · images {end_idx}/{B}")
-                    except:
-                        pass
+                    logging.info(f"[ImageResizeKJv2] batch {current_batch}/{total_batches} · images {end_idx}/{B}")
             out_image = torch.cat(chunks, dim=0)
             if mask is not None and any(m is not None for m in mask_chunks):
                 out_mask = torch.cat([m for m in mask_chunks if m is not None], dim=0)
@@ -3198,7 +3188,7 @@ highest dimension.
                     f"<tr><td>Output: </td><td><b>{out_image.shape[0]}</b> x <b>{out_image.shape[2]}</b> x <b>{out_image.shape[1]} | {memory_size_mb:.2f}MB</b></td></tr>",
                     unique_id
                 )
-            except:
+            except Exception:
                 pass
 
         return (out_image.cpu(), out_image.shape[2], out_image.shape[1], out_mask.cpu() if out_mask is not None else torch.zeros(64,64, device=torch.device("cpu"), dtype=torch.float32))
@@ -3694,7 +3684,7 @@ class SaveImageKJ:
             counter += 1
 
         return file, 
-    
+
 class SaveStringKJ:
     def __init__(self):
         self.output_dir = folder_paths.get_output_directory()
@@ -4598,7 +4588,7 @@ class LoadVideosFromFolder:
                 font_size = max(16, w // 20)
                 try:
                     font = ImageFont.truetype("arial.ttf", font_size)
-                except:
+                except OSError:
                     font = ImageFont.load_default()
                 dummy_img = Image.new("RGB", (w, 10), (0,0,0))
                 draw = ImageDraw.Draw(dummy_img)

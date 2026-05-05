@@ -349,10 +349,11 @@ def nag_attention(self, query, context_positive, nag_context, attn_precision=Non
 def normalized_attention_guidance(self, x_positive, x_negative):
     if self.inplace:
         nag_guidance = x_negative.mul_(self.nag_scale - 1).neg_().add_(x_positive, alpha=self.nag_scale)
+        del x_negative
     else:
-        nag_guidance = x_positive * self.nag_scale - x_negative * (self.nag_scale - 1)
-
-    del x_negative
+        nag_guidance = x_negative * (self.nag_scale - 1)
+        del x_negative
+        nag_guidance = (x_positive * self.nag_scale).sub_(nag_guidance)
 
     norm_positive = torch.norm(x_positive, p=1, dim=-1, keepdim=True)
     norm_guidance = torch.norm(nag_guidance, p=1, dim=-1, keepdim=True)
@@ -369,12 +370,10 @@ def normalized_attention_guidance(self, x_positive, x_negative):
     del mask, adjustment
 
     if self.inplace:
-        nag_guidance.sub_(x_positive).mul_(self.nag_alpha).add_(x_positive)
+        return nag_guidance.sub_(x_positive).mul_(self.nag_alpha).add_(x_positive)
     else:
-        nag_guidance = nag_guidance * self.nag_alpha + x_positive * (1 - self.nag_alpha)
-    del x_positive
-
-    return nag_guidance
+        nag_guidance.mul_(self.nag_alpha)
+        return nag_guidance.add_(x_positive * (1 - self.nag_alpha))
 
 #region NAG
 def ltxv_crossattn_forward_nag(self, x, context, mask=None, transformer_options={}, **kwargs):
@@ -1434,7 +1433,8 @@ def ltx2_forward(
                     _gate = _a1.to_gate_logits(norm_vx)
                     _b, _t, _ = _sa_out.shape
                     _sa_out = _sa_out.view(_b, _t, _a1.heads, _a1.dim_head)
-                    _sa_out = (_sa_out * (2.0 * torch.sigmoid(_gate)).unsqueeze(-1)).view(_b, _t, _a1.heads * _a1.dim_head)
+                    _sa_out.mul_((2.0 * torch.sigmoid(_gate)).unsqueeze(-1))
+                    _sa_out = _sa_out.view(_b, _t, _a1.heads * _a1.dim_head)
                     del _gate
 
                 attn1_out = _a1.to_out(_sa_out)
@@ -1656,7 +1656,7 @@ _cuda_archs = None
 try:
     from sageattention.core import per_thread_int8_triton, per_warp_int8_cuda, per_block_int8_triton, per_channel_fp8, get_cuda_arch_versions, attn_false
     _cuda_archs = get_cuda_arch_versions()
-except:
+except Exception:
     pass
 try:
     from sageattention.core import _qattn_sm89
@@ -1726,7 +1726,7 @@ def ltx2_sageattn_forward(self, x, context=None, mask=None, pe=None, k_pe=None, 
         q_int8, q_scale, k_int8, k_scale = per_thread_int8_triton(q, k, km=k.mean(dim=1, keepdim=True), tensor_layout=tensor_layout, BLKQ=128, WARPQ=32, BLKK=64, WARPK=64)
         del q, k
         o = torch.empty(q_int8.size(), dtype=dtype, device=q_int8.device)
-        v_fp16 = v.to(torch.float16).contiguous()
+        v_fp16 = v.to(torch.float16)
         del v
         _qattn_sm80.qk_int8_sv_f16_accum_f32_attn(q_int8, k_int8, v_fp16, o, q_scale, k_scale, _tensor_layout, _is_caual, _qk_quant_gran, sm_scale, _return_lse)
     elif _cuda_archs[0] == "sm75":
@@ -1778,17 +1778,13 @@ def ltx2_sageattn_forward(self, x, context=None, mask=None, pe=None, k_pe=None, 
 
     del q_int8, q_scale, k_int8, k_scale
 
-    o = o.view(batch_size, seq_len, -1)
-
+    # o is [B, T, H, D] from sage kernel (NHD layout)
     if self.to_gate_logits is not None:
         gate_logits = self.to_gate_logits(x)  # (B, T, H)
-        b, t, _ = o.shape
-        o = o.view(b, t, self.heads, self.dim_head)
-        gates = 2.0 * torch.sigmoid(gate_logits)  # zero-init -> identity
-        o = o * gates.unsqueeze(-1)
-        o = o.view(b, t, self.heads * self.dim_head)
+        o.mul_((2.0 * torch.sigmoid(gate_logits)).unsqueeze(-1))
+        del gate_logits
 
-    return self.to_out(o)
+    return self.to_out(o.view(batch_size, seq_len, -1))
 
 
 import folder_paths

@@ -25,8 +25,8 @@ sageattn_modes = ["disabled", "auto", "sageattn_qk_int8_pv_fp16_cuda", "sageattn
 
 def get_sage_func(sage_attention, allow_compile=False):
     logging.info(f"Using sage attention mode: {sage_attention}")
-    from sageattention import sageattn
     if sage_attention == "auto":
+        from sageattention import sageattn
         def sage_func(q, k, v, is_causal=False, attn_mask=None, tensor_layout="NHD"):
             return sageattn(q, k, v, is_causal=is_causal, attn_mask=attn_mask, tensor_layout=tensor_layout)
     elif sage_attention == "sageattn_qk_int8_pv_fp16_cuda":
@@ -424,8 +424,8 @@ class TorchCompileModelFluxAdvancedV2:
                     compile_key_list.append(f"diffusion_model.single_blocks.{i}")
 
             set_torch_compile_wrapper(model=m, keys=compile_key_list, backend=backend, mode=mode, dynamic=dynamic, fullgraph=fullgraph)           
-        except:
-            raise RuntimeError("Failed to compile model")
+        except Exception as e:
+            raise RuntimeError("Failed to compile model") from e
 
         return (m, )
 
@@ -471,8 +471,8 @@ class TorchCompileModelWanVideoV2:
                 compile_key_list =["diffusion_model"]
 
             set_torch_compile_wrapper(model=m, keys=compile_key_list, backend=backend, mode=mode, dynamic=dynamic, fullgraph=fullgraph)           
-        except:
-            raise RuntimeError("Failed to compile model")
+        except Exception as e:
+            raise RuntimeError("Failed to compile model") from e
 
         return (m, )
 
@@ -543,8 +543,8 @@ class TorchCompileModelAdvanced:
                 raise ValueError(f"Invalid dynamic arg {dynamic}")
 
             set_torch_compile_wrapper(model=m, keys=compile_key_list, backend=backend, mode=mode, dynamic=dynamic, fullgraph=fullgraph)
-        except:
-            raise RuntimeError("Failed to compile model")
+        except Exception as e:
+            raise RuntimeError("Failed to compile model") from e
 
         return (m, )
 
@@ -585,8 +585,8 @@ class TorchCompileModelQwenImage:
                 compile_key_list =["diffusion_model"]
 
             set_torch_compile_wrapper(model=m, keys=compile_key_list, backend=backend, mode=mode, dynamic=dynamic, fullgraph=fullgraph)
-        except:
-            raise RuntimeError("Failed to compile model")
+        except Exception as e:
+            raise RuntimeError("Failed to compile model") from e
 
         return (m, )
 
@@ -630,8 +630,8 @@ class TorchCompileVAE:
                         ),
                     )
                     self._compiled_encoder = True
-                except:
-                    raise RuntimeError("Failed to compile model")
+                except Exception as e:
+                    raise RuntimeError("Failed to compile model") from e
         if compile_decoder:
             if not self._compiled_decoder:
                 decoder_name = "decoder"
@@ -650,8 +650,8 @@ class TorchCompileVAE:
                         ),
                     )
                     self._compiled_decoder = True
-                except:
-                    raise RuntimeError("Failed to compile model")
+                except Exception as e:
+                    raise RuntimeError("Failed to compile model") from e
         return (vae, )
 
 class TorchCompileControlNet:
@@ -680,200 +680,11 @@ class TorchCompileControlNet:
                 #     controlnet.control_model.double_blocks[i] = torch.compile(block, mode=mode, fullgraph=fullgraph, backend=backend)
                 controlnet.control_model = torch.compile(controlnet.control_model, mode=mode, fullgraph=fullgraph, backend=backend)
                 self._compiled = True
-            except:
+            except Exception as e:
                 self._compiled = False
-                raise RuntimeError("Failed to compile model")
+                raise RuntimeError("Failed to compile model") from e
 
         return (controlnet, )
-
-
-#teacache
-
-try:
-    from comfy.ldm.wan.model import sinusoidal_embedding_1d
-except:
-    pass
-
-from unittest.mock import patch
-import numpy as np
-
-def relative_l1_distance(last_tensor, current_tensor):
-    l1_distance = torch.abs(last_tensor - current_tensor).mean()
-    norm = torch.abs(last_tensor).mean()
-    relative_l1_distance = l1_distance / norm
-    return relative_l1_distance.to(torch.float32)
-
-@torch.compiler.disable()
-def tea_cache(self, x, e0, e, transformer_options):
-    #teacache for cond and uncond separately
-    rel_l1_thresh = transformer_options["rel_l1_thresh"]
-    
-    is_cond = True if transformer_options["cond_or_uncond"] == [0] else False
-
-    should_calc = True
-    suffix = "cond" if is_cond else "uncond"
-
-    # Init cache dict if not exists
-    if not hasattr(self, 'teacache_state'):
-        self.teacache_state = {
-            'cond': {'accumulated_rel_l1_distance': 0, 'prev_input': None, 
-                    'teacache_skipped_steps': 0, 'previous_residual': None},
-            'uncond': {'accumulated_rel_l1_distance': 0, 'prev_input': None,
-                    'teacache_skipped_steps': 0, 'previous_residual': None}
-        }
-        logging.info("\nTeaCache: Initialized")
-
-    cache = self.teacache_state[suffix]
-
-    if cache['prev_input'] is not None:
-        if transformer_options["coefficients"] == []:
-            temb_relative_l1 = relative_l1_distance(cache['prev_input'], e0)
-            curr_acc_dist = cache['accumulated_rel_l1_distance'] + temb_relative_l1
-        else:
-            rescale_func = np.poly1d(transformer_options["coefficients"])
-            curr_acc_dist = cache['accumulated_rel_l1_distance'] + rescale_func(((e-cache['prev_input']).abs().mean() / cache['prev_input'].abs().mean()).cpu().item())
-        try:
-            if curr_acc_dist < rel_l1_thresh:
-                should_calc = False
-                cache['accumulated_rel_l1_distance'] = curr_acc_dist
-            else:
-                should_calc = True
-                cache['accumulated_rel_l1_distance'] = 0
-        except:
-            should_calc = True
-            cache['accumulated_rel_l1_distance'] = 0
-
-    if transformer_options["coefficients"] == []:
-        cache['prev_input'] = e0.clone().detach()
-    else:
-        cache['prev_input'] = e.clone().detach()
-
-    if not should_calc:
-        x += cache['previous_residual'].to(x.device)
-        cache['teacache_skipped_steps'] += 1
-        #print(f"TeaCache: Skipping {suffix} step")
-    return should_calc, cache
-
-def teacache_wanvideo_vace_forward_orig(self, x, t, context, vace_context, vace_strength, clip_fea=None, freqs=None, transformer_options={}, **kwargs):
-        # embeddings
-        x = self.patch_embedding(x.float()).to(x.dtype)
-        grid_sizes = x.shape[2:]
-        x = x.flatten(2).transpose(1, 2)
-
-        # time embeddings
-        e = self.time_embedding(
-            sinusoidal_embedding_1d(self.freq_dim, t).to(dtype=x[0].dtype))
-        e0 = self.time_projection(e).unflatten(1, (6, self.dim))
-
-        # context
-        context = self.text_embedding(context)
-
-        context_img_len = None
-        if clip_fea is not None:
-            if self.img_emb is not None:
-                context_clip = self.img_emb(clip_fea)  # bs x 257 x dim
-                context = torch.concat([context_clip, context], dim=1)
-            context_img_len = clip_fea.shape[-2]
-
-        orig_shape = list(vace_context.shape)
-        vace_context = vace_context.movedim(0, 1).reshape([-1] + orig_shape[2:])
-        c = self.vace_patch_embedding(vace_context.float()).to(vace_context.dtype)
-        c = c.flatten(2).transpose(1, 2)
-        c = list(c.split(orig_shape[0], dim=0))
-
-        if not transformer_options:
-            raise RuntimeError("Can't access transformer_options, this requires ComfyUI nightly version from Mar 14, 2025 or later")
-
-        teacache_enabled = transformer_options.get("teacache_enabled", False)
-        if not teacache_enabled:
-            should_calc = True
-        else:
-            should_calc, cache = tea_cache(self, x, e0, e, transformer_options)
-        
-        if should_calc:
-            original_x = x.clone().detach()
-            patches_replace = transformer_options.get("patches_replace", {})
-            blocks_replace = patches_replace.get("dit", {})
-            for i, block in enumerate(self.blocks):
-                if ("double_block", i) in blocks_replace:
-                    def block_wrap(args):
-                        out = {}
-                        out["img"] = block(args["img"], context=args["txt"], e=args["vec"], freqs=args["pe"], context_img_len=context_img_len)
-                        return out
-                    out = blocks_replace[("double_block", i)]({"img": x, "txt": context, "vec": e0, "pe": freqs}, {"original_block": block_wrap, "transformer_options": transformer_options})
-                    x = out["img"]
-                else:
-                    x = block(x, e=e0, freqs=freqs, context=context, context_img_len=context_img_len)
-
-                ii = self.vace_layers_mapping.get(i, None)
-                if ii is not None:
-                    for iii in range(len(c)):
-                        c_skip, c[iii] = self.vace_blocks[ii](c[iii], x=original_x, e=e0, freqs=freqs, context=context, context_img_len=context_img_len)
-                        x += c_skip * vace_strength[iii]
-                    del c_skip
-
-            if teacache_enabled:
-                cache['previous_residual']  = (x - original_x).to(transformer_options["teacache_device"])
-          
-        # head
-        x = self.head(x, e)
-
-        # unpatchify
-        x = self.unpatchify(x, grid_sizes)
-        return x
-
-def teacache_wanvideo_forward_orig(self, x, t, context, clip_fea=None, freqs=None, transformer_options={}, **kwargs):
-        # embeddings
-        x = self.patch_embedding(x.float()).to(x.dtype)
-        grid_sizes = x.shape[2:]
-        x = x.flatten(2).transpose(1, 2)
-
-        # time embeddings
-        e = self.time_embedding(
-            sinusoidal_embedding_1d(self.freq_dim, t).to(dtype=x[0].dtype))
-        e0 = self.time_projection(e).unflatten(1, (6, self.dim))
-
-        # context
-        context = self.text_embedding(context)
-
-        context_img_len = None
-        if clip_fea is not None:
-            if self.img_emb is not None:
-                context_clip = self.img_emb(clip_fea)  # bs x 257 x dim
-                context = torch.concat([context_clip, context], dim=1)
-            context_img_len = clip_fea.shape[-2]
-
-
-        teacache_enabled = transformer_options.get("teacache_enabled", False)
-        if not teacache_enabled:
-            should_calc = True
-        else:
-            should_calc, cache = tea_cache(self, x, e0, e, transformer_options)
-        
-        if should_calc:
-            original_x = x.clone().detach()
-            patches_replace = transformer_options.get("patches_replace", {})
-            blocks_replace = patches_replace.get("dit", {})
-            for i, block in enumerate(self.blocks):
-                if ("double_block", i) in blocks_replace:
-                    def block_wrap(args):
-                        out = {}
-                        out["img"] = block(args["img"], context=args["txt"], e=args["vec"], freqs=args["pe"], context_img_len=context_img_len)
-                        return out
-                    out = blocks_replace[("double_block", i)]({"img": x, "txt": context, "vec": e0, "pe": freqs}, {"original_block": block_wrap, "transformer_options": transformer_options})
-                    x = out["img"]
-                else:
-                    x = block(x, e=e0, freqs=freqs, context=context, context_img_len=context_img_len)
-
-            if teacache_enabled:
-                cache['previous_residual']  = (x - original_x).to(transformer_options["teacache_device"])
-          
-        # head
-        x = self.head(x, e)
-
-        # unpatchify
-        x = self.unpatchify(x, grid_sizes)
-        return x
 
 class WanVideoTeaCacheKJ:
     @classmethod
@@ -888,130 +699,17 @@ class WanVideoTeaCacheKJ:
                 "coefficients": (["disabled", "1.3B", "14B", "i2v_480", "i2v_720"], {"default": "i2v_480", "tooltip": "Coefficients for rescaling the relative l1 distance, if disabled the threshold value should be about 10 times smaller than the value used with coefficients."}),
             }
         }
-    
+
     RETURN_TYPES = ("MODEL",)
     RETURN_NAMES = ("model",)
     FUNCTION = "patch_teacache"
     CATEGORY = "KJNodes/deprecated"
     DEPRECATED = True
-    DESCRIPTION = """
-Patch WanVideo model to use TeaCache. Speeds up inference by caching the output and  
-applying it instead of doing the step.  Best results are achieved by choosing the  
-appropriate coefficients for the model. Early steps should never be skipped, with too  
-aggressive values this can happen and the motion suffers. Starting later can help with that too.   
-When NOT using coefficients, the threshold value should be  
-about 10 times smaller than the value used with coefficients.  
-
-Official recommended values https://github.com/ali-vilab/TeaCache/tree/main/TeaCache4Wan2.1
-"""
+    DESCRIPTION = """DEPRECATED, use the native EasyCache or alternative custom node that's up to date instead of this."""
     EXPERIMENTAL = True
 
     def patch_teacache(self, model, rel_l1_thresh, start_percent, end_percent, cache_device, coefficients):
-        if rel_l1_thresh == 0:
-            return (model,)
-
-        if coefficients == "disabled" and rel_l1_thresh > 0.1:
-            logging.warning("Threshold value is too high for TeaCache without coefficients, consider using coefficients for better results.")
-        if coefficients != "disabled" and rel_l1_thresh < 0.1 and "1.3B" not in coefficients:
-            logging.warning("Threshold value is too low for TeaCache with coefficients, consider using higher threshold value for better results.")
-        
-        # type_str = str(type(model.model.model_config).__name__)
-        #if model.model.diffusion_model.dim == 1536:
-        #    model_type ="1.3B"
-        # else:
-        #     if "WAN21_T2V" in type_str:
-        #         model_type = "14B"
-        #     elif "WAN21_I2V" in type_str:
-        #         model_type = "i2v_480"
-        #     else:
-        #         model_type = "i2v_720" #how to detect this?
-  
-       
-        teacache_coefficients_map = {
-            "disabled": [],
-            "1.3B": [2.39676752e+03, -1.31110545e+03, 2.01331979e+02, -8.29855975e+00, 1.37887774e-01],
-            "14B": [-5784.54975374, 5449.50911966, -1811.16591783, 256.27178429, -13.02252404],
-            "i2v_480": [-3.02331670e+02, 2.23948934e+02, -5.25463970e+01, 5.87348440e+00, -2.01973289e-01],
-            "i2v_720": [-114.36346466, 65.26524496, -18.82220707, 4.91518089, -0.23412683],
-        }
-        coefficients = teacache_coefficients_map[coefficients]
-        
-        teacache_device = mm.get_torch_device() if cache_device == "main_device" else mm.unet_offload_device()
-
-        model_clone = model.clone()
-        if 'transformer_options' not in model_clone.model_options:
-            model_clone.model_options['transformer_options'] = {}
-        model_clone.model_options["transformer_options"]["rel_l1_thresh"] = rel_l1_thresh
-        model_clone.model_options["transformer_options"]["teacache_device"] = teacache_device
-        model_clone.model_options["transformer_options"]["coefficients"] = coefficients
-        diffusion_model = model_clone.get_model_object("diffusion_model")
-                
-        def outer_wrapper(start_percent, end_percent):        
-            def unet_wrapper_function(model_function, kwargs):
-                input = kwargs["input"]
-                timestep = kwargs["timestep"]
-                c = kwargs["c"]
-                sigmas = c["transformer_options"]["sample_sigmas"]
-                cond_or_uncond = kwargs["cond_or_uncond"]
-                last_step = (len(sigmas) - 1)
-             
-                matched_step_index = (sigmas == timestep[0] ).nonzero()
-                if len(matched_step_index) > 0:
-                    current_step_index = matched_step_index.item()
-                else:
-                    for i in range(len(sigmas) - 1):
-                        # walk from beginning of steps until crossing the timestep
-                        if (sigmas[i] - timestep[0]) * (sigmas[i + 1] - timestep[0]) <= 0:
-                            current_step_index = i
-                            break
-                    else:
-                        current_step_index = 0
-
-                if current_step_index == 0:
-                    if (len(cond_or_uncond) == 1 and cond_or_uncond[0] == 1) or len(cond_or_uncond) == 2:
-                        if hasattr(diffusion_model, "teacache_state"):
-                            delattr(diffusion_model, "teacache_state")
-                            logging.info("\nResetting TeaCache state")
-                
-                current_percent = current_step_index / (len(sigmas) - 1)
-                c["transformer_options"]["current_percent"] = current_percent
-                if start_percent <= current_percent <= end_percent:
-                    c["transformer_options"]["teacache_enabled"] = True
-                
-                forward_function = teacache_wanvideo_vace_forward_orig if hasattr(diffusion_model, "vace_layers") else teacache_wanvideo_forward_orig
-                context = patch.multiple(
-                    diffusion_model, 
-                    forward_orig=forward_function.__get__(diffusion_model, diffusion_model.__class__)
-                )
-
-                with context:
-                    out = model_function(input, timestep, **c)
-                    if current_step_index+1 == last_step and hasattr(diffusion_model, "teacache_state"):
-                        if len(cond_or_uncond) == 1 and cond_or_uncond[0] == 0:
-                            skipped_steps_cond = diffusion_model.teacache_state["cond"]["teacache_skipped_steps"]
-                            skipped_steps_uncond = diffusion_model.teacache_state["uncond"]["teacache_skipped_steps"]
-                            logging.info("-----------------------------------")
-                            logging.info(f"TeaCache skipped:")
-                            logging.info(f"{skipped_steps_cond} cond steps")
-                            logging.info(f"{skipped_steps_uncond} uncond step")
-                            logging.info(f"out of {last_step} steps")
-                            logging.info("-----------------------------------")
-                        elif len(cond_or_uncond) == 2:
-                            skipped_steps_cond = diffusion_model.teacache_state["uncond"]["teacache_skipped_steps"]
-                            logging.info("-----------------------------------")
-                            logging.info(f"TeaCache skipped:")
-                            logging.info(f"{skipped_steps_cond} cond steps")
-                            logging.info(f"out of {last_step} steps")
-                            logging.info("-----------------------------------")
-                        
-                    return out
-            return unet_wrapper_function
-
-        model_clone.set_model_unet_function_wrapper(outer_wrapper(start_percent=start_percent, end_percent=end_percent))
-
-        return (model_clone,)
-
-
+        return model,
 
 
 from comfy.ldm.flux.math import apply_rope
@@ -1032,26 +730,15 @@ def modified_wan_self_attention_forward(self, x, freqs, transformer_options={}):
         return q, k, v
 
     q, k, v = qkv_fn(x)
-
     q, k = apply_rope(q, k, freqs)
-
     feta_scores = get_feta_scores(q, k, self.num_frames, self.enhance_weight)
 
-    try:
-        x = comfy.ldm.modules.attention.optimized_attention(
+    x = comfy.ldm.modules.attention.optimized_attention(
             q.view(b, s, n * d),
             k.view(b, s, n * d),
             v,
             heads=self.num_heads,
             transformer_options=transformer_options,
-        )
-    except:
-        # backward compatibility for now
-        x = comfy.ldm.modules.attention.attention(
-            q.view(b, s, n * d),
-            k.view(b, s, n * d),
-            v,
-            heads=self.num_heads,
         )
 
     x = self.o(x)
@@ -1167,7 +854,7 @@ class WanVideoEnhanceAVideoKJ:
 
 try:
     from comfy.ldm.lightricks.model import apply_rotary_emb
-except:
+except ImportError:
     apply_rotary_emb = None
 
 
@@ -1250,42 +937,47 @@ class LTXVEnhanceAVideoKJ:
             model_clone.add_object_patch(f"diffusion_model.transformer_blocks.{idx}.attn1.forward", patched_attn1)
         return (model_clone,)
 
-def normalized_attention_guidance(self, query, context_positive, context_negative, transformer_options={}):
-    k_positive = self.norm_k(self.k(context_positive))
-    v_positive = self.v(context_positive)
-    k_negative = self.norm_k(self.k(context_negative))
-    v_negative = self.v(context_negative)
+def _wan_compute_attention(self, query, context, transformer_options={}):
+    k = self.norm_k(self.k(context))
+    v = self.v(context)
+    return comfy.ldm.modules.attention.optimized_attention(query, k, v, heads=self.num_heads, transformer_options=transformer_options).flatten(2)
 
-    try:
-        x_positive = comfy.ldm.modules.attention.optimized_attention(query, k_positive, v_positive, heads=self.num_heads, transformer_options=transformer_options).flatten(2)
-        x_negative = comfy.ldm.modules.attention.optimized_attention(query, k_negative, v_negative, heads=self.num_heads, transformer_options=transformer_options).flatten(2)
-    except: #backwards compatibility for now
-        x_positive = comfy.ldm.modules.attention.optimized_attention(query, k_positive, v_positive, heads=self.num_heads).flatten(2)
-        x_negative = comfy.ldm.modules.attention.optimized_attention(query, k_negative, v_negative, heads=self.num_heads).flatten(2)
+def wan_nag_attention(self, query, context_positive, nag_context, transformer_options={}):
+    x_positive = _wan_compute_attention(self, query, context_positive, transformer_options)
+    x_negative = _wan_compute_attention(self, query, nag_context, transformer_options)
+    return x_positive, x_negative
 
-    nag_guidance = x_positive * self.nag_scale - x_negative * (self.nag_scale - 1)
+def normalized_attention_guidance(self, x_positive, x_negative):
+    if self.inplace:
+        nag_guidance = x_negative.mul_(self.nag_scale - 1).neg_().add_(x_positive, alpha=self.nag_scale)
+        del x_negative
+    else:
+        nag_guidance = x_negative * (self.nag_scale - 1)
+        del x_negative
+        nag_guidance = (x_positive * self.nag_scale).sub_(nag_guidance)
 
-    norm_positive = torch.norm(x_positive, p=1, dim=-1, keepdim=True).expand_as(x_positive)
-    norm_guidance = torch.norm(nag_guidance, p=1, dim=-1, keepdim=True).expand_as(nag_guidance)
-    
-    scale = torch.nan_to_num(norm_guidance / norm_positive, nan=10.0)
+    norm_positive = torch.norm(x_positive, p=1, dim=-1, keepdim=True)
+    norm_guidance = torch.norm(nag_guidance, p=1, dim=-1, keepdim=True)
 
+    scale = norm_guidance / norm_positive
+    torch.nan_to_num_(scale, nan=10.0)
     mask = scale > self.nag_tau
+    del scale
+
     adjustment = (norm_positive * self.nag_tau) / (norm_guidance + 1e-7)
-    nag_guidance = torch.where(mask, nag_guidance * adjustment, nag_guidance)
+    del norm_positive, norm_guidance
 
-    x = nag_guidance * self.nag_alpha + x_positive * (1 - self.nag_alpha)
-    del nag_guidance
+    nag_guidance.mul_(torch.where(mask, adjustment, 1.0))
+    del mask, adjustment
 
-    return x
+    if self.inplace:
+        return nag_guidance.sub_(x_positive).mul_(self.nag_alpha).add_(x_positive)
+    else:
+        nag_guidance.mul_(self.nag_alpha)
+        return nag_guidance.add_(x_positive * (1 - self.nag_alpha))
 
 #region NAG
 def wan_crossattn_forward_nag(self, x, context, transformer_options={}, **kwargs):
-    r"""
-    Args:
-        x(Tensor): Shape [B, L1, C]
-        context(Tensor): Shape [B, L2, C]
-    """
     # Determine batch splitting and context handling
     if self.input_type == "default":
         # Single or [pos, neg] pair
@@ -1305,43 +997,35 @@ def wan_crossattn_forward_nag(self, x, context, transformer_options={}, **kwargs
     nag_context = self.nag_context
     if self.input_type == "batch":
         nag_context = nag_context.repeat(x_pos.shape[0], 1, 1)
-    try:
-        x_pos_out = normalized_attention_guidance(self, q_pos, context_pos, nag_context, transformer_options=transformer_options)
-    except: #backwards compatibility for now
-        x_pos_out = normalized_attention_guidance(self, q_pos, context_pos, nag_context)
+    del x_pos
+
+    x_positive, x_negative = wan_nag_attention(self, q_pos, context_pos, nag_context, transformer_options=transformer_options)
+    del context_pos, q_pos
+
+    x_pos_out = normalized_attention_guidance(self, x_positive, x_negative)
+    del x_positive, x_negative
 
     # Negative branch
     if x_neg is not None and context_neg is not None:
         q_neg = self.norm_q(self.q(x_neg))
         k_neg = self.norm_k(self.k(context_neg))
         v_neg = self.v(context_neg)
-        try:
-            x_neg_out = comfy.ldm.modules.attention.optimized_attention(q_neg, k_neg, v_neg, heads=self.num_heads, transformer_options=transformer_options)
-        except: #backwards compatibility for now
-            x_neg_out = comfy.ldm.modules.attention.optimized_attention(q_neg, k_neg, v_neg, heads=self.num_heads)
+        x_neg_out = comfy.ldm.modules.attention.optimized_attention(q_neg, k_neg, v_neg, heads=self.num_heads, transformer_options=transformer_options)
         x = torch.cat([x_pos_out, x_neg_out], dim=0)
     else:
         x = x_pos_out
 
     return self.o(x)
 
-
 def wan_i2v_crossattn_forward_nag(self, x, context, context_img_len, transformer_options={}, **kwargs):
-    r"""
-    Args:
-        x(Tensor): Shape [B, L1, C]
-        context(Tensor): Shape [B, L2, C]
-    """
     context_img = context[:, :context_img_len]
     context = context[:, context_img_len:]
 
-    q_img = self.norm_q(self.q(x))    
+    q_img = self.norm_q(self.q(x))
     k_img = self.norm_k_img(self.k_img(context_img))
     v_img = self.v_img(context_img)
-    try:
-        img_x = comfy.ldm.modules.attention.optimized_attention(q_img, k_img, v_img, heads=self.num_heads, transformer_options=transformer_options)
-    except: #backwards compatibility for now
-        img_x = comfy.ldm.modules.attention.optimized_attention(q_img, k_img, v_img, heads=self.num_heads)
+    img_x = comfy.ldm.modules.attention.optimized_attention(q_img, k_img, v_img, heads=self.num_heads, transformer_options=transformer_options)
+    del q_img, k_img, v_img, context_img
 
     if context.shape[0] == 2:
         x, x_real_negative = torch.chunk(x, 2, dim=0)
@@ -1349,34 +1033,33 @@ def wan_i2v_crossattn_forward_nag(self, x, context, context_img_len, transformer
     else:
         context_positive = context
         context_negative = None
-    
+
     q = self.norm_q(self.q(x))
 
-    x = normalized_attention_guidance(self, q, context_positive, self.nag_context, transformer_options=transformer_options)
+    x_positive, x_negative = wan_nag_attention(self, q, context_positive, self.nag_context, transformer_options=transformer_options)
+    del q, context_positive
+    x = normalized_attention_guidance(self, x_positive, x_negative)
+    del x_positive, x_negative
 
     if context_negative is not None:
         q_real_negative = self.norm_q(self.q(x_real_negative))
         k_real_negative = self.norm_k(self.k(context_negative))
         v_real_negative = self.v(context_negative)
-        try:
-            x_real_negative = comfy.ldm.modules.attention.optimized_attention(q_real_negative, k_real_negative, v_real_negative, heads=self.num_heads, transformer_options=transformer_options)
-        except: #backwards compatibility for now
-            x_real_negative = comfy.ldm.modules.attention.optimized_attention(q_real_negative, k_real_negative, v_real_negative, heads=self.num_heads)
+        x_real_negative = comfy.ldm.modules.attention.optimized_attention(q_real_negative, k_real_negative, v_real_negative, heads=self.num_heads, transformer_options=transformer_options)
         x = torch.cat([x, x_real_negative], dim=0)
 
-    # output
-    x = x + img_x
-    x = self.o(x)
-    return x
+    return self.o(x + img_x)
+
 
 class WanCrossAttentionPatch:
-    def __init__(self, context, nag_scale, nag_alpha, nag_tau, i2v=False, input_type="default"):
+    def __init__(self, context, nag_scale, nag_alpha, nag_tau, i2v=False, input_type="default", inplace=True):
         self.nag_context = context
         self.nag_scale = nag_scale
         self.nag_alpha = nag_alpha
         self.nag_tau = nag_tau
         self.i2v = i2v
         self.input_type = input_type
+        self.inplace = inplace
     def __get__(self, obj, objtype=None):
         # Create bound method with stored parameters
         def wrapped_attention(self_module, *args, **kwargs):
@@ -1385,12 +1068,14 @@ class WanCrossAttentionPatch:
             self_module.nag_alpha = self.nag_alpha
             self_module.nag_tau = self.nag_tau
             self_module.input_type = self.input_type
+            self_module.inplace = self.inplace
             if self.i2v:
                 return wan_i2v_crossattn_forward_nag(self_module, *args, **kwargs)
             else:
                 return wan_crossattn_forward_nag(self_module, *args, **kwargs)
         return types.MethodType(wrapped_attention, obj)
-    
+
+
 class WanVideoNAG:
     @classmethod
     def INPUT_TYPES(s):
@@ -1404,10 +1089,11 @@ class WanVideoNAG:
            },
            "optional": {
                 "input_type": (["default", "batch"], {"tooltip": "Type of the model input"}),
+                "inplace": ("BOOLEAN", {"default": False, "tooltip": "If true, modifies tensors in place to save memory. Leads to different numerical results which may change the output slightly."}),
            },
-                                                 
+
         }
-    
+
     RETURN_TYPES = ("MODEL",)
     RETURN_NAMES = ("model",)
     FUNCTION = "patch"
@@ -1415,10 +1101,10 @@ class WanVideoNAG:
     DESCRIPTION = "https://github.com/ChenDarYen/Normalized-Attention-Guidance"
     EXPERIMENTAL = True
 
-    def patch(self, model, conditioning, nag_scale, nag_alpha, nag_tau, input_type="default"):
+    def patch(self, model, conditioning, nag_scale, nag_alpha, nag_tau, input_type="default", inplace=False):
         if nag_scale == 0:
             return (model,)
-        
+
         device = mm.get_torch_device()
         dtype = mm.unet_dtype()
 
@@ -1431,12 +1117,12 @@ class WanVideoNAG:
 
         type_str = str(type(model.model.model_config).__name__)
         i2v = True if "WAN21_I2V" in type_str else False
-    
+
         for idx, block in enumerate(diffusion_model.blocks):
-            patched_attn = WanCrossAttentionPatch(context, nag_scale, nag_alpha, nag_tau, i2v, input_type=input_type).__get__(block.cross_attn, block.__class__)
-          
+            patched_attn = WanCrossAttentionPatch(context, nag_scale, nag_alpha, nag_tau, i2v, input_type=input_type, inplace=inplace).__get__(block.cross_attn, block.__class__)
+
             model_clone.add_object_patch(f"diffusion_model.blocks.{idx}.cross_attn.forward", patched_attn)
-            
+
         return (model_clone,)
     
 class SkipLayerGuidanceWanVideo:
@@ -1663,7 +1349,7 @@ class GGUFLoaderKJ(io.ComfyNode):
         model_path = folder_paths.get_full_path("unet", model_name)
         try:
             sd, extra = gguf_nodes.loader.gguf_sd_loader(model_path)
-        except:
+        except TypeError:
             sd = gguf_nodes.loader.gguf_sd_loader(model_path)
 
         if extra_model_name is not None and extra_model_name != "none":
@@ -1671,7 +1357,7 @@ class GGUFLoaderKJ(io.ComfyNode):
                 extra_model_full_path = folder_paths.get_full_path("unet", extra_model_name)
                 try:
                     extra_model, _ = gguf_nodes.loader.gguf_sd_loader(extra_model_full_path)
-                except:
+                except TypeError:
                     extra_model = gguf_nodes.loader.gguf_sd_loader(extra_model_full_path)
             elif "connector" in extra_model_name.lower():
                 extra_model_full_path = folder_paths.get_full_path("text_encoders", extra_model_name)
@@ -1711,7 +1397,7 @@ class GGUFLoaderKJ(io.ComfyNode):
 
 try:
     from torch.nn.attention.flex_attention import flex_attention, BlockMask
-except:
+except ImportError:
     flex_attention = None
     BlockMask = None
 
@@ -1889,10 +1575,9 @@ class EndRecordCUDAMemoryHistory():
         torch.cuda.memory._record_memory_history(enabled=None)
         return input, output_path
 
-
 try:
     from server import PromptServer
-except:
+except ImportError:
     PromptServer = None
 
 class VisualizeCUDAMemoryHistory():

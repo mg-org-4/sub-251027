@@ -933,6 +933,85 @@ class TreeProcessor(lark.visitors.Interpreter):
         t2 = time.monotonic_ns()
         self.__debug_end("alternate", start_result, t2 - t1)
 
+    @staticmethod
+    def _try_extract_attention(s: str) -> tuple[str, float] | None:
+        """
+        If s is entirely a single attention wrapper - (inner), (inner:W), or [inner] -
+        return (inner_content, weight). Otherwise return None.
+
+        Used for post-visit merging when a wildcard or choices construct expands to a
+        single attention that can be merged with an enclosing outer attention.
+        """
+        if not s:
+            return None
+        open_char = s[0]
+        if open_char == "(":
+            close_char = ")"
+        elif open_char == "[":
+            close_char = "]"
+        else:
+            return None
+        depth = 0
+        for i, c in enumerate(s):
+            if c == open_char:
+                depth += 1
+            elif c == close_char:
+                depth -= 1
+                if depth == 0:
+                    if i != len(s) - 1:
+                        return None  # wrapper closes before end of string -> multiple items
+                    break
+        else:
+            return None  # never fully closed
+        inner = s[1:-1]
+        if open_char == "[":
+            # Disambiguate from alternation [a|b] and scheduling [before:after:N].
+            # Both use [...] but are not attention constructs.
+            paren_depth = 0
+            bracket_depth = 0
+            top_level_pipes = 0
+            top_level_colons = 0
+            last_colon_pos = -1
+            for i, c in enumerate(inner):
+                if c == "(":
+                    paren_depth += 1
+                elif c == ")":
+                    paren_depth -= 1
+                elif c == "[":
+                    bracket_depth += 1
+                elif c == "]":
+                    bracket_depth -= 1
+                elif paren_depth == 0 and bracket_depth == 0:
+                    if c == "|":
+                        top_level_pipes += 1
+                    elif c == ":":
+                        top_level_colons += 1
+                        last_colon_pos = i
+            if top_level_pipes > 0:
+                return None  # alternation construct
+            if top_level_colons >= 2 and last_colon_pos >= 0:
+                try:
+                    float(inner[last_colon_pos + 1 :])
+                    return None  # scheduling construct: [before:after:N]
+                except ValueError:
+                    pass
+            return (inner, 0.9)
+        # Parenthesis form - scan backwards for a top-level :weight suffix
+        depth = 0
+        for i in range(len(inner) - 1, -1, -1):
+            c = inner[i]
+            if c in ")]":
+                depth += 1
+            elif c in "([":
+                depth -= 1
+            elif c == ":" and depth == 0:
+                try:
+                    w = float(inner[i + 1 :])
+                    return (inner[:i], w)
+                except ValueError:
+                    break
+        return (inner, 1.1)
+
     def attention(self, tree: lark.Tree):
         """
         Process a attention change construct in the tree and add it to the accumulated shell.
@@ -956,6 +1035,7 @@ class TreeProcessor(lark.visitors.Interpreter):
         self.log(logging.DEBUG, f"Shell attention with weight {weight}")
         current_tree = tree.children[0]
         if self.state.options.cup_merge_attention:
+            # we check while the children are attentions, in which case we merge the weights
             while isinstance(current_tree, lark.Tree) and current_tree.data == "attention":
                 # we merge the weights
                 if len(current_tree.children) == 2:
@@ -967,6 +1047,10 @@ class TreeProcessor(lark.visitors.Interpreter):
                 else:
                     inner_weight = 0.9
                 weight *= inner_weight
+                self.log(
+                    logging.DEBUG,
+                    f"Merging nested attention with weight {inner_weight}, cumulative weight now {weight}",
+                )
                 current_tree = current_tree.children[0]
             weight = math.floor(weight * 100) / 100  # we round to 2 decimals
             weight_str = f"{weight:.2f}".rstrip("0").rstrip(".")
@@ -1014,6 +1098,34 @@ class TreeProcessor(lark.visitors.Interpreter):
                 self.__result += starttag
                 self.__visit(current_tree)
                 endtag = f":{weight_str})"
+            # Post-visit merge: if the entire visited content is a single attention wrapper
+            # (e.g. from a wildcard or choices expansion), merge weights here.
+            # The static tree-walk above only covers direct attention children; this
+            # handles the case where the inner attention came from an expanded wildcard.
+            if self.state.options.cup_merge_attention:
+                visited_content = self.__result[len(start_result) + len(starttag) :]
+                merge = TreeProcessor._try_extract_attention(visited_content)
+                if merge is not None:
+                    inner_content, inner_weight = merge
+                    weight = math.floor(weight * inner_weight * 100) / 100
+                    self.log(
+                        logging.DEBUG,
+                        f"Merging nested attention with weight {inner_weight}, cumulative weight now {weight}",
+                    )
+                    weight_str = f"{weight:.2f}".rstrip("0").rstrip(".")
+                    if weight_str == "1.1":
+                        weight_kind = 2
+                        starttag = "("
+                        endtag = ")"
+                    elif weight_str == "0.9" and attention_processing != "parentheses":
+                        weight_kind = 1
+                        starttag = "["
+                        endtag = "]"
+                    else:
+                        weight_kind = 3
+                        starttag = "("
+                        endtag = f":{weight_str})"
+                    self.__result = start_result + starttag + inner_content
             if self.state.options.cup_empty_constructs and re.fullmatch(
                 re.escape(start_result + starttag) + r"\s*", self.__result
             ):
@@ -1229,6 +1341,11 @@ class TreeProcessor(lark.visitors.Interpreter):
                 if newvalue is None:
                     self.warn_or_stop(
                         f"Invalid use of starred value for '{escape_single_quotes(variable_name)}'! Starred values can only be assigned or added to unindexed array variables."
+                    )
+                    newvalue = ""
+                elif not isinstance(newvalue, list):
+                    self.warn_or_stop(
+                        f"Invalid starred value for '{escape_single_quotes(variable_name)}'! Starred values should be a list."
                     )
                     newvalue = ""
             if is_array:
@@ -1644,7 +1761,7 @@ class TreeProcessor(lark.visitors.Interpreter):
         choice_values: list[dict],
         filter_specifier: Optional[list[list[str]]] = None,
         wildcard_key: str = None,
-    ) -> tuple[str, list[str], str, str]:
+    ) -> tuple[lark.Tree, list[str]]:
         """
         Select choices based on the options.
 
@@ -1655,7 +1772,7 @@ class TreeProcessor(lark.visitors.Interpreter):
             wildcard_key (str): The wildcard key if it is a wildcard.
 
         Returns:
-            tuple: A tuple containing the prefix, selected choices, separator and suffix
+            tuple[lark.Tree,list[str]]: The resulting container and list of chosen choices.
         """
         seen_wildcards_len = len(self.__seen_wildcards)
         if options is None:
@@ -1772,13 +1889,6 @@ class TreeProcessor(lark.visitors.Interpreter):
             if self.state.options.keep_choices_order:
                 selected_choices = sorted(selected_choices, key=lambda x: x["choice_index"])
             selected_choices_text = []
-            prefix: str = (
-                self.__visit(options.get("prefix", None), False, True)
-                if options.get("prefix", None) is not None
-                else ""
-            )
-            if prefix != "" and re.match(r"\w", prefix[-1]):
-                prefix += " "
             for i, c in enumerate(selected_choices):
                 t1 = time.monotonic_ns()
                 choice_content_obj = c.get("content", c.get("text", None))
@@ -1793,26 +1903,55 @@ class TreeProcessor(lark.visitors.Interpreter):
                     + textwrap.indent(re.sub(r"\n$", "", choice_content), "    "),
                 )
                 selected_choices_text.append(choice_content)
-            suffix: str = (
-                self.__visit(options.get("suffix", None), False, True)
-                if options.get("suffix", None) is not None
-                else ""
-            )
-            if suffix != "" and re.match(r"\w", suffix[0]):
-                suffix = " " + suffix
             # remove comments
             results = [re.sub(r"\s*#[^\n]*(?:\n|$)", "", r, flags=re.DOTALL) for r in selected_choices_text]
         else:
-            prefix = ""
-            suffix = ""
             results = []
+        container = options.get("container", None)
+        if container is None:
+            separator = options.get("separator", self.state.options.choice_separator)
+            container = lark.Tree(
+                lark.Token("RULE", "content"),
+                [
+                    lark.Tree(
+                        lark.Token("RULE", "variableuse"),
+                        [
+                            lark.Tree(
+                                lark.Token("RULE", "vardescriptor_get"),
+                                [
+                                    lark.Token("__identifier", "_choices"),
+                                    lark.Token("__openbracket", "["),
+                                    lark.Tree(
+                                        lark.Token("RULE", "separator_descriptor"),
+                                        [
+                                            lark.Token("__separatorflag", "&"),
+                                            lark.Token("STRING", "'" + separator + "'"),
+                                        ],
+                                    ),
+                                    lark.Token("__closebracket", "]"),
+                                ],
+                            ),
+                            None,
+                        ],
+                    ),
+                ],
+            )
         self.log(
             logging.DEBUG,
             "Unseen wildcards: "
             + ", ".join([f"'{escape_single_quotes(x)}'" for x in self.__seen_wildcards[seen_wildcards_len:]]),
         )
         self.__seen_wildcards = self.__seen_wildcards[:seen_wildcards_len]
-        return (prefix, results, separator, suffix)
+        return container, results
+
+    def __apply_container(self, container: lark.Tree, choices: list[str]) -> str:
+        # we save the choices variable in case there are nested choices
+        old_choices = self.state.variables.get_system("_choices[]", None)
+        self.state.variables.set_system("_choices[]", choices)
+        joined_results = self.__visit(container, False, True)
+        # we restore the old choices variable
+        self.state.variables.set_system("_choices[]", old_choices)
+        return joined_results
 
     def __convert_choices_options(self, options: Optional[lark.Tree], is_wcdef: bool = False) -> dict:
         """
@@ -1967,26 +2106,38 @@ class TreeProcessor(lark.visitors.Interpreter):
         if isinstance(wildcard.unprocessed_choices[0], dict):
             if self.state.wildcards_obj.is_dict_wcdef_options(wildcard.unprocessed_choices[0]):
                 options = wildcard.unprocessed_choices[0]
-                prefix = options.get("prefix", None)
-                if prefix is not None and isinstance(prefix, str):
+                container = options.get("container", None)
+                container_kind = "specified"
+                if container is None or not isinstance(container, str):
+                    container_kind = "assembled"
+                    has_separator = "separator" in options
+                    has_prefix = "prefix" in options
+                    has_suffix = "suffix" in options
+                    if has_separator or has_prefix or has_suffix:
+                        separator = options.get("separator", self.state.options.choice_separator)
+                        container = "${_choices[&'" + separator + "']}"
+                        prefix = options.get("prefix", None)
+                        if prefix is not None and isinstance(prefix, str):
+                            if prefix != "" and re.match(r"\w", prefix[-1]):
+                                prefix += " "
+                            container = prefix + container
+                        suffix = options.get("suffix", None)
+                        if suffix is not None and isinstance(suffix, str):
+                            if suffix != "" and re.match(r"\w", suffix[0]):
+                                suffix = " " + suffix
+                            container += suffix
+                    options.pop("separator", None)
+                    options.pop("prefix", None)
+                    options.pop("suffix", None)
+                    options.pop("container", None)
+                if container is not None:
                     try:
-                        options["prefix"] = parse_prompt(
-                            self.state, "choicevalue", prefix, self.state.parsers["choicevalue"], True
+                        options["container"] = parse_prompt(
+                            self.state, "choicevalue", container, self.state.parsers["choicevalue"], True
                         )
                     except lark.exceptions.UnexpectedInput as e:
                         self.warn_or_stop(
-                            f"Error parsing choice prefix '{escape_single_quotes(prefix)}' in wildcard '{escape_single_quotes(wildcard.key)}'! : {e.__class__.__name__}",
-                            e,
-                        )
-                suffix = options.get("suffix", None)
-                if suffix is not None and isinstance(suffix, str):
-                    try:
-                        options["suffix"] = parse_prompt(
-                            self.state, "choicevalue", suffix, self.state.parsers["choicevalue"], True
-                        )
-                    except lark.exceptions.UnexpectedInput as e:
-                        self.warn_or_stop(
-                            f"Error parsing choice suffix '{escape_single_quotes(suffix)}' in wildcard '{escape_single_quotes(wildcard.key)}'! : {e.__class__.__name__}",
+                            f"Error parsing choice {container_kind} container '{escape_single_quotes(container)}' in wildcard '{escape_single_quotes(wildcard.key)}'! : {e.__class__.__name__}",
                             e,
                         )
                 n = 1
@@ -2110,11 +2261,11 @@ class TreeProcessor(lark.visitors.Interpreter):
                             logging.DEBUG, f"Options for wildcard '{escape_single_quotes(wildcard.key)}' are ignored!"
                         )
                 choice_values_all += choice_values
-            prefix, chosen_choices, separator, suffix = self.__get_choices_select(
+            container, chosen_choices = self.__get_choices_select(
                 applied_options, choice_values_all, filter_specifier, wildcard_key
             )
             if chosen_choices:
-                self.__result += prefix + separator.join(chosen_choices) + suffix
+                self.__result += self.__apply_container(container, chosen_choices)
             if wildcard_key in self.__wildcard_filters:
                 del self.__wildcard_filters[wildcard_key]
             if variablename is not None:
@@ -2139,17 +2290,35 @@ class TreeProcessor(lark.visitors.Interpreter):
         self.__process_wildcard(tree)
 
     def __extract_filter_specifiers(self, filters: lark.Tree) -> list[list[str]]:
+        if (
+            len(filters.children) == 1
+            and len(filters.children[0].children) == 1
+            and isinstance(filters.children[0].children[0], lark.Tree)
+        ):
+            # special case when the whole filter is in a variable
+            # note that an individual label in a variable will also come through here
+            f = self.__visit(filters.children[0].children[0], False, True)
+            filters = parse_prompt(
+                self.state,
+                "filter specifier",
+                str(f),
+                self.state.parsers["wc_filter_or"],
+                True,
+            )
         filter_specifier = []
         for or_ in filters.children:
+            and_group = []
             for and_ in or_.children:
                 label = and_.children[0]
                 if isinstance(label, lark.Token):
                     # it's a literal, we can use it directly
-                    filter_specifier.append([str(label)])
+                    and_group.append(str(label))
                 else:
                     # it's a variable, we need to evaluate it
                     v = self.__visit(label, False, True)
-                    filter_specifier.append([v])
+                    # we remove commas and pluses to avoid confusion with the filter specifier syntax
+                    and_group.append(v.replace(",", "").replace("+", ""))
+            filter_specifier.append(and_group)
         return filter_specifier
 
     def choices(self, tree: lark.Tree):
@@ -2163,9 +2332,8 @@ class TreeProcessor(lark.visitors.Interpreter):
         ch = self.__get_original_node_content(tree, "?{...}")
         if self.state.options.process_wildcards:
             self.log(logging.DEBUG, "Processing choices:")
-            prefix, chosen_choices, separator, suffix = self.__get_choices_select(options, choice_values)
-            if chosen_choices:
-                self.__result += prefix + separator.join(chosen_choices) + suffix
+            container, chosen_choices = self.__get_choices_select(options, choice_values)
+            self.__result += self.__apply_container(container, chosen_choices)
         elif self.state.options.if_wildcards != IFWILDCARDS_CHOICES.remove:
             self.__detectedWildcards.append((ch, self.__is_negative))
             self.__result += ch

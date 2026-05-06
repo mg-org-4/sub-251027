@@ -37,6 +37,20 @@ yaml:
     - <lora:test2:1>
     - <lora:test3:1>
 
+  wildcardAt:
+    - (choice1:0.5)
+    - (choice2:1.5)
+    - (choice3:1)
+
+  wildcardAtBracket:
+    - "[the content]"
+
+  wildcardAlt:
+    - "[cat|dog]"
+
+  wildcardSched:
+    - "[cat:dog:0.5]"
+
   wildcardPS:
     - {
         sampler: "~",
@@ -46,6 +60,24 @@ yaml:
         prefix: "prefix{1|2}-",
         suffix: "-suffix",
         separator: "/",
+      }
+    - { weight: 3, text: choice1 }
+    - { weight: 2, text: choice2 }
+    - { weight: 1, text: choice3 }
+
+  wildcardPS2:
+    - {
+        prefix: "(prefix{1|2}-",
+        suffix: "-suffix:1.5)",
+      }
+    - { text: choice1 }
+    - { text: choice2 }
+    - { text: choice3 }
+  
+  wildcardContainer:
+    - {
+        count: 2,
+        container: "(prefix{1|2}-${_choices[&'/']}-suffix:1.5)",
       }
     - { weight: 3, text: choice1 }
     - { weight: 2, text: choice2 }

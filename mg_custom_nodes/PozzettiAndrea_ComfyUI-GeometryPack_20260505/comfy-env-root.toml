@@ -1,3 +1,0 @@
-[env_vars]
-KMP_DUPLICATE_LIB_OK = "TRUE"
-OMP_NUM_THREADS = 1

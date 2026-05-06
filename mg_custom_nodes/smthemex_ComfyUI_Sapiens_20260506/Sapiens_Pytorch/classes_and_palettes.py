@@ -1,6 +1,7 @@
 ORIGINAL_GOLIATH_CLASSES = (
     "Background",
     "Apparel",
+    "Eyeglass",
     "Chair",
     "Eyeglass_Frame",
     "Eyeglass_Lenses",
@@ -38,6 +39,7 @@ ORIGINAL_GOLIATH_CLASSES = (
 ORIGINAL_GOLIATH_PALETTE = [
     [50, 50, 50],
     [255, 218, 0],
+    [14, 204, 182],
     [102, 204, 0],
     [14, 0, 204],
     [0, 204, 160],
@@ -95,6 +97,38 @@ GOLIATH_PALETTE = [
 GOLIATH_CLASSES_FIX = (
     "0.Background",
     "1.Apparel",
+    "2.Eyeglass",
+    "3.Face_Neck",
+    "4.Hair",
+    "5.Left_Foot",
+    "6.Left_Hand",
+    "7.Left_Lower_Arm",
+    "8.Left_Lower_Leg",
+    "9.Left_Shoe",
+    "10.Left_Sock",
+    "11.Left_Upper_Arm",
+    "12.Left_Upper_Leg",
+    "13.Lower_Clothing",
+    "14.Right_Foot",
+    "15.Right_Hand",
+    "16.Right_Lower_Arm",
+    "17.Right_Lower_Leg",
+    "18.Right_Shoe",
+    "19.Right_Sock",
+    "20.Right_Upper_Arm",
+    "21.Right_Upper_Leg",
+    "22.Torso",
+    "23.Upper_Clothing",
+    "24.Lower_Lip",
+    "25.Upper_Lip",
+    "26.Lower_Teeth",
+    "27.Upper_Teeth",
+    "28.Tongue",
+)
+
+GOLIATH_CLASSES_FIX_ = (
+    "0.Background",
+    "1.Apparel",
     "2.Face_Neck",
     "3.Hair",
     "4.Left_Foot",
@@ -122,4 +156,3 @@ GOLIATH_CLASSES_FIX = (
     "26.Upper_Teeth",
     "27.Tongue",
 )
-

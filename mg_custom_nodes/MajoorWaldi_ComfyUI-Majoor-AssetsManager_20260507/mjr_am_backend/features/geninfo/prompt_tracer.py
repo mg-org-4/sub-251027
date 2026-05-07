@@ -1,0 +1,736 @@
+"""Prompt tracing helpers extracted from parser.py."""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+
+from ...shared import get_logger
+from .graph_converter import (
+    _collect_upstream_nodes,
+    _inputs,
+    _is_link,
+    _lower,
+    _node_type,
+    _walk_passthrough,
+)
+from .parser_impl import (
+    DEFAULT_MAX_LINK_NODES,
+    _collect_text_encoder_nodes_from_conditioning,
+    _first_prompt_field,
+    _guidance_should_expand,
+    _iter_guidance_conditioning_sources,
+    _looks_like_prompt_string,
+)
+from .sampler_tracer import _scalar
+
+logger = get_logger(__name__)
+
+
+def _clean_text_fragment(value: Any) -> str:
+    return str(value).strip() if isinstance(value, str) else ""
+
+
+def _join_text_fragments(parts: list[str], separator: str = "") -> str | None:
+    filtered = [part for part in (_clean_text_fragment(item) for item in parts) if part]
+    if not filtered:
+        return None
+    return separator.join(filtered).strip() or None
+
+
+def _resolve_text_value(nodes_by_id: dict[str, dict[str, Any]], value: Any, memo: set[str]) -> str | None:
+    if isinstance(value, str):
+        return value or None
+    if _is_link(value):
+        resolved = _resolve_scalar_from_link(nodes_by_id, value, memo)
+        if isinstance(resolved, str):
+            return resolved or None
+    return None
+
+
+def _resolve_string_concatenate_node(
+    nodes_by_id: dict[str, dict[str, Any]], ins: dict[str, Any], widgets: Any, memo: set[str]
+) -> str | None:
+    separator = ""
+    delimiter = ins.get("delimiter")
+    if isinstance(delimiter, str):
+        separator = delimiter
+    elif _is_link(delimiter):
+        resolved = _resolve_text_value(nodes_by_id, delimiter, memo)
+        if resolved:
+            separator = resolved
+    elif isinstance(widgets, list) and len(widgets) > 2 and isinstance(widgets[2], str):
+        separator = widgets[2]
+    part_a = _resolve_text_value(nodes_by_id, ins.get("string_a"), memo)
+    part_b = _resolve_text_value(nodes_by_id, ins.get("string_b"), memo)
+    a = part_a if part_a is not None else ""
+    b = part_b if part_b is not None else ""
+    result = a + separator + b
+    return result or None
+
+
+def _resolve_string_replace_node(
+    nodes_by_id: dict[str, dict[str, Any]], ins: dict[str, Any], memo: set[str]
+) -> str | None:
+    base = _resolve_text_value(nodes_by_id, ins.get("string"), memo)
+    find_value = _resolve_text_value(nodes_by_id, ins.get("find"), memo)
+    replace_value = _resolve_text_value(nodes_by_id, ins.get("replace"), memo)
+    if base is None:
+        return None
+    if find_value in (None, ""):
+        return base
+    return base.replace(find_value or "", replace_value or "")
+
+
+def _coerce_switch_enabled(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in ("true", "1", "yes", "on"):
+            return True
+        if text in ("false", "0", "no", "off"):
+            return False
+    return None
+
+
+def _resolve_switch_node(
+    nodes_by_id: dict[str, dict[str, Any]], ins: dict[str, Any], memo: set[str]
+) -> str | None:
+    enabled = _coerce_switch_enabled(_resolve_scalar_from_field(nodes_by_id, ins, "switch", memo))
+    if enabled is True:
+        return _resolve_text_value(nodes_by_id, ins.get("on_true"), memo)
+    if enabled is False:
+        return _resolve_text_value(nodes_by_id, ins.get("on_false"), memo)
+    return _resolve_text_value(nodes_by_id, ins.get("on_true"), memo) or _resolve_text_value(
+        nodes_by_id, ins.get("on_false"), memo
+    )
+
+
+def _resolve_preview_text(ins: dict[str, Any]) -> str | None:
+    for key in ("preview_text", "preview_markdown", "text_0", "string_0", "STRING", "result", "output"):
+        value = ins.get(key)
+        if isinstance(value, str) and _looks_like_prompt_string(value):
+            return value.strip()
+    return None
+
+def _resolve_pysssss_string_function_node(
+    nodes_by_id: dict[str, dict[str, Any]], ins: dict[str, Any], widgets: Any, memo: set[str]
+) -> str | None:
+    widgets_list = widgets if isinstance(widgets, list) else []
+    action = "append"
+    action_from_ins = ins.get("action")
+    if isinstance(action_from_ins, str):
+        action = action_from_ins.strip().lower()
+    elif widgets_list and isinstance(widgets_list[0], str):
+        action = widgets_list[0].strip().lower()
+    tidy_tags = False
+    tidy_from_ins = ins.get("tidy_tags")
+    if isinstance(tidy_from_ins, str):
+        tidy_tags = tidy_from_ins.strip().lower() == "yes"
+    elif len(widgets_list) > 1 and isinstance(widgets_list[1], str):
+        tidy_tags = widgets_list[1].strip().lower() == "yes"
+    part_a = _resolve_text_value(nodes_by_id, ins.get("text_a"), memo) or ""
+    part_b = _resolve_text_value(nodes_by_id, ins.get("text_b"), memo) or ""
+    part_c = _resolve_text_value(nodes_by_id, ins.get("text_c"), memo) or ""
+    out = ""
+    if action == "append":
+        parts = [p for p in [part_a, part_b, part_c] if p]
+        out = ", ".join(parts)
+    else:
+        if part_c is None:
+            part_c = ""
+        if part_b.startswith("/") and part_b.endswith("/"):
+            try:
+                regex = part_b[1:-1]
+                out = re.sub(regex, part_c, part_a)
+            except re.error:
+                out = part_a.replace(part_b, part_c)
+        else:
+            out = part_a.replace(part_b, part_c)
+    if tidy_tags:
+        out = re.sub(r"\s{2,}", " ", out)
+        out = re.sub(r"\s*,\s*", ", ", out)
+        out = re.sub(r",{2,}", ",", out)
+        out = out.strip()
+    return out if out else None
+
+def _resolve_ereprompt_node(
+    nodes_by_id: dict[str, dict[str, Any]], ins: dict[str, Any], widgets: Any, memo: set[str]
+) -> str | None:
+    prefix = _resolve_text_value(nodes_by_id, ins.get("prefix"), memo)
+    text = _resolve_text_value(nodes_by_id, ins.get("text"), memo)
+    if text is None and isinstance(widgets, list) and len(widgets) > 0:
+        text = widgets[0] if isinstance(widgets[0], str) else None
+    if prefix and text:
+        return f"{prefix}, {text}"
+    elif prefix:
+        return prefix or None
+    elif text:
+        return text or None
+    else:
+        return None
+
+def _resolve_triggerword_toggle_node(
+    ins: dict[str, Any], widgets: Any
+) -> str | None:
+    active_words = []
+    trigger_data = ins.get("toggle_trigger_words", {})
+    if isinstance(trigger_data, dict) and "__value__" in trigger_data:
+        trigger_list = trigger_data["__value__"]
+    elif isinstance(widgets, list) and len(widgets) > 3:
+        trigger_list = widgets[3]
+    else:
+        trigger_list = None
+    if isinstance(trigger_list, list):
+        for item in trigger_list:
+            if isinstance(item, dict) and item.get("active"):
+                active_words.append(str(item.get("text")))
+    return _join_text_fragments(active_words, ", ")
+
+def _resolve_lora_stacker_node(
+    ins: dict[str, Any], widgets: Any
+) -> str | None:
+    active_loras = []
+    lora_data = ins.get("loras", {})
+    if isinstance(lora_data, dict) and "__value__" in lora_data:
+        lora_list = lora_data["__value__"]
+    elif isinstance(widgets, list) and len(widgets) > 2:
+        lora_list = widgets[2]
+    else:
+        lora_list = None
+    if isinstance(lora_list, list):
+        for item in lora_list:
+            if isinstance(item, dict) and item.get("active"):
+                name = item.get("name")
+                strength = item.get("strength")
+                if name and strength is not None:
+                    active_loras.append(f"<lora:{name}:{strength}>")
+    return _join_text_fragments(active_loras, " ") or ""
+
+def _resolve_text_generate_node(
+    nodes_by_id: dict[str, dict[str, Any]], ins: dict[str, Any], memo: set[str]
+) -> str | None:
+    """
+    TextGenerate is an LLM prompt-enhancer (e.g. Ernie Image).  Its ``prompt``
+    input is typically a system-prompt template processed through a chain of
+    StringReplace nodes that substitute ``{prompt}``, ``{width}``, ``{height}``.
+
+    We trace the StringReplace chain upstream to extract the *original* user
+    prompt (the ``replace`` value whose ``find`` matches ``{prompt}``), rather
+    than the LLM-enhanced output.
+    """
+    prompt_val = ins.get("prompt")
+    if isinstance(prompt_val, str) and prompt_val.strip():
+        return prompt_val.strip()
+    if not _is_link(prompt_val):
+        return None
+    user_prompt = _trace_user_prompt_in_replace_chain(nodes_by_id, prompt_val, memo)
+    if user_prompt:
+        return user_prompt
+    return _resolve_text_value(nodes_by_id, prompt_val, memo)
+
+
+def _trace_user_prompt_in_replace_chain(
+    nodes_by_id: dict[str, dict[str, Any]], link: Any, memo: set[str], max_hops: int = 10
+) -> str | None:
+    """
+    Follow a chain of StringReplace nodes upstream from *link*.  When one has a
+    ``find`` value containing the word ``prompt`` (e.g. ``{prompt}``), return
+    the resolved ``replace`` value — that is the user's original prompt text.
+    """
+    current_link = link
+    for _ in range(max_hops):
+        src_id = _walk_passthrough(nodes_by_id, current_link)
+        if not src_id or src_id in memo:
+            break
+        node = nodes_by_id.get(src_id)
+        if not isinstance(node, dict):
+            break
+        ct = _lower(_node_type(node))
+        if ct != "stringreplace":
+            break
+        node_ins = _inputs(node)
+        find_val = node_ins.get("find")
+        if isinstance(find_val, str) and "prompt" in find_val.lower():
+            return _resolve_text_value(nodes_by_id, node_ins.get("replace"), memo | {src_id})
+        string_link = node_ins.get("string")
+        if _is_link(string_link):
+            current_link = string_link
+            continue
+        break
+    return None
+
+
+def _resolve_composed_string_from_node(
+    nodes_by_id: dict[str, dict[str, Any]], node: dict[str, Any], memo: set[str]
+) -> str | None:
+    ct = _lower(_node_type(node))
+    ins = _inputs(node)
+    widgets = node.get("widgets_values")
+    if ct == "textgenerate":
+        return _resolve_text_generate_node(nodes_by_id, ins, memo)
+    preview_text = _resolve_preview_text(ins)
+    if preview_text is not None:
+        return preview_text
+    if ct == "stringconcatenate":
+        return _resolve_string_concatenate_node(nodes_by_id, ins, widgets, memo)
+    if ct == "stringreplace":
+        return _resolve_string_replace_node(nodes_by_id, ins, memo)
+    if "switch" in ct:
+        return _resolve_switch_node(nodes_by_id, ins, memo)
+    if ct == "stringfunction|pysssss":
+        return _resolve_pysssss_string_function_node(nodes_by_id, ins, widgets, memo)
+    if "ereprompt" in ct:
+        return _resolve_ereprompt_node(nodes_by_id, ins, widgets, memo)
+    if "triggerword toggle" in ct:
+        return _resolve_triggerword_toggle_node(ins, widgets)
+    if "lora stacker" in ct or "lora loader" in ct:
+        return _resolve_lora_stacker_node(ins, widgets)
+    return None
+
+def _collect_texts_from_conditioning(
+    nodes_by_id: dict[str, dict[str, Any]], start_link: Any, max_nodes: int = DEFAULT_MAX_LINK_NODES, branch: str | None = None
+) -> list[tuple[str, str]]:
+    """
+    Collect prompt text fragments from a conditioning link, returning (text, source).
+    Deterministic order; never invents text when none is present.
+    """
+    node_ids = _collect_text_encoder_nodes_from_conditioning(nodes_by_id, start_link, max_nodes=max_nodes, branch=branch)
+    out: list[tuple[str, str]] = []
+    for nid in node_ids:
+        node = nodes_by_id.get(nid)
+        if not isinstance(node, dict):
+            continue
+        ins = _inputs(node)
+        candidates: list[str] = []
+        for key in ("text", "prompt", "text_g", "text_l", "instruction"):
+            v = ins.get(key)
+            if isinstance(v, str) and v.strip():
+                candidates.append(v.strip())
+            elif _is_link(v):
+                # Check cached output text on the destination node first (e.g. ShowText|pysssss
+                # stores its output as text_0). This avoids following deeper links that may
+                # resolve to unrelated scalars (like seed values) on intermediate nodes.
+                cached = _extract_cached_text_from_linked_node(nodes_by_id, v)
+                if cached:
+                    candidates.append(cached)
+                    continue
+                resolved = _resolve_scalar_from_link(nodes_by_id, v)
+                if _looks_like_prompt_string(resolved):
+                    candidates.append(str(resolved).strip())
+        if candidates:
+            out.append(("\n".join(candidates), f"{_node_type(node)}:{nid}"))
+    return out
+
+
+def _extract_cached_text_from_linked_node(
+    nodes_by_id: dict[str, Any], link: Any
+) -> str | None:
+    """
+    Return cached output text from a display/preview node (e.g. ShowText|pysssss).
+    ComfyUI display nodes store their run-time output as ``text_0``, ``string_0``, etc.
+    Only returns text that passes the prompt-string heuristic.
+    """
+    dest_id = _walk_passthrough(nodes_by_id, link)
+    if not dest_id:
+        return None
+    dest_node = nodes_by_id.get(dest_id)
+    if not isinstance(dest_node, dict):
+        return None
+    dest_ins = _inputs(dest_node)
+    cached = _resolve_preview_text(dest_ins)
+    if cached:
+        return cached
+    composed = _resolve_composed_string_from_node(nodes_by_id, dest_node, {dest_id})
+    if _looks_like_prompt_string(composed):
+        return str(composed).strip()
+    return None
+
+
+
+def _extract_prompt_from_conditioning(nodes_by_id: dict[str, Any], link: Any, branch: str | None = None) -> tuple[str, str] | None:
+    if not _is_link(link):
+        return None
+    items = _collect_texts_from_conditioning(nodes_by_id, link, branch=branch)
+    return _source_from_items(items)
+
+
+
+def _source_from_items(items: list[tuple[str, str]]) -> tuple[str, str] | None:
+    if not items:
+        return None
+    text = "\n".join([t for t, _ in items]).strip()
+    if not text:
+        return None
+    sources = [s for _, s in items]
+    source = sources[0] if len(set(sources)) <= 1 else f"{sources[0]} (+{len(sources)-1})"
+    return text, source
+
+
+
+def _extract_prompt_trace(
+    nodes_by_id: dict[str, Any],
+    sampler_node: dict[str, Any],
+    sampler_id: str,
+    ins: dict[str, Any],
+    advanced: bool,
+) -> dict[str, Any]:
+    trace: dict[str, Any] = {
+        "pos_val": None,
+        "neg_val": None,
+        "conditioning_link": None,
+        "guider_cfg_value": None,
+        "guider_cfg_source": None,
+        "guider_model_link": None,
+    }
+
+    sampler_ct = _lower(_node_type(sampler_node))
+    _apply_direct_sampler_prompt_hints(trace, sampler_node, sampler_id, ins, sampler_ct)
+    _apply_embed_prompt_hints(trace, nodes_by_id, ins)
+    _apply_conditioning_prompt_hints(trace, nodes_by_id, ins)
+    if advanced and _is_link(ins.get("guider")):
+        _apply_advanced_guider_prompt_trace(nodes_by_id, ins.get("guider"), trace)
+    _apply_prompt_text_fallback(trace, sampler_node, sampler_id, ins)
+
+    return trace
+
+
+
+def _apply_direct_sampler_prompt_hints(
+    trace: dict[str, Any],
+    sampler_node: dict[str, Any],
+    sampler_id: str,
+    ins: dict[str, Any],
+    sampler_ct: str,
+) -> None:
+    if "instruction" in sampler_ct and "qwen" in sampler_ct:
+        prompt_value = ins.get("instruction") or ins.get("text")
+        if isinstance(prompt_value, str) and prompt_value.strip():
+            trace["pos_val"] = (prompt_value.strip(), f"{_node_type(sampler_node)}:{sampler_id}:instruction")
+    if "flux" in sampler_ct and "trainer" in sampler_ct:
+        prompt_value = ins.get("prompt")
+        if isinstance(prompt_value, str) and prompt_value.strip():
+            trace["pos_val"] = (prompt_value.strip(), f"{_node_type(sampler_node)}:{sampler_id}:prompt")
+
+
+
+def _apply_embed_prompt_hints(trace: dict[str, Any], nodes_by_id: dict[str, Any], ins: dict[str, Any]) -> None:
+    if not (_is_link(ins.get("text_embeds")) or _is_link(ins.get("hyvid_embeds"))):
+        return
+    embeds_link = ins.get("text_embeds") or ins.get("hyvid_embeds")
+    pos_embed, neg_embed = _extract_posneg_from_text_embeds(nodes_by_id, embeds_link)
+    trace["pos_val"] = trace["pos_val"] or pos_embed
+    trace["neg_val"] = trace["neg_val"] or neg_embed
+
+
+
+def _extract_posneg_from_text_embeds(
+    nodes_by_id: dict[str, dict[str, Any]], text_embeds_link: Any
+) -> tuple[tuple[str, str] | None, tuple[str, str] | None]:
+    """
+    Wan/video stacks often encode prompts into "text_embeds" via nodes like
+    WanVideoTextEncode which keep positive/negative as plain string inputs.
+    """
+    src_id = _walk_passthrough(nodes_by_id, text_embeds_link)
+    if not src_id:
+        return None, None
+    node = nodes_by_id.get(src_id)
+    if not isinstance(node, dict):
+        return None, None
+    ins = _inputs(node)
+
+    def _get_str(*keys: str) -> str | None:
+        for k in keys:
+            v = ins.get(k)
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+        return None
+
+    # WanVideoTextEncode uses 'positive_prompt'/'negative_prompt'
+    # HyVideoTextEncode uses 'prompt'
+    pos = _get_str("positive", "prompt", "text", "text_g", "text_l", "positive_prompt")
+    neg = _get_str("negative", "negative_prompt")
+
+    pos_val = (pos, f"{_node_type(node)}:{src_id}") if pos else None
+    neg_val = (neg, f"{_node_type(node)}:{src_id}") if neg else None
+    return pos_val, neg_val
+
+
+
+def _apply_conditioning_prompt_hints(trace: dict[str, Any], nodes_by_id: dict[str, Any], ins: dict[str, Any]) -> None:
+    if _is_link(ins.get("positive")):
+        extracted = _extract_prompt_from_conditioning(nodes_by_id, ins.get("positive"), branch="positive")
+        if extracted:
+            trace["pos_val"] = extracted
+        trace["conditioning_link"] = ins.get("positive")
+    if _is_link(ins.get("negative")):
+        extracted = _extract_prompt_from_conditioning(nodes_by_id, ins.get("negative"), branch="negative")
+        if extracted:
+            trace["neg_val"] = extracted
+
+
+
+def _apply_advanced_guider_prompt_trace(
+    nodes_by_id: dict[str, Any],
+    guider_link: Any,
+    trace: dict[str, Any],
+) -> None:
+    guider_id = _walk_passthrough(nodes_by_id, guider_link)
+    guider_node = nodes_by_id.get(guider_id) if guider_id else None
+    if not isinstance(guider_node, dict):
+        return
+
+    gins = _inputs(guider_node)
+    _apply_guider_conditioning_prompt_hints(nodes_by_id, gins, trace)
+    _apply_guider_positive_prompt_hints(nodes_by_id, gins, trace)
+    _apply_guider_negative_prompt_hints(nodes_by_id, gins, trace)
+
+    cfg_val = _scalar(gins.get("cfg")) or _scalar(gins.get("cfg_scale")) or _scalar(gins.get("guidance"))
+    if cfg_val is not None:
+        trace["guider_cfg_value"] = cfg_val
+        trace["guider_cfg_source"] = f"{_node_type(guider_node)}:{guider_id}"
+    else:
+        found_guidance = _trace_guidance_value(nodes_by_id, gins.get("conditioning"))
+        if found_guidance:
+            trace["guider_cfg_value"], trace["guider_cfg_source"] = found_guidance
+
+    if _is_link(gins.get("model")):
+        trace["guider_model_link"] = gins.get("model")
+
+
+
+def _apply_guider_conditioning_prompt_hints(nodes_by_id: dict[str, Any], gins: dict[str, Any], trace: dict[str, Any]) -> None:
+    conditioning = gins.get("conditioning")
+    if not _is_link(conditioning):
+        return
+    trace["conditioning_link"] = conditioning
+    extracted = _extract_prompt_from_conditioning(nodes_by_id, conditioning)
+    if extracted and not trace["pos_val"]:
+        trace["pos_val"] = extracted
+
+
+
+def _apply_guider_positive_prompt_hints(nodes_by_id: dict[str, Any], gins: dict[str, Any], trace: dict[str, Any]) -> None:
+    positive = gins.get("positive")
+    if not _is_link(positive):
+        return
+    trace["conditioning_link"] = trace["conditioning_link"] or positive
+    if trace["pos_val"]:
+        return
+    extracted = _extract_prompt_from_conditioning(nodes_by_id, positive, branch="positive")
+    if extracted:
+        trace["pos_val"] = extracted
+
+
+
+def _apply_guider_negative_prompt_hints(nodes_by_id: dict[str, Any], gins: dict[str, Any], trace: dict[str, Any]) -> None:
+    negative = gins.get("negative")
+    if trace.get("neg_val") or not _is_link(negative):
+        return
+    extracted = _extract_prompt_from_conditioning(nodes_by_id, negative, branch="negative")
+    if extracted:
+        trace["neg_val"] = extracted
+
+
+
+def _trace_guidance_from_conditioning(nodes_by_id: dict[str, dict[str, Any]], conditioning_link: Any) -> tuple[Any, str] | None:
+    start_id = _walk_passthrough(nodes_by_id, conditioning_link)
+    if not start_id:
+        return None
+    dist = _collect_upstream_nodes(nodes_by_id, start_id)
+    for nid, _ in sorted(dist.items(), key=lambda x: x[1]):
+        node = nodes_by_id.get(nid)
+        if not isinstance(node, dict):
+            continue
+        ins = _inputs(node)
+        for k in ("guidance", "cfg", "cfg_scale"):
+            v = _scalar(ins.get(k))
+            if v is not None:
+                return v, f"{_node_type(node)}:{nid}"
+    return None
+
+
+
+def _trace_guidance_value(nodes_by_id: dict[str, dict[str, Any]], start_link: Any, max_hops: int = 15) -> tuple[float, str] | None:
+    """
+    Traverse conditioning chain upstream to find a node providing 'guidance' (Flux).
+    """
+    start_id = _walk_passthrough(nodes_by_id, start_link)
+    if not start_id:
+        return None
+
+    # stack: (node_id, depth)
+    stack = [(start_id, 0)]
+    visited = set()
+
+    while stack:
+        nid, depth = stack.pop()
+        if nid in visited or depth > max_hops:
+            continue
+        visited.add(nid)
+
+        node = nodes_by_id.get(nid)
+        if not isinstance(node, dict):
+            continue
+
+        ins = _inputs(node)
+        # Check if this node has guidance
+        g_val = _scalar(ins.get("guidance"))
+        if g_val is not None:
+             return float(g_val), f"{_node_type(node)}:{nid}"
+
+        if not _guidance_should_expand(node, ins):
+            continue
+        for src in _iter_guidance_conditioning_sources(nodes_by_id, ins):
+            if src not in visited:
+                stack.append((src, depth + 1))
+    return None
+
+
+
+def _apply_prompt_text_fallback(trace: dict[str, Any], sampler_node: dict[str, Any], sampler_id: str, ins: dict[str, Any]) -> None:
+    if not trace.get("pos_val"):
+        trace["pos_val"] = _first_prompt_field(
+            ins,
+            ("positive_prompt", "prompt", "positive", "text", "text_g", "text_l"),
+            f"{_node_type(sampler_node)}:{sampler_id}",
+        )
+    if not trace.get("neg_val"):
+        trace["neg_val"] = _first_prompt_field(
+            ins,
+            ("negative_prompt", "negative", "neg", "text_negative"),
+            f"{_node_type(sampler_node)}:{sampler_id}",
+        )
+
+
+
+def _first_non_none_scalar(source: dict[str, Any], keys: tuple[str, ...]) -> Any | None:
+    for key in keys:
+        value = _scalar(source.get(key))
+        if value is not None:
+            return value
+    return None
+
+
+
+_SCALAR_FIELD_KEYS = (
+    "seed",
+    "value",
+    "number",
+    "int",
+    "float",
+    "Xi",
+    "Xf",
+    "text",
+    "string",
+    "prompt",
+    "input",
+    "text_a",
+    "text_b",
+)
+_CACHED_TEXT_FIELD_KEYS = ("text_0", "string_0", "STRING", "result", "output", "preview_text", "preview_markdown")
+_FALLBACK_LINK_KEYS = (
+    "base_ctx",
+    "pipe",
+    "pipe_to",
+    "any_01",
+    "any_1",
+    "any_02",
+    "any_2",
+    "any_03",
+    "any_3",
+    "any",
+    "context",
+)
+
+
+def _resolve_scalar_from_field(nodes_by_id: dict[str, dict[str, Any]], ins: dict[str, Any], key: str, memo: set[str]) -> Any | None:
+    v = ins.get(key)
+    if v is None:
+        return None
+    s = _scalar(v)
+    if s is not None:
+        return s
+    if _is_link(v):
+        return _resolve_scalar_from_link(nodes_by_id, v, memo)
+    return None
+
+
+def _resolve_scalar_via_fallback_links(nodes_by_id: dict[str, dict[str, Any]], ins: dict[str, Any], memo: set[str]) -> Any | None:
+    for fallback_key in _FALLBACK_LINK_KEYS:
+        v = ins.get(fallback_key)
+        if _is_link(v):
+            resolved = _resolve_scalar_from_link(nodes_by_id, v, memo)
+            if resolved is not None:
+                return resolved
+    return None
+
+
+def _resolve_scalar_from_link(nodes_by_id: dict[str, dict[str, Any]], value: Any, memo: set[str] | None = None) -> Any | None:
+    if memo is None:
+        memo = set()
+    resolved = []
+    direct = value[0] if _is_link(value) else None
+    if direct is not None:
+        resolved.append(str(direct))
+    passthrough = _walk_passthrough(nodes_by_id, value)
+    if passthrough and passthrough not in resolved:
+        resolved.append(passthrough)
+    for src_id in resolved:
+        if src_id in memo:
+            continue
+        memo.add(src_id)
+        result = _resolve_scalar_from_node_id(nodes_by_id, src_id, memo)
+        if result is not None:
+            return result
+    return None
+
+
+def _resolve_scalar_from_node_id(nodes_by_id: dict[str, dict[str, Any]], src_id: str, memo: set[str]) -> Any | None:
+    node = nodes_by_id.get(src_id)
+    if not isinstance(node, dict):
+        return None
+    ins = _inputs(node)
+    cached_text = _first_cached_prompt_text(ins)
+    if cached_text is not None:
+        return cached_text
+    composed_text = _resolve_composed_string_from_node(nodes_by_id, node, memo)
+    if composed_text is not None:
+        return composed_text
+    downstream_cached = _find_downstream_cached_prompt_text(nodes_by_id, src_id)
+    if downstream_cached is not None:
+        return downstream_cached
+    for k in _SCALAR_FIELD_KEYS:
+        result = _resolve_scalar_from_field(nodes_by_id, ins, k, memo)
+        if result is not None:
+            return result
+    return _resolve_scalar_via_fallback_links(nodes_by_id, ins, memo)
+
+
+def _find_downstream_cached_prompt_text(nodes_by_id: dict[str, dict[str, Any]], source_id: str) -> str | None:
+    for node in nodes_by_id.values():
+        if not isinstance(node, dict):
+            continue
+        ins = _inputs(node)
+        has_source_link = False
+        for value in ins.values():
+            if _is_link(value) and str(value[0]) == str(source_id):
+                has_source_link = True
+                break
+        if not has_source_link:
+            continue
+        cached = _resolve_preview_text(ins)
+        if cached is not None:
+            return cached
+    return None
+
+
+def _first_cached_prompt_text(ins: dict[str, Any]) -> str | None:
+    for key in _CACHED_TEXT_FIELD_KEYS:
+        value = ins.get(key)
+        if isinstance(value, str) and _looks_like_prompt_string(value):
+            return value.strip()
+    return None

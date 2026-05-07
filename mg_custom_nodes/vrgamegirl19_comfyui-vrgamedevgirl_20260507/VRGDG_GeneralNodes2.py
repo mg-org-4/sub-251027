@@ -6,6 +6,7 @@ import threading
 import torch
 import time
 
+import comfy
 import folder_paths
 from aiohttp import web
 from nodes import PreviewImage
@@ -158,6 +159,18 @@ def _get_test_popup_text_path(field_name):
     return os.path.normpath(os.path.join(folder_paths.get_output_directory(), *parts))
 
 
+def _get_part2_concept_prompts_path():
+    return os.path.normpath(
+        os.path.join(
+            folder_paths.get_output_directory(),
+            "VRGDG_TEMP",
+            "TextFiles",
+            "ConceptPrompts",
+            "ConceptPrompts.txt",
+        )
+    )
+
+
 def _ensure_test_save_route_registered():
     global _VRGDG_TEST_SAVE_ROUTE_REGISTERED
     if _VRGDG_TEST_SAVE_ROUTE_REGISTERED:
@@ -178,8 +191,37 @@ def _ensure_test_save_route_registered():
                 "ok": True,
                 "audio_dir": _get_test_popup_audio_dir(),
                 "text_targets": text_targets,
+                "concept_prompts_path": _get_part2_concept_prompts_path(),
             }
         )
+
+    @server_instance.routes.get("/vrgdg/part2/load_concept_prompts")
+    async def vrgdg_part2_load_concept_prompts(request):
+        target_path = _get_part2_concept_prompts_path()
+        if not os.path.isfile(target_path):
+            return web.json_response(
+                {
+                    "ok": False,
+                    "error": "ConceptPrompts.txt was not found. Run Step 1 first or paste the prompt JSON manually.",
+                    "path": target_path,
+                },
+                status=404,
+            )
+
+        try:
+            with open(target_path, "r", encoding="utf-8-sig") as handle:
+                text = handle.read()
+        except Exception as exc:
+            return web.json_response(
+                {
+                    "ok": False,
+                    "error": f"Could not read ConceptPrompts.txt: {exc}",
+                    "path": target_path,
+                },
+                status=500,
+            )
+
+        return web.json_response({"ok": True, "text": text, "path": target_path})
 
     @server_instance.routes.post("/vrgdg/test_popup/save_text")
     async def vrgdg_test_popup_save_text(request):
@@ -662,6 +704,147 @@ class VRGDG_ImageIndex0HUMOEDIT:
 
         empty_image = torch.zeros((1, height, width, 3), dtype=torch.float32)
         return (empty_image,)
+
+
+class VRGDG_OptionalMultiLoraModelOnly:
+    MAX_LORA_SLOTS = 20
+    NONE_LORA = "[none]"
+
+    def __init__(self):
+        self._loaded_loras = {}
+
+    @staticmethod
+    def _lora_stem(lora_name):
+        if not lora_name:
+            return ""
+        return os.path.splitext(os.path.basename(str(lora_name)))[0]
+
+    @classmethod
+    def _lora_choices(cls):
+        loras = folder_paths.get_filename_list("loras")
+        return [cls.NONE_LORA] + [name for name in loras if str(name or "").strip() != cls.NONE_LORA]
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        lora_choices = cls._lora_choices()
+        required = {
+            "model": ("MODEL",),
+            "use_custom_loras": (
+                "BOOLEAN",
+                {
+                    "default": False,
+                    "tooltip": "Off passes the model through unchanged and ignores all LoRA slots.",
+                },
+            ),
+            "lora_count": (
+                "INT",
+                {
+                    "default": 0,
+                    "min": 0,
+                    "max": cls.MAX_LORA_SLOTS,
+                    "step": 1,
+                    "tooltip": "How many LoRA slots to show and apply. Zero applies none.",
+                },
+            ),
+            "ltx_two_pass_mode": (
+                "BOOLEAN",
+                {
+                    "default": True,
+                    "tooltip": "When enabled, first_pass_model uses half strength and second_pass_model uses full strength.",
+                },
+            ),
+        }
+
+        for i in range(1, cls.MAX_LORA_SLOTS + 1):
+            required[f"lora_{i}"] = (
+                lora_choices,
+                {
+                    "default": cls.NONE_LORA,
+                    "tooltip": "Choose [none] to leave this slot unused.",
+                },
+            )
+            required[f"strength_{i}"] = (
+                "FLOAT",
+                {
+                    "default": 1.0,
+                    "min": -100.0,
+                    "max": 100.0,
+                    "step": 0.01,
+                    "tooltip": "Full-strength value. In LTX two-pass mode, first pass uses half of this.",
+                },
+            )
+
+        return {"required": required}
+
+    RETURN_TYPES = ("MODEL", "MODEL", "STRING")
+    RETURN_NAMES = ("first_pass_model", "second_pass_model", "lora_names")
+    FUNCTION = "apply_loras"
+    CATEGORY = "VRGDG/Loaders"
+    DESCRIPTION = "Safely applies optional model-only LoRAs. Defaults to [none], so shared workflows do not warn about missing LoRA files."
+
+    def _is_none_lora(self, lora_name):
+        value = str(lora_name or "").strip()
+        return not value or value == self.NONE_LORA
+
+    @staticmethod
+    def _as_bool(value):
+        if isinstance(value, str):
+            return value.strip().lower() == "true"
+        return bool(value)
+
+    def _get_lora_data(self, lora_name):
+        lora_path = folder_paths.get_full_path_or_raise("loras", lora_name)
+        if lora_path not in self._loaded_loras:
+            self._loaded_loras[lora_path] = comfy.utils.load_torch_file(lora_path, safe_load=True)
+        return self._loaded_loras[lora_path]
+
+    def _collect_lora_specs(self, lora_count, kwargs):
+        try:
+            count = int(lora_count)
+        except Exception:
+            count = 0
+        count = max(0, min(self.MAX_LORA_SLOTS, count))
+
+        specs = []
+        for slot in range(1, count + 1):
+            lora_name = kwargs.get(f"lora_{slot}", self.NONE_LORA)
+            if self._is_none_lora(lora_name):
+                continue
+
+            try:
+                strength = float(kwargs.get(f"strength_{slot}", 1.0))
+            except Exception:
+                strength = 1.0
+            if strength == 0:
+                continue
+
+            specs.append((str(lora_name), strength))
+        return specs
+
+    def _apply_specs(self, model, specs, multiplier):
+        output_model = model
+        for lora_name, strength in specs:
+            effective_strength = float(strength) * float(multiplier)
+            if effective_strength == 0:
+                continue
+            lora = self._get_lora_data(lora_name)
+            output_model, _ = comfy.sd.load_lora_for_models(output_model, None, lora, effective_strength, 0)
+        return output_model
+
+    def apply_loras(self, model, use_custom_loras=False, lora_count=0, ltx_two_pass_mode=True, **kwargs):
+        if not self._as_bool(use_custom_loras):
+            return (model, model, "")
+
+        specs = self._collect_lora_specs(lora_count, kwargs)
+        if not specs:
+            return (model, model, "")
+
+        first_multiplier = 0.5 if self._as_bool(ltx_two_pass_mode) else 1.0
+        second_multiplier = 1.0
+        first_pass_model = self._apply_specs(model, specs, first_multiplier)
+        second_pass_model = self._apply_specs(model, specs, second_multiplier)
+        lora_names = ", ".join(self._lora_stem(name) for name, _ in specs)
+        return (first_pass_model, second_pass_model, lora_names)
 
 
 class VRGDG_NoteBox:
@@ -1307,12 +1490,192 @@ class VRGDG_LyricSegmentJsonFixer:
         return (fixed_text, normalized, was_fixed, note_text)
 
 
+class VRGDG_LyricSegmentTextCleaner:
+    FILLER_WORDS = {"oh", "you"}
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "lyrics_text": ("STRING", {"multiline": True, "default": ""}),
+                "repeat_output_count": ("INT", {"default": 3, "min": 2, "max": 8, "step": 1}),
+                "min_repeats_to_collapse": ("INT", {"default": 4, "min": 2, "max": 50, "step": 1}),
+                "bridge_single_word_segments": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": "When a segment has one non-filler word, blend it with neighboring lyric words.",
+                    },
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "INT", "STRING")
+    RETURN_NAMES = ("cleaned_lyrics_text", "changed_count", "notes")
+    FUNCTION = "clean"
+    CATEGORY = "VRGDG/General"
+    DESCRIPTION = "Cleans extracted lyricSegmentN text by shortening repeated filler lyrics and smoothing one-word fragments."
+
+    @staticmethod
+    def _parse_segment_line(line):
+        match = re.match(r"^(\s*lyricSegment)(\d+)(\s*=\s*)(.*)$", str(line or ""), re.IGNORECASE)
+        if not match:
+            return None
+        return {
+            "prefix": match.group(1),
+            "number": int(match.group(2)),
+            "separator": match.group(3),
+            "text": match.group(4).strip(),
+        }
+
+    @staticmethod
+    def _word_tokens(text):
+        return re.findall(r"[A-Za-z0-9]+(?:['’][A-Za-z0-9]+)?", str(text or ""))
+
+    @staticmethod
+    def _clean_word(word, title_case=False):
+        value = str(word or "").strip()
+        if not value:
+            return ""
+        value = value[0].upper() + value[1:].lower()
+        return value if title_case else value
+
+    @classmethod
+    def _is_filler_word(cls, text):
+        words = cls._word_tokens(text)
+        return len(words) == 1 and words[0].lower() in cls.FILLER_WORDS
+
+    @classmethod
+    def _collapse_repeated_words(cls, text, repeat_output_count, min_repeats_to_collapse):
+        words = cls._word_tokens(text)
+        if not words:
+            return None
+
+        lowered = [word.lower() for word in words]
+        if len(set(lowered)) != 1:
+            return None
+
+        word = lowered[0]
+        if len(words) < int(min_repeats_to_collapse) and word not in cls.FILLER_WORDS:
+            return None
+
+        display_word = "Oh" if word in cls.FILLER_WORDS else cls._clean_word(words[0])
+        return ", ".join([display_word] * int(repeat_output_count)) + "."
+
+    @staticmethod
+    def _last_word_before(segments, current_index):
+        for index in range(current_index - 1, -1, -1):
+            words = VRGDG_LyricSegmentTextCleaner._word_tokens(segments[index].get("original_text", segments[index]["text"]))
+            if words:
+                return words[-1], len(words) > 1
+        return "", False
+
+    @staticmethod
+    def _first_words_after(segments, current_index):
+        for index in range(current_index + 1, len(segments)):
+            words = VRGDG_LyricSegmentTextCleaner._word_tokens(segments[index].get("original_text", segments[index]["text"]))
+            if words:
+                if words[0].lower() == "the" and len(words) > 1:
+                    return words[:2]
+                return words[:1]
+        return []
+
+    @classmethod
+    def _bridge_single_word(cls, segments, current_index):
+        current_words = cls._word_tokens(segments[current_index]["text"])
+        if len(current_words) != 1:
+            return None
+
+        current = current_words[0]
+        previous, previous_from_phrase = cls._last_word_before(segments, current_index)
+        next_words = cls._first_words_after(segments, current_index)
+
+        parts = []
+        if previous and previous.lower() != current.lower():
+            parts.append(cls._clean_word(previous) if previous_from_phrase else previous.lower())
+
+        parts.append(current.lower())
+
+        if next_words:
+            first_next = next_words[0]
+            if first_next.lower() != current.lower():
+                if first_next.lower() == "the":
+                    tail = " ".join(cls._clean_word(word) for word in next_words)
+                    if len(parts) > 1:
+                        return f"{parts[0]}, {parts[1]}. {tail}."
+                    return f"{parts[0]}. {tail}."
+                parts.append(first_next.lower())
+
+        if len(parts) <= 1:
+            return None
+        return ", ".join(parts) + "."
+
+    def clean(self, lyrics_text, repeat_output_count=3, min_repeats_to_collapse=4, bridge_single_word_segments=True):
+        lines = str(lyrics_text or "").splitlines()
+        parsed_by_line = {}
+        segments = []
+
+        for line_index, line in enumerate(lines):
+            parsed = self._parse_segment_line(line)
+            if parsed is None:
+                continue
+            parsed["line_index"] = line_index
+            parsed["original_text"] = parsed["text"]
+            parsed_by_line[line_index] = parsed
+            segments.append(parsed)
+
+        changed_count = 0
+        notes = []
+
+        for segment_index, segment in enumerate(segments):
+            original_text = segment["text"]
+            replacement = self._collapse_repeated_words(
+                original_text,
+                repeat_output_count,
+                min_repeats_to_collapse,
+            )
+            if replacement is None and self._is_filler_word(original_text):
+                replacement = ", ".join(["Oh"] * int(repeat_output_count)) + "."
+            if replacement is None and bool(bridge_single_word_segments):
+                replacement = self._bridge_single_word(segments, segment_index)
+
+            if replacement and replacement != original_text:
+                segment["text"] = replacement
+                changed_count += 1
+                notes.append(f"lyricSegment{segment['number']}")
+
+        output_lines = list(lines)
+        for line_index, segment in parsed_by_line.items():
+            output_lines[line_index] = f"{segment['prefix']}{segment['number']}{segment['separator']}{segment['text']}"
+
+        note_text = "Cleaned " + ", ".join(notes) if notes else "No lyric cleanup needed"
+        return ("\n".join(output_lines), changed_count, note_text)
+
+
 class VRGDG_PromptMapJsonFixer:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "text": ("STRING", {"multiline": True, "default": ""}),
+                "use_srt_file": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "When enabled, count scene entries in the connected SRT file/text and require it to match the prompt count.",
+                    },
+                ),
+            },
+            "optional": {
+                "srt_file": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": False,
+                        "forceInput": True,
+                        "tooltip": "Connect an SRT file path, or raw SRT text. Ignored when Use SRT File is off.",
+                    },
+                ),
             }
         }
 
@@ -1414,7 +1777,35 @@ class VRGDG_PromptMapJsonFixer:
         }
         return normalized
 
-    def fix_json(self, text):
+    def _read_srt_source(self, srt_file):
+        value = str(srt_file or "").strip().strip("\"'")
+        if not value:
+            raise ValueError("VRGDG_PromptMapJsonFixer: Use SRT File is enabled, but no SRT file/text was connected.")
+
+        if os.path.isfile(value):
+            with open(value, "r", encoding="utf-8-sig") as file_obj:
+                return file_obj.read(), value
+
+        if "-->" in value:
+            return value, "connected SRT text"
+
+        raise ValueError(
+            "VRGDG_PromptMapJsonFixer: connected SRT value is not an existing file path and does not look like SRT text."
+        )
+
+    def _count_srt_scenes(self, srt_file):
+        srt_text, source_label = self._read_srt_source(srt_file)
+        timestamp_lines = re.findall(
+            r"(?m)^\s*\d{1,2}:\d{2}:\d{2}[,.]\d{1,3}\s*-->\s*\d{1,2}:\d{2}:\d{2}[,.]\d{1,3}.*$",
+            str(srt_text or ""),
+        )
+        if not timestamp_lines:
+            raise ValueError(
+                f"VRGDG_PromptMapJsonFixer: no SRT timestamp lines were found in {source_label}."
+            )
+        return len(timestamp_lines), source_label
+
+    def fix_json(self, text, use_srt_file=False, srt_file=""):
         original = str(text or "")
         cleaned = self._basic_cleanup(original)
         sliced = self._extract_json_slice(cleaned)
@@ -1434,6 +1825,15 @@ class VRGDG_PromptMapJsonFixer:
         normalized = self._build_output(prompts)
         prompt_count = len(normalized)
 
+        if bool(use_srt_file):
+            srt_scene_count, source_label = self._count_srt_scenes(srt_file)
+            if prompt_count != srt_scene_count:
+                raise ValueError(
+                    "VRGDG_PromptMapJsonFixer: prompt count does not match SRT scene count. "
+                    f"Prompts: {prompt_count}, SRT scenes: {srt_scene_count}. Source: {source_label}."
+                )
+            notes.append(f"SRT scene count matched prompt count ({prompt_count})")
+
         fixed_text = json.dumps(normalized, indent=2, ensure_ascii=False)
         was_fixed = fixed_text.strip() != cleaned.strip()
         if cleaned.startswith("```"):
@@ -1444,6 +1844,110 @@ class VRGDG_PromptMapJsonFixer:
             notes.append("normalized formatting")
 
         return (fixed_text, normalized, was_fixed, "; ".join(notes), prompt_count)
+
+
+class VRGDG_PromptJsonSubjectPrepender:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "subject": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": False,
+                        "placeholder": "a female wearing a red dress",
+                    },
+                ),
+                "prompt_json": (any_typ, {"multiline": True, "default": "{}"}),
+                "separator": (
+                    "STRING",
+                    {
+                        "default": ", ",
+                        "multiline": False,
+                        "tooltip": "Text inserted between the subject and each prompt.",
+                    },
+                ),
+                "skip_if_already_starts_with_subject": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": "Avoids adding the subject twice when a prompt already starts with it.",
+                    },
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "JSON", "INT")
+    RETURN_NAMES = ("json_text", "json_output", "prompt_count")
+    FUNCTION = "prepend_subject"
+    CATEGORY = "VRGDG/General"
+    DESCRIPTION = "Prepends the same subject text to every Prompt value in prompt-map JSON."
+
+    @staticmethod
+    def _strip_markdown_json_fence(text):
+        value = str(text or "").strip()
+        if value.startswith("```"):
+            lines = value.splitlines()
+            if lines:
+                first = lines[0].strip().lower()
+                if first == "```" or first.startswith("```json"):
+                    lines = lines[1:]
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                value = "\n".join(lines).strip()
+        return value
+
+    @staticmethod
+    def _extract_json_slice(text):
+        start = text.find("{")
+        end = text.rfind("}")
+        if start >= 0 and end >= start:
+            return text[start : end + 1]
+        return text
+
+    @staticmethod
+    def _normalize_prompt_text(value):
+        if value is None:
+            return ""
+        return " ".join(str(value).replace("\r", " ").replace("\n", " ").split())
+
+    @staticmethod
+    def _as_bool(value):
+        if isinstance(value, str):
+            return value.strip().lower() == "true"
+        return bool(value)
+
+    def _load_prompt_map(self, prompt_json):
+        if isinstance(prompt_json, dict):
+            return prompt_json
+
+        cleaned = self._strip_markdown_json_fence(prompt_json)
+        cleaned = cleaned.replace("\ufeff", "").replace("\u200b", "")
+        candidate = self._extract_json_slice(cleaned)
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"VRGDG_PromptJsonSubjectPrepender: invalid prompt JSON: {exc}")
+        if not isinstance(parsed, dict):
+            raise ValueError("VRGDG_PromptJsonSubjectPrepender: prompt JSON must be an object.")
+        return parsed
+
+    def prepend_subject(self, subject, prompt_json, separator=", ", skip_if_already_starts_with_subject=True):
+        subject_text = self._normalize_prompt_text(subject)
+        separator_text = str(separator or "")
+        prompt_map = self._load_prompt_map(prompt_json)
+        skip_existing = self._as_bool(skip_if_already_starts_with_subject)
+
+        output = {}
+        for key, value in prompt_map.items():
+            prompt_text = self._normalize_prompt_text(value)
+            if subject_text and not (skip_existing and prompt_text.lower().startswith(subject_text.lower())):
+                prompt_text = f"{subject_text}{separator_text}{prompt_text}" if prompt_text else subject_text
+            output[str(key)] = prompt_text
+
+        json_text = json.dumps(output, indent=2, ensure_ascii=False)
+        return (json_text, output, len(output))
 
 
 class VRGDG_LyricSegmentDurationMerger:
@@ -1943,6 +2447,7 @@ NODE_CLASS_MAPPINGS = {
     "VRGDG_BoxIT": VRGDG_BoxIT,
     "VRGDG_IntToFloat": VRGDG_IntToFloat,
     "VRGDG_ImageIndex0HUMOEDIT": VRGDG_ImageIndex0HUMOEDIT,
+    "VRGDG_OptionalMultiLoraModelOnly": VRGDG_OptionalMultiLoraModelOnly,
     "VRGDG_NoteBox": VRGDG_NoteBox,
     "VRGDG_SetMuteStateMulti": VRGDG_SetMuteStateMulti,
     "VRGDG_SetGroupStateMulti": VRGDG_SetGroupStateMulti,
@@ -1953,7 +2458,9 @@ NODE_CLASS_MAPPINGS = {
     "VRGDG_MultiStringConcat": VRGDG_MultiStringConcat,
     "VRGDG_StoryGroupJsonFixer": VRGDG_StoryGroupJsonFixer,
     "VRGDG_LyricSegmentJsonFixer": VRGDG_LyricSegmentJsonFixer,
+    "VRGDG_LyricSegmentTextCleaner": VRGDG_LyricSegmentTextCleaner,
     "VRGDG_PromptMapJsonFixer": VRGDG_PromptMapJsonFixer,    
+    "VRGDG_PromptJsonSubjectPrepender": VRGDG_PromptJsonSubjectPrepender,
     "VRGDG_LyricSegmentDurationMerger": VRGDG_LyricSegmentDurationMerger,
     "VRGDG_PromptCreatorUI_V2": VRGDG_PromptCreatorUI_V2,
     "VRGDG_Part2WorkflowUI": VRGDG_Part2WorkflowUI,
@@ -1970,6 +2477,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VRGDG_BoxIT": "VRGDG_BoxIT",
     "VRGDG_IntToFloat": "VRGDG_IntToFloat",
     "VRGDG_ImageIndex0HUMOEDIT": "VRGDG_ImageIndex0HUMOEDIT",
+    "VRGDG_OptionalMultiLoraModelOnly": "VRGDG Optional Multi LoRA Model Only",
     "VRGDG_NoteBox": "VRGDG_NoteBox",
     "VRGDG_SetMuteStateMulti": "VRGDG_SetMuteStateMulti",
     "VRGDG_SetGroupStateMulti": "VRGDG_SetGroupStateMulti",
@@ -1980,7 +2488,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VRGDG_MultiStringConcat": "VRGDG_MultiStringConcat",
     "VRGDG_StoryGroupJsonFixer": "VRGDG_StoryGroupJsonFixer",
     "VRGDG_LyricSegmentJsonFixer": "VRGDG_LyricSegmentJsonFixer",
+    "VRGDG_LyricSegmentTextCleaner": "VRGDG Lyric Segment Text Cleaner",
     "VRGDG_PromptMapJsonFixer": "VRGDG_PromptMapJsonFixer",
+    "VRGDG_PromptJsonSubjectPrepender": "VRGDG Prompt JSON Subject Prepender",
     "VRGDG_LyricSegmentDurationMerger": "VRGDG_LyricSegmentDurationMerger",
     "VRGDG_PromptCreatorUI_V2": "VRGDG_PromptCreatorUI_V2",
     "VRGDG_Part2WorkflowUI": "VRGDG Part 2 Workflow UI",

@@ -280,8 +280,8 @@ class SDXLSelectiveLoRALoader:
                 }),
                 "strength": ("FLOAT", {
                     "default": 1.0,
-                    "min": -2.0,
-                    "max": 2.0,
+                    "min": -5.0,
+                    "max": 5.0,
                     "step": 0.05,
                     "tooltip": "Overall LoRA strength"
                 }),
@@ -291,37 +291,37 @@ class SDXLSelectiveLoRALoader:
                 }),
                 # Text encoders
                 "text_encoder_1": ("BOOLEAN", {"default": True}),
-                "text_encoder_1_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "text_encoder_1_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 "text_encoder_2": ("BOOLEAN", {"default": True}),
-                "text_encoder_2_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "text_encoder_2_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 # Input blocks with attention (only 4, 5, 7, 8 have attention in SDXL)
                 "input_4": ("BOOLEAN", {"default": True}),
-                "input_4_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "input_4_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 "input_5": ("BOOLEAN", {"default": True}),
-                "input_5_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "input_5_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 "input_7": ("BOOLEAN", {"default": True}),
-                "input_7_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "input_7_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 "input_8": ("BOOLEAN", {"default": True}),
-                "input_8_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "input_8_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 # Mid block
                 "unet_mid": ("BOOLEAN", {"default": True}),
-                "unet_mid_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "unet_mid_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 # Output blocks with attention (only 0-5 have attention in SDXL)
                 "output_0": ("BOOLEAN", {"default": True}),
-                "output_0_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "output_0_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 "output_1": ("BOOLEAN", {"default": True}),
-                "output_1_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "output_1_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 "output_2": ("BOOLEAN", {"default": True}),
-                "output_2_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "output_2_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 "output_3": ("BOOLEAN", {"default": True}),
-                "output_3_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "output_3_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 "output_4": ("BOOLEAN", {"default": True}),
-                "output_4_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "output_4_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 "output_5": ("BOOLEAN", {"default": True}),
-                "output_5_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "output_5_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
                 # Other weights (keys not matching known blocks)
                 "other_weights": ("BOOLEAN", {"default": True}),
-                "other_weights_str": ("FLOAT", {"default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05}),
+                "other_weights_str": ("FLOAT", {"default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05}),
             },
             "optional": {
                 "lora_path_opt": ("STRING", {"forceInput": True, "tooltip": "Optional: Connect from LoRA Analyzer to use its selected LoRA"}),
@@ -473,8 +473,8 @@ class ZImageSelectiveLoRALoader:
                 }),
                 "strength": ("FLOAT", {
                     "default": 1.0,
-                    "min": -2.0,
-                    "max": 2.0,
+                    "min": -5.0,
+                    "max": 5.0,
                     "step": 0.05,
                     "tooltip": "Overall LoRA strength"
                 }),
@@ -489,13 +489,13 @@ class ZImageSelectiveLoRALoader:
         for i in range(30):
             inputs["required"][f"layer_{i}"] = ("BOOLEAN", {"default": True})
             inputs["required"][f"layer_{i}_str"] = ("FLOAT", {
-                "default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05
+                "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05
             })
 
         # Other weights (keys not matching known layers)
         inputs["required"]["other_weights"] = ("BOOLEAN", {"default": True})
         inputs["required"]["other_weights_str"] = ("FLOAT", {
-            "default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05
+            "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05
         })
 
         inputs["optional"] = {
@@ -624,8 +624,8 @@ class FLUXSelectiveLoRALoader:
                 }),
                 "strength": ("FLOAT", {
                     "default": 1.0,
-                    "min": -2.0,
-                    "max": 2.0,
+                    "min": -5.0,
+                    "max": 5.0,
                     "step": 0.05,
                     "tooltip": "Overall LoRA strength"
                 }),
@@ -640,20 +640,20 @@ class FLUXSelectiveLoRALoader:
         for i in range(19):
             inputs["required"][f"double_{i}"] = ("BOOLEAN", {"default": True})
             inputs["required"][f"double_{i}_str"] = ("FLOAT", {
-                "default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05
+                "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05
             })
 
         # Add single block toggles and strengths (0-37)
         for i in range(38):
             inputs["required"][f"single_{i}"] = ("BOOLEAN", {"default": True})
             inputs["required"][f"single_{i}_str"] = ("FLOAT", {
-                "default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05
+                "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05
             })
 
         # Other weights (keys not matching known blocks)
         inputs["required"]["other_weights"] = ("BOOLEAN", {"default": True})
         inputs["required"]["other_weights_str"] = ("FLOAT", {
-            "default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05
+            "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05
         })
 
         inputs["optional"] = {
@@ -795,8 +795,8 @@ class WanSelectiveLoRALoader:
                 }),
                 "strength": ("FLOAT", {
                     "default": 1.0,
-                    "min": -2.0,
-                    "max": 2.0,
+                    "min": -5.0,
+                    "max": 5.0,
                     "step": 0.05,
                     "tooltip": "Overall LoRA strength"
                 }),
@@ -811,13 +811,13 @@ class WanSelectiveLoRALoader:
         for i in range(40):
             inputs["required"][f"block_{i}"] = ("BOOLEAN", {"default": True})
             inputs["required"][f"block_{i}_str"] = ("FLOAT", {
-                "default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05
+                "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05
             })
 
         # Other weights (keys not matching known blocks)
         inputs["required"]["other_weights"] = ("BOOLEAN", {"default": True})
         inputs["required"]["other_weights_str"] = ("FLOAT", {
-            "default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05
+            "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05
         })
 
         inputs["optional"] = {
@@ -947,8 +947,8 @@ class QwenSelectiveLoRALoader:
                 }),
                 "strength": ("FLOAT", {
                     "default": 1.0,
-                    "min": -2.0,
-                    "max": 2.0,
+                    "min": -5.0,
+                    "max": 5.0,
                     "step": 0.05,
                     "tooltip": "Overall LoRA strength"
                 }),
@@ -963,13 +963,13 @@ class QwenSelectiveLoRALoader:
         for i in range(60):
             inputs["required"][f"block_{i}"] = ("BOOLEAN", {"default": True})
             inputs["required"][f"block_{i}_str"] = ("FLOAT", {
-                "default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05
+                "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05
             })
 
         # Other weights (keys not matching known blocks)
         inputs["required"]["other_weights"] = ("BOOLEAN", {"default": True})
         inputs["required"]["other_weights_str"] = ("FLOAT", {
-            "default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05
+            "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05
         })
 
         inputs["optional"] = {

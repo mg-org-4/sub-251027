@@ -254,7 +254,31 @@ app.registerExtension({
             toggle.mouse = function(event, pos, node) {
                 const widgetWidth = node.size[0];
                 const layout = toggle.sliderInfo.getLayout(widgetWidth);
+                const valueX = widgetWidth - toggle.sliderInfo.margin - toggle.sliderInfo.valueWidth;
                 const localX = pos[0];
+
+                // Click on the numeric value column => prompt for direct entry.
+                // Without this, clicks fell through to the boolean toggle handler
+                // and ended up disabling the row instead of editing the value.
+                if (event.type === "pointerdown" && localX >= valueX - 4) {
+                    const current = parseFloat(strength.value);
+                    const seed = isNaN(current) ? "1.0" : current.toFixed(2);
+                    const input = window.prompt(
+                        `Set strength (${toggle.sliderInfo.min.toFixed(1)} to ${toggle.sliderInfo.max.toFixed(1)}):`,
+                        seed
+                    );
+                    if (input !== null && input !== "") {
+                        const parsed = parseFloat(input);
+                        if (!isNaN(parsed)) {
+                            let v = Math.max(toggle.sliderInfo.min, Math.min(toggle.sliderInfo.max, parsed));
+                            v = Math.round(v / toggle.sliderInfo.step) * toggle.sliderInfo.step;
+                            strength.value = v;
+                            node.setDirtyCanvas(true);
+                        }
+                    }
+                    return true;
+                }
+
                 if (localX >= layout.sliderX - 5 && localX <= layout.sliderX + layout.sliderWidth + 5) {
                     if (event.type === "pointerdown" || event.type === "pointermove") {
                         let normalized = Math.max(0, Math.min(1, (localX - layout.sliderX) / layout.sliderWidth));

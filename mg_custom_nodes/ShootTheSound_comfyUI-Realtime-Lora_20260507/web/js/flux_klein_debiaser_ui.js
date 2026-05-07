@@ -254,7 +254,30 @@ app.registerExtension({
                 const ww = node.size[0];
                 const SW = ww - M - CB - GAP - LW - GAP - VW - M - GAP;
                 const sliderX = M + CB + GAP + LW + GAP;
+                const valueX = ww - M - VW;  // left edge of the numeric value display
                 const lx = pos[0];
+
+                // Click on the numeric value column → prompt for direct entry.
+                // Without this the click falls through to the boolean toggle handler
+                // (which is what was making clicks "disable" the row in #42).
+                if (event.type === "pointerdown" && lx >= valueX - 4) {
+                    const current = parseFloat(strength.value);
+                    const seed = isNaN(current) ? "1.0" : current.toFixed(2);
+                    const input = window.prompt(
+                        `Set ${name} strength (${MIN.toFixed(1)} to ${MAX.toFixed(1)}):`,
+                        seed
+                    );
+                    if (input !== null && input !== "") {
+                        const parsed = parseFloat(input);
+                        if (!isNaN(parsed)) {
+                            let v = Math.max(MIN, Math.min(MAX, parsed));
+                            v = Math.round(v / STEP) * STEP;
+                            strength.value = v;
+                            node.setDirtyCanvas(true);
+                        }
+                    }
+                    return true;
+                }
 
                 if (lx >= sliderX - 4 && lx <= sliderX + SW + 4) {
                     if (event.type === "pointerdown" || event.type === "pointermove") {

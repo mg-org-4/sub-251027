@@ -612,6 +612,12 @@ def _score_architecture(keys: list, num_keys: int, block_counts: dict) -> dict:
         scores['SDXL'] += 50
     if any('input_blocks_7' in k or 'input_blocks_8' in k or 'input_blocks.7' in k or 'input_blocks.8' in k for k in keys_lower):
         scores['SDXL'] += 30
+    # Diffusers SDXL signature: down_blocks.2 / up_blocks.0 attentions exist (SDXL has
+    # attention at down level 2 and up levels 0/1, distinguishing from SD15's level 0/1).
+    if any(re.search(r'down_blocks?[._]2[._]attentions', k) for k in keys_lower):
+        scores['SDXL'] += 30
+    if any(re.search(r'up_blocks?[._]0[._]attentions[._]2', k) for k in keys_lower):
+        scores['SDXL'] += 20  # up_blocks.0 has 3 attention layers — only SDXL has this
     if num_keys > 1500:
         scores['SDXL'] += 25
     elif num_keys > 1000:
@@ -779,26 +785,114 @@ def _extract_block_id_v2(key: str, architecture: str) -> str:
         return 'other_weights'
 
     elif architecture in ['SDXL', 'SD15']:
-        te = re.search(r'lora_te(\d?)_', key_lower)
-        if te:
-            return f"text_encoder_{te.group(1) or '1'}"
-        down = re.search(r'down_blocks?[._]?(\d+)', key_lower)
-        if down:
-            return f"unet_down_{down.group(1)}"
+        # Text encoders. Both kohya-style (`lora_te1_*`/`lora_te2_*`) and
+        # Diffusers-style (`text_encoder.*`/`text_encoder_2.*`) are recognised.
+        te_kohya = re.search(r'lora_te(\d?)_', key_lower)
+        if te_kohya:
+            return f"text_encoder_{te_kohya.group(1) or '1'}"
+        if 'text_encoder_2' in key_lower:
+            return "text_encoder_2"
+        if 'text_encoder' in key_lower:
+            return "text_encoder_1"
+
+        # SDXL: convert Diffusers-style UNet keys (down_blocks / up_blocks /
+        # mid_block) to the equivalent Comfy-style bucket so the existing UI
+        # toggles (input_4/5/7/8, unet_mid, output_0..5) apply uniformly to
+        # both kohya- and Diffusers-trained LoRAs (e.g. OneTrainer output).
+        if architecture == 'SDXL':
+            comfy_bucket = _sdxl_diffusers_to_comfy_bucket(key_lower)
+            if comfy_bucket is not None:
+                return comfy_bucket
+
+        # Standard Comfy-style keys
         if 'mid_block' in key_lower or 'middle_block' in key_lower:
             return "unet_mid"
-        up = re.search(r'up_blocks?[._]?(\d+)', key_lower)
-        if up:
-            return f"unet_up_{up.group(1)}"
         inp = re.search(r'input_blocks?[._]?(\d+)', key_lower)
         if inp:
             return f"input_{inp.group(1)}"
         out = re.search(r'output_blocks?[._]?(\d+)', key_lower)
         if out:
             return f"output_{out.group(1)}"
+
+        # SD15 falls through to legacy Diffusers bucketing (no UI mapping yet).
+        if architecture == 'SD15':
+            down = re.search(r'down_blocks?[._]?(\d+)', key_lower)
+            if down:
+                return f"unet_down_{down.group(1)}"
+            up = re.search(r'up_blocks?[._]?(\d+)', key_lower)
+            if up:
+                return f"unet_up_{up.group(1)}"
+
         return 'other'
 
     return 'other'
+
+
+def _sdxl_diffusers_to_comfy_bucket(key_lower: str):
+    """Map a Diffusers-style SDXL key to its equivalent Comfy bucket name.
+
+    Returns the Comfy bucket (e.g. ``input_4``, ``unet_mid``, ``output_3``)
+    or ``None`` if the key isn't a recognised Diffusers SDXL UNet key.
+
+    SDXL UNet structure (Comfy ↔ Diffusers):
+        input_blocks.0 = conv_in (no Diffusers down_blocks equivalent)
+        input_blocks.1 / .2  = down_blocks.0.resnets.0 / .1   (level 0, no attention)
+        input_blocks.3       = down_blocks.0.downsamplers.0
+        input_blocks.4 / .5  = down_blocks.1.{resnets,attentions}.0 / .1 (level 1)
+        input_blocks.6       = down_blocks.1.downsamplers.0
+        input_blocks.7 / .8  = down_blocks.2.{resnets,attentions}.0 / .1 (level 2)
+        middle_block.0/1/2   = mid_block.{resnets.0, attentions.0, resnets.1}
+        output_blocks.0/1/2  = up_blocks.0.{resnets,attentions}.0/1/2  (+ upsamplers.0 on .2)
+        output_blocks.3/4/5  = up_blocks.1.{resnets,attentions}.0/1/2  (+ upsamplers.0 on .5)
+        output_blocks.6/7/8  = up_blocks.2.resnets.0/1/2 (no attention at level 2)
+
+    Resolves the OneTrainer / Diffusers SDXL LoRA filtering issue (#28, #35):
+    these LoRAs use down_blocks/up_blocks naming, which previously bucketed as
+    ``unet_down_*``/``unet_up_*`` (no UI toggles for those buckets), so the
+    selective loader couldn't filter them.
+    """
+    # Down blocks — resnets and attentions
+    m = re.search(r'down_blocks?[._](\d+)[._]?(?:resnets?|attentions?)[._](\d+)', key_lower)
+    if m:
+        level, idx = int(m.group(1)), int(m.group(2))
+        if level == 0:
+            # Level 0 has no attention; resnets map to input_1/2.
+            # The UI doesn't expose input_1/2 toggles for SDXL → these end up
+            # in 'other_weights', which is fine (they're rare in real LoRAs).
+            return f"input_{1 + idx}" if idx in (0, 1) else None
+        if level == 1:
+            return f"input_{4 + idx}" if idx in (0, 1) else None
+        if level == 2:
+            return f"input_{7 + idx}" if idx in (0, 1) else None
+
+    # Down blocks — downsamplers
+    m = re.search(r'down_blocks?[._](\d+)[._]?downsamplers', key_lower)
+    if m:
+        level = int(m.group(1))
+        return {0: 'input_3', 1: 'input_6'}.get(level)
+
+    # Mid block — single attention + resnets
+    if 'mid_block' in key_lower:
+        return "unet_mid"
+
+    # Up blocks — resnets and attentions
+    m = re.search(r'up_blocks?[._](\d+)[._]?(?:resnets?|attentions?)[._](\d+)', key_lower)
+    if m:
+        level, idx = int(m.group(1)), int(m.group(2))
+        if level == 0:
+            return f"output_{idx}" if idx in (0, 1, 2) else None
+        if level == 1:
+            return f"output_{3 + idx}" if idx in (0, 1, 2) else None
+        if level == 2:
+            return f"output_{6 + idx}" if idx in (0, 1, 2) else None
+
+    # Up blocks — upsamplers (fold into the last block at each level)
+    m = re.search(r'up_blocks?[._](\d+)[._]?upsamplers', key_lower)
+    if m:
+        level = int(m.group(1))
+        return {0: 'output_2', 1: 'output_5'}.get(level)
+
+    return None
 
 
 # ============================================================================
@@ -1392,7 +1486,7 @@ def _create_combined_node_class(config: dict):
             for block in blocks:
                 inputs["required"][block] = ("BOOLEAN", {"default": True})
                 inputs["required"][f"{block}_str"] = ("FLOAT", {
-                    "default": 1.0, "min": -2.0, "max": 2.0, "step": 0.05
+                    "default": 1.0, "min": -5.0, "max": 5.0, "step": 0.05
                 })
 
             # Load last used save path for this node type

@@ -689,8 +689,16 @@ async def primere_model_concept_save(request):
     post = await request.json()
     concept = post.get('concept')
     data = post.get('data')
+    float_keys = post.get('float_keys') or []
     if not concept or data is None:
         return web.json_response({"success": False, "error": "Missing concept or data"}, status=400)
+    if isinstance(data, dict) and isinstance(float_keys, list):
+        for key in float_keys:
+            if key in data and data[key] is not None:
+                try:
+                    data[key] = float(data[key])
+                except (TypeError, ValueError):
+                    pass
     json_path = os.path.join(PRIMERE_ROOT, 'front_end', 'model_concept.json')
     existing = utility.json2tuple(json_path) or {}
     existing[concept] = data
@@ -776,8 +784,16 @@ async def primere_rasterix_setting_save(request):
     post = await request.json()
     concept = post.get('concept')
     data = post.get('data')
+    float_keys = post.get('float_keys') or []
     if not concept or data is None:
         return web.json_response({"success": False, "error": "Missing concept or data"}, status=400)
+    if isinstance(data, dict) and isinstance(float_keys, list):
+        for key in float_keys:
+            if key in data and data[key] is not None:
+                try:
+                    data[key] = float(data[key])
+                except (TypeError, ValueError):
+                    pass
     json_path = os.path.join(PRIMERE_ROOT, 'front_end', 'rasterix_settings.json')
     existing = utility.json2tuple(json_path) or {}
     existing[concept] = data
@@ -825,3 +841,10 @@ async def primere_uniapi_schema_read(request):
         registry = api_schema_registry.normalize_registry(raw_schema)
 
     return web.json_response({"success": True, "source": source_name, "warning": warning, "registry": registry,})
+
+routes25 = PromptServer.instance.routes
+@routes25.get('/primere_model_concept_read')
+async def primere_model_concept_read(request):
+    json_path = os.path.join(PRIMERE_ROOT, 'front_end', 'model_concept.json')
+    data = utility.json2tuple(json_path) or {}
+    return web.json_response(data)

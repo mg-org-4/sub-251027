@@ -1,4 +1,5 @@
-# ComfyUI_Simple_Qwen3-VL-gguf
+<img width="2048" height="448" alt="03562-1098669413054586" src="https://github.com/user-attachments/assets/3aff5798-eed5-4d23-a0da-ff26c770e9b4" />
+
 Simple gguf LLM Qwen3-VL, Qwen3.5, Qwen3.6, Gemma4 and others model loader for Comfy-UI.
 
 # Why need this version?
@@ -17,7 +18,7 @@ In the latest update added a new `keep_vram` mode, which allows you to keep the 
   
 **03.05.2026 - V3.7**
 - Added `force_mmproj` settings.
-- Added support for `n_cpu_moe`, `cpu_moe` (requires llama_cpp_python update to 0.3.37)
+- Added support for `n_cpu_moe`, `cpu_moe`. Requires llama_cpp_python update to 0.3.37+. See the limitations in the `Speed ​​test and memory overflow problem section` below.
 - Standard parameter names are now supported
 - Added debug calculate `token/sec`
 - Added options for running encoder (to obtain `embeddings` or `conditioning`)
@@ -41,6 +42,9 @@ In the latest update added a new `keep_vram` mode, which allows you to keep the 
 - Added support for Qwen3.5
 
 # Correct installation of llama-cpp-python:
+
+<img width="2048" height="448" alt="03539-666999726183895" src="https://github.com/user-attachments/assets/9ccf32c1-69e4-4ef7-be42-a1210675988f" />
+
 Qwen3 support hasn't been added to the standard library, `llama-cpp-python`, which is downloaded via `pip install llama-cpp-python` - this didn't work.
 The standard version `llama-cpp-python` hasn't been updated for a long time.
 `llama-cpp-python` 0.3.16 last commit on Aug 15, 2025 and it doesn't support qwen3.
@@ -67,13 +71,13 @@ python -m pip install json_repair,colorama
 python -m pip install temp\llama_cpp_python-0.3.18-cp313-cp313-win_amd64.whl
 ```
 
-> 💡 **WARNING:** These ready-made VHLs may not have CPU acceleration implementations. Therefore, installing them may not yield any benefit from `n_cpu_moe` or `cpu_moe`. To ensure all optimizations are enabled, you should compile the project from source code on your own computer!
+> 💡 **WARNING:** These ready-made **basic** VHLs may not have CPU acceleration implementations. Therefore, installing them may not yield any benefit from `n_cpu_moe` or `cpu_moe`. To ensure all optimizations are enabled, you should compile the project from source code on your own computer! Also, ready-made VHLs may not contain VMM, which will lead to a crash with an OOM (out of memory) error in case of insufficient VRAM.
 
 > 💡 **Tip:** In subprocess mode, you can launch it immediately. In other modes, you need to restart Comfy-UI.
 
 </details>
 
-### Variant 2 - Build from source code (I recommend this variant to learn)
+### Variant 2 - Build from source code (I recommend this variant)
 
 <details>
 
@@ -160,14 +164,20 @@ cd *path_to_src*\llama-cpp-python
 
 ```
 *path_to_comfyui*\python -m pip install json_repair,colorama
-set CMAKE_ARGS="-DGGML_CUDA=on"
+
+set CMAKE_ARGS=-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=120 -DGGML_CUDA_FA=ON -DGGML_CUDA_FA_ALL_QUANTS=ON -DCMAKE_BUILD_TYPE=Release
 *path_to_comfyui*\python_embeded\python -m pip install . 
 ```
+
 ✅ The command above is for embedded Python (typical for ComfyUI). Adjust the Python path if you're using a system or virtual environment.
-⚠️ Note about -e flag:
-If you choose to install with -e (editable mode):
-`python -m pip install -e .`
-Do not delete the source folder after installation — the editable install relies on the original directory structure.
+
+Replace 120 with your сompute сapability number:
+```
+RTX 50-series (Blackwell) → 120
+RTX 40-series → 89
+RTX 30-series → 86
+RTX 20-series → 75
+```
 
 ⏱️ Build time: Without Ninja, compilation may take 30–60 minutes depending on your hardware.
 
@@ -179,7 +189,7 @@ Do not delete the source folder after installation — the editable install reli
 
 <details>
 
-<summary>Simple bat file for fast update</summary>
+<summary>Simple bat file for fast rebuild</summary>
 
 ```bat
 cd llama-cpp-python\vendor\llama.cpp\
@@ -194,8 +204,17 @@ H:\ComfyUI128\python_embeded\python.exe -m pip install . --no-cache-dir --no-bui
 pause
 ```
 
-> 💡 **Tip:** In subprocess mode, you can launch it immediately. In other modes, you need to restart Comfu-ui.
+✅ The command above is for embedded Python (typical for ComfyUI). Adjust the Python path if you're using a system or virtual environment.
 
+Replace 120 with your сompute сapability number:
+```
+RTX 50-series (Blackwell) → 120
+RTX 40-series → 89
+RTX 30-series → 86
+RTX 20-series → 75
+```
+
+> 💡 **Tip:** In subprocess mode, you can launch it immediately. In other modes, you need to restart Comfu-ui.
 
 </details>
 
@@ -268,6 +287,9 @@ This project requires CUDA runtime libraries. They can be sourced from:
 3. Restarting the frontend (F5)
 
 # Implementation Features:
+
+<img width="2048" height="448" alt="03574-151373789329086" src="https://github.com/user-attachments/assets/e2e534ad-dc4a-47a7-b277-9b06fd263960" />
+
 The node is split into two parts. All work is isolated in a subprocess. Why? To ensure everything is cleaned up and nothing unnecessary remains in memory after this node runs and llama.cpp. I've often encountered other nodes leaving something behind, and that's unacceptable to me.
 > 💡 **Update:** The llama_python_cpp code has been improved and no longer leaks memory, so it is now possible to call llama_cpp directly.
 
@@ -338,9 +360,19 @@ Configurations can be stacked. Each additional configuration, via the "config_ov
 
 <img width="1331" height="696" alt="Image" src="https://github.com/user-attachments/assets/320192ed-d0c2-46bb-bc44-7f24d8348f3a" />
 
-# Use case3. Model Preset drop-down list
+You don't have to follow the JSON format exactly. If json_repair is installed - it will fix it.
 
-Configurations loads from `system_prompts_user.json`
+# Use case3. Model preset drop-down list
+
+You can save your favorite configs to a JSON file and they will be available for selection in the drop-down list `model preset`.
+
+Configurations loads from file `system_prompts_user.json`.
+
+You must fill out this file yourself. An example of how to fill it out can be found in the file `system_prompts_user.example.json`. 
+
+Config values ​​can be taken from the configurator or from the examples below.
+
+<img width="1366" height="578" alt="image" src="https://github.com/user-attachments/assets/80a211c8-713b-4e6e-9ee5-0b731853ec31" />
 
 # Model Configs:
 
@@ -477,12 +509,6 @@ The following settings are generated automatically. They DO NOT need to be write
 
 </details>
 
-You don't have to follow the JSON format exactly. If **json_repair** is installed - it will fix it.
-```
-cd *path_to_comfyui*\python_embeded
-python -m pip install json_repair
-```
-
 <details>
   
 <summary>config_override input</summary>
@@ -519,11 +545,7 @@ You can pass `config_override` as a JSON dictionary or without formatting.
 
 <details>
 
-<summary>system_prompts_user.json file</summary>
-
-You can save your favorite configs to a JSON file and they will be available for selection in the drop-down list `model preset`.
-
-`system_prompts_user.json` example:
+<summary>system_prompts_user.json file example</summary>
 
 ```json
 {
@@ -584,14 +606,13 @@ You can save your favorite configs to a JSON file and they will be available for
 }
 ```
   
-### Agreement:
-- The `system_prompts.json` file contains the project settings that I will be updating. Do not edit this file, or your changes will be deleted.
-- The `system_prompts_user.json` file contains the user settings. This file will not be updated. Edit this file.
-- The `system_prompts_user.example.json` file contains example.
-- You can delete or rename the `system_prompts.json` file, and then only your information from the `system_prompts_user.json` file will remain.
+Agreement:
+1. The `system_prompts.json` file contains the project settings that I will be updating. Do not edit this file, or your changes will be deleted.
+2. The `system_prompts_user.json` file contains the user settings. This file will not be updated. Edit this file.
+3. The `system_prompts_user.example.json` file contains example.
+4. You can delete or rename the `system_prompts.json` file, and then only your information from the `system_prompts_user.json` file will remain.
 
-### Git Rule:
-
+Git settings:
 1. To prevent the file from being restored after a Git update, use a command that disables updates for this file:
 ```
 git update-index --skip-worktree system_prompts.json
@@ -653,6 +674,8 @@ Allows select a user prompt from templates:
 </details>
 
 # Models (for example):
+
+<img width="2048" height="448" alt="03522-929995336568847" src="https://github.com/user-attachments/assets/0dc6c148-c049-4fc4-9363-eedb04db2785" />
 
 <details>
 
@@ -1288,12 +1311,15 @@ https://huggingface.co/Tongyi-MAI/Z-Image-Turbo/tree/main/tokenizer.
 ---
 
 # Speed test and memory overflow problem:
+
+<img width="2048" height="448" alt="03458-310245416557914" src="https://github.com/user-attachments/assets/ed94d57c-5050-4fdf-b41c-688cfc88e09e" />
+
 LLM and CLIP cannot be split (as can be done with UNET). They must be loaded in their entirety.
 But if the model is MoE, you can unload some of the experts into RAM so that they can be processed by the CPU. This way you can run large models.
 
 In any case, make sure your VRAM doesn't overflow. If you allow your VRAM to overflow, some layers will be loaded into slower RAM, the GPU will be forced to read from RAM, which will inevitably lead to a 5-7x performance degradation!
 
-Open **Task Manager** (Ctrl+Alt+Del) → Performance tab → GPU → set 'CUDA' engine graph. Check the memory usage during execution in middle graph. It shouldn't exceed the VRAM memory limit. Even nearing the upper limit can be considered overflow, which will cause catastrophic performance slowdowns.
+Open **Task Manager** (Ctrl+Alt+Del) → Performance tab → GPU → set 'CUDA' engine graph. Check the memory usage during execution in middle graph. It shouldn't exceed the VRAM memory limit. Even nearing the upper limit can be considered overflow, which will cause catastrophic performance slowdowns. And in some cases, even to a crash with an **OOM (out of memory)** error.
 GPU drivers often reserve a small amount of VRAM for system needs, so 100% VRAM usage will not be possible.
 
 Model fits (good speed) ✅:
@@ -1310,11 +1336,18 @@ Memory overflow (speed down ) ❌:
 
 VRAM reached its maximum and then shared memory started to fill up → performance degradation.
 
-| Mode | Speed for Qwen3.6-35B-A3B-Q4_K_M in 16 Gb VRAM | 
-|--------|--------|
-| n_cpu_moe | 50-60 tok/sec | 
-| NGL | 29 tok/sec  | 
-| Memory overflow ❌ | 10.8 tok/sec | 
+| Mode | Speed for Qwen3.6-35B-A3B-Q4_K_M in 16 Gb VRAM | Note |
+|--------|--------|--------|
+| n_cpu_moe | 50-60 tok/sec | llama.cpp build from source |
+| NGL | 29 tok/sec  | llama.cpp build from source |
+| Memory overflow ❌ | 10.8 tok/sec | llama.cpp build from source |
+
+> 💡 **WARNING:** These ready-made **basic** VHLs may not have CPU acceleration (AVX, AVX2, AVX512) implementations. Therefore, installing them may not yield any benefit from `n_cpu_moe` or `cpu_moe`. To ensure all optimizations are enabled, you should build llama.cpp from source code on your own computer! Also, ready-made VHLs may not contain VMM, which will lead to a crash with an OOM (out of memory) error in case of insufficient VRAM.
+
+| Mode | Speed for Qwen3.6-35B-A3B-Q4_K_M in 16 Gb VRAM | Note |
+|--------|--------|--------|
+| n_cpu_moe | 20-30 tok/sec | 💡 llama.cpp from ready-made basic VHLs without `AVX, AVX2, AVX512` |
+| Memory overflow ❌ | **crash** | 💡 llama.cpp from ready-made basic VHLs without `VMM` |
 
 > 💡 **Tip:** Search for models on huggingface and choose models with better quantization, such as UD_IQ from unsloth. They will be smarter and lighter.
 
@@ -1322,7 +1355,7 @@ To make the model fit:
 1. Use stronger quantization Q8->Q6->Q4->Q3... (But the stronger the quantization, the more the quality of the model may suffer; below Q4 it may already be unacceptable.)
 2. Reduce `n_ctx`, but not too much, otherwise the response may be cut off.
 3. In a larger context enable KV cache quantization `"type_k": 8`, `"type_v": 8`
-4. Use MoE model with expert unloading (n_cpu_moe > 0 or cpu_moe = true). Some experts will be stored in RAM and processed by the CPU. This is a more efficient method than NGL.
+4. Use MoE model with expert unloading (n_cpu_moe > 0 or cpu_moe = true and n_gpu_layers=-1). Some experts will be stored in RAM and processed by the CPU. This is a more efficient method than NGL.
 - n_cpu_moe = 20 (You need to choose the best number) → put 20 experts on CPU, rest on GPU → All available VRAM is full, higher speed.
 - cpu_moe = true → All experts on CPU → minimal VRAM consumption.
 5. If nothing else is possible use NGL offload (n_gpu_layers > 0). Some layers will be stored in RAM and processed by the CPU.
@@ -1336,16 +1369,19 @@ Please note that in addition to the model and projector weights, you also need t
 
 If the memory is full before this node starts use `unload_all_models = true`.
 
-Also, keep in mind that LM Studio does a "warm-up" immediately after loading a model. That is, it runs a fake prompt, which allows for stable speed later. 
-
-This node always performs a "cold start". This may reduces the speed.
+If `debug=true` this node in calculates in console the generation time (tok/sec) from the start of inference to its completion, which also includes overhead such as graph compilation/optimization, vision encoder preprocessing (if applicable), prompt tokenization & embedding, VRAM allocation, sampling/decoding initialization etc.
+LM Studio displays the net generation time, so the values in LM Studio will be higher (better tok/sec).
+You can view the net generation time (`eval time` in llama.cpp verbose output) in console by enabling `verbose=true`.
 
 ---
 
 ## Troubleshooting:
 
+<img width="2048" height="448" alt="03528-1060011778618551" src="https://github.com/user-attachments/assets/ce5e50f4-131f-4f4e-959e-f9890d32b2fc" />
+
 Try enabling debug output:
 ```
+"debug": true
 "verbose": true
 ```
 

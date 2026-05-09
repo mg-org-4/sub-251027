@@ -52,6 +52,8 @@ What is DisTorch? Standing for "distributed torch", the DisTorch nodes in this c
 ## 🚀 Compatibility
 Works with all .safetensors and GGUF-quantized models.
 
+On current ComfyUI builds with DynamicVRAM/comfy-aimdo enabled, MultiGPU keeps DynamicVRAM active on CUDA devices that comfy-aimdo has initialized and falls back to legacy model patching for off-grid MultiGPU CUDA devices. This preserves MultiGPU placement for devices such as `cuda:1` even when comfy-aimdo only initialized the primary device.
+
 ⚙️ Expert users: Like .gguf or exl2/3 LLM loaders, use the expert_mode_alloaction for exact allocations of model shards on as many devices as your setup has!
 
 <p align="center">

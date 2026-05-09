@@ -427,27 +427,24 @@
     z-index: 1;
 }
 
-/* 关键修复：防止dom-widget容器拦截按钮点击 */
-/* 当dom-widget包含weilin-comfyui-lora-stack时，确保它不会拦截事件 */
-.dom-widget:has(.weilin-comfyui-lora-stack) {
+/* 关键修复：仅作用于 WeiLin 节点标记过的 dom-widget，避免影响其他插件 */
+.dom-widget.weilin-owned-dom-widget {
     pointer-events: none !important;
     position: absolute !important; /* 覆盖fixed定位 */
 }
 
-/* 但要确保内部的按钮和输入框可以响应事件 */
-.dom-widget:has(.weilin-comfyui-lora-stack) * {
-    pointer-events: auto;
-}
-
-/* 或者使用更通用的方式：确保所有weilin相关的dom-widget不拦截事件 */
-.dom-widget:has([class*="weilin-"]) {
-    pointer-events: none !important;
-    position: absolute !important; /* 覆盖fixed定位 */
-}
-
-/* 但内部元素可以响应事件 */
-.dom-widget:has([class*="weilin-"]) * {
-    pointer-events: auto;
+.dom-widget.weilin-owned-dom-widget textarea,
+.dom-widget.weilin-owned-dom-widget input,
+.dom-widget.weilin-owned-dom-widget select,
+.dom-widget.weilin-owned-dom-widget button,
+.dom-widget.weilin-owned-dom-widget canvas,
+.dom-widget.weilin-owned-dom-widget iframe,
+.dom-widget.weilin-owned-dom-widget a,
+.dom-widget.weilin-owned-dom-widget [contenteditable='true'],
+.dom-widget.weilin-owned-dom-widget .weilin-comfyui-lora-stack,
+.dom-widget.weilin-owned-dom-widget .weilin-prompt-ui-container,
+.dom-widget.weilin-owned-dom-widget .weilin-lora-manager-container {
+    pointer-events: auto !important;
 }
 
 /* 额外修复：确保weilin相关的容器本身可以响应事件 */

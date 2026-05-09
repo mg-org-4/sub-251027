@@ -314,6 +314,14 @@ waitForApp((app) => {
         // ========================================
         const fixCurrentNodeDomWidgets = () => {
           if (!this.widgets) return;
+          // 三种 WeiLin 节点统一保留 Comfy 原生缩放链，
+          // 避免小画布/缩放时 dom-widget 与 canvas widget 叠层错位。
+          if (
+            nodeData.name === "WeiLinPromptUI" ||
+            nodeData.name === "WeiLinPromptUIWithoutLora" ||
+            nodeData.name === "WeiLinPromptUIOnlyLoraStack"
+          ) return;
+          const processedDomWidgets = new Set();
           
           this.widgets.forEach(widget => {
             if (widget.element) {
@@ -321,20 +329,25 @@ waitForApp((app) => {
               let parent = widget.element.parentElement;
               while (parent) {
                 if (parent.classList && parent.classList.contains('dom-widget')) {
-                  // 只修复当前节点的dom-widget
-                  // 设置pointer-events: none让画布可以交互
+                  if (processedDomWidgets.has(parent)) {
+                    parent = parent.parentElement;
+                    continue;
+                  }
+                  processedDomWidgets.add(parent);
+
+                  const isFirstFix = !parent.classList.contains('weilin-owned-dom-widget');
                   parent.style.setProperty('pointer-events', 'none', 'important');
-                  // 设置position: absolute让容器跟随节点
+                  parent.classList.add('weilin-owned-dom-widget');
                   parent.style.setProperty('position', 'absolute', 'important');
-                  // 移除size-full类
                   parent.classList.remove('size-full');
+                  if (isFirstFix) {
+                    console.log('[WeiLin] Fixed dom-widget for node:', nodeData.name);
+                  }
                   
                   // 确保内部元素可以交互
                   if (widget.element) {
                     widget.element.style.setProperty('pointer-events', 'auto', 'important');
                   }
-                  
-                  console.log('[WeiLin] Fixed dom-widget for node:', nodeData.name);
                   break;
                 }
                 parent = parent.parentElement;

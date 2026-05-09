@@ -90,6 +90,30 @@ MODEL_TYPE_TO_SUBDIR = {
     "vae": "vae",
     "controlnet": "controlnet",
     "embedding": "embeddings",
+    "embeddings": "embeddings",
+    "text_encoders": "text_encoders",
+    "diffusion_models": "diffusion_models",
+    "clip_vision": "clip_vision",
+    "style_models": "style_models",
+    "upscale_models": "upscale_models",
+    "vae_approx": "vae_approx",
+    "audio_encoders": "audio_encoders",
+    "background_removal": "background_removal",
+    "frame_interpolation": "frame_interpolation",
+    "optical_flow": "optical_flow",
+}
+MODEL_TYPE_ALIASES = {
+    "ckpt": "checkpoint",
+    "checkpoints": "checkpoint",
+    "loras": "lora",
+    "controlnets": "controlnet",
+    "control_net": "controlnet",
+    "clip": "text_encoders",
+    "text_encoder": "text_encoders",
+    "unet": "diffusion_models",
+    "diffusion_model": "diffusion_models",
+    "upscale_model": "upscale_models",
+    "audio_encoder": "audio_encoders",
 }
 ALLOWED_MODEL_EXTENSIONS = {".safetensors", ".ckpt", ".pt", ".pth", ".bin", ".onnx"}
 
@@ -225,6 +249,7 @@ def _norm_model_type(model_type: str) -> str:
     text = str(model_type or "").strip().lower()
     if not text:
         return DEFAULT_MODEL_TYPE
+    text = MODEL_TYPE_ALIASES.get(text, text)
     return text if text in MODEL_TYPE_TO_SUBDIR else "other"
 
 

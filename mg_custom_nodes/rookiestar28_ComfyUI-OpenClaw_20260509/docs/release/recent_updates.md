@@ -7,6 +7,17 @@ Newest entries appear first.
 
 <details>
 
+<summary><strong>ComfyUI host compatibility, sidebar registration, model folders, and asset-output posture refreshed</strong></summary>
+
+- Refreshed the published compatibility baseline for current ComfyUI, standalone frontend, and Desktop hosts, while keeping desktop embedded-frontend lag explicit.
+- Updated sidebar registration to prefer the current ComfyUI sidebar store API and keep the deprecated frontend facade as a compatibility fallback for older hosts.
+- Aligned Model Manager and preflight diagnostics with current ComfyUI model folder names such as `text_encoders` and `diffusion_models`, while retaining legacy aliases such as `clip` and `unet`.
+- Kept output previews on the bounded `/history` + `/view` contract; upstream asset-only identifiers remain explicit fallback states unless a future feature requires direct `/api/assets` use.
+
+</details>
+
+<details>
+
 <summary><strong>Connector replay, reply visibility, and scheduled delivery behavior aligned with current chat workflows</strong></summary>
 
 - Connector event handling now distinguishes duplicate committed actions from retryable pre-delivery failures across supported chat adapters, reducing accidental re-execution while still allowing safe retries.

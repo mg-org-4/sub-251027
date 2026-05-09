@@ -1,8 +1,8 @@
 # OpenClaw API Contract (v1)
 
 > **Status**: normative
-> **Version**: 1.0.9
-> **Date**: 2026-04-28
+> **Version**: 1.0.10
+> **Date**: 2026-05-08
 
 This document defines the public API contract for OpenClaw. It serves as the authoritative baseline for client compatibility and breaking change policies.
 
@@ -140,6 +140,8 @@ Connector diagnostics contract notes:
 
 Model-manager contract notes:
 - `/models/downloads` supports `since_seq` cursor polling and may return deterministic delta metadata (`requested_since_seq`, `effective_since_seq`, `next_since_seq`, truncation/reset hints) alongside the task list
+- `model_type` values SHOULD use current ComfyUI folder keys where applicable, including `text_encoders`, `diffusion_models`, `clip_vision`, `style_models`, `upscale_models`, `vae_approx`, `audio_encoders`, `background_removal`, `frame_interpolation`, and `optical_flow`
+- legacy aliases such as `ckpt`, `checkpoints`, `loras`, `controlnets`, `clip`, `text_encoder`, `unet`, `diffusion_model`, `upscale_model`, and `audio_encoder` are normalized before filtering or import destination resolution
 - download creation requires structured provenance metadata (`publisher`, `license`, `source_url`) and a 64-char `expected_sha256`
 - import keeps fail-closed destination/filename validation and re-checks the staged file hash before activation
 

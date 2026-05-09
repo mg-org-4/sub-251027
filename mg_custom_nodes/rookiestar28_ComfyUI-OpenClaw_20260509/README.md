@@ -90,6 +90,17 @@ Deployment profiles and hardening references:
 
 <details>
 
+<summary><strong>ComfyUI host compatibility, sidebar registration, model folders, and asset-output posture refreshed</strong></summary>
+
+- Refreshed the published compatibility baseline for current ComfyUI, standalone frontend, and Desktop hosts, while keeping desktop embedded-frontend lag explicit.
+- Updated sidebar registration to prefer the current ComfyUI sidebar store API and keep the deprecated frontend facade as a compatibility fallback for older hosts.
+- Aligned Model Manager and preflight diagnostics with current ComfyUI model folder names such as `text_encoders` and `diffusion_models`, while retaining legacy aliases such as `clip` and `unet`.
+- Kept output previews on the bounded `/history` + `/view` contract; upstream asset-only identifiers remain explicit fallback states unless a future feature requires direct `/api/assets` use.
+
+</details>
+
+<details>
+
 <summary><strong>Connector replay, reply visibility, and scheduled delivery behavior aligned with current chat workflows</strong></summary>
 
 - Connector event handling now distinguishes duplicate committed actions from retryable pre-delivery failures across supported chat adapters, reducing accidental re-execution while still allowing safe retries.
@@ -128,18 +139,6 @@ Deployment profiles and hardening references:
 - Tightened node and frontend maintainability by moving batch-variant randomized seed imports to module scope and keeping tab DOM wiring on shared text-safe helper paths.
 - Added explicit verification ownership for the `safe_io` and security-boundary hotspot families so future coverage ratchets depend on targeted regressions instead of broad coverage alone.
 - Hardened exception-boundary governance around selected startup and connector paths so unexpected route/bootstrap or trust-parsing failures are surfaced instead of silently masked.
-
-</details>
-
-<details>
-
-<summary><strong>Packaging boundaries, node portability guidance, config ownership seams, and connector extraction diagnostics aligned with the current runtime</strong></summary>
-
-- Made the supported packaging model explicit: the ComfyUI custom node pack remains the primary artifact, the embedded operator platform is the first-class runtime identity, and the connector stays an optional attached subsystem rather than a separate published package.
-- Added a stable node portability contract so inventory/preflight diagnostics can expose OpenClaw node metadata and deterministic replacement hints when a workflow depends on nodes that are not available in the current host.
-- Consolidated the remaining high-churn package-boundary import hotspots onto shared import-fallback helpers so minimal or partially optional environments degrade predictably instead of crashing on module import.
-- Split runtime-config ownership into focused storage, policy, and operator-projection seams while keeping the public runtime-config facade and precedence contract stable for existing callers and operators.
-- Added admin-only connector extraction diagnostics at `/openclaw/connector/extraction-contract` (with legacy `/moltbot/*` parity) so maintainers can query the current no-split recommendation, seam families, and blockers from one machine-readable source of truth.
 
 </details>
 
@@ -350,6 +349,7 @@ Current builds expose a stable portability contract for the shipped OpenClaw nod
 - inventory/preflight surfaces can expose package-level node portability metadata for `openclaw:*` nodes alongside the normal node inventory view
 - when a workflow references an unavailable OpenClaw node, current diagnostics prefer deterministic replacement guidance instead of an opaque missing-node failure
 - muted or bypassed root nodes and subgraph branches are reported as suppressed diagnostics when the submitted workflow shape exposes enough frontend metadata, so inactive branches do not become actionable missing-node/model failures
+- model-name inputs are checked against current ComfyUI folder keys such as `text_encoders` and `diffusion_models`, with legacy `clip` and `unet` aliases preserved for older workflow metadata
 - the compatibility class exports (`Moltbot*`) remain in place for existing workflows, but portability guidance is anchored on the canonical `openclaw:*` node identities
 
 If you are moving a workflow between hosts, treat the portability metadata and replacement hints as the supported migration path before attempting ad hoc node renames. The troubleshooting guide covers the operator-facing interpretation of those signals.
@@ -362,6 +362,7 @@ The frontend lives in `web/` and is served by ComfyUI as an extension panel. It 
 
 Current sidebar composition keeps `web/openclaw_ui.js` as the shell root and routes specialized browser logic through focused modules:
 
+- ComfyUI host sidebar registration: `web/openclaw_sidebar_registration.js`
 - actions and submit/cancel wiring: `web/openclaw_actions.js`
 - queue polling and transient banners: `web/openclaw_queue_monitor.js` and `web/openclaw_banner_manager.js`
 - persistent operator notifications: `web/openclaw_notification_center.js`
@@ -374,6 +375,8 @@ Canonical DOM/class ownership is now centered on `openclaw-*`; legacy `moltbot-*
 
 The sidebar now also resolves and stamps its active host surface (`standalone_frontend` vs desktop-embedded host) at mount time so frontend-host drift is explicit and testable instead of inferred from runtime accidents.
 
+Sidebar registration prefers ComfyUI's current sidebar store API and falls back to the deprecated frontend facade when running on older host bundles. Hosts without either sidebar API use the legacy menu fallback instead of failing extension setup.
+
 ### Sidebar Modules
 
 ![OpenClaw /sidebar ui example](assets/sidebar_modules.png)
@@ -382,17 +385,17 @@ The OpenClaw sidebar includes these built-in tabs. Some tabs are capability-gate
 
 | Tab | What it does | Related docs |
 | --- | --- | --- |
-| `Settings` | Health/config/log visibility, provider/model setup, model connectivity checks, and optional localhost key storage. | [Quick Start](#quick-start-minimal), [LLM config](#llm-config-non-secret), [Troubleshooting](#troubleshooting) |
-| `Jobs` | Tracks prompt IDs, consumes deterministic event/task cursor metadata for polling, and shows output previews for recent jobs across classic history refs and asset-backed output refs through the same `/view` contract; refs that only expose asset-service identifiers stay explicit as an operator-visible fallback state instead of silently upgrading to `/api/assets`. | [Observability](#observability-read-only), [Remote Control (Connector)](#remote-control-connector) |
+| `Settings` | Health/config/log visibility, provider/model setup, model connectivity checks, and optional localhost key storage. | [Quick Start](#quick-start-minimal), [API Overview](#api-overview), [Troubleshooting](#troubleshooting) |
+| `Jobs` | Tracks prompt IDs, consumes deterministic event/task cursor metadata for polling, and shows output previews for recent jobs across classic history refs and asset-backed output refs through the same `/view` contract; refs that only expose asset-service identifiers stay explicit as an operator-visible fallback state instead of silently upgrading to `/api/assets`. | [API Overview](#api-overview), [Remote Control (Connector)](#remote-control-connector) |
 | `Planner` | Uses assist endpoint to generate structured prompt plans (positive/negative/params). | [Configure an LLM key](#1-configure-an-llm-key-for-plannerrefinervision-helpers), [Nodes](#nodes) |
 | `Refiner` | Refines existing prompts with optional image context and issue/goal input. | [Configure an LLM key](#1-configure-an-llm-key-for-plannerrefinervision-helpers), [Nodes](#nodes) |
 | `Variants` | Local helper for generating batch variant parameter JSON (seed/range-style sweeps). | [Nodes](#nodes), [Operator UX Features](#operator-ux-features) |
-| `Library` | Manages reusable prompt/params presets and provides pack-oriented library operations in one place. | [Presets](#presets-admin), [Packs](#packs-admin) |
-| `Approvals` | Lists approval gates and supports approve/reject operations, including the same approval objects now surfaced through Slack and Feishu interactive connector actions. | [Triggers + approvals](#triggers--approvals-admin), [Remote Control (Connector)](#remote-control-connector) |
+| `Library` | Manages reusable prompt/params presets and provides pack-oriented library operations in one place. | [Templates](#templates), [API Overview](#api-overview) |
+| `Approvals` | Lists approval gates and supports approve/reject operations, including the same approval objects now surfaced through Slack and Feishu interactive connector actions. | [API Overview](#api-overview), [Remote Control (Connector)](#remote-control-connector) |
 | `Explorer` | Inventory/preflight diagnostics and snapshot/checkpoint troubleshooting workflows, including snapshot-first inventory refresh state (`snapshot_ts`, `scan_state`, `stale`, `last_error`) and suppressed inactive-branch findings. | [Operator UX Features](#operator-ux-features), [Troubleshooting](#troubleshooting) |
-| `Packs` | Dedicated pack lifecycle tab for import/export/delete under admin boundary. | [Packs](#packs-admin) |
+| `Packs` | Dedicated pack lifecycle tab for import/export/delete under admin boundary. | [API Overview](#api-overview) |
 | `PNG Info` | Inspects saved generation images through drag-and-drop, file picker, or scoped paste, parses A1111 infotext plus ComfyUI `prompt` / `workflow` metadata, shows extracted prompt and generation fields when recoverable, and keeps raw metadata visible for operator inspection. | [API Overview](#api-overview), [Troubleshooting](#troubleshooting) |
-| `Model Manager` | Searches model catalog/install records, queues managed downloads, monitors task lifecycle, and imports completed tasks into the managed install root with the same trusted download/import contract used by the backend model manager APIs. | [Model manager](#model-manager-admin-f54), [API Overview](#api-overview) |
+| `Model Manager` | Searches model catalog/install records, queues managed downloads, monitors task lifecycle, and imports completed tasks into the managed install root with current ComfyUI folder-key normalization plus legacy type aliases. | [API Overview](#api-overview), [Troubleshooting](#troubleshooting) |
 | `Parameter Lab` | Runs bounded sweep/compare experiments, stores history, and replays parameters back into the graph. | [Operator UX Features](#operator-ux-features) |
 
 ## Operator UX Features
@@ -485,6 +488,7 @@ Key operational notes:
 
 - Observability remains token-gated for remote access and redacts provider reasoning-like content plus marked internal maintenance/helper content by default.
 - Event/model-download polling and preflight inventory are snapshot/cursor-driven contracts; clients should consume `snapshot_ts`, `scan_state`, `stale`, and cursor metadata instead of assuming full-refresh polling.
+- Model Manager and preflight consumers should use current ComfyUI folder keys for model types where possible; compatibility aliases such as `clip`, `unet`, `ckpt`, and plural legacy names are normalized before lookup/import.
 - Output/history-facing consumers should keep using the bounded `/history` + `/view` contract; refs that only upstream asset services can resolve remain explicit `asset_api_required` compatibility states.
 - Connector diagnostics expose redacted token references only, and `/openclaw/connector/extraction-contract` is structural packaging metadata and static SecretRef policy rather than a live installation-health, environment, or token-status feed.
 

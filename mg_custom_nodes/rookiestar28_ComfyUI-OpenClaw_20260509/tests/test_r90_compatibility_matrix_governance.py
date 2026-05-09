@@ -22,9 +22,9 @@ from services.operator_doctor import DoctorReport, check_compatibility_matrix_go
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_CURRENT_ANCHORS = {
-    "comfyui": "df22bcd5 (v0.19.3-41-gdf22bcd5 / frontend package 1.42.15)",
-    "comfyui_frontend": "1.44.10",
-    "desktop": "0.8.35 (core 0.19.5 / frontend 1.42.14)",
+    "comfyui": "d3c18c16 (v0.20.1 / frontend package 1.43.17)",
+    "comfyui_frontend": "1.45.1",
+    "desktop": "0.8.36 (core 0.20.1 / frontend 1.42.15)",
 }
 
 
@@ -71,7 +71,7 @@ class TestR90CompatMatrixGovernance(unittest.TestCase):
         self.assertTrue(contract["ok"], msg=contract)
         self.assertEqual(contract["code"], "R164_HOST_SURFACES_READY")
         self.assertEqual(
-            contract["surfaces"]["desktop"]["embedded_frontend_version"], "1.42.14"
+            contract["surfaces"]["desktop"]["embedded_frontend_version"], "1.42.15"
         )
         self.assertEqual(
             contract["surfaces"]["desktop"]["frontend_parity"]["status"], "lagging"
@@ -194,7 +194,7 @@ class TestR90CompatMatrixGovernance(unittest.TestCase):
         self.assertTrue(contract["ok"], msg=contract)
         desktop_surface = contract["surfaces"]["desktop"]
         self.assertEqual(desktop_surface["frontend_parity"]["status"], "lagging")
-        self.assertEqual(desktop_surface["embedded_frontend_version"], "1.42.14")
+        self.assertEqual(desktop_surface["embedded_frontend_version"], "1.42.15")
         self.assertTrue(
             (
                 REPO_ROOT / "tests" / "e2e" / "specs" / "desktop_host_parity.spec.js"

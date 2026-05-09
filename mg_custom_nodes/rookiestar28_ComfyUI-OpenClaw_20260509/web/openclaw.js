@@ -12,6 +12,7 @@ import { openclawApi } from "./openclaw_api.js";
 import { registerContextToolbox } from "./extensions/context_toolbox.js"; // F51
 import { getCompatibleSettingValue } from "./openclaw_compat.js";
 import { stampHostSurfaceMetadata } from "./openclaw_host_surface.js";
+import { registerOpenClawSidebar } from "./openclaw_sidebar_registration.js";
 
 // Tabs
 import { tabManager } from "./openclaw_tabs.js";
@@ -198,27 +199,28 @@ app.registerExtension({
 
         // Preferred: modern sidebar API
         try {
-            if (app?.extensionManager?.registerSidebarTab) {
-                app.extensionManager.registerSidebarTab({
-                    id: "comfyui-openclaw",
-                    icon: "pi pi-bolt",
-                    title: "OpenClaw",
-                    tooltip: "OpenClaw: AI assistant for ComfyUI",
-                    type: "custom",
-                    render: (container) => {
-                        try {
-                            // IMPORTANT: desktop bundles may lag standalone frontend; stamp
-                            // the resolved host surface so host-sensitive regressions stay explicit.
-                            stampHostSurfaceMetadata(container, { app, win: window });
-                            openclawUI.mount(container);
-                        } catch (renderError) {
-                            console.error("[OpenClaw] UI Mount Error:", renderError);
-                            container.innerHTML = `<div style="padding:10px; color:red">UI Crash: ${renderError.message}</div>`;
-                        }
-                    },
-                });
-            } else {
-                throw new Error("Sidebar API missing");
+            // IMPORTANT: prefer the current sidebar store API while preserving the
+            // deprecated extensionManager facade for desktop/older frontend bundles.
+            const registration = registerOpenClawSidebar(app, {
+                id: "comfyui-openclaw",
+                icon: "pi pi-bolt",
+                title: "OpenClaw",
+                tooltip: "OpenClaw: AI assistant for ComfyUI",
+                type: "custom",
+                render: (container) => {
+                    try {
+                        // IMPORTANT: desktop bundles may lag standalone frontend; stamp
+                        // the resolved host surface so host-sensitive regressions stay explicit.
+                        stampHostSurfaceMetadata(container, { app, win: window });
+                        openclawUI.mount(container);
+                    } catch (renderError) {
+                        console.error("[OpenClaw] UI Mount Error:", renderError);
+                        container.innerHTML = `<div style="padding:10px; color:red">UI Crash: ${renderError.message}</div>`;
+                    }
+                },
+            });
+            if (!registration.ok) {
+                throw registration.error;
             }
         } catch (e) {
             // Legacy fallback: left menu button + floating panel

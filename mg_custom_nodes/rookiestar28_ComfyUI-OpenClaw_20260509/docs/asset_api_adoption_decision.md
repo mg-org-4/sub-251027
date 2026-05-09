@@ -1,15 +1,18 @@
-# R167 ComfyUI Asset API Adoption Decision (2026-04-16)
+# ComfyUI Asset API Adoption Decision (2026-04-16)
 
 ## Scope
 
-- Item: `R167` from the active roadmap (`ComfyUI asset API adoption decision and bounded phase-2 interop seam`).
-- Goal: decide whether OpenClaw should adopt upstream `/api/assets` semantics as a normal runtime dependency beyond the `R165` bounded `/view` interoperability layer.
+- Goal: decide whether OpenClaw should adopt upstream `/api/assets` semantics as a normal runtime dependency beyond the bounded `/view` interoperability layer.
 
 ## Current baseline
 
 - Current history/output-facing interop already accepts:
   - classic ComfyUI output refs (`filename`, `subfolder`, `type`)
   - asset-hash-backed refs that still resolve through `/view?filename=blake3:...`
+- Current ComfyUI `0.20.1` reference facts:
+  - `/api/assets*` routes exist, but operational use is feature-gated behind `--enable-assets`
+  - `/features` exposes the `assets` capability flag so hosts can report whether the asset system is enabled
+  - frontend preview still resolves `blake3:...` asset hashes through `/view`, so hash-backed outputs do not require a direct `/api/assets` fetch
 - Current operator/runtime surfaces in scope:
   - sidebar `Jobs`
   - callback delivery payloads

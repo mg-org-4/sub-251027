@@ -126,6 +126,29 @@ class TestPreflightBackend(AioHTTPTestCase):
                 data["missing_models"][0]["name"], "sd_xl_base_1.0.safetensors"
             )
 
+    def test_current_comfyui_model_aliases_use_current_folder_keys(self):
+        missing_counts = {}
+        services.preflight._check_inputs_for_models(
+            {
+                "clip_name": "t5xxl_fp16.safetensors",
+                "unet_name": "flux1-dev.safetensors",
+            },
+            {
+                "text_encoders": [],
+                "diffusion_models": [],
+            },
+            missing_counts,
+        )
+
+        self.assertEqual(
+            missing_counts["text_encoders:t5xxl_fp16.safetensors"]["type"],
+            "text_encoders",
+        )
+        self.assertEqual(
+            missing_counts["diffusion_models:flux1-dev.safetensors"]["type"],
+            "diffusion_models",
+        )
+
     @patch("api.preflight_handler.check_rate_limit")
     @patch("api.preflight_handler.require_admin_token")
     @unittest_run_loop

@@ -4,7 +4,7 @@ This document summarizes the current OpenClaw sidebar UI structure and how to ve
 
 ## UI Structure
 
-- Entry: `web/openclaw.js` registers the extension and sidebar tab.
+- Entry: `web/openclaw.js` registers the extension; host sidebar registration is routed through `web/openclaw_sidebar_registration.js` so current ComfyUI sidebar-store hosts and older frontend facade hosts share one compatibility path.
 - Shell: `web/openclaw_ui.js` now acts as the composition root for the sidebar shell and public singleton exports.
 - Actions: `web/openclaw_actions.js` owns submit/cancel/retry wiring and guarded action routing for the shell.
 - Queue monitor: `web/openclaw_queue_monitor.js` owns queue polling lifecycle and transient banner/status updates used by the shell.
@@ -22,6 +22,7 @@ Refactor note:
 - `web/openclaw_ui.js` should stay focused on shell composition, shared singleton ownership, and exports.
 - New shell behaviors should prefer the extracted action/queue modules unless they truly belong to top-level shell assembly.
 - New tab markup should use canonical `openclaw-*` classes; legacy `moltbot-*` aliases are generated centrally at runtime instead of being duplicated in each template.
+- New host sidebar registration changes should stay in `web/openclaw_sidebar_registration.js` rather than duplicating ComfyUI frontend API detection inside the extension entrypoint.
 - Host-sensitive behaviors should consume the shared host-surface helper rather than inferring desktop vs standalone frontend from ad-hoc globals.
 - Output preview flows should consume the shared asset-ref normalizer rather than assembling `/view` URLs independently in each tab or silently widening runtime behavior to direct `/api/assets` fetches.
 - Explorer/preflight consumers should treat inventory diagnostics as snapshot-first and surface `snapshot_ts`, `scan_state`, `stale`, and `last_error` instead of blocking the UI on full rescans.

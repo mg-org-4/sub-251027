@@ -58,8 +58,14 @@ _INPUT_KEY_MAP = {
     "control_net_name": "controlnet",
     "upscale_model_name": "upscale_models",
     "style_model_name": "style_models",
-    "clip_name": "clip",
-    "unet_name": "unet",
+    "clip_name": "text_encoders",
+    "text_encoder_name": "text_encoders",
+    "unet_name": "diffusion_models",
+    "diffusion_model_name": "diffusion_models",
+    "audio_encoder_name": "audio_encoders",
+    "background_removal_name": "background_removal",
+    "frame_interpolation_name": "frame_interpolation",
+    "optical_flow_name": "optical_flow",
     # Add more as discovered
 }
 
@@ -79,13 +85,19 @@ def _resolve_inventory_model_types() -> List[str]:
         "embeddings",
         "controlnet",
         "upscale_models",
-        "clip",
-        "unet",
+        "text_encoders",
+        "diffusion_models",
         "clip_vision",
         "style_models",
         "diffusers",
         "vae_approx",
         "photomaker",
+        "audio_encoders",
+        "background_removal",
+        "frame_interpolation",
+        "optical_flow",
+        "clip",
+        "unet",
     ]
     if hasattr(folder_paths, "folder_names_and_paths"):
         for key in folder_paths.folder_names_and_paths.keys():

@@ -14,6 +14,7 @@ from services.model_manager import (
     DownloadTask,
     ModelManager,
     ModelManagerError,
+    _norm_model_type,
 )
 from services.model_manager_transfer import (
     _absolute_bounded_install_path,
@@ -130,6 +131,17 @@ class TestModelManagerService(unittest.TestCase):
         lora_only = self.manager.search_models(model_type="lora")
         self.assertEqual(lora_only["pagination"]["total"], 1)
         self.assertEqual(lora_only["items"][0]["id"], "installed-b")
+
+    def test_norm_model_type_tracks_current_comfyui_folder_keys(self):
+        self.assertEqual(_norm_model_type("diffusion_models"), "diffusion_models")
+        self.assertEqual(_norm_model_type("text_encoders"), "text_encoders")
+        self.assertEqual(_norm_model_type("audio_encoders"), "audio_encoders")
+        self.assertEqual(_norm_model_type("background_removal"), "background_removal")
+        self.assertEqual(_norm_model_type("frame_interpolation"), "frame_interpolation")
+        self.assertEqual(_norm_model_type("optical_flow"), "optical_flow")
+        self.assertEqual(_norm_model_type("unet"), "diffusion_models")
+        self.assertEqual(_norm_model_type("clip"), "text_encoders")
+        self.assertEqual(_norm_model_type("diffusers"), "other")
 
     @patch(
         "services.model_manager.validate_outbound_url",

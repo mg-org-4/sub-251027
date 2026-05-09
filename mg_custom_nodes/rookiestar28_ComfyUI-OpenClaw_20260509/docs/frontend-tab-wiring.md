@@ -4,6 +4,7 @@ OpenClaw's frontend uses modular vanilla ES modules loaded by the ComfyUI extens
 
 ## Tab Registration
 
+- Register the OpenClaw host sidebar entry through `registerOpenClawSidebar(app, tabDefinition)` from `web/openclaw_sidebar_registration.js`; it prefers ComfyUI's current sidebar store API and falls back to the deprecated frontend facade for older host bundles.
 - Register tabs through `tabManager.registerTab({ id, title, icon, render })`.
 - Keep `id` stable; it is used for pane ids and active-tab storage.
 - Treat `render(pane)` as the only place that mutates a tab pane.

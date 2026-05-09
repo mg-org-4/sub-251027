@@ -1,8 +1,22 @@
 import unittest
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestR167AssetApiContract(unittest.IsolatedAsyncioTestCase):
+    def test_asset_api_decision_doc_tracks_current_feature_gated_surface(self):
+        doc = (
+            Path(__file__).resolve().parents[1]
+            / "docs"
+            / "asset_api_adoption_decision.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("/api/assets", doc)
+        self.assertIn("--enable-assets", doc)
+        self.assertIn("/features", doc)
+        self.assertIn("blake3", doc)
+        self.assertIn("/view", doc)
+
     async def test_callback_delivery_preserves_asset_api_only_refs_without_view_fetch(
         self,
     ):

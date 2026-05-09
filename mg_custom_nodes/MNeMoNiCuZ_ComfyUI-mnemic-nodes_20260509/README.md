@@ -46,6 +46,11 @@ Save text file, and return the saved file's path.
 <img width="1650" height="415" alt="image" src="https://github.com/user-attachments/assets/f283be20-dc90-4139-958c-5db5e8a8250d" />
 
 
+## 💾 [Save Image With Metadata](./README/image_save_with_metadata.md)
+Save images with Civitai-compatible metadata auto-detected from the workflow. Adapted from [ChronoKnight's node](https://github.com/KChronoKnight/Chrono-Save-for-Civitai).
+<img width="1190" height="447" alt="image" src="https://github.com/user-attachments/assets/097ed56c-3ef9-495b-b9af-e39a2ca18125" />
+
+
 ## 🖼️ [Download Image from URL](./README/download_image_from_url.md)
 Download an image from the web.
 <img width="1649" height="438" alt="image" src="https://github.com/user-attachments/assets/314e8bef-4eab-4ffb-b21e-6fe13413820f" />
@@ -99,6 +104,10 @@ Load single images or iterate through image directories with mask support.
 ## 🖼️ [Load Image Advanced](./README/load_image_advanced.md)
 Loads an image, extracts metadata, provides the alpha channel as a mask, and outputs the image's dimensions.
 <img width="1933" height="875" alt="image" src="https://github.com/user-attachments/assets/e70c3c81-637d-4dfc-a20e-3d48409abf4c" />
+
+## 🖼️ [Load Image Temporarily](./README/load_image_temporarily.md)
+Loads an image and stores it in ComfyUI /temp-folder instead of the /input folder.
+<img width="1477" height="494" alt="image" src="https://github.com/user-attachments/assets/5c0aa05c-6c6d-48df-a6a9-12356cc4ea4f" />
 
 
 ## 🎨 [Colorful Starting Image](./README/colorful_starting_image.md)

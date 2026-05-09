@@ -14,7 +14,7 @@
 - **ProportionChanger Pose Detector**: 画像からKeyPointを検出する
 - **ProportionChanger Reference**: 参照用ポーズにプロポーションを変換する
 - **ProportionChanger Pose Render**: KeyPointを画像に変換する
-- **ProportionChanger Params**: KeyPointの各パーツのパラメータを調整する
+- **ProportionChanger Params**: KeyPointの各パーツのパラメータを調整する（上腕・下腕・太腿・下腿・足先の個別スケールを含む）
 - **ProportionChanger Interpolator**: KeyPoint動画を中割りして補間する
 - **PoseData to pose_keypoint**: WanAnimateの`POSEDATA`を`POSE_KEYPOINT`に変換する
 - **pose_keypoint resize**: `POSE_KEYPOINT`を指定サイズにリサイズ（アスペクト比が違う場合はパディング→スケールで歪みを防ぐ）
@@ -61,6 +61,11 @@ example_workflowsを参照してください。
 - **PoseData to pose_keypoint**ノードに`POSEDATA`とキャンバスの`width`/`height`を入力
 - 出力された`pose_keypoint`をProportionChanger Reference / Renderノードに接続
 - サンプルワークフロー: `example_workflows/proportion_changer_pose_data_to_pose_keypoint.json`
+
+### SCAIL-Poseへの変換
+- 変更後の`POSE_KEYPOINT`を **pose_keypoint to SCAIL-Pose** に接続
+- 出力された`DWPOSES`をSCAIL-Pose系ワークフローで使用
+- サンプルワークフロー: `example_workflows/proportion_changer_SCAIL_pose.json`
 
 
 ## トラブルシューティング

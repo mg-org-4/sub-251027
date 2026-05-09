@@ -14,7 +14,7 @@ Additionally, the Openpose Editor node from [toyxyz/ComfyUI-ultimate-openpose-ed
 - **ProportionChanger Pose Detector**: Detects KeyPoints from images
 - **ProportionChanger Reference**: Transforms proportions to reference poses
 - **ProportionChanger Pose Render**: Converts KeyPoints to images
-- **ProportionChanger Params**: Adjusts parameters for individual KeyPoint parts
+- **ProportionChanger Params**: Adjusts parameters for individual KeyPoint parts, including separate upper/lower arm, thigh/lower-leg, and feet scaling
 - **ProportionChanger Interpolator**: Interpolates KeyPoint videos with in-betweening
 - **PoseData to pose_keypoint**: Converts WanAnimate `POSEDATA` into `POSE_KEYPOINT`
 - **pose_keypoint resize**: Resizes `POSE_KEYPOINT` to a target size (pads then scales to avoid stretching when aspect differs)
@@ -61,6 +61,11 @@ Please refer to example_workflows.
 - Feed `POSEDATA`, `width`, and `height` into **PoseData to pose_keypoint**
 - Connect the resulting `pose_keypoint` to ProportionChanger Reference / Render nodes
 - Example workflow: `example_workflows/proportion_changer_pose_data_to_pose_keypoint.json`
+
+### Converting to SCAIL-Pose
+- Connect a changed `POSE_KEYPOINT` to **pose_keypoint to SCAIL-Pose**
+- Use the resulting `DWPOSES` with SCAIL-Pose workflows
+- Example workflow: `example_workflows/proportion_changer_SCAIL_pose.json`
 
 ## Troubleshooting
 

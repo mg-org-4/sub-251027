@@ -1354,8 +1354,6 @@ function textInferenceSettingsToggleHandler(settingsNode) {
     const frequencyPenaltyWidget = settingsNode.widgets.find(w => w && w.name === "frequencyPenalty");
     const useToolsWidget = settingsNode.widgets.find(w => w && w.name === "useTools");
     const toolsWidget = settingsNode.widgets.find(w => w && w.name === "tools");
-    const useToolChoiceWidget = settingsNode.widgets.find(w => w && w.name === "useToolChoice");
-    const toolChoiceWidget = settingsNode.widgets.find(w => w && w.name === "toolChoice");
 
     function toggleWidgetState(useWidget, paramWidget) {
         if (!useWidget || !paramWidget) return;
@@ -1382,7 +1380,6 @@ function textInferenceSettingsToggleHandler(settingsNode) {
     if (usePresencePenaltyWidget && presencePenaltyWidget) toggleWidgetState(usePresencePenaltyWidget, presencePenaltyWidget);
     if (useFrequencyPenaltyWidget && frequencyPenaltyWidget) toggleWidgetState(useFrequencyPenaltyWidget, frequencyPenaltyWidget);
     if (useToolsWidget && toolsWidget) toggleWidgetState(useToolsWidget, toolsWidget);
-    if (useToolChoiceWidget && toolChoiceWidget) toggleWidgetState(useToolChoiceWidget, toolChoiceWidget);
 }
 
 function videoSettingsToggleHandler(settingsNode) {
@@ -1392,6 +1389,10 @@ function videoSettingsToggleHandler(settingsNode) {
     const draftWidget = settingsNode.widgets.find(w => w && w.name === "draft");
     const useAudioWidget = settingsNode.widgets.find(w => w && w.name === "useAudio");
     const audioWidget = settingsNode.widgets.find(w => w && w.name === "audio");
+    const useVoicePromptWidget = settingsNode.widgets.find(w => w && w.name === "useVoicePrompt");
+    const voicePromptWidget = settingsNode.widgets.find(w => w && w.name === "voicePrompt");
+    const useSafetyFilterWidget = settingsNode.widgets.find(w => w && w.name === "useSafetyFilter");
+    const safetyFilterWidget = settingsNode.widgets.find(w => w && w.name === "safetyFilter");
     const usePromptUpsamplingWidget = settingsNode.widgets.find(w => w && w.name === "usePromptUpsampling");
     const promptUpsamplingWidget = settingsNode.widgets.find(w => w && w.name === "promptUpsampling");
     const useBackgroundColorWidget = settingsNode.widgets.find(w => w && w.name === "useBackgroundColor");
@@ -1443,6 +1444,8 @@ function videoSettingsToggleHandler(settingsNode) {
 
     if (useDraftWidget && draftWidget) toggleWidgetState(useDraftWidget, draftWidget, "draft");
     if (useAudioWidget && audioWidget) toggleWidgetState(useAudioWidget, audioWidget, "audio");
+    if (useVoicePromptWidget && voicePromptWidget) toggleWidgetState(useVoicePromptWidget, voicePromptWidget, "voicePrompt");
+    if (useSafetyFilterWidget && safetyFilterWidget) toggleWidgetState(useSafetyFilterWidget, safetyFilterWidget, "safetyFilter");
     if (usePromptUpsamplingWidget && promptUpsamplingWidget) toggleWidgetState(usePromptUpsamplingWidget, promptUpsamplingWidget, "promptUpsampling");
     if (useBackgroundColorWidget && backgroundColorWidget) toggleWidgetState(useBackgroundColorWidget, backgroundColorWidget, "backgroundColor");
     if (useRemoveBackgroundWidget && removeBackgroundWidget) toggleWidgetState(useRemoveBackgroundWidget, removeBackgroundWidget, "removeBackground");
@@ -2854,6 +2857,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         ],
         "Pruna": [
             "prunaai:p-video@0 (P-Video)",
+            "prunaai:p-video@avatar (P-Video Avatar)",
         ],
         "SkyReels": [
             "skywork:skyreels@v4 (SkyReels V4)",
@@ -2952,6 +2956,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "xai:grok-imagine@video": {"width": 480, "height": 480},
         "veed:fabric@1.0": {"width": 1280, "height": 720},
         "prunaai:p-video@0": {"width": 1280, "height": 720},
+        "prunaai:p-video@avatar": {"width": 1280, "height": 720},
         "heygen:avatar@4": {"width": 1280, "height": 720},
         "heygen:video-agent@0": {"width": 1280, "height": 720},
         "skywork:skyreels@v4": {"width": 1280, "height": 720},
@@ -3049,6 +3054,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "xai:grok-imagine@video": "480p",
         "veed:fabric@1.0": "720p",
         "prunaai:p-video@0": "720p",
+        "prunaai:p-video@avatar": "720p",
         "heygen:avatar@4": "720p",
         "heygen:video-agent@0": "720p",
         "skywork:skyreels@v4": "720p",
@@ -3265,6 +3271,11 @@ function textModelSearchFilterHandler(textModelSearchNode) {
             "openai:gpt@5.4-pro (GPT-5.4 Pro)",
             "openai:gpt@5.4-mini (GPT-5.4 Mini)",
             "openai:gpt@5.4-nano (GPT-5.4 Nano)",
+        ],
+        "Anthropic": [
+            "anthropic:claude@opus-4.7 (Claude Opus 4.7)",
+            "anthropic:claude@sonnet-4.6 (Claude Sonnet 4.6)",
+            "anthropic:claude@haiku-4.5 (Claude Haiku 4.5)",
         ],
         "Google": [
             "google:gemini@3-flash (Gemini 3 Flash)",

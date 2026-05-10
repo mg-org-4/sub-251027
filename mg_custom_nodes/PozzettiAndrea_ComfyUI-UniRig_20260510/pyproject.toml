@@ -1,0 +1,13 @@
+[project]
+name = "comfyui-unirig"
+description = "Automatic skeleton extraction for ComfyUI using UniRig (SIGGRAPH 2025)"
+version = "1.5.10"
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/PozzettiAndrea/ComfyUI-UniRig"
+
+[tool.comfy]
+PublisherId = "pznodes"
+DisplayName = "UniRig"
+Icon = ""

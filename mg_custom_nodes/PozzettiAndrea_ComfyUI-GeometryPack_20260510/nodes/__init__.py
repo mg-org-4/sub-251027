@@ -2,13 +2,30 @@
 # Copyright (C) 2025 ComfyUI-GeometryPack Contributors
 
 """
-Main nodes - All non-Blender geometry processing nodes.
-Runs in an isolation env (pixi/conda) to avoid DLL conflicts with ComfyUI's torch.
+All geometry processing nodes — Blender, GPU, and main (CGAL/libigl/etc.).
 """
 
 import logging
 logging.getLogger("geometrypack").setLevel(logging.INFO)
 
+try:
+    import bpy
+except ImportError:
+    pass
+
+# --- Blender nodes ---
+from . import blender_io
+from . import blender_boolean
+from . import blender_remeshing
+from . import blender_texture_remeshing
+from . import blender_uv
+
+# --- GPU nodes ---
+from . import remeshing_gpu
+from . import fill_holes_gpu
+from . import uv_gpu
+
+# --- Main nodes ---
 from . import io
 from . import primitives
 from . import analysis
@@ -25,11 +42,7 @@ from . import reconstruction
 from . import texture_remeshing
 from . import smoothing
 from . import decimation
-
-# ParaView/VTK filter nodes
 from . import paraview
-
-# CGAL nodes (moved from nodes/cgal/)
 from . import reconstruction_cgal
 from . import boolean
 from . import remeshing_cgal
@@ -38,6 +51,31 @@ from . import decimation_cgal
 
 # Collect all node class mappings
 NODE_CLASS_MAPPINGS = {}
+NODE_DISPLAY_NAME_MAPPINGS = {}
+
+# Blender
+NODE_CLASS_MAPPINGS.update(blender_io.NODE_CLASS_MAPPINGS)
+NODE_CLASS_MAPPINGS.update(blender_boolean.NODE_CLASS_MAPPINGS)
+NODE_CLASS_MAPPINGS.update(blender_remeshing.NODE_CLASS_MAPPINGS)
+NODE_CLASS_MAPPINGS.update(blender_texture_remeshing.NODE_CLASS_MAPPINGS)
+NODE_CLASS_MAPPINGS.update(blender_uv.NODE_CLASS_MAPPINGS)
+
+NODE_DISPLAY_NAME_MAPPINGS.update(blender_io.NODE_DISPLAY_NAME_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(blender_boolean.NODE_DISPLAY_NAME_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(blender_remeshing.NODE_DISPLAY_NAME_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(blender_texture_remeshing.NODE_DISPLAY_NAME_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(blender_uv.NODE_DISPLAY_NAME_MAPPINGS)
+
+# GPU
+NODE_CLASS_MAPPINGS.update(remeshing_gpu.NODE_CLASS_MAPPINGS)
+NODE_CLASS_MAPPINGS.update(fill_holes_gpu.NODE_CLASS_MAPPINGS)
+NODE_CLASS_MAPPINGS.update(uv_gpu.NODE_CLASS_MAPPINGS)
+
+NODE_DISPLAY_NAME_MAPPINGS.update(remeshing_gpu.NODE_DISPLAY_NAME_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(fill_holes_gpu.NODE_DISPLAY_NAME_MAPPINGS)
+NODE_DISPLAY_NAME_MAPPINGS.update(uv_gpu.NODE_DISPLAY_NAME_MAPPINGS)
+
+# Main
 NODE_CLASS_MAPPINGS.update(io.NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(primitives.NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(analysis.NODE_CLASS_MAPPINGS)
@@ -61,8 +99,6 @@ NODE_CLASS_MAPPINGS.update(smoothing.NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(decimation.NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(decimation_cgal.NODE_CLASS_MAPPINGS)
 
-# Collect all display name mappings
-NODE_DISPLAY_NAME_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS.update(io.NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(primitives.NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(analysis.NODE_DISPLAY_NAME_MAPPINGS)

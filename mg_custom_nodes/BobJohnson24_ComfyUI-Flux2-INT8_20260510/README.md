@@ -1,28 +1,28 @@
 # Comfy INT8 Acceleration
 
-This node speeds up Flux2, Chroma, Z-Image, Ernie Image in ComfyUI by using INT8 quantization, delivering between 1.5~2x faster inference on my 3090 depending on the model. It should work on any NVIDIA GPU with enough INT8 TOPS. It's unlikely to be faster than proper FP8 on 40-Series and above. 
-Works with lora*, torch compile (needed to get full speedup).
+This node speeds up Flux2, Chroma, Z-Image, Ernie Image in ComfyUI by using INT8 quantization, delivering between 1.5~2x faster inference on my 3090 depending on the model. It should work on any NVIDIA GPU with enough INT8 TOPS. It appears to be faster than FP8 on 40-Series and above as well. 
+Works with lora, torch compile, dynamic vram.
 
-*LoRAs need to be applied using one of the following methods:
+---
 
-### Option 1: Included INT8 Stochastic LoRA Node (Recommended for Speed)
-- **Performance:** Faster inference
-- **Quality:** Possibly slightly lower quality
-- Use the included INT8 LoRA node
+Updates:
 
-### Option 2A: Included Int8 Dynamic LoRa Node
-- **Performance:** ~1.15x slower due to dynamic calculations
-- **Quality:** Possibly slightly higher quality
-- **Note:** Mostly deprecated now. I personally use #1, but #2B may also work.
+2026-10-05:
 
-### Option 2B: Comfy's native Lora Bypass Node
-- **Performance:** ~1.15x slower due to dynamic calculations
-- **Quality:** Possibly slightly higher quality
+Overhauled the entire lora system. Normal lora loader node works now, no need for specialized lora loaders.
 
-Pre-quantized checkpoints were recommended for most architectures, but on-the-fly quantization with QuaRot can be better in a few cases.
+Converted QuaRot to ConvRot, which is a small but free quality gain.
+
+Added Pre-Lora node, which you can connect to the INT8 Model loader to merge loras before utilizing on the fly quantization. 
+
+For more info on quality of convrot, lora approaches see the Metrics.md
+
+---
+
+Pre-quantized checkpoints were recommended for most architectures, but on-the-fly quantization with ConvRot is better in all cases.
+However, ConvRot is also a little slower, so these prequantized models are still useful.
 
 **Shoutout to [vistralis](https://huggingface.co/vistralis) for these:** 
-Make sure to update the node to use them as int8 row-wise was added.
 
 | Model | Link |
 |-------|------|
@@ -40,7 +40,7 @@ Make sure to update the node to use them as int8 row-wise was added.
 | Z-Image-Turbo | [Download](https://huggingface.co/bertbobson/Z-Image-Turbo-INT8-Tensorwise) |
 | Anima | [Download](https://huggingface.co/bertbobson/Anima-INT8-QUIP) |
 
-*Z-Image Base weights have been Deprecated in favor of Quarot OTF, which is higher quality.
+*Z-Image Base weights have been Deprecated in favor of Convrot OTF, which is higher quality.
 
 
 # Metrics:
@@ -81,7 +81,7 @@ https://github.com/Nerogar/OneTrainer/pull/1034
 
 If you have a 30-Series GPU, OneTrainer is also the fastest current lora trainer thanks to this. Please go check them out!!
 
-## newgrit1004 for the QuaRot code I basically copied
+## newgrit1004 for the ConvRot code I basically copied
 https://github.com/newgrit1004/ComfyUI-ZImage-Triton
 
 ## silveroxides for providing a base to hack the INT8 conversion code onto.

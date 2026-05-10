@@ -4,6 +4,15 @@ A custom node for ComfyUI that allows you to interact with OpenRouter's API, pro
 
 ## Updates
 
+### 5/9/2026 - Secure API Key Loading
+
+You can now load your API key from a JSON config or env var instead of typing it into the node, which avoids leaking it in workflow metadata when sharing images.
+
+- **JSON config:** put `{"api_key": "your_key_here"}` in `openrouter_api_key.json` in the node directory, leave the field blank
+- **Env var:** set `LLM_KEY`, leave the field blank
+- **UI field:** still works if you don't share workflows
+
+
 ### 4/5/2026 - Seed, Resolution, Aspect Ratio, Temperature Fix
 - Added **seed** input
 - Added **image_resolution** dropdown (1K, 2K, 4K)
@@ -56,11 +65,30 @@ pip install -r requirements.txt
 
 The OpenRouter node provides a simple interface to interact with various LLMs through the OpenRouter API.
 
+### API Key Security
+
+> [!WARNING]
+> Entering your API key directly into the node's input field in ComfyUI will embed it in the **workflow metadata** of every image you save. This is a security risk if you share your images.
+
+To keep your API key secure, use one of the following methods:
+
+1.  **JSON Config File (Recommended)**:
+    - Create a file named `openrouter_api_key.json` in the node directory.
+    - Add your key like this: `{"api_key": "your_key_here"}`.
+    - Leave the **api_key** field blank in the ComfyUI interface.
+
+2.  **Environment Variable**:
+    - Set an environment variable named `LLM_KEY` on your system.
+    - The node will automatically pick it up if the UI field is empty.
+
+> [!NOTE]
+> If you've ever typed your key into the **api_key** field, clear it before saving the workflow — the value is stored in the workflow JSON. On Linux/macOS, restrict the JSON config with `chmod 600 openrouter_api_key.json` so only your user can read it.
+
 ### Inputs
 
 #### Required Inputs:
 
-- **api_key**: Your OpenRouter API key. You can get one from [OpenRouter](https://openrouter.ai/).
+- **api_key**: Your OpenRouter API key. Can be left blank if provided via `openrouter_api_key.json` or `LLM_KEY` environment variable.
 - **system_prompt**: The system prompt that sets the behavior of the LLM.
 - **user_message_box**: The user message to send to the LLM.
 - **model**: The model to use for generation. The node automatically fetches the list of available models from OpenRouter.
@@ -91,7 +119,7 @@ Note: To display the output text in ComfyUI, you can use the ShowText nodes from
 ### Basic Text Generation
 
 1. Add the OpenRouter node to your workflow
-2. Enter your API key
+2. Provide your API key (see [API Key Security](#api-key-security))
 3. Set a system prompt (e.g., "You are a helpful assistant.")
 4. Enter a user message (e.g., "Explain quantum computing in simple terms.")
 5. Select a model (e.g., "openai/gpt-4")
@@ -101,7 +129,7 @@ Note: To display the output text in ComfyUI, you can use the ShowText nodes from
 
 1. Add the OpenRouter node to your workflow
 2. Connect an image output from another node to the "image_1" input
-3. Enter your API key
+3. Provide your API key (see [API Key Security](#api-key-security))
 4. Set a system prompt (e.g., "You are a helpful assistant.")
 5. Enter a user message (e.g., "Describe this image in detail.")
 6. Select a multimodal model (e.g., "openai/gpt-4-vision" or "anthropic/claude-3-opus-20240229")
@@ -122,7 +150,7 @@ Note: To display the output text in ComfyUI, you can use the ShowText nodes from
 ### Image Generation
 
 1. Add the OpenRouter node to your workflow
-2. Enter your API key
+2. Provide your API key (see [API Key Security](#api-key-security))
 3. Set a system prompt (e.g., "You are a helpful assistant.")
 4. Enter a user message with generation keywords (e.g., "Generate a beautiful sunset over mountains", "Create an image of a futuristic city", "Draw a cat wearing a hat")
 5. Select an image-capable model (e.g., "google/gemini-2.5-flash-image-preview" - also known as Nano-Banana)

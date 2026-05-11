@@ -8,6 +8,8 @@ The TLDR is that Pre-Lora is within marging of error of Dynamic Lora. Post-Lora 
 
 Anima:
 
+32 Samples per column.
+
 | Metric | INT8 ConvRot Pre-Lora | INT8 ConvRot Dynamic Lora | INT8 ConvRot Post-Lora | GGUF Q8_0 Lora | FP8 Lora |
 | :--- | ---: | ---: | ---: | ---: | ---: |
 | MSE ↓ | `0.00073 ±0.00021` ★ | `0.00090 ±0.00028` | `0.00186 ±0.00043` | `0.00158 ±0.00048` | `0.00641 ±0.00092` |
@@ -29,6 +31,15 @@ Anima:
 
 ## General Model Quality
 
+These tests are smiliar to the one above, except without lora.
+The general takeaway is that in terms of tested quantization methods the ranking is:
+
+GGUF Q8 > INT8 ConvRot > MXFP8 > FP8 >= INT8 Row > INT8 Tensorwise
+
+Every INT8 ConvRot and INT8 Row checkpoint was created from BF16 via on the fly quantization, unless stated otherwise.
+INT8 ConvRot is row-wise INT8 with parameters and activations rotated before quantization via ConvRot.
+INT8 Row is just regular row wise INT8.
+
 Anima
 
 100 samples per column.
@@ -47,6 +58,31 @@ Anima
 | Ch-MSE std ↓ | `0.00346 ±0.00048` ★ | `0.00684 ±0.00083` | `0.00670 ±0.00102` | `0.02075 ±0.00198` | `0.00816 ±0.00091` | `0.00648 ±0.00077` | `0.00468 ±0.00098` |
 | ΔMSE/step ↓ | `0.000757 ±0.000111` ★ | `0.001306 ±0.000160` | `0.001300 ±0.000199` | `0.003241 ±0.000283` | `0.001577 ±0.000154` | `0.001251 ±0.000142` | `0.000903 ±0.000139` |
 | ΔCos/step ↑ | `-0.0007054 ±0.0001211` ★ | `-0.0010668 ±0.0001787` | `-0.0012205 ±0.0002166` | `-0.0028863 ±0.0003109` | `-0.0015127 ±0.0001643` | `-0.0012179 ±0.0001540` | `-0.0008402 ±0.0001416` |
+
+> ★ = best value for that metric &nbsp;|&nbsp; ± = avg of per-timestep SE (std/√n\_seeds) `[--stratify-std]`
+
+
+
+Z Image Turbo
+
+64 samples per column
+
+(Different prompt, seeds and resolution from the other Z Image Turbo test. This one is just here to get more samples against MXFP8 checkpoints, which are hard to find in the wild.)
+
+| Metric | GGUF_Q8 | I8ConvRot | I8Row | [MXFP8](https://huggingface.co/Ccre/Z-Image-Turbo-MXFP8) |
+| :--- | ---: | ---: | ---: | ---: |
+| MSE ↓ | `0.03616 ±0.00313` ★ | `0.04834 ±0.00355` | `0.14951 ±0.00857` | `0.11037 ±0.00473` |
+| MAE ↓ | `0.08745 ±0.00362` ★ | `0.10531 ±0.00384` | `0.21607 ±0.00612` | `0.17953 ±0.00387` |
+| Max err ↓ | `3.34811 ±0.09199` ★ | `3.61884 ±0.09058` | `4.52879 ±0.07883` | `4.33244 ±0.07534` |
+| Rel-RMSE ↓ | `0.16740 ±0.00628` ★ | `0.19634 ±0.00660` | `0.35659 ±0.00968` | `0.30729 ±0.00645` |
+| SNR dB ↑ | `16.42 ±0.29` ★ | `14.86 ±0.26` | `9.27 ±0.23` | `10.59 ±0.18` |
+| Cos-sim ↑ | `0.978215 ±0.001696` ★ | `0.971225 ±0.001920` | `0.916394 ±0.004070` | `0.935860 ±0.002428` |
+| Var ratio →1 | `1.00006 ±0.00050` ★ | `1.00338 ±0.00045` | `0.97402 ±0.00155` | `0.99629 ±0.00101` |
+| Outlier% ↓ | `0.00054 ±0.00011` ★ | `0.00084 ±0.00013` | `0.00418 ±0.00049` | `0.00251 ±0.00024` |
+| Ch-MSE max ↓ | `0.06081 ±0.00660` ★ | `0.08189 ±0.00736` | `0.28000 ±0.02181` | `0.19093 ±0.01077` |
+| Ch-MSE std ↓ | `0.01206 ±0.00163` ★ | `0.01657 ±0.00178` | `0.06623 ±0.00638` | `0.04204 ±0.00300` |
+| ΔMSE/step ↓ | `0.006970 ±0.000753` ★ | `0.008928 ±0.000936` | `0.016678 ±0.001880` | `0.015876 ±0.001259` |
+| ΔCos/step ↑ | `-0.0038860 ±0.0004616` ★ | `-0.0049137 ±0.0005605` | `-0.0090652 ±0.0010369` | `-0.0086360 ±0.0007459` |
 
 > ★ = best value for that metric &nbsp;|&nbsp; ± = avg of per-timestep SE (std/√n\_seeds) `[--stratify-std]`
 

@@ -1,7 +1,7 @@
 # Comfy INT8 Acceleration
 
 This node speeds up Flux2, Chroma, Z-Image, Ernie Image in ComfyUI by using INT8 quantization, delivering between 1.5~2x faster inference on my 3090 depending on the model. It should work on any NVIDIA GPU with enough INT8 TOPS. It appears to be faster than FP8 on 40-Series and above as well. 
-Works with lora, torch compile, dynamic vram.
+Works with lora, torch compile.
 
 ---
 
@@ -15,7 +15,7 @@ Converted QuaRot to ConvRot, which is a small but free quality gain.
 
 Added Pre-Lora node, which you can connect to the INT8 Model loader to merge loras before utilizing on the fly quantization. 
 
-For more info on quality of convrot, lora approaches see the Metrics.md
+For more info on quality of convrot, lora approaches see the [Metrics](Metrics.md)
 
 ---
 
@@ -43,7 +43,7 @@ However, ConvRot is also a little slower, so these prequantized models are still
 *Z-Image Base weights have been Deprecated in favor of Convrot OTF, which is higher quality.
 
 
-# Metrics:
+# Speed:
 
 Measured on a 3090 at 1024x1024, 26 steps with Flux2 Klein Base 9B.
 
@@ -65,6 +65,18 @@ Measured on an 8gb 5060, same settings:
 | fp8 compile | couldn't get to work | ??× |
 | int8 | 2.53 | 1.20× |
 | int8 compile | 2.25 | 1.35× |
+
+8gb RTX 5060, Anima, Comfy version from 2026-05-02, Pytorch 2.11+CU13.0, latest kitchen triton and everything else
+
+| Format | Speed (it/s) |
+|-------|--------------|
+| bf16 | 0.78 |
+| INT8 ConvRot | 1.12 |
+| INT8 Row | 1.24 |
+| INT8 ConvRot Compile | 1.47 |
+| MXFP8 | 0.89 |
+| MXFP8 --fast | 0.93 |
+| MXFP8 + Compile | Still failing. |
 
 
 # Requirements:

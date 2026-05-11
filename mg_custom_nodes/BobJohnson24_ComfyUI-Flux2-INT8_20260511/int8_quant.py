@@ -642,6 +642,32 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
         # --- NON-INT8 MODULE PATH ---
         return super().patch_weight_to_device(key, device_to, inplace_update)
 
+    def load(self, *args, **kwargs):
+        res = super().load(*args, **kwargs) if hasattr(super(), "load") else None
+        
+        device_to = kwargs.get("device_to", args[0] if len(args) > 0 else self.model.device)
+        
+        for name, module in self.model.named_modules():
+            if hasattr(module, "_is_quantized") and module._is_quantized:
+                weight_key = name + ".weight"
+                bias_key = name + ".bias"
+                
+                if weight_key in self.patches:
+                    if hasattr(module, "weight_lowvram_function"):
+                        module.weight_lowvram_function = None
+                    if hasattr(module, "weight_function"):
+                        module.weight_function = [f for f in getattr(module, "weight_function", []) if type(f).__name__ != "LowVramPatch"]
+                    self.patch_weight_to_device(weight_key, device_to=device_to)
+                    
+                if bias_key in self.patches:
+                    if hasattr(module, "bias_lowvram_function"):
+                        module.bias_lowvram_function = None
+                    if hasattr(module, "bias_function"):
+                        module.bias_function = [f for f in getattr(module, "bias_function", []) if type(f).__name__ != "LowVramPatch"]
+                    self.patch_weight_to_device(bias_key, device_to=device_to)
+                    
+        return res
+
     def unpatch_model(self, device_to=None, unpatch_weights=True):
         if unpatch_weights:
             for name, module in self.model.named_modules():
@@ -651,8 +677,32 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
 
     def clone(self, *args, **kwargs):
         src_cls = self.__class__
-        self.__class__ = INT8ModelPatcher
+        
+        if src_cls is INT8ModelPatcher:
+            return super().clone(*args, **kwargs)
+            
+        if not issubclass(src_cls, INT8ModelPatcher):
+            name = f"INT8_{src_cls.__name__}"
+            dynamic_cls = type(name, (INT8ModelPatcher, src_cls), {})
+        else:
+            dynamic_cls = src_cls
+            
+        self.__class__ = dynamic_cls
+        
+        # Provide a fallback for non-dynamic delegates (e.g. for KJNodes)
+        if getattr(self, "cached_patcher_init", None) is None:
+            self.cached_patcher_init = (lambda *a, **kw: self, ())
+            
         n = super().clone(*args, **kwargs)
-        n.__class__ = INT8ModelPatcher
+        
+        # If disable_dynamic is True, the core strips dynamic wrappers. We must re-apply INT8!
+        disable_dyn = kwargs.get("disable_dynamic", False)
+        if len(args) > 0:
+            disable_dyn = args[0]
+            
+        if disable_dyn and not issubclass(n.__class__, INT8ModelPatcher):
+            new_cls = type(f"INT8_{n.__class__.__name__}", (INT8ModelPatcher, n.__class__), {})
+            n.__class__ = new_cls
+
         self.__class__ = src_cls
         return n

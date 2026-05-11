@@ -28,7 +28,6 @@ def serialize(obj):
 # 获取py目录路径
 py = get_ext_dir("py")
 
-# author作者_yicheng亦诚
 # 遍历py目录中的所有.py文件
 files = os.listdir(py)
 all_nodes = {}
@@ -48,9 +47,9 @@ for file in files:
             "NODE_DISPLAY_NAME_MAPPINGS": serialized_DISPLAY_NAME_MAPPINGS
         }
     except Exception as e:
-        print(f"[ComfyUI-YCNodes_Toolkit] ❌ Failed to load node: {file}")
-        print(f"[ComfyUI-YCNodes_Toolkit] Error: {str(e)}")
-        print(f"[ComfyUI-YCNodes_Toolkit] This node will be skipped, other nodes will continue to load normally.")
+        print(f"[ComfyUI-YCNodes] ❌ Failed to load node: {file}")
+        print(f"[ComfyUI-YCNodes] Error: {str(e)}")
+        print(f"[ComfyUI-YCNodes] This node will be skipped, other nodes will continue to load normally.")
         traceback.print_exc()
 
 # 定义web目录（如果需要前端资源）

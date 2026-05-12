@@ -4,7 +4,9 @@ We capture the latents per step, and measure how much they diverge from the BF16
 ## Lora 
 
 In this table, we compare the quality of our various lora approaches, against a standard bf16 lora loader baseline.
-The TLDR is that Pre-Lora is within marging of error of Dynamic Lora. Post-Lora is slightly worse. GGUF Q8 dequantizes to bf16 during inference to apply the lora math which is both slow and cheating.
+The TLDR is that Pre-Lora is within marging of error of Dynamic Lora. Post-Lora is slightly worse. GGUF Q8 dequantizes to bf16 during inference to apply the lora math which is both slow and cheating. Nunchaku lora appears to be a little broken.
+
+Interesting observation: These consistently score higher than their non-lora counterparts. I suspect it could be that there is a QAT like effect for applying loras trained with quantization to quantized models.
 
 Anima:
 
@@ -27,6 +29,28 @@ Anima:
 
 > ★ = best value for that metric &nbsp;|&nbsp; ± = avg of per-timestep SE (std/√n\_seeds) `[--stratify-std]`
 
+
+
+Qwen Image 2512
+
+16 Samples per column.
+
+| Metric | FP8 | GGUF Q4 K M | GGUF Q8 | INT8 ConvRot Post-Lora | INT8 ConvRot Pre-Lora | Nunchaku_BestQuality |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| MSE ↓ | `0.01139 ±0.00146` | `0.00874 ±0.00147` | `0.00135 ±0.00058` | `0.00185 ±0.00050` | `0.00111 ±0.00032` ★ | `0.04326 ±0.00328` |
+| MAE ↓ | `0.06940 ±0.00369` | `0.05205 ±0.00418` | `0.01490 ±0.00233` ★ | `0.02129 ±0.00215` | `0.01637 ±0.00156` | `0.14596 ±0.00556` |
+| Max err ↓ | `0.83818 ±0.05885` | `0.68868 ±0.04720` | `0.37840 ±0.05948` ★ | `0.45491 ±0.05199` | `0.38492 ±0.03914` | `1.08649 ±0.03813` |
+| Rel-RMSE ↓ | `0.18603 ±0.01147` | `0.14543 ±0.01242` | `0.04687 ±0.00796` ★ | `0.06366 ±0.00756` | `0.05016 ±0.00546` | `0.36876 ±0.01457` |
+| SNR dB ↑ | `15.19 ±0.48` | `18.56 ±0.65` | `29.23 ±0.95` ★ | `25.81 ±0.80` | `27.56 ±0.70` | `9.33 ±0.35` |
+| Cos-sim ↑ | `0.957885 ±0.005072` | `0.971353 ±0.004980` | `0.995827 ±0.001845` | `0.993908 ±0.001672` | `0.996241 ±0.001149` ★ | `0.874391 ±0.010770` |
+| Var ratio →1 | `1.03367 ±0.00407` | `0.98059 ±0.00510` | `0.99394 ±0.00142` | `0.99124 ±0.00185` | `0.99651 ±0.00217` ★ | `1.17955 ±0.01708` |
+| Outlier% ↓ | `0.00016 ±0.00005` | `0.00008 ±0.00003` | `0.00002 ±0.00001` | `0.00002 ±0.00001` | `0.00001 ±0.00000` ★ | `0.00097 ±0.00018` |
+| Ch-MSE max ↓ | `0.02053 ±0.00283` | `0.01603 ±0.00271` | `0.00269 ±0.00108` | `0.00388 ±0.00111` | `0.00204 ±0.00053` ★ | `0.08783 ±0.00643` |
+| Ch-MSE std ↓ | `0.00464 ±0.00075` | `0.00399 ±0.00073` | `0.00067 ±0.00029` | `0.00089 ±0.00025` | `0.00048 ±0.00013` ★ | `0.02458 ±0.00197` |
+| ΔMSE/step ↓ | `0.000958 ±0.000252` | `0.001059 ±0.000261` | `0.000183 ±0.000087` | `0.000237 ±0.000087` | `0.000152 ±0.000071` ★ | `0.003098 ±0.000772` |
+| ΔCos/step ↑ | `-0.0007560 ±0.0012897` | `-0.0025382 ±0.0009487` | `-0.0004476 ±0.0002795` | `-0.0005603 ±0.0003156` | `-0.0003486 ±0.0002816` ★ | `-0.0054101 ±0.0030137` |
+
+> ★ = best value for that metric &nbsp;|&nbsp; ± = avg of per-timestep SE (std/√n\_seeds) `[--stratify-std]`
 
 
 ## General Model Quality
@@ -154,3 +178,26 @@ Chroma
 | ΔCos/step ↑ | `-0.0005174 ±0.0003418` | `-0.0010664 ±0.0007771` | `-0.0002943 ±0.0001454` ★ | `-0.0009653 ±0.0004437` |
 
 > ★ = best value for that metric &nbsp;|&nbsp; ± = avg of per-timestep SE (std/√n\_seeds) `[--stratify-std]`
+
+
+Qwen Image 2512
+
+16 samples per column.
+
+| Metric | [FP8](https://huggingface.co/unsloth/Qwen-Image-2512-FP8/blob/main/qwen-image-2512-fp8.safetensors) | [GGUF Q4 K M](https://huggingface.co/unsloth/Qwen-Image-2512-GGUF/blob/main/qwen-image-2512-Q4_K_M.gguf) | [GGUF Q8](https://huggingface.co/unsloth/Qwen-Image-2512-GGUF/blob/main/qwen-image-2512-Q8_0.gguf) | I8 Conv | I8 Row | [Nunchaku BestQuality](https://huggingface.co/QuantFunc/Nunchaku-Qwen-Image-2512/blob/main/nunchaku_qwen_image_2512_best_quality_int4.safetensors) |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| MSE ↓ | `0.01643 ±0.00334` | `0.02188 ±0.00320` | `0.01062 ±0.00377` | `0.00894 ±0.00256` ★ | `0.01305 ±0.00436` | `0.02146 ±0.00354` |
+| MAE ↓ | `0.07556 ±0.00707` | `0.07740 ±0.00661` | `0.04068 ±0.00892` | `0.04043 ±0.00619` ★ | `0.05007 ±0.00917` | `0.08532 ±0.00742` |
+| Max err ↓ | `0.93735 ±0.06070` | `1.05423 ±0.05437` | `0.65768 ±0.09201` ★ | `0.73333 ±0.08073` | `0.75177 ±0.07628` | `0.96512 ±0.04607` |
+| Rel-RMSE ↓ | `0.22316 ±0.02186` | `0.25253 ±0.02143` | `0.13382 ±0.02853` ★ | `0.13795 ±0.02225` | `0.16354 ±0.02883` | `0.24947 ±0.02144` |
+| SNR dB ↑ | `14.08 ±0.75` | `13.78 ±0.84` | `22.44 ±1.67` ★ | `20.34 ±1.31` | `18.70 ±1.27` | `13.54 ±0.72` |
+| Cos-sim ↑ | `0.943337 ±0.010885` | `0.929011 ±0.010479` | `0.967114 ±0.011496` | `0.972459 ±0.007414` ★ | `0.957911 ±0.013642` | `0.927933 ±0.011458` |
+| Var ratio →1 | `1.00262 ±0.00459` | `0.99685 ±0.00597` | `0.99789 ±0.00268` ★ | `0.98840 ±0.00348` | `1.00248 ±0.00378` | `0.94775 ±0.00588` |
+| Outlier% ↓ | `0.00076 ±0.00029` | `0.00162 ±0.00044` | `0.00079 ±0.00040` | `0.00064 ±0.00029` ★ | `0.00116 ±0.00051` | `0.00093 ±0.00046` |
+| Ch-MSE max ↓ | `0.02873 ±0.00637` | `0.04307 ±0.00754` | `0.02095 ±0.00768` | `0.01662 ±0.00475` ★ | `0.02675 ±0.00918` | `0.03918 ±0.00712` |
+| Ch-MSE std ↓ | `0.00681 ±0.00167` | `0.01152 ±0.00214` | `0.00555 ±0.00216` | `0.00420 ±0.00124` ★ | `0.00735 ±0.00270` | `0.01014 ±0.00205` |
+| ΔMSE/step ↓ | `0.001429 ±0.000380` | `0.002038 ±0.000518` | `0.001062 ±0.000426` | `0.000907 ±0.000322` ★ | `0.001278 ±0.000448` | `0.002092 ±0.000484` |
+| ΔCos/step ↑ | `-0.0023754 ±0.0015020` ★ | `-0.0055836 ±0.0019522` | `-0.0029254 ±0.0013186` | `-0.0024572 ±0.0010212` | `-0.0034970 ±0.0014186` | `-0.0057739 ±0.0019517` |
+> ★ = best value for that metric &nbsp;|&nbsp; ± = avg of per-timestep SE (std/√n\_seeds) `[--stratify-std]`
+
+

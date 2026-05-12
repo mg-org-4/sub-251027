@@ -506,8 +506,8 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
     or a dynamic path (runtime injection), depending on the dynamic_lora toggle.
     """
     def patch_weight_to_device(self, key, device_to=None, inplace_update=False, return_weight=False, force_cast=False):
-        if key not in self.patches:
-            return
+        if key not in self.patches and not force_cast:
+            return super().patch_weight_to_device(key, device_to, inplace_update, return_weight, force_cast)
 
         # Check if this is one of our INT8 modules
         module_path = key.rsplit('.', 1)[0]
@@ -517,9 +517,7 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
             module = None
 
         is_int8_module = hasattr(module, "_is_quantized") and module._is_quantized
-        patches = self.patches[key]
-
-
+        patches = self.patches.get(key, [])
 
         if is_int8_module:
             if not Int8TensorwiseOps.dynamic_lora:
@@ -528,28 +526,31 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
                 # All patches are applied in float space via ComfyUI's standard mechanism,
                 # then the result is re-quantized back to INT8.
 
-                weight_int8 = comfy.utils.get_attr(self.model, key)
+                # Identify current weight in the model
+                current_weight = comfy.utils.get_attr(self.model, key)
                 scale = module._get_weight_scale()
 
                 if device_to is None:
-                    device_to = weight_int8.device
+                    device_to = current_weight.device
 
-                # Save original weight so unpatch_model can restore it.
-                # Must use the same namedtuple format as ComfyUI's base patcher
-                # (collections.namedtuple('Dimension', ['weight', 'inplace_update']))
-                # otherwise unpatch_model crashes with AttributeError on bk.inplace_update.
+                # ALWAYS use the weight from backup as the source if it exists to prevent additive stacking.
+                # If it doesn't exist, this is the first patch, so create it from the current model weight.
                 if key not in self.backup:
                     import collections
                     BackupEntry = collections.namedtuple('Dimension', ['weight', 'inplace_update'])
                     self.backup[key] = BackupEntry(
-                        weight=weight_int8.to(device=self.offload_device, copy=inplace_update),
+                        weight=current_weight.to(device=self.offload_device, copy=inplace_update),
                         inplace_update=inplace_update,
                     )
+                    source_weight = current_weight
+                else:
+                    # Use existing backup as source
+                    source_weight = self.backup[key].weight
 
                 # 1. Dequantize to float (move scale to device_to since it lives on CPU)
                 if isinstance(scale, torch.Tensor):
                     scale = scale.to(device_to)
-                weight_float = dequantize(weight_int8.to(device_to), scale)
+                weight_float = dequantize(source_weight.to(device_to), scale)
 
                 # 2. Handle ConvRot: de-rotate into weight space before patching
                 use_convrot = getattr(module, "_use_convrot", False)
@@ -577,13 +578,13 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
                 # If quality is of the utmost importance, I recommend Pre-Lora instead of worrying about this.
 
                 # 6. Move back to original device and store
-                patched_weight_int8 = patched_weight_int8.to(weight_int8.device)
+                patched_weight_int8 = patched_weight_int8.to(current_weight.device)
 
                 if return_weight:
                     return patched_weight_int8
 
                 if inplace_update:
-                    weight_int8.data.copy_(patched_weight_int8)
+                    current_weight.data.copy_(patched_weight_int8)
                 else:
                     comfy.utils.set_attr(self.model, key, nn.Parameter(patched_weight_int8, requires_grad=False))
                 return
@@ -637,12 +638,33 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
                         lora_patches.append((down_scaled.to(device), up.flatten(1).to(device), start, size))
 
                 module.lora_patches = lora_patches
+                if return_weight:
+                    return weight
                 return  # Skip standard weight-merging path
 
         # --- NON-INT8 MODULE PATH ---
-        return super().patch_weight_to_device(key, device_to, inplace_update)
+        return super().patch_weight_to_device(key, device_to, inplace_update, return_weight, force_cast)
 
     def load(self, *args, **kwargs):
+        # Cleanup: Revert any keys that are in backup but no longer in patches (stale patches)
+        # This ensures that when a LoRA is disabled, the model returns to its base state.
+        stale_keys = [k for k in self.backup if k not in self.patches]
+        for k in stale_keys:
+            bk = self.backup.pop(k)
+            if bk.inplace_update:
+                dest = comfy.utils.get_attr(self.model, k)
+                dest.data.copy_(bk.weight)
+            else:
+                comfy.utils.set_attr(self.model, k, bk.weight)
+        
+        # Cleanup: Clear stale dynamic LoRA patches.
+        # This prevents LoRA from "sticking" when dynamic_lora is toggled or LoRAs are disabled.
+        for name, module in self.model.named_modules():
+            if hasattr(module, "lora_patches") and module.lora_patches:
+                # If dynamic LoRA is disabled globally, or if this module has no active patches, clear them.
+                if not Int8TensorwiseOps.dynamic_lora or ((name + ".weight") not in self.patches and (name + ".bias") not in self.patches):
+                    module.lora_patches = []
+
         res = super().load(*args, **kwargs) if hasattr(super(), "load") else None
         
         device_to = kwargs.get("device_to", args[0] if len(args) > 0 else self.model.device)

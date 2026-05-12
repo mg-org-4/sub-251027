@@ -18,6 +18,7 @@ from .iclora import (
     LTXAddVideoICLoRAGuide,
     LTXAddVideoICLoRAGuideAdvanced,
     LTXICLoRALoaderModelOnly,
+    LTXVSetAudioRefTokens,
 )
 from .latent_norm import (
     LTXVAdainLatent,
@@ -107,6 +108,7 @@ NODE_CLASS_MAPPINGS = {
     "LTXAddVideoICLoRAGuide": LTXAddVideoICLoRAGuide,
     "LTXAddVideoICLoRAGuideAdvanced": LTXAddVideoICLoRAGuideAdvanced,
     "LTXICLoRALoaderModelOnly": LTXICLoRALoaderModelOnly,
+    "LTXVSetAudioRefTokens": LTXVSetAudioRefTokens,
     "LTXVLoadConditioning": LTXVLoadConditioning,
     "LTXVSaveConditioning": LTXVSaveConditioning,
     "LTXVDrawTracks": LTXVDrawTracks,

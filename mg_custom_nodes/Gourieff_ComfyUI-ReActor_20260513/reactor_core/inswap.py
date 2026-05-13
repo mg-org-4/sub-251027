@@ -231,8 +231,8 @@ class Attribute(BaseONNXModel):
     """Анализатор атрибутов (выдает пол и возраст)"""
     def __init__(self, model_file, providers=None):
         super().__init__(model_file, providers)
-        self.input_mean = 127.5
-        self.input_std = 128.0
+        self.input_mean = 0.0
+        self.input_std = 1.0
         self.input_size = tuple(self.input_shape[2:4][::-1])
 
     def get(self, img, face):

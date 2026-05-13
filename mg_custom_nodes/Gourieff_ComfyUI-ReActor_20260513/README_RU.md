@@ -2,7 +2,7 @@
 
   <img src="https://github.com/Gourieff/Assets/raw/main/sd-webui-reactor/ReActor_logo_NEW_RU.png?raw=true" alt="logo" width="180px"/>
 
-  ![Version](https://img.shields.io/badge/версия_нода-0.7.0_alpha1-lightgreen?style=for-the-badge&labelColor=darkgreen)
+  ![Version](https://img.shields.io/badge/версия_нода-0.7.0_alpha2-lightgreen?style=for-the-badge&labelColor=darkgreen)
 
   <a href="https://boosty.to/artgourieff" target="_blank">
     <img src="https://lovemet.ru/img/boosty.jpg" width="108" alt="Поддержать проект на Boosty"/>
@@ -45,6 +45,10 @@
 <a name="latestupdate">
 
 ## Что нового в последнем обновлении
+
+### 0.7.0 <sub><sup>ALPHA2</sup></sub>
+
+- Исправлено: проблема определения пола и логика индексов лиц (Issue [#234](https://github.com/Gourieff/ComfyUI-ReActor/issues/234))
 
 ### 0.7.0 <sub><sup>ALPHA1</sup></sub>
 

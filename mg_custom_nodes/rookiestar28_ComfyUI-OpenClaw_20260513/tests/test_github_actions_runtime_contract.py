@@ -13,6 +13,9 @@ DEPRECATED_ACTION_PATTERNS = {
     "Comfy-Org/publish-node-action@v1": re.compile(
         r"\bComfy-Org/publish-node-action@v1\b"
     ),
+    "Comfy-Org/publish-node-action@main": re.compile(
+        r"\bComfy-Org/publish-node-action@main\b"
+    ),
 }
 
 EXPECTED_ACTION_PATTERNS = {
@@ -65,9 +68,9 @@ class GitHubActionsRuntimeContractTests(unittest.TestCase):
 
     def test_publish_workflow_uses_official_publish_action(self):
         text = (WORKFLOW_DIR / "publish.yml").read_text(encoding="utf-8")
-        self.assertIn(
-            "uses: Comfy-Org/publish-node-action@main",
+        self.assertRegex(
             text,
+            re.compile(r"uses: Comfy-Org/publish-node-action@[a-f0-9]{40}\b"),
         )
         self.assertIn(
             "personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}",

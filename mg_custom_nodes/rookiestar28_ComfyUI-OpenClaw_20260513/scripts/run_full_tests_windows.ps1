@@ -63,8 +63,8 @@ function Ensure-NpmDeps {
     return
   }
 
-  Write-Host "[tests] Installing frontend dependencies via npm install ..."
-  Invoke-Checked "npm install" { npm install }
+  Write-Host "[tests] Installing frontend dependencies via npm ci ..."
+  Invoke-Checked "npm ci" { npm ci }
 }
 
 # Prefer project-local virtualenv to avoid global PATH / cache conflicts on Windows.
@@ -260,6 +260,11 @@ else {
 }
 
 Write-Host "[tests] Node version: $(node -v)"
+
+Write-Host "[tests] 0/11 supply-chain hardening check"
+Invoke-Checked "supply-chain hardening check" {
+  & $venvPython scripts\check_supply_chain_hardening.py
+}
 Ensure-NpmDeps
 
 Write-Host "[tests] 0/8 R120 dependency preflight"

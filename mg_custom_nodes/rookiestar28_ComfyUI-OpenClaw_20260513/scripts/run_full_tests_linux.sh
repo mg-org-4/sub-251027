@@ -90,8 +90,8 @@ ensure_npm_deps() {
   if [ -f "$ROOT_DIR/node_modules/@playwright/test/package.json" ]; then
     return 0
   fi
-  echo "[tests] Installing frontend dependencies via npm install ..."
-  npm install
+  echo "[tests] Installing frontend dependencies via npm ci ..."
+  npm ci
 }
 
 # Always use project-local venv to avoid global interpreter / tool drift.
@@ -188,6 +188,9 @@ else
 fi
 
 echo "[tests] Node version: $(node -v)"
+
+echo "[tests] 0/11 supply-chain hardening check"
+"$VENV_PY" scripts/check_supply_chain_hardening.py
 
 ensure_npm_deps
 

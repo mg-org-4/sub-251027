@@ -72,7 +72,8 @@ This project is designed to make **ComfyUI a reliable automation target** with a
 - Multi-tenant mode is isolation-first: tenant mismatches fail closed across config, secret sources, connector installations, approvals, visibility, and execution budgets.
 - Connector multi-workspace and multi-account bindings are secret-ref-only and fail-closed by design, so tenant/binding mismatches degrade to explicit rejection paths instead of silently reusing the wrong installation context.
 - Operator-facing and audit payloads default to redaction for provider reasoning-like content and explicitly marked internal maintenance/helper prompt material, while diagnostics and runtime guardrails remain explicit and tamper-evident.
-- Verification is part of the security model: route drift checks, coverage governance, adversarial gates, and doctor/compatibility diagnostics are all wired into CI-parity workflows.
+- Verification is part of the security model: route drift checks, supply-chain hardening checks, coverage governance, adversarial gates, and doctor/compatibility diagnostics are all wired into CI-parity workflows.
+- Repository automation is hardened around deterministic dependency installs, restricted workflow permissions, pinned high-risk publish actions, and PR-time dependency review for dependency manifest changes.
 
 Deployment profiles and hardening references:
 - [Security Deployment Guide](docs/security_deployment_guide.md)
@@ -87,6 +88,16 @@ Deployment profiles and hardening references:
 
 
 <details><summary><h2>Latest Updates - Click to expand</h2></summary>
+
+<details>
+
+<summary><strong>Supply-chain and CI hardening refreshed for dependency and release workflows</strong></summary>
+
+- CI and local validation now include a read-only supply-chain hardening check for known malicious package-family and persistence indicators.
+- Frontend dependency bootstrap paths use lockfile-driven `npm ci` in validation workflows.
+- Release and dependency-review workflows now have tighter permissions, pinned publish-action usage, and PR-time dependency review for dependency manifest changes.
+
+</details>
 
 <details>
 
@@ -655,6 +666,7 @@ The SOP already defines:
 
 - the docs-only exception for strictly documentation/planning/SOP changes
 - one-command full test scripts for Windows and Linux/WSL
+- supply-chain hardening checks and lockfile-driven frontend dependency installation
 - the CI-parity backend coverage and governance workflow
 
 ## Updating
@@ -690,6 +702,8 @@ The connector currently remains an **optional attached subsystem inside this rep
 ## Security
 
 Read [SECURITY.md](docs/SECURITY.md) before exposing any endpoint beyond localhost. The project is designed to be secure-by-default (deny-by-default auth, SSRF protections, redaction, bounded outputs), but unsafe deployment can still create risk.
+
+Repository maintenance workflows also include supply-chain controls: CI/local validation scans declared dependencies and selected workspace persistence surfaces for known malicious indicators, frontend installs are lockfile-driven, and dependency manifest changes receive PR-time review.
 
 ### Security Deployment Guide
 

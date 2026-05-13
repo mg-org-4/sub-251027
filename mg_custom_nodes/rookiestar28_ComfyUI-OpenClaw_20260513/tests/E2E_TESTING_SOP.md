@@ -34,7 +34,7 @@ node -v
 npm -v
 python --version
 
-npm install
+npm ci
 npx playwright install chromium
 
 npm test
@@ -59,7 +59,7 @@ python3 --version
 mkdir -p .tmp/bin
 ln -sf "$(command -v python3)" .tmp/bin/python
 
-npm install
+npm ci
 npx playwright install chromium
 
 # Run with safe temp directory (WSL /mnt/*)
@@ -145,7 +145,7 @@ node -v
 npm -v
 python --version
 
-npm install
+npm ci
 npx playwright install chromium
 npm test
 ```
@@ -161,7 +161,7 @@ python3 --version
 mkdir -p .tmp/bin
 ln -sf "$(command -v python3)" .tmp/bin/python
 
-npm install
+npm ci
 npx playwright install chromium
 
 mkdir -p .tmp/playwright
@@ -174,7 +174,7 @@ TMPDIR=.tmp/playwright TMP=.tmp/playwright TEMP=.tmp/playwright \
 - `python: command not found` on WSL: create `.tmp/bin/python` as a shim to `python3`.
 - Port bind failure: use the repo-documented E2E port override or stop the conflicting process.
 - Browser missing: run `npx playwright install chromium`.
-- Dependency drift: remove `node_modules` and rerun `npm install`.
+- Dependency drift: remove `node_modules` and rerun `npm ci`.
 
 ### Non-applicable E2E
 

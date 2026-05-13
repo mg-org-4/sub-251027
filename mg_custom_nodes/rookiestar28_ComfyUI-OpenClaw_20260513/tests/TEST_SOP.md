@@ -59,7 +59,7 @@ Required guardrails:
 - Node.js 18+ (CI uses 20)
 - `pre-commit` installed: `python -m pip install pre-commit`
 - Backend test deps available in the same interpreter (`numpy`, `pillow`, `aiohttp`)
-- Frontend deps installed: `npm install`
+- Frontend deps installed: `npm ci`
 
 ## Environment Sanity (Required Guardrails)
 
@@ -390,7 +390,7 @@ node -v
 # Then re-check:
 #   node -v
 #
-# IMPORTANT: run `npm install` with the same Node version you use for `npm test`.
+# IMPORTANT: run `npm ci` with the same Node version you use for `npm test`.
 
 # One-time browser install (recommended)
 npx playwright install chromium

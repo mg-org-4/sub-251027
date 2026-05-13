@@ -5,7 +5,7 @@ Playwright-based end-to-end tests for the OpenClaw sidebar UI.
 ## Setup
 
 ```bash
-npm install
+npm ci
 npx playwright install chromium
 ```
 

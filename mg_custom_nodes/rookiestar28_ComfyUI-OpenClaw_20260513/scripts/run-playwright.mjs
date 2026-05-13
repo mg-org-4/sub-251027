@@ -38,7 +38,7 @@ function runPlaywright(args, { label }) {
   const cli = resolvePlaywrightCli();
   if (!cli) {
     console.error(
-      `[OpenClaw] Failed to run ${label}: Playwright CLI not found. Did you run 'npm install'?`,
+      `[OpenClaw] Failed to run ${label}: Playwright CLI not found. Did you run 'npm ci'?`,
     );
     process.exit(1);
   }

@@ -11,7 +11,11 @@ EXPECTED_PERMISSION_BLOCKS = {
         "  contents: read\n"
         "  security-events: write\n"
     ),
+    "dependency-review.yml": (
+        "permissions:\n" "  contents: read\n" "  pull-requests: read\n"
+    ),
     "pre-commit.yml": "permissions:\n  contents: read\n",
+    "publish.yml": "permissions:\n  contents: read\n  issues: write\n",
     "secret-scan.yml": "permissions:\n  contents: read\n",
 }
 

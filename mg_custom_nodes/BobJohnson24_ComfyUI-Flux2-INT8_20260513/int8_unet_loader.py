@@ -24,7 +24,7 @@ class UNetLoaderINTW8A8:
             "required": {
                 "unet_name": (folder_paths.get_filename_list("diffusion_models"),),
                 "weight_dtype": (["default", "fp8_e4m3fn", "fp16", "bf16"],),
-                "model_type": (["flux2", "z-image", "chroma", "wan", "ltx2", "qwen", "ernie", "anima"], {"tooltip": "Only used for on the fly quantization, to filter sensitive layers."}),
+                "model_type": (["flux2", "z-image", "chroma", "wan", "ltx2", "qwen", "ernie", "anima", "hidream o1"], {"tooltip": "Only used for on the fly quantization, to filter sensitive layers."}),
                 "on_the_fly_quantization": ("BOOLEAN", {"default": False, "tooltip": "Quantize a higher precision model to INT8. If the selected model is already INT8 keep unchecked."}),
                 "enable_convrot": ("BOOLEAN", {"default": True, "tooltip": "Enable ConvRot for better quantization. ~1.1x slower, but near-GGUF_Q8 quality."}),
                 "dynamic_lora": ("BOOLEAN", {"default": False, "tooltip": "Apply LoRA dynamically at inference time. Slow. Only works with LoRA. Keep disabled unless you really need this."}),
@@ -92,6 +92,10 @@ class UNetLoaderINTW8A8:
         elif model_type == "anima":
             Int8TensorwiseOps.excluded_names = [
                 'embed', 'llm', 'adaln',
+            ]
+        elif model_type == "hidream o1":
+            Int8TensorwiseOps.excluded_names = [
+                'embed', 'language_model.layers.35.mlp',
             ]
         elif model_type == "wan":
             Int8TensorwiseOps.excluded_names = [

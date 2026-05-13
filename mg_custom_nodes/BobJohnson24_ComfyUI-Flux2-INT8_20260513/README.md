@@ -94,6 +94,15 @@ Klein 9B, Measured on an 8gb 5060, same settings as the 3090 run:
 | MXFP8 --fast | 0.93 |
 | MXFP8 + Compile | Still failing. |
 
+Finally have gotten compile with --fast to work with mxfp8, PyTorch 2.13.0.dev20260511+cu132, RTX5060 same as before.
+
+Quality results for this run, can be found here: [Anima Results](Metrics.md#anima-on-a-5060)
+
+| Format | Speed (it/s) ↑ |
+|-------|--------------|
+| MXFP8 --fast + Compile | 1.37it |
+| INT8 ConvRot + Compile | 1.47it |
+
 
 # Requirements:
 Working ComfyKitchen (needs latest comfy and possibly pytorch with cu130)

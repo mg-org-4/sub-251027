@@ -92,6 +92,9 @@ Encode video frames + optional audio straight to MP4. Built-in `<video>` preview
 ### 💬 Show Text Pixaroma
 See what text or data is flowing through your nodes, with a real read-only text box you can **select and copy** from. **Resize the node freely** in any direction; long text scrolls with a scrollbar instead of forcing the node to grow. New **STRING output** lets you chain it into other nodes (great for inspecting a prompt before passing it on). Saves and restores with your workflow.
 
+### 🔍 Prompt Reader Pixaroma
+Load any PNG that was generated with ComfyUI (or Automatic1111 / Forge) and read the **positive prompt** saved inside its metadata. No image preview - just the text. Drag-drop a file, click **Upload Image**, or pick from the file combo; the prompt appears the moment you choose a file, so you see it before running. One orange **Copy** button puts the prompt on your clipboard. The **STRING output** wires straight into CLIPTextEncode (or any text input) so you can re-use the prompt without retyping. Handles complex workflows with chained text nodes (ConditioningCombine, StringConcatenate, SDXL dual-text encoders). If the image has no prompt (JPG, screenshot, or a PNG whose metadata was stripped), you get a short clear message instead of a silent fail.
+
 ### 🖼️ Preview Image Pixaroma
 A handy way to preview your images right on the node, but better! Works with **single images and full batches**: every frame appears as a thumbnail strip with a `i / N` counter - click any thumbnail to open it large inside the node. Use the **arrow keys** (← →) to flip through the batch, click anywhere on the open image to advance to the next, hit `Esc` or the `×` button to collapse back. Two save buttons act on the currently selected frame: **Save to Disk** (choose any folder on your computer; the suggested filename auto-increments per click) and **Save to Output** (saves to ComfyUI's `output/`, supports subfolder syntax like `SDXL/portrait`). Flip the **save_mode** widget to `save` and the node turns into a drop-in replacement for SaveImage - every batch frame is automatically written to `output/` with embedded workflow metadata. Both modes embed your workflow into the saved PNG so you can drag it back into ComfyUI later. The preview also **survives workflow tab switching**, so you can leave it on a frame and come back to it later.
 
@@ -166,6 +169,19 @@ Master the Pixaroma suite with our video guides and workflow deep-dives:
 ---
 
 ## 🛠 Changelog
+
+### **May 13, 2026 (1.3.27)**
+- **NEW: Prompt Reader Pixaroma** - drop a PNG that was generated with ComfyUI (or Automatic1111 / Forge) onto the node and instantly see the **positive prompt** that was saved inside its metadata. No image preview, just the text. One orange **Copy** button puts the prompt on your clipboard; the **STRING output** wires straight into CLIPTextEncode so you can re-use the prompt without retyping. The reader walks back through chained text nodes (ConditioningCombine, StringConcatenate, SDXL dual-text encoders) so workflows with complex prompt structures still work, **and** it also follows the trail through earlier Prompt Reader Pixaroma nodes when an image was generated from a prompt loaded out of another image. If the image has no prompt (JPG, screenshot, or a PNG whose metadata was stripped), you get a short clear message instead of a silent fail.
+
+### **May 13, 2026 (1.3.26)**
+- **AudioReact - long audio no longer crashes:** Rendering audio longer than ~30 seconds at HD used to slow to a crawl past the 50% mark and crash after eating most of your free disk space. The render now uses much less memory. If the chosen settings would still need more memory than your computer has free, you now see a clear message right away (with what to lower) instead of waiting through a partial render that ends in a crash.
+- **AudioReact - live memory indicator in the editor:** The editor's top bar shows how much memory the current settings will need versus how much your computer has free, color-coded so you can tell at a glance: green means safe, amber means tight, red means the render will refuse. Updates live as you change fps, resolution, or audio.
+- **AudioReact - memory reference table in Help:** A new table in the Help panel lists typical memory needs for common combinations of duration (30 seconds / 1 minute / 3 minutes) at 512×512 / 720p / 1080p, so you can plan ahead.
+- **AudioReact - Save button works even with no changes:** Opening the editor, looking around, and clicking Save without changing anything now closes the editor cleanly. Previously the click did nothing if you hadn't made changes, which felt like the button was broken.
+
+### **May 13, 2026 (1.3.25)**
+- **Load Image Pixaroma - Max megapixels now keeps 1024 at 1024:** Picking **1 MP** on a 1024×1024 image now leaves it at 1024×1024 (matching how ComfyUI's built-in node works), so the output stays friendly for SD / SDXL / Flux and empty-latent nodes downstream. Previously you got 1000×1000 which doesn't divide cleanly and could cause issues in later steps. The MP presets now map to clean AI sizes: **0.25 MP = 512², 1 MP = 1024², 4 MP = 2048².**
+- **Load Image Pixaroma - resolution rounding is consistent:** The on-canvas Output number now matches exactly what the workflow produces, and the resolution snap chips (8 / 16 / 32 / 64) never push the result above your chosen max megapixels.
 
 ### **May 13, 2026 (1.3.24)**
 - **Preview Image Pixaroma - wired filename always works now:** Wiring any text into the filename field (for example a Text Pixaroma, or Load Image's filename output) now always produces a valid name, even when the text has spaces, dots, or unusual characters. Previously the save button failed with an error for anything but plain words.

@@ -4,7 +4,6 @@ We capture the latents per step, and measure how much they diverge from the BF16
 
 ## General Model Quality
 
-These tests are smiliar to the one above, except without lora.
 The general takeaway is that in terms of tested quantization methods the ranking is:
 
 GGUF Q8 > INT8 ConvRot > MXFP8 > FP8 >= INT8 Row > INT8 Tensorwise

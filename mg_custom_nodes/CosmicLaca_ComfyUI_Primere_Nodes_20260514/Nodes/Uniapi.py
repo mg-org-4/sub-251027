@@ -7,6 +7,7 @@ from ..components import utility
 from ..components.API import api_helper
 import folder_paths
 
+import re
 import random
 import argparse
 import json
@@ -28,8 +29,8 @@ from server import PromptServer
 
 class PrimereApiProcessor:
     CATEGORY = TREE_API
-    RETURN_TYPES = ("IMAGE", "APICLIENT", "STRING", "TUPLE", "TUPLE", "TUPLE", "TUPLE", "TUPLE", "TUPLE")
-    RETURN_NAMES = ("RESULT", "CLIENT", "PROVIDER", "SCHEMA", "RENDERED", "RAW_PAYLOAD", "REQUEST_BODY", "API_SCHEMAS", "API_RESULT")
+    RETURN_TYPES = ("IMAGE", "APICLIENT", "STRING", "TUPLE", "TUPLE", "TUPLE", "TUPLE", "TUPLE", "TUPLE", "STRING")
+    RETURN_NAMES = ("RESULT", "CLIENT", "PROVIDER", "SCHEMA", "RENDERED", "RAW_PAYLOAD", "REQUEST_BODY", "API_SCHEMAS", "API_RESULT", "RAW_RESULT")
     FUNCTION = "process_uniapi"
 
     API_RESULT = api_helper.get_api_config("apiconfig.json")
@@ -41,7 +42,7 @@ class PrimereApiProcessor:
     SECTION_TITLES = [
         {"before": "processor", "name": "primere_api_proc", "title": "🧭 API Setup", "color": "#1B263B", "text_color": "#EAF1F8", "label": "Setup API processor, select related provider and service."},
         {"before": "auto_save_result", "name": "primere_save_api_result", "title": "💾 API result save", "color": "#1B263B", "text_color": "#EAF1F8", "label": "Save API results. Define main path, add subdirectory structure, add filename prefixes. Save related data to .txt or .json file."},
-        {"after": "save_data_to_txt", "name": "primere_api_body", "title": "⚙ API body parameters", "color": "#1B263B", "text_color": "#EAF1F8", "label": "Set API body custom parameters."},
+        {"after": "save_response_to_json", "name": "primere_api_body", "title": "⚙ API body parameters", "color": "#1B263B", "text_color": "#EAF1F8", "label": "Set API body custom parameters."},
     ]
 
     @classmethod
@@ -69,6 +70,7 @@ class PrimereApiProcessor:
             "image_quality": ("INT", {"default": 95, "min": 1, "max": 100, "step": 1}),
             "save_data_to_json": ("BOOLEAN", {"default": False}),
             "save_data_to_txt": ("BOOLEAN", {"default": False}),
+            "save_response_to_json": ("BOOLEAN", {"default": False}),
         }
 
         cls.optional_inputs = {
@@ -104,7 +106,7 @@ class PrimereApiProcessor:
         img_binary_api = None
 
         WORKFLOWDATA = kwargs['extra_pnginfo']['workflow']['nodes']
-        custom_values = utility.getInputsFromWorkflowByNode(WORKFLOWDATA, 'PrimereApiProcessor', kwargs['prompt_extra'])
+        custom_values = utility.getInputsFromWorkflowByNode(WORKFLOWDATA, 'PrimereApiProcessor', kwargs['prompt_extra'], unique_id)
 
         custom_user_inputs = {k: v for k, v in custom_values.items() if k not in self.required_inputs}
         custom_user_inputs = {k: v for k, v in custom_user_inputs.items() if k not in self.optional_inputs}
@@ -378,6 +380,7 @@ class PrimereApiProcessor:
             image_quality = kwargs.get('image_quality', 95)
             save_data_to_json = kwargs.get('save_data_to_json', False)
             save_data_to_txt = kwargs.get('save_data_to_txt', False)
+            save_response_to_json = kwargs.get('save_response_to_json', False)
             add_model_to_path = kwargs.get('add_model_to_path', False)
 
             model_subdir = None
@@ -409,7 +412,7 @@ class PrimereApiProcessor:
 
             Path(folder_paths.temp_directory).mkdir(parents=True, exist_ok=True)
             try:
-                saved_path = file_output.save_bytes_to_file(save_bytes, output_file, image_extension, image_quality, folder_paths.temp_directory)
+                saved_path, save_bytes = file_output.save_bytes_to_file(save_bytes, output_file, image_extension, image_quality, folder_paths.temp_directory)
 
                 save_data = {
                     "provider": api_provider,
@@ -421,6 +424,11 @@ class PrimereApiProcessor:
                     # "api_result": api_result_debug,
                 }
                 file_output.save_metadata(save_data, json_file, txt_file, save_data_to_json, save_data_to_txt, used_values_output)
+
+                if save_response_to_json:
+                    response_json_file = os.path.splitext(saved_path)[0] + '.response.json'
+                    with open(response_json_file, 'w', encoding='utf-8') as response_file:
+                        json.dump(api_result_debug, response_file, ensure_ascii=False, indent=4, default=str)
 
                 PromptServer.instance.send_sync("primere.save_result", {
                     "node_id": unique_id,
@@ -434,4 +442,4 @@ class PrimereApiProcessor:
                     "error": str(save_error),
                 })
 
-        return (result_image, client, api_provider, schema, rendered_payload, raw_payload, used_values_output, api_schemas, api_result_debug)
+        return (result_image, client, api_provider, schema, rendered_payload, raw_payload, used_values_output, api_schemas, api_result_debug, save_bytes)

@@ -10,27 +10,14 @@ License : MIT
          ComfyUI nodes designed specifically for the "Z-Image" model.
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-  The V3 schema documentation can be found here:
-    - https://docs.comfy.org/custom-nodes/v3_migration
-
   The custom types section in the V3 schema documentation can be found here:
    - https://docs.comfy.org/custom-nodes/v3_migration#custom-types
 
 """
 from comfy_api.latest import io
-"""
-A custom ComfyUI widget that can act as a spacer or divider.
-
-Args:
-    id: PEPE!
-    mode (str): The visual style of the separator:<br/> 'spacer', 'divider', 'dotted', 'bold'.
-                            - Segunda linea.
-                            - Tercera linea.
-    color: The color of the separator. Accepts a hexadecimal color string. Defaults to '#555555'.
-
-"""
 
 
+#============================ SEPARATOR WIDGET =============================#
 
 @io.comfytype(io_type="ZIPN_SEPARATOR")
 class Separator:
@@ -50,12 +37,12 @@ class Separator:
             <hr>A separator widget.
 
             Args:
-                id (str):               A unique identifier for the input component.
-                mode (str, optional):   The visual style of the separator `"spacer"`, `"divider"`, `"dotted"`, `"bold"`.
-                                        Defaults to 'spacer'.
-                color (str, optional):  The color of the separator. Accepts a hexadecimal color string.
-                                        Defaults to '#555555'.
-                height (int, optional): The height of the separator. Defaults to `20`.
+                id (str):                  A unique identifier for the input component.
+                mode (str, optional):      The visual style of the separator `"spacer"`, `"divider"`, `"dotted"`, `"bold"`.
+                                            Defaults to 'spacer'.
+                color (str, optional):     The color of the separator. Accepts a hexadecimal color string.
+                                            Defaults to '#555555'.
+                height (int, optional):    The height of the separator. Defaults to `20`.
                 thickness (int, optional): The thickness of the separator. Defaults to `2`.
             """
             ALLOWED_MODES = ("spacer", "divider", "dotted", "bold")
@@ -71,6 +58,9 @@ class Separator:
 
             if height is not None:
                 extra_dict["height"] = height
+
+            if thickness is not None:
+                extra_dict["thickness"] = thickness
 
             super().__init__(id, extra_dict=extra_dict, **kwargs)
 

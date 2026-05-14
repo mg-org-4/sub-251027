@@ -33,7 +33,7 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 """
 import os
 from comfy_api.latest              import ComfyExtension, io
-from .nodes                        import server
+from .nodes                        import custom_routes
 from .nodes.core.helpers           import get_project_version
 from .nodes.core.predefined_styles import PREDEFINED_STYLES
 __PROJECT_EMOJI = "⚡"                 #< emoji that identifies the project

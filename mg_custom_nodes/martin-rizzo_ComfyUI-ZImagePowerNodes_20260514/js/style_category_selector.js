@@ -10,8 +10,8 @@
  *       ComfyUI nodes designed specifically for the "Z-Image" model.
  *_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 */
-import { app } from "../../../scripts/app.js";
-import { fetchStyleNamesByCategory09 } from "./common_server.js";
+import { app }                         from "../../../scripts/app.js";
+import { fetchStyleNamesByCategory09 } from "./custom_routes.js";
 const ENABLED = true;
 /**
  * Object encapsulating the style category selection functionality.

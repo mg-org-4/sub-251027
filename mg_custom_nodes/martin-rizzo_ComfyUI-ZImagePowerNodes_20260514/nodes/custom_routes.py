@@ -1,5 +1,5 @@
 """
-File    : server.py
+File    : custom_routes.py
 Purpose : Provides server routes to be used by the nodes of the project.
 Author  : Martin Rizzo | <martinrizzo@gmail.com>
 Date    : Jan 22, 2026
@@ -11,7 +11,7 @@ License : MIT
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
  ComfyUI Server Routes oficial documentation:
- - https://docs.comfy.org/development/comfyui-server/comms_routes
+ - https://docs.comfy.org/development/comfyui-server/comms_routes#custom-routes
 
 """
 import os

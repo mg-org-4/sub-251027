@@ -6,6 +6,8 @@ import comfy.utils
 import comfy.model_detection
 import comfy.lora
 import comfy.lora_convert
+import comfy.memory_management
+import comfy.model_management
 import logging
 
 from .int8_quant import Int8TensorwiseOps
@@ -27,7 +29,7 @@ class UNetLoaderINTW8A8:
                 "model_type": (["flux2", "z-image", "chroma", "wan", "ltx2", "qwen", "ernie", "anima", "hidream o1"], {"tooltip": "Only used for on the fly quantization, to filter sensitive layers."}),
                 "on_the_fly_quantization": ("BOOLEAN", {"default": False, "tooltip": "Quantize a higher precision model to INT8. If the selected model is already INT8 keep unchecked."}),
                 "enable_convrot": ("BOOLEAN", {"default": True, "tooltip": "Enable ConvRot for better quantization. ~1.1x slower, but near-GGUF_Q8 quality."}),
-                "dynamic_lora": ("BOOLEAN", {"default": False, "tooltip": "Apply LoRA dynamically at inference time. Slow. Only works with LoRA. Keep disabled unless you really need this."}),
+                "lora_mode": (["None", "Stochastic", "Dynamic"], {"default": "None", "tooltip": "None bakes LoRA patches with normal rounding which is the default behavior. Stochastic bakes with stochastic INT8 rounding, which can occasionally be closer to the BF16+lora baseline. Dynamic applies LoRA at inference time, which is slow and only works for conventional lora."}),
             },
             "optional": {
                 "pre_lora": ("PRE_LORA",),
@@ -39,8 +41,15 @@ class UNetLoaderINTW8A8:
     CATEGORY = "loaders"
     DESCRIPTION = "Load and Quantize INT8 models with fast triton inference."
 
-    def load_unet(self, unet_name, weight_dtype, model_type, on_the_fly_quantization, enable_convrot=False, dynamic_lora=False, pre_lora=None):
+    def load_unet(self, unet_name, weight_dtype, model_type, on_the_fly_quantization, enable_convrot=False, lora_mode="None", pre_lora=None):
         unet_path = folder_paths.get_full_path("diffusion_models", unet_name)
+
+        # Backward compatibility for workflows saved with the old dynamic_lora boolean widget.
+        if isinstance(lora_mode, bool):
+            lora_mode = "Dynamic" if lora_mode else "None"
+        lora_mode = str(lora_mode)
+        if lora_mode not in {"None", "Stochastic", "Dynamic"}:
+            lora_mode = "None"
         
         if pre_lora is not None:
             loras_to_load = pre_lora if isinstance(pre_lora, list) else [pre_lora]
@@ -59,7 +68,12 @@ class UNetLoaderINTW8A8:
         Int8TensorwiseOps.enable_convrot = enable_convrot
         Int8TensorwiseOps.use_triton = True
         Int8TensorwiseOps._is_prequantized = False
-        Int8TensorwiseOps.dynamic_lora = dynamic_lora
+        Int8TensorwiseOps.lora_mode = lora_mode
+        Int8TensorwiseOps.dynamic_lora = lora_mode == "Dynamic"
+        Int8TensorwiseOps.dynamic_load_device = None
+        if comfy.memory_management.aimdo_enabled and (on_the_fly_quantization or len(loras_to_load) > 0):
+            Int8TensorwiseOps.dynamic_load_device = comfy.model_management.get_torch_device()
+            logging.info(f"INT8 Fast: Aimdo dynamic loading active, using {Int8TensorwiseOps.dynamic_load_device} as a per-layer bake/quant work device.")
         if hasattr(Int8TensorwiseOps, "_logged_otf"):
             delattr(Int8TensorwiseOps, "_logged_otf")
         
@@ -140,7 +154,11 @@ class UNetLoaderINTW8A8:
 
                 if m_config is not None:
                     m_config.custom_operations = Int8TensorwiseOps
-                    skeleton_model = m_config.get_model(sd, unet_prefix)
+                    Int8TensorwiseOps.skeleton_meta_init = True
+                    try:
+                        skeleton_model = m_config.get_model(sd, unet_prefix)
+                    finally:
+                        Int8TensorwiseOps.skeleton_meta_init = False
                     key_map = comfy.lora.model_lora_keys_unet(skeleton_model, {})
 
                     
@@ -191,10 +209,15 @@ class UNetLoaderINTW8A8:
                     for k in sorted(unmatched):
                         print(f"  unmatched: {k}")
                 else:
-                    print(f"INT8 Fast: All {len(Int8TensorwiseOps.lora_patches)} LoRA keys successfully baked!")
+                    action = "scheduled for deferred baking" if Int8TensorwiseOps.dynamic_load_device is not None else "successfully baked"
+                    #print(f"INT8 Fast: All {len(Int8TensorwiseOps.lora_patches)} LoRA keys {action}!")
         finally:
             # Always clear patches after load to avoid sticking
+            dynamic_load_device = Int8TensorwiseOps.dynamic_load_device
             Int8TensorwiseOps.lora_patches = {}
+            Int8TensorwiseOps.dynamic_load_device = None
+            if dynamic_load_device is not None and torch.cuda.is_available():
+                torch.cuda.empty_cache()
             if hasattr(Int8TensorwiseOps, 'applied_lora_patches'):
                 delattr(Int8TensorwiseOps, 'applied_lora_patches')
         

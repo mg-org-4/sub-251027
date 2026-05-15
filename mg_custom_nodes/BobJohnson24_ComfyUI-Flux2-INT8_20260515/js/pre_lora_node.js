@@ -4,6 +4,93 @@ app.registerExtension({
 	name: "INT8.PreLoraLoader",
 	async beforeRegisterNodeDef(nodeType, nodeData, app) {
 		if (nodeData.name === "INT8PreLoraLoader") {
+			const parseSavedLoras = (values) => {
+				const pairs = [];
+				if (!Array.isArray(values)) {
+					return pairs;
+				}
+
+				for (let i = 0; i < values.length; i++) {
+					const name = values[i];
+					const strength = values[i + 1];
+					if (name === "Add LoRA" || name === "Remove LoRA") {
+						continue;
+					}
+					if (typeof name === "string" && typeof strength === "number") {
+						pairs.push({ name, strength });
+						i++;
+					}
+				}
+				return pairs;
+			};
+
+			const getLoraOptions = (node) => {
+				for (let i = 0; i < node.widgets.length; i++) {
+					const w = node.widgets[i];
+					if (w && w.name && w.name.startsWith("lora_name_")) {
+						return w.options?.values || [];
+					}
+				}
+				return [];
+			};
+
+			const getStrengthOptions = (node) => {
+				for (let i = 0; i < node.widgets.length; i++) {
+					const w = node.widgets[i];
+					if (w && w.name === "lora_strength_1") {
+						const options = Object.assign({}, w.options);
+						options.precision = 2;
+						return {
+							options,
+							callback: w.callback || (() => {}),
+						};
+					}
+				}
+				return {
+					options: { min: -10.0, max: 10.0, step: 0.01, precision: 2 },
+					callback: () => {},
+				};
+			};
+
+			const countLoraRows = (node) => {
+				let maxIndex = 0;
+				for (let i = 0; i < node.widgets.length; i++) {
+					const match = node.widgets[i]?.name?.match(/^lora_name_(\d+)$/);
+					if (match) {
+						maxIndex = Math.max(maxIndex, parseInt(match[1]));
+					}
+				}
+				return maxIndex;
+			};
+
+			const addLoraRow = (node, index, name = null, strength = 1.0) => {
+				const loraOptions = getLoraOptions(node);
+				const strengthConfig = getStrengthOptions(node);
+				const combo = node.addWidget("combo", `lora_name_${index}`, name ?? loraOptions[0] ?? "None", () => {}, { values: loraOptions });
+				const number = node.addWidget("number", `lora_strength_${index}`, strength, strengthConfig.callback, strengthConfig.options);
+				return { combo, number };
+			};
+
+			const ensureLoraRows = (node, count) => {
+				for (let i = countLoraRows(node) + 1; i <= count; i++) {
+					addLoraRow(node, i);
+				}
+			};
+
+			const applySavedLoras = (node, pairs) => {
+				for (let i = 0; i < pairs.length; i++) {
+					const index = i + 1;
+					const nameWidget = node.widgets.find((w) => w?.name === `lora_name_${index}`);
+					const strengthWidget = node.widgets.find((w) => w?.name === `lora_strength_${index}`);
+					if (nameWidget) {
+						nameWidget.value = pairs[i].name;
+					}
+					if (strengthWidget) {
+						strengthWidget.value = pairs[i].strength;
+					}
+				}
+			};
+
 			const onNodeCreated = nodeType.prototype.onNodeCreated;
 			nodeType.prototype.onNodeCreated = function () {
 				const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
@@ -63,6 +150,7 @@ app.registerExtension({
 									this.setDirtyCanvas(true, true);
 								}
 							});
+							this.removeBtn.serialize = false;
 						} else {
 							// Ensure it's at the bottom
 							const idx = this.widgets.indexOf(this.removeBtn);
@@ -83,42 +171,8 @@ app.registerExtension({
 				};
 				
 				const addBtn = this.addWidget("button", "Add LoRA", "Add LoRA", () => {
-					let maxIndex = 0;
-					for (let i = 0; i < this.widgets.length; i++) {
-						const w = this.widgets[i];
-						if (w && w.name) {
-							const match = w.name.match(/lora_name_(\d+)/);
-							if (match) {
-								maxIndex = Math.max(maxIndex, parseInt(match[1]));
-							}
-						}
-					}
-					
-					const nextIndex = maxIndex + 1;
-					
-					let loraOptions = [];
-					for (let i = 0; i < this.widgets.length; i++) {
-						if (this.widgets[i] && this.widgets[i].name && this.widgets[i].name.startsWith("lora_name_")) {
-							loraOptions = this.widgets[i].options.values;
-							break;
-						}
-					}
-
-					let floatOptions = { min: -10.0, max: 10.0, step: 0.01, precision: 2 };
-					let floatCallback = () => {};
-					for (let i = 0; i < this.widgets.length; i++) {
-						if (this.widgets[i] && this.widgets[i].name === "lora_strength_1") {
-							floatOptions = Object.assign({}, this.widgets[i].options);
-							floatOptions.precision = 2;
-							if (this.widgets[i].callback) {
-								floatCallback = this.widgets[i].callback;
-							}
-							break;
-						}
-					}
-
-					this.addWidget("combo", `lora_name_${nextIndex}`, loraOptions[0] || "None", () => {}, { values: loraOptions });
-					this.addWidget("number", `lora_strength_${nextIndex}`, 1.0, floatCallback, floatOptions);
+					const nextIndex = countLoraRows(this) + 1;
+					addLoraRow(this, nextIndex);
 					
 					this.updateRemoveBtn();
 					
@@ -127,6 +181,8 @@ app.registerExtension({
 					this.size[1] = Math.max(this.size[1], sz[1]);
 					this.setDirtyCanvas(true, true);
 				});
+				addBtn.serialize = false;
+				this.addBtn = addBtn;
 				
 				// Move addBtn to top
 				this.widgets.splice(this.widgets.indexOf(addBtn), 1);
@@ -147,76 +203,29 @@ app.registerExtension({
 			
 			const onConfigure = nodeType.prototype.onConfigure;
 			nodeType.prototype.onConfigure = function (info) {
+				const savedLoras = parseSavedLoras(info?.widgets_values);
 				if (info && info.widgets_values) {
-					// ComfyUI will apply info.widgets_values to this.widgets in order.
-					// We must recreate the missing LoRA slots so that they exist when the values are applied.
-					
-					let loraOptions = [];
-					for (let i = 0; i < this.widgets.length; i++) {
-						if (this.widgets[i] && this.widgets[i].name && this.widgets[i].name.startsWith("lora_name_")) {
-							loraOptions = this.widgets[i].options.values || [];
-							break;
-						}
-					}
-					
-					// Count how many LoRAs were saved by looking for strings that match our options
-					let savedLoras = 0;
-					for (let i = 0; i < info.widgets_values.length; i++) {
-						const val = info.widgets_values[i];
-						if (typeof val === "string") {
-							if (val === "None" || loraOptions.includes(val)) {
-								savedLoras++;
-							}
-						}
-					}
-					
-					let currentLoras = 0;
-					for (let i = 0; i < this.widgets.length; i++) {
-						if (this.widgets[i] && this.widgets[i].name && this.widgets[i].name.startsWith("lora_name_")) {
-							currentLoras++;
-						}
-					}
-					
-					// Create any missing slots
-					for (let i = currentLoras + 1; i <= savedLoras; i++) {
-						let maxIndex = 0;
-						for (let j = 0; j < this.widgets.length; j++) {
-							const w = this.widgets[j];
-							if (w && w.name) {
-								const match = w.name.match(/lora_name_(\d+)/);
-								if (match) {
-									maxIndex = Math.max(maxIndex, parseInt(match[1]));
-								}
-							}
-						}
-						const nextIndex = maxIndex + 1;
-						let floatOptions = { min: -10.0, max: 10.0, step: 0.01, precision: 2 };
-						let floatCallback = () => {};
-						for (let j = 0; j < this.widgets.length; j++) {
-							if (this.widgets[j] && this.widgets[j].name === "lora_strength_1") {
-								floatOptions = Object.assign({}, this.widgets[j].options);
-								floatOptions.precision = 2;
-								if (this.widgets[j].callback) {
-									floatCallback = this.widgets[j].callback;
-								}
-								break;
-							}
-						}
-						
-						this.addWidget("combo", `lora_name_${nextIndex}`, loraOptions[0] || "None", () => {}, { values: loraOptions });
-						this.addWidget("number", `lora_strength_${nextIndex}`, 1.0, floatCallback, floatOptions);
-					}
-					
+					ensureLoraRows(this, savedLoras.length);
 					if (this.updateRemoveBtn) {
 						this.updateRemoveBtn();
 					}
 				}
 				
 				const r = onConfigure ? onConfigure.apply(this, arguments) : undefined;
+				applySavedLoras(this, savedLoras);
+				if (this.addBtn) {
+					this.addBtn.value = "Add LoRA";
+				}
+				if (this.removeBtn) {
+					this.removeBtn.value = "Remove LoRA";
+				}
 				
 				if (this.updateRemoveBtn) {
 					this.updateRemoveBtn();
 				}
+				const sz = this.computeSize();
+				this.size[0] = Math.max(this.size[0], sz[0]);
+				this.size[1] = sz[1];
 				return r;
 			};
 		}

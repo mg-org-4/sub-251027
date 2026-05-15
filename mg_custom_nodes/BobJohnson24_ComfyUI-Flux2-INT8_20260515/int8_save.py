@@ -1,7 +1,9 @@
 import folder_paths
 import comfy.sd
+import comfy.model_patcher
 import json
 import os
+import torch
 from comfy.cli_args import args
 
 class INT8ModelSave:
@@ -36,13 +38,52 @@ class INT8ModelSave:
         output_checkpoint = os.path.join(full_output_folder, output_checkpoint)
 
         extra_keys = {}
-        import torch
         
         patched_modules = []
+        patched_module_ids = set()
+
+        def mark_module_for_direct_save(module):
+            module_id = id(module)
+            if module_id in patched_module_ids:
+                return
+            had_flag = hasattr(module, "comfy_patched_weights")
+            old_flag = getattr(module, "comfy_patched_weights", False)
+            patched_modules.append((module, had_flag, old_flag))
+            patched_module_ids.add(module_id)
+            module.comfy_patched_weights = True
+
+        def module_has_int8_param(module):
+            for attr in ("weight", "bias"):
+                tensor = getattr(module, attr, None)
+                if isinstance(tensor, torch.Tensor) and tensor.dtype == torch.int8:
+                    return True
+            return False
+
+        def iter_model_modules(model_patcher):
+            roots = []
+            if hasattr(model_patcher, "model"):
+                roots.append(model_patcher.model)
+                diffusion_model = getattr(model_patcher.model, "diffusion_model", None)
+                if diffusion_model is not None:
+                    roots.append(diffusion_model)
+
+            seen_roots = set()
+            for root in roots:
+                root_id = id(root)
+                if root_id in seen_roots or not hasattr(root, "named_modules"):
+                    continue
+                seen_roots.add(root_id)
+                yield from root.named_modules()
         
         # We need to peek at the model's actual modules to save comfy_quant and weight_scale
-        if hasattr(model, "model") and hasattr(model.model, "named_modules"):
-            for name, module in model.model.named_modules():
+        if hasattr(model, "model"):
+            for name, module in iter_model_modules(model):
+                if module_has_int8_param(module):
+                    # ComfyUI's LazyCastingParam subclasses torch.nn.Parameter
+                    # with requires_grad=True by default, which is invalid for
+                    # int8 tensors. Mark all int8 modules for direct save.
+                    mark_module_for_direct_save(module)
+
                 if getattr(module, "_is_quantized", False):
                     # 1. Comfy Quant Hint
                     quant_conf = {"convrot": getattr(module, "_use_convrot", False)}
@@ -61,15 +102,26 @@ class INT8ModelSave:
                     if getattr(module, "_weight_scale_scalar", None) is not None:
                         extra_keys[prefix + "weight_scale"] = torch.tensor(module._weight_scale_scalar)
 
-                    # 3. Temporarily bypass ComfyUI's LazyCastingParam to prevent crash on int8 tensors
-                    had_flag = hasattr(module, "comfy_patched_weights")
-                    old_flag = getattr(module, "comfy_patched_weights", False)
-                    patched_modules.append((module, had_flag, old_flag))
-                    module.comfy_patched_weights = True
+                    mark_module_for_direct_save(module)
+
+        original_lazy_new = comfy.model_patcher.LazyCastingParam.__new__
+        original_lazy_piece_new = comfy.model_patcher.LazyCastingParamPiece.__new__
+
+        def lazy_casting_param_new(cls, model, key, tensor):
+            requires_grad = tensor.is_floating_point() or tensor.is_complex()
+            return torch.nn.Parameter.__new__(cls, tensor, requires_grad=requires_grad)
+
+        def lazy_casting_param_piece_new(cls, caster, state_dict_key, tensor):
+            requires_grad = tensor.is_floating_point() or tensor.is_complex()
+            return torch.nn.Parameter.__new__(cls, tensor, requires_grad=requires_grad)
 
         try:
+            comfy.model_patcher.LazyCastingParam.__new__ = staticmethod(lazy_casting_param_new)
+            comfy.model_patcher.LazyCastingParamPiece.__new__ = staticmethod(lazy_casting_param_piece_new)
             comfy.sd.save_checkpoint(output_checkpoint, model, metadata=metadata, extra_keys=extra_keys)
         finally:
+            comfy.model_patcher.LazyCastingParam.__new__ = original_lazy_new
+            comfy.model_patcher.LazyCastingParamPiece.__new__ = original_lazy_piece_new
             # Restore module states so we don't break dynamic VRAM management
             for module, had_flag, old_flag in patched_modules:
                 if had_flag:

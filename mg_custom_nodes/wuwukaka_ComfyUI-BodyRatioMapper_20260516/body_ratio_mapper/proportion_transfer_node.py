@@ -17,6 +17,7 @@ from .core_modules.global_rpca import (
 from .core_modules import frame_ops as frame_ops_external
 from .core_modules import scale_solver as scale_solver_external
 from .core_modules import matrix_ops as matrix_ops_external
+from .core_modules.multi_person_tracker import MultiPersonTracker, align_tracks_to_n_ref
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ class RuntimeConfig:
     best_neck_search: bool = False
     final_offset_alignment: bool = True
     base_offset_mode: bool = False
+    head_fixed_mode: bool = False
     anchor_output_mode: str = "single_frame_multi_person"
     print_detailed_logs: bool = False
     confidence_threshold: float = 0.30
@@ -48,6 +50,7 @@ class BodyRatioMapperProportionTransfer:
             "optional": {
                 "ref_pose_keypoint": ("POSE_KEYPOINT", {"tooltip": "Reference pose keypoint (Source of proportions)"}),
                 "manual_anchor_pose": ("POSE_KEYPOINT", {"tooltip": "(Optional) Override WSCS. Provide a perfect straight-facing pose to set the baseline proportions."}),
+                "manual_first_frame": ("POSE_KEYPOINT", {"tooltip": "(Optional) Override the first-frame reference for base_offset_mode. Used as the global offset alignment baseline when base_offset_mode is ON."}),
                 "enable_rpca": ("BOOLEAN", {"default": False, "label_on": "RPCA ON", "label_off": "RPCA OFF", "tooltip": "Enable global RPCA multiplier (anchor vs frame-0 scale correction)."}),
                 "hand_scaling": ("BOOLEAN", {"default": True, "label_on": "Hand Scaling ON", "label_off": "Hand Scaling OFF"}),
                 "foot_scaling": ("BOOLEAN", {"default": True, "label_on": "Foot Scaling ON", "label_off": "Foot Scaling OFF"}),
@@ -61,6 +64,7 @@ class BodyRatioMapperProportionTransfer:
                 "best_neck_search": ("BOOLEAN", {"default": False, "label_on": "Best Neck Search ON", "label_off": "Best Neck Search OFF"}),
                 "final_offset_alignment": ("BOOLEAN", {"default": True, "label_on": "Final Offset Align ON", "label_off": "Final Offset Align OFF"}),
                 "base_offset_mode": ("BOOLEAN", {"default": False, "label_on": "First-Frame Offset", "label_off": "Anchor-Frame Offset", "tooltip": "ON: align global offset by reference vs first frame. OFF: align by reference vs anchor frame."}),
+                "head_fixed_mode": ("BOOLEAN", {"default": False, "label_on": "Head Fixed ON", "label_off": "Head Fixed OFF", "tooltip": "ON: per-frame nose alignment to reference nose, keeping head visually stationary. Overrides base_offset_mode and stabilizer."}),
                 "anchor_output_mode": (["single_frame_multi_person", "multi_frame_single_person"], {"default": "single_frame_multi_person", "tooltip": "Anchor output layout mode."}),
                 "print_detailed_logs": ("BOOLEAN", {"default": False, "label_on": "Detailed Logs ON", "label_off": "Detailed Logs OFF", "tooltip": "Enable verbose internal logs. OFF uses concise summary logs."}),
                 "confidence_threshold": ("FLOAT", {"default": 0.30, "min": 0.0, "max": 1.0, "step": 0.01, "tooltip": "Unified confidence threshold for WSCS and reference gating."}),
@@ -69,8 +73,8 @@ class BodyRatioMapperProportionTransfer:
         }
 
     # Outputs transformed keypoints and selected anchor keypoints.
-    RETURN_TYPES = ("POSE_KEYPOINT", "POSE_KEYPOINT")
-    RETURN_NAMES = ("changed_pose_keypoint", "anchor_pose_keypoint")
+    RETURN_TYPES = ("POSE_KEYPOINT", "POSE_KEYPOINT", "POSE_KEYPOINT")
+    RETURN_NAMES = ("changed_pose_keypoint", "anchor_pose_keypoint", "first_frame_output")
     FUNCTION = "process"
     CATEGORY = "BodyRatioMapper"
 
@@ -118,6 +122,7 @@ class BodyRatioMapperProportionTransfer:
                               best_neck_search=False,
                               final_offset_alignment=True,
                               base_offset_mode=False,
+                              head_fixed_mode=False,
                               anchor_output_mode="single_frame_multi_person",
                               print_detailed_logs=False,
                               confidence_threshold=0.30,
@@ -136,6 +141,7 @@ class BodyRatioMapperProportionTransfer:
             best_neck_search=bool(best_neck_search),
             final_offset_alignment=bool(final_offset_alignment),
             base_offset_mode=bool(base_offset_mode),
+            head_fixed_mode=bool(head_fixed_mode),
             anchor_output_mode=str(anchor_output_mode),
             print_detailed_logs=bool(print_detailed_logs),
             confidence_threshold=float(confidence_threshold),
@@ -156,6 +162,7 @@ class BodyRatioMapperProportionTransfer:
                                 best_neck_search=False,
                                 final_offset_alignment=True,
                                 base_offset_mode=False,
+                                head_fixed_mode=False,
                                 anchor_output_mode="single_frame_multi_person",
                                 print_detailed_logs=False,
                                 confidence_threshold=0.30,
@@ -176,6 +183,7 @@ class BodyRatioMapperProportionTransfer:
             best_neck_search=best_neck_search,
             final_offset_alignment=final_offset_alignment,
             base_offset_mode=base_offset_mode,
+            head_fixed_mode=head_fixed_mode,
             anchor_output_mode=anchor_output_mode,
             print_detailed_logs=print_detailed_logs,
             confidence_threshold=confidence_threshold,
@@ -691,36 +699,6 @@ class BodyRatioMapperProportionTransfer:
             tracks[i] = self._ensure_track_first_frame_valid(tracks[i], conf_thresh)
         return tracks
 
-    def _find_first_full_valid_frame_index(self, frames, n_people, conf_thresh):
-        if n_people <= 0:
-            return -1
-        for fi, frame in enumerate(frames):
-            people = self._sorted_people_for_frame(frame, conf_thresh)
-            if len(people) < n_people:
-                continue
-            ok = True
-            for pi in range(n_people):
-                if self._is_frame_absent(people[pi], conf_thresh):
-                    ok = False
-                    break
-            if ok:
-                return fi
-        return -1
-
-    def _person_reference_point(self, person, conf_thresh):
-        pose = self._body18_triplets(person)
-
-        def conf_ok(i):
-            return i < len(pose) and len(pose[i]) > 2 and float(pose[i][2]) >= conf_thresh
-
-        if conf_ok(1):
-            return np.array([float(pose[1][0]), float(pose[1][1])], dtype=float)
-        if conf_ok(2) and conf_ok(5):
-            x = 0.5 * (float(pose[2][0]) + float(pose[5][0]))
-            y = 0.5 * (float(pose[2][1]) + float(pose[5][1]))
-            return np.array([x, y], dtype=float)
-        return None
-
     def _person_reference_point_with_mode(self, person, conf_thresh, state):
         """
         Nose-first reference point with hysteresis:
@@ -770,299 +748,7 @@ class BodyRatioMapperProportionTransfer:
     def _pixel_match_threshold(canvas_w, canvas_h, ratio=0.05):
         return float(ratio) * float(np.sqrt(float(canvas_w) * float(canvas_w) + float(canvas_h) * float(canvas_h)))
 
-    def _stabilize_tracks_after_t_star(self, tracks, frames, full_idx, conf_thresh, ratio=0.05, assignment_map=None):
-        if len(tracks) == 0:
-            return tracks, assignment_map
-        if full_idx < 0 or full_idx >= len(frames):
-            return tracks, assignment_map
 
-        n = len(tracks)
-        id_people = self._sorted_people_for_frame(frames[full_idx], conf_thresh)
-        if len(id_people) < n:
-            return tracks, assignment_map
-
-        if assignment_map is None:
-            assignment_map = [[-1 for _ in range(len(frames))] for _ in range(n)]
-
-        # Lock IDs at t* (left-to-right order at t*).
-        last_valid_points = [None] * n
-        last_valid_frame_idx = [full_idx] * n
-        ref_states = [{"ref_mode": "nose", "nose_miss_streak": 0, "nose_recover_streak": 0} for _ in range(n)]
-        for pi in range(n):
-            p = self._clone_person_fast(id_people[pi])
-            tracks[pi][full_idx] = {
-                "people": [p],
-                "canvas_width": frames[full_idx]["canvas_width"],
-                "canvas_height": frames[full_idx]["canvas_height"],
-            }
-            last_valid_points[pi] = self._person_reference_point_with_mode(p, conf_thresh, ref_states[pi])
-            assignment_map[pi][full_idx] = pi
-
-        # Keep ID order stable for t*+1 ... end by nearest matching to previous valid point.
-        for fi in range(full_idx + 1, len(frames)):
-            frame = frames[fi]
-            canvas_w = frame["canvas_width"]
-            canvas_h = frame["canvas_height"]
-            tau_px = self._pixel_match_threshold(canvas_w, canvas_h, ratio=ratio)
-            candidates = self._sorted_people_for_frame(frame, conf_thresh)
-            used = set()
-
-            for pi in range(n):
-                ref_pt = last_valid_points[pi]
-                best_j = -1
-                best_d = float("inf")
-                if ref_pt is not None:
-                    for cj in range(len(candidates)):
-                        if cj in used:
-                            continue
-                        cp = self._person_reference_point_with_mode(candidates[cj], conf_thresh, ref_states[pi].copy())
-                        if cp is None:
-                            continue
-                        d = float(np.sqrt(np.sum((cp - ref_pt) ** 2)))
-                        if d < best_d:
-                            best_d = d
-                            best_j = cj
-
-                gap = fi - last_valid_frame_idx[pi]
-                gap_mult = max(1, min(3, gap))
-                tau_eff = tau_px * float(gap_mult)
-                is_match = (best_j >= 0) and ((n == 1) or (best_d <= tau_eff))
-                if is_match:
-                    chosen = self._clone_person_fast(candidates[best_j])
-                    used.add(best_j)
-                    tracks[pi][fi] = {
-                        "people": [chosen],
-                        "canvas_width": canvas_w,
-                        "canvas_height": canvas_h,
-                    }
-                    new_pt = self._person_reference_point_with_mode(chosen, conf_thresh, ref_states[pi])
-                    if new_pt is not None:
-                        last_valid_points[pi] = new_pt
-                        last_valid_frame_idx[pi] = fi
-                    assignment_map[pi][fi] = best_j
-                else:
-                    tracks[pi][fi] = {
-                        "people": [self._build_zero_person_openpose()],
-                        "canvas_width": canvas_w,
-                        "canvas_height": canvas_h,
-                    }
-                    assignment_map[pi][fi] = -1
-        return tracks, assignment_map
-
-    def _stabilize_tracks_before_t_star(self, tracks, frames, full_idx, conf_thresh, ratio=0.05, assignment_map=None):
-        if len(tracks) == 0:
-            return tracks, assignment_map
-        if full_idx <= 0 or full_idx >= len(frames):
-            return tracks, assignment_map
-
-        n = len(tracks)
-        id_people = self._sorted_people_for_frame(frames[full_idx], conf_thresh)
-        if len(id_people) < n:
-            return tracks, assignment_map
-
-        if assignment_map is None:
-            assignment_map = [[-1 for _ in range(len(frames))] for _ in range(n)]
-
-        # Lock IDs at t* and track nearest points backward.
-        last_valid_points = [None] * n
-        last_valid_frame_idx = [full_idx] * n
-        ref_states = [{"ref_mode": "nose", "nose_miss_streak": 0, "nose_recover_streak": 0} for _ in range(n)]
-        for pi in range(n):
-            p = self._clone_person_fast(id_people[pi])
-            last_valid_points[pi] = self._person_reference_point_with_mode(p, conf_thresh, ref_states[pi])
-            assignment_map[pi][full_idx] = pi
-
-        # Keep ID order stable for 0 ... t*-1 by reverse nearest matching to next valid point.
-        for fi in range(full_idx - 1, -1, -1):
-            frame = frames[fi]
-            canvas_w = frame["canvas_width"]
-            canvas_h = frame["canvas_height"]
-            tau_px = self._pixel_match_threshold(canvas_w, canvas_h, ratio=ratio)
-            candidates = self._sorted_people_for_frame(frame, conf_thresh)
-            used = set()
-
-            for pi in range(n):
-                ref_pt = last_valid_points[pi]
-                best_j = -1
-                best_d = float("inf")
-                if ref_pt is not None:
-                    for cj in range(len(candidates)):
-                        if cj in used:
-                            continue
-                        cp = self._person_reference_point_with_mode(candidates[cj], conf_thresh, ref_states[pi].copy())
-                        if cp is None:
-                            continue
-                        d = float(np.sqrt(np.sum((cp - ref_pt) ** 2)))
-                        if d < best_d:
-                            best_d = d
-                            best_j = cj
-
-                gap = last_valid_frame_idx[pi] - fi
-                gap_mult = max(1, min(3, gap))
-                tau_eff = tau_px * float(gap_mult)
-                is_match = (best_j >= 0) and ((n == 1) or (best_d <= tau_eff))
-                if is_match:
-                    chosen = self._clone_person_fast(candidates[best_j])
-                    used.add(best_j)
-                    tracks[pi][fi] = {
-                        "people": [chosen],
-                        "canvas_width": canvas_w,
-                        "canvas_height": canvas_h,
-                    }
-                    new_pt = self._person_reference_point_with_mode(chosen, conf_thresh, ref_states[pi])
-                    if new_pt is not None:
-                        last_valid_points[pi] = new_pt
-                        last_valid_frame_idx[pi] = fi
-                    assignment_map[pi][fi] = best_j
-                else:
-                    tracks[pi][fi] = {
-                        "people": [self._build_zero_person_openpose()],
-                        "canvas_width": canvas_w,
-                        "canvas_height": canvas_h,
-                    }
-                    assignment_map[pi][fi] = -1
-        return tracks, assignment_map
-
-    def _apply_majority_id_smoothing(self, tracks, frames, assignment_map, conf_thresh):
-        if not tracks or assignment_map is None:
-            return tracks
-        n = len(tracks)
-        total_frames = len(frames)
-
-        # Phase 1: Compute voted_map as fallback preference (existing logic).
-        voted_map = [[-1 for _ in range(total_frames)] for _ in range(n)]
-        for pi in range(n):
-            for fi in range(total_frames):
-                start = max(0, fi - 7)
-                end = min(total_frames - 1, fi + 8)
-                counts = {}
-                for k in range(start, end + 1):
-                    cand_idx = assignment_map[pi][k]
-                    if cand_idx is None or cand_idx < 0:
-                        continue
-                    counts[cand_idx] = counts.get(cand_idx, 0) + 1
-                if not counts:
-                    voted_map[pi][fi] = assignment_map[pi][fi]
-                else:
-                    voted_map[pi][fi] = max(counts.items(), key=lambda x: x[1])[0]
-
-        # Phase 2: Build per-frame candidate reference points.
-        cand_ref_pts = []
-        for fi in range(total_frames):
-            cands = self._sorted_people_for_frame(frames[fi], conf_thresh)
-            pts = []
-            for c in cands:
-                pts.append(self._person_reference_point(c, conf_thresh))
-            cand_ref_pts.append(pts)
-
-        # Phase 3: Recover per-track locked positions from stabilizer results.
-        locked_pts = [[None] * total_frames for _ in range(n)]
-
-        t_star = -1
-        for fi in range(total_frames):
-            all_locked = all(assignment_map[pi][fi] >= 0 for pi in range(n))
-            if all_locked:
-                t_star = fi
-                break
-
-        if t_star >= 0:
-            cands_t = self._sorted_people_for_frame(frames[t_star], conf_thresh)
-            for pi in range(n):
-                idx = assignment_map[pi][t_star]
-                if 0 <= idx < len(cand_ref_pts[t_star]):
-                    locked_pts[pi][t_star] = cand_ref_pts[t_star][idx]
-
-            # Walk forward from t_star.
-            for pi in range(n):
-                for fi in range(t_star + 1, total_frames):
-                    idx = assignment_map[pi][fi]
-                    if idx >= 0 and idx < len(cand_ref_pts[fi]) and cand_ref_pts[fi][idx] is not None:
-                        locked_pts[pi][fi] = cand_ref_pts[fi][idx]
-                    else:
-                        locked_pts[pi][fi] = locked_pts[pi][fi - 1]
-
-            # Walk backward from t_star.
-            for pi in range(n):
-                for fi in range(t_star - 1, -1, -1):
-                    idx = assignment_map[pi][fi]
-                    if idx >= 0 and idx < len(cand_ref_pts[fi]) and cand_ref_pts[fi][idx] is not None:
-                        locked_pts[pi][fi] = cand_ref_pts[fi][idx]
-                    else:
-                        locked_pts[pi][fi] = locked_pts[pi][fi + 1]
-
-        # Phase 4: Distance-based greedy assignment per frame.
-        for fi in range(total_frames):
-            frame = frames[fi]
-            candidates = self._sorted_people_for_frame(frame, conf_thresh)
-            used = set()
-
-            # Separate tracks into those with stabilizer assignments and empty ones.
-            non_empty = []
-            empty_tracks = []
-            for pi in range(n):
-                if assignment_map[pi][fi] < 0:
-                    empty_tracks.append(pi)
-                else:
-                    non_empty.append(pi)
-
-            # Distance-based greedy matching for non-empty tracks.
-            pairs = []
-            for pi in non_empty:
-                lp = locked_pts[pi][fi]
-                if lp is None:
-                    continue
-                for cj in range(len(candidates)):
-                    if cj in used:
-                        continue
-                    cp = cand_ref_pts[fi][cj]
-                    if cp is None:
-                        continue
-                    d = float(np.sqrt(np.sum((cp - lp) ** 2)))
-                    pairs.append((d, pi, cj))
-
-            pairs.sort(key=lambda x: x[0])
-            matched_tracks = set()
-            for d, pi, cj in pairs:
-                if pi in matched_tracks or cj in used:
-                    continue
-                chosen = self._clone_person_fast(candidates[cj])
-                tracks[pi][fi] = {
-                    "people": [chosen],
-                    "canvas_width": frame["canvas_width"],
-                    "canvas_height": frame["canvas_height"],
-                }
-                used.add(cj)
-                matched_tracks.add(pi)
-
-            # Fallback: tracks not matched by distance use voted_map.
-            for pi in non_empty:
-                if pi in matched_tracks:
-                    continue
-                want = voted_map[pi][fi]
-                if want is not None and want >= 0 and want < len(candidates) and want not in used:
-                    chosen = self._clone_person_fast(candidates[want])
-                    tracks[pi][fi] = {
-                        "people": [chosen],
-                        "canvas_width": frame["canvas_width"],
-                        "canvas_height": frame["canvas_height"],
-                    }
-                    used.add(want)
-                else:
-                    tracks[pi][fi] = {
-                        "people": [self._build_zero_person_openpose()],
-                        "canvas_width": frame["canvas_width"],
-                        "canvas_height": frame["canvas_height"],
-                    }
-
-            # Preserve empty frames: stabilizer marked this person absent.
-            for pi in empty_tracks:
-                tracks[pi][fi] = {
-                    "people": [self._build_zero_person_openpose()],
-                    "canvas_width": frame["canvas_width"],
-                    "canvas_height": frame["canvas_height"],
-                }
-
-        return tracks
 
     def _build_anchor_output(self, anchor_people, ref_frame, mode):
         canvas_w = ref_frame.get("canvas_width", 512)
@@ -1103,17 +789,17 @@ class BodyRatioMapperProportionTransfer:
     def _passthrough_without_ref(self, pose_keypoint, anchor_output_mode, conf_thresh):
         changed_output = copy.deepcopy(pose_keypoint)
         if not changed_output:
-            return (pose_keypoint, pose_keypoint)
+            return (pose_keypoint, pose_keypoint, pose_keypoint)
 
         first_frame = changed_output[0]
         sorted_people = self._sorted_people_for_frame(first_frame, conf_thresh)
         anchor_output = self._build_anchor_output(sorted_people, first_frame, anchor_output_mode)
         self._validate_anchor_output_shape(anchor_output, len(sorted_people), anchor_output_mode)
-        return (changed_output, anchor_output)
+        return (changed_output, anchor_output, [copy.deepcopy(first_frame)])
 
-    def process(self, pose_keypoint, ref_pose_keypoint=None, manual_anchor_pose=None, enable_rpca=False, hand_scaling=True, foot_scaling=True, offset_stabilizer_y=True, offset_stabilizer_x=False, best_hand_search=True, use_shoulder_fk_for_hand=False, use_torso_fk_for_arm=False, use_torso_fk_for_foot=False, best_neck_search=False, final_offset_alignment=True, base_offset_mode=False, confidence_threshold=0.30, output_absolute_coordinates=True, anchor_output_mode="single_frame_multi_person", print_detailed_logs=False):
+    def process(self, pose_keypoint, ref_pose_keypoint=None, manual_anchor_pose=None, manual_first_frame=None, enable_rpca=False, hand_scaling=True, foot_scaling=True, offset_stabilizer_y=True, offset_stabilizer_x=False, best_hand_search=True, use_shoulder_fk_for_hand=False, use_torso_fk_for_arm=False, use_torso_fk_for_foot=False, best_neck_search=False, final_offset_alignment=True, base_offset_mode=False, head_fixed_mode=False, confidence_threshold=0.30, output_absolute_coordinates=True, anchor_output_mode="single_frame_multi_person", print_detailed_logs=False):
         if not pose_keypoint or len(pose_keypoint) == 0:
-            return (pose_keypoint, pose_keypoint)
+            return (pose_keypoint, pose_keypoint, pose_keypoint)
 
         runtime_cfg = self._resolve_runtime_config(
             enable_rpca=enable_rpca,
@@ -1128,6 +814,7 @@ class BodyRatioMapperProportionTransfer:
             best_neck_search=best_neck_search,
             final_offset_alignment=final_offset_alignment,
             base_offset_mode=base_offset_mode,
+            head_fixed_mode=head_fixed_mode,
             anchor_output_mode=anchor_output_mode,
             print_detailed_logs=print_detailed_logs,
             confidence_threshold=confidence_threshold,
@@ -1135,6 +822,7 @@ class BodyRatioMapperProportionTransfer:
         )
         self._assert_single_frame_input("ref_pose_keypoint", ref_pose_keypoint)
         self._assert_single_frame_input("manual_anchor_pose", manual_anchor_pose)
+        self._assert_single_frame_input("manual_first_frame", manual_first_frame)
         if runtime_cfg.anchor_output_mode not in ("single_frame_multi_person", "multi_frame_single_person"):
             raise ValueError(f"Invalid anchor_output_mode: {runtime_cfg.anchor_output_mode}")
         if ref_pose_keypoint is None or len(ref_pose_keypoint) == 0:
@@ -1148,6 +836,7 @@ class BodyRatioMapperProportionTransfer:
                     pose_keypoint=pose_keypoint,
                     ref_pose_keypoint=ref_pose_keypoint,
                     manual_anchor_pose=manual_anchor_pose,
+                    manual_first_frame=manual_first_frame,
                     config=runtime_cfg,
                 )
             self._log_multi_summary(
@@ -1185,7 +874,7 @@ class BodyRatioMapperProportionTransfer:
                 anchor_policy="empty_list",
                 input_frames=len(pose_keypoint),
             )
-            return (pose_keypoint, [])
+            return (pose_keypoint, [], [])
 
         max_people = 0
         for frame in pose_keypoint:
@@ -1199,46 +888,27 @@ class BodyRatioMapperProportionTransfer:
             track = self._extract_person_track(pose_keypoint, 0, conf_thresh)
             candidate_tracks.append(track)
         else:
-            for pi in range(max_people):
-                track = self._extract_person_track(pose_keypoint, pi, conf_thresh)
-                if self._video_person_passes_trajectory_rule(track, conf_thresh):
-                    candidate_tracks.append(track)
-        valid_tracks_before_resize = len(candidate_tracks)
-        trim_count = 0
-        pad_count = 0
-        pad_source = "none"
+            # Multi-person: identity-based tracking with in-loop voting.
+            tracker = MultiPersonTracker(
+                parent=self,
+                conf_thresh=conf_thresh,
+                match_ratio=0.08,
+                vote_window_half=7,
+                max_missing_streak=15,
+                trajectory_pass_rate=0.65,
+            )
+            tracker_result = tracker.track(pose_keypoint)
+            candidate_tracks = list(tracker_result.tracks)
 
-        if len(candidate_tracks) > n_ref:
-            trim_count = len(candidate_tracks) - n_ref
-            candidate_tracks = candidate_tracks[:n_ref]
-        elif len(candidate_tracks) < n_ref:
-            pad_count = n_ref - len(candidate_tracks)
-            if len(candidate_tracks) == 0:
-                zero_track = self._extract_person_track([{
-                    "people": [self._build_zero_person_openpose()],
-                    "canvas_width": f.get("canvas_width", 512),
-                    "canvas_height": f.get("canvas_height", 768),
-                } for f in pose_keypoint], 0, conf_thresh)
-                candidate_tracks = [self._clone_track_fast(zero_track) for _ in range(n_ref)]
-                pad_source = "zero_track"
-            else:
-                src_track = candidate_tracks[-1]
-                while len(candidate_tracks) < n_ref:
-                    candidate_tracks.append(self._clone_track_fast(src_track))
-                pad_source = "last_valid_track"
-
-        full_valid_frame_idx = self._find_first_full_valid_frame_index(
-            pose_keypoint, len(candidate_tracks), conf_thresh
-        )
-        assignment_map = [[-1 for _ in range(len(pose_keypoint))] for _ in range(len(candidate_tracks))]
-        candidate_tracks, assignment_map = self._stabilize_tracks_before_t_star(
-            candidate_tracks, pose_keypoint, full_valid_frame_idx, conf_thresh, ratio=0.08, assignment_map=assignment_map
-        )
-        candidate_tracks, assignment_map = self._stabilize_tracks_after_t_star(
-            candidate_tracks, pose_keypoint, full_valid_frame_idx, conf_thresh, ratio=0.08, assignment_map=assignment_map
-        )
-        candidate_tracks = self._apply_majority_id_smoothing(
-            candidate_tracks, pose_keypoint, assignment_map, conf_thresh
+        # Align track count to n_ref (trim excess / pad shortage).
+        candidate_tracks, trim_count, pad_count, pad_source = align_tracks_to_n_ref(
+            candidate_tracks, n_ref,
+            zero_track_builder=lambda: self._extract_person_track([{
+                "people": [self._build_zero_person_openpose()],
+                "canvas_width": f.get("canvas_width", 512),
+                "canvas_height": f.get("canvas_height", 768),
+            } for f in pose_keypoint], 0, conf_thresh),
+            clone_track_fn=self._clone_track_fast,
         )
 
         manual_people_filtered = []
@@ -1254,10 +924,8 @@ class BodyRatioMapperProportionTransfer:
         self._log_multi_summary(
             "video_tracks_ready",
             input_max_people=max_people,
-            valid_tracks_before_resize=valid_tracks_before_resize,
             final_tracks=len(candidate_tracks),
             n_ref=n_ref,
-            full_valid_frame_idx=full_valid_frame_idx,
             trim_count=trim_count,
             pad_count=pad_count,
             pad_source=pad_source,
@@ -1266,6 +934,7 @@ class BodyRatioMapperProportionTransfer:
 
         changed_tracks = []
         anchor_people = []
+        first_frame_output = []
         for i in range(n_ref):
             ref_single_frame = {
                 "people": [self._clone_person_fast(ref_people_filtered[i])],
@@ -1282,21 +951,25 @@ class BodyRatioMapperProportionTransfer:
 
             # Multi-person mode keeps single-person verbose logs muted by default.
             if runtime_cfg.print_detailed_logs:
-                changed_i, anchor_i = self._process_single(
+                changed_i, anchor_i, ffo_i = self._process_single(
                     pose_keypoint=candidate_tracks[i],
                     ref_pose_keypoint=[ref_single_frame],
                     manual_anchor_pose=manual_single,
+                    manual_first_frame=manual_first_frame,
                     config=runtime_cfg,
                 )
             else:
                 with contextlib.redirect_stdout(io.StringIO()):
-                    changed_i, anchor_i = self._process_single(
+                    changed_i, anchor_i, ffo_i = self._process_single(
                         pose_keypoint=candidate_tracks[i],
                         ref_pose_keypoint=[ref_single_frame],
                         manual_anchor_pose=manual_single,
+                        manual_first_frame=manual_first_frame,
                         config=runtime_cfg,
                     )
             changed_tracks.append(changed_i)
+            if i == 0:
+                first_frame_output = ffo_i if ffo_i else []
             if anchor_i and len(anchor_i) > 0:
                 a_people = anchor_i[0].get("people", [])
                 if isinstance(a_people, list) and len(a_people) > 0:
@@ -1317,11 +990,11 @@ class BodyRatioMapperProportionTransfer:
             anchor_mode=runtime_cfg.anchor_output_mode,
             n_ref=n_ref,
         )
-        return (changed_output, anchor_output)
+        return (changed_output, anchor_output, first_frame_output)
 
-    def _process_single(self, pose_keypoint, ref_pose_keypoint=None, manual_anchor_pose=None, enable_rpca=False, hand_scaling=True, foot_scaling=True, offset_stabilizer_y=True, offset_stabilizer_x=False, best_hand_search=True, use_shoulder_fk_for_hand=False, use_torso_fk_for_arm=False, use_torso_fk_for_foot=False, best_neck_search=False, final_offset_alignment=True, base_offset_mode=False, confidence_threshold=0.30, output_absolute_coordinates=True, config=None):
+    def _process_single(self, pose_keypoint, ref_pose_keypoint=None, manual_anchor_pose=None, manual_first_frame=None, enable_rpca=False, hand_scaling=True, foot_scaling=True, offset_stabilizer_y=True, offset_stabilizer_x=False, best_hand_search=True, use_shoulder_fk_for_hand=False, use_torso_fk_for_arm=False, use_torso_fk_for_foot=False, best_neck_search=False, final_offset_alignment=True, base_offset_mode=False, head_fixed_mode=False, confidence_threshold=0.30, output_absolute_coordinates=True, config=None):
         if not pose_keypoint or len(pose_keypoint) == 0:
-            return (pose_keypoint, pose_keypoint) # Return tuple for both outputs
+            return (pose_keypoint, pose_keypoint, pose_keypoint)
         
         frame_data = pose_keypoint[0]
         canvas_width = frame_data.get('canvas_width', 512)
@@ -1352,6 +1025,15 @@ class BodyRatioMapperProportionTransfer:
             if manual_batch:
                 manual_ref_data = manual_batch[0]
 
+        manual_first_frame_data = None
+        if manual_first_frame is not None:
+            mff_frame = manual_first_frame[0]
+            mff_w = mff_frame.get('canvas_width', 512)
+            mff_h = mff_frame.get('canvas_height', 768)
+            mff_batch = self.parse_keypoints(manual_first_frame, mff_w, mff_h)
+            if mff_batch:
+                manual_first_frame_data = mff_batch[0]
+
         runtime_config = self._resolve_runtime_config(
             config=config,
             enable_rpca=enable_rpca,
@@ -1364,6 +1046,7 @@ class BodyRatioMapperProportionTransfer:
             best_neck_search=best_neck_search,
             final_offset_alignment=final_offset_alignment,
             base_offset_mode=base_offset_mode,
+            head_fixed_mode=head_fixed_mode,
             confidence_threshold=confidence_threshold,
             output_absolute_coordinates=output_absolute_coordinates,
         )
@@ -1373,10 +1056,11 @@ class BodyRatioMapperProportionTransfer:
         output_absolute_coordinates = runtime_config.output_absolute_coordinates
         
         # Capture anchor_idx from the main processing function
-        processed_batch, anchor_idx, best_hand = self.apply_batch_proportion_changes(
+        processed_batch, anchor_idx, best_hand, neck_valid_indices, best_neck = self.apply_batch_proportion_changes(
             batch_pose_data, ref_data,
             canvas_width, canvas_height, ref_canvas_width, ref_canvas_height,
             manual_ref_data=manual_ref_data,
+            manual_first_frame_data=manual_first_frame_data,
             config=runtime_config
         )
         
@@ -1506,7 +1190,7 @@ class BodyRatioMapperProportionTransfer:
                         person["hand_left_keypoints_2d"] = right_flat
                         person["hand_right_keypoints_2d"] = left_flat
 
-        def apply_best_neck_to_anchor_output(anchor_frames):
+        def apply_best_neck_to_anchor_output(anchor_frames, valid_indices=None, precomputed_best_neck=None):
             if not best_neck_search:
                 return
             if len(anchor_frames) == 0:
@@ -1588,30 +1272,36 @@ class BodyRatioMapperProportionTransfer:
             if anchor_shoulder_len <= 1e-6:
                 return
 
-            best_neck_len = -1.0
             best_neck_xy = None
             best_nose_xy = None
-            for parsed_frame in batch_pose_data:
-                c = parsed_frame['bodies']['candidate']
-                conf = parsed_frame['bodies']['candidate_conf']
-                if not (_pt_exists(c[2]) and _pt_exists(c[5]) and _pt_exists(c[1]) and _pt_exists(c[0])):
-                    continue
-                if len(conf) <= 5:
-                    continue
-                if conf[2] < conf_thresh_local or conf[5] < conf_thresh_local or conf[1] < conf_thresh_local or conf[0] < conf_thresh_local:
-                    continue
-                shoulder_len = _dist(c[2], c[5])
-                if shoulder_len is None or shoulder_len <= 1e-6:
-                    continue
-                if abs(shoulder_len - anchor_shoulder_len) / anchor_shoulder_len > 0.05:
-                    continue
-                neck_len = _dist(c[0], c[1])
-                if neck_len is None or neck_len <= 1e-6:
-                    continue
-                if neck_len > best_neck_len:
-                    best_neck_len = float(neck_len)
-                    best_neck_xy = c[1].copy()
-                    best_nose_xy = c[0].copy()
+            if precomputed_best_neck is not None:
+                best_neck_xy = precomputed_best_neck["neck"]
+                best_nose_xy = precomputed_best_neck["nose"]
+            else:
+                best_neck_len = -1.0
+                for fi, parsed_frame in enumerate(batch_pose_data):
+                    if valid_indices is not None and fi not in valid_indices:
+                        continue
+                    c = parsed_frame['bodies']['candidate']
+                    conf = parsed_frame['bodies']['candidate_conf']
+                    if not (_pt_exists(c[2]) and _pt_exists(c[5]) and _pt_exists(c[1]) and _pt_exists(c[0])):
+                        continue
+                    if len(conf) <= 5:
+                        continue
+                    if conf[2] < conf_thresh_local or conf[5] < conf_thresh_local or conf[1] < conf_thresh_local or conf[0] < conf_thresh_local:
+                        continue
+                    shoulder_len = _dist(c[2], c[5])
+                    if shoulder_len is None or shoulder_len <= 1e-6:
+                        continue
+                    if abs(shoulder_len - anchor_shoulder_len) / anchor_shoulder_len > 0.05:
+                        continue
+                    neck_len = _dist(c[0], c[1])
+                    if neck_len is None or neck_len <= 1e-6:
+                        continue
+                    if neck_len > best_neck_len:
+                        best_neck_len = float(neck_len)
+                        best_neck_xy = c[1].copy()
+                        best_nose_xy = c[0].copy()
 
             if best_neck_xy is None or best_nose_xy is None:
                 return
@@ -1704,11 +1394,40 @@ class BodyRatioMapperProportionTransfer:
                             person[key] = _convert_triplets(person.get(key, []), canvas_w, canvas_h, False)
 
         # Apply optional best-neck replacement on anchor output only.
-        apply_best_neck_to_anchor_output(anchor_output)
+        apply_best_neck_to_anchor_output(anchor_output, neck_valid_indices, best_neck)
         # Enforce anchor output coordinate domain by node parameter.
         enforce_anchor_output_domain(anchor_output)
-        
-        return (result_frames, anchor_output) # Output both data streams
+
+        # --- Compute first_frame_output ---
+        if manual_first_frame is not None:
+            first_frame_output = copy.deepcopy(manual_first_frame)
+        else:
+            first_frame_output = []
+            for ff_idx, ff_frame in enumerate(pose_keypoint):
+                ff_people = ff_frame.get("people", [])
+                if not ff_people:
+                    continue
+                ff_person = ff_people[0]
+                ff_pose = ff_person.get("pose_keypoints_2d", [])
+                def _ff_read_pt(ki):
+                    base = ki * 3
+                    if len(ff_pose) >= base + 3:
+                        return ff_pose[base], ff_pose[base + 1], ff_pose[base + 2]
+                    return 0.0, 0.0, 0.0
+                ff_neck_x, ff_neck_y, ff_neck_c = _ff_read_pt(1)
+                ff_rsh_x, ff_rsh_y, ff_rsh_c = _ff_read_pt(2)
+                ff_lsh_x, ff_lsh_y, ff_lsh_c = _ff_read_pt(5)
+                ff_neck_ok = (ff_neck_x != 0.0 or ff_neck_y != 0.0) and ff_neck_c >= confidence_threshold
+                ff_shoulder_ok = ((ff_rsh_x != 0.0 or ff_rsh_y != 0.0) and ff_rsh_c >= confidence_threshold and
+                                  (ff_lsh_x != 0.0 or ff_lsh_y != 0.0) and ff_lsh_c >= confidence_threshold)
+                if ff_neck_ok or ff_shoulder_ok:
+                    first_frame_output = [copy.deepcopy(ff_frame)]
+                    break
+            if not first_frame_output and pose_keypoint:
+                first_frame_output = [copy.deepcopy(pose_keypoint[0])]
+        enforce_anchor_output_domain(first_frame_output)
+
+        return (result_frames, anchor_output, first_frame_output)
 
     # ========== Phase 0: Coordinate Conversion Functions ==========
     def convert_to_physical_coords(self, pose_data, width, height):
@@ -1747,12 +1466,12 @@ class BodyRatioMapperProportionTransfer:
         return pose_data
 
     def apply_batch_proportion_changes(self, batch_pose_data, ref_data,
-                                     canvas_width, canvas_height, ref_canvas_width, ref_canvas_height, manual_ref_data=None, config=None):
+                                     canvas_width, canvas_height, ref_canvas_width, ref_canvas_height, manual_ref_data=None, manual_first_frame_data=None, config=None):
         # NOTE: This complex calculation logic is preserved exactly as requested.
         # Logic updated to fix video offset drift by using a fixed global offset from an anchor frame.
         
         if not batch_pose_data or not ref_data:
-            return batch_pose_data, 0, None
+            return batch_pose_data, 0, None, None, None
 
         results_vis = batch_pose_data
         runtime_cfg = self._resolve_runtime_config(config=config)
@@ -1768,6 +1487,7 @@ class BodyRatioMapperProportionTransfer:
         best_neck_search = runtime_cfg.best_neck_search
         final_offset_alignment = runtime_cfg.final_offset_alignment
         base_offset_mode = runtime_cfg.base_offset_mode
+        head_fixed_mode = runtime_cfg.head_fixed_mode
         output_absolute_coordinates = runtime_cfg.output_absolute_coordinates
         conf_thresh = runtime_cfg.confidence_threshold
 
@@ -2134,6 +1854,7 @@ class BodyRatioMapperProportionTransfer:
             best_neck_search = False
         
         anchor_idx = 0 # Initialize anchor_idx for safe return
+        found_perfect, found_degraded, level1_scores, level2_scores = False, False, [], []
         # Only run auto WSCS if manual override is not present or invalid.
         if not is_manual_anchor_valid:
             anchor_idx, anchor_wscs_score, found_perfect, found_degraded, level1_scores, level2_scores = select_wscs_anchor(
@@ -2314,7 +2035,7 @@ class BodyRatioMapperProportionTransfer:
                 "conf": avg_conf.copy(),
             }
 
-        def find_best_neck_points(anchor_c, frames):
+        def find_best_neck_points(anchor_c, frames, valid_indices=None):
             def len_safe(c, i, j):
                 if has_pt(c[i]) and has_pt(c[j]):
                     return get_dist(c[i], c[j])
@@ -2326,6 +2047,8 @@ class BodyRatioMapperProportionTransfer:
 
             best = None
             for fi, frame in enumerate(frames):
+                if valid_indices is not None and fi not in valid_indices:
+                    continue
                 c = frame['bodies']['candidate']
                 conf = frame['bodies']['candidate_conf']
                 if len(conf) <= 5:
@@ -2571,11 +2294,59 @@ class BodyRatioMapperProportionTransfer:
         else:
             best_hand_baseline, best_hand = build_avg_hand_from_anchor_hands(anchor_hands)
 
+        # Compute WSCS-valid frame index set for anchor output filtering.
+        wscs_valid_scores = level1_scores if found_perfect else (level2_scores if found_degraded else [])
+        wscs_valid_indices = {idx for idx, _ in wscs_valid_scores} if wscs_valid_scores else None
+
+        # Compute lighter neck-valid filter (conditions 1,8,10,11,12,16 only).
+        _n = len(batch_pose_data)
+        _bxy = np.zeros((_n, 18, 2), dtype=float)
+        _bconf = np.zeros((_n, 18), dtype=float)
+        for _k, _f in enumerate(batch_pose_data):
+            _c = _f['bodies']['candidate']; _cf = _f['bodies']['candidate_conf']
+            _cr = min(18, len(_c)); _cfr = min(18, len(_cf))
+            if _cr > 0: _bxy[_k, :_cr] = np.asarray(_c[:_cr], dtype=float)
+            if _cfr > 0: _bconf[_k, :_cfr] = np.asarray(_cf[:_cfr], dtype=float)
+        _x = _bxy[:, :, 0]; _y = _bxy[:, :, 1]
+        _pt = np.sum(np.abs(_bxy), axis=2) > 0.01
+        # 1: head geometry
+        _hh = _pt[:, 0] & _pt[:, 14] & _pt[:, 15] & _pt[:, 16] & _pt[:, 17]
+        _edx = _x[:, 15] - _x[:, 14]
+        _ely = np.where(np.abs(_edx) > 1e-6, _y[:, 14] + (_y[:, 15] - _y[:, 14]) * (_x[:, 0] - _x[:, 14]) / _edx, np.minimum(_y[:, 14], _y[:, 15]))
+        _hg = _hh & (_y[:, 0] > _ely) & (np.minimum(_x[:, 14], _x[:, 15]) <= _x[:, 0]) & (_x[:, 0] <= np.maximum(_x[:, 14], _x[:, 15])) & (np.minimum(_x[:, 16], _x[:, 17]) <= _x[:, 0]) & (_x[:, 0] <= np.maximum(_x[:, 16], _x[:, 17]))
+        # 8: ears above same-side eyes
+        _ea = (_pt[:, 14] & _pt[:, 15] & _pt[:, 16] & _pt[:, 17]) & (_y[:, 17] < _y[:, 15]) & (_y[:, 16] < _y[:, 14])
+        # 10: ear-nose ratio
+        _enh = _pt[:, 0] & _pt[:, 16] & _pt[:, 17]
+        _dr = np.sqrt((_x[:, 16] - _x[:, 0])**2 + (_y[:, 16] - _y[:, 0])**2)
+        _dl = np.sqrt((_x[:, 17] - _x[:, 0])**2 + (_y[:, 17] - _y[:, 0])**2)
+        _enr = _enh & (np.minimum(_dr, _dl) > 1e-6) & (np.maximum(_dr, _dl) / np.minimum(_dr, _dl) > 1.26)
+        # 11: nose above ear line with angle deviation
+        _erdx = _x[:, 17] - _x[:, 16]
+        _eryn = np.where(np.abs(_erdx) > 1e-6, _y[:, 16] + (_y[:, 17] - _y[:, 16]) * (_x[:, 0] - _x[:, 16]) / _erdx, np.minimum(_y[:, 16], _y[:, 17]))
+        _nae = _pt[:, 0] & _pt[:, 16] & _pt[:, 17] & (_y[:, 0] < _eryn)
+        _ela = np.degrees(np.arctan2(np.abs(_y[:, 17] - _y[:, 16]), np.maximum(np.abs(_x[:, 17] - _x[:, 16]), 1e-6)))
+        _ara = np.degrees(np.arctan2(np.abs(_y[:, 16] - _y[:, 0]), np.maximum(np.abs(_x[:, 16] - _x[:, 0]), 1e-6)))
+        _ala = np.degrees(np.arctan2(np.abs(_y[:, 17] - _y[:, 0]), np.maximum(np.abs(_x[:, 17] - _x[:, 0]), 1e-6)))
+        _net = _nae & ((np.abs(_ara - _ela) > 10.0) | (np.abs(_ala - _ela) > 10.0))
+        # 12: ear line tilt
+        _elt = (_pt[:, 16] & _pt[:, 17]) & (_ela > 25.0)
+        # 16: nose below shoulder line
+        _shdx = _x[:, 5] - _x[:, 2]
+        _shly = np.where(np.abs(_shdx) > 1e-6, _y[:, 2] + (_y[:, 5] - _y[:, 2]) * (_x[:, 0] - _x[:, 2]) / _shdx, np.maximum(_y[:, 2], _y[:, 5]))
+        _nbs = _pt[:, 0] & _pt[:, 2] & _pt[:, 5] & (_y[:, 0] >= _shly)
+        _neck_reject = ~_hg | _ea | _enr | _net | _elt | _nbs
+        neck_valid_indices = set(int(i) for i in np.flatnonzero(~_neck_reject))
+
         # Optional: use best-neck candidate as FK anchor standard (does not change main transform anchor).
         fk_anchor_candidate = anchor_candidate
+        best_neck = None
         if best_neck_search:
-            best_neck = find_best_neck_points(anchor_candidate, batch_pose_data)
-            if best_neck is not None:
+            print(f"[BestNeck] neck_valid_indices count={len(neck_valid_indices)}")
+            best_neck = find_best_neck_points(anchor_candidate, batch_pose_data, neck_valid_indices if neck_valid_indices else None)
+            if best_neck is None:
+                print("[BestNeck FK] no valid frame found, skipping")
+            else:
                 fk_anchor_candidate = anchor_candidate.copy()
                 best_neck_vec = best_neck["nose"] - best_neck["neck"]
                 fk_anchor_candidate[1] = anchor_candidate[1].copy()
@@ -2702,7 +2473,16 @@ class BodyRatioMapperProportionTransfer:
         base_offset_candidate = anchor_candidate
         base_offset_candidate_conf = anchor_candidate_conf
         base_offset_label = "anchor"
-        if base_offset_mode and len(results_vis) > 0:
+        if base_offset_mode and manual_first_frame_data is not None:
+            mff_cand = manual_first_frame_data['bodies']['candidate']
+            mff_conf = manual_first_frame_data['bodies']['candidate_conf']
+            mff_neck_ok = has_pt(mff_cand[1]) and (len(mff_conf) > 1 and mff_conf[1] >= conf_thresh)
+            mff_shoulder_ok = has_pt(mff_cand[2]) and has_pt(mff_cand[5])
+            if mff_neck_ok or mff_shoulder_ok:
+                base_offset_candidate = mff_cand
+                base_offset_candidate_conf = mff_conf
+                base_offset_label = "manual_first_frame"
+        if base_offset_label == "anchor" and base_offset_mode and len(results_vis) > 0:
             selected_idx = -1
             for idx, frame in enumerate(results_vis):
                 cand = frame['bodies']['candidate']
@@ -2732,6 +2512,7 @@ class BodyRatioMapperProportionTransfer:
             # Priority 3: Missing
             return None
 
+
         # 2. Calculate Global Base Offset using the same point policy as stabilizer.
         base_point = get_stabilizer_point(base_offset_candidate, base_offset_candidate_conf)
         ref_point = get_stabilizer_point(ref_candidate, ref_candidate_conf)
@@ -2739,6 +2520,16 @@ class BodyRatioMapperProportionTransfer:
         if base_point is not None and ref_point is not None:
             global_base_offset = ref_point - base_point
         print(f"[Global Offset] base={base_offset_label}, base_offset_mode={base_offset_mode}")
+
+        final_head_offsets = None
+        if head_fixed_mode:
+            ref_ha = frame_ops_external.get_head_anchor_point(ref_candidate, has_pt)
+            raw_head = []
+            for f in batch_pose_data:
+                fa = frame_ops_external.get_head_anchor_point(f['bodies']['candidate'], has_pt)
+                raw_head.append((ref_ha - fa) if ref_ha is not None and fa is not None else None)
+            final_head_offsets = apply_bidirectional_interpolation(raw_head)
+            print(f"[Head Fixed] ref_head_anchor={ref_ha}, missing_interp={sum(1 for x in raw_head if x is None)}")
 
         # --- Offset Stabilizer Constants (fixed over the whole video) ---
         def calc_body_metric(c):
@@ -2921,7 +2712,12 @@ class BodyRatioMapperProportionTransfer:
                 true_body_to_foot_ankle_scale
             )
 
-            offset = build_stabilized_offset(global_base_offset, frame_idx)
+            offset = frame_ops_external.compute_frame_offset(
+                head_fixed_mode,
+                final_head_offsets,
+                global_base_offset, frame_idx,
+                build_stabilized_offset,
+            )
             apply_global_offset_to_frame(frame_data, offset)
             force_align_face_hands_to_body(frame_data)
 
@@ -2964,7 +2760,7 @@ class BodyRatioMapperProportionTransfer:
             self.convert_to_normalized_coords(results_vis, canvas_width, canvas_height)
 
         # Return transformed frames and selected anchor index.
-        return results_vis, anchor_idx, best_hand
+        return results_vis, anchor_idx, best_hand, neck_valid_indices, best_neck
 
 
 

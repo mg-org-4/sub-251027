@@ -12,7 +12,9 @@ In the latest update added a new `keep_vram` mode, which allows you to keep the 
 5. No auto-loaded models. You can use any models you already have (from LM Studio etc). Just simply specify their path on the disk to config. 
 
 # Last update:
-**06.05.2026 - Nightly**
+**16.05.2026 - Nightly**
+- Added example `qwen_vl_test_image_storytaler`
+- Added utils: `Simple Text To Batch`, `Simple Text Insert`, `Simple Text Replace`, `Simple Join Strings`
 - Added simple LLM configurator
 - Improved error output
   
@@ -306,8 +308,14 @@ Utils:
 - `Simple Qwen Unload` - Forces unloading of the currently loaded Qwen model from VRAM. Essential when using keep_vram mode to manually free memory after a series of inferences, or to reset the model state before loading a different configuration. Also useful in combination with the Trigger Node to manage memory in complex pipelines.
 - `Simple Remove Think` - Removes `think` sections from model output. Also handles cases where only a closing `think` tag is present, trimming everything before it. Designed for reasoning models (DeepSeek-R1 etc.) that output a thought process before the final answer. The node returns only the cleaned response.
 - `Simple Trigger Node` - Enforces execution order in complex workflows. For example, place it before the `Load Checkpoint`, and then the loader will execute only after the trigger input is received. Otherwise, the `Load Checkpoint` may execute first and occupy memory inappropriately, which will then have to be unloaded, which wastes time.
+
+New:
 - `LLM Model Config` - Allows you to configure LLM settings (Model part) - see the `Config` section.
 - `LLM Sampling Config` - Allows you to configure LLM settings (Sampling part)
+- `Simple Text To Batch` - Allows you to split the LLM output by a given separator (to text batch), thus allowing you to obtain multiple scenes from a single request (see example `qwen_vl_test_image_storytaler`).
+- `Simple Text Insert` - Allows you to insert text into the location specified by the placeholder.
+- `Simple Text Replace` - Allows you to set one/multiple rules for auto-replacement/deletion of words/phrases in one node
+- `Simple Join Strings` - Simply concatenates 10 strings using the given separator.
   
 Deprecated version:
 - `Qwen-VL Vision Language Model` - Legacy version of the main node. Retained for backward compatibility with old workflows but no longer actively developed.
@@ -432,6 +440,8 @@ Possible model configurations that can be passed to the `config_override` input.
 | max_frames | int | 24 | Allows you to limit the frame size for video, which will result in frame scaling. Transferring many frames will require significantly increasing the context window, which may run out of memory. On the other hand, scaling frames may result in the loss of important motion information. The player may see a slideshow instead of a video, which will be helpfully reported. | 
 | audio_sample_rate | int | | You can set a new sampling frequency and then the audio will be resampled. | 
 | print_config | bool | false | Prints the full configuration to the console for debugging. | 
+| type_k | int |  | Define the data format (degree of compression/quantization) that is used to store the KV-cache (Context Cache) 💡 Some variant may not work. Default: F16 | 
+| type_v | int |  | Define the data format (degree of compression/quantization) that is used to store the KV-cache (Context Cache) 💡 Some variant may not work. Default: F16 | 
 
 Multi-GPU settings https://github.com/KLL535/ComfyUI_Simple_Qwen3-VL-gguf/issues/24:
 | Field | Type | Default | Description |

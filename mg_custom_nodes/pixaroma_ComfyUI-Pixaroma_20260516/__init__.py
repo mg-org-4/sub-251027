@@ -30,6 +30,8 @@ from .nodes.node_note import NODE_CLASS_MAPPINGS as _MAPS_NOTE
 from .nodes.node_note import NODE_DISPLAY_NAME_MAPPINGS as _NAMES_NOTE
 from .nodes.node_notify import NODE_CLASS_MAPPINGS as _MAPS_NOTIFY
 from .nodes.node_notify import NODE_DISPLAY_NAME_MAPPINGS as _NAMES_NOTIFY
+from .nodes.node_switch import NODE_CLASS_MAPPINGS as _MAPS_SWITCH
+from .nodes.node_switch import NODE_DISPLAY_NAME_MAPPINGS as _NAMES_SWITCH
 from .nodes.node_switch_wh import NODE_CLASS_MAPPINGS as _MAPS_SWITCH_WH
 from .nodes.node_switch_wh import NODE_DISPLAY_NAME_MAPPINGS as _NAMES_SWITCH_WH
 from .nodes.node_wh import NODE_CLASS_MAPPINGS as _MAPS_WH
@@ -38,6 +40,8 @@ from .nodes.node_number import NODE_CLASS_MAPPINGS as _MAPS_NUMBER
 from .nodes.node_number import NODE_DISPLAY_NAME_MAPPINGS as _NAMES_NUMBER
 from .nodes.node_text import NODE_CLASS_MAPPINGS as _MAPS_TEXT
 from .nodes.node_text import NODE_DISPLAY_NAME_MAPPINGS as _NAMES_TEXT
+from .nodes.node_remove_background import NODE_CLASS_MAPPINGS as _MAPS_REMOVE_BG
+from .nodes.node_remove_background import NODE_DISPLAY_NAME_MAPPINGS as _NAMES_REMOVE_BG
 
 # development mode for loading additional refrence nodes
 dev_mode = False
@@ -64,12 +68,14 @@ NODE_CLASS_MAPPINGS = {
     **_MAPS_NOTE,
     **_MAPS_NOTIFY,
     **_MAPS_SAVE_MP4,
+    **_MAPS_SWITCH,
     **_MAPS_SWITCH_WH,
     **_MAPS_WH,
     **_MAPS_NUMBER,
     **_MAPS_TEXT,
     **_MAPS_UTILS,
     **_MAPS_SHOW_TEXT,
+    **_MAPS_REMOVE_BG,
 }
 
 # combine all node display name mappings
@@ -84,6 +90,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     **_NAMES_NOTE,
     **_NAMES_NOTIFY,
     **_NAMES_SAVE_MP4,
+    **_NAMES_SWITCH,
     **_NAMES_SWITCH_WH,
     **_NAMES_WH,
     **_NAMES_NUMBER,
@@ -94,6 +101,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     **_NAMES_PROMPT_READER,
     **_NAMES_RESOLUTION,
     **_NAMES_SHOW_TEXT,
+    **_NAMES_REMOVE_BG,
 }
 
 # web directory for loading js files

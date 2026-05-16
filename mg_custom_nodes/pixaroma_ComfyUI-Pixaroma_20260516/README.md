@@ -3,7 +3,7 @@
   <h1>ComfyUI Pixaroma</h1>
   <p align="center">
     <strong>Useful ComfyUI nodes for everyday workflows.</strong><br />
-    Load Image • Crop • Compose • Paint • 3D • Compare • Preview • Save MP4 • Notes & Labels • Resolution • Text & Number utilities
+    Load Image • Crop • Compose • Paint • 3D • Compare • Preview • Save MP4 • Notes & Labels • Resolution • Switches • Remove Background • Text & Number utilities
   </p>
 
   <p align="center">
@@ -104,6 +104,12 @@ A simple, one-click resolution picker. Choose from 9 popular aspect ratios - 1:1
 ### 📏 WH Pixaroma
 A tiny utility node with two number fields for width and height, and matching width/height outputs. Use it when you want to type a target resolution manually somewhere in your workflow. Math expressions like `1024+64` or `512*2` work directly in the fields. Pairs perfectly with **Switch WH Pixaroma** so you can flip between manual values and the size coming from another node.
 
+### ✂️ Remove Background Pixaroma
+One node replaces the usual three-node chain (Remove Background, Invert Mask, Join Image with Alpha). Wire in your image and a Load Background Removal Model and get three outputs in one shot: the cutout image with a transparent background, the foreground mask (white on black), and the inverted mask (black on white). Same result as the native chain, way fewer cables on your canvas.
+
+### 🔀 Switch Pixaroma
+A universal multi-input switch for any data type. Connect models, images, prompts, masks, audio, latents, anything you want, and pick which one flows through with a single click on its toggle. The node starts with one input and grows on its own as you connect more cables (up to 32 rows). Each row gets a label that auto-fills with the type name (MODEL, IMAGE, CLIP...) so you can tell what is wired where at a glance; click the label to type your own name (for example "main checkpoint" or "alt prompt"), clear it and press Enter to revert to the type name. Only one input can be active at a time, lit up in Pixaroma orange. Disconnect the active row and the switch automatically moves to the next available one so your workflow doesn't break. All settings save with your workflow.
+
 ### 🔀 Switch WH Pixaroma
 Switch between two width/height sources with a single click. Wire two width+height pairs into the **A** and **B** inputs (for example a Load Image Pixaroma's WIDTH/HEIGHT and a manual size from WH Pixaroma), then click **A** or **B** on the node body to choose which pair flows through. No rewiring cables. If one side has only one cable connected (the other forgotten), the node uses the complete side instead so the workflow doesn't break. If nothing is wired, you get a clear error message.
 
@@ -169,6 +175,18 @@ Master the Pixaroma suite with our video guides and workflow deep-dives:
 ---
 
 ## 🛠 Changelog
+
+### **May 15, 2026 (1.3.31)**
+- **NEW: Remove Background Pixaroma** - a single node that replaces the usual three-node chain for background removal. Wire in your image and a Load Background Removal Model, and the node outputs the cutout image (with transparent background), the foreground mask, and the inverted mask all at once. Same result as the native Remove Background + Invert Mask + Join Image with Alpha chain, but with fewer cables on your canvas.
+
+### **May 15, 2026 (1.3.30)**
+- **Show Text Pixaroma now has a one-click Copy button.** Hover the text box and a small orange Copy button fades in at the bottom-right corner; click it to put the text on your clipboard, briefly turns green to confirm. Native text selection and Ctrl+C still work for partial copies.
+
+### **May 15, 2026 (1.3.29)**
+- **Prompt Reader Pixaroma reads through switches:** If your workflow had a Switch Pixaroma (or rgthree's Any Switch) between your text node and the prompt encoder, dropping the generated PNG on Prompt Reader used to say "no positive prompt found" even though the prompt was right there in the image's metadata. The reader now picks the active row of a Switch Pixaroma (and the first connected input of an Any Switch) and traces the text from there.
+
+### **May 15, 2026 (1.3.28)**
+- **NEW: Switch Pixaroma** - a universal multi-input switch for any data type. Connect models, images, prompts, masks, audio, latents, anything you want, and pick which one flows through with a single click on its toggle. The node starts with one input and grows on its own as you connect more cables (up to 32 rows). Each row gets a label that auto-fills with the type name (MODEL, IMAGE, CLIP...) so you can tell what is wired where at a glance; click the label to type your own name (for example "main checkpoint" or "alt prompt"), clear it and press Enter to revert to the type name. Only one input can be active at a time, lit up in Pixaroma orange. Disconnect the active row and the switch automatically moves to the next available one so your workflow doesn't break. All settings save with your workflow.
 
 ### **May 13, 2026 (1.3.27)**
 - **NEW: Prompt Reader Pixaroma** - drop a PNG that was generated with ComfyUI (or Automatic1111 / Forge) onto the node and instantly see the **positive prompt** that was saved inside its metadata. No image preview, just the text. One orange **Copy** button puts the prompt on your clipboard; the **STRING output** wires straight into CLIPTextEncode so you can re-use the prompt without retyping. The reader walks back through chained text nodes (ConditioningCombine, StringConcatenate, SDXL dual-text encoders) so workflows with complex prompt structures still work, **and** it also follows the trail through earlier Prompt Reader Pixaroma nodes when an image was generated from a prompt loaded out of another image. If the image has no prompt (JPG, screenshot, or a PNG whose metadata was stripped), you get a short clear message instead of a silent fail.

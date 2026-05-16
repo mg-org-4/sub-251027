@@ -246,6 +246,47 @@ js/
 ├── reference/          # Reference node (single file, 140 lines)
 │   └── index.js
 │
+├── switch/             # Switch Pixaroma - dynamic N-to-1 typed router
+│   ├── index.js        # Entry: app.registerExtension; patches onNodeCreated,
+│   │                   #  onRemoved, onConfigure, onConnectionsChange,
+│   │                   #  onDrawForeground, onMouseDown. Configure replay gate
+│   │                   #  via _pixSwitchConfiguring try/finally (Vue Compat #17).
+│   │                   #  app.graphToPrompt hook injects state.activeIndex into
+│   │                   #  the hidden SwitchState input at submission (Pattern #9).
+│   ├── core.mjs        # Slot management. State: node.properties.switchState =
+│   │                   #  { activeIndex, labels, visibleCount }. normalizeSlots
+│   │                   #  is idempotent: trims to (connected + 1 trailing),
+│   │                   #  renames input_1..N, maintains the trailing-empty
+│   │                   #  invariant. handleDisconnect defers via setTimeout(0)
+│   │                   #  so a wire-replace (drop a new wire onto a wired slot,
+│   │                   #  LG fires disconnect-then-connect) can be cancelled
+│   │                   #  by handleConnect via the _pendingDisconnects Map.
+│   │                   #  getUpstreamType traces a slot's link to the upstream
+│   │                   #  output type for both updateOutputType and the row's
+│   │                   #  default-label placeholder. Auto-recovery of
+│   │                   #  activeIndex only fires when out of range, NEVER on
+│   │                   #  link presence (links not yet set during
+│   │                   #  restoreFromProperties on workflow load).
+│   ├── render.mjs      # onDrawForeground paint. rowCenterY math matches LG
+│   │                   #  NODE_SLOT_HEIGHT so labels and toggles sit at the
+│   │                   #  same Y as native input dots (Vue Compat #16, mirrors
+│   │                   #  Image Compare). drawToggle pill is BRAND #f66744 when
+│   │                   #  active, dim grey when off. drawLabel falls through
+│   │                   #  hasUserText > "(empty)" for trailing > upstream type
+│   │                   #  name (filtered against the "*" wildcard) > "Label..."
+│   │                   #  grey. labelScreenRect converts body-local to viewport
+│   │                   #  pixels for editor.mjs.
+│   └── editor.mjs      # Inline DOM <input> overlay for label edit-in-place.
+│                       #  Module singleton activeEditor. Font / padding / border
+│                       #  scale by app.canvas.ds.scale at open time so the input
+│                       #  matches canvas-painted text at any zoom. setTimeout(0)
+│                       #  defers focus + blur listener install so the opening
+│                       #  mousedown propagation doesn't ghost-blur the input.
+│                       #  Window-capture keydown with stopImmediatePropagation
+│                       #  blocks Ctrl+Z escape. Commit deletes labels[slotIdx]
+│                       #  on empty value so a cleared label reverts to the
+│                       #  type-name placeholder.
+│
 ├── load_image/         # Load Image Pixaroma (4 files, ~1500 lines)
     ├── index.js        # Entry: extension registration, lifecycle,
     │                   #  app.graphToPrompt hook (subgraph-safe injection of
@@ -361,6 +402,47 @@ ComfyUI's new Vue 3 frontend introduces several behavioral differences from the 
 14. **Info-panel descriptions render as PLAIN TEXT, not Markdown — verified empirically May 2026.** ComfyUI's frontend bundles a markdown renderer (`markdownRendererUtil-*.js` exporting `renderMarkdownToHtml`, GFM via `marked` + DOMPurify), and a code-trace agent identified `Ao(a)` call sites in `dialogService-*.js` that looked like the node Description used it. Empirically that's WRONG for the right-sidebar **Info** tab on a selected node: `**bold**`, `### headings`, `` `code` `` spans, `- bullets`, and `\n\n` paragraph breaks ALL appear as literal characters. Whitespace including `\n\n` is collapsed to a single space. The markdown renderer in the bundle is used elsewhere (e.g. `WidgetMarkdown`, the About panel, dialog content). For DESCRIPTION text in `class.DESCRIPTION` and per-input `tooltip` fields, write **concise plain prose** with complete-sentence punctuation; do not waste authoring effort on markdown markers. The hover tooltip on the node body itself does honour `white-space: pre-wrap` so `\n` line breaks survive there, but markdown markers still render literally. Bug class this prevents: spending an iteration loop trying to make `**bold**` work in the Info panel.
 
 13. **`node.onResize` does not reliably fire for DOM-widget resizes — use `ResizeObserver`.** Same family as Compat #1 (`onDrawForeground` not firing): the Vue frontend handles many node-resize paths without invoking `node.onResize`, and even when it does the timing relative to DOM layout is inconsistent. Anything that needs to track the rendered size of a DOM widget (e.g. keeping a preview box square via `height = offsetWidth`) should attach a `ResizeObserver` to the element directly. ResizeObserver fires for every actual size change regardless of cause (node resize, container reflow, tab switch, parent layout shifts) and is supported in every browser ComfyUI runs in. Reference implementation: `js/shared/preview.mjs` — the `createNodePreview` helper used by Paint, Crop, Composer, and 3D Builder mini-previews. Bug class this prevents: "preview box renders as a wide rectangle and only snaps square after the user runs a workflow" (an old `requestAnimationFrame` 60-frame loop + `node.onResize` override would lock the height at the first measured width and never update on subsequent resizes).
+
+16. **Per-slot UI aligned with input dots requires `onDrawForeground` + `onMouseDown` on `nodeType.prototype`, NOT custom widgets.** When you need to paint controls (toggles, buttons, badges) on the SAME horizontal line as each input slot dot, the Image Compare pattern is the only one that works in this ComfyUI/LiteGraph fork. Reference: `js/compare/index.js`. Things that DO NOT work and waste time if attempted:
+    - **Custom canvas widgets per row** (via `node.addCustomWidget`): widgets render in the widget area BELOW the slot area, never aligned with slot dots. LG passes widgets a `y` parameter that's after the slot rows.
+    - **`slot.pos = [x, y]` from inside `widget.draw`**: causes a layout feedback loop. Each draw shifts slot.pos, which shifts `computeSize`, which shifts the widget Y, which shifts slot.pos again. The node grows infinitely tall.
+    - **`slot.pos` set once via stable index math**: doesn't visually align with anything you draw separately (the slot dot moves but your widget doesn't follow).
+    - **`node.getConnectionPos` override**: per runtime probing (May 2026), this ComfyUI fork does NOT call `getConnectionPos` for the slot dot position. The override is silently bypassed. (See `calculateInputSlotPosFromSlot` in the bundle — it reads `slot.pos` first, defaults to internal vertical-stack math otherwise. Wires use a different path that DOES call getConnectionPos, but the dot itself doesn't.)
+
+    What WORKS: leave native LG to position dots in its default top-stacked column. Patch `nodeType.prototype.onDrawForeground` (yes, it DOES fire reliably for paint despite Compat #1's note - that note is about specific hook tear-down paths, not about every render) and paint your per-slot UI AT each dot's Y. Patch `nodeType.prototype.onMouseDown` for clicks; hit-test the same rects you painted.
+
+    Slot Y math that aligns exactly: `Y = TOP_PAD + (i - 1) * NODE_SLOT_HEIGHT + NODE_SLOT_HEIGHT/2` where `TOP_PAD = 4`, `NODE_SLOT_HEIGHT = 20`. Image Compare uses these values; Switch Pixaroma reuses them. Suppress the native input slot LABEL (not name — name is the Python kwarg key) by setting `slot.label = "​"` (zero-width space, U+200B); empty string `""` falls through the `||` chain back to `slot.name`. See `js/compare/index.js` for a working canvas-paint-on-input-row example and `js/switch/` for one that ALSO grows/shrinks the input list dynamically and handles per-row mutex toggle state.
+
+    Bug class this prevents: spending 5+ commits trying to make custom widgets align with slot dots, only to discover the entire approach is wrong for this LG fork.
+
+17. **`LGraphNode.configure()` fires `onConnectionsChange` for every connected slot during workflow load and Ctrl+Z undo. Any patched `onConnectionsChange` handler that mutates node state WILL have that state overwritten on every load.** Verified empirically in `api-D9vMMk51.js` step 5 of configure: `this.onConnectionsChange?.(M.INPUT, idx, true, link, slot)` is called for EVERY input slot that has a saved link. Bug class this causes: a custom node that auto-activates the just-connected row inside `handleConnect` (`state.activeIndex = slotIdx`) will see its saved active selection silently overwritten to whichever slot LG happens to restore last during configure replay. Same risk for anything else stored on `node.properties` that `handleConnect` / `handleDisconnect` writes.
+
+    The fix is a configuring-flag gate. Set `node._<nodeId>Configuring = true` at the start of the patched `onConfigure` (before `_origConfigure.apply`), clear it in a `finally` block after the state-restore call returns, and in `onConnectionsChange` skip the user-intent state-mutation calls when the flag is true:
+
+    ```js
+    nodeType.prototype.onConfigure = function (info) {
+      this._pixSwitchConfiguring = true;
+      try {
+        const r = _origConfigure?.apply(this, arguments);
+        restoreFromProperties(this);  // synchronous; properties already merged in step 3
+        return r;
+      } finally {
+        this._pixSwitchConfiguring = false;
+      }
+    };
+
+    nodeType.prototype.onConnectionsChange = function (type, slotIndex, isConnected, link, ioSlot) {
+      if (type === INPUT && !this._pixSwitchConfiguring) {
+        if (isConnected && ioSlot?.link != null) handleConnect(this, slotIndex + 1);
+        else if (!isConnected) handleDisconnect(this, slotIndex + 1);
+      }
+      return _origOnConnectionsChange?.apply(this, arguments);
+    };
+    ```
+
+    The `try/finally` matters because `restoreFromProperties` (or anything that paints, dispatches sub-events, etc) might throw; without `finally` the flag would stick true forever and live user wires would silently no-op on the affected node. Reference: `js/switch/index.js` for the working implementation, plus Switch WH and Resolution which have NO `onConnectionsChange` handler at all (they have fixed slots, not dynamic) and are inherently immune to this bug. LiteGraph's configure does MERGE `data.properties` into `this.properties` key-by-key (step 3 in the bundle) so saved property values ARE restored correctly; the silent corruption comes purely from the post-restore connection-replay step.
+
+    Bug class this prevents: every save+reload of the affected node resets state.activeIndex (or whatever else `handleConnect` mutates) to a deterministic-but-wrong value (usually the last connected slot in iteration order, not the user's saved choice). User-visible: "save with row 2 active, reload, row 1 is active. Other workflows also got reset somehow." If you hear that, look at whether the node's `onConnectionsChange` handler mutates state without a configuring-flag gate.
 
 ### ComfyUI Settings Integration
 Pixaroma registers user-facing settings in ComfyUI's Settings panel using the `settings` array inside `app.registerExtension()`. Settings appear under the **👑 Pixaroma** category.
@@ -683,6 +765,14 @@ These patterns were hard-won during the May-2026 implementation and post-review 
 
 11. **Walker MUST chase through PixaromaPromptReader nodes.** When an image was generated from a workflow that itself used Prompt Reader Pixaroma to load the prompt from another image, the embedded `prompt` JSON only records the PromptReader's `inputs.image = "<filename>"` — the actual prompt text was a runtime output and is NEVER stored in the saved workflow JSON. Without special-casing, the walker reaches the PromptReader node, finds no `text` widget, and returns empty even though the chained image clearly has a recoverable prompt. The fix: when `node.get("class_type") == "PixaromaPromptReader"`, resolve `inputs.image` via `folder_paths.get_annotated_filepath`, read THAT file's `prompt` chunk, and recursively walk its samplers. Chain depth capped at `_MAX_CHASE_DEPTH = 5` so circular references (image A's reader points at B, B's at A) bottom out. If the source file is missing the orchestrator (`read_prompt_from_image`) detects the presence of a PromptReader in the chunk and shows a specific "source image is no longer in the input folder" message instead of the generic one. `folder_paths` is imported with a `try/except ImportError` fallback so the module still imports in unit-test environments.
 
+12. **Walker MUST mirror mux/switch routing at runtime, or it stops at the switch.** Switch nodes (Switch Pixaroma, rgthree's Any Switch, any future similar router) take N inputs and route ONE through to their output at runtime. The walker has no way to recognize their input names via the generic `_is_text_key` heuristics (`input_1`, `any_01`...) so without a special case it walks into the switch, finds no text key it understands, and returns empty even when the wired upstream text node is clearly in the workflow JSON. The fix lives in `_walk_for_text` right after the PixaromaPromptReader case: dispatch on `class_type`, call a per-node selector helper that returns the single active upstream node-id, then recurse into it. **Selector strategy must match the runtime node's selection logic:**
+    - `PixaromaSwitch` → `_pix_switch_active_link` reads `inputs.SwitchState` (a string `"1".."32"` injected by `js/switch/index.js`'s `app.graphToPrompt` hook — see Vue Compat #9), then follows `inputs[f"input_{N}"]`.
+    - `Any Switch (rgthree)` → `_rgthree_any_switch_active_link` has no widget to read; rgthree's `switch()` picks the first non-None `any_NN` at run-time, so the walker scans `any_NN` keys in numeric order and follows the first wired one. rgthree's `Context Switch` family is context-routing only, not a text path, and is intentionally skipped.
+
+    **Adding a new mux node** (e.g. another community switch): add a constant for its `class_type` near `_MUX_PIX_SWITCH` / `_MUX_RGTHREE_ANY_SWITCH`, write a selector helper that returns the active upstream node-id (or `None`), and add a branch in `_walk_for_text`'s class_type dispatch. Skip nodes whose data type can't carry text (model/image/latent switches don't show up in a text-walk path because the walker only enters them via text/cond keys — but adding them is harmless if they get wired weirdly).
+
+    Bug class this prevents: user wires Text Pixaroma → Switch Pixaroma → CLIPTextEncode, runs the workflow, drops the saved PNG on Prompt Reader, gets "Image has metadata but no positive prompt was found." The text IS in the saved JSON; the walker just didn't know how to chase past the mux.
+
 ### Offline-first: Vendored Three.js
 The 3D Builder used to `import("https://esm.sh/three@0.170.0/…")` at runtime, which
 broke with `ERR_CONNECTION_RESET` for any user running ComfyUI offline or behind a
@@ -758,6 +848,8 @@ Files are named by concern. Match the task to the file:
 | Add / manage inline note icons (SVG library) | Drop SVGs into `assets/icons/note/`. Label derivation + list endpoint live in `server_routes.py`'s `/pixaroma/api/note/icons/list` route, mirrored in `js/note/icons.mjs::deriveLabel`. Both must stay in sync if you change the rules. To add a new SIZE preset, edit ALL of: `js/note/css.mjs` (new `.pix-note-ic[data-size="<id>"]` rule), `js/note/sanitize.mjs` (extend `IC_SIZE_RE`), `js/note/icons.mjs::openIconPop` (new pill in `sizes` array). Picker color + size are session-sticky on `editor._iconPickerColor` / `editor._iconPickerSize`, set in `core.mjs::open()` and reset in `_cleanup()`. Atomic Backspace/Delete handler also lives in `core.mjs::open()` (`_iconKeyHandler` listener on `_editArea`). |
 | Change inline-icon rendering (size / alignment / color model) | `js/note/css.mjs` base `.pix-note-ic` rule + per-icon rules dynamically injected by `js/note/icons.mjs::injectIconCSS`. Picker popup styles: `.pix-note-iconpop` family in `css.mjs`. |
 | Toggle / change Align Pixaroma snap behavior | `js/align/index.js` (single file). Settings: `Pixaroma.Align.Enabled` (boolean, mirrors the toolbar button) + `Pixaroma.Align.SnapDistance` (slider 4-16). Hooks: window pointermove for snap (NOT `LGraphCanvas.processMouseMove`, which Vue does not invoke); `LGraphCanvas.drawFrontCanvas` wrap for guide rendering (NOT `onDrawForeground`, unreliable in Vue per Compat #1). WRAP-don't-replace pattern coexists with rgthree-comfy and the "NodeAlign" extension. Shift bypasses snap (Alt is taken by ComfyUI for duplicate-during-drag). Active guides drawn in BRAND #f66744 with `lineWidth = 1` in screen space (manual graph -> screen transform) so the stroke is exactly 1 screen pixel at any zoom. Snap distance is `state.snapDistPx / canvas.ds.scale` graph units, computed every tick (so zoom changes mid-drag are honored). |
+| Change Remove Background Pixaroma behavior / outputs | `nodes/node_remove_background.py` (single file, ~60 lines, Python-only, no JS). Calls `bg_removal_model.encode_image(image)` on the BACKGROUND_REMOVAL wrapper (same call native RemoveBackground makes - see ComfyUI's `comfy/bg_removal_model.py` `encode_image` for the BiRefNet sigmoid pipeline). Normalizes mask to canonical `(B, H, W)` shape from the wrapper's `(B, 1, H, W)` output. Builds RGBA via `torch.cat([image[..., :3], mask.unsqueeze(-1)], dim=-1)` - foreground=1.0 used directly as alpha (no inversion needed because we're going straight to alpha; native JoinImageWithAlpha inverts internally, but we skip that node entirely). Three outputs: `image` (RGBA), `mask` (fg=1), `inverted_mask` (bg=1). To add a new output like "fill on white" or "fill on color", extend the RGBA composite step. |
+| Change Switch Pixaroma slot management / mutex behavior / state schema / row cap | `js/switch/core.mjs` (`MAX_INPUTS = 32`, `STATE_PROP = "switchState"`, `normalizeSlots` / `handleConnect` / `actuallyDisconnect` / `getUpstreamType` / `updateOutputType`). Drawing in `js/switch/render.mjs` (rowCenterY math aligned with LG `NODE_SLOT_HEIGHT` so labels and toggles sit on input-dot rows, Vue Compat #16). Inline label DOM `<input>` editor in `js/switch/editor.mjs` (font/padding/border scaled by canvas zoom at open time). Configure-replay gate `_pixSwitchConfiguring` in `js/switch/index.js` (Vue Compat #17 - any state-mutating `onConnectionsChange` handler MUST be gated on the flag or saved `activeIndex` silently dies on every workflow load and Ctrl+Z undo). Hidden `SwitchState` injection via `app.graphToPrompt` hook at the bottom of `index.js` (Pattern #9). Slot count grows via `handleConnect` appending a trailing empty when the last empty is connected (caps at `MAX_INPUTS`). Disconnect deferred via `setTimeout(0)` so wire-replace (LG fires disconnect-then-connect on the same slot when the user drags a new wire onto an already-wired input) is cancelled by `handleConnect` via the `_pendingDisconnects` Map. Per-row default label shows the upstream output type (MODEL, IMAGE, CLIP...) when no user label is set; clearing the label reverts to the type placeholder via the commit-empty-deletes-key path in `editor.mjs`. Python side in `nodes/node_switch.py` pre-declares 32 optional `input_N` slots typed `ANY` (from `nodes/_type_helpers.py`) + a hidden `SwitchState` STRING input; `pick(SwitchState, **kwargs)` returns `kwargs.get(f"input_{idx}")` with a clear ValueError when the active row is unconnected. |
 | Add backend route | `server_routes.py` |
 | Add a new Python node | `nodes/node_<name>.py` |
 | AudioReact Pixaroma — change motion mode or overlay effect | `nodes/_audio_react_engine.py` (engine — all motion functions, overlays, audio helpers `bandpass_fft` / `audio_envelope` / `onset_track`, `process_aspect`, `Params` dataclass, `MOTION_MODES` / `OVERLAYS` registries, `generate_video()`). NEVER inline math into `node_audio_studio.py`; divergence breaks parity. Update `docs/audio-react-math.md` first, then engine, then `js/audio_studio/shaders.mjs` (GLSL mirror), then re-run `scripts/audio_parity_check.py --regenerate` and the browser parity harness. |

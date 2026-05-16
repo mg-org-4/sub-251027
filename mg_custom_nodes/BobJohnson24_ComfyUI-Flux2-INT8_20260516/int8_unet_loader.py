@@ -118,9 +118,7 @@ class UNetLoaderINTW8A8:
             ]
         elif model_type == "ltx2":
             Int8TensorwiseOps.excluded_names = [
-                'adaln_single', 'audio_adaln_single', 'audio_caption_projection', 'audio_patchify_proj', 'audio_proj_out',
-                'audio_scale_shift_table', 'av_ca_a2v_gate_adaln_single', 'av_ca_audio_scale_shift_adaln_single', 'av_ca_v2a_gate_adaln_single',
-                'av_ca_video_scale_shift_adaln_single', 'caption_projection', 'patchify_proj', 'proj_out', 'scale_shift_table',
+                'adaln', 'embedding', 'patchify', 'to_gate_logits', 'proj_out', 'model.audio', 'model.video', 'model.av', 'model.patch', 'model.proj', 'shift', #'transformer_blocks.0.', 'transformer_blocks.46.', # 'transformer_blocks.1.', 'transformer_blocks.47.',
             ]
 
         # Load state dict once to detect model and prepare LoRA
@@ -224,6 +222,7 @@ class UNetLoaderINTW8A8:
         # Wrap in custom patcher for unified LoRA support
         from .int8_quant import INT8ModelPatcher
         model = INT8ModelPatcher.clone(model)
+        model._safetensors_metadata = metadata  # stash for save node
         
         return (model,)
 

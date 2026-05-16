@@ -28,6 +28,10 @@ class INT8ModelSave:
             prompt_info = json.dumps(prompt)
 
         metadata = {}
+        # Preserve source safetensors metadata (int8_quantized, int8_model_type, ltx2 config, etc.)
+        src_meta = getattr(model, "_safetensors_metadata", None)
+        if isinstance(src_meta, dict):
+            metadata.update(src_meta)
         # if not args.disable_metadata:
         #     metadata["prompt"] = prompt_info
         #     if extra_pnginfo is not None:
@@ -60,21 +64,18 @@ class INT8ModelSave:
             return False
 
         def iter_model_modules(model_patcher):
-            roots = []
-            if hasattr(model_patcher, "model"):
-                roots.append(model_patcher.model)
-                diffusion_model = getattr(model_patcher.model, "diffusion_model", None)
-                if diffusion_model is not None:
-                    roots.append(diffusion_model)
+            if hasattr(model_patcher, "model") and hasattr(model_patcher.model, "named_modules"):
+                yield from model_patcher.model.named_modules()
 
-            seen_roots = set()
-            for root in roots:
-                root_id = id(root)
-                if root_id in seen_roots or not hasattr(root, "named_modules"):
-                    continue
-                seen_roots.add(root_id)
-                yield from root.named_modules()
         
+        # Finalize any deferred INT8 layers (Aimdo/Windows deferred-load path sets
+        # _pending_int8_finalize instead of quantizing immediately). Without this,
+        # those modules still have _is_quantized=False at save time and no
+        # comfy_quant keys are emitted.
+        finalize_fn = getattr(model, "finalize_pending_int8", None)
+        if finalize_fn is not None:
+            finalize_fn()
+
         # We need to peek at the model's actual modules to save comfy_quant and weight_scale
         if hasattr(model, "model"):
             for name, module in iter_model_modules(model):
@@ -83,6 +84,10 @@ class INT8ModelSave:
                     # with requires_grad=True by default, which is invalid for
                     # int8 tensors. Mark all int8 modules for direct save.
                     mark_module_for_direct_save(module)
+                
+                # Only log modules that are INT8-aware (have _is_quantized attribute)
+                # if hasattr(module, '_is_quantized'):
+                #     print(f"[INT8Save] int8 module: '{name}' | _is_quantized={module._is_quantized}")
 
                 if getattr(module, "_is_quantized", False):
                     # 1. Comfy Quant Hint

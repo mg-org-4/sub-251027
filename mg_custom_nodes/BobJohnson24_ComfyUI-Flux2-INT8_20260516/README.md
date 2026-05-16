@@ -9,7 +9,7 @@ Updates:
 
 2026-15-05:
 
-Bringing back stochastic lora. Some loras appear to need it, others don't, try it if your lora is not working and you don't like pre-lora. See our measurements [here](https://github.com/BobJohnson24/ComfyUI-INT8-Fast/blob/RAMExp/Metrics.md#some-loras-require-stochastic-lora-to-work).
+Bringing back stochastic lora. Some loras appear to need it, others don't, try it if your lora is not working and you don't like pre-lora. TLDR is "sometimes it really helps, sometimes its a little worse". See our measurements [here](https://github.com/BobJohnson24/ComfyUI-INT8-Fast/blob/RAMExp/Metrics.md#some-loras-require-stochastic-lora-to-work).
 
 Attempt at reducing RAM usage
 
@@ -121,12 +121,12 @@ Windows untested, but I hear triton-windows exists.
 
 # Credits:
 
-## dxqb for the *entirety* of the INT8 code, it would have been impossible without them:
+## dxqb for the *entirety* of the INT8 code during the very early versions of this node, it would have been impossible without them:
 https://github.com/Nerogar/OneTrainer/pull/1034
 
 If you have a 30-Series GPU, OneTrainer is also the fastest current lora trainer thanks to this. Please go check them out!!
 
-## newgrit1004 for the ConvRot code I basically copied
+## newgrit1004 for the base ConvRot code we modified into proper ConvRot 
 https://github.com/newgrit1004/ComfyUI-ZImage-Triton
 
 ## silveroxides for providing a base to hack the INT8 conversion code onto.
@@ -135,4 +135,4 @@ https://github.com/silveroxides/convert_to_quant
 ## Also silveroxides for showing how to properly register new data types to comfy
 https://github.com/silveroxides/ComfyUI-QuantOps
 
-## The unholy trinity of AI slopsters I used to glue all this together over the course of a day
+## The unholy trinity of AI slopsters I used to glue all this together over the course of multiple months now

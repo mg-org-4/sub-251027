@@ -937,7 +937,6 @@ class Ai_Ollama_RunModel:
 
 
 
-
 #endregion--------------------------------------------------------------------------
 
 
@@ -1484,7 +1483,7 @@ class AI_Qwen:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model": (["None","qwen3.5-plus", "qwen3.5-flash", "qwen-vl-max", "qwen-vl-max-latest"], {"default": "qwen-vl-max-latest"}),
+                "model": (["None","qwen3.5-plus", "qwen3.6-plus", "qwen-vl-max", "qwen-vl-max-latest"], {"default": "qwen-vl-max-latest"}),
                 "preset": (list(IMAGE_PROMPTS.keys()), {"default": "None"}),
                 "custom_system_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "custom_system_prompt：在预设preset=None时生效"}),
                 "text": ("STRING", {"default": "", "multiline": True, "placeholder": "user prompt"}),
@@ -1553,6 +1552,21 @@ class AI_Qwen:
 
 
 #endregion--------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #region魔塔免费API-----------------------

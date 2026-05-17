@@ -7018,11 +7018,8 @@
         "constant_color": {
             "name": "填充颜色"
         },
-        "transform_state": {
-            "name": "变换状态"
-        },
-        "align_position": {
-            "name": "位置对齐"
+        "expand_state": {
+            "name": "扩展状态"
         },
         "image": {
             "name": "图像"
@@ -13704,6 +13701,36 @@
             }
         }
     },
+
+
+
+
+"math_text_compare": {
+    "display_name": "math_文本比较",
+    "inputs": {
+        "mode": {
+            "name": "比较模式"
+        },
+        "text_a": {
+            "name": "文本A"
+        },
+        "text_b": {
+            "name": "文本B"
+        },
+        "regex_pattern": {
+            "name": "正则表达式模式"
+        },
+        "ignore_case": {
+            "name": "忽略大小写"
+        }
+    },
+    "outputs": {
+        "0": {
+            "name": "布尔"
+        }
+    } 
+},
+
 
 
 

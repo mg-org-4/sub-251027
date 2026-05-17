@@ -3393,8 +3393,8 @@ class Image_crop_visual:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK")
-    RETURN_NAMES = ("cropped_image", "mask")
+    RETURN_TYPES = ("IMAGE", )
+    RETURN_NAMES = ("cropped_image",)
     FUNCTION = "crop_image"
     CATEGORY = "Apt_Preset/image/visualize_edit"
     OUTPUT_NODE = True
@@ -3478,7 +3478,7 @@ class Image_crop_visual:
             "bg_image": bg_results,
             "crop_meta": [{"img_w": int(image_for_meta.shape[1]), "img_h": int(image_for_meta.shape[0])}],
         }
-        return {"ui": ui, "result": (out_tensor, mask_tensor)}
+        return {"ui": ui, "result": (out_tensor,)}
 
 
 class Image_mask_crop_visual:

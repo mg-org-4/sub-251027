@@ -133,6 +133,9 @@ class ThreeDEditorModal extends ComfyDialog {
             scene: null, camera: null, renderer: null, controls: null, imagePlane: null,
             light: null, ambientLight: null, textureLoader: null, is3D: false, currentImage: null, sourceNode: null, cameraDistance: 8
         };
+        const THREE_CDN_URL = "https://cdn.jsdelivr.net/npm/three@0.140.1/build/three.min.js";
+        const ORBIT_CDN_URL = "https://cdn.jsdelivr.net/npm/three@0.140.1/examples/js/controls/OrbitControls.js";
+        let threeBootPromise = null;
 
         const q = (sel) => root.querySelector(sel);
         const canvasContainer = q("#canvas-container");
@@ -567,24 +570,55 @@ class ThreeDEditorModal extends ComfyDialog {
             updateRotation();
         };
 
-        const initThree = () => {
-            if (!window.THREE) {
-                const script = document.createElement("script");
-                script.src = "https://cdn.jsdelivr.net/npm/three@0.140.1/build/three.min.js";
-                script.onload = () => {
-                    const cs = document.createElement("script");
-                    cs.src = "https://cdn.jsdelivr.net/npm/three@0.140.1/examples/js/controls/OrbitControls.js";
-                    cs.onload = () => {
-                        state.textureLoader = new THREE.TextureLoader();
-                        startThree();
-                    };
-                    document.head.appendChild(cs);
-                };
-                document.head.appendChild(script);
-            } else {
-                state.textureLoader = new THREE.TextureLoader();
-                startThree();
+        const loadScriptOnce = (url, isReady) => {
+            if (isReady()) return Promise.resolve();
+            const existing = Array.from(document.querySelectorAll("script")).find((s) => s.src === url);
+            if (existing) {
+                return new Promise((resolve, reject) => {
+                    const done = () => (isReady() ? resolve() : reject(new Error(`Loaded but not ready: ${url}`)));
+                    existing.addEventListener("load", done, { once: true });
+                    existing.addEventListener("error", () => reject(new Error(`Failed to load: ${url}`)), { once: true });
+                });
             }
+            return new Promise((resolve, reject) => {
+                const script = document.createElement("script");
+                script.src = url;
+                script.onload = () => (isReady() ? resolve() : reject(new Error(`Loaded but not ready: ${url}`)));
+                script.onerror = () => reject(new Error(`Failed to load: ${url}`));
+                document.head.appendChild(script);
+            });
+        };
+
+        const ensureThreeReady = async () => {
+            if (window.THREE && typeof window.THREE.OrbitControls === "function") return;
+            if (!threeBootPromise) {
+                threeBootPromise = (async () => {
+                    if (!window.THREE) {
+                        await loadScriptOnce(THREE_CDN_URL, () => !!window.THREE);
+                    }
+                    if (!window.THREE || typeof window.THREE.OrbitControls !== "function") {
+                        await loadScriptOnce(ORBIT_CDN_URL, () => !!window.THREE && typeof window.THREE.OrbitControls === "function");
+                    }
+                    if (!window.THREE || typeof window.THREE.TextureLoader !== "function" || typeof window.THREE.OrbitControls !== "function") {
+                        throw new Error("THREE 或 OrbitControls 未正确初始化");
+                    }
+                })().finally(() => {
+                    threeBootPromise = null;
+                });
+            }
+            await threeBootPromise;
+        };
+
+        const initThree = () => {
+            ensureThreeReady()
+                .then(() => {
+                    state.textureLoader = new window.THREE.TextureLoader();
+                    startThree();
+                })
+                .catch((err) => {
+                    console.error("[3D Editor] three init failed:", err);
+                    alert("3D组件加载失败，请检查网络、代理或浏览器缓存。");
+                });
         };
 
         const startThree = () => {
@@ -605,7 +639,14 @@ class ThreeDEditorModal extends ComfyDialog {
             this.renderer = state.renderer = new THREE.WebGLRenderer({ canvas: editorCanvas, antialias: true });
             this.renderer.setSize(width, height);
             this.renderer.setPixelRatio(window.devicePixelRatio);
-            state.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+            const OrbitControlsCtor = window.THREE?.OrbitControls || window.OrbitControls;
+            if (typeof OrbitControlsCtor !== "function") {
+                state.is3D = false;
+                console.error("[3D Editor] OrbitControls constructor missing");
+                alert("3D 控制器加载失败，无法进入 3D 编辑。");
+                return;
+            }
+            state.controls = new OrbitControlsCtor(this.camera, this.renderer.domElement);
             state.controls.enableDamping = true;
             this.scene.add(new THREE.GridHelper(20, 20, 0x4a5568, 0x2d3748));
             const initialLightColor = this.currentLightColor || lightColorPicker?.value || "#ffffff";

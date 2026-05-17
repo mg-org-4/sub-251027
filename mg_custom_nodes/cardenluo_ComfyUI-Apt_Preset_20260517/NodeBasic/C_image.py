@@ -6328,9 +6328,8 @@ class Image_expand_canvase_visual:
             "required": {
                 "width": ("INT", {"default": 2048, "min": 1, "max": 8192, "step": 1}),
                 "height": ("INT", {"default": 2048, "min": 1, "max": 8192, "step": 1}),
-                "constant_color": (["white", "black", "red", "gray"], {"default": "black"}),
-                "transform_state": ("STRING", {"default": '{"x":0,"y":0,"scale":1.0,"angle":0}' }),
-                "align_position": (["left-top", "mid-top", "right-top", "left-center", "mid-center", "right-center", "left-bottom", "mid-bottom", "right-bottom"], {"default": "mid-center"}),   
+                "constant_color": (["white", "black", "red", "gray", "edge"], {"default": "black"}),
+                "expand_state": ("STRING", {"default": '{"left":0,"right":0,"top":0,"bottom":0}' }),
             },
             "optional": {
                 "image": ("IMAGE",),
@@ -6343,39 +6342,55 @@ class Image_expand_canvase_visual:
     CATEGORY = "Apt_Preset/image/visualize_edit"
     OUTPUT_NODE = True
 
-    def _parse_state(self, transform_state):
-        if isinstance(transform_state, dict):
-            data = transform_state
+    def _parse_expand_state(self, expand_state):
+        if isinstance(expand_state, dict):
+            data = expand_state
         else:
             try:
-                data = json.loads(transform_state) if transform_state else {}
+                data = json.loads(expand_state) if expand_state else {}
             except:
                 data = {}
-        x = float(data.get("x", 0))
-        y = float(data.get("y", 0))
-        scale = float(data.get("scale", 1.0))
-        angle = float(data.get("angle", 0))
-        if not np.isfinite(x): x = 0
-        if not np.isfinite(y): y = 0
-        if not np.isfinite(scale): scale = 1.0
-        if not np.isfinite(angle): angle = 0
-        return x, y, scale, angle
+        left = float(data.get("left", 0))
+        right = float(data.get("right", 0))
+        top = float(data.get("top", 0))
+        bottom = float(data.get("bottom", 0))
+        if not np.isfinite(left): left = 0
+        if not np.isfinite(right): right = 0
+        if not np.isfinite(top): top = 0
+        if not np.isfinite(bottom): bottom = 0
+        return (
+            max(0, int(round(left))),
+            max(0, int(round(right))),
+            max(0, int(round(top))),
+            max(0, int(round(bottom))),
+        )
 
-    def _resolve_align_anchor(self, align_position):
-        align_map = {
-            "left-top": (0.0, 0.0),
-            "mid-top": (0.5, 0.0),
-            "right-top": (1.0, 0.0),
-            "left-center": (0.0, 0.5),
-            "mid-center": (0.5, 0.5),
-            "right-center": (1.0, 0.5),
-            "left-bottom": (0.0, 1.0),
-            "mid-bottom": (0.5, 1.0),
-            "right-bottom": (1.0, 1.0),
-        }
-        return align_map.get(align_position, (0.5, 0.5))
+    def _normalize_expansion(self, width, height, left, right, top, bottom, orig_w, orig_h):
+        target_width = max(int(width), int(orig_w))
+        target_height = max(int(height), int(orig_h))
 
-    def transform(self, width, height, constant_color, transform_state, align_position, image=None):
+        current_width = int(orig_w) + int(left) + int(right)
+        current_height = int(orig_h) + int(top) + int(bottom)
+
+        if current_width < target_width:
+            extra_w = target_width - current_width
+            add_left = extra_w // 2
+            left += add_left
+            right += extra_w - add_left
+        else:
+            target_width = current_width
+
+        if current_height < target_height:
+            extra_h = target_height - current_height
+            add_top = extra_h // 2
+            top += add_top
+            bottom += extra_h - add_top
+        else:
+            target_height = current_height
+
+        return target_width, target_height, left, right, top, bottom
+
+    def transform(self, width, height, constant_color, expand_state, image=None):
         import json
         
         color_map = {
@@ -6395,7 +6410,7 @@ class Image_expand_canvase_visual:
             mask = torch.zeros((1, canvas_height, canvas_width), dtype=torch.float32)
             return {"ui": {"preview": []}, "result": (blank_tensor, mask)}
         
-        x_offset, y_offset, scale, angle = self._parse_state(transform_state)
+        left_pad, right_pad, top_pad, bottom_pad = self._parse_expand_state(expand_state)
         
         frames_count, frame_height, frame_width, frame_channel_count = image.size()
         
@@ -6407,83 +6422,31 @@ class Image_expand_canvase_visual:
         
         for idx, img in enumerate(list_tensor2pil(image)):
             orig_w, orig_h = img.size
-            
-            # 计算初始缩放，使图片在不超过画布的情况下最大化
-            scale_x = canvas_width / orig_w
-            scale_y = canvas_height / orig_h
-            base_scale = min(scale_x, scale_y)
-            
-            # 应用用户缩放
-            final_scale = base_scale * scale
-            
-            # 计算缩放后的尺寸
-            new_w = int(orig_w * final_scale)
-            new_h = int(orig_h * final_scale)
-            
-            align_x, align_y = self._resolve_align_anchor(align_position)
+
+            target_width, target_height, paste_x, _, paste_y, _ = self._normalize_expansion(
+                canvas_width,
+                canvas_height,
+                left_pad,
+                right_pad,
+                top_pad,
+                bottom_pad,
+                orig_w,
+                orig_h,
+            )
             
             # 创建画布
             if constant_color == "edge":
                 # 使用边缘近似色
                 edge_color = self._get_edge_color(img)
-                canvas = Image.new("RGB", (canvas_width, canvas_height), edge_color)
+                canvas = Image.new("RGB", (target_width, target_height), edge_color)
             else:
-                canvas = Image.new("RGB", (canvas_width, canvas_height), color_map.get(constant_color, (0, 0, 0)))
+                canvas = Image.new("RGB", (target_width, target_height), color_map.get(constant_color, (0, 0, 0)))
             
-            # 创建遮罩画布（反转：背景为0，图片区域为255）
-            mask_canvas = Image.new("L", (canvas_width, canvas_height), 0)
-            
-            # 使用 affine 变换同时应用缩放和旋转
-            # 计算变换参数
-            translate_x = int(x_offset)
-            translate_y = int(y_offset)
-            
-            # 应用 affine 变换到图片
-            transformed_img = cast(Image.Image, TF.affine(
-                img,
-                angle=-angle,  # PIL 角度方向与 Canvas 相反
-                scale=final_scale,
-                translate=[translate_x, translate_y],
-                shear=0.0,
-                interpolation=Image.BILINEAR,
-                fill=None if constant_color == "edge" else color_map.get(constant_color, (0, 0, 0))
-            ))
-            
-            # 应用相同的变换到遮罩
-            img_mask = Image.new("L", (orig_w, orig_h), 255)
-            transformed_mask = cast(Image.Image, TF.affine(
-                img_mask,
-                angle=-angle,
-                scale=final_scale,
-                translate=[translate_x, translate_y],
-                shear=0.0,
-                interpolation=Image.NEAREST,
-                fill=0
-            ))
-            
-            # 计算粘贴位置（按对齐基准）
-            new_w, new_h = transformed_img.size
-            paste_x = int((canvas_width - new_w) * align_x)
-            paste_y = int((canvas_height - new_h) * align_y)
-            
-            # 粘贴图片到画布（只粘贴可见部分）
-            if paste_x < canvas_width and paste_y < canvas_height and paste_x + new_w > 0 and paste_y + new_h > 0:
-                # 计算可见区域
-                src_x = max(0, -paste_x)
-                src_y = max(0, -paste_y)
-                dst_x = max(0, paste_x)
-                dst_y = max(0, paste_y)
-                
-                crop_w = min(new_w - src_x, canvas_width - dst_x)
-                crop_h = min(new_h - src_y, canvas_height - dst_y)
-                
-                if crop_w > 0 and crop_h > 0:
-                    cropped = transformed_img.crop((src_x, src_y, src_x + crop_w, src_y + crop_h))
-                    canvas.paste(cropped, (dst_x, dst_y))
-                    
-                    # 更新遮罩
-                    mask_cropped = transformed_mask.crop((src_x, src_y, src_x + crop_w, src_y + crop_h))
-                    mask_canvas.paste(mask_cropped, (dst_x, dst_y))
+            # pad_mask 语义：扩展区域为255，原图区域为0
+            mask_canvas = Image.new("L", (target_width, target_height), 255)
+
+            canvas.paste(img, (paste_x, paste_y))
+            mask_canvas.paste(0, (paste_x, paste_y, paste_x + orig_w, paste_y + orig_h))
             
             transformed_images.append(canvas)
             padding_masks.append(mask_canvas)

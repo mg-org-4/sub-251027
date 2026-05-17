@@ -344,6 +344,95 @@ class math_calculate:
             return (0.0, 0, False)
 
 
+class math_text_compare:
+    @classmethod
+    def INPUT_TYPES(cls):
+        compare_modes = [
+            "完全相等",
+            "不相等",
+            "A包含B",
+            "A不包含B",
+            "文本是否为空",
+            "长度A=长度B",
+            "长度A<长度B",
+            "长度A>长度B",
+            "正则匹配",
+        ]
+
+        return {
+            "required": {
+                "ignore_case": ("BOOLEAN", {"default": True, "label_on": "忽略大小写", "label_off": "区分大小写"}),
+                "mode": (compare_modes, {"default": "完全相等"}),
+                "text_a": ("STRING", {"default": "", "multiline": True}),
+            },
+            "optional": {
+                "text_b": ("STRING", {"default": "", "multiline": True}),
+                "regex_pattern": ("STRING", {"default": "", "multiline": False}),
+
+            },
+        }
+
+    RETURN_TYPES = ("BOOLEAN",)
+    RETURN_NAMES = ("bool",)
+    FUNCTION = "compare_text"
+    CATEGORY = "Apt_Preset/data"
+    DESCRIPTION = """
+    - 大小写：先按 ignore_case 决定是否忽略大小写，再执行文本比较
+    - 文本比较：完全相等 / 不相等 / 包含 / 不包含
+    - 空值判断：把空字符串和纯空白都视为空
+    - 长度对比：长度A=长度B / 长度A<长度B / 长度A>长度B
+    - 正则匹配：开头/结尾/复杂规则建议用正则；完整匹配请直接写 ^...$
+    - 开头匹配： ^black
+    - 结尾匹配： black$
+    - 完整匹配： ^black$
+    """
+
+    def compare_text(self, mode, text_a, text_b="", regex_pattern="", ignore_case=True):
+        try:
+            text_a = "" if text_a is None else str(text_a)
+            text_b = "" if text_b is None else str(text_b)
+            regex_pattern = "" if regex_pattern is None else str(regex_pattern)
+
+            compare_text_a = text_a.casefold() if ignore_case else text_a
+            compare_text_b = text_b.casefold() if ignore_case else text_b
+            text_a_length = len(text_a)
+            text_b_length = len(text_b)
+            result = False
+
+            if mode == "完全相等":
+                result = compare_text_a == compare_text_b
+            elif mode == "不相等":
+                result = compare_text_a != compare_text_b
+            elif mode == "A包含B":
+                result = bool(compare_text_b) and compare_text_b in compare_text_a
+            elif mode == "A不包含B":
+                result = bool(compare_text_b) and compare_text_b not in compare_text_a
+            elif mode == "文本是否为空":
+                result = text_a.strip() == ""
+            elif mode == "长度A=长度B":
+                result = text_a_length == text_b_length
+            elif mode == "长度A<长度B":
+                result = text_a_length < text_b_length
+            elif mode == "长度A>长度B":
+                result = text_a_length > text_b_length
+            elif mode == "正则匹配":
+                if regex_pattern:
+                    flags = re.IGNORECASE if ignore_case else 0
+                    pattern = re.compile(regex_pattern, flags)
+                    match = pattern.search(text_a)
+                    result = match is not None
+                else:
+                    result = False
+
+            return (result,)
+        except re.error as e:
+            print(f"Text compare regex error: {e}")
+            return (False,)
+        except Exception as e:
+            print(f"Text compare error: {e}")
+            return (False,)
+
+
 
 
 

@@ -301,7 +301,7 @@ NODE_CLASS_MAPPINGS= {
 "basicIn_Boolean": basicIn_Boolean,
 
 
-"IO_LoadImgList": IO_LoadImgList,
+#"IO_LoadImgList": IO_LoadImgList, 前端异常
 "IO_LoadImgBatch": IO_LoadImgBatch,
 "IO_LoadVideoBatch": IO_LoadVideoBatch,
 "IO_LoadAudioBatch": IO_LoadAudioBatch,
@@ -341,6 +341,7 @@ NODE_CLASS_MAPPINGS= {
 "type_SubConvert": type_SubConvert,
 
 "math_calculate": math_calculate, 
+"math_text_compare": math_text_compare,
 "math_Remap_data": math_Remap_data,  
 
 "create_mask_batch": create_mask_batch, #wed

@@ -1072,7 +1072,7 @@ class mask_sam_detctor:
             },
             "optional": {
                 "ckpt_name": (folder_paths.get_filename_list("checkpoints"),{"default":"sam3.1_multiplex_fp16.safetensors"}),
-                "pos":  ("STRING", {"default": "", "multiline": False}),
+                "pos":  ("STRING", {"default": "", "multiline": True}),
                 "permil_str": ("STRING", {"default": "", "forceInput": True}),
                 "ui_positive_coords": ("STRING", {"default": "", "multiline": True}),
                 "ui_negative_coords": ("STRING", {"default": "", "multiline": True}),
@@ -1087,7 +1087,7 @@ class mask_sam_detctor:
     OUTPUT_NODE = True
     DESCRIPTION = """
 文本输入多个相同名称,例如3个男孩,输入：boy:3
-四者不能同时作用，多种同时存在，则按优先级：外部输入框>点>文本>手动框，
+四者不能同时作用，多种同时存在，则按优先级：外部输入框>点>手动框>文本
 permil_str千分比对角框，批量格式："[[x1, y1, x2, y2], [x1, y1, x2, y2], ...]"
 """
 

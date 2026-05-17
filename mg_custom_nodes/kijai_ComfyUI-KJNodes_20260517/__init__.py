@@ -1,15 +1,85 @@
-from .nodes.nodes import *
-from .nodes.curve_nodes import *
-from .nodes.batchcrop_nodes import *
-from .nodes.audioscheduler_nodes import *
-from .nodes.image_nodes import *
-from .nodes.intrinsic_lora_nodes import *
-from .nodes.mask_nodes import *
-from .nodes.model_optimization_nodes import *
-from .nodes.lora_nodes import *
+from .nodes.nodes import (
+    BOOLConstant, INTConstant, FloatConstant, StringConstant, StringConstantMultiline,
+    ScaleBatchPromptSchedule, GetLatentsFromBatchIndexed, ConditioningMultiCombine,
+    AppendStringsToList, JoinStrings, JoinStringMulti, CondPassThrough, ModelPassThrough,
+    ConditioningSetMaskAndCombine, ConditioningSetMaskAndCombine3,
+    ConditioningSetMaskAndCombine4, ConditioningSetMaskAndCombine5,
+    VRAM_Debug, SomethingToString, Sleep, EmptyLatentImagePresets,
+    EmptyLatentImageCustomPresets, WidgetToString, DummyOut, FlipSigmasAdjusted,
+    CustomSigmas, StringToFloatList, InjectNoiseToLatent, SoundReactive, GenerateNoise,
+    StableZero123_BatchSchedule, SV3D_BatchSchedule, Superprompt, CameraPoseVisualizer,
+    CheckpointPerturbWeights, DifferentialDiffusionAdvanced, FluxBlockLoraSelect,
+    HunyuanVideoBlockLoraSelect, Wan21BlockLoraSelect, LTX2BlockLoraSelect,
+    DiTBlockLoraLoader, CustomControlNetWeightsFluxFromList,
+    SetShakkerLabsUnionControlNetType, ModelSaveKJ, StyleModelApplyAdvanced,
+    AudioConcatenate, LeapfusionHunyuanI2V, ImageNoiseAugmentation, VAELoaderKJ,
+    ScheduledCFGGuidance, ApplyRifleXRoPE_WanVideo, ApplyRifleXRoPE_HunuyanVideo,
+    TimerNodeKJ, HunyuanVideoEncodeKeyframesToCond, LazySwitchKJ, LatentInpaintTTM,
+    SimpleCalculatorKJ, GetTrackRange, AddNoiseToTrackPath, VAEDecodeLoopKJ,
+    WanImageToVideoSVIPro, DeprecatedCompileNodeKJ, VisualizeSigmasKJ,
+    PreviewLatentNoiseMask, PlaySoundKJ,
+)
+from .nodes.curve_nodes import (
+    PlotCoordinates, SplineEditor, CreateShapeMaskOnPath, CreateShapeImageOnPath,
+    CreateTextOnPath, CreateGradientFromCoords, GradientToFloat, MaskOrImageToWeight,
+    WeightScheduleConvert, FloatToMask, WeightScheduleExtend, FloatToSigmas, SigmasToFloat,
+    GLIGENTextBoxApplyBatchCoords, CreateInstanceDiffusionTracking,
+    AppendInstanceDiffusionTracking, InterpolateCoords, DrawInstanceDiffusionTracking,
+    PointsEditor, CutAndDragOnPath,
+)
+from .nodes.batchcrop_nodes import (
+    BatchCropFromMask, BatchUncrop, BatchCropFromMaskAdvanced,
+    FilterZeroMasksAndCorrespondingImages, InsertImageBatchByIndexes, BatchUncropAdvanced,
+    SplitBboxes, BboxToInt, BboxVisualize,
+)
+from .nodes.audioscheduler_nodes import (
+    NormalizedAmplitudeToMask, NormalizedAmplitudeToFloatList,
+    OffsetMaskByNormalizedAmplitude, ImageTransformByNormalizedAmplitude,
+)
+from .nodes.image_nodes import (
+    ImagePass, ColorMatch, ColorMatchV2, SaveImageWithAlpha, ImageConcanate,
+    ImageConcatFromBatch, ImageGridComposite2x2, ImageGridComposite3x3,
+    ImageBatchTestPattern, ImageGrabPIL, Screencap_mss, ScreencapStream, WebcamCaptureCV2,
+    AddLabel, GetImageSizeAndCount, GetLatentSizeAndCount, ImageBatchRepeatInterleaving,
+    ImageUpscaleWithModelBatched, ImageNormalize_Neg1_To_1, RemapImageRange,
+    SplitImageChannels, MergeImageChannels, ImagePadForOutpaintMasked,
+    ImagePadForOutpaintTargetSize, ImagePrepForICLora, ImageAndMaskPreview,
+    CrossFadeImages, CrossFadeImagesMulti, TransitionImagesMulti, TransitionImagesInBatch,
+    ImageBatchJoinWithTransition, ShuffleImageBatch, GetImageRangeFromBatch,
+    RandomImageFromBatch, ImageBatchExtendWithOverlap, GetLatentRangeFromBatch,
+    InsertLatentToIndex, ImageBatchFilter, GetImagesFromBatchIndexed,
+    InsertImagesToBatchIndexed, PadImageBatchInterleaved, ReplaceImagesInBatch,
+    ReverseImageBatch, ImageBatchMulti, ImageTensorList, ImageAddMulti, ImageConcatMulti,
+    PreviewAnimation, ImageResizeKJ, ImageResizeKJv2, LoadAndResizeImage,
+    LoadImagesFromFolderKJ, ImageGridtoBatch, SaveImageKJ, SaveStringKJ, FastPreview,
+    FastPreviewBatch, ImageCropByMaskAndResize, ImageCropByMask, ImageUncropByMask,
+    ImageCropByMaskBatch, ImagePadKJ, LoadVideosFromFolder, EncodeVideoComponents,
+    DecodeAndSaveVideo, PreviewImageOrMask,
+)
+
+from .nodes.mask_nodes import (
+    BatchCLIPSeg, DownloadAndLoadCLIPSeg, CreateTextMask, ColorToMask, CreateFluidMask,
+    CreateAudioMask, CreateGradientMask, CreateFadeMask, CreateFadeMaskAdvanced,
+    CreateMagicMask, CreateShapeMask, CreateVoronoiMask, GetMaskSizeAndCount,
+    GrowMaskWithBlur, MaskBatchMulti, OffsetMask, RoundMask, ResizeMask, RemapMaskRange,
+    SeparateMasks, ConsolidateMasksKJ, DrawMaskOnImage, BlockifyMask,
+)
+from .nodes.model_optimization_nodes import (
+    PathchSageAttentionKJ, CheckpointLoaderKJ, DiffusionModelSelector,
+    DiffusionModelLoaderKJ, ModelPatchTorchSettings, PatchModelPatcherOrder,
+    TorchCompileModelFluxAdvancedV2, TorchCompileModelWanVideoV2,
+    TorchCompileModelAdvanced, TorchCompileVAE, TorchCompileControlNet,
+    WanVideoTeaCacheKJ, WanVideoEnhanceAVideoKJ, LTXVEnhanceAVideoKJ, WanVideoNAG,
+    SkipLayerGuidanceWanVideo, CFGZeroStarAndInit, GGUFLoaderKJ, NABLA_AttentionKJ,
+    StartRecordCUDAMemoryHistory, EndRecordCUDAMemoryHistory, VisualizeCUDAMemoryHistory,
+    ModelMemoryUseReportPatch, ModelMemoryUsageFactorOverride, WanChunkFeedForward,
+    SamplerSelfRefineVideo,
+)
+from .nodes.lora_nodes import LoraExtractKJ, LoraReduceRank
 from .nodes.image_transform_node import ImageTransformKJ
 from .nodes.sharpen_nodes import ImageSharpenKJ
 from .nodes.hdr_preview_node import HDRPreviewKJ
+from .nodes.preview_override_node import ModelPreviewOverrideKJ, GetPreviewOverrideFramesKJ
 
 import logging
 
@@ -117,6 +187,8 @@ NODE_CONFIG = {
     "DecodeAndSaveVideo": {"class": DecodeAndSaveVideo, "name": "Decode And Save Video"},
     "ImageTransformKJ": {"class": ImageTransformKJ, "name": "Image Transform KJ"},
     "HDRPreviewKJ": {"class": HDRPreviewKJ, "name": "HDR Preview KJ"},
+    "ModelPreviewOverrideKJ": {"class": ModelPreviewOverrideKJ, "name": "Model Preview Override KJ"},
+    "GetPreviewOverrideFramesKJ": {"class": GetPreviewOverrideFramesKJ, "name": "Get Preview Override Frames KJ"},
     "PreviewImageOrMask": {"class": PreviewImageOrMask, "name": "Preview Image Or Mask"},
     "ImageSharpenKJ": {"class": ImageSharpenKJ, "name": "Image Sharpen KJ"},
     #batch cropping
@@ -187,7 +259,6 @@ NODE_CONFIG = {
     "SV3D_BatchSchedule": {"class": SV3D_BatchSchedule, "name": "SV3D Batch Schedule"},
     "Superprompt": {"class": Superprompt, "name": "Superprompt"},
     "GLIGENTextBoxApplyBatchCoords": {"class": GLIGENTextBoxApplyBatchCoords},
-    "Intrinsic_lora_sampling": {"class": Intrinsic_lora_sampling, "name": "Intrinsic Lora Sampling"},
     "CheckpointPerturbWeights": {"class": CheckpointPerturbWeights, "name": "CheckpointPerturbWeights"},
     "Screencap_mss": {"class": Screencap_mss, "name": "Screencap mss"},
     "ScreencapStream": {"class": ScreencapStream, "name": "Screencap Stream"},
@@ -259,7 +330,13 @@ NODE_CONFIG = {
 
 #ltxv
 try:
-    from .nodes.ltxv_nodes import *
+    from .nodes.ltxv_nodes import (
+        LTXVAddGuideMulti, LTXVAddGuidesFromBatch, LTXVAudioVideoMask, LTX2_NAG,
+        LTXVChunkFeedForward, LTX2SamplingPreviewOverride,
+        LTX2AudioLatentNormalizingSampling, LTXVImgToVideoInplaceKJ,
+        LTX2AttentionTunerPatch, LTX2MemoryEfficientSageAttentionPatch,
+        LTX2LoraLoaderAdvanced,
+    )
     NODE_CONFIG.update({
     "LTXVEnhanceAVideoKJ": {"class": LTXVEnhanceAVideoKJ, "name": "LTXV Enhance A Video KJ"},
     "LTXVAddGuideMulti": {"class": LTXVAddGuideMulti, "name": "LTXV Add Guide Multi"},
@@ -298,11 +375,11 @@ from server import PromptServer
 from pathlib import Path
 
 if hasattr(PromptServer, "instance"):
-    try:
-        # NOTE: we add an extra static path to avoid comfy mechanism
-        # that loads every script in web.
-        PromptServer.instance.app.add_routes(
-            [web.static("/kjweb_async", (Path(__file__).parent.absolute() / "kjweb_async").as_posix())]
-        )
-    except Exception:
-        logging.exception("KJNodes: failed to register /kjweb_async static route")
+    # NOTE: we add an extra static path to avoid comfy mechanism that loads every script in web.
+    if not PromptServer.instance.app.router.frozen:
+        try:
+            PromptServer.instance.app.add_routes(
+                [web.static("/kjweb_async", (Path(__file__).parent.absolute() / "kjweb_async").as_posix())]
+            )
+        except Exception:
+            logging.exception("KJNodes: failed to register /kjweb_async static route")

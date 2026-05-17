@@ -150,9 +150,9 @@ MODEL_SUPPORT_REGISTRY: Dict[str, ModelSupportProfile] = {
         capabilities={
             **DEFAULT_CAPABILITIES,
             "supports_tiled_diffusion": True,
-            "supports_visualizer": False,
+            "supports_visualizer": True,
             "supports_extractor": True,
-            "supports_lora_hooks": False,
+            "supports_lora_hooks": True,
             "supports_cross_region_attention": False,
             "requires_injection": False,
         },

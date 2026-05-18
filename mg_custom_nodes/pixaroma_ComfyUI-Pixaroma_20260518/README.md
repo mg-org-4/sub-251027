@@ -105,7 +105,13 @@ A simple, one-click resolution picker. Choose from 9 popular aspect ratios - 1:1
 A tiny utility node with two number fields for width and height, and matching width/height outputs. Use it when you want to type a target resolution manually somewhere in your workflow. Math expressions like `1024+64` or `512*2` work directly in the fields. Pairs perfectly with **Switch WH Pixaroma** so you can flip between manual values and the size coming from another node.
 
 ### ✂️ Remove Background Pixaroma
-One node replaces the usual three-node chain (Remove Background, Invert Mask, Join Image with Alpha). Wire in your image and a Load Background Removal Model and get three outputs in one shot: the cutout image with a transparent background, the foreground mask (white on black), and the inverted mask (black on white). Same result as the native chain, way fewer cables on your canvas.
+One node replaces the usual three-node chain (Remove Background, Invert Mask, Join Image with Alpha). Wire in your image, pick a model from the built-in dropdown, and get three outputs in one shot: the cutout image with a transparent background, the foreground mask (white on black), and the inverted mask (black on white). No separate Load Background Removal Model node to wire in. Three BiRefNet variants are supported, each tuned for a different use case:
+
+- **birefnet.safetensors** (Standard) - 424 MB - 4-6 GB VRAM - processes at 1024×1024. Best for clean objects, products, logos. Fast everyday cutouts.
+- **birefnet-hr.safetensors** (High Resolution) - 444 MB - 8 GB+ VRAM - processes at 2048×2048. Best for large images where you need fine outline detail picked up (jewelry, intricate hardware, complex shapes).
+- **birefnet-matting.safetensors** (Soft Alpha Edges) - 444 MB - 8 GB+ VRAM - processes at 2048×2048. Best for hair, fur, lace, soft fabric. Also worth trying for glass, smoke, sheer materials (trained mostly on portraits, so results on transparency vary).
+
+Drop the `.safetensors` files into `ComfyUI/models/background_removal/`; if the folder is empty the node tells you exactly what to download and where to put it. The model resizes your image to its internal resolution before finding the cutout, then the mask is scaled back to match your original size - so your output stays the same dimensions as your input regardless of which model you pick. Downloads: [Standard](https://huggingface.co/Comfy-Org/BiRefNet/tree/main/background_removal), [HR](https://huggingface.co/ZhengPeng7/BiRefNet_HR), [HR-matting](https://huggingface.co/ZhengPeng7/BiRefNet_HR-matting).
 
 ### 🔀 Switch Pixaroma
 A universal multi-input switch for any data type. Connect models, images, prompts, masks, audio, latents, anything you want, and pick which one flows through with a single click on its toggle. The node starts with one input and grows on its own as you connect more cables (up to 32 rows). Each row gets a label that auto-fills with the type name (MODEL, IMAGE, CLIP...) so you can tell what is wired where at a glance; click the label to type your own name (for example "main checkpoint" or "alt prompt"), clear it and press Enter to revert to the type name. Only one input can be active at a time, lit up in Pixaroma orange. Disconnect the active row and the switch automatically moves to the next available one so your workflow doesn't break. All settings save with your workflow.
@@ -118,6 +124,12 @@ A small node with one number field and two outputs: **int** and **float**. Usefu
 
 ### ✍️ Text Pixaroma
 A multi-line text field with a STRING output. Write your prompt (or any other long text) once and wire the output into multiple downstream nodes - positive prompt, negative prompt, captions, instructions, anywhere a string is needed. The field grows when you drag the node bigger, so you have plenty of room for long prompts. The text saves with your workflow.
+
+### 🧱 Prompt Stack Pixaroma
+A single node that holds an ordered stack of prompt chunks you can mute or include with one click. Add as many rows as you want, type a different piece of your prompt in each (style words, subject, lighting, quality boosters, anything), give each row a short label so you remember what it does, and toggle the orange **ON / OFF** pill to include or skip that row at run time. All the ON rows get joined into one text output with whatever separator you pick in **Settings → 👑 Pixaroma → Prompt Stack** (default comma+space, also works as newline, space, pipe, or anything you type). Drag the handle on the left of any row to reorder them, and the join order updates too. Rows that grow to many lines scroll on their own. The node tidies itself as you add and delete rows so it always fits its content with a bit of breathing room. Everything saves with your workflow. Great for testing prompt variants by clicking toggles instead of editing text.
+
+### 🎲 Prompt Multi Pixaroma
+The sibling of Prompt Stack: instead of joining your rows into one text output, it **runs the workflow once for each enabled row**. Type two or more prompt variants, give each a short label (e.g. "v1", "blue version"), and hit Run - you get one image per enabled prompt, sequentially, each as its own item in the ComfyUI queue panel so you can cancel any of them individually. Toggle the orange **ON / OFF** pill to skip a row without deleting it. Drag the handle on the left to reorder. Each generated image carries only the prompt that produced it, so dropping the PNG back into **Prompt Reader Pixaroma** correctly recovers that exact variant. Great for batch-comparing prompt ideas with a single click instead of editing text and re-running by hand.
 
 ### 🔔 Notify Pixaroma
 A small terminal node that plays a sound when reached during workflow execution. Drop one at the end of a workflow to hear "render finished" while you're in another browser tab or app, or branch one off any node mid-graph to be alerted at a checkpoint. Pick from 10 bundled notification sounds (drop more `.mp3`/`.wav`/`.ogg` into `assets/sounds/` to extend), set a per-node volume and an optional label, and tap the **▶ Preview** button to audition a sound without running the workflow. A master toggle in **Settings → 👑 Pixaroma → Notify** silences every Notify node at once for quiet sessions. Each node also has its own enabled toggle. Always re-fires on every Run, even when upstream is fully cached.
@@ -145,24 +157,58 @@ git clone https://github.com/pixaroma/ComfyUI-Pixaroma.git
 ```
 
 ### 2. Optional: AI Background Removal
-Want to use the **AI Remove Background** button in the Image Composer? Just install `rembg`:
+AI Remove Background is used in three places in Pixaroma: the **Remove Background Pixaroma** node, the **Image Composer** editor's AI Background Removal button, and the **Paint Pixaroma** editor's AI Background Removal button.
+
+- The **node** uses **Pixaroma BiRefNet only** (`ComfyUI/models/background_removal/*.safetensors`).
+- The two **editors** can use **Pixaroma BiRefNet OR rembg** - their dropdown shows BiRefNet variants on top and rembg options below. Any BiRefNet model you install once works in all three places.
+
+There are two ways to get AI background removal working: **Pixaroma BiRefNet** (recommended, no extra Python deps, three model variants, works in the node AND the editors) and **rembg** (a separate Python library with four model options, works in the editors only). They can be used side-by-side - install whichever you want from the dropdown.
+
+#### Option A: Pixaroma BiRefNet (recommended)
+
+Download one of these three `.safetensors` files and drop it into `ComfyUI/models/background_removal/`. The dropdown shows them grouped under "Pixaroma BiRefNet" at the top. **The filename matters** - it controls which preprocessing resolution is used. Rename the downloaded file to one of the names below so the dropdown picks the right one.
+
+| Variant | Filename | VRAM | Best for |
+|---------|----------|------|----------|
+| **Standard** | `birefnet.safetensors` (424 MB) | 4-6 GB | Clean objects, products, logos. Fast everyday cutouts. Default. [Download](https://huggingface.co/Comfy-Org/BiRefNet/tree/main/background_removal) |
+| **High Resolution** | `birefnet-hr.safetensors` (444 MB) | 8 GB+ | Large images with fine outline detail (jewelry, intricate hardware). [Download](https://huggingface.co/ZhengPeng7/BiRefNet_HR) |
+| **Matting (Soft Edges)** | `birefnet-matting.safetensors` (444 MB) | 8 GB+ | Hair, fur, lace, soft fabric. Also worth trying for glass / smoke. [Download](https://huggingface.co/ZhengPeng7/BiRefNet_HR-matting) |
+
+**Important: HR and Matting need renaming after download.** The Standard model from Comfy-Org is already named `birefnet.safetensors` and works as-is. But the HR and Matting variants come from ZhengPeng7's HuggingFace repos as `model.safetensors`, and Pixaroma needs them named correctly to know which preprocessing resolution to use.
+
+- Standard (`birefnet.safetensors`) - **no rename needed**, drop the file in as-is
+- HR (downloaded as `model.safetensors`) - **rename to `birefnet-hr.safetensors`**
+- Matting (downloaded as `model.safetensors`) - **rename to `birefnet-matting.safetensors`**
+
+**Rename steps on Windows**: right-click the file, **Rename**, type the new name (keeping `.safetensors` at the end), press Enter. If Windows hides extensions: View tab → check "File name extensions" first, otherwise the rename can accidentally drop the extension. Why the names matter: filenames containing `matt` or `hr` (case-insensitive) tell Pixaroma to preprocess at 2048×2048; anything else preprocesses at 1024×1024. If you name HR as plain `birefnet.safetensors`, it will load but run at 1024 and you'll lose the whole point of HR.
+
+#### Option B: rembg (alternative)
+
+`rembg` is a separate Python library. Install it once and you get four bundled model options.
 
 ```bash
-# Windows Portable
+# Windows Portable (ComfyUI Easy-Install)
+# Open ComfyUI/python_embeded folder, type cmd in the address bar, run:
 python.exe -m pip install rembg
 
-# Standard Installation
+# Standard installation
 pip install rembg
 ```
 
-Once installed, you can pick from different AI models depending on the quality you need:
+Restart ComfyUI. Once installed, the dropdown shows these under "rembg":
 
 | Option | Size | What it is |
 |--------|------|------------|
-| **Auto (recommended)** | n/a | Automatically picks the best available model for you. |
-| **Fast** | ~176 MB | Works on any setup, great for quick cutouts. |
-| **Balanced** | ~170 MB | Cleaner edges. |
-| **Best** | ~900 MB | Highest quality cutouts. |
+| **rembg Auto** | n/a | Picks the best installed rembg model. |
+| **rembg Fast (u2net)** | ~176 MB | Works on any setup, great for quick cutouts. |
+| **rembg Balanced (isnet)** | ~170 MB | Cleaner edges than u2net. |
+| **rembg Best (BiRefNet via rembg)** | ~900 MB | rembg's own BiRefNet ONNX. Largest, slowest. |
+
+Model files download automatically on first use to `ComfyUI/models/rembg/`. For details and troubleshooting, see [rembg on GitHub](https://github.com/danielgatis/rembg#installation).
+
+#### What gets picked by default?
+
+If you have **at least one BiRefNet variant** installed, the dropdown defaults to BiRefNet Standard (or HR / Matting if Standard isn't installed). Otherwise it falls back to rembg Auto. You can always change the selection manually - the dropdown shows install / download instructions inline for any option that isn't ready to use.
 
 ---
 
@@ -175,6 +221,25 @@ Master the Pixaroma suite with our video guides and workflow deep-dives:
 ---
 
 ## 🛠 Changelog
+
+### **May 18, 2026 (1.3.36)**
+- **NEW: Prompt Multi Pixaroma** - same row-based layout as Prompt Stack, but instead of joining your prompts into one, it runs the workflow once for each enabled row. Type three prompt variants, hit Run, get three images - one per prompt. Each becomes its own item in the queue panel so you can cancel them individually. Toggle the orange ON / OFF pill to skip rows without deleting them. Drag the handle on the left to reorder. Great for batch-comparing prompt ideas with a single click.
+- **Prompt Reader Pixaroma reads Prompt Multi output:** Drop a PNG generated through Prompt Multi back into Prompt Reader and you get the exact prompt that produced that specific image.
+
+### **May 17, 2026 (1.3.35)**
+- **AI background removal works on 4-6 GB cards.** BiRefNet Standard no longer fails with out-of-memory on a 6 GB card. The dropdown adds a new **BiRefNet Low VRAM** option for guaranteed-fits 512px cutouts when you want it faster. If memory still gets tight, the model automatically retries at smaller sizes and finally falls back to CPU - the click never silently fails.
+- **Auto Remove on Execute now uses the model you picked.** Previously, ticking Auto Remove on Execute with BiRefNet Standard (or HR / Matting) silently switched to a rembg model at workflow time and produced a different cutout than the manual Remove Background button. Now the same model runs in both places.
+- **Model dropdown stops flipping back to rembg Auto when you select a layer.** Picking BiRefNet Standard for a layer and then clicking on it used to revert the dropdown to rembg Auto. The pick now sticks.
+
+### **May 17, 2026 (1.3.34)**
+- **AI Remove Background dropdown matches the standalone node.** Image Composer and Paint editors now read the same BiRefNet model files as Remove Background Pixaroma. Drop your `.safetensors` once into `ComfyUI/models/background_removal/` and both work. Defaults to BiRefNet Standard if installed; existing rembg options stay listed below. Not-installed entries show an inline Download link.
+
+### **May 17, 2026 (1.3.33)**
+- **NEW: Remove Background dropdown built into the node**, with three BiRefNet variants - Standard (1024px, 4-6 GB VRAM), HR (2048px, 8 GB+), and Matting (2048px, soft edges for hair/fur). No more separate Load Background Removal Model node to wire in. Drop `.safetensors` into `ComfyUI/models/background_removal/`; processing resolution picked automatically from the filename. Output stays the same size as input.
+
+### **May 17, 2026 (1.3.32)**
+- **NEW: Prompt Stack Pixaroma** - one node that holds an ordered stack of prompt chunks. Type different parts of your prompt in each row (style, subject, lighting, quality boosters), label them, and toggle the orange ON / OFF pill to include or skip each one at run time. Drag to reorder. ON rows join with your chosen separator (default `, `, set under Settings) into one text output. Great for testing prompt variants by clicking toggles instead of editing text.
+- **Prompt Reader Pixaroma reads Prompt Stack output:** Drop a PNG generated with Prompt Stack into Prompt Reader and you get back the exact combined prompt, separator included.
 
 ### **May 15, 2026 (1.3.31)**
 - **NEW: Remove Background Pixaroma** - a single node that replaces the usual three-node chain for background removal. Wire in your image and a Load Background Removal Model, and the node outputs the cutout image (with transparent background), the foreground mask, and the inverted mask all at once. Same result as the native Remove Background + Invert Mask + Join Image with Alpha chain, but with fewer cables on your canvas.

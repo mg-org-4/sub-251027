@@ -291,8 +291,8 @@ class PromptGenerator:
             return None
 
         # Check user preference first
-        preferred = _preferences_cache.get("preferred_vision_model", "")
-        if preferred and preferred in vision_models and is_model_local(preferred):
+        preferred = _preferences_cache.get("preferred_model", "")
+        if preferred and preferred in vision_models:
             return preferred
 
         # Fall back to smallest model
@@ -318,8 +318,8 @@ class PromptGenerator:
             return None
 
         # Check user preference first
-        preferred = _preferences_cache.get("preferred_base_model", "")
-        if preferred and preferred in candidates and is_model_local(preferred):
+        preferred = _preferences_cache.get("preferred_model", "")
+        if preferred and preferred in candidates:
             return preferred
 
         # Fall back to smallest model
@@ -342,7 +342,7 @@ class PromptGenerator:
                 }),
             },
             "optional": {
-                "mode": (["Enhance Prompt (Image)", "Enhance Prompt (Video)", "Enhance Prompt (Audio)", "Enhance Prompt | Image (Video)", "Analyze Image", "Analyze Image with Prompt"], {
+                "mode": (["Enhance Prompt (Image)", "Enhance Prompt (Video)", "Enhance Prompt (Audio)", "Analyze Image", "Analyze Image with Prompt"], {
                     "default": "Enhance Prompt (Image)",
                     "tooltip": "Choose mode: Enhance text prompt | Analyze image | Analyze image with custom instructions"
                 }),
@@ -751,10 +751,10 @@ class PromptGenerator:
         if options and "use_model_default_sampling" in options:
             use_model_default_sampling = options["use_model_default_sampling"]
 
-        if mode in ["Analyze Image", "Analyze Image with Prompt", "Enhance Prompt | Image (Video)"]:
+        if mode in ["Analyze Image", "Analyze Image with Prompt"] or (mode in ["Enhance Prompt (Video)", "Enhance Prompt (Audio)"] and image is not None):
             use_vision_model = True
 
-        if mode == "Enhance Prompt (Audio)" and not prompt.strip():
+        if mode == "Enhance Prompt (Audio)" and not prompt.strip() and image is None:
             error_msg = "Did you perhaps forget to enter a User Prompt?"
             print_pg(error_msg, RED)
             raise RuntimeError(error_msg)
@@ -762,7 +762,12 @@ class PromptGenerator:
         images = None  # Will be set for vision modes
 
         # Validate inputs based on mode
-        if (mode in ["Enhance Prompt (Image)", "Enhance Prompt (Video)"]) and not prompt.strip():
+        if mode == "Enhance Prompt (Image)" and not prompt.strip():
+            error_msg = "Did you perhaps forget to enter a User Prompt?"
+            print_pg(error_msg, RED)
+            raise RuntimeError(error_msg)
+
+        if mode == "Enhance Prompt (Video)" and not prompt.strip() and image is None:
             error_msg = "Did you perhaps forget to enter a User Prompt?"
             print_pg(error_msg, RED)
             raise RuntimeError(error_msg)
@@ -770,10 +775,16 @@ class PromptGenerator:
         # Always determine a valid model filename before running server
         model_to_use = None
 
+        # ── Preferred model from ComfyUI settings (overrides Options node widget) ──
+        _preferred = _preferences_cache.get("preferred_model", "").strip()
+
         if use_ollama:
             # ── Ollama model selection ──
-            # Priority: Options node > auto-discover from Ollama
-            if options and "model" in options:
+            # Priority: preferences > Options node > auto-discover from Ollama
+            if _preferred:
+                model_to_use = _preferred
+                print_pg(f"Using preferred model from settings: {model_to_use}")
+            elif options and "model" in options:
                 model_to_use = options["model"]
             else:
                 # Auto-discover available models from Ollama
@@ -796,8 +807,19 @@ class PromptGenerator:
             available_models = get_local_models()
 
             if use_vision_model:
-                # Check if the selected model supports vision (has mmproj)
-                if options and "model" in options and has_vision_support(options["model"]) and is_model_local(options["model"]):
+                # Priority: preferences > Options node > auto-discover
+                if _preferred and is_model_local(_preferred):
+                    if has_vision_support(_preferred):
+                        model_to_use = _preferred
+                        print_pg(f"Using preferred model from settings: {model_to_use}")
+                    else:
+                        print_pg(f"Warning: Preferred model '{_preferred}' has no mmproj (no vision support) for '{mode}' mode.\nSearching for a vision-capable model.")
+                        model_to_use = self.find_vision_model(available_models)
+                        if model_to_use is None:
+                            error_msg = f"Error: '{mode}' mode requires a vision model (one with an mmproj file). Please download a vision-capable model via the Options node."
+                            print_pg(error_msg, RED)
+                            raise RuntimeError(error_msg)
+                elif options and "model" in options and has_vision_support(options["model"]) and is_model_local(options["model"]):
                     model_to_use = options["model"]
                 elif options and "model" in options and is_model_local(options["model"]):
                     # Selected model doesn't support vision
@@ -816,7 +838,11 @@ class PromptGenerator:
                         raise RuntimeError(error_msg)
             else:
                 # Enhance Prompt mode - any model works, prefer text-only for efficiency
-                if options and "model" in options and is_model_local(options["model"]):
+                # Priority: preferences > Options node > auto-select
+                if _preferred and is_model_local(_preferred):
+                    model_to_use = _preferred
+                    print_pg(f"Using preferred model from settings: {model_to_use}")
+                elif options and "model" in options and is_model_local(options["model"]):
                     model_to_use = options["model"]
                 else:
                     if not available_models:
@@ -872,7 +898,23 @@ class PromptGenerator:
 
         # Prepare the system prompt
         if options and "system_prompt" in options:
-            system_prompt = options["system_prompt"]
+            custom_sp = options["system_prompt"]
+            sp_mode = options.get("system_prompt_mode", "replace")
+            if sp_mode == "append":
+                # Determine the default system prompt for this mode first
+                if mode == "Analyze Image":
+                    default_sp = self.get_image_system_prompt()
+                elif mode == "Analyze Image with Prompt":
+                    default_sp = self.get_image_custom_system_prompt()
+                elif mode == "Enhance Prompt (Video)":
+                    default_sp = self.get_text_video_system_prompt()
+                elif mode == "Enhance Prompt (Audio)":
+                    default_sp = self.get_text_audio_system_prompt()
+                else:
+                    default_sp = self.get_text_image_system_prompt()
+                system_prompt = default_sp + "\n\n" + custom_sp
+            else:
+                system_prompt = custom_sp
 
         elif mode == "Analyze Image":
             system_prompt = self.get_image_system_prompt()
@@ -880,7 +922,7 @@ class PromptGenerator:
         elif mode == "Analyze Image with Prompt":
             system_prompt = self.get_image_custom_system_prompt()
 
-        elif mode in ["Enhance Prompt (Video)", "Enhance Prompt | Image (Video)"]:
+        elif mode == "Enhance Prompt (Video)":
             system_prompt = self.get_text_video_system_prompt()
 
         elif mode == "Enhance Prompt (Audio)":

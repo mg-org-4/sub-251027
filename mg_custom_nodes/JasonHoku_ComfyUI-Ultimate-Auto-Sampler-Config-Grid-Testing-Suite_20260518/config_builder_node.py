@@ -232,8 +232,11 @@ class UltimateConfigBuilder:
             }
         }
     
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("configs_json", "session_name")
+    # session_name is carried through configs_json's _session_settings now,
+    # so the dedicated output socket is redundant. Removed to simplify the
+    # node interface.
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("configs_json",)
     FUNCTION = "generate_config"
     CATEGORY = "sampling/testing"
     OUTPUT_NODE = True
@@ -633,13 +636,20 @@ class UltimateConfigBuilder:
             full_run_seed = config_array.get("full_run_seed", 0)
             config["full_run_seed"] = int(full_run_seed) if full_run_seed else 0
 
-            # Process VAEs — always include (default "None" if unset)
+            # Process VAEs — filter out bypassed (unchecked) entries AND any
+            # empty / "None" placeholders. If nothing remains, OMIT the "vae"
+            # key entirely so the orchestrator falls back to the default
+            # behavior (no per-config VAE override). Emitting "vae": "None"
+            # made the generator try to load a model file literally named
+            # "None", which fails.
             vaes_raw = config_array.get("vaes", ["None"])
-            vae_strings = [str(v) for v in vaes_raw if v and v != "None"]
+            vae_bypass_states = config_array.get("vae_bypass_states", {}) or {}
+            vae_strings = [
+                str(v) for v in vaes_raw
+                if v and v != "None" and not vae_bypass_states.get(str(v), False)
+            ]
             if vae_strings:
                 config["vae"] = vae_strings if len(vae_strings) > 1 else vae_strings[0]
-            else:
-                config["vae"] = "None"
 
             # Always include model_type and related fields
             config["model_type"] = model_type
@@ -746,6 +756,20 @@ class UltimateConfigBuilder:
             if use_flux_guidance:
                 config["flux_guidance_value"] = flux_guidance_value
 
+            # Deep Shrink (Kohya / PatchModelAddDownscale) — patches the UNet
+            # to downscale features at a specific block during early diffusion.
+            # Only emit detail params when toggle is on, to keep configs_json clean.
+            use_deep_shrink = config_array.get("use_deep_shrink", False)
+            config["use_deep_shrink"] = bool(use_deep_shrink)
+            if use_deep_shrink:
+                config["deep_shrink_block_number"] = int(config_array.get("deep_shrink_block_number", 3))
+                config["deep_shrink_downscale_factor"] = float(config_array.get("deep_shrink_downscale_factor", 2.0))
+                config["deep_shrink_start_percent"] = float(config_array.get("deep_shrink_start_percent", 0.0))
+                config["deep_shrink_end_percent"] = float(config_array.get("deep_shrink_end_percent", 0.35))
+                config["deep_shrink_downscale_after_skip"] = bool(config_array.get("deep_shrink_downscale_after_skip", True))
+                config["deep_shrink_downscale_method"] = str(config_array.get("deep_shrink_downscale_method", "bicubic"))
+                config["deep_shrink_upscale_method"] = str(config_array.get("deep_shrink_upscale_method", "bicubic"))
+
             # ==== PROMPT HANDLING ====
             # Priority: per-config > global > node inputs (omitted = use node inputs)
             use_custom = config_array.get("use_custom_prompts", False)
@@ -778,6 +802,7 @@ class UltimateConfigBuilder:
                 "model", "model_type", "lora", "vae",
                 "model_sampling_override", "use_advanced_sampling", "use_flux_guidance",
                 "model_prompt_prefix", "model_prompt_suffix", "attention_mode",
+                "use_deep_shrink",
             }
             missing = _EXPECTED_CONFIG_KEYS - set(config.keys())
             if missing:
@@ -824,14 +849,34 @@ class UltimateConfigBuilder:
         cooldown_data = state.get("cooldown", {})
         if cooldown_data and cooldown_data.get("enabled", False):
             session_settings["cooldown"] = cooldown_data
-        # Start At Job # (skip to a specific job number)
-        start_at_job = state.get("start_at_job", 0)
-        if start_at_job and int(start_at_job) > 0:
-            session_settings["start_at_job"] = int(start_at_job)
-        # Image save format (only emit when non-default to keep configs_json clean)
-        image_format = state.get("image_format", "webp")
-        if image_format and image_format != "webp":
-            session_settings["image_format"] = image_format
+        # Start At Job # (skip to a specific job number) — always emit.
+        try:
+            session_settings["start_at_job"] = int(state.get("start_at_job", 0))
+        except (TypeError, ValueError):
+            session_settings["start_at_job"] = 0
+        # Image save format — always emit so Builder UI is authoritative.
+        session_settings["image_format"] = str(state.get("image_format", "webp"))
+        # Builder UI is authoritative for all run settings — emit every field.
+        # Type coercion is defensive; the Builder UI sends correct types but
+        # workflows saved before the Builder UI had these fields might have
+        # missing or string-typed values that need normalization.
+        session_settings["overwrite_existing"] = bool(state.get("overwrite_existing", False))
+        try:
+            session_settings["flush_batch_every"] = int(state.get("flush_batch_every", 1))
+        except (TypeError, ValueError):
+            session_settings["flush_batch_every"] = 1
+        session_settings["lora_triggerwords_mode"] = str(state.get("lora_triggerwords_mode", "None"))
+        session_settings["save_conditioning_cache_to_file"] = bool(state.get("save_conditioning_cache_to_file", False))
+        session_settings["enable_model_cache"] = bool(state.get("enable_model_cache", False))
+        try:
+            session_settings["vae_batch_size"] = int(state.get("vae_batch_size", 1))
+        except (TypeError, ValueError):
+            session_settings["vae_batch_size"] = 1
+
+        # session_name moves into session_settings too so the Generator's
+        # session_name widget can be removed (Phase 2).
+        session_settings["session_name"] = str(state.get("session_name", "my_session"))
+
         if session_settings:
             output_obj["_session_settings"] = session_settings
 
@@ -890,7 +935,7 @@ class UltimateConfigBuilder:
         print(f"[ConfigBuilder] 📊 Configs: {n_configs}")
         print(f"{'='*80}\n")
 
-        return (json_output, actual_session_name)
+        return (json_output,)
 
 
 # API endpoint for trigger word lookup

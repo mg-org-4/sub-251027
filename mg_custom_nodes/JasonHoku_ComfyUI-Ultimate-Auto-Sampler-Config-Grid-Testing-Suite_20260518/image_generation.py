@@ -33,6 +33,14 @@ def generate_image(
     advanced_guider="cfg_guider",
     advanced_scheduler="basic",
     flux_guidance_value=0.0,
+    use_deep_shrink=False,
+    deep_shrink_block_number=3,
+    deep_shrink_downscale_factor=2.0,
+    deep_shrink_start_percent=0.0,
+    deep_shrink_end_percent=0.35,
+    deep_shrink_downscale_after_skip=True,
+    deep_shrink_downscale_method="bicubic",
+    deep_shrink_upscale_method="bicubic",
     width=1024,
     height=1024
 ):
@@ -60,6 +68,14 @@ def generate_image(
         advanced_guider: Guider type ("cfg_guider", "basic_guider")
         advanced_scheduler: Scheduler type for advanced sampling ("basic", "flux2")
         flux_guidance_value: Flux guidance value (0.0 = disabled)
+        use_deep_shrink: Whether to apply Kohya Deep Shrink (PatchModelAddDownscale)
+        deep_shrink_block_number: UNet block to downscale at (1-32, default 3)
+        deep_shrink_downscale_factor: Downscale factor (0.1-9.0, default 2.0)
+        deep_shrink_start_percent: Diffusion start % for the patch (default 0.0)
+        deep_shrink_end_percent: Diffusion end % for the patch (default 0.35)
+        deep_shrink_downscale_after_skip: Whether to downscale after skip (default True)
+        deep_shrink_downscale_method: Downscale interpolation method (default "bicubic")
+        deep_shrink_upscale_method: Upscale interpolation method (default "bicubic")
         width: Image width (used by Flux model sampling and Flux2Scheduler)
         height: Image height (used by Flux model sampling and Flux2Scheduler)
 
@@ -140,6 +156,56 @@ def generate_image(
             model_sampling.set_parameters(shift=shift)
             patched_model.add_object_patch("model_sampling", model_sampling)
             print(f"[GridTester] 🔧 Applied ModelSamplingFlux2 (shift={shift})")
+
+    # === Kohya Deep Shrink (PatchModelAddDownscale) ===
+    # Patches the UNet to downscale features at a specific block during the
+    # early portion of diffusion. Wraps ComfyUI's built-in
+    # PatchModelAddDownscale (comfy_extras/nodes_model_downscale.py).
+    # Looked up via NODE_CLASS_MAPPINGS per project convention.
+    #
+    # Current ComfyUI ships this as a V3 io.ComfyNode subclass with a
+    # classmethod execute() returning io.NodeOutput (whose positional outputs
+    # live in .args). Older builds had a V1 instance method `.patch()`. We
+    # dispatch to either depending on what we find — same pattern as
+    # ltx_video_generation._call_node / _unwrap.
+    if use_deep_shrink:
+        try:
+            deep_shrink_cls = nodes.NODE_CLASS_MAPPINGS.get("PatchModelAddDownscale")
+            if deep_shrink_cls is not None:
+                ds_kwargs = dict(
+                    model=patched_model,
+                    block_number=int(deep_shrink_block_number),
+                    downscale_factor=float(deep_shrink_downscale_factor),
+                    start_percent=float(deep_shrink_start_percent),
+                    end_percent=float(deep_shrink_end_percent),
+                    downscale_after_skip=bool(deep_shrink_downscale_after_skip),
+                    downscale_method=str(deep_shrink_downscale_method),
+                    upscale_method=str(deep_shrink_upscale_method),
+                )
+                # Try V3 first (classmethod execute, NodeOutput return).
+                ds_result = None
+                try:
+                    from comfy_api.latest import io as _ds_io
+                    if isinstance(deep_shrink_cls, type) and issubclass(deep_shrink_cls, _ds_io.ComfyNode):
+                        ds_result = deep_shrink_cls.execute(**ds_kwargs)
+                except (ImportError, TypeError):
+                    pass
+                if ds_result is None:
+                    # V1 fallback (instance method named by FUNCTION, default "patch").
+                    fn_name = getattr(deep_shrink_cls, "FUNCTION", "patch")
+                    ds_result = getattr(deep_shrink_cls(), fn_name)(**ds_kwargs)
+                # Unwrap to a single MODEL value.
+                if hasattr(ds_result, "args") and isinstance(getattr(ds_result, "args"), tuple):
+                    patched_model = ds_result.args[0]  # V3 NodeOutput
+                elif isinstance(ds_result, (tuple, list)):
+                    patched_model = ds_result[0]      # V1 tuple
+                else:
+                    patched_model = ds_result          # bare model
+                print(f"[GridTester] 🔧 Applied PatchModelAddDownscale (Kohya Deep Shrink): block={deep_shrink_block_number}, factor={deep_shrink_downscale_factor}, range={deep_shrink_start_percent}-{deep_shrink_end_percent}, after_skip={deep_shrink_downscale_after_skip}, down={deep_shrink_downscale_method}, up={deep_shrink_upscale_method}")
+            else:
+                print("[GridTester] ⚠️ PatchModelAddDownscale node not available in this ComfyUI build — Deep Shrink skipped")
+        except Exception as e:
+            print(f"[GridTester] ⚠️ Failed to apply Deep Shrink: {e}")
 
     # === Flux Guidance ===
     # Modify positive conditioning with guidance value (used by Flux 1 models)

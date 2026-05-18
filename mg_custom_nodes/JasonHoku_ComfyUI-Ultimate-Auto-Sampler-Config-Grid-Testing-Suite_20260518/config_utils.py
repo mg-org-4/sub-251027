@@ -218,7 +218,7 @@ def _expand_lora_weight_arrays(lora_string):
 
         # Check for bracket notation in strength values
         # Match pattern: name:[array_or_value]:[array_or_value] or name:[array_or_value]
-        bracket_match = re.search(r'\[[\d.,\s]+\]', part)
+        bracket_match = re.search(r'\[[\d.,\s-]+\]', part)
         if not bracket_match:
             # No arrays in this part, keep as-is
             parts_expansions.append([part])
@@ -693,6 +693,14 @@ def expand_configs(raw_configs, pos_prompts, neg_prompts, denoise_values, seed, 
                 "advanced_guider": combo[16],
                 "advanced_scheduler": combo[17],
                 "flux_guidance_value": combo[18],
+                "use_deep_shrink": entry.get("use_deep_shrink", False),
+                "deep_shrink_block_number": entry.get("deep_shrink_block_number", 3),
+                "deep_shrink_downscale_factor": entry.get("deep_shrink_downscale_factor", 2.0),
+                "deep_shrink_start_percent": entry.get("deep_shrink_start_percent", 0.0),
+                "deep_shrink_end_percent": entry.get("deep_shrink_end_percent", 0.35),
+                "deep_shrink_downscale_after_skip": entry.get("deep_shrink_downscale_after_skip", True),
+                "deep_shrink_downscale_method": entry.get("deep_shrink_downscale_method", "bicubic"),
+                "deep_shrink_upscale_method": entry.get("deep_shrink_upscale_method", "bicubic"),
                 "resolution": combo[19],  # (w, h) tuple or None
                 # Per-entry seed override (Revise modal sets this explicitly).
                 # Builder UI does NOT emit entry["seed"] — it uses the node-level

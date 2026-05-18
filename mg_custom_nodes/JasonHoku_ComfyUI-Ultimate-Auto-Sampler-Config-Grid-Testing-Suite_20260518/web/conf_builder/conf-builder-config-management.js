@@ -3521,6 +3521,149 @@ export function renderExtraModelSamplingSection(node, div, configArray, arrayIdx
         innerWrapper.appendChild(group3);
     }
 
+    // ========== SUB-GROUP 4: Kohya Deep Shrink (PatchModelAddDownscale) ==========
+    const group4 = document.createElement("div");
+    group4.style.cssText = "border-left: 3px solid #ffaa00; padding-left: 8px;";
+
+    const group4Header = document.createElement("div");
+    group4Header.style.cssText = "font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #ffaa00;";
+    group4Header.textContent = "KOHYA DEEP SHRINK (PatchModelAddDownscale)";
+    group4.appendChild(group4Header);
+
+    const group4Info = document.createElement("div");
+    group4Info.style.cssText = "font-size: 10px; color: #888; font-style: italic; margin-bottom: 6px;";
+    group4Info.textContent = "Patches the UNet to downscale features at a specific block during early diffusion. Lets you generate at higher target resolutions than the model was trained for.";
+    group4.appendChild(group4Info);
+
+    // Toggle checkbox
+    const dsToggleRow = document.createElement("div");
+    dsToggleRow.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 6px;";
+    const dsToggleLabel = document.createElement("label");
+    dsToggleLabel.style.cssText = "display: flex; align-items: center; gap: 6px; cursor: pointer;";
+    const dsToggleCheck = document.createElement("input");
+    dsToggleCheck.type = "checkbox";
+    dsToggleCheck.checked = configArray.use_deep_shrink || false;
+    dsToggleCheck.style.cssText = "cursor: pointer;";
+    dsToggleLabel.appendChild(dsToggleCheck);
+    const dsToggleText = document.createElement("span");
+    dsToggleText.textContent = "Enable Deep Shrink";
+    dsToggleText.style.cssText = "color: #ccc; font-size: 11px;";
+    dsToggleLabel.appendChild(dsToggleText);
+    dsToggleRow.appendChild(dsToggleLabel);
+    group4.appendChild(dsToggleRow);
+
+    // Sub-options container (shown when enabled)
+    const dsOpts = document.createElement("div");
+    dsOpts.style.cssText = "margin-left: 12px;";
+    dsOpts.style.display = configArray.use_deep_shrink ? "block" : "none";
+
+    // Helper: render one labeled input row
+    function _dsRow(labelText, inputEl, hintText) {
+        const row = document.createElement("div");
+        row.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 4px;";
+        const lbl = document.createElement("label");
+        lbl.textContent = labelText;
+        lbl.style.cssText = "color: #aaa; font-size: 11px; white-space: nowrap; min-width: 130px;";
+        row.appendChild(lbl);
+        row.appendChild(inputEl);
+        if (hintText) {
+            const hint = document.createElement("span");
+            hint.style.cssText = "font-size: 10px; color: #666;";
+            hint.textContent = hintText;
+            row.appendChild(hint);
+        }
+        return row;
+    }
+
+    // block_number
+    const blockInput = document.createElement("input");
+    blockInput.type = "number"; blockInput.className = "cb-input";
+    blockInput.style.cssText = "width: 80px;"; blockInput.min = "1"; blockInput.max = "32"; blockInput.step = "1";
+    blockInput.value = configArray.deep_shrink_block_number ?? 3;
+    blockInput.onchange = () => { configArray.deep_shrink_block_number = parseInt(blockInput.value) || 3; node.saveState(); };
+    dsOpts.appendChild(_dsRow("Block Number:", blockInput, "(default: 3)"));
+
+    // downscale_factor
+    const factorInput = document.createElement("input");
+    factorInput.type = "number"; factorInput.className = "cb-input";
+    factorInput.style.cssText = "width: 80px;"; factorInput.min = "0.1"; factorInput.max = "9.0"; factorInput.step = "0.1";
+    factorInput.value = configArray.deep_shrink_downscale_factor ?? 2.0;
+    factorInput.onchange = () => { configArray.deep_shrink_downscale_factor = parseFloat(factorInput.value) || 2.0; node.saveState(); };
+    dsOpts.appendChild(_dsRow("Downscale Factor:", factorInput, "(default: 2.0)"));
+
+    // start_percent
+    const startInput = document.createElement("input");
+    startInput.type = "number"; startInput.className = "cb-input";
+    startInput.style.cssText = "width: 80px;"; startInput.min = "0.0"; startInput.max = "1.0"; startInput.step = "0.05";
+    startInput.value = configArray.deep_shrink_start_percent ?? 0.0;
+    startInput.onchange = () => { configArray.deep_shrink_start_percent = parseFloat(startInput.value); if (isNaN(configArray.deep_shrink_start_percent)) configArray.deep_shrink_start_percent = 0.0; node.saveState(); };
+    dsOpts.appendChild(_dsRow("Start %:", startInput, "(default: 0.0 = beginning)"));
+
+    // end_percent
+    const endInput = document.createElement("input");
+    endInput.type = "number"; endInput.className = "cb-input";
+    endInput.style.cssText = "width: 80px;"; endInput.min = "0.0"; endInput.max = "1.0"; endInput.step = "0.05";
+    endInput.value = configArray.deep_shrink_end_percent ?? 0.35;
+    endInput.onchange = () => { configArray.deep_shrink_end_percent = parseFloat(endInput.value); if (isNaN(configArray.deep_shrink_end_percent)) configArray.deep_shrink_end_percent = 0.35; node.saveState(); };
+    dsOpts.appendChild(_dsRow("End %:", endInput, "(default: 0.35)"));
+
+    // downscale_after_skip
+    const afterSkipRow = document.createElement("div");
+    afterSkipRow.style.cssText = "display: flex; gap: 6px; align-items: center; margin-bottom: 4px;";
+    const afterSkipLbl = document.createElement("label");
+    afterSkipLbl.style.cssText = "display: flex; align-items: center; gap: 6px; cursor: pointer;";
+    const afterSkipCheck = document.createElement("input");
+    afterSkipCheck.type = "checkbox";
+    afterSkipCheck.checked = configArray.deep_shrink_downscale_after_skip !== false; // default true
+    afterSkipCheck.onchange = () => { configArray.deep_shrink_downscale_after_skip = afterSkipCheck.checked; node.saveState(); };
+    afterSkipLbl.appendChild(afterSkipCheck);
+    const afterSkipText = document.createElement("span");
+    afterSkipText.textContent = "Downscale After Skip";
+    afterSkipText.style.cssText = "color: #ccc; font-size: 11px;";
+    afterSkipLbl.appendChild(afterSkipText);
+    afterSkipRow.appendChild(afterSkipLbl);
+    const afterSkipHint = document.createElement("span");
+    afterSkipHint.style.cssText = "font-size: 10px; color: #666;";
+    afterSkipHint.textContent = "(default: ON)";
+    afterSkipRow.appendChild(afterSkipHint);
+    dsOpts.appendChild(afterSkipRow);
+
+    // downscale_method
+    const downMethods = ["bicubic", "nearest-exact", "bilinear", "area", "bislerp"];
+    const downSelect = document.createElement("select");
+    downSelect.className = "cb-select";
+    downSelect.style.cssText = "width: 140px;";
+    downMethods.forEach(m => {
+        const opt = document.createElement("option"); opt.value = m; opt.textContent = m;
+        if ((configArray.deep_shrink_downscale_method || "bicubic") === m) opt.selected = true;
+        downSelect.appendChild(opt);
+    });
+    downSelect.onchange = () => { configArray.deep_shrink_downscale_method = downSelect.value; node.saveState(); };
+    dsOpts.appendChild(_dsRow("Downscale Method:", downSelect, ""));
+
+    // upscale_method
+    const upSelect = document.createElement("select");
+    upSelect.className = "cb-select";
+    upSelect.style.cssText = "width: 140px;";
+    downMethods.forEach(m => {
+        const opt = document.createElement("option"); opt.value = m; opt.textContent = m;
+        if ((configArray.deep_shrink_upscale_method || "bicubic") === m) opt.selected = true;
+        upSelect.appendChild(opt);
+    });
+    upSelect.onchange = () => { configArray.deep_shrink_upscale_method = upSelect.value; node.saveState(); };
+    dsOpts.appendChild(_dsRow("Upscale Method:", upSelect, ""));
+
+    dsToggleCheck.onchange = () => {
+        configArray.use_deep_shrink = dsToggleCheck.checked;
+        dsOpts.style.display = dsToggleCheck.checked ? "block" : "none";
+        node.saveState();
+    };
+
+    group4.appendChild(dsOpts);
+    if (!isLTXConfigArray(configArray)) {
+        innerWrapper.appendChild(group4);
+    }
+
     contentContainer.appendChild(innerWrapper);
     sectionGrid.appendChild(contentContainer);
     div.appendChild(sectionGrid);
@@ -6344,6 +6487,12 @@ export function renderCooldownSection(node, container) {
 export function renderRunSettingsSection(node, container) {
     if (node.state.start_at_job === undefined) node.state.start_at_job = 0;
     if (node.state.image_format === undefined) node.state.image_format = "webp";
+    if (node.state.overwrite_existing === undefined) node.state.overwrite_existing = false;
+    if (node.state.flush_batch_every === undefined) node.state.flush_batch_every = 1;
+    if (node.state.lora_triggerwords_mode === undefined) node.state.lora_triggerwords_mode = "None";
+    if (node.state.save_conditioning_cache_to_file === undefined) node.state.save_conditioning_cache_to_file = false;
+    if (node.state.enable_model_cache === undefined) node.state.enable_model_cache = false;
+    if (node.state.vae_batch_size === undefined) node.state.vae_batch_size = 1;
 
     const section = document.createElement("div");
     section.className = "cb-section full-width";
@@ -6377,7 +6526,7 @@ export function renderRunSettingsSection(node, container) {
     jobInput.style.cssText = "width: 70px; background: #1a1a1a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; font-size: 12px;";
     jobInput.onchange = () => {
         node.state.start_at_job = parseInt(jobInput.value) || 0;
-        node.setDirtyCanvas(true);
+        node.saveState();
     };
     const jobDesc = document.createElement("div");
     jobDesc.style.cssText = "font-size: 9px; color: #666;";
@@ -6413,6 +6562,73 @@ export function renderRunSettingsSection(node, container) {
     fmtDiv.appendChild(fmtSelect);
     content.appendChild(fmtDiv);
     content.appendChild(fmtDesc);
+
+    // Helper: renders a labeled row with a "?" tooltip icon, binding to node.state[stateKey].
+    function _addRunSetting(content, opts) {
+        // opts: { stateKey, label, tooltip, kind: "bool"|"int"|"select", options?, min?, max?, defaultValue }
+        const row = document.createElement("div");
+        row.style.cssText = "margin-top: 10px; display: flex; align-items: center; gap: 8px;";
+
+        const label = document.createElement("label");
+        label.textContent = opts.label + ":";
+        label.style.cssText = "font-size: 12px; color: #ccc; white-space: nowrap;";
+
+        const help = document.createElement("span");
+        help.textContent = "?";
+        help.title = opts.tooltip;
+        help.style.cssText = "display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: #2a2a2a; color: #8af; font-size: 10px; font-weight: bold; cursor: help; user-select: none;";
+
+        let input;
+        if (opts.kind === "bool") {
+            input = document.createElement("input");
+            input.type = "checkbox";
+            input.checked = !!node.state[opts.stateKey];
+            input.style.cssText = "transform: scale(1.2); cursor: pointer;";
+            input.onchange = () => { node.state[opts.stateKey] = input.checked; node.saveState(); };
+        } else if (opts.kind === "int") {
+            input = document.createElement("input");
+            input.type = "number";
+            if (opts.min !== undefined) input.min = opts.min;
+            if (opts.max !== undefined) input.max = opts.max;
+            input.value = node.state[opts.stateKey] !== undefined ? node.state[opts.stateKey] : opts.defaultValue;
+            input.style.cssText = "width: 70px; background: #1a1a1a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; font-size: 12px;";
+            input.onchange = () => {
+                const v = parseInt(input.value);
+                node.state[opts.stateKey] = isNaN(v) ? opts.defaultValue : v;
+                node.saveState();
+            };
+        } else if (opts.kind === "select") {
+            input = document.createElement("select");
+            input.style.cssText = "background: #1a1a1a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; font-size: 12px;";
+            (opts.options || []).forEach(o => {
+                const opt = document.createElement("option");
+                opt.value = o;
+                opt.textContent = o;
+                if (o === (node.state[opts.stateKey] || opts.defaultValue)) opt.selected = true;
+                input.appendChild(opt);
+            });
+            input.onchange = () => { node.state[opts.stateKey] = input.value; node.saveState(); };
+        }
+
+        row.appendChild(label);
+        row.appendChild(help);
+        row.appendChild(input);
+        content.appendChild(row);
+    }
+
+    _addRunSetting(content, { stateKey: "overwrite_existing", label: "Overwrite Existing", kind: "bool",
+        tooltip: "True = Re-run everything. False = Skip already generated images (Resume)." });
+    _addRunSetting(content, { stateKey: "flush_batch_every", label: "Flush Batch Every", kind: "int", min: 0, max: 64, defaultValue: 1,
+        tooltip: "Update dashboard every X images. 0 = Use VAE Batch Size." });
+    _addRunSetting(content, { stateKey: "lora_triggerwords_mode", label: "LoRA Triggerwords Mode", kind: "select",
+        options: ["None", "Append To End", "Append To Start", "Read From Config"], defaultValue: "None",
+        tooltip: "None = Don't fetch/append trigger words. Append To End = Add triggers at end of prompt (default behavior). Append To Start = Add triggers at start of prompt. Read From Config = Use lora_triggerwords_append_settings in config JSON to specify per-lora placement." });
+    _addRunSetting(content, { stateKey: "save_conditioning_cache_to_file", label: "Save Conditioning Cache To File", kind: "bool",
+        tooltip: "Save CLIP conditioning cache to disk. Useful when experimenting with the same prompts/models — skips text encoding on resume. WARNING: Can create very large files in output/benchmarks. Automatically disabled when optional inputs (model/clip/conditioning) are connected." });
+    _addRunSetting(content, { stateKey: "enable_model_cache", label: "Enable Model Cache", kind: "bool",
+        tooltip: "Experimental: intelligent model/LoRA caching with async background preloading. Speeds up generation when switching LoRAs frequently. Loads cached LoRAs from RAM instead of disk. Disable to reduce RAM/VRAM usage." });
+    _addRunSetting(content, { stateKey: "vae_batch_size", label: "VAE Batch Size", kind: "int", min: -1, max: 64, defaultValue: 1,
+        tooltip: "How many images to encode/decode per VAE pass. Lower = less VRAM. -1 = process all at once. Default: 4." });
 
     section.appendChild(header);
     section.appendChild(content);
@@ -6577,6 +6793,11 @@ export async function renderUI(node, availableLoras, modelLists, loraFolders, av
 
     // === MAIN CONTENT SECTIONS ===
 
+    // Run Settings Section — session-level generator overrides. Rendered at
+    // the very top so users see core run-behavior knobs (resume/overwrite,
+    // batching, caching) before anything else.
+    renderRunSettingsSection(node, mainContent);
+
     // Distribution Settings Section (always shown with On/Off toggle)
     renderDistributionSettingsSection(node, mainContent);
 
@@ -6634,7 +6855,16 @@ export async function renderUI(node, availableLoras, modelLists, loraFolders, av
             advanced_guider: "cfg_guider",
             advanced_scheduler: "basic",
             use_flux_guidance: false,
-            flux_guidance_value: "3.5"
+            flux_guidance_value: "3.5",
+            // Kohya Deep Shrink (PatchModelAddDownscale)
+            use_deep_shrink: false,
+            deep_shrink_block_number: 3,
+            deep_shrink_downscale_factor: 2.0,
+            deep_shrink_start_percent: 0.0,
+            deep_shrink_end_percent: 0.35,
+            deep_shrink_downscale_after_skip: true,
+            deep_shrink_downscale_method: "bicubic",
+            deep_shrink_upscale_method: "bicubic"
         });
         node.saveState();
         node.renderUI();
@@ -6774,7 +7004,6 @@ export async function renderUI(node, availableLoras, modelLists, loraFolders, av
     // Session-level settings (applies to all configs)
     renderUpscalingSection(node, mainContent, modelLists);
     renderCooldownSection(node, mainContent);
-    renderRunSettingsSection(node, mainContent);
 
     // Output Preview — rendered as a SIBLING of layoutWrapper (not inside
     // mainContent), so it sits as a fixed/resizable panel at the bottom of

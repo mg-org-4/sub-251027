@@ -147,7 +147,16 @@ app.registerExtension({
                         advanced_guider: "cfg_guider",
                         advanced_scheduler: "basic",
                         use_flux_guidance: false,
-                        flux_guidance_value: "3.5"
+                        flux_guidance_value: "3.5",
+                        // Kohya Deep Shrink (PatchModelAddDownscale)
+                        use_deep_shrink: false,
+                        deep_shrink_block_number: 3,
+                        deep_shrink_downscale_factor: 2.0,
+                        deep_shrink_start_percent: 0.0,
+                        deep_shrink_end_percent: 0.35,
+                        deep_shrink_downscale_after_skip: true,
+                        deep_shrink_downscale_method: "bicubic",
+                        deep_shrink_upscale_method: "bicubic"
                     }],
                     upscaling: {
                         enabled: false,
@@ -189,13 +198,32 @@ app.registerExtension({
                         every_n: 1,
                         clear_vram: false
                     },
-                    image_format: "webp"
+                    image_format: "webp",
+                    overwrite_existing: false,
+                    flush_batch_every: 1,
+                    lora_triggerwords_mode: "None",
+                    save_conditioning_cache_to_file: false,
+                    enable_model_cache: false,
+                    vae_batch_size: 1
                 };
 
                 // Create HTML container immediately
                 this.htmlContainer = document.createElement("div");
                 this.htmlContainer.style.cssText = `width: 100%; height: 100%; background: #1a1a1a; display: flex; flex-direction: column;`;
                 this.addDOMWidget("config_ui", "div", this.htmlContainer, { serialize: false, hideOnZoom: false });
+
+                // Default node size — the Builder UI's HTML overlay needs real
+                // estate to be useful out of the box. ComfyUI's default is
+                // ~200x100 which leaves the UI invisible. Bump to a generous
+                // default; users can still resize. Only applied on FRESH
+                // create (not on workflow load — saved size is preserved).
+                if (!this._uscgSizeInitialized) {
+                    this._uscgSizeInitialized = true;
+                    this.size = [
+                        Math.max(this.size?.[0] || 0, 720),
+                        Math.max(this.size?.[1] || 0, 900),
+                    ];
+                }
 
                 // 2. Define methods (Synchronously attached)
                 this.triggerAutoSave = function () {
@@ -264,8 +292,24 @@ app.registerExtension({
                                     if (arr.advanced_scheduler === undefined) arr.advanced_scheduler = "basic";
                                     if (arr.use_flux_guidance === undefined) arr.use_flux_guidance = false;
                                     if (arr.flux_guidance_value === undefined) arr.flux_guidance_value = "3.5";
+                                    if (arr.use_deep_shrink === undefined) arr.use_deep_shrink = false;
+                                    if (arr.deep_shrink_block_number === undefined) arr.deep_shrink_block_number = 3;
+                                    if (arr.deep_shrink_downscale_factor === undefined) arr.deep_shrink_downscale_factor = 2.0;
+                                    if (arr.deep_shrink_start_percent === undefined) arr.deep_shrink_start_percent = 0.0;
+                                    if (arr.deep_shrink_end_percent === undefined) arr.deep_shrink_end_percent = 0.35;
+                                    if (arr.deep_shrink_downscale_after_skip === undefined) arr.deep_shrink_downscale_after_skip = true;
+                                    if (arr.deep_shrink_downscale_method === undefined) arr.deep_shrink_downscale_method = "bicubic";
+                                    if (arr.deep_shrink_upscale_method === undefined) arr.deep_shrink_upscale_method = "bicubic";
                                 });
                             }
+
+                            // Migration: ensure top-level Run Settings fields exist
+                            if (this.state.overwrite_existing === undefined) this.state.overwrite_existing = false;
+                            if (this.state.flush_batch_every === undefined) this.state.flush_batch_every = 1;
+                            if (this.state.lora_triggerwords_mode === undefined) this.state.lora_triggerwords_mode = "None";
+                            if (this.state.save_conditioning_cache_to_file === undefined) this.state.save_conditioning_cache_to_file = false;
+                            if (this.state.enable_model_cache === undefined) this.state.enable_model_cache = false;
+                            if (this.state.vae_batch_size === undefined) this.state.vae_batch_size = 1;
 
                             this.saveState();
                             this.renderUI();
@@ -393,6 +437,14 @@ app.registerExtension({
                                     if (arr.advanced_scheduler === undefined) arr.advanced_scheduler = "basic";
                                     if (arr.use_flux_guidance === undefined) arr.use_flux_guidance = false;
                                     if (arr.flux_guidance_value === undefined) arr.flux_guidance_value = "3.5";
+                                    if (arr.use_deep_shrink === undefined) arr.use_deep_shrink = false;
+                                    if (arr.deep_shrink_block_number === undefined) arr.deep_shrink_block_number = 3;
+                                    if (arr.deep_shrink_downscale_factor === undefined) arr.deep_shrink_downscale_factor = 2.0;
+                                    if (arr.deep_shrink_start_percent === undefined) arr.deep_shrink_start_percent = 0.0;
+                                    if (arr.deep_shrink_end_percent === undefined) arr.deep_shrink_end_percent = 0.35;
+                                    if (arr.deep_shrink_downscale_after_skip === undefined) arr.deep_shrink_downscale_after_skip = true;
+                                    if (arr.deep_shrink_downscale_method === undefined) arr.deep_shrink_downscale_method = "bicubic";
+                                    if (arr.deep_shrink_upscale_method === undefined) arr.deep_shrink_upscale_method = "bicubic";
                                 });
 
                                 this.state.config_arrays = loadedArrays;
@@ -556,6 +608,14 @@ app.registerExtension({
                                 if (arr.advanced_scheduler === undefined) arr.advanced_scheduler = "basic";
                                 if (arr.use_flux_guidance === undefined) arr.use_flux_guidance = false;
                                 if (arr.flux_guidance_value === undefined) arr.flux_guidance_value = "3.5";
+                                if (arr.use_deep_shrink === undefined) arr.use_deep_shrink = false;
+                                if (arr.deep_shrink_block_number === undefined) arr.deep_shrink_block_number = 3;
+                                if (arr.deep_shrink_downscale_factor === undefined) arr.deep_shrink_downscale_factor = 2.0;
+                                if (arr.deep_shrink_start_percent === undefined) arr.deep_shrink_start_percent = 0.0;
+                                if (arr.deep_shrink_end_percent === undefined) arr.deep_shrink_end_percent = 0.35;
+                                if (arr.deep_shrink_downscale_after_skip === undefined) arr.deep_shrink_downscale_after_skip = true;
+                                if (arr.deep_shrink_downscale_method === undefined) arr.deep_shrink_downscale_method = "bicubic";
+                                if (arr.deep_shrink_upscale_method === undefined) arr.deep_shrink_upscale_method = "bicubic";
                             });
                         } else if (existing.lora_config) {
                             this.state = this.migrateOldFormat(existing);

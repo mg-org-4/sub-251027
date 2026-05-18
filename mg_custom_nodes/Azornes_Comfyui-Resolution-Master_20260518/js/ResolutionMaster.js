@@ -14,15 +14,23 @@ class ResolutionMasterCanvas {
         this.node = node;
         this.node.properties = this.node.properties || {};
         this.initializeProperties();
+        this.collapsedSections = {
+            actions: this.node.properties.section_actions_collapsed,
+            scaling: this.node.properties.section_scaling_collapsed,
+            autoDetect: this.node.properties.section_autoDetect_collapsed,
+            presets: this.node.properties.section_presets_collapsed,
+            extraControls: this.node.properties.section_extraControls_collapsed
+        };
         this.node.intpos = { x: 0.5, y: 0.5 };
         this.node.capture = false;
         this.node.configured = false;
         this._isInitializing = true; // Flag to prevent setDirtyCanvas during init
         this._pendingCanvasUpdate = false;
+        this._isApplyingAutoSize = false;
+        this.userPreferredHeight = this.getStoredPreferredHeight();
         this.hoverElement = null;
         this.scrollOffset = 0;
         this.dropdownOpen = null;
-        this.collapsedSections = {};
         this.dialogManager = new DialogManager(this);
         this.searchableDropdown = new SearchableDropdown();
         this.aspectRatioSelector = new AspectRatioSelector();
@@ -36,6 +44,7 @@ class ResolutionMasterCanvas {
         this.detectedDimensions = null;
         this.dimensionCheckInterval = null;
         this.manuallySetByAutoFit = false;
+        this.canvasDragAspectLock = null;
         this.controls = {};
         this.resolutions = ['144p', '240p', '360p', '480p', '720p', '820p', '1080p', '1440p', '2160p', '4320p'];
 
@@ -92,12 +101,13 @@ class ResolutionMasterCanvas {
             this.node.size[0] = 330;
         }
         const neededHeight = this.calculateNeededHeight();
-        if (neededHeight > 0) {
-            this.node.size[1] = Math.max(neededHeight, this.node.min_size[1]);
-        } else {
-            if (this.node.size[1] < this.node.min_size[1]) {
-                this.node.size[1] = this.node.min_size[1];
-            }
+        const preferredHeight = this.userPreferredHeight ?? this.getStoredPreferredHeight() ?? 0;
+        const targetHeight = Math.max(neededHeight, preferredHeight, this.node.min_size[1]);
+
+        if (Math.abs(this.node.size[1] - targetHeight) > 1) {
+            this._isApplyingAutoSize = true;
+            this.node.size[1] = targetHeight;
+            this._isApplyingAutoSize = false;
         }
     }
     
@@ -105,22 +115,25 @@ class ResolutionMasterCanvas {
         const props = this.node.properties;
         if (!props || props.mode !== "Manual") return 0;
         
-        let currentY = LiteGraph.NODE_TITLE_HEIGHT + 2;
-        const spacing = 8;
-        const canvasHeight = 200;
-        currentY += canvasHeight + spacing;
+        let currentY = this.getManualContentStartY();
+        const spacing = this.getManualSpacing();
+        const canvasHeight = this.getManualCanvasHeight(currentY, false);
+        currentY += canvasHeight + this.getCanvasInfoGap();
         currentY += 15 + spacing;
+        if (this.collapsedSections?.extraControls) {
+            return currentY + 20;
+        }
         const sectionHeights = {
             actions: this.collapsedSections?.actions ? 25 : 55,      
             scaling: this.collapsedSections?.scaling ? 25 : 130,    
-            autoDetect: this.collapsedSections?.autoDetect ? 25 : 125, 
-            presets: this.collapsedSections?.presets ? 25 : 90       
+            autoDetect: this.collapsedSections?.autoDetect ? 25 : 135, 
+            presets: this.collapsedSections?.presets ? 25 : 55       
         };
         Object.values(sectionHeights).forEach(height => {
             currentY += height + spacing;
         });
-        if (props.useCustomCalc && props.selectedCategory) {
-            currentY += 40; 
+        if (props.showCalcInfo && props.selectedCategory) {
+            currentY += this.measureCalcInfoMessage().boxHeight + spacing;
         }
         
         return currentY + 20; 
@@ -158,12 +171,15 @@ class ResolutionMasterCanvas {
             targetMegapixels: 2.0,
             rescaleMode: "resolution",
             rescaleValue: 1.0,
+            preserveScalingRatio: false,
             autoDetect: false,
             autoFitOnChange: false,
             autoResizeOnChange: false,
+            autoSnapOnChange: false,
             selectedCategory: "Standard",
             selectedPreset: null,
             useCustomCalc: false,
+            showCalcInfo: false,
             manual_slider_min_w: 64,
             manual_slider_max_w: 2048,
             manual_slider_step_w: 64,
@@ -174,6 +190,9 @@ class ResolutionMasterCanvas {
             section_scaling_collapsed: false,
             section_autoDetect_collapsed: false,
             section_presets_collapsed: false,
+            section_extraControls_collapsed: false,
+            preferred_compact_height: null,
+            preferred_expanded_height: null,
             dropdown_resolution_expanded: false,
             dropdown_category_expanded: false,
             dropdown_preset_expanded: false,
@@ -185,6 +204,96 @@ class ResolutionMasterCanvas {
             this.node.properties[key] = this.node.properties[key] ?? defaultValue;
         });
     }
+
+    getManualContentStartY() {
+        return this.collapsedSections?.extraControls ? 2 : LiteGraph.NODE_TITLE_HEIGHT + 2;
+    }
+
+    getManualSpacing() {
+        return this.collapsedSections?.extraControls ? 4 : 8;
+    }
+
+    getCanvasInfoGap() {
+        return this.collapsedSections?.extraControls ? 4 : this.getManualSpacing();
+    }
+
+    getManualBottomPadding() {
+        return this.collapsedSections?.extraControls ? 8 : 20;
+    }
+
+    getManualCanvasHeight(currentY = this.getManualContentStartY(), useAvailableHeight = true) {
+        if (!this.collapsedSections?.extraControls) {
+            return 200;
+        }
+
+        if (!useAvailableHeight) {
+            return 200;
+        }
+
+        const spacing = this.getManualSpacing();
+        const bottomContentHeight = this.collapsedSections?.extraControls
+            ? 15 + this.getManualBottomPadding()
+            : this.getCanvasInfoGap() + 15 + spacing + this.getManualBottomPadding();
+        const availableHeight = this.node.size[1] - currentY - bottomContentHeight;
+        return Math.max(200, availableHeight);
+    }
+
+    normalizeInputSlots() {
+        if (!Array.isArray(this.node.inputs) || this.node.inputs.length <= 1) {
+            return;
+        }
+
+        const keepIndex = this.node.inputs.findIndex(input => input?.link != null);
+        const canonicalInput = this.node.inputs[keepIndex >= 0 ? keepIndex : 0];
+        canonicalInput.name = canonicalInput.localized_name = "input_image";
+        canonicalInput.hidden = false;
+        this.node.inputs = [canonicalInput];
+    }
+
+    applyCompactSlotLabels() {
+        this.normalizeInputSlots();
+        const isCompact = this.collapsedSections?.extraControls || false;
+
+        this.node.inputs?.forEach(input => {
+            input.name = "input_image";
+            input.hidden = false;
+
+            if (isCompact) {
+                input.label = " ";
+                input.localized_name = " ";
+                input.displayName = " ";
+            } else {
+                input.label = "input_image";
+                input.localized_name = "input_image";
+                input.displayName = "input_image";
+            }
+        });
+
+        if (!this.node._resolutionMasterHasStoredGetInputLabel) {
+            this.node._resolutionMasterOriginalGetInputLabel = this.node.getInputLabel;
+            this.node._resolutionMasterHasStoredGetInputLabel = true;
+        }
+        if (isCompact) {
+            this.node.getInputLabel = function(slot) {
+                if (slot === 0) return " ";
+                return this._resolutionMasterOriginalGetInputLabel
+                    ? this._resolutionMasterOriginalGetInputLabel.call(this, slot)
+                    : this.inputs?.[slot]?.localized_name || this.inputs?.[slot]?.name || " ";
+            };
+        } else if (this.node._resolutionMasterHasStoredGetInputLabel) {
+            this.node.getInputLabel = function(slot) {
+                if (slot === 0) return "input_image";
+                return this._resolutionMasterOriginalGetInputLabel
+                    ? this._resolutionMasterOriginalGetInputLabel.call(this, slot)
+                    : this.inputs?.[slot]?.localized_name || this.inputs?.[slot]?.name || "";
+            };
+        }
+
+        this.node.outputs?.forEach(output => {
+            output.hidden = false;
+            output.name = output.localized_name = "";
+        });
+    }
     
     
     setupNode() {
@@ -192,8 +301,10 @@ class ResolutionMasterCanvas {
         const self = this;
         node.size = [330, 400]; 
         node.min_size = [330, 200]; 
+        this.applyCompactSlotLabels();
         if (node.outputs) {
             node.outputs.forEach(output => {
+                output.hidden = false;
                 output.name = output.localized_name = "";
             });
         }
@@ -233,7 +344,17 @@ class ResolutionMasterCanvas {
             self.drawInterface(ctx);
         };
         node.onMouseDown = function(e, pos, canvas) {
-            if (e.canvasY - this.pos[1] < 0) return false;
+            const relX = e.canvasX - this.pos[0];
+            const relY = e.canvasY - this.pos[1];
+            if (self.controls.compactHelpBtn && self.isPointInControl(relX, relY, self.controls.compactHelpBtn)) {
+                self.showHelpDialog();
+                return true;
+            }
+            if (self.controls.compactToggleBtn && self.isPointInControl(relX, relY, self.controls.compactToggleBtn)) {
+                self.handleSectionHeaderClick('extraControlsHeader');
+                return true;
+            }
+            if (relY < 0) return false;
             return self.handleMouseDown(e, pos, canvas);
         };
         
@@ -254,6 +375,9 @@ class ResolutionMasterCanvas {
             self.handlePropertyChange(property);
         };
         node.onResize = function() {
+            if (!self._isApplyingAutoSize) {
+                self.storePreferredHeight(this.size[1]);
+            }
             self.ensureMinimumSize();
             app.graph.setDirtyCanvas(true);
         };
@@ -286,8 +410,11 @@ class ResolutionMasterCanvas {
                     actions: this.properties.section_actions_collapsed,
                     scaling: this.properties.section_scaling_collapsed,
                     autoDetect: this.properties.section_autoDetect_collapsed,
-                    presets: this.properties.section_presets_collapsed
+                    presets: this.properties.section_presets_collapsed,
+                    extraControls: this.properties.section_extraControls_collapsed
                 };
+                self.userPreferredHeight = self.getStoredPreferredHeight();
+                self.applyCompactSlotLabels();
                 
                 // Update internal position from saved properties
                 self.updateCanvasFromWidgets();
@@ -312,12 +439,13 @@ class ResolutionMasterCanvas {
         const node = this.node;
         const props = node.properties;
         const margin = 10;
-        const spacing = 8;
+        const spacing = this.getManualSpacing();
         
-        let currentY = LiteGraph.NODE_TITLE_HEIGHT + 2;
+        let currentY = this.getManualContentStartY();
         
         if (props.mode === "Manual") {
             this.controls = {};
+            this.applyCompactSlotLabels();
             
             const collapsibleSection = (title, sectionKey, drawContent) => {
                 const contentHeight = drawContent(ctx, currentY + 25, true);
@@ -330,49 +458,53 @@ class ResolutionMasterCanvas {
                 currentY += sectionInfo.totalHeight + spacing;
             };
 
-            const canvasHeight = 200;
-            this.draw2DCanvas(ctx, margin, currentY, node.size[0] - margin * 2, canvasHeight);
-            currentY += canvasHeight + spacing;
-            
-            this.drawInfoText(ctx, currentY);
+            const canvasHeight = this.getManualCanvasHeight(currentY);
+            const canvasPadding = this.collapsedSections.extraControls ? 8 : 20;
+            this.draw2DCanvas(ctx, margin, currentY, node.size[0] - margin * 2, canvasHeight, canvasPadding);
+            currentY += canvasHeight + this.getCanvasInfoGap();
+
+            const infoY = this.lastCanvasBounds
+                ? this.lastCanvasBounds.y + this.lastCanvasBounds.h + 18
+                : currentY;
+            this.drawInfoText(ctx, infoY);
             currentY += 15 + spacing;
 
-            collapsibleSection("Actions", "actions", (ctx, y, preview) => {
-                if (!preview) this.drawPrimaryControls(ctx, y);
-                return 30;
-            });
-            
-            collapsibleSection("Scaling", "scaling", (ctx, y, preview) => {
-                if (!preview) return this.drawScalingGrid(ctx, y);
-                return 105;
-            });
-            
-            collapsibleSection("Auto-Detect", "autoDetect", (ctx, y, preview) => {
-                if (!preview) return this.drawAutoDetectSection(ctx, y);
-                return 100;
-            });
-            
-            collapsibleSection("Presets", "presets", (ctx, y, preview) => {
-                if (!preview) return this.drawPresetSection(ctx, y);
-                return 30;
-            });
-            if (props.useCustomCalc && props.selectedCategory) {
-                const messageHeight = this.drawInfoMessage(ctx, currentY);
-                if (messageHeight > 0) {
-                    currentY += messageHeight + spacing;
+            if (this.collapsedSections.extraControls) {
+            } else {
+                collapsibleSection("Actions", "actions", (ctx, y, preview) => {
+                    if (!preview) this.drawPrimaryControls(ctx, y);
+                    return 30;
+                });
+                
+                collapsibleSection("Scaling", "scaling", (ctx, y, preview) => {
+                    if (!preview) return this.drawScalingGrid(ctx, y);
+                    return 130;
+                });
+                
+                collapsibleSection("Auto-Detect", "autoDetect", (ctx, y, preview) => {
+                    if (!preview) return this.drawAutoDetectSection(ctx, y);
+                    return 110;
+                });
+                
+                collapsibleSection("Presets", "presets", (ctx, y, preview) => {
+                    if (!preview) return this.drawPresetSection(ctx, y);
+                    return 30;
+                });
+                if (props.showCalcInfo && props.selectedCategory) {
+                    const messageHeight = this.drawInfoMessage(ctx, currentY);
+                    if (messageHeight > 0) {
+                        currentY += messageHeight + spacing;
+                    }
                 }
+                this.drawOutputValues(ctx);
             }
-            this.drawOutputValues(ctx);
+            this.drawCompactToggleButton(ctx);
 
         } else if (props.mode === "Manual Sliders") {
             this.drawSliderMode(ctx, currentY);
         }
         
-        const neededHeight = currentY + 20;
-        const heightDiff = Math.abs(node.size[1] - neededHeight);
-        if (heightDiff > 1) {
-            node.size[1] = Math.max(neededHeight, node.min_size[1]);
-        }
+        this.ensureMinimumSize();
         if (this.showTooltip && this.tooltipElement && this.tooltips[this.tooltipElement]) {
             this.drawTooltip(ctx);
         }
@@ -425,7 +557,53 @@ class ResolutionMasterCanvas {
         
         return { totalHeight, isCollapsed, contentStartY: y + headerHeight };
     }
-    
+
+    drawCompactToggleButton(ctx) {
+        const isActive = this.collapsedSections.extraControls || false;
+        const buttonSize = 18;
+        const x = this.node.size[0] - buttonSize - 9;
+        const y = -LiteGraph.NODE_TITLE_HEIGHT + 5;
+        const helpX = x - buttonSize - 6;
+        this.controls.compactHelpBtn = { x: helpX, y, w: buttonSize, h: buttonSize };
+        this.controls.compactToggleBtn = { x, y, w: buttonSize, h: buttonSize };
+
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        ctx.strokeStyle = this.hoverElement === 'compactHelpBtn'
+            ? "rgba(255,255,255,0.65)"
+            : "rgba(255,255,255,0.25)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(helpX, y, buttonSize, buttonSize, 5);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = this.hoverElement === 'compactHelpBtn' ? "#fff" : "#cfcfcf";
+        ctx.font = "bold 13px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("?", helpX + buttonSize / 2, y + buttonSize / 2 + 0.5);
+
+        ctx.fillStyle = isActive ? "rgba(90, 170, 255, 0.45)" : "rgba(255,255,255,0.08)";
+        ctx.strokeStyle = this.hoverElement === 'compactToggleBtn'
+            ? "rgba(255,255,255,0.65)"
+            : isActive ? "rgba(120, 190, 255, 0.85)" : "rgba(255,255,255,0.25)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(x, y, buttonSize, buttonSize, 5);
+        ctx.fill();
+        ctx.stroke();
+
+        const label = isActive ? "+" : "-";
+        ctx.fillStyle = this.hoverElement === 'compactToggleBtn' || isActive ? "#fff" : "#cfcfcf";
+        ctx.font = isActive ? "bold 13px Arial" : "bold 18px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        const metrics = ctx.measureText(label);
+        const minusOffsetY = isActive ? 0 : 0.4;
+        const textY = y + buttonSize / 2 - (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent) / 2 + metrics.actualBoundingBoxAscent + minusOffsetY;
+        ctx.fillText(label, x + buttonSize / 2, textY);
+    }
+
     drawOutputValues(ctx) {
         const node = this.node;
         const props = node.properties;
@@ -444,41 +622,17 @@ class ResolutionMasterCanvas {
             const valueAreaHeight = 20;
             const valueAreaX = node.size[0] - valueAreaWidth - 5;
             const batchSizeAreaX = node.size[0] - batchSizeAreaWidth - 5;
-            this.controls.widthValueArea = {
-                x: valueAreaX,
-                y: y_offset_1 - valueAreaHeight/2,
-                w: valueAreaWidth,
-                h: valueAreaHeight
-            };
-            
-            this.drawValueAreaHoverBackground(ctx, 'widthValueArea', valueAreaX, y_offset_1 - valueAreaHeight/2, valueAreaWidth, valueAreaHeight, [136, 153, 255]);
-
-            ctx.fillStyle = this.hoverElement === 'widthValueArea' ? "#89F" : "#89F";
-            ctx.fillText(this.widthWidget.value.toString(), node.size[0] - 20, y_offset_1);
-            this.controls.heightValueArea = {
-                x: valueAreaX,
-                y: y_offset_2 - valueAreaHeight/2,
-                w: valueAreaWidth,
-                h: valueAreaHeight
-            };
-            
-            this.drawValueAreaHoverBackground(ctx, 'heightValueArea', valueAreaX, y_offset_2 - valueAreaHeight/2, valueAreaWidth, valueAreaHeight, [248, 136, 153]);
-            
-            ctx.fillStyle = this.hoverElement === 'heightValueArea' ? "#F89" : "#F89";
-            ctx.fillText(this.heightWidget.value.toString(), node.size[0] - 20, y_offset_2);
+            this.drawOutputValueArea(ctx, 'widthValueArea', valueAreaX, y_offset_1 - valueAreaHeight/2,
+                valueAreaWidth, valueAreaHeight, this.widthWidget.value.toString(), y_offset_1,
+                [136, 153, 255], "#89F", "#89F");
+            this.drawOutputValueArea(ctx, 'heightValueArea', valueAreaX, y_offset_2 - valueAreaHeight/2,
+                valueAreaWidth, valueAreaHeight, this.heightWidget.value.toString(), y_offset_2,
+                [248, 136, 153], "#F89", "#F89");
             ctx.fillStyle = "#9F8";
             ctx.fillText(props.rescaleValue.toFixed(2), node.size[0] - 20, y_offset_3);
-            this.controls.batchSizeValueArea = {
-                x: batchSizeAreaX,
-                y: y_offset_4 - valueAreaHeight/2,
-                w: batchSizeAreaWidth,
-                h: valueAreaHeight
-            };
-            
-            this.drawValueAreaHoverBackground(ctx, 'batchSizeValueArea', batchSizeAreaX, y_offset_4 - valueAreaHeight/2, batchSizeAreaWidth, valueAreaHeight, [255, 136, 187]);
-            
-            ctx.fillStyle = this.hoverElement === 'batchSizeValueArea' ? "#FAB" : "#F8B";
-            ctx.fillText(this.batchSizeWidget.value.toString(), node.size[0] - 20, y_offset_4);
+            this.drawOutputValueArea(ctx, 'batchSizeValueArea', batchSizeAreaX, y_offset_4 - valueAreaHeight/2,
+                batchSizeAreaWidth, valueAreaHeight, this.batchSizeWidget.value.toString(), y_offset_4,
+                [255, 136, 187], "#FAB", "#F8B");
             const y_offset_5 = 5 + (LiteGraph.NODE_SLOT_HEIGHT * 4.5);
             
             // Create clickable area for LAT selector
@@ -510,6 +664,31 @@ class ResolutionMasterCanvas {
                 ctx.fillText(shortType, node.size[0] - 20, y_offset_5 + 12);
             }
         }
+    }
+
+    getPreferredHeightPropertyKey(isCompact = this.collapsedSections?.extraControls) {
+        return isCompact ? 'preferred_compact_height' : 'preferred_expanded_height';
+    }
+
+    getStoredPreferredHeight(isCompact = this.collapsedSections?.extraControls) {
+        const value = Number(this.node.properties?.[this.getPreferredHeightPropertyKey(isCompact)]);
+        return Number.isFinite(value) && value > 0 ? value : null;
+    }
+
+    storePreferredHeight(height = this.node.size?.[1], isCompact = this.collapsedSections?.extraControls) {
+        const value = Math.max(Number(height) || 0, this.node.min_size?.[1] || 0);
+        if (value > 0) {
+            this.node.properties[this.getPreferredHeightPropertyKey(isCompact)] = value;
+        }
+        this.userPreferredHeight = value || null;
+    }
+
+    drawOutputValueArea(ctx, controlName, x, y, w, h, text, textY, hoverColor, activeTextColor, textColor) {
+        const node = this.node;
+        this.controls[controlName] = { x, y, w, h };
+        this.drawValueAreaHoverBackground(ctx, controlName, x, y, w, h, hoverColor);
+        ctx.fillStyle = this.hoverElement === controlName ? activeTextColor : textColor;
+        ctx.fillText(text, node.size[0] - 20, textY);
     }
     
     drawPrimaryControls(ctx, y) {
@@ -546,7 +725,7 @@ class ResolutionMasterCanvas {
         ctx.fillText(props.snapValue.toString(), snapValueX + 10, y + 14);
     }
     
-    draw2DCanvas(ctx, x, y, w, h) {
+    draw2DCanvas(ctx, x, y, w, h, padding = 20) {
         const node = this.node;
         const props = node.properties;
         
@@ -556,8 +735,8 @@ class ResolutionMasterCanvas {
         const rangeY = props.canvas_max_y - props.canvas_min_y;
         const aspectRatio = rangeX / rangeY;
         
-        let canvasW = w - 20;
-        let canvasH = h - 20;
+        let canvasW = w - padding;
+        let canvasH = h - padding;
         
         if (aspectRatio > canvasW / canvasH) {
             canvasH = canvasW / aspectRatio;
@@ -569,6 +748,7 @@ class ResolutionMasterCanvas {
         const offsetY = y + (h - canvasH) / 2;
         
         this.controls.canvas2d = { x: offsetX, y: offsetY, w: canvasW, h: canvasH };
+        this.lastCanvasBounds = this.controls.canvas2d;
         
         ctx.fillStyle = "rgba(20,20,20,0.8)";
         ctx.strokeStyle = "rgba(0,0,0,0.5)";
@@ -581,11 +761,29 @@ class ResolutionMasterCanvas {
         if (props.canvas_dots) {
             ctx.fillStyle = "rgba(200,200,200,0.5)";
             ctx.beginPath();
-            let stX = canvasW * props.canvas_step_x / rangeX;
-            let stY = canvasH * props.canvas_step_y / rangeY;
-            for (let ix = stX; ix < canvasW; ix += stX) {
-                for (let iy = stY; iy < canvasH; iy += stY) {
-                    ctx.rect(offsetX + ix - 0.5, offsetY + iy - 0.5, 1, 1);
+            const stepX = Math.max(Number(props.canvas_step_x) || 1, 1);
+            const stepY = Math.max(Number(props.canvas_step_y) || 1, 1);
+            const gridXs = [];
+            const gridYs = [];
+            const addUniqueGridPoint = (points, point) => {
+                if (!points.some(existingPoint => Math.abs(existingPoint - point) < 0.5)) {
+                    points.push(point);
+                }
+            };
+
+            for (let valueX = props.canvas_min_x; valueX <= props.canvas_max_x; valueX += stepX) {
+                const ratioX = (valueX - props.canvas_min_x) / rangeX;
+                addUniqueGridPoint(gridXs, offsetX + canvasW * ratioX);
+            }
+
+            for (let valueY = props.canvas_min_y; valueY <= props.canvas_max_y; valueY += stepY) {
+                const ratioY = (valueY - props.canvas_min_y) / rangeY;
+                addUniqueGridPoint(gridYs, offsetY + canvasH * (1 - ratioY));
+            }
+
+            for (const dotX of gridXs) {
+                for (const dotY of gridYs) {
+                    ctx.rect(dotX - 0.5, dotY - 0.5, 1, 1);
                 }
             }
             ctx.fill();
@@ -724,8 +922,23 @@ class ResolutionMasterCanvas {
             min: props.megapixels_slider_min, max: props.megapixels_slider_max, step: props.megapixels_slider_step,
             displayValue: `${props.targetMegapixels.toFixed(1)}MP`, scaleFactor: mpScale, rescaleMode: 'megapixels'
         });
+
+        const checkboxSize = 18;
+        const ratioY = y + 105;
+        const checkboxLabel = "Prioritize ratio";
+        ctx.font = "12px Arial";
+        const labelWidth = ctx.measureText(checkboxLabel).width;
+        const checkboxGap = 6;
+        const groupWidth = checkboxSize + checkboxGap + labelWidth;
+        const checkboxX = margin + (this.node.size[0] - margin * 2 - groupWidth) / 2;
+        this.controls.preserveScalingRatioCheckbox = { x: checkboxX, y: ratioY + 3, w: checkboxSize, h: checkboxSize };
+        this.drawCheckbox(ctx, checkboxX, ratioY + 3, checkboxSize, props.preserveScalingRatio, this.hoverElement === 'preserveScalingRatioCheckbox');
+        ctx.fillStyle = this.hoverElement === 'preserveScalingRatioCheckbox' ? "#5af" : "#ccc";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(checkboxLabel, checkboxX + checkboxSize + checkboxGap, ratioY + 12);
         
-        return 105;
+        return 130;
     }
 
     drawAutoDetectSection(ctx, y) {
@@ -733,71 +946,73 @@ class ResolutionMasterCanvas {
         const props = node.properties;
         const margin = 20;
         const availableWidth = node.size[0] - margin * 2;
-        const gap = 8;
-        
-        const toggleWidth = 110;
+        const gap = 6;
+        const toggleWidth = 140;
         const checkboxWidth = 18;
-        const checkboxLabelWidth = 30;
-        const autoFitWidth = availableWidth - toggleWidth - checkboxWidth - checkboxLabelWidth - (gap * 2);
 
-        let currentX = margin;
         let currentY = y;
-        this.controls.autoDetectToggle = { x: currentX, y: currentY, w: toggleWidth, h: 28 };
-        this.drawToggle(ctx, currentX, currentY, toggleWidth, 28, props.autoDetect,
+        this.controls.autoDetectToggle = { x: margin, y: currentY, w: toggleWidth, h: 28 };
+        this.drawToggle(ctx, margin, currentY, toggleWidth, 28, props.autoDetect,
                        props.autoDetect ? "Auto-detect ON" : "Auto-detect OFF",
                        this.hoverElement === 'autoDetectToggle');
-        
-        const autoFitStartX = currentX + toggleWidth + gap;
-        this.controls.autoFitBtn = { x: autoFitStartX, y: currentY, w: autoFitWidth, h: 28 };
-        const btnEnabled = props.selectedCategory; 
-        this.drawButton(ctx, autoFitStartX, currentY, autoFitWidth, 28, this.icons.autoFit, this.hoverElement === 'autoFitBtn', !btnEnabled, "Auto-fit");
-        
-        const autoCheckboxX = autoFitStartX + autoFitWidth + gap;
-        this.controls.autoFitCheckbox = { x: autoCheckboxX, y: currentY + 5, w: checkboxWidth, h: 18 };
-        this.drawCheckbox(ctx, autoCheckboxX, currentY + 5, checkboxWidth, props.autoFitOnChange, this.hoverElement === 'autoFitCheckbox', !btnEnabled);
-        
-        ctx.fillStyle = btnEnabled ? "#ddd" : "#777";
-        ctx.font = "11px Arial";
-        ctx.textAlign = "left";
-        ctx.fillText("Auto", autoCheckboxX + checkboxWidth + 4, currentY + 14);
-        currentY += 35;
+
         if (props.autoDetect && this.detectedDimensions) {
-            const detectedText = `Detected: ${this.detectedDimensions.width}×${this.detectedDimensions.height}`;
-            ctx.font = "12px Arial";
-            const textWidth = ctx.measureText(detectedText).width;
-            const toggleCenterX = margin + (toggleWidth / 2);
-            const textX = toggleCenterX - (textWidth / 2);
-            this.controls.detectedInfo = { x: textX - 5, y: currentY + 2, w: textWidth + 10, h: 24 };
-            
-            this.drawValueAreaHoverBackground(ctx, 'detectedInfo', textX - 5, currentY + 2, textWidth + 10, 20, [95, 255, 95]);
-            
+            const detectedText = `Detected: ${this.detectedDimensions.width}x${this.detectedDimensions.height}`;
+            const detectedX = margin + toggleWidth + gap;
+            const detectedWidth = availableWidth - toggleWidth - gap;
+            this.controls.detectedInfo = { x: detectedX, y: currentY + 2, w: detectedWidth, h: 24 };
+
+            this.drawValueAreaHoverBackground(ctx, 'detectedInfo', detectedX, currentY + 2, detectedWidth, 20, [95, 255, 95]);
+
             ctx.fillStyle = this.hoverElement === 'detectedInfo' ? "#7f7" : "#5f5";
-            ctx.textAlign = "left";
-            ctx.fillText(detectedText, textX, currentY + 14);
+            ctx.font = "12px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(detectedText, detectedX + detectedWidth / 2, currentY + 14);
         }
-        this.controls.autoResizeBtn = { x: autoFitStartX, y: currentY, w: autoFitWidth, h: 28 };
-        this.drawButton(ctx, autoFitStartX, currentY, autoFitWidth, 28, this.icons.autoResize, this.hoverElement === 'autoResizeBtn', false, "Auto-Resize");
-        this.controls.autoResizeCheckbox = { x: autoCheckboxX, y: currentY + 5, w: checkboxWidth, h: 18 };
-        this.drawCheckbox(ctx, autoCheckboxX, currentY + 5, checkboxWidth, props.autoResizeOnChange, this.hoverElement === 'autoResizeCheckbox');
-        
-        ctx.fillStyle = "#ddd";
-        ctx.font = "11px Arial";
-        ctx.textAlign = "left";
-        ctx.fillText("Auto", autoCheckboxX + checkboxWidth + 4, currentY + 14);
+
         currentY += 35;
-        
-        this.controls.autoCalcBtn = { x: autoFitStartX, y: currentY, w: autoFitWidth, h: 28 };
-        const calcEnabled = props.useCustomCalc && props.selectedCategory;
-        this.drawButton(ctx, autoFitStartX, currentY, autoFitWidth, 28, this.icons.autoCalculate, this.hoverElement === 'autoCalcBtn', !calcEnabled, "Auto-calc");
-        this.controls.customCalcCheckbox = { x: autoCheckboxX, y: currentY + 5, w: checkboxWidth, h: 18 };
-        this.drawCheckbox(ctx, autoCheckboxX, currentY + 5, checkboxWidth, props.useCustomCalc, this.hoverElement === 'customCalcCheckbox');
-        
-        ctx.fillStyle = "#ddd";
-        ctx.font = "11px Arial";
-        ctx.textAlign = "left";
-        ctx.fillText("Calc", autoCheckboxX + checkboxWidth + 4, currentY + 14);
-        
-        return 100;
+
+        const actionGap = 8;
+        const rowGap = 6;
+        const actionWidth = (availableWidth - actionGap) / 2;
+        const actionButtonWidth = actionWidth - checkboxWidth - 4;
+        const showToggleWidth = 56;
+        const calcEnabled = !!props.selectedCategory;
+        const actions = [
+            { button: 'autoFitBtn', checkbox: 'autoFitCheckbox', icon: this.icons.autoFit, label: 'Fit', checked: props.autoFitOnChange, disabled: !props.selectedCategory, col: 0, row: 0 },
+            { button: 'autoResizeBtn', checkbox: 'autoResizeCheckbox', icon: this.icons.autoResize, label: 'Resize', checked: props.autoResizeOnChange, disabled: false, col: 0, row: 1 },
+            { button: 'autoSnapBtn', checkbox: 'autoSnapCheckbox', icon: this.icons.snap, label: 'Snap', checked: props.autoSnapOnChange, disabled: false, col: 1, row: 0 },
+            { button: 'autoCalcBtn', checkbox: 'customCalcCheckbox', icon: this.icons.autoCalculate, label: 'Calc', checked: props.useCustomCalc, disabled: !calcEnabled, col: 1, row: 1, showInfoToggle: true, textOffset: 8 }
+        ];
+
+        actions.forEach((action) => {
+            const x = margin + action.col * (actionWidth + actionGap);
+            const actionY = currentY + action.row * (28 + rowGap);
+            const buttonWidth = action.showInfoToggle ? actionWidth - checkboxWidth - showToggleWidth - 8 : actionButtonWidth;
+            this.controls[action.button] = { x, y: actionY, w: buttonWidth, h: 28 };
+            this.drawButton(ctx, x, actionY, buttonWidth, 28, action.icon, this.hoverElement === action.button, action.disabled, action.label, false, action.textOffset || 0);
+
+            if (action.showInfoToggle) {
+                const toggleX = x + buttonWidth + 4;
+                this.controls.calcInfoToggle = { x: toggleX, y: actionY + 3, w: showToggleWidth, h: 22 };
+                const previousAlpha = ctx.globalAlpha;
+                if (action.disabled) ctx.globalAlpha = 0.5;
+                this.drawToggle(ctx, toggleX, actionY + 3, showToggleWidth, 22, props.showCalcInfo, "Show", this.hoverElement === 'calcInfoToggle');
+                ctx.globalAlpha = previousAlpha;
+
+                this.drawAutoDetectActionCheckbox(ctx, action, toggleX + showToggleWidth + 4, actionY, checkboxWidth);
+            } else {
+                this.drawAutoDetectActionCheckbox(ctx, action, x + buttonWidth + 4, actionY, checkboxWidth);
+            }
+        });
+
+        return 110;
+    }
+
+    drawAutoDetectActionCheckbox(ctx, action, x, y, size) {
+        this.controls[action.checkbox] = { x, y: y + 5, w: size, h: 18 };
+        this.drawCheckbox(ctx, x, y + 5, size, action.checked, this.hoverElement === action.checkbox, action.disabled);
     }
     
     drawPresetSection(ctx, y) {
@@ -836,55 +1051,71 @@ class ResolutionMasterCanvas {
         return currentHeight;
     }
     
-    drawInfoMessage(ctx, y) {
-        const node = this.node;
-        const props = node.properties;
+    getCalcInfoMessage() {
+        const props = this.node.properties;
         const category = props.selectedCategory;
-        
-        let message = "";
-        if (category === "SDXL" && props.useCustomCalc) {
-            message = "💡 SDXL Mode: Only using presets!";
-        } else if (category === "Flux" && props.useCustomCalc) {
-            message = "💡 FLUX Mode: Round to: 32px | Edge range: 320-2560px | Max resolution: 4.0 MP";
-        } else if (category === "Flux.2" && props.useCustomCalc) {
-            message = "💡 FLUX.2 Mode: Round to: 16px | Edge range: 320-3840px | Max resolution: 6.0 MP";
-        } else if (category === "WAN" && props.useCustomCalc && this.widthWidget && this.heightWidget) {
+
+        if (category === "SDXL") {
+            return "💡 SDXL Mode: Only using presets!";
+        } else if (category === "Flux") {
+            return "💡 FLUX Mode: Round to: 32px | Edge range: 320-2560px | Max resolution: 4.0 MP";
+        } else if (category === "Flux.2") {
+            return "💡 FLUX.2 Mode: Round to: 16px | Edge range: 320-3840px | Max resolution: 6.0 MP";
+        } else if (category === "WAN" && this.widthWidget && this.heightWidget) {
             const pixels = this.widthWidget.value * this.heightWidget.value;
             const model = pixels < 600000 ? "480p" : "720p";
-            message = `💡 WAN Mode: Suggesting ${model} model | Round to: 16px | Resolution range: 320p-820p`;
-        } else if (category === "HiDream Dev" && props.useCustomCalc) {
-            message = "💡 HiDream Dev: Only using presets!";
-        } else if (category === "Qwen-Image" && props.useCustomCalc) {
-            message = "💡 Qwen-Image: Resolution range: ~0.6MP-4.2MP. If input is already in this range, it remains unchanged.";
-        } else if (['Standard', 'Social Media', 'Print', 'Cinema'].includes(category) && props.useCustomCalc) {
-            message = "💡 Calc Mode: Scales the selected preset to the closest current resolution, maintaining the preset's aspect ratio.";
-        } else if (props.useCustomCalc) {
-            message = "⚠️ Calc Mode: Custom calculation not available for this category)";
+            return `💡 WAN Mode: Suggesting ${model} model | Round to: 16px | Resolution range: 320p-820p`;
+        } else if (category === "HiDream Dev") {
+            return "💡 HiDream Dev: Only using presets!";
+        } else if (category === "Qwen-Image") {
+            return "💡 Qwen-Image: Resolution range: ~0.6MP-4.2MP. If input is already in this range, it remains unchanged.";
+        } else if (['Standard', 'Social Media', 'Print', 'Cinema'].includes(category)) {
+            return "💡 Calc Mode: Scales the selected preset to the closest current resolution, maintaining the preset's aspect ratio.";
         }
-        
-        if (message) {
-           const paddingX = 10;
-           const paddingTop = 8;
-           const paddingBottom = 8;
-           const lineHeight = 14;
-           const maxWidth = node.size[0] - 40 - (paddingX * 2);
-           ctx.font = "11px Arial";
-           const words = message.split(' ');
-           const lines = [];
-           let currentLine = '';
-           for (const word of words) {
-               const testLine = currentLine ? `${currentLine} ${word}` : word;
-               if (ctx.measureText(testLine).width > maxWidth && currentLine) {
-                   lines.push(currentLine);
-                   currentLine = word;
-               } else {
-                   currentLine = testLine;
-               }
-           }
-           if (currentLine) lines.push(currentLine);
+        return "⚠️ Calc Mode: Custom calculation not available for this category)";
+    }
 
-           const textHeight = lines.length * lineHeight - (lineHeight - ctx.measureText("M").width);
-           const boxHeight = textHeight + paddingTop + paddingBottom;
+    getMeasureContext() {
+        if (!this.measureContext && typeof document !== "undefined") {
+            this.measureContext = document.createElement("canvas").getContext("2d");
+        }
+        return this.measureContext;
+    }
+
+    measureCalcInfoMessage(ctx = null) {
+        const message = this.getCalcInfoMessage();
+        if (!message) return { boxHeight: 0 };
+
+        const measureCtx = ctx || this.getMeasureContext();
+        const paddingX = 10;
+        const paddingTop = 8;
+        const paddingBottom = 8;
+        const lineHeight = 14;
+        const maxWidth = this.node.size[0] - 40 - (paddingX * 2);
+        const words = message.split(' ');
+        const lines = [];
+        let currentLine = '';
+
+        if (measureCtx) measureCtx.font = "11px Arial";
+        for (const word of words) {
+            const testLine = currentLine ? `${currentLine} ${word}` : word;
+            const testWidth = measureCtx ? measureCtx.measureText(testLine).width : testLine.length * 6;
+            if (testWidth > maxWidth && currentLine) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        }
+        if (currentLine) lines.push(currentLine);
+
+        return { boxHeight: lines.length * lineHeight + paddingTop + paddingBottom, lines, paddingTop, lineHeight };
+    }
+
+    drawInfoMessage(ctx, y) {
+        const node = this.node;
+        const { boxHeight, lines = [], paddingTop = 8, lineHeight = 14 } = this.measureCalcInfoMessage(ctx);
+        if (boxHeight > 0) {
            ctx.fillStyle = "rgba(250, 165, 90, 0.15)";
            ctx.strokeStyle = "rgba(250, 165, 90, 0.5)";
            ctx.beginPath();
@@ -932,7 +1163,7 @@ class ResolutionMasterCanvas {
         
         return y + 45;
     }
-    drawButton(ctx, x, y, w, h, content, hover = false, disabled = false, text = null, centerIconAndText = false) {
+    drawButton(ctx, x, y, w, h, content, hover = false, disabled = false, text = null, centerIconAndText = false, textOffset = 0) {
         const grad = ctx.createLinearGradient(x, y, x, y + h);
         if (disabled) {
             grad.addColorStop(0, "#4a4a4a");
@@ -1009,7 +1240,7 @@ class ResolutionMasterCanvas {
                     ctx.fillText(text, textX, y + h / 2 + 1);
                 } else {
                     ctx.textAlign = "center";
-                    ctx.fillText(text, x + w / 2, y + h / 2 + 1);
+                    ctx.fillText(text, x + w / 2 + textOffset, y + h / 2 + 1);
                 }
             }
         }
@@ -1125,7 +1356,8 @@ class ResolutionMasterCanvas {
         ctx.font = "bold 11px Arial";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(text, x + w / 2, y + h / 2 + 1);
+        const textOffset = isOn ? -(h * 0.25) : (h * 0.25);
+        ctx.fillText(text, x + w / 2 + textOffset, y + h / 2 + 1);
     }
     
     drawValueAreaHoverBackground(ctx, controlName, x, y, w, h, color, borderRadius = 4) {
@@ -1233,6 +1465,7 @@ class ResolutionMasterCanvas {
             const c2d = this.controls.canvas2d;
             if (c2d && this.isPointInControl(relX, relY, c2d)) {
                 node.capture = 'canvas2d';
+                this.canvasDragAspectLock = this.createAspectLock();
                 node.captureInput(true);
                 this.updateCanvasValue(relX - c2d.x, relY - c2d.y, c2d.w, c2d.h, e.shiftKey, e.ctrlKey);
                 return true;
@@ -1391,6 +1624,7 @@ class ResolutionMasterCanvas {
         if (!node.capture) return false;
         
         node.capture = false;
+        this.canvasDragAspectLock = null;
         node.captureInput(false);
         
         if (this.widthWidget && this.heightWidget) {
@@ -1405,6 +1639,10 @@ class ResolutionMasterCanvas {
     
     handlePropertyChange(property) {
         const node = this.node;
+        if (property?.startsWith('section_') && property.endsWith('_collapsed')) {
+            const sectionKey = property.replace(/^section_/, '').replace(/_collapsed$/, '');
+            this.collapsedSections[sectionKey] = node.properties[property];
+        }
         if (!node.configured) return;
         
         node.intpos.x = (node.properties.valueX - node.properties.canvas_min_x) / 
@@ -1427,11 +1665,67 @@ class ResolutionMasterCanvas {
             megapixelsBtn: () => this.handleMegapixelsScale(),
             autoFitBtn: () => this.handleAutoFit(),
             autoResizeBtn: () => this.handleAutoResize(),
+            autoSnapBtn: () => this.handleSnap(),
             autoCalcBtn: () => this.handleAutoCalc(),
             detectedInfo: () => this.handleDetectedClick(),
-            managePresetsBtn: () => this.handleManagePresets()
+            managePresetsBtn: () => this.handleManagePresets(),
+            compactHelpBtn: () => this.showHelpDialog()
         };
         actions[buttonName]?.();
+    }
+
+    showHelpDialog() {
+        this.closeHelpDialog();
+
+        const overlay = document.createElement('div');
+        this.helpDialogOverlay = overlay;
+        overlay.style.cssText = `
+            position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+            z-index: 9999; display: flex; align-items: center; justify-content: center;
+        `;
+        overlay.addEventListener('mousedown', (e) => {
+            if (e.target === overlay) this.closeHelpDialog();
+        });
+
+        const dialog = document.createElement('div');
+        this.helpDialog = dialog;
+        dialog.addEventListener('mousedown', (e) => e.stopPropagation());
+        dialog.style.cssText = `
+            width: min(420px, calc(100vw - 40px));
+            background: linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%);
+            border: 1px solid rgba(160, 190, 255, 0.45);
+            border-radius: 8px; box-shadow: 0 12px 36px rgba(0,0,0,0.75);
+            color: #ddd; font-family: Arial, sans-serif; padding: 18px;
+        `;
+
+        dialog.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
+                <div style="font-size:16px; font-weight:700; color:#fff;">Resolution Master Help</div>
+                <button type="button" data-close style="width:28px; height:28px; border-radius:5px; border:1px solid #555; background:#333; color:#ddd; cursor:pointer; font-size:16px; line-height:1;">×</button>
+            </div>
+            <div style="font-size:12px; line-height:1.55; color:#cfcfcf;">
+                <div style="font-weight:700; color:#fff; margin-bottom:4px;">2D Canvas shortcuts</div>
+                <div>Drag: set width and height</div>
+                <div>Shift + drag: keep aspect ratio</div>
+                <div>Ctrl + drag: disable canvas snap</div>
+                <div>Ctrl + Shift + drag: keep exact aspect ratio</div>
+                <div style="font-weight:700; color:#fff; margin:14px 0 4px;">Project</div>
+                <a href="https://github.com/Azornes/Comfyui-Resolution-Master" target="_blank" rel="noopener noreferrer" style="color:#8fc7ff; text-decoration:none;">Azornes/Comfyui-Resolution-Master</a>
+                <div style="margin-top:10px; color:#aaa;">If this node helps you, please consider starring the repository.</div>
+            </div>
+        `;
+
+        dialog.querySelector('[data-close]')?.addEventListener('click', () => this.closeHelpDialog());
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+    }
+
+    closeHelpDialog() {
+        if (this.helpDialogOverlay?.parentNode) {
+            this.helpDialogOverlay.parentNode.removeChild(this.helpDialogOverlay);
+        }
+        this.helpDialogOverlay = null;
+        this.helpDialog = null;
     }
 
     handleToggleClick(toggleName) {
@@ -1443,6 +1737,9 @@ class ResolutionMasterCanvas {
             const widget = this.node.widgets?.find(w => w.name === 'auto_detect');
             if (widget) widget.value = props.autoDetect;
             app.graph.setDirtyCanvas(true);
+        } else if (toggleName === 'calcInfoToggle' && props.selectedCategory) {
+            props.showCalcInfo = !props.showCalcInfo;
+            app.graph.setDirtyCanvas(true);
         }
     }
 
@@ -1452,8 +1749,12 @@ class ResolutionMasterCanvas {
             props.autoFitOnChange = !props.autoFitOnChange;
         } else if (checkboxName === 'autoResizeCheckbox') {
             props.autoResizeOnChange = !props.autoResizeOnChange;
+        } else if (checkboxName === 'autoSnapCheckbox') {
+            props.autoSnapOnChange = !props.autoSnapOnChange;
         } else if (checkboxName === 'customCalcCheckbox') {
             props.useCustomCalc = !props.useCustomCalc;
+        } else if (checkboxName === 'preserveScalingRatioCheckbox') {
+            props.preserveScalingRatio = !props.preserveScalingRatio;
         }
         app.graph.setDirtyCanvas(true);
     }
@@ -1472,9 +1773,15 @@ class ResolutionMasterCanvas {
     
     handleSectionHeaderClick(headerKey) {
         const sectionKey = headerKey.replace('Header', '');
+        if (sectionKey === 'extraControls') {
+            this.storePreferredHeight(this.node.size[1], this.collapsedSections.extraControls);
+        }
         this.collapsedSections[sectionKey] = !this.collapsedSections[sectionKey];
         const propertyKey = `section_${sectionKey}_collapsed`;
         this.node.properties[propertyKey] = this.collapsedSections[sectionKey];
+        if (sectionKey === 'extraControls') {
+            this.userPreferredHeight = this.getStoredPreferredHeight(this.collapsedSections.extraControls);
+        }
         app.graph.setDirtyCanvas(true, true);
         
         log.debug(`Section ${sectionKey} ${this.collapsedSections[sectionKey] ? 'collapsed' : 'expanded'}`);
@@ -1557,8 +1864,9 @@ class ResolutionMasterCanvas {
         ctx.fillText(config.displayValue, currentX + layout.valueWidth / 2, y + 14);
         currentX += layout.valueWidth + layout.gap;
         if (this.validateWidgets() && config.scaleFactor) {
-            const newW = Math.round(this.widthWidget.value * config.scaleFactor);
-            const newH = Math.round(this.heightWidget.value * config.scaleFactor);
+            const dimensions = this.calculateScaledDimensions(config.scaleFactor);
+            const newW = dimensions.width;
+            const newH = dimensions.height;
             this.setCanvasTextStyle(ctx, { fillStyle: "#888", font: "11px Arial", textAlign: "left" });
             ctx.fillText(`${newW}×${newH}`, currentX, y + 14);
         }
@@ -1574,26 +1882,21 @@ class ResolutionMasterCanvas {
         let vX = Math.max(0, Math.min(1, x / w));
         let vY = Math.max(0, Math.min(1, 1 - y / h));
         if (ctrlKey && shiftKey) {
-            const currentAspect = this.widthWidget.value / this.heightWidget.value;
-            
             let newX = props.canvas_min_x + (props.canvas_max_x - props.canvas_min_x) * vX;
             let newY = props.canvas_min_y + (props.canvas_max_y - props.canvas_min_y) * vY;
-            newX = Math.round(newX);
-            newY = Math.round(newY);
-            newY = Math.round(newX / currentAspect);
+            const lockedDimensions = this.getAspectLockedDimensions(newX, newY);
+            newX = lockedDimensions.width;
+            newY = lockedDimensions.height;
             vX = (newX - props.canvas_min_x) / (props.canvas_max_x - props.canvas_min_x);
             vY = (newY - props.canvas_min_y) / (props.canvas_max_y - props.canvas_min_y);
         }
         else if (shiftKey && !ctrlKey) {
-            const currentAspect = this.widthWidget.value / this.heightWidget.value;
-            
             let newX = props.canvas_min_x + (props.canvas_max_x - props.canvas_min_x) * vX;
             let newY = props.canvas_min_y + (props.canvas_max_y - props.canvas_min_y) * vY;
-            let sX = props.canvas_step_x / (props.canvas_max_x - props.canvas_min_x);
-            let sY = props.canvas_step_y / (props.canvas_max_y - props.canvas_min_y);
-            vX = Math.round(vX / sX) * sX;
-            newX = props.canvas_min_x + (props.canvas_max_x - props.canvas_min_x) * vX;
-            newY = newX / currentAspect;
+            const lockedDimensions = this.getAspectLockedDimensions(newX, newY, true);
+            newX = lockedDimensions.width;
+            newY = lockedDimensions.height;
+            vX = (newX - props.canvas_min_x) / (props.canvas_max_x - props.canvas_min_x);
             vY = (newY - props.canvas_min_y) / (props.canvas_max_y - props.canvas_min_y);
         }
         else if (ctrlKey && !shiftKey) {
@@ -1618,6 +1921,98 @@ class ResolutionMasterCanvas {
         if (props.valueX !== newX || props.valueY !== newY) {
             this.setDimensions(newX, newY);
         }
+    }
+
+    createAspectLock() {
+        const width = Math.max(1, Math.round(Number(this.widthWidget?.value) || this.node.properties.valueX || 1));
+        const height = Math.max(1, Math.round(Number(this.heightWidget?.value) || this.node.properties.valueY || 1));
+        const divisor = ResolutionMasterCanvas.gcd(width, height);
+        const ratioX = width / divisor;
+        const ratioY = height / divisor;
+
+        return {
+            aspect: width / height,
+            ratioX,
+            ratioY
+        };
+    }
+
+    getCanvasAspectLock() {
+        if (!this.canvasDragAspectLock) {
+            this.canvasDragAspectLock = this.createAspectLock();
+        }
+        return this.canvasDragAspectLock;
+    }
+
+    getAspectLockedDimensions(targetWidth, targetHeight, snapToGrid = false) {
+        const props = this.node.properties;
+        const lock = this.getCanvasAspectLock();
+        const minScale = Math.max(
+            1,
+            Math.ceil(props.canvas_min_x / lock.ratioX),
+            Math.ceil(props.canvas_min_y / lock.ratioY)
+        );
+        const maxScale = Math.max(minScale, Math.min(
+            Math.floor(props.canvas_max_x / lock.ratioX),
+            Math.floor(props.canvas_max_y / lock.ratioY)
+        ));
+
+        if (snapToGrid) {
+            return this.createGridAspectCandidate(targetWidth, targetHeight, lock);
+        }
+
+        const rangeX = Math.max(1, props.canvas_max_x - props.canvas_min_x);
+        const rangeY = Math.max(1, props.canvas_max_y - props.canvas_min_y);
+        const candidates = [
+            this.createAspectCandidate(targetWidth / lock.ratioX, minScale, maxScale, 1, lock),
+            this.createAspectCandidate(targetHeight / lock.ratioY, minScale, maxScale, 1, lock)
+        ];
+
+        return candidates.reduce((best, candidate) => {
+            const distance = Math.hypot(
+                (candidate.width - targetWidth) / rangeX,
+                (candidate.height - targetHeight) / rangeY
+            );
+            if (!best || distance < best.distance) {
+                return { ...candidate, distance };
+            }
+            return best;
+        }, null);
+    }
+
+    createGridAspectCandidate(targetWidth, targetHeight, lock) {
+        const props = this.node.properties;
+        const stepX = Math.max(1, Math.round(Number(props.canvas_step_x) || 1));
+        const stepY = Math.max(1, Math.round(Number(props.canvas_step_y) || 1));
+        const targetAspect = targetWidth / Math.max(1, targetHeight);
+        const widthControls = targetAspect <= lock.aspect;
+        const minScale = Math.max(
+            1,
+            Math.ceil(props.canvas_min_x / lock.ratioX),
+            Math.ceil(props.canvas_min_y / lock.ratioY)
+        );
+        const maxScale = Math.max(minScale, Math.min(
+            Math.floor(props.canvas_max_x / lock.ratioX),
+            Math.floor(props.canvas_max_y / lock.ratioY)
+        ));
+
+        const targetScale = widthControls
+            ? targetWidth / lock.ratioX
+            : targetHeight / lock.ratioY;
+        const desiredStep = widthControls ? stepX / lock.ratioX : stepY / lock.ratioY;
+        const scaleStep = Math.max(1, Math.round(desiredStep));
+
+        return this.createAspectCandidate(targetScale, minScale, maxScale, scaleStep, lock);
+    }
+
+    createAspectCandidate(targetScale, minScale, maxScale, scaleStep, lock) {
+        const snappedScale = Math.round(targetScale / scaleStep) * scaleStep;
+        const scale = Math.max(minScale, Math.min(maxScale, snappedScale));
+
+        return {
+            width: lock.ratioX * scale,
+            height: lock.ratioY * scale
+        };
     }
     
     updateCanvasValueWidth(x, w, ctrlKey) {
@@ -1855,9 +2250,13 @@ class ResolutionMasterCanvas {
     handleSnap() {
         if (!this.validateWidgets()) return;
         
-        const snap = this.node.properties.snapValue;
-        const newWidth = Math.round(this.widthWidget.value / snap) * snap;
-        const newHeight = Math.round(this.heightWidget.value / snap) * snap;
+        const props = this.node.properties;
+        const snap = Math.max(1, Number(props.snapValue) || 1);
+        const minWidth = Math.max(1, snap, Number(props.manual_slider_min_w) || 1, Number(props.canvas_min_x) || 0);
+        const minHeight = Math.max(1, snap, Number(props.manual_slider_min_h) || 1, Number(props.canvas_min_y) || 0);
+        const snapDimension = (value, minValue) => Math.max(minValue, Math.round(value / snap) * snap);
+        const newWidth = snapDimension(this.widthWidget.value, minWidth);
+        const newHeight = snapDimension(this.heightWidget.value, minHeight);
         this.setDimensions(newWidth, newHeight);
     }
     
@@ -1865,13 +2264,39 @@ class ResolutionMasterCanvas {
         if (!this.validateWidgets()) return;
         
         const scale = scaleCalculator();
-        const newWidth = Math.round(this.widthWidget.value * scale);
-        const newHeight = Math.round(this.heightWidget.value * scale);
+        const dimensions = this.calculateScaledDimensions(scale);
         if (resetValue) {
             resetValue();
         }
         
-        this.setDimensions(newWidth, newHeight);
+        this.setDimensions(dimensions.width, dimensions.height);
+    }
+
+    calculateScaledDimensions(scale) {
+        if (this.node.properties.preserveScalingRatio) {
+            return this.calculateRatioPreservingScaledDimensions(scale);
+        }
+
+        return {
+            width: Math.round(this.widthWidget.value * scale),
+            height: Math.round(this.heightWidget.value * scale)
+        };
+    }
+
+    calculateRatioPreservingScaledDimensions(scale) {
+        const currentWidth = Math.max(1, Math.round(Number(this.widthWidget.value) || 1));
+        const currentHeight = Math.max(1, Math.round(Number(this.heightWidget.value) || 1));
+        const divisor = ResolutionMasterCanvas.gcd(currentWidth, currentHeight);
+        const ratioX = currentWidth / divisor;
+        const ratioY = currentHeight / divisor;
+        const targetPixels = currentWidth * currentHeight * scale * scale;
+        const ratioPixels = ratioX * ratioY;
+        const ratioScale = Math.max(1, Math.round(Math.sqrt(targetPixels / ratioPixels)));
+
+        return {
+            width: ratioX * ratioScale,
+            height: ratioY * ratioScale
+        };
     }
 
     handleScale() {
@@ -1938,8 +2363,8 @@ class ResolutionMasterCanvas {
     handleAutoCalc() {
         const props = this.node.properties;
         
-        if (!props.useCustomCalc || !props.selectedCategory) {
-            log.debug("Auto-calc: Calc checkbox or category not selected");
+        if (!props.selectedCategory) {
+            log.debug("Auto-calc: Category not selected");
             return;
         }
         
@@ -2274,33 +2699,23 @@ class ResolutionMasterCanvas {
                     this.manuallySetByAutoFit = false;
                     
                     const props = node.properties;
-                    if (props.autoDetect && !props.autoFitOnChange && !props.useCustomCalc) {
-                        if (this.widthWidget && this.heightWidget) {
-                            this.widthWidget.value = this.detectedDimensions.width;
-                            this.heightWidget.value = this.detectedDimensions.height;
-                            this.setDimensions(this.detectedDimensions.width, this.detectedDimensions.height);
-                        }
-                    }
-                    else if (props.autoFitOnChange && !props.useCustomCalc && props.selectedCategory) {
+                    if (props.autoFitOnChange && props.selectedCategory) {
                         this.applyAutoFit(this.detectedDimensions.width, this.detectedDimensions.height, false, props.selectedCategory, 'detected');
-                    }
-                    else if (props.autoFitOnChange && props.useCustomCalc && props.selectedCategory) {
-                        this.applyAutoFit(this.detectedDimensions.width, this.detectedDimensions.height, true, props.selectedCategory, 'detected');
-                    }
-                    else if (props.autoDetect && !props.autoFitOnChange && props.useCustomCalc && props.selectedCategory) {
-                        if (this.widthWidget && this.heightWidget) {
-                            this.widthWidget.value = this.detectedDimensions.width;
-                            this.heightWidget.value = this.detectedDimensions.height;
-                            this.applyDimensionChange(); 
-                        }
                     }
                     else if (props.autoDetect && this.widthWidget && this.heightWidget) {
                         this.widthWidget.value = this.detectedDimensions.width;
                         this.heightWidget.value = this.detectedDimensions.height;
                         this.setDimensions(this.detectedDimensions.width, this.detectedDimensions.height);
                     }
+
                     if (props.autoResizeOnChange) {
                         this.handleAutoResize();
+                    }
+                    if (props.autoSnapOnChange) {
+                        this.handleSnap();
+                    }
+                    if (props.useCustomCalc && props.selectedCategory) {
+                        this.handleAutoCalc();
                     }
                     
                     app.graph.setDirtyCanvas(true);

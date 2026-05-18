@@ -26,6 +26,7 @@ export const tooltips = {
     megapixelsBtn: "Scale to target megapixel count",
     megapixelsRadio: "Use megapixel-based scaling for rescale output",
     megapixelsValueArea: "Click to set custom megapixel value (e.g., 3.5MP)",
+    preserveScalingRatioCheckbox: "Prioritize the current aspect ratio when applying scaling. Final dimensions may be slightly above or below the selected scale, p-value, or megapixel target.",
     
     // Auto-detect controls
     autoDetectToggle: "Automatically detect resolution from connected image input",
@@ -33,15 +34,21 @@ export const tooltips = {
     autoFitCheckbox: "Automatically find and apply the best preset for the new detected image resolution",
     autoResizeBtn: "Apply scaling based on selected mode (Manual/Resolution/Megapixels)",
     autoResizeCheckbox: "Automatically apply scaling when new image is detected",
+    autoSnapBtn: "Snap current resolution to the nearest snap value",
+    autoSnapCheckbox: "Automatically snap after Auto-Resize when a new image is detected",
     detectedInfo: "Click to apply detected image resolution directly",
     
     // Preset controls
-    categoryDropdown: "Select preset category (Standard, SDXL, Flux, HiDream Dev, Qwen-Image, etc.)",
+    categoryDropdown: "Select preset category (Standard, SDXL, Flux, Flux.2, WAN, HiDream Dev, Qwen-Image, etc.)",
     presetDropdown: "Choose specific preset from selected category",
-    customCalcCheckbox: "Automatically apply model-specific optimizations for the new detected image resolution (read orange information below)",
-    autoCalcBtn: "Apply model-specific optimizations for current resolution (read orange information below)",
+    customCalcCheckbox: "Automatically apply model-specific optimizations for the new detected image resolution",
+    autoCalcBtn: "Apply model-specific optimizations for current resolution",
+    calcInfoToggle: "Show or hide information about the selected Calc mode",
+    compactToggleBtn: "Hide/show all extra control sections below the 2D canvas",
+    compactHelpBtn: "Open Resolution Master help and project link",
     
     // Section headers
+    extraControlsHeader: "Toggle Canvas Only mode to hide/show all extra control sections",
     actionsHeader: "Click to collapse/expand Actions section",
     scalingHeader: "Click to collapse/expand Scaling section",
     autoDetectHeader: "Click to collapse/expand Auto-Detect section",

@@ -1,7 +1,7 @@
 <h1 align="center">ResolutionMaster – Precise resolution and aspect ratio control for ComfyUI</h1>
 
 
-<p align="center"><i>ResolutionMaster A powerful and feature-rich ComfyUI custom node for precise resolution and aspect ratio control in AI image generation workflows. This node provides an intuitive interface with advanced scaling options, preset management, and model-specific optimizations.</i></p>
+<p align="center"><i>ResolutionMaster is a powerful ComfyUI custom node for precise resolution and aspect ratio control in AI image generation workflows. It provides an intuitive interface with advanced scaling options, preset management, latent output, and model-specific optimizations.</i></p>
 
 <p align="center">
 
@@ -25,13 +25,13 @@
   <strong>⚠️ <a href="https://github.com/Azornes/Comfyui-Resolution-Master/tree/main?tab=readme-ov-file#%EF%B8%8F-known-issues--compatibility">Known Issues</a></strong>
 </p>
 
-
 https://github.com/user-attachments/assets/f9b51c0f-677c-410e-8980-3f75bb4f8032
 
 https://github.com/user-attachments/assets/f15ea0c2-0a65-4578-b2c7-db812bf4020c
 
+---
 
-## Features
+## Detailed Features
 
 ### 🎯 Core Functionality
 - **Interactive 2D Canvas Control**: Visually select resolution with real-time preview
@@ -56,6 +56,7 @@ Extensive preset library organized by use case:
 - **Standard**: Common aspect ratios (1:1, 4:3, 16:9, 21:9, etc.)
 - **SDXL**: Optimized resolutions for Stable Diffusion XL
 - **Flux**: Flux model optimized presets with smart constraints
+- **Flux.2**: Flux.2 optimized presets with 128-channel latent support
 - **WAN**: Video model presets with resolution recommendations
 - **HiDream Dev**: HiDream model optimized presets
 - **Qwen-Image**: Qwen-Image model optimized presets
@@ -66,33 +67,14 @@ Extensive preset library organized by use case:
 
 ### 🤖 Model-Specific Optimizations
 
-#### SDXL Mode
-- Enforces officially supported resolutions
-- Fixed dimensions for optimal generation quality
-
-#### Flux Mode
-- 32px increment enforcement
-- Resolution range: 320px to 2560px
-- Maximum 4.0 megapixels constraint
-- Sweet spot recommendation: 1920×1080
-
-#### WAN Mode
-- Flexible 320p to 820p range
-- 16px increments for video encoding compatibility
-- Automatic model recommendation (480p vs 720p)
-- Maintains proper aspect ratios for video generation
-
-#### HiDream Dev Mode
-- Preset-based optimization system
-- Uses closest matching preset from HiDream Dev category
-- Automatically selects best preset based on input dimensions and aspect ratio
-- Supports both original and flipped orientations for optimal matching
-
-#### Qwen-Image Mode
-- Resolution range: ~0.6MP to 4.2MP (589,824 to 4,194,304 pixels)
-- Smart scaling: If input is already within range, dimensions remain unchanged
-- Automatic scaling: Input outside range is scaled to fit while maintaining aspect ratio
-- Preserves original dimensions when already optimized
+| Mode | Best For | Optimization Rules |
+|------|----------|--------------------|
+| **SDXL** | Stable Diffusion XL generation | Enforces officially supported fixed resolutions for optimal generation quality |
+| **Flux** | Flux image workflows | Uses 32px increments, keeps dimensions between 320px and 2560px, and limits output to 4.0 MP |
+| **Flux.2** | Flux.2 workflows | Uses Flux.2-specific preset matching and supports the `latent_128x16` latent type |
+| **WAN** | Video generation | Supports 320p to 820p, uses 16px increments, keeps video-friendly ratios, and recommends 480p or 720p |
+| **HiDream Dev** | HiDream preset matching | Finds the closest HiDream Dev preset by dimensions and aspect ratio, including flipped orientations |
+| **Qwen-Image** | Qwen-Image workflows | Keeps images in the ~0.6 MP to 4.2 MP range, preserving valid inputs and scaling out-of-range inputs |
 
 ---
 
@@ -164,6 +146,7 @@ For new image generation:
 - **⬆ Manual Scale Button**: Applies the manual scale factor to current dimensions
 - **📺 Resolution Button**: Scales to target resolution (e.g., 1080p)
 - **📷 Megapixels Button**: Scales to target megapixel count
+- **Prioritize Ratio Checkbox**: Preserves the current aspect ratio as the top priority when applying scaling. The final dimensions may be slightly above or below the selected scale, p-value, or megapixel target.
 - **Radio Buttons**: Select which scaling mode affects the `rescale_factor` output
 
 ### Auto-Detect Section
@@ -171,22 +154,30 @@ For new image generation:
   - Monitors input connection every second
   - Updates dimensions when new image is detected
   - Shows detected resolution in green text
+- Auto-Detect buttons can be clicked manually. The checkbox beside each button enables that same action automatically for newly detected images.
 - **🎯 Auto-fit Button**: Finds best matching preset for current dimensions
   - Analyzes both aspect ratio and total pixels
   - Checks both normal and flipped orientations
   - Applies category-specific scaling when Custom Calc is enabled
-- **Auto Checkbox**: Enable automatic fitting when dimensions change
-  - Located next to Auto-Fit button
+- **Fit Checkbox**: Automatically run Fit when dimensions change
+  - Located next to the Fit button
   - Only active when category is selected and image detected
 - **📐 Auto-Resize Button**: Applies scaling based on selected mode (Manual/Resolution/Megapixels)
   - Integrates with active scaling mode from Scaling section
   - Maintains manual scale value without reset to 1.0x
-- **Auto Checkbox**: Automatically apply scaling when new image is detected
+- **Resize Checkbox**: Automatically apply scaling when new image is detected
   - Works in sequence after Auto-fit (if enabled)
   - Applies chosen scaling mode to detected dimensions
+- **Auto-Snap Button**: Snaps current dimensions to the configured snap value
+  - Uses the same snap logic as the Snap button in the Actions section
+  - Prevents dimensions from snapping down to 0; small dimensions snap up to at least one snap step
+- **Snap Checkbox**: Automatically snap dimensions after Resize when a new image is detected
+  - Runs in sequence after Auto-Fit and Auto-Resize
+  - Useful for keeping detected or resized dimensions aligned to model-friendly multiples
 - **Detected Text (green)**: Click to apply the detected image's original dimensions
 - **⚡ Auto-calc Button**: Applies model-specific calculations to current dimensions
-- **Calc Checkbox**: Enables automatic model-specific optimizations
+- **Calc Checkbox**: Automatically applies model-specific optimizations after Fit, Resize, and Snap
+- **Show Toggle**: Shows or hides the orange Calc information panel without changing Auto-Calc behavior
 
 ### Presets Section
 - **Category Dropdown**: Select preset category (Standard, SDXL, Flux, etc.)
@@ -224,6 +215,8 @@ You can customize various parameters by accessing the node's Properties panel in
 - **`megapixels_slider_step`**: Step increment for megapixels slider (default: 0.1)
 
 ### Section Collapse States
+- **`section_extraControls_collapsed`**: Canvas Only mode state. When enabled, all extra control sections below the 2D canvas are hidden (default: false)
+  - Toggle it with the compact button in the top-right corner of the node title bar.
 - **`section_actions_collapsed`**: Actions section collapsed state (default: false)
 - **`section_scaling_collapsed`**: Scaling section collapsed state (default: false)
 - **`section_autoDetect_collapsed`**: Auto-Detect section collapsed state (default: false)
@@ -409,6 +402,7 @@ The node provides three scaling methods that work together:
    - Resolution: Target specific output resolution
    - Megapixels: Target specific pixel count
 3. **Apply Scale**: Updates dimensions while maintaining aspect ratio
+   - Enable **Prioritize Ratio** when exact aspect ratio should matter more than hitting the scale target exactly. For example, a 3.0 MP target may resolve to 2.99 MP or 3.01 MP if that is the closest exact-ratio result.
 4. **Use Rescale Factor**: Connect to upscaling nodes in your workflow
 
 ### Snap Functionality
@@ -422,19 +416,14 @@ The node provides three scaling methods that work together:
   - **Ctrl + Drag**: Disables snap for fine-tuning without grid constraints
   - **Ctrl + Shift + Drag**: Preserves aspect ratio with 1px precision (no snap)
 
-### Auto-Detect & Auto-Fit
+### Auto-Detect Automation Order
 
-- **Auto-Detect Toggle**: Automatically detects dimensions from connected images
-  - Monitors input connection every second
-  - Updates dimensions when new image is detected
-  - Shows detected resolution in green text
-- **Auto-Fit Button**: Intelligently matches detected dimensions to closest preset
-  - Analyzes both aspect ratio and total pixels
-  - Checks both normal and flipped orientations
-  - Applies category-specific scaling when Custom Calc is enabled
-- **Auto Checkbox**: Enable automatic fitting when dimensions change
-  - Located next to Auto-Fit button
-  - Only active when category is selected and image detected
+The detailed controls are described in **Understanding the Controls > Auto-Detect Section**. When multiple Auto-Detect checkboxes are enabled, actions run in this order:
+
+1. **Fit**: Match the detected size to the closest preset.
+2. **Resize**: Apply the active scaling mode.
+3. **Snap**: Round dimensions to the configured snap value.
+4. **Calc**: Apply model-specific constraints.
 
 ---
 
@@ -451,8 +440,9 @@ The node provides three scaling methods that work together:
   - Use this when you need to generate multiple images with the same resolution settings
   - Connect to nodes that support batch processing
 - **latent** (LATENT): Generated empty latent tensor ready for sampling
-  - Automatically created based on width, height, and batch_size
-  - Dimensions: [batch_size, 4, height÷8, width÷8]
+  - Automatically created based on width, height, batch_size, and latent_type
+  - `latent_4x8`: `[batch_size, 4, height/8, width/8]` for SD/SDXL/Flux-style latents
+  - `latent_128x16`: `[batch_size, 128, height/16, width/16]` for Flux.2-style latents
   - Connect directly to KSampler or other sampling nodes
   - Eliminates the need for a separate "Empty Latent Image" node
 
@@ -471,6 +461,8 @@ Each scaling row shows:
 - Calculated scale factor
 - Preview of resulting dimensions
 - Radio button to set as active rescale mode
+
+When **Prioritize Ratio** is enabled, the preview and applied dimensions use the closest exact aspect-ratio match. This can make the final output slightly different from the selected 1.1x, p-value, or MP target.
 
 ---
 
@@ -519,9 +511,12 @@ Workflow Setup:
 When using auto-detect with scaling:
 
 1. **Auto-detect updates base resolution** from connected images
-2. **Your scaling mode remains active** (manual/resolution/megapixel)
-3. **rescale_factor recalculates** to maintain your scaling intent
-4. **Canvas drag operations** update base resolution but preserve scaling intent
+2. **Auto-Fit can match the detected size** to the closest preset when enabled
+3. **Auto-Resize can apply the active scaling mode** (manual/resolution/megapixel)
+4. **Auto-Snap can round the result** to the configured snap value when enabled
+5. **Auto-Calc can apply model-specific constraints** when enabled
+6. **rescale_factor recalculates** to maintain your scaling intent
+7. **Canvas drag operations** update base resolution but preserve scaling intent
 
 This design allows **resolution-independent workflows** where you can swap input images without breaking your scaling logic.
 
@@ -574,7 +569,7 @@ The rescale_factor **always reflects your active scaling mode**, not the drag op
 ## Tips & Best Practices
 
 1. **Start with Presets**: Use category presets as starting points, then fine-tune
-2. **Enable Custom Calc**: For SDXL, Flux, and WAN models to ensure compatibility
+2. **Enable Custom Calc**: For SDXL, Flux, Flux.2, WAN, HiDream Dev, and Qwen-Image workflows to keep dimensions model-friendly
 3. **Use Snap for Clean Values**: Helps avoid odd dimensions that may cause issues
 4. **Monitor Info Messages**: Pay attention to mode-specific recommendations
 5. **Leverage Rescale Factor**: Connect to upscaling nodes for resolution-independent workflows

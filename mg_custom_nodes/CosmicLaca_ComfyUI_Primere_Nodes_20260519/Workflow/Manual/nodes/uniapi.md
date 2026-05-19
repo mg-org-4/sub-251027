@@ -79,50 +79,255 @@ After editing `api_schemas.json`, use the **↺ Reload API Schema** button at th
 
 ---
 
-### Kling v3/o3 multi-prompt + elements input convention
+### LLM role-based prompt syntax (global feature)
 
-For Kling schemas, Uniapi now supports building `multi_prompt` and `elements` from existing node inputs:
+Uniapi now supports a global role-based prompt syntax for language models that require structured message formats. This syntax is **optional** and **provider-specific** - you must know whether your selected API provider and service requires role-based messages.
 
-- This logic is enabled **only** when `model_type` is:
-  - `reference-to-video`
-  - `video-to-video/reference`
-- For all other Kling `model_type` values, Uniapi ignores multiprompt conversion and ignores custom-path elements.
+#### When to use role syntax:
 
-- `prompt` input (single multiline string) is split by separator lines that contain only `---`.
-- If the separator is present (multi-prompt mode):
-  - all blocks are converted into `multi_prompt` items (including the first block),
-  - `prompt` is forced to an empty string (`""`),
-  - `shot_type` is auto-set to `"customize"`.
-  - `duration` is auto-overwritten to the sum of all multiprompt item durations.
-- If no separator is present (single prompt mode):
-  - `prompt` is sent as a normal single prompt,
-  - `multi_prompt` and `shot_type` are omitted.
-- Each multiprompt block can end with `::duration`.
-  - Example: `Camera pans left ...::5`
-  - Output item becomes:
-    - `{"prompt": "Camera pans left ...", "duration": "5"}`
-- If `::duration` is missing, duration defaults to `"Default"`.
-- In duration sum, `"Default"` is treated as **5 seconds**.
+- **Use role syntax** for LLM providers that expect structured messages (e.g., chat APIs, conversation APIs)
+- **Do NOT use role syntax** for text-to-image providers or APIs that expect simple string prompts
+- When in doubt, check your provider's API documentation or test both formats
 
-`elements` are sourced from `custom_path_1` to `custom_path_4` (`PATH` inputs):
+#### Syntax format:
 
-- Each `custom_path_N` input produces at most one `elements[N-1]` object.
-- All local files are uploaded with the provider uploader when available.
-- Within each `custom_path_N` list:
-  - the **first image** becomes `frontal_image_url` (required for valid element object),
-  - any additional images become `reference_image_urls` list,
-  - the first video (if any) becomes `video_url` string,
-  - non-image/non-video files are ignored for Kling elements.
-- If a `custom_path_N` list has no image, that element object is skipped.
-- Element index is determined by `custom_path` input order and maps to Kling references like `@Element1`, `@Element2`, etc.
-
-For variable-length references, prefer schema request body mapping:
-
-```json
-"elements": "{{elements}}"
+```
+prompt_text::role
+---
+prompt_text::role
 ```
 
-instead of fixed, hard-coded element array blocks.
+- `::role` specifies the message role (e.g., `system`, `user`, `assistant`)
+- `---` separates different messages (one separator line containing only `---`)
+- Roles are case-insensitive and normalized to lowercase
+- Messages without explicit roles default to `user`
+
+#### Examples:
+
+**Simple LLM chat:**
+```
+You are a helpful assistant::system
+---
+Explain quantum computing in simple terms::user
+```
+
+Parses to:
+```json
+{
+  "messages": [
+    {"role": "system", "content": "You are a helpful assistant"},
+    {"role": "user", "content": "Explain quantum computing in simple terms"}
+  ]
+}
+```
+
+**Multi-turn conversation:**
+```
+System instruction::system
+---
+First question::user
+---
+Assistant response::assistant
+---
+Follow-up question::user
+```
+
+**Mixed with default roles:**
+```
+System setup::system
+---
+User query without role specification
+---
+Another message::user
+```
+
+The second message automatically gets `user` role.
+
+#### Schema integration:
+
+For providers that support structured messages, use the `{{llm_messages}}` placeholder in your schema:
+
+```json
+{
+  "request": {
+    "sdk_call": {
+      "kwargs": {
+        "messages": "{{llm_messages}}",
+        "model": "{{model}}"
+      }
+    }
+  }
+}
+```
+
+#### Important notes:
+
+1. **Backward compatibility**: Simple prompts without `::` syntax continue to work as before
+2. **Provider awareness**: You must know your provider's requirements
+3. **Debug outputs**: Check `REQUEST_BODY` and `RAW_PAYLOAD` outputs to verify message structure
+4. **Role validation**: Invalid or unsupported roles may cause API errors
+
+### Kling v3/o3 multi-prompt + elements input convention
+
+For Kling video generation models, Uniapi provides automatic conversion of prompts and elements into the structured format required by the Kling API.
+
+#### When multi-prompt conversion is active:
+
+This feature is **automatically enabled** only for these Kling `model_type` values:
+- `reference-to-video`
+- `video-to-video/reference`
+
+For all other Kling model types, multi-prompt conversion is disabled and elements are ignored.
+
+#### Multi-prompt syntax and examples:
+
+**Basic syntax:**
+```
+Prompt block 1
+---
+Prompt block 2
+---
+Prompt block 3
+```
+
+**Key rules:**
+1. Separator lines must contain **only** `---` (with optional whitespace)
+2. Empty blocks are automatically filtered out
+3. Each non-empty block becomes a `multi_prompt` item
+4. Original `prompt` field becomes empty string
+5. `shot_type` is automatically set to `"customize"`
+
+**Example 1: Simple multi-prompt (auto durations)**
+```
+Camera starts on a beautiful sunset
+---
+Slow zoom into the golden clouds
+---
+Transition to a city skyline at dusk
+```
+
+Output structure:
+```json
+{
+  "prompt": "",
+  "shot_type": "customize",
+  "multi_prompt": [
+    {"prompt": "Camera starts on a beautiful sunset", "duration": "Default"},
+    {"prompt": "Slow zoom into the golden clouds", "duration": "Default"},
+    {"prompt": "Transition to a city skyline at dusk", "duration": "Default"}
+  ],
+  "duration": 15  // 3 blocks × 5 seconds each
+}
+```
+
+**Example 2: Custom durations**
+```
+Establishing shot of ancient forest::8
+---
+Camera pans left revealing hidden temple::6
+---
+Quick cut to interior with golden artifacts::4
+```
+
+Output structure:
+```json
+{
+  "prompt": "",
+  "shot_type": "customize",
+  "multi_prompt": [
+    {"prompt": "Establishing shot of ancient forest", "duration": "8"},
+    {"prompt": "Camera pans left revealing hidden temple", "duration": "6"},
+    {"prompt": "Quick cut to interior with golden artifacts", "duration": "4"}
+  ],
+  "duration": 18  // 8 + 6 + 4 = 18 seconds
+}
+```
+
+**Example 3: Single prompt (no separators)**
+```
+A single continuous scene without cuts
+```
+
+Output structure:
+```json
+{
+  "prompt": "A single continuous scene without cuts",
+  "multi_prompt": null,
+  "shot_type": null
+}
+```
+
+#### Duration rules:
+
+- **Explicit duration**: Add `::N` where N is seconds (e.g., `::5`)
+- **Default duration**: If no duration specified, uses `"Default"` (5 seconds)
+- **Total duration**: Sum of all individual durations ("Default" = 5 seconds)
+- **Duration syntax**: Must be at the end of block: `prompt text::duration`
+
+#### Elements from custom paths:
+
+Kling elements are automatically built from `custom_path_1` to `custom_path_4` inputs:
+
+**Element structure per path:**
+```json
+{
+  "frontal_image_url": "URL_of_first_image",
+  "reference_image_urls": ["URL_of_second_image", ...],
+  "video_url": "URL_of_first_video"  // optional
+}
+```
+
+**How elements are constructed:**
+
+1. **Input sources**: `custom_path_1` → `elements[0]`, `custom_path_2` → `elements[1]`, etc.
+2. **Image handling**:
+   - First image → `frontal_image_url` (required)
+   - Additional images → `reference_image_urls` array
+3. **Video handling**: First video → `video_url`
+4. **File upload**: All local files are automatically uploaded via provider uploader
+5. **Validation**: If no images found in a path, that element is skipped
+
+**Example element configuration:**
+- `custom_path_1`: `[main_image.png, ref1.jpg, ref2.jpg]`
+- `custom_path_2`: `[video.mp4, thumbnail.png]`
+
+Results in:
+```json
+{
+  "elements": [
+    {
+      "frontal_image_url": "uploaded/main_image.png",
+      "reference_image_urls": ["uploaded/ref1.jpg", "uploaded/ref2.jpg"]
+    },
+    {
+      "frontal_image_url": "uploaded/thumbnail.png",
+      "video_url": "uploaded/video.mp4"
+    }
+  ]
+}
+```
+
+#### Schema recommendations:
+
+For maximum flexibility, use variable placeholders in your schema:
+
+```json
+{
+  "request": {
+    "sdk_call": {
+      "kwargs": {
+        "prompt": "{{prompt}}",
+        "multi_prompt": "{{multi_prompt}}",
+        "shot_type": "{{shot_type}}",
+        "duration": "{{duration}}",
+        "elements": "{{elements}}"
+      }
+    }
+  }
+}
+```
+
+This allows Uniapi to automatically handle both single-prompt and multi-prompt modes based on your input.
 
 ---
 
@@ -584,8 +789,8 @@ Applies to every call regardless of other parameter values:
 
 ```json
 "parameter_constraints": {
-  "width":  {"min": 256, "max": 1440, "step": 32},
-  "height": {"min": 256, "max": 1440, "step": 32}
+  "width":  {"min": 256, "max": 1440, "step": 32, "def": 1024},
+  "height": {"min": 256, "max": 1440, "step": 32, "def": 1024}
 }
 ```
 
@@ -594,11 +799,13 @@ Applies to every call regardless of other parameter values:
 | `min` | Lower bound. Value is raised to this if below it. Optional. |
 | `max` | Upper bound. Value is capped to this if above it. Optional. |
 | `step` | Snap to nearest lower multiple of this value after clamping. Then re-clamp to `min` if needed. Optional. |
+| `def` | Default value for the input widget. Sets the initial value when the node loads. Optional. |
 
 Processing order: clamp to `max` → clamp to `min` → snap down to `step` multiple → re-clamp to `min`.
 
 Example: input `width = 1500` → capped to `1440` → already a multiple of 32 → result `1440`.
 Example: input `width = 260` → within range → snapped down to `256` (nearest multiple of 32) → re-clamped to `256` → result `256`.
+Example with default: `width` input will initialize with value `1024` when the node is created.
 
 #### Conditional constraint
 
@@ -607,15 +814,17 @@ A list of rules, each with a `when` condition using the same syntax as `request_
 ```json
 "parameter_constraints": {
   "safety_tolerance": [
-    {"when": {"path": "model_name", "equals": "flux-pro-1.1"},       "max": 5},
-    {"when": {"path": "model_name", "equals": "flux-pro-1.1-ultra"}, "max": 6}
+    {"when": {"path": "model_name", "equals": "flux-pro-1.1"},       "max": 5, "def": 3},
+    {"when": {"path": "model_name", "equals": "flux-pro-1.1-ultra"}, "max": 6, "def": 4}
   ]
 }
 ```
 
-Each rule can include `min`, `max`, and/or `step`. The `when` condition checks the resolved value of `path` against `equals` (string comparison).
+Each rule can include `min`, `max`, `step`, and/or `def`. The `when` condition checks the resolved value of `path` against `equals` (string comparison).
 
 If none of the rules match (e.g. a model not listed), no constraint is applied.
+
+For conditional constraints with `def`, the first matching rule's `def` value is used as the default for the input widget.
 
 #### Combining both in one block
 
@@ -632,12 +841,42 @@ Unconditional and conditional constraints can coexist in the same `parameter_con
 }
 ```
 
+#### Default values in constraints
+
+The `def` field in `parameter_constraints` allows you to set default values for numeric input widgets. This is particularly useful for providing sensible starting values instead of the generic `1` or `1.0` defaults.
+
+**Unconditional default:**
+```json
+"parameter_constraints": {
+  "width": {"min": 256, "max": 1440, "step": 32, "def": 1024}
+}
+```
+The `width` input will initialize with value `1024` when the node is created.
+
+**Conditional defaults:**
+```json
+"parameter_constraints": {
+  "safety_tolerance": [
+    {"when": {"path": "model_name", "equals": "flux-2-max"}, "max": 5, "def": 3},
+    {"when": {"path": "model_name", "equals": "flux-2-pro"},  "max": 5, "def": 4}
+  ]
+}
+```
+The first matching rule's `def` value is used. If `model_name` is `"flux-2-max"`, the `safety_tolerance` input will default to `3`.
+
+**Key behaviors:**
+- `def` values are only used for UI initialization - they don't affect runtime constraint processing
+- If no `def` is specified, the widget falls back to the standard default (`1` for integers, `1.0` for floats)
+- For conditional constraints, the first matching rule's `def` is used
+- `def` values work with both unconditional and conditional constraint rules
+
 #### Notes
 
 - The block is fully optional. If absent, all values pass through unchanged.
 - Only numeric values are constrained (integers and floats). Non-numeric values are skipped.
 - String values from COMBO widgets (dropdown lists) are automatically converted to numbers before the constraint is applied.
 - Corrected values flow into `used_values` and `RAW_PAYLOAD` debug outputs, so you can verify the correction without reading source code.
+- Default values (`def`) are purely for UI convenience and don't affect the constraint processing logic.
 
 ---
 

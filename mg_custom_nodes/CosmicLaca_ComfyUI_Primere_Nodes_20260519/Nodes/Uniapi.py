@@ -114,7 +114,7 @@ class PrimereApiProcessor:
         del kwargs['prompt_extra']
 
         if not processor:
-            return (None, None, api_provider, None, None, None, None, None, None, prompt)
+            return (None, None, api_provider, None, None, None, None, None, None, None)
 
         config_json = self.API_RESULT
         _requested_provider = api_provider
@@ -193,6 +193,11 @@ class PrimereApiProcessor:
             for key, value in custom_user_inputs.items():
                 if value not in (None, ""):
                     selected_parameters[key] = value
+        
+        if isinstance(prompt, str) and "::" in prompt:
+            llm_messages = api_json_to_requestbody.parse_llm_messages(prompt)
+            if isinstance(llm_messages, list):
+                selected_parameters["prompt"] = llm_messages
 
         if api_json_to_requestbody.KlingRequestBuilder.is_kling_schema(schema):
             kling_model_type = api_json_to_requestbody.KlingRequestBuilder.resolve_model_type(selected_parameters, schema)

@@ -124,8 +124,55 @@ def _run_upscale_thread(job, target_items, upscale_config, meta, manifest_data, 
         _ext = "jpg" if _fmt in ("jpg", "jpeg") else _fmt
 
         # Load model, VAE, CLIP for conditioning
-        model_name = meta.get("model", "")
+        model_name = meta.get("model", "") or ""
         vae_name = meta.get("vae", "")
+
+        # If meta.model is empty/missing (legacy manifests, manifests written before
+        # meta.model was recorded), fall back to the first non-empty item.model in
+        # the target set. Items always store their own model name.
+        if not model_name:
+            for _it in target_items:
+                _it_model = (_it.get("model", "") or "").strip()
+                if _it_model:
+                    model_name = _it_model
+                    print(f"[DashboardUpscale] meta.model is empty; using first item's model: {model_name}")
+                    break
+
+        # Validate the checkpoint exists before calling load_checkpoint. Without
+        # this guard, a missing file ends up at comfy/utils.py:load_torch_file(None,
+        # ...) and crashes with the cryptic "'NoneType' object has no attribute
+        # 'lower'". Common cause: manifest copied from another machine where the
+        # checkpoint isn't installed; or manifest entry has model=None.
+        try:
+            import folder_paths as _fp_check
+            ckpt_path_check = _fp_check.get_full_path("checkpoints", model_name) if model_name else None
+        except Exception:
+            ckpt_path_check = None
+        if not model_name or ckpt_path_check is None:
+            job["status"] = "error"
+            job["error"] = (
+                f"Checkpoint '{model_name or '(empty)'}' not found in "
+                f"ComfyUI/models/checkpoints/. The session manifest references it but "
+                f"the file is not installed on this machine. Copy the .safetensors "
+                f"file over, or regenerate the images on this machine first."
+            )
+            print(f"[DashboardUpscale] ❌ {job['error']}")
+            return
+
+        # VRAM hygiene before load_checkpoint: the previous workflow's model handles
+        # may still be Python-referenced and won't be evicted by ComfyUI's LRU on a
+        # new load_checkpoint call. soft_empty_cache + gc.collect releases those
+        # before we add the upscale session's checkpoint on top. Critical for
+        # Florence2 mode on small-VRAM cards (otherwise prior SDXL gen + new SDXL
+        # session + Florence2 = OOM during beam search).
+        try:
+            import gc as _gc_pre
+            _gc_pre.collect()
+            mm.soft_empty_cache()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
 
         print(f"[DashboardUpscale] 🔄 Loading model: {model_name}")
         loaded_model, loaded_clip, loaded_vae = load_checkpoint(
@@ -311,6 +358,100 @@ def _run_upscale_thread(job, target_items, upscale_config, meta, manifest_data, 
                             pil_input = result_pil
                             pipe_w_current = up_w
                             pipe_h_current = up_h
+                        continue  # Skip the normal combo loop
+
+                    # --- Florence2 Hi-Res Fix mode ---
+                    if mode == "florence2_hires":
+                        from .florence2_hires import (
+                            run_florence2_step, preflight_florence2,
+                            build_florence2_manifest_entry, build_florence2_no_detection_entry,
+                        )
+                        import numpy as _np
+
+                        # Preflight once per job (cached)
+                        if not job.get("_florence2_preflighted"):
+                            preflight_florence2()
+                            job["_florence2_preflighted"] = True
+
+                        # Merge top-level step sampling fields into a unified config dict.
+                        # hires_denoise on the step may be "0.45, 0.65" — Florence2 uses just one
+                        # value per pass; take the first.
+                        _hd = str(ucfg.get("hires_denoise", "0.45")).split(",")[0].strip() or "0.45"
+                        f2_config = {
+                            **(ucfg.get("florence2", {}) or {}),
+                            "hires_denoise": float(_hd),
+                            "hires_steps": int(ucfg.get("hires_steps", 15) or 15),
+                            "cfg": float(ucfg.get("cfg", 1.5) or 1.5),
+                            "sampler": ucfg.get("sampler", "euler"),
+                            "scheduler": ucfg.get("scheduler", "simple"),
+                        }
+
+                        # Source image: load fresh from disk as tensor (1, H, W, 3)
+                        src_pil = PILImage.open(os.path.join(images_dir, filename)).convert("RGB")
+                        src_arr = _np.array(src_pil).astype(_np.float32) / 255.0
+                        src_tensor = torch.from_numpy(src_arr).unsqueeze(0)
+
+                        # Per-job checkpoint+lora cache (lazy init)
+                        if "_florence2_ckpt_cache" not in job:
+                            job["_florence2_ckpt_cache"] = {}
+
+                        step_result = run_florence2_step(
+                            source_image=src_tensor,
+                            item=item,
+                            step_config=f2_config,
+                            fallback_handles=(patched_model, patched_clip, loaded_vae),
+                            ckpt_cache=job["_florence2_ckpt_cache"],
+                            conditioning_cache=conditioning_cache,
+                            positive_prompt=pos_prompt,
+                            negative_prompt=neg_prompt,
+                            clip_skip=clip_skip,
+                            # Pass the session's already-loaded model name so Florence2 can
+                            # short-circuit duplicate loads when item.model matches it.
+                            session_model_name=meta.get("model", ""),
+                        )
+
+                        is_last_step = step_idx == len(expanded_steps) - 1
+
+                        if step_result.get("status") == "no_detection":
+                            sentinel_id = int(time.time() * 100000) + up_random.randint(0, 1000)
+                            entry = build_florence2_no_detection_entry(
+                                step_result, item,
+                                sentinel_id=sentinel_id,
+                                current_index=len(manifest_data["items"]),
+                            )
+                            manifest_data["items"].insert(0, entry)
+                            upscale_combo_idx += 1
+                            total_upscale_duration += float(step_result.get("duration", 0))
+                            continue
+
+                        total_upscale_duration += float(step_result.get("duration", 0))
+
+                        if is_last_step:
+                            upscale_id = int(time.time() * 100000) + up_random.randint(0, 1000)
+                            upscaled_filename = f"img_{upscale_id}_upscaled.{_ext}"
+                            _up_path = os.path.join(images_dir, upscaled_filename)
+                            result_pil = step_result["image_pil"]
+                            if _fmt == "png":
+                                result_pil.save(_up_path, format="PNG")
+                            elif _fmt in ("jpg", "jpeg"):
+                                result_pil.save(_up_path, format="JPEG", quality=95)
+                            else:
+                                result_pil.save(_up_path, format="WEBP", quality=95)
+
+                            entry = build_florence2_manifest_entry(
+                                step_result, item,
+                                session_name=session_name,
+                                pipeline_name=pipeline_name,
+                                upscale_id=upscale_id,
+                                upscaled_filename=upscaled_filename,
+                                current_index=len(manifest_data["items"]),
+                                hires_denoise=f2_config["hires_denoise"],
+                            )
+                            manifest_data["items"].insert(0, entry)
+                            upscale_combo_idx += 1
+                        else:
+                            pipe_w_current = step_result["image_width"]
+                            pipe_h_current = step_result["image_height"]
                         continue  # Skip the normal combo loop
 
                     raw_ratios = str(ucfg.get("upscale_ratios", "1.5"))

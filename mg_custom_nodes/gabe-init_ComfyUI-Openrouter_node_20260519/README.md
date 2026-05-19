@@ -4,6 +4,10 @@ A custom node for ComfyUI that allows you to interact with OpenRouter's API, pro
 
 ## Updates
 
+### 5/18/2026
+
+Reasoning effort setting added. Make sure the model supports reasoning when using
+
 ### 5/9/2026 - Secure API Key Loading
 
 You can now load your API key from a JSON config or env var instead of typing it into the node, which avoids leaking it in workflow metadata when sharing images.
@@ -96,7 +100,12 @@ To keep your API key secure, use one of the following methods:
 - **cheapest**: Route to the cheapest provider by appending `:floor` to the model ID (enabled by default).
 - **fastest**: Route to the fastest provider by appending `:nitro` to the model ID (disabled by default).
 - **temperature**: Controls the randomness of the model's output (0.0 to 2.0).
+- **reasoning_effort**: Controls OpenRouter's unified reasoning parameter. `auto` sends no override and lets OpenRouter/model defaults apply. `none` explicitly disables reasoning. `minimal`, `low`, `medium`, `high`, and `xhigh` request increasing reasoning effort where the selected model supports it.
 - **chat_mode**: Enable conversation mode to maintain context across messages (disabled by default).
+- **request_timeout**: Maximum time, in seconds, to wait for the main OpenRouter completion request before returning an error (default: 120).
+
+> [!NOTE]
+> OpenRouter normalizes reasoning across providers, but behavior still depends on the selected model. Some providers map effort levels to token budgets, Gemini 3 maps effort to Google's thinking levels, `xhigh` may be mapped down when unsupported, and some reasoning models do not return visible reasoning tokens.
 
 #### Optional Inputs:
 

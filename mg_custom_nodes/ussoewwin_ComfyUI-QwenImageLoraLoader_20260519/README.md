@@ -1,12 +1,19 @@
 # ComfyUI-Nunchaku QwenImage＆ZImageTurboLoraStack
 
+<table align="center">
+  <tr>
+    <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>EN</b></font></td>
+    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="zhmd/README.md"><font color="#4b5563"><b>中文</b></font></a></td>
+  </tr>
+</table>
+
 A ComfyUI custom node for loading and applying LoRA (Low-Rank Adaptation) to Nunchaku Qwen Image and Z-ImageTurbo models. ComfyUI Nodes 2.0 compatible. **Requires Nunchaku 1.2.0+ and ComfyUI-Nunchaku 1.2.0+ for v4 functionality.**
 
 ## ⚠️ **DEVELOPMENT STATUS**
 
 **Currently under development and testing. Debug logs are being output extensively. This does not affect functionality.**
 
-> Latest release: [v2.4.4 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.4.4)
+> Latest release: [v2.4.5 on GitHub Releases](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.4.5)
 > 
 
 ## Source
@@ -217,7 +224,11 @@ ComfyUI\python_embeded\python.exe -m pip install --upgrade diffusers
 
 ## Changelog
 
-### v2.4.4 (latest)
+### v2.4.5 (latest)
+- **Added**: Chinese documentation pages under `zhmd/` (README and release notes), with bilingual language switchers on the English and Chinese README and release note pages.
+- **Technical Details**: See [v2.4.5 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.4.5) for complete explanation
+
+### v2.4.4
 - **Fixed**: Restored v2.2.7 first LoRA duplicate file read elimination in `compose_loras_v2` (regression from v2.3.0 AWQ restructuring). The first LoRA is loaded once and reused in the main loop, cutting duplicate file I/O, deserialization, and key classification by 50% for Qwen Image and Z-Image-Turbo loaders. Fully compatible with the AWQ modulation layer monkey patch.
 - **Technical Details**: See [v2.4.4 Release Notes](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.4.4) for complete explanation
 

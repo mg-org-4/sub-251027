@@ -9070,6 +9070,7 @@
       }
     }
   },
+
   "lay_edge_cut": {
     "display_name": "lay_边缘分割",
     "inputs": {
@@ -9082,12 +9083,11 @@
       "cols": {
         "name": "列数"
       },
-      "row_split_method": {
-        "name": "行分割方法"
-      },
-      "col_split_method": {
-        "name": "列分割方法"
-      }
+        "auto_crop_edge": {
+            "name": "自动裁剪边缘"
+        },
+        "trim_border": {
+            "name": "修剪边框" }
     },
     "outputs": {
       "0": {
@@ -9098,6 +9098,10 @@
       }
     }
   },
+
+
+
+
   "lay_text_sum": {
     "display_name": "lay_文本总排版",
     "inputs": {
@@ -13660,47 +13664,62 @@
 },
 
 
-    "Bbox_strToBbox": {
-        "display_name": "Bbox_对角框转bbox",
-        "inputs": {
-            "image": {
-                "name": "图像"
-            },
-            "normalized_str": {
-                "name": "对角框"
-            },
-            "permil_str": {
-                "name": "千分比对角框"
-            },
-            "index": {
-                "name": "索引"
-            }
+"Bbox_strToBbox": {
+    "display_name": "Bbox_对角框转bbox",
+    "inputs": {
+        "image": {
+            "name": "图像"
         },
-        "outputs": {
-            "0": {
-                "name": "Bbox"
-            },
-            "1": {
-                "name": "对角框"
-            }
+        "normalized_str": {
+            "name": "对角框"
+        },
+        "permil_str": {
+            "name": "千分比对角框"
+        },
+        "index": {
+            "name": "索引"
+        },
+        "output_data": {
+            "name": "输出数据"
         }
     },
-    "Bbox_BboxToStr": {
-        "display_name": "Bbox_bbox转对角框",
-        "inputs": {
-            "image": {
-                "name": "图像"
-            },
-            "bbox": {
-                "name": "Bbox"
-            }
+    "outputs": {
+        "0": {
+            "name": "Bbox"
         },
-        "outputs": {
-            "0": {
-                "name": "对角框"
-            }
+        "1": {
+            "name": "对角框"
+        },
+        "2": {
+            "name": "mask"
+        },
+        "3": {
+            "name": "Bbox_列表"
+        },
+        "4": {
+            "name": "对角框_列表"
+        },
+        "5": {
+            "name": "maks_列表"
         }
-    },
+    }
+},
+  "Bbox_BboxToStr": {
+      "display_name": "Bbox_bbox转对角框",
+      "inputs": {
+          "image": {
+              "name": "图像"
+          },
+          "bbox": {
+              "name": "Bbox"
+          }
+      },
+      "outputs": {
+          "0": {
+              "name": "对角框"
+          }
+      }
+  },
 
 
 

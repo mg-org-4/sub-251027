@@ -25,15 +25,15 @@
 
 ## 🎉 重大更新: v2.2.0 - 新增 Nunchaku Z Image Turbo LoRA 支持！
 
-详细技术说明，请参阅 [v2.2.0 发行说明](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/releases/tag/v2.2.0)
+详细技术说明，请参阅 [v2.2.0 发行说明](v2.2.0.md)
 
 ## 🎉 重大更新: v1.60 - 简化安装（无需集成！）
 
-有关安装说明、功能和要求，请参阅 [安装指南](../md/installation.md)。
+有关安装说明、功能和要求，请参阅 [安装指南](installation.md)。
 
 ## v1.57 及更早版本用户的升级指南
 
-如果您安装了 v1.57 或更早版本，并且在 ComfyUI-nunchaku 的 `__init__.py` 中有集成代码，请参阅 [UPGRADE_GUIDE_V1.57.md](../md/UPGRADE_GUIDE_V1.57.md) 了解详细的升级说明。
+若您已安装 v1.57 或更早版本，且曾在 ComfyUI-nunchaku 的 `__init__.py` 中使用过集成代码，请参阅 [v1.57 升级指南](UPGRADE_GUIDE_V1.57.md) 了解详细升级说明。
 
 ## 使用方法
 
@@ -139,7 +139,7 @@
 ### 问题 #25: ComfyUI 0.4.0+ 模型管理错误
 - **状态**: ⚠️ **取决于环境** - 可能需要 ComfyUI 核心修复
 
-详细信息，请参阅 [COMFYUI_0.4.0_MODEL_MANAGEMENT_ERRORS.md](../md/COMFYUI_0.4.0_MODEL_MANAGEMENT_ERRORS.md)。
+详细信息，请参阅 [COMFYUI_0.4.0_MODEL_MANAGEMENT_ERRORS.md](COMFYUI_0.4.0_MODEL_MANAGEMENT_ERRORS.md)。
 
 - **相关问题**:
   - [问题 #25](https://github.com/ussoewwin/ComfyUI-QwenImageLoraLoader/issues/25) - `AttributeError: 'NunchakuModelPatcher' object has no attribute 'pinned'` 和 `model_config` 的深拷贝错误

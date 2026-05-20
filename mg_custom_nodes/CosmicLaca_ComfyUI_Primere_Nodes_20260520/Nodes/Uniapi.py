@@ -363,7 +363,6 @@ class PrimereApiProcessor:
             else:
                 result_image = handler_result
 
-        # --- File naming and output path resolution ---
         auto_save_result = kwargs.get('auto_save_result', False)
         if auto_save_result and result_image is not None:
             if type(result_image).__name__ == "str":
@@ -418,7 +417,6 @@ class PrimereApiProcessor:
             Path(folder_paths.temp_directory).mkdir(parents=True, exist_ok=True)
             try:
                 saved_path, save_bytes = file_output.save_bytes_to_file(save_bytes, output_file, image_extension, image_quality, folder_paths.temp_directory)
-
                 save_data = {
                     "provider": api_provider,
                     "service": selected_service or api_service,

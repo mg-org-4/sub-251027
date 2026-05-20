@@ -1,0 +1,74 @@
+import os
+from ..tree import PRIMERE_ROOT
+from .. import utility
+
+def get_api_config(name: str) -> dict:
+    path = os.path.join(PRIMERE_ROOT, 'json')
+    fp = os.path.join(path, name)
+    config_json = utility.json2tuple(fp)
+
+    if not config_json:
+        return {}
+
+    for k, v in config_json.items():
+        match k:
+            case "OpenAI":
+                config_json['OpenAI']['APIKEY'] = os.environ.get("OPENAI_API_KEY") or config_json['OpenAI']['APIKEY']
+            case "Anthropic":
+                config_json['Anthropic']['APIKEY'] = os.environ.get("ANTHROPIC_API_KEY") or config_json['Anthropic']['APIKEY']
+            case "BlackForest":
+                config_json['BlackForest']['APIKEY'] = os.environ.get("BFL_API_KEY") or config_json['BlackForest']['APIKEY']
+            case "Gemini":
+                config_json['Gemini']['APIKEY'] = os.environ.get("GEMINI_API_KEY") or config_json['Gemini']['APIKEY']
+            case "HeyGen":
+                config_json['HeyGen']['APIKEY'] = os.environ.get("HEYGEN_API_KEY") or config_json['HeyGen']['APIKEY']
+            case "FAL":
+                config_json['FAL']['APIKEY'] = os.environ.get("FAL_API_KEY") or config_json['FAL']['APIKEY']
+            case "Elevenlabs":
+                config_json['Elevenlabs']['APIKEY'] = os.environ.get("ELEVENLABS_API_KEY") or config_json['Elevenlabs']['APIKEY']
+            case "Mistral":
+                config_json['Mistral']['APIKEY'] = os.environ.get("MISTRAL_API_KEY") or config_json['Mistral']['APIKEY']
+            case "Opencode":
+                config_json['Opencode']['APIKEY'] = os.environ.get("OPENCODE_API_KEY") or config_json['Opencode']['APIKEY']
+            case "OpenRouter":
+                config_json['OpenRouter']['APIKEY'] = os.environ.get("OPENROUTER_API_KEY") or config_json['OpenRouter']['APIKEY']
+
+    return config_json
+
+def create_api_client(api_provider, config_json):
+    if api_provider in config_json:
+        match api_provider:
+            case "OpenAI":
+                from openai import OpenAI
+                APIClient = OpenAI(api_key=config_json['OpenAI']['APIKEY'])
+            case "Anthropic":
+                import anthropic
+                APIClient = anthropic.Anthropic(api_key=config_json['Anthropic']['APIKEY'])
+            case "BlackForest":
+                APIClient = True
+            case "Gemini":
+                from google import genai
+                APIClient = genai.Client(api_key=config_json['Gemini']['APIKEY'])
+            case "HeyGen":
+                APIClient = True
+            case "FAL":
+                import fal_client  # noqa: F401 — registers FAL SDK; key is set via env
+                APIClient = True
+                os.environ["FAL_KEY"] = config_json['FAL']['APIKEY']
+            case "Elevenlabs":
+                from dotenv import load_dotenv
+                from elevenlabs.client import ElevenLabs
+                load_dotenv()
+                APIClient = ElevenLabs(api_key=config_json['Elevenlabs']['APIKEY'])
+            case "Mistral":
+                from mistralai.client import Mistral
+                APIClient = Mistral(api_key=config_json['Mistral']['APIKEY'])
+            case "OpenRouter":
+                from openrouter import OpenRouter
+                APIClient = OpenRouter(api_key=config_json['OpenRouter']['APIKEY'])
+            case _:
+                return (None, None)
+
+        return (APIClient, api_provider)
+    else:
+        return (None, None)

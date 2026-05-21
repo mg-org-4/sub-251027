@@ -66,14 +66,89 @@ const RESOLUTION_PRESETS = {
     }
 };
 
-// HF Remote VAE endpoint presets (mirrors remote_vae.py HF_ENDPOINTS)
-const REMOTE_VAE_PRESETS = {
-    "Custom": "",
-    "HF-SD": "https://q1bj3bpq6kzilnsu.us-east-1.aws.endpoints.huggingface.cloud/",
-    "HF-SDXL": "https://x2dmsqunjd6k9prw.us-east-1.aws.endpoints.huggingface.cloud/",
-    "HF-Flux": "https://whhx50ex1aryqvw6.us-east-1.aws.endpoints.huggingface.cloud/",
-    "HF-HunyuanVideo": "https://o7ywnmrahorts457.us-east-1.aws.endpoints.huggingface.cloud/"
-};
+// =============================================================================
+// REMOTE VAE COMPANION DETECTION
+//
+// The HuggingFace Remote VAE feature lives in a separate optional plugin:
+// ComfyUI-USCG-RemoteVAE. We detect its presence by fetching /uscg-remote-vae/health
+// (200 means installed, 404 means missing) and load the endpoint list from
+// /uscg-remote-vae/endpoints.
+//
+// Both promises are cached per Builder load. The "Re-check after install"
+// button in the install card clears them.
+// =============================================================================
+
+let _remoteVaeStatusPromise = null;
+function isRemoteVaeAvailable() {
+    if (_remoteVaeStatusPromise === null) {
+        _remoteVaeStatusPromise = fetch('/uscg-remote-vae/health')
+            .then(r => r.ok)
+            .catch(() => false);
+    }
+    return _remoteVaeStatusPromise;
+}
+
+let _remoteVaeEndpointsPromise = null;
+function loadRemoteVaeEndpoints() {
+    if (_remoteVaeEndpointsPromise === null) {
+        _remoteVaeEndpointsPromise = fetch('/uscg-remote-vae/endpoints')
+            .then(r => r.ok ? r.json() : [])
+            .catch(() => []);
+    }
+    return _remoteVaeEndpointsPromise;
+}
+
+function _resetRemoteVaeCaches() {
+    _remoteVaeStatusPromise = null;
+    _remoteVaeEndpointsPromise = null;
+}
+
+// =============================================================================
+// CIVITAI COMPANION DETECTION
+//
+// CivitAI metadata lookup lives in ComfyUI-USCG-CivitAI companion plugin.
+// 200 from /uscg-civitai/health → installed. 404 → missing.
+//
+// Cached per Builder load.
+// =============================================================================
+
+let _civitaiStatusPromise = null;
+function isCivitaiAvailable() {
+    if (_civitaiStatusPromise === null) {
+        _civitaiStatusPromise = fetch('/uscg-civitai/health')
+            .then(r => r.ok)
+            .catch(() => false);
+    }
+    return _civitaiStatusPromise;
+}
+
+function _renderCivitaiCompanionNotice() {
+    /** Eye-catching dark-red notice shown when CivitAI companion is missing.
+     *  DOM methods only — no innerHTML (security hook trips on it). */
+    const notice = document.createElement('div');
+    notice.className = 'cb-civitai-notice';
+    notice.style.cssText = [
+        "border-left: 4px solid #ee4444",
+        "background: rgba(180, 40, 40, 0.18)",
+        "border-radius: 4px",
+        "padding: 8px 12px",
+        "margin: 6px 0",
+        "font-size: 11px",
+        "font-weight: 500",
+        "color: #ffdddd",
+        "line-height: 1.4",
+    ].join(';');
+    notice.appendChild(document.createTextNode("ℹ️ Plugin feature — install "));
+    const link = document.createElement('a');
+    link.href = "https://github.com/JasonHoku/ComfyUI-USCG-CivitAI";
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.style.cssText = "color: #ffaaaa; text-decoration: underline; font-weight: 600;";
+    link.textContent = "ComfyUI-USCG-CivitAI";
+    notice.appendChild(link);
+    notice.appendChild(document.createTextNode(" for auto-trigger detection + metadata lookup."));
+    return notice;
+}
 
 // Debounced renderUI to batch rapid state changes and avoid redundant full rebuilds
 // Pass optional arrayIdx for partial re-render of just one config section
@@ -1500,6 +1575,11 @@ export function createModelElement(node, modelEntry, arrayIdx, modelIdx, modelLi
         metadataBtn.onclick = async () => await showModelMetadataModal(node, arrayIdx, modelPath, modelType);
         moreOptionsContent.appendChild(metadataBtn);
 
+        // Show inline notice when CivitAI companion is missing (async)
+        isCivitaiAvailable().then(available => {
+            if (!available) moreOptionsContent.appendChild(_renderCivitaiCompanionNotice());
+        });
+
         moreOptionsSection.appendChild(moreOptionsContent);
         contentDiv.appendChild(moreOptionsSection);
     }
@@ -1918,6 +1998,11 @@ export function createLoraElement(node, loraStr, arrayIdx, loraIdx, availableLor
         dontAppendInfo.textContent = "ℹ️ 'Don't Append' adds all trigger words to the omit list";
         triggerSubSection.appendChild(dontAppendInfo);
 
+        // Show inline notice when CivitAI companion is missing (async)
+        isCivitaiAvailable().then(available => {
+            if (!available) triggerSubSection.appendChild(_renderCivitaiCompanionNotice());
+        });
+
         moreOptionsContent.appendChild(triggerSubSection);
 
         // 3. LoRA Metadata Lookup Button
@@ -1927,6 +2012,11 @@ export function createLoraElement(node, loraStr, arrayIdx, loraIdx, availableLor
         metadataBtn.textContent = "🔍 Lookup LoRA Metadata from CivitAI";
         metadataBtn.onclick = async () => await showLoraMetadataModal(node, arrayIdx, parsed.name);
         moreOptionsContent.appendChild(metadataBtn);
+
+        // Show inline notice when CivitAI companion is missing (async)
+        isCivitaiAvailable().then(available => {
+            if (!available) moreOptionsContent.appendChild(_renderCivitaiCompanionNotice());
+        });
 
         // 4. Edit Trigger Words Button
         const editTriggersBtn = document.createElement("button");
@@ -2021,6 +2111,13 @@ async function showLoraMetadataModal(node, arrayIdx, loraName, forceRefresh = fa
     title.textContent = "🔍 LoRA Metadata Lookup";
     title.style.cssText = "margin: 0 0 15px 0; color: #9966cc;";
     modal.appendChild(title);
+
+    // CivitAI companion notice — shows when companion missing
+    const _modalNoticeSlot = document.createElement('div');
+    modal.appendChild(_modalNoticeSlot);
+    isCivitaiAvailable().then(available => {
+        if (!available) _modalNoticeSlot.replaceWith(_renderCivitaiCompanionNotice());
+    });
 
     const status = document.createElement("div");
     status.textContent = `🔄 Fetching metadata for: ${loraName.split('/').pop()} (This could take a few seconds the fist time)`;
@@ -3669,6 +3766,159 @@ export function renderExtraModelSamplingSection(node, div, configArray, arrayIdx
     div.appendChild(sectionGrid);
 }
 
+// --- VAE ELEMENT CREATOR HELPERS ---
+
+function _renderRemoteVaeInstallCard(node) {
+    const card = document.createElement('div');
+    card.className = 'cb-remote-vae-install-card';
+    card.style.cssText = [
+        "border: 1px solid #b07530",
+        "background: rgba(176, 117, 48, 0.08)",
+        "border-radius: 4px",
+        "padding: 8px 10px",
+        "margin: 4px 0",
+        "font-size: 11px",
+        "color: #ddd",
+        "line-height: 1.4",
+    ].join(';');
+
+    const header = document.createElement('div');
+    header.style.fontWeight = "600";
+    header.style.marginBottom = "6px";
+    header.style.color = "#f0a050";
+    header.textContent = "⚠ Remote VAE requires the companion plugin";
+    card.appendChild(header);
+
+    const intro = document.createElement('div');
+    intro.textContent = "Install via:";
+    card.appendChild(intro);
+
+    const list = document.createElement('ul');
+    list.style.margin = "4px 0 4px 16px";
+    list.style.padding = "0";
+
+    const liManager = document.createElement('li');
+    liManager.appendChild(document.createTextNode("Comfy Manager — search "));
+    const bold = document.createElement('b');
+    bold.textContent = "USCG Remote VAE";
+    liManager.appendChild(bold);
+    list.appendChild(liManager);
+
+    const liManual = document.createElement('li');
+    liManual.appendChild(document.createTextNode("Manual: "));
+    const codeClone = document.createElement('code');
+    codeClone.style.fontSize = "10px";
+    codeClone.textContent = "git clone";
+    liManual.appendChild(codeClone);
+    liManual.appendChild(document.createTextNode(" the repo into "));
+    const codeDir = document.createElement('code');
+    codeDir.style.fontSize = "10px";
+    codeDir.textContent = "custom_nodes/";
+    liManual.appendChild(codeDir);
+    list.appendChild(liManual);
+
+    card.appendChild(list);
+
+    const restart = document.createElement('div');
+    restart.style.marginTop = "6px";
+    restart.textContent = "Then restart ComfyUI.";
+    card.appendChild(restart);
+
+    const buttonRow = document.createElement('div');
+    buttonRow.style.marginTop = "8px";
+    buttonRow.style.display = "flex";
+    buttonRow.style.gap = "8px";
+
+    const ghLink = document.createElement('a');
+    ghLink.href = "https://github.com/JasonHoku/ComfyUI-USCG-RemoteVAE";
+    ghLink.target = "_blank";
+    ghLink.rel = "noopener";
+    ghLink.style.cssText = "background:#444;color:#ddd;padding:4px 8px;border-radius:3px;text-decoration:none;font-size:11px;";
+    ghLink.textContent = "Open on GitHub ↗";
+    buttonRow.appendChild(ghLink);
+
+    const recheckBtn = document.createElement('button');
+    recheckBtn.type = "button";
+    recheckBtn.className = "cb-button";
+    recheckBtn.style.fontSize = "11px";
+    recheckBtn.style.padding = "4px 8px";
+    recheckBtn.textContent = "Re-check after install";
+    recheckBtn.addEventListener('click', () => {
+        _resetRemoteVaeCaches();
+        debouncedRenderUI(node);
+    });
+    buttonRow.appendChild(recheckBtn);
+
+    card.appendChild(buttonRow);
+
+    return card;
+}
+
+function _renderRemoteVaeControls(node, arrayIdx, vaeIdx, vaeName, endpoints) {
+    // endpoints: list of {name, url} from companion plugin's /uscg-remote-vae/endpoints
+    const wrap = document.createElement('div');
+
+    const presetSelect = document.createElement('select');
+    presetSelect.className = 'cb-select';
+    presetSelect.style.marginBottom = '4px';
+
+    const currentUrl = vaeName.replace(/^remote:/, '');
+
+    // "Custom URL" sentinel option first.
+    const customOpt = document.createElement('option');
+    customOpt.value = '';
+    customOpt.textContent = 'Custom URL';
+    if (!endpoints.some(e => e.url === currentUrl)) customOpt.selected = true;
+    presetSelect.appendChild(customOpt);
+
+    endpoints.forEach(({ name, url }) => {
+        const opt = document.createElement('option');
+        opt.value = url;
+        opt.textContent = name;
+        if (currentUrl === url) opt.selected = true;
+        presetSelect.appendChild(opt);
+    });
+
+    const urlInput = document.createElement('input');
+    urlInput.className = 'cb-input';
+    urlInput.type = 'text';
+    urlInput.placeholder = 'https://your-endpoint.huggingface.cloud/';
+    urlInput.value = currentUrl;
+    urlInput.style.fontFamily = 'monospace';
+    urlInput.style.fontSize = '12px';
+
+    urlInput.onchange = () => {
+        const url = urlInput.value.trim();
+        node.state.config_arrays[arrayIdx].vaes[vaeIdx] = url ? `remote:${url}` : 'remote:';
+        node.saveState();
+        const match = endpoints.find(e => e.url === url);
+        presetSelect.value = match ? match.url : '';
+    };
+    urlInput.onblur = urlInput.onchange;
+
+    presetSelect.onchange = () => {
+        const selectedUrl = presetSelect.value;
+        if (selectedUrl) {
+            urlInput.value = selectedUrl;
+            node.state.config_arrays[arrayIdx].vaes[vaeIdx] = `remote:${selectedUrl}`;
+            node.saveState();
+        } else {
+            urlInput.value = '';
+            urlInput.focus();
+        }
+    };
+
+    wrap.appendChild(presetSelect);
+    wrap.appendChild(urlInput);
+
+    const helper = document.createElement('div');
+    helper.style.cssText = 'font-size: 9px; color: #666; padding: 2px 4px;';
+    helper.textContent = 'Select a preset or enter an allowlisted endpoint URL';
+    wrap.appendChild(helper);
+
+    return wrap;
+}
+
 // --- VAE ELEMENT CREATOR ---
 
 function createVAEElement(node, vaeName, arrayIdx, vaeIdx, vaeList, vFolders) {
@@ -3819,60 +4069,25 @@ function createVAEElement(node, vaeName, arrayIdx, vaeIdx, vaeList, vFolders) {
     contentDiv.appendChild(typeSelect);
 
     if (isRemote) {
-        // Presets dropdown for known HF Remote VAE endpoints
-        const presetSelect = document.createElement("select");
-        presetSelect.className = "cb-select";
-        presetSelect.style.marginBottom = "4px";
-        const currentUrl = vaeName.replace(/^remote:/, "");
-        Object.entries(REMOTE_VAE_PRESETS).forEach(([label, url]) => {
-            const opt = document.createElement("option");
-            opt.value = url;
-            opt.textContent = label;
-            // Select matching preset, or "Custom" if URL doesn't match any preset
-            if (url && currentUrl === url) opt.selected = true;
-            else if (!url && !Object.values(REMOTE_VAE_PRESETS).includes(currentUrl)) opt.selected = true;
-            presetSelect.appendChild(opt);
-        });
+        // Async render: drop a placeholder, then swap based on companion availability.
+        const placeholder = document.createElement('div');
+        placeholder.style.fontSize = "9px";
+        placeholder.style.color = "#666";
+        placeholder.style.padding = "2px 4px";
+        placeholder.textContent = "Checking for Remote VAE companion plugin...";
+        contentDiv.appendChild(placeholder);
 
-        // Text input for remote VAE endpoint URL
-        const urlInput = document.createElement("input");
-        urlInput.className = "cb-input";
-        urlInput.type = "text";
-        urlInput.placeholder = "http://192.168.1.100:8080/decode";
-        urlInput.value = currentUrl;
-        urlInput.style.fontFamily = "monospace";
-        urlInput.style.fontSize = "12px";
-        urlInput.onchange = () => {
-            const url = urlInput.value.trim();
-            node.state.config_arrays[arrayIdx].vaes[vaeIdx] = url ? `remote:${url}` : "remote:";
-            node.saveState();
-            // Update preset dropdown to match
-            const matchingPreset = Object.entries(REMOTE_VAE_PRESETS).find(([, u]) => u && u === url);
-            presetSelect.value = matchingPreset ? matchingPreset[1] : "";
-        };
-        urlInput.onblur = urlInput.onchange;
-
-        presetSelect.onchange = () => {
-            const selectedUrl = presetSelect.value;
-            if (selectedUrl) {
-                urlInput.value = selectedUrl;
-                node.state.config_arrays[arrayIdx].vaes[vaeIdx] = `remote:${selectedUrl}`;
-                node.saveState();
+        isRemoteVaeAvailable().then(available => {
+            if (!available) {
+                placeholder.replaceWith(_renderRemoteVaeInstallCard(node));
             } else {
-                // "Custom" selected - clear URL for manual entry
-                urlInput.value = "";
-                urlInput.focus();
+                loadRemoteVaeEndpoints().then(endpoints => {
+                    placeholder.replaceWith(
+                        _renderRemoteVaeControls(node, arrayIdx, vaeIdx, vaeName, endpoints)
+                    );
+                });
             }
-        };
-
-        contentDiv.appendChild(presetSelect);
-        contentDiv.appendChild(urlInput);
-
-        // Helper text
-        const helperText = document.createElement("div");
-        helperText.style.cssText = "font-size: 9px; color: #666; padding: 2px 4px;";
-        helperText.textContent = "Select a preset or enter a custom endpoint URL for your remote VAE decode server";
-        contentDiv.appendChild(helperText);
+        });
     } else {
         // Searchable Select for VAE file or folder
         const options = isFolder ? vFolders : vaeList;
@@ -4686,6 +4901,14 @@ export async function showTriggerLookupModal(node, arrayIdx) {
     title.textContent = "🔎 LoRA Trigger Words Lookup";
     title.style.cssText = "margin: 0 0 15px 0; color: #0066cc;";
     modal.appendChild(title);
+
+    // CivitAI companion notice — shows when companion missing
+    const _twLookupNoticeSlot = document.createElement('div');
+    modal.appendChild(_twLookupNoticeSlot);
+    isCivitaiAvailable().then(available => {
+        if (!available) _twLookupNoticeSlot.replaceWith(_renderCivitaiCompanionNotice());
+    });
+
     const status = document.createElement("div");
     status.textContent = "🔄 Fetching trigger words from CivitAI...";
     status.style.cssText = "margin-bottom: 15px; color: #aaa;";
@@ -5394,6 +5617,7 @@ function createDefaultFlorence2Options() {
         text_input: "face",
         output_mask_select: "",
         max_new_tokens: 1024,
+        florence2_input_mp: 0.5,
         target_megapixels: 1.0,
         crop_padding: 64,
         min_crop_resolution: 0,        // No floor — Florence2's polygon decides
@@ -6420,6 +6644,14 @@ export function renderUpscalingSection(node, container, modelLists) {
                     f2MaxTokInput.onchange = () => { f2.max_new_tokens = parseInt(f2MaxTokInput.value, 10); node.saveState(); };
                     grid.appendChild(createInputGroup("Max New Tokens", f2MaxTokInput));
 
+                    const f2InMpInput = document.createElement("input");
+                    f2InMpInput.type = "number"; f2InMpInput.className = "cb-input";
+                    f2InMpInput.value = f2.florence2_input_mp != null ? f2.florence2_input_mp : 0.5;
+                    f2InMpInput.min = 0; f2InMpInput.max = 4.0; f2InMpInput.step = 0.01;
+                    f2InMpInput.title = "Resize source image to this MP BEFORE Florence2 detection. Florence2's vision encoder activations scale with input dims — 0.5 MP cuts encoder VRAM ~4x with negligible detection-accuracy loss. The mask gets scaled back up to source resolution after detection, so the crop/inpaint/paste-back still runs at full quality. Set 0 to disable. Only takes effect when source > this MP.";
+                    f2InMpInput.onchange = () => { f2.florence2_input_mp = parseFloat(f2InMpInput.value); node.saveState(); };
+                    grid.appendChild(createInputGroup("Florence2 Input MP", f2InMpInput));
+
                     // --- Group B: Crop & resize ---
                     const f2MpInput = document.createElement("input");
                     f2MpInput.type = "number"; f2MpInput.className = "cb-input";
@@ -6776,6 +7008,27 @@ export function renderRunSettingsSection(node, container) {
     _addRunSetting(content, { stateKey: "lora_triggerwords_mode", label: "LoRA Triggerwords Mode", kind: "select",
         options: ["None", "Append To End", "Append To Start", "Read From Config"], defaultValue: "None",
         tooltip: "None = Don't fetch/append trigger words. Append To End = Add triggers at end of prompt (default behavior). Append To Start = Add triggers at start of prompt. Read From Config = Use lora_triggerwords_append_settings in config JSON to specify per-lora placement." });
+
+    // CivitAI companion notice — shows when mode is not "None" AND companion missing
+    const _twModeNoticeSlot = document.createElement('div');
+    content.appendChild(_twModeNoticeSlot);
+    const _twModeRow = content.children[content.children.length - 2];  // the row just appended by _addRunSetting
+    const _twModeSelect = _twModeRow ? _twModeRow.querySelector('select') : null;
+    const _updateTwModeNotice = () => {
+        _twModeNoticeSlot.replaceChildren();
+        const currentVal = (node.state.lora_triggerwords_mode || "None");
+        if (currentVal === "None") return;
+        isCivitaiAvailable().then(available => {
+            // Re-check current value at notice-render time (user may have changed back)
+            if ((node.state.lora_triggerwords_mode || "None") === "None") return;
+            if (!available) _twModeNoticeSlot.appendChild(_renderCivitaiCompanionNotice());
+        });
+    };
+    if (_twModeSelect) {
+        _twModeSelect.addEventListener('change', _updateTwModeNotice);
+    }
+    _updateTwModeNotice();  // initial check on render
+
     _addRunSetting(content, { stateKey: "save_conditioning_cache_to_file", label: "Save Conditioning Cache To File", kind: "bool",
         tooltip: "Save CLIP conditioning cache to disk. Useful when experimenting with the same prompts/models — skips text encoding on resume. WARNING: Can create very large files in output/benchmarks. Automatically disabled when optional inputs (model/clip/conditioning) are connected." });
     _addRunSetting(content, { stateKey: "enable_model_cache", label: "Enable Model Cache", kind: "bool",

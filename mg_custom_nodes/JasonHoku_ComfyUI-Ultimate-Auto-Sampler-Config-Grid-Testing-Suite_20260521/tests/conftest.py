@@ -29,6 +29,11 @@ _COMFY_STUBS = [
     "comfy.sd",
     "comfy.model_management",
     "comfy.samplers",
+    # diffusers triggers a torchvision.__spec__ is None ValueError when imported
+    # outside ComfyUI.  Stub it out so remote_vae.py's try/except catches the
+    # ImportError and sets VaeImageProcessor = None.
+    "diffusers",
+    "diffusers.image_processor",
 ]
 
 for _mod_name in _COMFY_STUBS:
@@ -130,9 +135,35 @@ _GEN_ORCH_DEPS = {
     },
     "remote_vae": {
         "RemoteVAEDecodeWorker": type("RemoteVAEDecodeWorker", (), {}),
-        "HF_ENDPOINTS": {},
+        # Facade functions added in B2 — stub returns safe defaults so
+        # generation_orchestrator can import and tests run without the
+        # companion plugin present.
+        "is_remote_vae_available": lambda: False,
+        "get_endpoint_names": lambda: ["SD", "SDXL", "Flux", "HunyuanVideo"],
+        "INSTALL_INSTRUCTIONS": (
+            "Remote VAE requires the ComfyUI-USCG-RemoteVAE companion plugin.\n"
+            "Install via Comfy Manager (search 'USCG Remote VAE') or:\n"
+            "  git clone https://github.com/JasonHoku/ComfyUI-USCG-RemoteVAE\n"
+            "into your ComfyUI/custom_nodes/ directory."
+        ),
+    },
+    "distribution": {
+        "INSTALL_INSTRUCTIONS": "stub",
+        "is_distribution_available": lambda: False,
+        "create_manager": lambda *a, **kw: None,
+        "set_active_manager": lambda m: None,
+        "clear_active_manager": lambda: None,
+        "notify_workers_to_start": lambda *a, **kw: [],
+        "stop_all_workers": lambda u: None,
+        "get_master_url": lambda: "http://127.0.0.1:8188",
+    },
+    "civitai": {
+        "is_civitai_available": lambda: False,
+        "civitai_fetch_by_hash": lambda h: None,
     },
 }
+
+import importlib.util as _ilu  # used below for gen_orch, remote_vae, distribution, civitai
 
 for _bare, _attrs in _GEN_ORCH_DEPS.items():
     _fq = f"{_PKG_NAME}.{_bare}"
@@ -151,7 +182,6 @@ for _bare, _attrs in _GEN_ORCH_DEPS.items():
 # imports (`from .trigger_words import ...`) resolve correctly.  Once loaded
 # under the package name it is also registered as a top-level alias so
 # `from generation_orchestrator import get_model_cache_key` works.
-import importlib.util as _ilu
 _GO_PATH = os.path.join(_NODE_ROOT, "generation_orchestrator.py")
 _GO_FQ = f"{_PKG_NAME}.generation_orchestrator"
 if "generation_orchestrator" not in sys.modules:
@@ -163,3 +193,49 @@ if "generation_orchestrator" not in sys.modules:
     sys.modules[_GO_FQ] = _go_mod
     sys.modules["generation_orchestrator"] = _go_mod
     _spec.loader.exec_module(_go_mod)
+
+# Pre-load the real remote_vae module so that test_remote_vae_facade.py gets
+# the actual functions (is_remote_vae_available, get_endpoint_names,
+# _companion_decode) rather than the lightweight stub registered above.
+_RV_PATH = os.path.join(_NODE_ROOT, "remote_vae.py")
+_RV_FQ = f"{_PKG_NAME}.remote_vae"
+_rv_spec = _ilu.spec_from_file_location(_RV_FQ, _RV_PATH,
+                                        submodule_search_locations=[])
+_rv_spec.submodule_search_locations = None
+_rv_mod = _ilu.module_from_spec(_rv_spec)
+_rv_mod.__package__ = _PKG_NAME
+# Replace the earlier stub with the real module BEFORE exec so that any
+# internal import resolution finds the real object.
+sys.modules[_RV_FQ] = _rv_mod
+sys.modules["remote_vae"] = _rv_mod
+setattr(sys.modules[_PKG_NAME], "remote_vae", _rv_mod)
+_rv_spec.loader.exec_module(_rv_mod)
+
+# Pre-load the real distribution.py facade so test_distribution_facade.py exercises
+# actual code rather than a stub. (Same pattern as remote_vae loading above —
+# Phase 2 addition.)
+_DIST_PATH = os.path.join(_NODE_ROOT, "distribution.py")
+_DIST_FQ = f"{_PKG_NAME}.distribution"
+_dist_spec = _ilu.spec_from_file_location(_DIST_FQ, _DIST_PATH,
+                                          submodule_search_locations=[])
+_dist_spec.submodule_search_locations = None
+_dist_mod = _ilu.module_from_spec(_dist_spec)
+_dist_mod.__package__ = _PKG_NAME
+sys.modules[_DIST_FQ] = _dist_mod
+sys.modules["distribution"] = _dist_mod
+setattr(sys.modules[_PKG_NAME], "distribution", _dist_mod)
+_dist_spec.loader.exec_module(_dist_mod)
+
+# Pre-load the real civitai.py facade so test_civitai_facade.py exercises
+# actual code rather than a stub. (Same pattern as remote_vae + distribution.)
+_CIVITAI_PATH = os.path.join(_NODE_ROOT, "civitai.py")
+_CIVITAI_FQ = f"{_PKG_NAME}.civitai"
+_civitai_spec = _ilu.spec_from_file_location(_CIVITAI_FQ, _CIVITAI_PATH,
+                                              submodule_search_locations=[])
+_civitai_spec.submodule_search_locations = None
+_civitai_mod = _ilu.module_from_spec(_civitai_spec)
+_civitai_mod.__package__ = _PKG_NAME
+sys.modules[_CIVITAI_FQ] = _civitai_mod
+sys.modules["civitai"] = _civitai_mod
+setattr(sys.modules[_PKG_NAME], "civitai", _civitai_mod)
+_civitai_spec.loader.exec_module(_civitai_mod)

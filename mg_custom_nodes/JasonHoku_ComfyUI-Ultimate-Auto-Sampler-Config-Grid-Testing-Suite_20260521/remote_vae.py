@@ -6,7 +6,6 @@ import threading
 import time
 import numpy as np
 from PIL import Image
-from .network_utils import huggingface_vae_decode, HUGGINGFACE_VAE_ENDPOINTS as HF_ENDPOINTS
 try:
     from diffusers.image_processor import VaeImageProcessor
 except ImportError as e:
@@ -18,7 +17,50 @@ except ImportError as e:
 
 
 
-# HF_ENDPOINTS imported from network_utils (single source of truth for allowlisted URLs)
+INSTALL_INSTRUCTIONS = (
+    "Remote VAE requires the ComfyUI-USCG-RemoteVAE companion plugin.\n"
+    "Install via Comfy Manager (search 'USCG Remote VAE') or:\n"
+    "  git clone https://github.com/JasonHoku/ComfyUI-USCG-RemoteVAE\n"
+    "into your ComfyUI/custom_nodes/ directory."
+)
+
+
+def is_remote_vae_available():
+    """Return True if the ComfyUI-USCG-RemoteVAE companion plugin is loaded."""
+    try:
+        import comfyui_uscg_remote_vae  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def get_endpoint_names():
+    """Return list of HF endpoint names for UI dropdown.
+    Empty list if companion not installed."""
+    try:
+        from comfyui_uscg_remote_vae import list_endpoints
+        return [name for name, _url in list_endpoints()]
+    except ImportError:
+        return []
+
+
+def _companion_decode(endpoint, tensor, height, width):
+    """Forward a decode call to the companion plugin.
+
+    Raises:
+        RuntimeError: companion not installed (with install instructions)
+                      or companion version too old.
+    """
+    try:
+        from comfyui_uscg_remote_vae import decode, __version__
+    except ImportError:
+        raise RuntimeError(INSTALL_INSTRUCTIONS)
+    if tuple(map(int, __version__.split(".")[:2])) < (0, 1):
+        raise RuntimeError(
+            f"ComfyUI-USCG-RemoteVAE >= 0.1.0 required (found {__version__}). "
+            "Update via Comfy Manager."
+        )
+    return decode(endpoint, tensor, height, width)
 
 
 def detect_model_type(model, latent_channels):
@@ -95,56 +137,6 @@ def detect_model_type(model, latent_channels):
         return "SD"
 
 
-def remote_decode_hf(endpoint, tensor, height, width):
-    """
-    Send latent to HuggingFace Remote VAE endpoint for decoding.
-    Uses centralized network gateway (network_utils.py).
-    """
-    try:
-        import json as _json
-
-        # Gateway handles: tensor prep, query string, urllib call, allowlist validation
-        output_tensor, resp_headers = huggingface_vae_decode(endpoint, tensor, height, width)
-
-        # Parse response — tensor shape and dtype from headers
-        shape_header = resp_headers.get("shape", "")
-
-        if shape_header:
-            try:
-                shape = _json.loads(shape_header)
-            except Exception:
-                shape = [int(x.strip()) for x in shape_header.split(",")]
-        else:
-            raise RuntimeError("No shape header in response")
-
-        dtype_str = resp_headers.get("dtype", "float32")
-        dtype_map = {
-            "float32": torch.float32,
-            "float16": torch.float16,
-            "bfloat16": torch.bfloat16,
-        }
-        dtype = dtype_map.get(dtype_str, torch.float32)
-
-        # Map to numpy dtype for frombuffer
-        numpy_dtype_map = {
-            "float32": np.float32,
-            "float16": np.float16,
-            "bfloat16": np.float32,  # NumPy doesn't support bfloat16
-        }
-        numpy_dtype = numpy_dtype_map.get(dtype_str, np.float32)
-
-        # Convert bytes back to tensor using correct dtype
-        tensor_np = np.frombuffer(output_tensor, dtype=numpy_dtype)
-        result = torch.from_numpy(tensor_np).reshape(shape).to(dtype)
-
-        return result
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise
-
-
 class RemoteVAEDecodeWorker:
     """
     Background worker thread for async remote VAE decoding
@@ -186,7 +178,7 @@ class RemoteVAEDecodeWorker:
                     print(f"[GridTester] 🌐 Added batch dim: {latent_tensor.shape}")
                 
                 # Remote decode - returns [B, C, H, W] tensor
-                decoded = remote_decode_hf(self.endpoint, latent_tensor, height, width)
+                decoded = _companion_decode(self.endpoint, latent_tensor, height, width)
                 
                 # print(f"[GridTester] 🌐 Decoded shape: {decoded.shape}")
                 # print(f"[GridTester] 🌐 Decoded dtype: {decoded.dtype}")

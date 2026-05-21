@@ -2,8 +2,7 @@
 
 <img src="https://raw.githubusercontent.com/Lakonik/LakonLab/refs/heads/main/docs/assets/piflow/piflow_teaser.jpg" alt=""/>
 
-
-**ComfyUI-piFlow** is a collection of custom nodes for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) that implement the pi-Flow few-step sampling workflow. All images in the above example were generated using pi-Flow with only 4 sampling steps.
+**ComfyUI-piFlow** provides a collection of custom nodes for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) that implement the pi-Flow few-step sampling workflow. All images in the above example were generated using pi-Flow with only 4 sampling steps.
 
 [pi-Flow](https://arxiv.org/abs/2510.14974) is a novel method for flow-based few-step generation. It achieves both high quality and diversity in generated images with as few as 4 sampling steps. Notably,  pi-Flow’s results generally align with the base model’s outputs and exhibit significantly higher diversity than those from DMD models (e.g., [Qwen-Image Lightning](https://github.com/ModelTC/Qwen-Image-Lightning)), as shown below.
 
@@ -13,25 +12,9 @@ In addition, when using some photorealistic style LoRAs, pi-Flow produces better
 
 <img src="https://raw.githubusercontent.com/Lakonik/LakonLab/refs/heads/main/docs/assets/piflow/piflow_dmd_texture_comparison.jpg" width="1000" alt=""/>
 
-## Installation
-
-**This repo (version 1.2.0) requires ComfyUI version 0.17.0 or higher**. Older ComfyUI releases are no longer supported.
-
-### ComfyUI Manager
-
-If you are using [ComfyUI Manager](https://github.com/Comfy-Org/ComfyUI-Manager), you can load a [workflow](#workflows) first, and then install the missing nodes via ComfyUI Manager.
-
-### Manual Installation
-
-For manual installation, simply clone this repo into your ComfyUI `custom_nodes` directory.
-```bash
-# run the following command in your ComfyUI `custom_nodes` directory
-git clone https://github.com/Lakonik/ComfyUI-piFlow
-```
-
 ## Workflows
 
-This repo provides image generation [workflows](workflows) based on Qwen-Image, FLUX.1 dev, and FLUX.2 dev.
+This repo provides image generation [workflows](../workflows) based on Qwen-Image, FLUX.1 dev, and FLUX.2 dev.
 
 ### pi-Qwen-Image
 
@@ -39,7 +22,7 @@ Currently supports the Qwen-Image text-to-image base model (and possibly some of
 
 Please download the image below and drag it into ComfyUI to load the pi-Qwen-Image workflow.  
 
-<img src="workflows/pi-Qwen-Image.png" width="600" alt=""/>
+<img src="../workflows/pi-Qwen-Image.png" width="600" alt=""/>
 
 #### Model links
 
@@ -75,7 +58,7 @@ Currently supports the FLUX.1 dev text-to-image base model (and possibly some of
 
 Please download the image below and drag it into ComfyUI to load the pi-Flux workflow.  
 
-<img src="workflows/pi-Flux.png" width="600" alt=""/>
+<img src="../workflows/pi-Flux.png" width="600" alt=""/>
 
 #### Model links
 
@@ -121,7 +104,7 @@ Supports the FLUX.2 dev base model (and possibly some of its customized versions
 
 Please download the image below and drag it into ComfyUI to load the pi-Flux.2 workflow.  
 
-<img src="workflows/pi-Flux2.png" width="600" alt=""/>
+<img src="../workflows/pi-Flux2.png" width="600" alt=""/>
 
 #### Model links
 
@@ -162,39 +145,3 @@ Then, replace the `Load pi-Flow Model` node in the workflows with the `Load pi-F
 ## Training Your Own pi-Flow Models
 
 Please visit the official [piFlow](https://github.com/lakonik/piflow) repo for more information on training.
-
-## License
-
-This code repository is licensed under the Apache-2.0 License. Models used in the workflows are subject to their own respective licenses.
-
-## Changelog
-
-- **v1.2.0** (2026-05-17)
-  - Target latest ComfyUI only (`requires-comfyui >= 0.17.0`); older releases are no longer supported.
-  - Update Qwen, Flux, and Flux.2 model shims for current ComfyUI reference/edit conditioning APIs.
-  - Fix Flux/Flux.2 loader compatibility with current normalization key names and latest model loading behavior.
-  - Add sampler support for multiple active/regional pi-Flow conditionings through composite policy blending.
-
-- **v1.1.5** (2026-01-18)
-  - Fix a compatibility issue with ComfyUI-GGUF commit `58625e1`.
-  - Add support for loading metadata from GGUF pi-Flow models.
-
-- **v1.1.4** (2025-12-18)
-  - Fix a bug in the example pi-Flux.2 editing workflow where a load image node is disconnected from the main graph. 
-
-- **v1.1.3** (2025-12-18)
-  - Add pi-Flux.2 models and workflow for text-to-image generation and multi-image editing.
-  - Add GGUF support for pi-Flow models.
-  - Fix compatibility for ComfyUI v0.4.0 (new quantization)
-  - Fix dtype mismatch issues in GMFlow output layers
-  - Improve GMFlow numerical stability
-
-- **v1.0.5** (2025-11-11)
-  - Add experimental support for polynomial-based DX policy.
-  - Update README.md and pi-Flux workflow (highlighting the FluxGuidance setting).
-
-- **v1.0.4** (2025-11-09)
-  - Fix a bug in GM-Qwen when running in BF16 precision.
-
-- **v1.0.3** (2025-11-09)
-  - Add support for scaled FP8 base models.

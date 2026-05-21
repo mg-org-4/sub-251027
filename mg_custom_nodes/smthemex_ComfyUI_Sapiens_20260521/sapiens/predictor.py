@@ -217,7 +217,7 @@ def seg_predict(model, images,cond, RGB_BG,class_palette_type="dome29"):
         seg_logits = F.interpolate(
             seg_logits, size=image.shape[:2], mode="bilinear"
         )  ## 1 x C x H x W
-        pred_labels = seg_logits.argmax(dim=1).cpu().float().numpy()  ## 1 x H x W
+        pred_labels = seg_logits.argmax(dim=1).cpu().numpy()  ## 1 x H x W
         pred_labels = pred_labels.squeeze(0)  ## H x W
 
         vis_seg = visualizer._visualize_segmentation(image, pred_labels)

@@ -4,10 +4,10 @@ Set of custom nodes for ComfyUI providing additional image processing capabiliti
 Nodes do not require the installation of additional Python packages.  
 🖥️ Performance has been tested for:  
 
-- ComfyUI 0.15*-0.19*  
-- Python 3.10-3.13  
-- Torch 2.8-2.10 
-- Cuda 12.4-13.0  
+- ComfyUI 0.15 and above  
+- Python 3.10 and above  
+- Torch 2.8 and above
+- Cuda 12.4 and above 
 
 ---
 
@@ -173,6 +173,60 @@ Click "✔️ ACCEPT" to pass selected images to next nodes. Only selected image
 		
 ### ⚠️ Reminder
 **The generation process will pause indefinitely until you click "✔️ ACCEPT", "❌ CANCEL" or close the workflow or the ComfyUI page.**  
+
+---
+---
+
+# 🦊 RS Image to Latent  
+**A powerful and user-friendly ComfyUI node that converts images to latents with intelligent size optimization.**  
+
+<img width="400" height="460" alt="1" src="https://github.com/user-attachments/assets/aa67d7af-d612-43c5-9e99-1914094d73ad" />  
+
+### 🔥 Features  
+- **Multiple sizing modes** - Auto, Preset, Custom, or Megapixels  
+- **VAE-aware** - Automatically detects divisibility requirements  
+- **Batch processing** - Create multiple identical latents at once  
+- **Smart upscaling** - Choose from multiple upscale methods  
+- **Clean interface** - No technical clutter, just what you need  
+
+### 🪛 Usage  
+Resolution control - Ensure consistent sizes across your workflow  
+VRAM optimization - Use megapixels mode to stay within limits  
+Auto mode - Preserves original proportions  
+Batch generation - Create multiple variations from one image  
+
+### 🎯 Modes Explained  
+**Auto**  
+Preserves original image size and only rounds to meet VAE divisibility requirements. No unexpected upscaling.  
+
+**Preset**  
+Choose from 50+ common resolutions including:  
+- Square: 512×512 to 1920×1920  
+- Portrait: 3:2, 3:4, 9:16 and more  
+- Landscape: 4:3, 16:9, 21:9 and more  
+
+**Custom**  
+Manually enter width and height (must be multiples of 8).  
+ 
+**Megapixels**  
+Set target megapixels with specific aspect ratio. Perfect for controlling VRAM usage.  
+
+### 🔧 Rounding Modes  
+- auto - Picks the nearest valid size (recommended)  
+- shrink - Only reduces size, never increases  
+- expand - Only increases size, never reduces  
+
+### ↔️ Input and output:  
+Input:  
+image - Input image to convert to latent  
+vae	- VAE model for encoding (auto-detects divisibility)  
+
+Output:  
+latent - The encoded latent tensor  
+width_px - Final width in pixels  
+height_px - Final height in pixels  
+width_latent - Latent width (width/8)  
+height_latent - Latent height (height/8)  
 
 ---
 ---

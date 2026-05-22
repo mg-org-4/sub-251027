@@ -2610,6 +2610,7 @@ function attachVerticalStepDrag(element, getValue, applyValue, stepValue, option
     element.style.cursor = element.style.cursor || "ns-resize";
     element.addEventListener("pointerdown", (event) => {
         if (event.button !== 0) return;
+        if (event.detail > 1 || element.dataset.iamccsNumberEditing === "true") return;
         event.preventDefault();
         event.stopPropagation();
         const startY = event.clientY;
@@ -2655,6 +2656,7 @@ function numberStepperControl(value, step, min, max, onChange, options = {}) {
     const input = document.createElement("input");
     input.type = "text";
     input.inputMode = "decimal";
+    input.readOnly = true;
     input.value = formatStepperValue(value, precision);
     input.style.cssText = inputBase() + "height:30px;padding:4px 6px;text-align:center;font-variant-numeric:tabular-nums;cursor:ns-resize;";
 
@@ -2685,13 +2687,27 @@ function numberStepperControl(value, step, min, max, onChange, options = {}) {
         const n = Number(raw);
         if (Number.isFinite(n)) onChange(clamp(n));
     };
+    const setEditing = (editing) => {
+        input.dataset.iamccsNumberEditing = editing ? "true" : "false";
+        input.readOnly = !editing;
+        input.style.cursor = editing ? "text" : "ns-resize";
+    };
+    input.ondblclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setEditing(true);
+        input.focus();
+        input.select();
+    };
     input.onblur = () => {
         const raw = String(input.value).replace(",", ".").trim();
         if (!raw) {
             input.value = formatStepperValue(value, precision);
+            setEditing(false);
             return;
         }
         apply(Number(raw));
+        setEditing(false);
     };
     input.onkeydown = (event) => {
         if (event.key === "Enter") {
@@ -2706,7 +2722,9 @@ function numberStepperControl(value, step, min, max, onChange, options = {}) {
         const current = Number(String(input.value).replace(",", ".")) || 0;
         apply(current + (event.key === "ArrowUp" ? stepValue : -stepValue));
     };
-    input.onfocus = () => input.select();
+    input.onfocus = () => {
+        if (input.dataset.iamccsNumberEditing === "true") input.select();
+    };
     attachVerticalStepDrag(
         input,
         () => Number(String(input.value).replace(",", ".")) || 0,
@@ -5809,6 +5827,7 @@ function renderShotboardV3(node) {
     const defaultForceWidget = getWidget(node, "default_force");
     const imageWidthWidget = getWidget(node, "image_width");
     const imageHeightWidget = getWidget(node, "image_height");
+    if (defaultForceWidget) defaultForceWidget.value = Math.max(0, Math.min(1, Number(defaultForceWidget.value || 0)));
     let collapsed = Boolean(node.properties?.iamccs_v3_collapsed);
     let promptTextScale = Math.max(0.85, Math.min(1.55, Number(node.properties?.iamccs_v3_prompt_text_scale || 1)));
     const promptFontSize = (base) => `${Math.max(8, Math.round(Number(base || 10) * promptTextScale * 10) / 10)}px`;
@@ -5819,10 +5838,15 @@ function renderShotboardV3(node) {
     let timelineNotice = null;
     let timelineNoticeUntil = 0;
     let lastDefaultForce = Math.max(0, Math.min(1, Number(defaultForceWidget?.value || 0.25)));
+    let durationValueControl = null;
 
     const getDuration = () => Math.max(0.1, Number(durationWidget?.value || 20));
     const getFps = () => Math.max(1, Math.round(Number(fpsWidget?.value || 24)));
     const getTotalFrames = () => Math.max(1, Math.round(getDuration() * getFps()));
+    const clampGuideStrength = (value, fallback = 0) => {
+        const parsed = Number(value);
+        return Math.max(0, Math.min(1, Number.isFinite(parsed) ? parsed : Number(fallback) || 0));
+    };
     const clampTimelineMeterSeconds = (value = timelineMeterSeconds) => {
         const duration = Math.max(0.5, getDuration());
         const rounded = Math.round((Number(value) || duration) * 2) / 2;
@@ -5868,6 +5892,7 @@ function renderShotboardV3(node) {
         const next = Math.max(0.1, Number(seconds) || 0.1);
         if (durationWidget) durationWidget.value = next;
         setWidgetValue(node, "duration_seconds", next);
+        durationValueControl?._iamccsSetValue?.(next);
     };
     const enforceDurationMinimum = () => {
         const fps = getFps();
@@ -5909,10 +5934,9 @@ function renderShotboardV3(node) {
         return Math.abs(current - Number(previousDefault || 0)) < 0.0005;
     };
     const applyDefaultForceToLinkedSegments = (value) => {
-        const next = Math.max(0, Math.min(1, Number(value) || 0));
-        const previous = lastDefaultForce;
+        const next = clampGuideStrength(value);
         (timeline.segments || []).forEach((seg) => {
-            if (!followsDefaultForce(seg, previous)) return;
+            if (!seg || String(seg.type || "image") === "text") return;
             seg.guideStrength = next;
             seg.imageLockStrength = next;
             seg.defaultForceSource = next;
@@ -5925,6 +5949,12 @@ function renderShotboardV3(node) {
         seg.length = Math.max(1, Math.round(Number(seg.length || defaultLen())));
         seg.start = Math.max(0, Math.min(Math.round(Number(seg.start || 0)), Math.max(0, total - 1)));
         if (seg.start + seg.length > total) seg.length = Math.max(1, total - seg.start);
+        if (String(seg.type || "image") !== "text" && String(seg.type || "image") !== "audio") {
+            const strength = clampGuideStrength(seg.guideStrength ?? seg.force ?? defaultForceWidget?.value ?? 0.25);
+            seg.guideStrength = strength;
+            seg.imageLockStrength = clampGuideStrength(seg.imageLockStrength ?? strength, strength);
+            if (seg.defaultForceSource !== undefined) seg.defaultForceSource = clampGuideStrength(seg.defaultForceSource, strength);
+        }
         return seg;
     };
     const audioSegmentHasMedia = (seg) => Boolean(seg && (String(seg.audioFile || "").trim() || String(seg.audioB64 || "").trim()));
@@ -6044,6 +6074,7 @@ function renderShotboardV3(node) {
         });
     };
     const writeTimeline = (options = {}) => {
+        neutralizeLegacyStepTransitions();
         enforceDurationMinimum();
         cleanupAudioPlaceholdersOverlappingMedia();
         magnetize();
@@ -6294,15 +6325,18 @@ function renderShotboardV3(node) {
         const span = document.createElement("span");
         span.textContent = label;
         const widget = getWidget(node, name);
-        const ctrl = numberStepperControl(widget?.value ?? "", step, min, null, (value) => {
-            if (name === "default_force") applyDefaultForceToLinkedSegments(value);
-            setWidgetValue(node, name, value);
+        const max = name === "default_force" ? "1" : null;
+        const ctrl = numberStepperControl(widget?.value ?? "", step, min, max, (value) => {
+            const nextValue = name === "default_force" ? clampGuideStrength(value) : value;
+            if (name === "default_force") applyDefaultForceToLinkedSegments(nextValue);
+            setWidgetValue(node, name, nextValue);
             if (name === "duration_seconds" && enforceDurationMinimum()) {
                 ctrl._iamccsSetValue?.(durationWidget?.value);
             }
             writeTimeline();
             draw();
         }, name === "duration_seconds" ? { liveInput: false } : {});
+        if (name === "duration_seconds") durationValueControl = ctrl;
         styleValueControls(ctrl);
         wrap.append(span, ctrl);
         settings.appendChild(wrap);
@@ -6487,7 +6521,7 @@ function renderShotboardV3(node) {
     const inspector = document.createElement("div");
     inspector.style.cssText = `display:${collapsed ? "none" : "block"};`;
     const boxList = document.createElement("div");
-    boxList.style.cssText = `border:1px solid ${purple.borderSoft};background:${purple.panel};border-radius:6px;padding:6px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;max-height:300px;`;
+    boxList.style.cssText = `border:1px solid ${purple.borderSoft};background:${purple.panel};border-radius:6px;padding:6px;overflow:visible;box-sizing:border-box;`;
     const editBox = document.createElement("div");
     editBox.style.cssText = "display:none;";
     inspector.append(boxList, editBox);
@@ -6706,6 +6740,24 @@ function renderShotboardV3(node) {
     }
     function isActionBridgeRelaySegment(seg) {
         return String(seg?.type || "") === "text" && Boolean(seg?.actionBridgeSourceId);
+    }
+    function normalizeV3RelayOnlySegment(seg) {
+        const next = { ...(seg || {}) };
+        if (isActionBridgeRelaySegment(next)) {
+            delete next.actionBridgeSourceId;
+            delete next.actionBridgeSourceLabel;
+            if (!String(next.label || "").trim() || /^action_bridge/i.test(String(next.label || ""))) next.label = "text_relay_slot";
+        }
+        next.step_transition_enabled = false;
+        next.step_transition_type = "off";
+        next.step_transition_prompt = "";
+        next.step_transition_duration = 0;
+        next.step_transition_arrival = "auto";
+        next.step_transition_auto_fit = true;
+        return next;
+    }
+    function neutralizeLegacyStepTransitions() {
+        timeline.segments = (timeline.segments || []).map((seg) => normalizeV3RelayOnlySegment(seg));
     }
     function sortedActionBridgeSources(items = timeline.segments || []) {
         return (items || [])
@@ -7218,16 +7270,23 @@ function renderShotboardV3(node) {
         event?.preventDefault?.();
         event?.stopPropagation?.();
         root.querySelectorAll(".iamccs-v3-add-menu").forEach((item) => item.remove());
+        document.querySelectorAll(".iamccs-v3-add-menu").forEach((item) => item.remove());
         const menu = document.createElement("div");
         menu.className = "iamccs-v3-add-menu";
-        const rootRect = root.getBoundingClientRect();
-        const x = Math.max(8, Math.min(rootRect.width - 188, Number(event?.clientX || rootRect.left + 24) - rootRect.left));
-        const y = Math.max(8, Math.min(rootRect.height - 122, Number(event?.clientY || rootRect.top + 24) - rootRect.top));
+        const fallbackRect = root.getBoundingClientRect();
+        const menuW = 180;
+        const menuH = 122;
+        const viewportW = Math.max(1, Number(window.innerWidth || document.documentElement?.clientWidth || fallbackRect.right || 1));
+        const viewportH = Math.max(1, Number(window.innerHeight || document.documentElement?.clientHeight || fallbackRect.bottom || 1));
+        const pointerX = Number.isFinite(Number(event?.clientX)) ? Number(event.clientX) : fallbackRect.left + 24;
+        const pointerY = Number.isFinite(Number(event?.clientY)) ? Number(event.clientY) : fallbackRect.top + 24;
+        const x = Math.max(8, Math.min(viewportW - menuW - 8, pointerX));
+        const y = Math.max(8, Math.min(viewportH - menuH - 8, pointerY));
         menu.style.cssText = [
-            "position:absolute",
+            "position:fixed",
             `left:${x}px`,
             `top:${y}px`,
-            "width:180px",
+            `width:${menuW}px`,
             "box-sizing:border-box",
             `border:1px solid ${purple.border}`,
             "border-radius:6px",
@@ -7270,7 +7329,7 @@ function renderShotboardV3(node) {
             pendingAudioTrack = 0;
             audioInput.click();
         });
-        root.appendChild(menu);
+        document.body.appendChild(menu);
         const close = (closeEvent) => {
             if (!menu.contains(closeEvent.target)) {
                 menu.remove();
@@ -7352,6 +7411,7 @@ function renderShotboardV3(node) {
         const promptTop = frameShellHeight + 10;
         const promptHeight = 74;
         const selected = selectedId === seg.id;
+        const showDragStripes = Boolean(dragState && !isAudio && dragState.targetId === seg.id && dragState.kind !== "center");
         const color = isAudio ? purple.audio : (String(seg.type) === "text" ? purple.textBlock : purple.image2);
         block.style.cssText = [
             "position:absolute",
@@ -7392,10 +7452,29 @@ function renderShotboardV3(node) {
             const refNumber = Number(seg.ref || 0);
             const path = refNumber >= 1 ? refPaths()[Math.max(0, refNumber - 1)] : "";
             if (path) {
-                const img = document.createElement("img");
-                img.src = previewUrlForPath(path);
-                img.style.cssText = `position:absolute;left:24px;right:0;top:0;width:calc(100% - 24px);height:${imageHeight}px;object-fit:cover;opacity:.9;`;
-                block.appendChild(img);
+                const previewUrl = previewUrlForPath(path);
+                if (showDragStripes) {
+                    const stripe = document.createElement("div");
+                    stripe.style.cssText = [
+                        "position:absolute",
+                        "left:24px",
+                        "right:0",
+                        "top:0",
+                        `height:${imageHeight}px`,
+                        `background-image:url("${previewUrl}")`,
+                        "background-size:132px 108px",
+                        "background-repeat:repeat-x",
+                        "background-position:left center",
+                        "opacity:.9",
+                        "box-shadow:inset 0 0 0 999px rgba(0,0,0,.08)",
+                    ].join(";");
+                    block.appendChild(stripe);
+                } else {
+                    const img = document.createElement("img");
+                    img.src = previewUrl;
+                    img.style.cssText = `position:absolute;left:24px;right:0;top:0;width:calc(100% - 24px);height:${imageHeight}px;object-fit:cover;opacity:.9;`;
+                    block.appendChild(img);
+                }
                 const replaceImage = document.createElement("button");
                 replaceImage.type = "button";
                 replaceImage.textContent = "+";
@@ -7826,29 +7905,15 @@ function renderShotboardV3(node) {
                 }, { liveInput: false });
                 ctrl.style.minWidth = "0";
                 ctrl.style.width = "100%";
-                ctrl.style.gridTemplateColumns = "28px minmax(42px,1fr) 28px";
-                ctrl.style.gap = "7px";
+                ctrl.style.gridTemplateColumns = "26px minmax(52px,1fr) 26px";
+                ctrl.style.gap = "5px";
                 ctrl.querySelectorAll("button").forEach((button) => {
-                    button.style.minWidth = "28px";
-                    button.style.width = "28px";
+                    button.style.minWidth = "26px";
+                    button.style.width = "26px";
                     button.style.margin = "0";
                 });
                 styleValueControls(ctrl);
                 wrap.append(span, ctrl);
-                if (key === "length") {
-                    const fps = getFps();
-                    const startFrame = Math.round(Number(seg.start || 0));
-                    const lenFrame = Math.max(1, Math.round(Number(seg.length || 1)));
-                    const endFrame = startFrame + lenFrame;
-                    const info = document.createElement("div");
-                    info.style.cssText = `display:grid;gap:2px;color:${purple.muted};font-size:9px;font-weight:800;line-height:1.1;text-align:center;white-space:nowrap;`;
-                    const dur = document.createElement("span");
-                    dur.textContent = `${lenFrame}f / ${(lenFrame / fps).toFixed(2)}s`;
-                    const range = document.createElement("span");
-                    range.textContent = `${(startFrame / fps).toFixed(2)}s -> ${(endFrame / fps).toFixed(2)}s`;
-                    info.append(dur, range);
-                    wrap.appendChild(info);
-                }
                 return wrap;
             }
             const input = type === "textarea" ? document.createElement("textarea") : document.createElement("input");
@@ -8121,8 +8186,6 @@ function renderShotboardV3(node) {
             const startFrame = Math.max(0, Math.round(Number(seg.start || 0)));
             const lenFrame = Math.max(1, Math.round(Number(seg.length || 1)));
             const endFrame = startFrame + lenFrame;
-            const activeStep = Boolean(seg.step_transition_enabled && index < total - 1);
-            const stepSeconds = Math.max(0, Number(seg.step_transition_duration || 0) || 0);
             const summary = document.createElement("div");
             summary.style.cssText = [
                 "align-self:start",
@@ -8133,23 +8196,23 @@ function renderShotboardV3(node) {
                 "gap:3px",
                 "min-width:0",
                 "padding:5px 8px",
-                `border:1px solid ${activeStep ? "rgba(223,164,81,.74)" : "rgba(120,112,98,.44)"}`,
+                "border:1px solid rgba(120,112,98,.44)",
                 "border-radius:6px",
-                `background:${activeStep ? "linear-gradient(180deg, rgba(64,43,25,.92), rgba(35,31,28,.78))" : "linear-gradient(180deg, rgba(52,50,47,.78), rgba(28,28,27,.52))"}`,
+                "background:linear-gradient(180deg, rgba(52,50,47,.78), rgba(28,28,27,.52))",
                 "box-shadow:inset 0 1px 0 rgba(255,255,255,.10), 0 4px 12px rgba(0,0,0,.14)",
                 "box-sizing:border-box",
                 "overflow:hidden",
                 "text-align:center",
             ].join(";");
             const title = document.createElement("div");
-            title.textContent = activeStep ? `${stepTransitionLabel(seg.step_transition_type)} -> next` : "Segment";
-            title.style.cssText = `max-width:100%;padding:2px 7px;border-radius:999px;border:1px solid ${activeStep ? "rgba(223,164,81,.55)" : "rgba(143,208,204,.22)"};background:${activeStep ? "rgba(223,164,81,.12)" : "rgba(143,208,204,.07)"};color:${activeStep ? "#F4D49E" : purple.muted};font-size:7px;font-weight:900;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1;`;
+            title.textContent = "Segment";
+            title.style.cssText = `max-width:100%;padding:2px 7px;border-radius:999px;border:1px solid rgba(143,208,204,.22);background:rgba(143,208,204,.07);color:${purple.muted};font-size:7px;font-weight:900;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1;`;
             const range = document.createElement("div");
             range.textContent = `${(startFrame / fps).toFixed(2)}s -> ${(endFrame / fps).toFixed(2)}s`;
             range.style.cssText = `color:${purple.text};font-size:10px;font-weight:900;white-space:nowrap;line-height:1;`;
             const meta = document.createElement("div");
-            meta.textContent = `${lenFrame}f / ${(lenFrame / fps).toFixed(2)}s${activeStep ? ` | ${stepSeconds > 0 ? stepSeconds.toFixed(1) : "auto"}s move` : ""}`;
-            meta.style.cssText = `max-width:100%;color:${activeStep ? "#DFA451" : purple.muted};font-size:8px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1;`;
+            meta.textContent = `${lenFrame}f / ${(lenFrame / fps).toFixed(2)}s`;
+            meta.style.cssText = `max-width:100%;color:${purple.muted};font-size:8px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1;`;
             summary.append(title, range, meta);
             return summary;
         };
@@ -8293,9 +8356,9 @@ function renderShotboardV3(node) {
             const card = document.createElement("div");
             card.style.cssText = [
                 "display:grid",
-                "grid-template-columns:32px minmax(650px,.82fr) minmax(0,1fr) 112px 30px",
+                "grid-template-columns:32px minmax(750px,780px) minmax(520px,1fr) 112px 30px",
                 "gap:8px",
-                "align-items:stretch",
+                "align-items:center",
                 "margin-bottom:6px",
                 "padding:8px 9px",
                 "min-height:96px",
@@ -8383,9 +8446,9 @@ function renderShotboardV3(node) {
             });
 
             const leftPane = document.createElement("div");
-            leftPane.style.cssText = "display:flex;align-items:center;min-width:0;align-self:stretch;";
+            leftPane.style.cssText = "display:flex;align-items:center;min-width:0;align-self:center;";
             const numericRow = document.createElement("div");
-            numericRow.style.cssText = "display:grid;grid-template-columns:minmax(94px,104px) minmax(116px,126px) minmax(94px,104px) minmax(116px,132px) minmax(150px,1fr);gap:8px;align-items:center;min-width:0;width:100%;";
+            numericRow.style.cssText = "display:grid;grid-template-columns:122px 122px 122px 144px minmax(170px,1fr);gap:8px;align-items:center;min-width:0;width:100%;";
             numericRow.append(
                 makeField(seg, "Frame", "start", "number"),
                 makeField(seg, "Len", "length", "number"),
@@ -8396,7 +8459,7 @@ function renderShotboardV3(node) {
             leftPane.append(numericRow);
 
             const rightPane = document.createElement("div");
-            rightPane.style.cssText = "display:flex;align-items:center;min-width:0;align-self:stretch;padding-bottom:0;";
+            rightPane.style.cssText = "display:flex;align-items:center;min-width:0;align-self:center;padding-bottom:0;";
             const promptField = makeField(seg, "Action in segment", "prompt", "textarea");
             const promptHeader = document.createElement("div");
             promptHeader.style.cssText = "display:grid;grid-template-columns:minmax(0,1fr);gap:0;align-items:center;min-width:0;width:100%;";
@@ -8597,7 +8660,8 @@ function renderShotboardV3(node) {
         refsPanel.style.display = "none";
         collapseBtn.textContent = collapsed ? "Show Boxes" : "Collapse Boxes";
         root.style.maxHeight = `${currentNodeHeight()}px`;
-        boxList.style.maxHeight = collapsed ? "0" : "300px";
+        boxList.style.maxHeight = collapsed ? "0" : "none";
+        boxList.style.overflow = collapsed ? "hidden" : "visible";
         if (!collapsed && !dragState) drawBoxes();
         const desiredHeight = currentNodeHeight();
         node._iamccsCineMinSize = [SHOTBOARD_V3_RIGID_WIDTH, desiredHeight];
@@ -8909,19 +8973,19 @@ function renderShotboardV3(node) {
             defaultForceSource: isText ? 0 : (explicitForceCustom ? rowForceValue : defaultForceValue),
                 forceCustom: Boolean(!isText && explicitForceCustom),
                 use_guide: !isText && row.use_guide !== false,
-                use_prompt: Boolean(prompt || row.step_transition_enabled || row.stepTransitionEnabled || row.dialogue_pin || row.dialoguePin || row.image_lock || row.imageLock || row.motion_boost || row.motionBoost),
+                use_prompt: Boolean(prompt || row.dialogue_pin || row.dialoguePin || row.image_lock || row.imageLock || row.motion_boost || row.motionBoost),
                 dialogue_pin: Boolean(row.dialogue_pin || row.dialoguePin),
                 image_lock: Boolean(row.image_lock || row.imageLock),
                 motion_boost: Boolean(row.motion_boost || row.motionBoost),
                 clean_relay: Boolean(row.clean_relay || row.cleanRelay),
-                step_transition_enabled: Boolean(row.step_transition_enabled || row.stepTransitionEnabled),
-                step_transition_type: String(row.step_transition_type || row.stepTransitionType || "off"),
-                step_transition_prompt: String(row.step_transition_prompt || row.stepTransitionPrompt || ""),
+                step_transition_enabled: false,
+                step_transition_type: "off",
+                step_transition_prompt: "",
                 step_transition_easing: String(row.step_transition_easing || row.stepTransitionEasing || "ease_in_out"),
                 step_transition_force_curve: String(row.step_transition_force_curve || row.stepTransitionForceCurve || "late_target"),
-                step_transition_duration: Math.max(0, Number(row.step_transition_duration ?? row.stepTransitionDuration ?? 0) || 0),
-                step_transition_arrival: String(row.step_transition_arrival || row.stepTransitionArrival || "auto"),
-                step_transition_auto_fit: (row.step_transition_auto_fit ?? row.stepTransitionAutoFit ?? true) !== false,
+                step_transition_duration: 0,
+                step_transition_arrival: "auto",
+                step_transition_auto_fit: true,
             };
         });
     }
@@ -8956,7 +9020,7 @@ function renderShotboardV3(node) {
             timeline = {
                 schema: "iamccs.cine.filmmaker_timeline",
                 schema_version: Number(loadedTimeline.schema_version || 1),
-                segments: loadedTimeline.segments.map((seg) => ({ ...seg, id: seg.id || newId(seg.type === "text" ? "text" : "seg") })),
+                segments: loadedTimeline.segments.map((seg) => normalizeV3RelayOnlySegment({ ...seg, id: seg.id || newId(seg.type === "text" ? "text" : "seg") })),
                 audioSegments: Array.isArray(loadedTimeline.audioSegments) ? loadedTimeline.audioSegments.map((seg) => ({ ...seg, id: seg.id || newId("aud") })) : [],
                 audioTrackCount: Math.max(1, Number(loadedTimeline.audioTrackCount || 2)),
             };

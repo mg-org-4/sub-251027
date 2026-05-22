@@ -1431,6 +1431,10 @@ function videoSettingsToggleHandler(settingsNode) {
     const occlusionDetectionWidget = settingsNode.widgets.find(w => w && w.name === "occlusionDetection");
     const useKeyframeIdWidget = settingsNode.widgets.find(w => w && w.name === "useKeyframeId");
     const keyframeIdWidget = settingsNode.widgets.find(w => w && w.name === "keyframeId");
+    const useFitWidget = settingsNode.widgets.find(w => w && w.name === "useFit");
+    const fitWidget = settingsNode.widgets.find(w => w && w.name === "fit");
+    const useCaptionWidget = settingsNode.widgets.find(w => w && w.name === "useCaption");
+    const captionWidget = settingsNode.widgets.find(w => w && w.name === "caption");
 
     function toggleWidgetState(useWidget, paramWidget, paramName) {
         if (!useWidget || !paramWidget) return;
@@ -1468,6 +1472,8 @@ function videoSettingsToggleHandler(settingsNode) {
     if (useTemperatureWidget && temperatureWidget) toggleWidgetState(useTemperatureWidget, temperatureWidget, "temperature");
     if (useOcclusionDetectionWidget && occlusionDetectionWidget) toggleWidgetState(useOcclusionDetectionWidget, occlusionDetectionWidget, "occlusionDetection");
     if (useKeyframeIdWidget && keyframeIdWidget) toggleWidgetState(useKeyframeIdWidget, keyframeIdWidget, "keyframeId");
+    if (useFitWidget && fitWidget) toggleWidgetState(useFitWidget, fitWidget, "fit");
+    if (useCaptionWidget && captionWidget) toggleWidgetState(useCaptionWidget, captionWidget, "caption");
 }
 
 function videoInferenceSettingsTtsToggleHandler(node) {
@@ -2848,6 +2854,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "HeyGen": [
             "heygen:avatar@4 (HeyGen Avatar IV)",
             "heygen:video-agent@0 (HeyGen Video Agent)",
+            "heygen:avatar@5 (HeyGen Avatar V)",
         ],
         "Hunyuan": [
             "runware:hunyuanvideo@1.5 (HunyuanVideo-1.5)",
@@ -2965,6 +2972,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "prunaai:p-video@avatar": {"width": 1280, "height": 720},
         "heygen:avatar@4": {"width": 1280, "height": 720},
         "heygen:video-agent@0": {"width": 1280, "height": 720},
+        "heygen:avatar@5": {"width": 1280, "height": 720},
         "skywork:skyreels@v4": {"width": 1280, "height": 720},
     };
 
@@ -3063,6 +3071,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "prunaai:p-video@avatar": "720p",
         "heygen:avatar@4": "720p",
         "heygen:video-agent@0": "720p",
+        "heygen:avatar@5": "720p",
         "skywork:skyreels@v4": "720p",
     };
 
@@ -5033,6 +5042,7 @@ export {
     syncProviderSettingsToggleHandler,
     syncSegmentToggleHandler,
     settingsToggleHandler,
+    outpaintSettingsToggleHandler,
     safetyInputsToggleHandler,
     imageInferenceSettingsColorPaletteToggleHandler,
     audioInputToggleHandler,
@@ -5147,6 +5157,8 @@ function settingsToggleHandler(settingsNode) {
     const renderingSpeedWidget = settingsNode.widgets.find(w => w.name === "renderingSpeed");
     const useMagicPromptWidget = settingsNode.widgets.find(w => w.name === "useMagicPrompt");
     const magicPromptWidget = settingsNode.widgets.find(w => w.name === "magicPrompt");
+    const useAutoCropWidget = settingsNode.widgets.find(w => w.name === "useAutoCrop");
+    const autoCropWidget = settingsNode.widgets.find(w => w.name === "autoCrop");
     
     // Helper function to toggle widget enabled state
     function toggleWidgetState(useWidget, paramWidget, paramName) {
@@ -5239,6 +5251,71 @@ function settingsToggleHandler(settingsNode) {
     if (useMagicPromptWidget && magicPromptWidget) {
         toggleWidgetState(useMagicPromptWidget, magicPromptWidget, "magicPrompt");
     }
+    if (useAutoCropWidget && autoCropWidget) {
+        toggleWidgetState(useAutoCropWidget, autoCropWidget, "autoCrop");
+    }
+}
+
+function outpaintSettingsToggleHandler(settingsNode) {
+    if (!settingsNode?.widgets) return;
+
+    const useTopWidget = settingsNode.widgets.find(w => w && w.name === "useTop");
+    const topWidget = settingsNode.widgets.find(w => w && w.name === "Top");
+    const useRightWidget = settingsNode.widgets.find(w => w && w.name === "useRight");
+    const rightWidget = settingsNode.widgets.find(w => w && w.name === "Right");
+    const useBottomWidget = settingsNode.widgets.find(w => w && w.name === "useBottom");
+    const bottomWidget = settingsNode.widgets.find(w => w && w.name === "Bottom");
+    const useLeftWidget = settingsNode.widgets.find(w => w && w.name === "useLeft");
+    const leftWidget = settingsNode.widgets.find(w => w && w.name === "Left");
+    const useBlurWidget = settingsNode.widgets.find(w => w && w.name === "useBlur");
+    const blurWidget = settingsNode.widgets.find(w => w && w.name === "Blur");
+
+    function toggleWidgetState(useWidget, paramWidget, paramName) {
+        if (!useWidget || !paramWidget) return;
+
+        function toggleEnabled() {
+            const enabled = useWidget.value === true;
+
+            if (paramWidget.inputEl) {
+                paramWidget.inputEl.disabled = !enabled;
+                paramWidget.inputEl.style.opacity = enabled ? "1" : "0.5";
+                paramWidget.inputEl.style.cursor = enabled ? "text" : "not-allowed";
+                paramWidget.inputEl.readOnly = !enabled;
+            }
+
+            paramWidget.disabled = !enabled;
+
+            if (!paramWidget.inputEl) {
+                const nodeElement = settingsNode.htmlElements?.widgetsContainer || settingsNode.htmlElements;
+                if (nodeElement) {
+                    const input = nodeElement.querySelector(`input[name="${paramName}"], textarea[name="${paramName}"], select[name="${paramName}"]`);
+                    if (input) {
+                        input.disabled = !enabled;
+                        input.style.opacity = enabled ? "1" : "0.5";
+                        input.style.cursor = enabled ? "text" : "not-allowed";
+                        input.readOnly = !enabled;
+                        if (input.tagName === "SELECT") {
+                            input.style.pointerEvents = enabled ? "auto" : "none";
+                        }
+                    }
+                }
+            }
+
+            settingsNode.setDirtyCanvas(true);
+        }
+
+        appendWidgetCB(useWidget, () => {
+            setTimeout(toggleEnabled, 50);
+        });
+
+        setTimeout(toggleEnabled, 100);
+    }
+
+    if (useTopWidget && topWidget) toggleWidgetState(useTopWidget, topWidget, "Top");
+    if (useRightWidget && rightWidget) toggleWidgetState(useRightWidget, rightWidget, "Right");
+    if (useBottomWidget && bottomWidget) toggleWidgetState(useBottomWidget, bottomWidget, "Bottom");
+    if (useLeftWidget && leftWidget) toggleWidgetState(useLeftWidget, leftWidget, "Left");
+    if (useBlurWidget && blurWidget) toggleWidgetState(useBlurWidget, blurWidget, "Blur");
 }
 
 function safetyInputsToggleHandler(safetyNode) {

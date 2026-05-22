@@ -33,8 +33,8 @@ from ...registry import (
     VISUALIZERS,
 )
 from torch import nn
-from torch.distributed.fsdp import MixedPrecisionPolicy
-from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
+# from torch.distributed.fsdp import MixedPrecisionPolicy
+# from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torch.utils.data import DataLoader
 
 from ..config import pretty_text
@@ -459,6 +459,15 @@ class BaseRunner:
         )
 
         if self.dist_type == "FSDP":
+            try:
+                from torch.distributed.fsdp import MixedPrecisionPolicy
+                from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
+            except ImportError as e:
+                raise ImportError(
+                    "FSDP is not available in your PyTorch installation. "
+                    "Please ensure you have a compatible version of PyTorch with distributed support, "
+                    "or change the accelerator type to 'DDP'."
+                ) from e
             policy_name = fsdp_cfg.pop("auto_wrap_policy", "none")
             min_params = fsdp_cfg.pop("auto_wrap_min_num_params", 1e6)
 

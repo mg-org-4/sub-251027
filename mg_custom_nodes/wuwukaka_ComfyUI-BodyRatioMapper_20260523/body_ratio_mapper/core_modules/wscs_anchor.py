@@ -148,6 +148,14 @@ def select_anchor(batch_pose_data, conf_thresh, has_pt, get_dist, logger=print):
     sh_line_y_at_nose = np.where(np.abs(sh_raw_dx) > 1e-6, y[:, 2] + (y[:, 5] - y[:, 2]) * (x[:, 0] - x[:, 2]) / sh_raw_dx, np.maximum(y[:, 2], y[:, 5]))
     is_nose_below_shoulder_line_arr = pt_present[:, 0] & pt_present[:, 2] & pt_present[:, 5] & (y[:, 0] >= sh_line_y_at_nose)
 
+    # Reject obvious back-facing poses. For a front-facing person, right-side keypoints
+    # appear on the image-left: right_shoulder(2).x < left_shoulder(5).x and right_hip(8).x < left_hip(11).x.
+    shoulder_lr_margin = np.maximum(2.0, np.abs(x[:, 5] - x[:, 2]) * 0.05)
+    hip_lr_margin = np.maximum(2.0, np.abs(x[:, 11] - x[:, 8]) * 0.05)
+    is_back_facing_by_shoulder_arr = (pt_present[:, 2] & pt_present[:, 5] & ((x[:, 5] + shoulder_lr_margin) < x[:, 2]))
+    is_back_facing_by_hip_arr = (pt_present[:, 8] & pt_present[:, 11] & ((x[:, 11] + hip_lr_margin) < x[:, 8]))
+    is_back_facing_arr = is_back_facing_by_shoulder_arr | is_back_facing_by_hip_arr
+
     common_hard_reject = (
         is_ankle_tilt_excessive_arr
         | is_wrist_tilt_excessive_arr
@@ -238,18 +246,27 @@ def select_anchor(batch_pose_data, conf_thresh, has_pt, get_dist, logger=print):
     missing_mask = (~pt_present) | (body_conf < conf_thresh)
     missing_penalty_arr = np.sum(missing_mask * missing_weights[np.newaxis, :], axis=1)
 
-    level1_valid_mask = (
+    level1_base_valid_mask = (
         np.all(pt_valid[:, :18], axis=1)
         & face_conf_ok
         & head_geometry_valid
         & (~common_hard_reject)
     )
-    level2_valid_mask = (
+    level2_base_valid_mask = (
         np.all(pt_valid[:, strict_required_points_l2], axis=1)
         & face_conf_ok
         & head_geometry_valid
         & (~common_hard_reject)
     )
+    level1_valid_mask = level1_base_valid_mask & (~is_back_facing_arr)
+    if not np.any(level1_valid_mask) and np.any(level1_base_valid_mask):
+        logger("[WSCS] Back-facing hard filter removed all Level-1 candidates; falling back to unfiltered Level-1 candidates")
+        level1_valid_mask = level1_base_valid_mask
+
+    level2_valid_mask = level2_base_valid_mask & (~is_back_facing_arr)
+    if not np.any(level2_valid_mask) and np.any(level2_base_valid_mask):
+        logger("[WSCS] Back-facing hard filter removed all Level-2 candidates; falling back to unfiltered Level-2 candidates")
+        level2_valid_mask = level2_base_valid_mask
 
     # Level-1 (strict):
     # - Requires all 18 body points valid + all 68 face points valid + head geometry valid.
@@ -451,15 +468,21 @@ def select_anchor(batch_pose_data, conf_thresh, has_pt, get_dist, logger=print):
                                     set(rank_lul_sub[:rem3]) & set(rank_lur_sub[:rem3]) &
                                     set(rank_lll_sub[:rem3]) & set(rank_llr_sub[:rem3]))
                 parts = ['arm_up_l', 'arm_up_r', 'arm_low_l', 'arm_low_r', 'leg_up_l', 'leg_up_r', 'leg_low_l', 'leg_low_r']
-                all_results = [result_intersect]
+                result = set(result_intersect)
                 for perm in permutations(parts):
                     current_set = set(indices)
+                    skip = False
                     for part in perm:
-                        current_set = set(sorted(current_set, key=lambda x: ratios[part][x])[:rem3])
+                        rp = ratios.get(part)
+                        if not isinstance(rp, dict):
+                            skip = True
+                            break
+                        current_set = set(sorted(current_set, key=lambda x: rp.get(x, 1.0))[:rem3])
                         if len(current_set) == 0:
                             break
-                    all_results.append(current_set)
-                return list(set.union(*all_results) if any(all_results) else set())
+                    if not skip:
+                        result.update(current_set)
+                return list(result)
 
             # Z-filter Level-1:
             # For gradually increasing top-k percentages, intersect rank fronts of all ratio groups.

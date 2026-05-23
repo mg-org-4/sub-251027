@@ -230,7 +230,16 @@ Master the Pixaroma suite with our video guides and workflow deep-dives:
 
 > 💡 **After updating Pixaroma:** hard-refresh your ComfyUI browser tab with **Ctrl+Shift+R** (or **Cmd+Shift+R** on Mac). The browser keeps old node visuals cached, and without a hard refresh you may still see the previous version of a node even though the update installed correctly.
 
-### **May 22, 2026 · v1.3.53**
+### **May 22, 2026 · v1.3.53–1.3.55**
+- **NEW: color your groups, not just nodes.** Right-click a group (the labelled box around nodes) and pick from a set of ready-made colors, or open the custom picker for any shade - a quick way to organize a busy workflow at a glance.
+- **Copy a color and paste it anywhere.** Grab the color from any node or group and paste it onto others - even from a node onto a group - so you can match an existing workflow's color scheme in a couple of clicks.
+- **Save your favorite colors.** Keep up to four colors you use often and apply them in one click from the right-click menu; they're remembered between sessions.
+- Plus smaller touches: the right-click color menu now puts your favorites on top, and each entry clearly says whether it changes the node or the group.
+- **NEW: crop a single layer in Image Composer.** Press **C** (or the new Crop button) to trim just one layer - for example keep one pose from a character sheet - without resizing the canvas or affecting the other layers. It's non-destructive: drag the box and corner handles (with a rule-of-thirds guide) to frame it, press **C** again to apply, and re-open any time to adjust or bring the full image back.
+- **Text: random options and notes in your prompt.** Write `{day|night}` and one is picked at random each time you run - great for variations. Lines with `//` or blocks wrapped in `/* ... */` are treated as notes and left out of the prompt. Keep literal braces with `\{` and `\}`.
+- **Switch now runs only the input you picked.** Before, it quietly processed every connected input even though only the chosen one was used, wasting time; now only the selected branch runs.
+- **Preview Image: Save to Disk / Save to Output recreate the same picture.** Dragging a saved image back into ComfyUI and running it now reproduces that exact image (previously these buttons saved the next random seed, so you'd get a different one). A clearer message also appears when a preview's temporary file is gone after a restart.
+- **Eraser keeps erasing when you sweep off the canvas and back** in Image Composer, instead of stopping mid-stroke.
 - **Load Image: find and pick images by thumbnail.** Open the file list and you now see a thumbnail of every image, a search box to filter by name, and a folder sidebar to jump between subfolders - so you can recognise the image you want at a glance instead of reading file names. A small toggle switches between small and large thumbnails and remembers your choice.
 - **Fixed: running a single node no longer starts the whole workflow.** Pressing a node's own run button (Execute) again runs just that node and what it needs, instead of kicking off the entire workflow.
 

@@ -1,0 +1,223 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.pyd
+
+# Distribution / packaging
+build/
+dist/
+sdist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+
+# Pytest
+.pytest_cache/
+tests/__pytest_tmp__/
+tests/__pytest_tmp_*/
+tests/__pytest_tmp_cov__/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+
+# Databases / runtime data
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# ComfyUI / outputs
+output/
+output/_mjr_index/
+
+# Node / frontend
+node_modules/
+
+# Vite build output is committed so end users get frontend assets without local build tools
+
+# Editor / OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-workspace
+
+# Logs and temp
+*.log
+logs/
+*.tmp
+*.temp
+*~
+*.swp
+
+# Testing and tooling
+.tox/
+.nox/
+__pytest_tmp__/
+
+# Build artefacts
+*.egg
+*.whl
+
+# Misc
+.env
+.env.*
+coverage.xml
+
+# Ignore runtime-generated indexes and caches
+*.cache
+cache/
+
+# Allow local overrides: uncomment to ignore local config
+# local_config.py
+input/hello.txt
+input/hello_1.txt
+
+# Restored project files to ignore
+ROADMAP.md
+VERSION
+eslint.config.js
+.claude/settings.local.json
+
+# Local directories that must never be tracked
+Users/
+
+# Local untracked docs, assets, and test outputs (added by assistant)
+AUDIT_EVENTS.md
+PERFORMANCE_AUDIT.md
+VIEWER_DISPLAY_AUDIT.md
+VIEWER_HOTKEYS_AUDIT.md
+VIEWER_HUD_AUDIT.md
+VIEWER_INVESTIGATION_REPORT.md
+VIEWER_LATENCY_FIX.md
+clean_pycache.bat
+
+# Docs produced during audits or local notes
+docs/AUDIT_BACKEND_FEATURES.md
+docs/AUDIT_SETTINGS.md
+docs/GRID_DEEP_AUDIT_2026.md
+docs/SCAN_SETTINGS_AUDIT.md
+docs/VIEWER_FULLSCREEN.md
+docs/VIRTUAL_GRID_AUDIT.md
+docs/adr/0003-context-menu-strategy.md
+
+# Local resources / images
+ressources/MPDF.png
+ressources/full-moon-with-face.png
+
+# Scripts and local tools
+scripts/benchmark_scan.py
+update_filesystem_handlers.py
+
+# Test outputs and dumps
+tests/__reports__/
+variation_exif_dump.json
+output_metadata.json
+run_tests_comfy_cli.bat
+scripts/sync_and_test_comfy_cli.bat
+.codex_filelist.txt
+.codex_existing_tests.txt
+reports/complexity_a_remaining.txt
+reports/complexity_ab_remaining.txt
+reports/complexity_abcd.json
+reports/complexity_abcd.txt
+reports/complexity_b_remaining.txt
+reports/complexity_bc.json
+reports/complexity_bc.txt
+reports/complexity_c_only_fresh.txt
+reports/complexity_c_only.txt
+reports/radon_cc_backend.json
+reports/radon_cc_pair.json
+reports/radon_cc_parser.json
+reports/radon_cc_triplet.json
+reports/radon_cc_watcher.json
+uv.lock
+AUDIT_REPORT.md
+examples/FASTWAN 5B I2V_00001.mp4
+REFACTOR_PLAN.md
+.claude/settings.json
+mjr_am_backend/features/geninfo/parser_impl.py.bak
+_cleanup_dead_code.py
+
+# Local analysis/tooling artifacts
+.mypy_cache/
+.mypy_*
+.mypy.*
+.ruff_cache/
+coverage_backend.json
+reports_radon_cc_backend.json
+reports_radon_cc_js.json
+reports_radon_raw_backend.json
+reports_vulture.txt
+reports_vulture_backend.txt
+
+# Local temp files
+*.bak
+*.orig
+
+# Accidental files that must never reappear in git
+
+# Wiki publish working directory (local-only clone, must never be tracked)
+.wiki-publish
+.wiki-publish/
+
+# Extra local temp artifacts (pytest/radon scratch)
+.tmp_*
+tests/__pytest_tmp_py*/
+tests/__pytest_tmp_cov__/
+tests/__pytest_tmp__/
+reports_radon*
+radon_*
+audit_findings.md
+docs/SECURITY_AUDIT_2026-02-27.md
+audit_tracking.md
+docs/CODE_AUDIT_2026-02-28.md
+docs/GENINFO_AUDIT_REPORT.md
+docs/GENINFO_FIXES_SUMMARY.md
+docs/REFACTORING_SUMMARY.md
+README.md.backup
+docs/CODE_AUDIT_2026-03-01.md
+docs/CODE_AUDIT_2026-03-02.md
+docs/CODE_AUDIT_2026-03-03.md
+docs/FILESYSTEM_AUDIT_2026-03-03.md
+docs/HEALTH_STATE_AUDIT_2026-03-03.md
+output_metadata.json
+CLAUDE.md
+docs/QUALITY_IMPROVEMENT_PLAN.md
+docs/COMFYUI_CORE_ANALYSIS.md
+.github/workflows/pr-review.yml
+scripts/pr_reviewer.py
+zz_test.txt
+unsaved_329.txt
+draftindex_329.txt
+draft0348_tail.txt
+.cursor/worktrees.json
+docs/COMFYUI_FRONTEND_IMPROVEMENTS.md
+.github/agents/badge-card-qa.agent.md
+.mjr_index_directory_override
+.mjr_output_directory_override
+
+coverage/
+ComfyUI-Majoor-AssetsManager_release.zip
+docs/AUDIT_GRID_REACTIVITY_APR26.md
+docs/GRID_OPTIMIZATION_CHECKLIST.md
+docs/GRID_REFACTOR_ROADMAP.md
+docs/TAGS_NORMALIZATION_REMAINING_WORK.md
+docs/PLAN_COMFY_FRONTEND_ALIGNMENT.md
+.github/agents/comfyui-dev.agent.md
+AGENTS.md

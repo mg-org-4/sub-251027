@@ -9,6 +9,7 @@ import io
 import json
 from typing import Tuple
 from server import PromptServer
+from aiohttp import web
 import os
 import inspect
 import nodes
@@ -131,11 +132,8 @@ class flow_bridge_image:
     OUTPUT_NODE = True
 
     def __init__(self):
-        self.stored_image = None
-        self.stored_mask = None
-        self.temp_subfolder = "zml_image_memory_previews"
-        self.temp_output_dir = folder_paths.get_temp_directory()
-        self.persistence_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "image_memory_cache.png")
+        self.temp_subfolder = "zml_image_memory"
+        self.input_dir = folder_paths.get_input_directory()
         self.prompt = None
         self.extra_pnginfo = None
 
@@ -161,109 +159,420 @@ class flow_bridge_image:
     RETURN_NAMES = ("image", "mask")
     FUNCTION = "store_and_retrieve"
     CATEGORY = "Apt_Preset/flow"
-    
+
+    @classmethod
+    def IS_CHANGED(s, disable_input, disable_output, image=None, mask=None, unique_id=None, **kwargs):
+        import hashlib
+        subfolder_path = s._get_node_cache_dir(unique_id)
+        if os.path.exists(subfolder_path):
+            m = hashlib.sha256()
+            for filename in sorted(os.listdir(subfolder_path)):
+                if (
+                    (filename.startswith("bridge_image_") and filename.endswith(".png"))
+                    or (filename.startswith("bridge_mask_edit_") and filename.endswith(".png"))
+                ):
+                    filepath = os.path.join(subfolder_path, filename)
+                    if os.path.isfile(filepath):
+                        with open(filepath, 'rb') as f:
+                            m.update(f.read())
+                elif filename.endswith(".sourcehash"):
+                    filepath = os.path.join(subfolder_path, filename)
+                    if os.path.isfile(filepath):
+                        with open(filepath, 'rb') as f:
+                            m.update(f.read())
+            return m.digest().hex()
+        return ""
+
     def check_lazy_status(self, disable_input, **kwargs):
-        if disable_input:
-            return None
         required_inputs = []
-        if "image" in kwargs:
-            required_inputs.append("image")
-        if "mask" in kwargs:
-            required_inputs.append("mask")
+        if not disable_input:
+            if "image" in kwargs:
+                required_inputs.append("image")
+            if "mask" in kwargs:
+                required_inputs.append("mask")
         return required_inputs
 
     def store_and_retrieve(self, disable_input, disable_output, image=None, mask=None, prompt=None, extra_pnginfo=None, unique_id=None):
         self.prompt = prompt
         self.extra_pnginfo = extra_pnginfo
-        
+
+        subfolder_path = self._get_node_cache_dir(unique_id)
+        os.makedirs(subfolder_path, exist_ok=True)
+
         image_to_output = None
         mask_to_output = None
 
-        # 核心逻辑：禁用输入则读取存储的图/遮罩，否则存入并读取当前输入的图/遮罩
         if disable_input:
-            image_to_output = self.stored_image
-            mask_to_output = self.stored_mask
+            image_to_output, mask_to_output = self._load_from_local(subfolder_path)
         elif image is not None:
-            self.stored_image = image
-            self.stored_mask = mask
-            image_to_output = image
-            mask_to_output = mask
+            # 未禁用输入时，缓存必须完全按上游 image/mask 刷新，不能保留本地编辑结果。
+            self._clear_cache_files(subfolder_path)
+            self._save_to_local(subfolder_path, image, mask)
+            self._save_source_hash(subfolder_path, self._compute_source_hash(image, mask))
+            image_to_output, mask_to_output = self._load_from_local(subfolder_path)
+            if image_to_output is None:
+                image_to_output = image
+                mask_to_output = mask
         else:
-            image_to_output = self.stored_image
-            mask_to_output = self.stored_mask
+            image_to_output, mask_to_output = self._load_from_local(subfolder_path)
 
-        # 兜底：无图则生成默认1x1全黑图
         if image_to_output is None:
             default_size = 1
             image_to_output = torch.zeros((1, default_size, default_size, 3), dtype=torch.float32, device="cpu")
-            
-        # 兜底：无遮罩则生成和图片尺寸匹配的全白遮罩
+
         if mask_to_output is None:
             batch_size, height, width, _ = image_to_output.shape
             mask_to_output = torch.ones((batch_size, height, width), dtype=torch.float32, device="cpu")
 
-        # 生成UI预览图
-        subfolder_path = os.path.join(self.temp_output_dir, self.temp_subfolder)
-        os.makedirs(subfolder_path, exist_ok=True)
-        ui_image_data = []
-        batch_size = image_to_output.shape[0]
-        
-        for i in range(batch_size):
-            current_image = image_to_output[i:i+1]
-            
-            # 处理默认1x1小图的预览放大
-            if current_image.shape[1] == 1 and current_image.shape[2] == 1:
-                preview_image_tensor = torch.zeros((1, 32, 32, 3), dtype=torch.float32, device=current_image.device)
-                pil_image = Image.fromarray((preview_image_tensor.squeeze(0).cpu().numpy() * 255).astype(np.uint8))
-            else:
-                pil_image = Image.fromarray((current_image.squeeze(0).cpu().numpy() * 255).astype(np.uint8))
+        self._save_preview_images(subfolder_path, image_to_output, mask_to_output)
+        ui_image_data = self._build_ui_image_data(subfolder_path, unique_id)
 
-            filename = f"zml_image_memory_batch_{i}_{uuid.uuid4()}.png"
-            file_path = os.path.join(subfolder_path, filename)
-
-            # 写入PNG元信息
-            metadata = PngImagePlugin.PngInfo()
-            if self.prompt is not None:
-                try:
-                    metadata.add_text("prompt", json.dumps(self.prompt))
-                except Exception:
-                    pass
-            if self.extra_pnginfo is not None:
-                for key, value in self.extra_pnginfo.items():
-                    try:
-                        metadata.add_text(key, json.dumps(value))
-                    except Exception:
-                        pass
-
-            pil_image.save(file_path, pnginfo=metadata, compress_level=4)
-            ui_image_data.append({"filename": filename, "subfolder": self.temp_subfolder, "type": "temp"})
-
-        # 禁用输出则返回阻塞器，否则返回完整的图/遮罩
         if disable_output and ExecutionBlocker is not None:
             output_image = ExecutionBlocker(None)
             output_mask = ExecutionBlocker(None)
         else:
             output_image = image_to_output
             output_mask = mask_to_output
-            
+
         return {"ui": {"images": ui_image_data}, "result": (output_image, output_mask)}
 
-    def _save_to_local(self, image_tensor):
+    @classmethod
+    def _get_node_cache_dir(cls, unique_id=None):
+        node_folder = str(unique_id) if unique_id is not None else "default"
+        safe_folder = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in node_folder)
+        return os.path.join(folder_paths.get_input_directory(), "zml_image_memory", safe_folder)
+
+    def _build_png_metadata(self):
+        metadata = PngImagePlugin.PngInfo()
+        if self.prompt is not None:
+            try:
+                metadata.add_text("prompt", json.dumps(self.prompt))
+            except Exception:
+                pass
+        if self.extra_pnginfo is not None:
+            for key, value in self.extra_pnginfo.items():
+                try:
+                    metadata.add_text(key, json.dumps(value))
+                except Exception:
+                    pass
+        return metadata
+
+    def _build_ui_image_data(self, subfolder_path, unique_id=None):
+        ui_image_data = []
+        relative_subfolder = os.path.join(self.temp_subfolder, self._get_node_cache_name(unique_id)).replace("\\", "/")
+        preview_files = self._list_preview_images(subfolder_path)
+        if not preview_files:
+            preview_files = self._list_source_images(subfolder_path)
+        for filename in preview_files:
+            ui_image_data.append({"filename": filename, "subfolder": relative_subfolder, "type": "input"})
+        return ui_image_data
+
+    @classmethod
+    def _get_node_cache_name(cls, unique_id=None):
+        node_folder = str(unique_id) if unique_id is not None else "default"
+        return "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in node_folder)
+
+    def _save_to_local(self, subfolder_path, image_tensor, mask_tensor):
         try:
-            pil_image = Image.fromarray((image_tensor.squeeze(0).cpu().numpy() * 255).astype(np.uint8))
-            pil_image.save(self.persistence_file, "PNG")
+            batch_size = image_tensor.shape[0]
+            metadata = self._build_png_metadata()
+            for i in range(batch_size):
+                current_image = image_tensor[i:i+1]
+                current_mask = mask_tensor[i:i+1] if mask_tensor is not None else None
+
+                image_np = (current_image.squeeze(0).cpu().numpy() * 255).astype(np.uint8)
+                pil_image = Image.fromarray(image_np).convert("RGB")
+
+                save_path = os.path.join(subfolder_path, f"bridge_image_{i}.png")
+                pil_image.save(save_path, "PNG", pnginfo=metadata, compress_level=4)
+
+                if current_mask is not None:
+                    mask_np = (current_mask.squeeze(0).cpu().numpy() * 255).astype(np.uint8)
+                    if mask_np.ndim == 3:
+                        mask_np = mask_np.squeeze(0)
+                else:
+                    mask_np = np.full((pil_image.height, pil_image.width), 255, dtype=np.uint8)
+                mask_image = Image.fromarray(mask_np, mode='L')
+                mask_save_path = os.path.join(subfolder_path, f"bridge_mask_edit_{i}.png")
+                mask_image.save(mask_save_path, "PNG", compress_level=4)
         except Exception as e:
             print(f"Failed to save image locally: {e}")
 
-    def _load_from_local(self):
-        if os.path.exists(self.persistence_file):
+    def _save_preview_images(self, subfolder_path, image_tensor, mask_tensor):
+        try:
+            self._remove_files_by_prefix(subfolder_path, "bridge_preview_")
+            self._remove_files_by_prefix(subfolder_path, "bridge_editor_preview_")
+            batch_size = image_tensor.shape[0]
+            metadata = self._build_png_metadata()
+            for i in range(batch_size):
+                current_image = image_tensor[i:i+1]
+                current_mask = mask_tensor[i:i+1] if mask_tensor is not None else None
+
+                image_np = (current_image.squeeze(0).cpu().numpy() * 255).astype(np.uint8)
+                pil_image = Image.fromarray(image_np).convert("RGB")
+                if current_mask is not None:
+                    mask_np = (current_mask.squeeze(0).cpu().numpy() * 255).astype(np.uint8)
+                    if mask_np.ndim == 3:
+                        mask_np = mask_np.squeeze(0)
+                    pil_mask = Image.fromarray(mask_np, mode='L')
+                    if pil_mask.size != pil_image.size:
+                        pil_mask = pil_mask.resize(pil_image.size, Image.NEAREST)
+                    pil_image.putalpha(pil_mask)
+
+                save_path = os.path.join(subfolder_path, f"bridge_preview_{i}.png")
+                pil_image.save(save_path, "PNG", pnginfo=metadata, compress_level=4)
+
+                editor_pil_image = Image.fromarray(image_np).convert("RGB")
+                if current_mask is not None:
+                    inverted_mask_np = 255 - mask_np
+                    editor_mask = Image.fromarray(inverted_mask_np, mode='L')
+                    if editor_mask.size != editor_pil_image.size:
+                        editor_mask = editor_mask.resize(editor_pil_image.size, Image.NEAREST)
+                    editor_pil_image.putalpha(editor_mask)
+
+                editor_save_path = os.path.join(subfolder_path, f"bridge_editor_preview_{i}.png")
+                editor_pil_image.save(editor_save_path, "PNG", pnginfo=metadata, compress_level=4)
+        except Exception as e:
+            print(f"[flow_bridge_image] Failed to save preview image locally: {e}")
+
+    def _load_from_local(self, subfolder_path):
+        try:
+            if not os.path.exists(subfolder_path):
+                return None, None
+
+            source_files = self._list_source_images(subfolder_path)
+            if not source_files:
+                return None, None
+
+            images = []
+            masks = []
+
+            for filename in source_files:
+                file_path = os.path.join(subfolder_path, filename)
+                with Image.open(file_path) as pil_image:
+                    rgb_np = np.array(pil_image.convert("RGB")).astype(np.float32) / 255.0
+                    images.append(rgb_np)
+
+                    mask_index = self._extract_file_index(filename)
+                    mask_path = os.path.join(subfolder_path, f"bridge_mask_edit_{mask_index}.png")
+                    if os.path.exists(mask_path):
+                        with Image.open(mask_path) as mask_image:
+                            masks.append(self._extract_mask_array(mask_image))
+                    else:
+                        rgba_image = pil_image.convert("RGBA")
+                        rgba_np = np.array(rgba_image).astype(np.float32) / 255.0
+                        masks.append(rgba_np[:, :, 3])
+
+            if images:
+                image_tensor = torch.from_numpy(np.stack(images))
+                mask_tensor = torch.from_numpy(np.stack(masks))
+                return image_tensor, mask_tensor
+        except Exception as e:
+            print(f"[flow_bridge_image] Failed to load image from local file: {e}")
+            import traceback
+            traceback.print_exc()
+        return None, None
+
+    def _compute_tensor_hash(self, tensor):
+        if tensor is None:
+            return "none"
+        import hashlib
+        m = hashlib.sha256()
+        m.update(str(tuple(tensor.shape)).encode("utf-8"))
+        m.update(str(tensor.dtype).encode("utf-8"))
+        m.update(tensor.detach().cpu().contiguous().numpy().tobytes())
+        return m.digest().hex()
+
+    def _compute_source_hash(self, image_tensor, mask_tensor):
+        import hashlib
+        m = hashlib.sha256()
+        m.update(self._compute_tensor_hash(image_tensor).encode("utf-8"))
+        m.update(self._compute_tensor_hash(mask_tensor).encode("utf-8"))
+        return m.digest().hex()
+
+    def _save_source_hash(self, subfolder_path, hash_value):
+        try:
+            hash_path = os.path.join(subfolder_path, "bridge_image.sourcehash")
+            with open(hash_path, 'w') as f:
+                f.write(hash_value)
+        except Exception as e:
+            print(f"[flow_bridge_image] Failed to save source hash: {e}")
+
+    def _load_source_hash(self, subfolder_path):
+        try:
+            hash_path = os.path.join(subfolder_path, "bridge_image.sourcehash")
+            if os.path.exists(hash_path):
+                with open(hash_path, 'r') as f:
+                    return f.read().strip()
+        except Exception as e:
+            print(f"[flow_bridge_image] Failed to load source hash: {e}")
+        return ""
+
+    def _list_source_images(self, subfolder_path):
+        bridge_files = [f for f in os.listdir(subfolder_path) if f.startswith("bridge_image_") and f.endswith(".png")]
+        bridge_files.sort(key=self._extract_file_index)
+        return bridge_files
+
+    def _list_preview_images(self, subfolder_path):
+        preview_files = [f for f in os.listdir(subfolder_path) if f.startswith("bridge_preview_") and f.endswith(".png")]
+        preview_files.sort(key=self._extract_file_index)
+        return preview_files
+
+    def _extract_mask_array(self, pil_image):
+        rgba_image = pil_image.convert("RGBA")
+        rgba_np = np.array(rgba_image).astype(np.float32) / 255.0
+        alpha = rgba_np[:, :, 3]
+        if float(alpha.max() - alpha.min()) > 1e-6 and not np.allclose(alpha, 1.0, atol=1e-4):
+            return alpha
+
+        rgb = rgba_np[:, :, :3]
+        return rgb.max(axis=2)
+
+    def _clear_cache_files(self, subfolder_path):
+        self._remove_files_by_prefix(subfolder_path, "bridge_image_")
+        self._remove_files_by_prefix(subfolder_path, "bridge_mask_edit_")
+        self._remove_files_by_prefix(subfolder_path, "bridge_preview_")
+        self._remove_files_by_prefix(subfolder_path, "bridge_editor_preview_")
+
+    def _remove_files_by_prefix(self, subfolder_path, prefix):
+        for filename in os.listdir(subfolder_path):
+            if filename.startswith(prefix) and filename.endswith(".png"):
+                try:
+                    os.remove(os.path.join(subfolder_path, filename))
+                except OSError as e:
+                    print(f"[flow_bridge_image] Failed to remove cache file {filename}: {e}")
+
+    @staticmethod
+    def _extract_file_index(filename):
+        stem = os.path.splitext(filename)[0]
+        try:
+            return int(stem.rsplit("_", 1)[-1])
+        except ValueError:
+            return 0
+
+
+@PromptServer.instance.routes.post("/apt_preset/flow_bridge_image/save_edit")
+async def apt_preset_flow_bridge_image_save_edit(request):
+    try:
+        reader = await request.multipart()
+    except Exception:
+        return web.json_response({"ok": False, "error": "请求格式错误，必须使用 multipart/form-data。"}, status=400)
+
+    fields = {}
+    image_bytes = None
+    image_ref = None
+
+    while True:
+        part = await reader.next()
+        if part is None:
+            break
+        if part.name == "image":
+            image_bytes = await part.read(decode=False)
+        elif part.name == "image_ref":
+            image_ref = await part.text()
+        else:
+            fields[part.name] = await part.text()
+
+    node_id = str(fields.get("node_id", "")).strip()
+    if not node_id:
+        return web.json_response({"ok": False, "error": "缺少 node_id。"}, status=400)
+    if not image_bytes and not image_ref:
+        return web.json_response({"ok": False, "error": "缺少编辑后的图片数据。"}, status=400)
+
+    if image_ref and not image_bytes:
+        try:
+            ref_info = json.loads(image_ref)
+            filename = str(ref_info.get("filename", "")).strip()
+            subfolder = str(ref_info.get("subfolder", "")).strip().replace("\\", "/")
+            if not filename:
+                return web.json_response({"ok": False, "error": "image_ref 缺少 filename。"}, status=400)
+            input_dir = os.path.abspath(folder_paths.get_input_directory())
+            source_path = os.path.abspath(os.path.join(input_dir, subfolder, filename))
+            if not source_path.startswith(input_dir):
+                return web.json_response({"ok": False, "error": "image_ref 路径非法。"}, status=400)
+            if not os.path.exists(source_path):
+                return web.json_response({"ok": False, "error": "image_ref 指向的文件不存在。"}, status=400)
+            with open(source_path, "rb") as f:
+                image_bytes = f.read()
+        except Exception as e:
+            return web.json_response({"ok": False, "error": f"读取 image_ref 失败: {e}"}, status=400)
+
+    # #region debug-point D:save-edit-received
+    import urllib.request
+    try:
+        urllib.request.urlopen(urllib.request.Request(
+            "http://127.0.0.1:7777/event",
+            data=json.dumps({
+                "sessionId": "mask-save-lag",
+                "runId": "post-fix",
+                "hypothesisId": "D",
+                "location": "C_flow.py:apt_preset_flow_bridge_image_save_edit:received",
+                "msg": "[DEBUG] 后端收到编辑后的图片上传",
+                "data": {
+                    "node_id": node_id,
+                    "image_bytes": len(image_bytes),
+                }
+            }).encode(),
+            headers={"Content-Type": "application/json"}
+        )).read()
+    except Exception:
+        pass
+    # #endregion
+
+    cache_dir = flow_bridge_image._get_node_cache_dir(node_id)
+    os.makedirs(cache_dir, exist_ok=True)
+
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as pil_image:
+            rgba_image = pil_image.convert("RGBA")
+            rgba_np = np.array(rgba_image).astype(np.uint8)
+            alpha = rgba_np[:, :, 3]
+            if int(alpha.max()) != int(alpha.min()):
+                mask_array = alpha
+            else:
+                mask_array = rgba_np[:, :, :3].max(axis=2).astype(np.uint8)
+            mask_array = (255 - mask_array).astype(np.uint8)
+            # #region debug-point D:save-edit-parsed
             try:
-                pil_image = Image.open(self.persistence_file).convert('RGB')
-                image_np = np.array(pil_image).astype(np.float32) / 255.0
-                return torch.from_numpy(image_np).unsqueeze(0)
-            except Exception as e:
-                print(f"Failed to load image from local file: {e}")
-        return None
+                urllib.request.urlopen(urllib.request.Request(
+                    "http://127.0.0.1:7777/event",
+                    data=json.dumps({
+                        "sessionId": "mask-save-lag",
+                        "runId": "post-fix",
+                        "hypothesisId": "D",
+                        "location": "C_flow.py:apt_preset_flow_bridge_image_save_edit:parsed",
+                        "msg": "[DEBUG] 后端解析上传图片完成",
+                        "data": {
+                            "node_id": node_id,
+                            "mode": pil_image.mode,
+                            "size": list(pil_image.size),
+                            "alpha_min": int(alpha.min()),
+                            "alpha_max": int(alpha.max()),
+                            "mask_min": int(mask_array.min()),
+                            "mask_max": int(mask_array.max()),
+                        }
+                    }).encode(),
+                    headers={"Content-Type": "application/json"}
+                )).read()
+            except Exception:
+                pass
+            # #endregion
+            gray_image = Image.fromarray(mask_array, mode="L")
+            for filename in os.listdir(cache_dir):
+                if filename.startswith("bridge_mask_edit_") and filename.endswith(".png"):
+                    try:
+                        os.remove(os.path.join(cache_dir, filename))
+                    except OSError as e:
+                        print(f"[flow_bridge_image] Failed to remove cache file {filename}: {e}")
+
+            save_path = os.path.join(cache_dir, "bridge_mask_edit_0.png")
+            gray_image.save(save_path, "PNG", compress_level=4)
+    except Exception as e:
+        return web.json_response({"ok": False, "error": f"保存编辑结果失败: {e}"}, status=500)
+
+    safe_node_id = flow_bridge_image._get_node_cache_name(node_id)
+    view_url = f"/view?filename=bridge_mask_edit_0.png&subfolder=zml_image_memory/{safe_node_id}&type=input"
+    return web.json_response({"ok": True, "view_url": view_url})
 
 #endregion----------    
 

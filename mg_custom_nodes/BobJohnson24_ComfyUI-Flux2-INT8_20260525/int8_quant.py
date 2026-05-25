@@ -8,6 +8,13 @@ import comfy.model_management
 import comfy.lora
 import comfy.utils
 
+try:
+    import comfy_aimdo.host_buffer
+    import comfy_aimdo.torch
+    _AIMDO_FILE_SLICE_LOAD = True
+except Exception:
+    _AIMDO_FILE_SLICE_LOAD = False
+
 # Add this at the top of your file
 try:
     from .int8_fused_kernel import triton_int8_linear
@@ -41,6 +48,29 @@ def quantize_int8_axiswise(x: Tensor, dim: int) -> tuple[Tensor, Tensor]:
 
 def dequantize(q: Tensor, scale: float | Tensor) -> Tensor:
     return q.float() * scale
+
+def tensor_to_device_file_slice(tensor: Tensor, device: torch.device) -> Tensor:
+    if (
+        not _AIMDO_FILE_SLICE_LOAD
+        or tensor.device.type != "cpu"
+        or device is None
+        or device.type != "cuda"
+    ):
+        return tensor.to(device, non_blocking=True)
+
+    size = tensor.numel() * tensor.element_size()
+    if size == 0:
+        return tensor.to(device, non_blocking=True)
+
+    hostbuf = comfy_aimdo.host_buffer.HostBuffer(size)
+    host_tensor = comfy_aimdo.torch.hostbuf_to_tensor(hostbuf)
+    host_view = host_tensor[:size].view(dtype=tensor.dtype).view(tensor.shape)
+    if comfy.memory_management.read_tensor_file_slice_into(tensor, host_view):
+        out = torch.empty_like(tensor, device=device)
+        out.copy_(host_view, non_blocking=False)
+        return out
+
+    return tensor.to(device, non_blocking=True)
 
 def stochastic_round_int8_delta(x: Tensor, scale: float | Tensor, seed: int = 0) -> Tensor:
     """
@@ -206,6 +236,10 @@ if _COMFY_OPS_AVAILABLE:
                 return key
 
             @staticmethod
+            def _is_bias_key(key):
+                return isinstance(key, str) and key.endswith(".bias")
+
+            @staticmethod
             def _format_lora_patches(patches):
                 formatted = []
                 for patch in patches or []:
@@ -222,7 +256,7 @@ if _COMFY_OPS_AVAILABLE:
                     return tensor
 
                 temp_dtype = comfy.model_management.lora_compute_dtype(device)
-                tensor_temp = tensor.to(device=device, dtype=temp_dtype, non_blocking=True)
+                tensor_temp = tensor_to_device_file_slice(tensor, device).to(dtype=temp_dtype)
                 return comfy.lora.calculate_weight(self._format_lora_patches(patches), tensor_temp, key)
 
             def finalize_pending_int8(self):
@@ -243,7 +277,7 @@ if _COMFY_OPS_AVAILABLE:
                         print(f"INT8 Fast: Quantizing on-the-fly (ConvRot: {pending.get('enable_convrot', False)})")
                         Int8TensorwiseOps._logged_otf = True
 
-                    w_gpu = weight_tensor.to(device, non_blocking=True).float()
+                    w_gpu = tensor_to_device_file_slice(weight_tensor, device).float()
 
                     self._use_convrot = False
                     if pending.get("enable_convrot", False) and self.in_features % CONVROT_GROUP_SIZE == 0:
@@ -282,7 +316,7 @@ if _COMFY_OPS_AVAILABLE:
                     return self._normalize_lora_key(key)
 
                 def apply_lora_patches(tensor, key):
-                    if not Int8TensorwiseOps.lora_patches or tensor.dtype == torch.int8:
+                    if self._is_bias_key(key) or not Int8TensorwiseOps.lora_patches or tensor.dtype == torch.int8:
                         return tensor
                     nk = normalize_key(key)
                     patches = Int8TensorwiseOps.lora_patches.get(nk)
@@ -633,6 +667,99 @@ if _COMFY_OPS_AVAILABLE:
 # INT8 Model Patcher - Unified LoRA Handling
 # =============================================================================
 
+import inspect
+try:
+    _prefetch_sig = inspect.signature(comfy.lora.prefetch_prepared_value)
+    _use_new_prefetch = len(_prefetch_sig.parameters) == 5
+except Exception:
+    _use_new_prefetch = False
+
+
+class INT8LowVramPatch:
+    is_lowvram_patch = True
+
+    def __init__(self, key, patches, module, lora_mode):
+        self.key = key
+        self.patches = patches
+        self.module = module
+        self.lora_mode = lora_mode
+        self.prepared_patches = None
+
+    def memory_required(self):
+        if not _use_new_prefetch:
+            return 0
+        counter = [0]
+        for patch in self.patches[self.key]:
+            comfy.lora.prefetch_prepared_value(patch[1], counter, None, None, False)
+        return counter[0]
+
+    def prepare(self, *args, **kwargs):
+        if _use_new_prefetch:
+            # 0.22.0+ signature: prepare(self, destination, stream, copy=True, commit=True)
+            destination = args[0] if len(args) > 0 else kwargs.get("destination")
+            stream = args[1] if len(args) > 1 else kwargs.get("stream")
+            copy = args[2] if len(args) > 2 else kwargs.get("copy", True)
+            commit = args[3] if len(args) > 3 else kwargs.get("commit", True)
+
+            counter = [0]
+            prepared_patches = [
+                (patch[0], comfy.lora.prefetch_prepared_value(patch[1], counter, destination, stream, copy), patch[2], patch[3], patch[4])
+                for patch in self.patches[self.key]
+            ]
+            if commit:
+                self.prepared_patches = prepared_patches
+            return prepared_patches
+        else:
+            # 0.21.1- signature: prepare(self, allocate_buffer, stream)
+            allocate_buffer = args[0] if len(args) > 0 else kwargs.get("allocate_buffer")
+            stream = args[1] if len(args) > 1 else kwargs.get("stream")
+
+            self.prepared_patches = [
+                (patch[0], comfy.lora.prefetch_prepared_value(patch[1], allocate_buffer, stream), patch[2], patch[3], patch[4])
+                for patch in self.patches[self.key]
+            ]
+            return self.prepared_patches
+
+    def clear_prepared(self):
+        self.prepared_patches = None
+
+    def __call__(self, weight):
+        patches = self.prepared_patches if self.prepared_patches is not None else self.patches[self.key]
+        scale = self.module._get_weight_scale()
+        if isinstance(scale, torch.Tensor):
+            scale = scale.to(weight.device)
+
+        weight_float = dequantize(weight, scale)
+
+        use_convrot = getattr(self.module, "_use_convrot", False)
+        if use_convrot:
+            group_size = getattr(self.module, "_convrot_groupsize", CONVROT_GROUP_SIZE)
+            try:
+                from .convrot import build_hadamard, rotate_weight
+                H = build_hadamard(group_size, device=weight.device, dtype=weight_float.dtype)
+                weight_float = rotate_weight(weight_float, H, group_size=group_size)
+            except ImportError:
+                use_convrot = False
+
+        patched_weight_float = comfy.lora.calculate_weight(
+            patches,
+            weight_float,
+            self.key,
+            intermediate_dtype=weight_float.dtype,
+        )
+
+        if use_convrot:
+            patched_weight_float = rotate_weight(patched_weight_float, H, group_size=group_size)
+
+        if self.lora_mode == "Stochastic":
+            return stochastic_round_int8_delta(
+                patched_weight_float,
+                scale,
+                seed=comfy.utils.string_to_seed(self.key),
+            )
+        return quantize_int8(patched_weight_float, scale)
+
+
 class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
     """
     Custom ModelPatcher that intercepts patching for INT8 layers.
@@ -664,6 +791,9 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
 
         is_int8_module = hasattr(module, "_is_quantized") and module._is_quantized
         patches = self.patches.get(key, [])
+
+        if is_int8_module and Int8TensorwiseOps.Linear._is_bias_key(key):
+            return comfy.utils.get_attr(self.model, key) if return_weight else None
 
         if is_int8_module:
             if not Int8TensorwiseOps.dynamic_lora:
@@ -795,6 +925,21 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
     def load(self, *args, **kwargs):
         self.finalize_pending_int8()
 
+        if not Int8TensorwiseOps.dynamic_lora:
+            for k in list(self.backup):
+                if k in self.patches:
+                    try:
+                        module = comfy.utils.get_attr(self.model, k.rsplit('.', 1)[0])
+                    except AttributeError:
+                        module = None
+                    if hasattr(module, "_is_quantized") and module._is_quantized:
+                        bk = self.backup.pop(k)
+                        if bk.inplace_update:
+                            dest = comfy.utils.get_attr(self.model, k)
+                            dest.data.copy_(bk.weight)
+                        else:
+                            comfy.utils.set_attr(self.model, k, bk.weight)
+
         # Cleanup: Revert any keys that are in backup but no longer in patches (stale patches)
         # This ensures that when a LoRA is disabled, the model returns to its base state.
         stale_keys = [k for k in self.backup if k not in self.patches]
@@ -811,7 +956,7 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
         for name, module in self.model.named_modules():
             if hasattr(module, "lora_patches") and module.lora_patches:
                 # If dynamic LoRA is disabled globally, or if this module has no active patches, clear them.
-                if not Int8TensorwiseOps.dynamic_lora or ((name + ".weight") not in self.patches and (name + ".bias") not in self.patches):
+                if not Int8TensorwiseOps.dynamic_lora or (name + ".weight") not in self.patches:
                     module.lora_patches = []
 
         res = super().load(*args, **kwargs) if hasattr(super(), "load") else None
@@ -821,21 +966,25 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
         for name, module in self.model.named_modules():
             if hasattr(module, "_is_quantized") and module._is_quantized:
                 weight_key = name + ".weight"
-                bias_key = name + ".bias"
                 
                 if weight_key in self.patches:
-                    if hasattr(module, "weight_lowvram_function"):
-                        module.weight_lowvram_function = None
-                    if hasattr(module, "weight_function"):
-                        module.weight_function = [f for f in getattr(module, "weight_function", []) if type(f).__name__ != "LowVramPatch"]
-                    self.patch_weight_to_device(weight_key, device_to=device_to)
-                    
-                if bias_key in self.patches:
-                    if hasattr(module, "bias_lowvram_function"):
-                        module.bias_lowvram_function = None
-                    if hasattr(module, "bias_function"):
-                        module.bias_function = [f for f in getattr(module, "bias_function", []) if type(f).__name__ != "LowVramPatch"]
-                    self.patch_weight_to_device(bias_key, device_to=device_to)
+                    if Int8TensorwiseOps.dynamic_lora:
+                        if hasattr(module, "weight_lowvram_function"):
+                            module.weight_lowvram_function = None
+                        if hasattr(module, "weight_function"):
+                            module.weight_function = [f for f in getattr(module, "weight_function", []) if type(f).__name__ != "LowVramPatch"]
+                        self.patch_weight_to_device(weight_key, device_to=device_to)
+                    else:
+                        lowvram_patch = INT8LowVramPatch(
+                            weight_key,
+                            self.patches,
+                            module,
+                            getattr(Int8TensorwiseOps, "lora_mode", "None"),
+                        )
+                        pin_state = getattr(self.model, "dynamic_pins", {}).get(self.load_device, None)
+                        if pin_state is not None:
+                            lowvram_patch._pin_state = pin_state
+                        module.weight_lowvram_function = lowvram_patch
                     
         return res
 

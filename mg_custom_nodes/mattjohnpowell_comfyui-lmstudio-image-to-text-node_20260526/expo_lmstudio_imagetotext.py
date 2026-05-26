@@ -265,13 +265,14 @@ class ExpoLmstudioUnified:
             print(f"Debug: Requested Model: {model_key}")
             print(f"Debug: Auto unload: {auto_unload}, Unload delay: {unload_delay}s")
 
-        temp_path = None # Initialize temp_path for cleanup
+        managed_temp_path = [None]
+        timed_out = [False]
 
-        try:
-            # --- Get model info and create client context ---
-            model_key_to_use = get_model_info_with_fallback(model_key, debug)
-            
+        def do_the_work():
             with lms.Client() as client:
+                # --- Get model info and create client context ---
+                model_key_to_use = get_model_info_with_fallback(model_key, debug)
+
                 # Get model with proper context management
                 if model_key_to_use:
                     if auto_unload == "True" and unload_delay > 0:
@@ -281,7 +282,7 @@ class ExpoLmstudioUnified:
                 else:
                     # Use default model
                     model = client.llm.model()
-                
+
                 chat = lms.Chat(system_prompt)
 
                 # Process inputs
@@ -291,15 +292,15 @@ class ExpoLmstudioUnified:
 
                     # Create a temporary file
                     with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
-                        temp_path = temp_file.name
+                        managed_temp_path[0] = temp_file.name
                         # Save to the temporary file
-                        pil_image.save(temp_path, format="JPEG")
+                        pil_image.save(managed_temp_path[0], format="JPEG")
 
                     if debug:
-                        print(f"Debug: Saved image to temporary file: {temp_path}")
+                        print(f"Debug: Saved image to temporary file: {managed_temp_path[0]}")
 
                     # Use the client's files namespace to prepare the image
-                    image_handle = client.files.prepare_image(temp_path)
+                    image_handle = client.files.prepare_image(managed_temp_path[0])
 
                     # Add user message with correct signature per SDK docs
                     if has_text:
@@ -325,19 +326,12 @@ class ExpoLmstudioUnified:
 
                 if debug:
                     print(f"Debug: Sending request to LM Studio with config: {config}")
-                # --- Timeout logic ---
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(model.respond, chat, config=config)
-                    try:
-                        result = future.result(timeout=timeout_seconds)
-                    except concurrent.futures.TimeoutError:
-                        error_message = f"Error: LM Studio model response timed out after {timeout_seconds} seconds."
-                        print(error_message)
-                        return (error_message,)
+
+                result = model.respond(chat, config=config)
 
                 if debug:
                     print(f"Debug: Response received: {result.content[:100]}...")  # Print first 100 characters
-                
+
                 # Extract and log stats information
                 stats_info = safe_get_stats_info(result, debug)
                 if debug:
@@ -354,13 +348,25 @@ class ExpoLmstudioUnified:
 
                 return (result.content,)
 
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            future = executor.submit(do_the_work)
+            return future.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError:
+            timed_out[0] = True
+            error_message = f"Error: LM Studio operation timed out after {timeout_seconds} seconds. The connection may be unstable."
+            print(error_message)
+            return (error_message,)
         except Exception as e:
             error_message = f"LM Studio error (Unified node): {str(e)}"
             print(error_message)
             raise Exception(error_message) from e
         finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
             # Clean up the temporary image file if it was created
-            if temp_path and os.path.exists(temp_path):
+            temp_path = managed_temp_path[0]
+            if not timed_out[0] and temp_path and os.path.exists(temp_path):
                 try:
                     os.unlink(temp_path)
                     if debug:
@@ -454,13 +460,14 @@ class ExpoLmstudioImageToText:
             print(f"Debug: Auto unload: {auto_unload}, Unload delay: {unload_delay}s")
             print(f"Debug: Image shape: {image.shape}")
 
-        temp_path = None
+        managed_temp_path = [None]
+        timed_out = [False]
 
-        try:
-            # Get model info with fallback
-            model_key_to_use = get_model_info_with_fallback(model_key, debug)
-            
+        def do_the_work():
             with lms.Client() as client:
+                # Get model info with fallback
+                model_key_to_use = get_model_info_with_fallback(model_key, debug)
+
                 # Get model with proper context management
                 if model_key_to_use:
                     if auto_unload == "True" and unload_delay > 0:
@@ -478,13 +485,13 @@ class ExpoLmstudioImageToText:
                 if image is not None:
                     pil_image = Image.fromarray(np.uint8(image[0] * 255))
                     with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
-                        temp_path = tmp.name
-                        pil_image.save(temp_path, format='JPEG')
+                        managed_temp_path[0] = tmp.name
+                        pil_image.save(managed_temp_path[0], format='JPEG')
                     if debug:
-                        print(f"Debug: Saved image to temporary file: {temp_path}")
+                        print(f"Debug: Saved image to temporary file: {managed_temp_path[0]}")
 
                     # Use client.files.prepare_image
-                    image_handle = client.files.prepare_image(temp_path)
+                    image_handle = client.files.prepare_image(managed_temp_path[0])
                     chat.add_user_message(user_prompt, images=[image_handle])
                 else:
                     chat.add_user_message(user_prompt)
@@ -499,15 +506,7 @@ class ExpoLmstudioImageToText:
                 if debug:
                     print(f"Debug: Sending request to LM Studio with config: {config}")
 
-                # Run with timeout
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(model_obj.respond, chat, config=config)
-                    try:
-                        result = future.result(timeout=timeout_seconds)
-                    except concurrent.futures.TimeoutError:
-                        error_message = f"Error: LM Studio model response timed out after {timeout_seconds} seconds."
-                        print(error_message)
-                        return (error_message,)
+                result = model_obj.respond(chat, config=config)
 
                 if debug:
                     try:
@@ -530,12 +529,25 @@ class ExpoLmstudioImageToText:
 
                 return (result.content,)
 
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            future = executor.submit(do_the_work)
+            return future.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError:
+            timed_out[0] = True
+            error_message = f"Error: LM Studio operation timed out after {timeout_seconds} seconds. The connection may be unstable."
+            print(error_message)
+            return (error_message,)
         except Exception as e:
             error_message = f"LM Studio error (Image to Text node): {str(e)}"
             print(error_message)
             raise Exception(error_message) from e
         finally:
-            if temp_path and os.path.exists(temp_path):
+            executor.shutdown(wait=False, cancel_futures=True)
+
+            # Clean up the temporary image file if it was created
+            temp_path = managed_temp_path[0]
+            if not timed_out[0] and temp_path and os.path.exists(temp_path):
                 try:
                     os.unlink(temp_path)
                     if debug:
@@ -707,11 +719,11 @@ class ExpoLmstudioTextGeneration:
             print(f"Debug: Max tokens: {max_tokens}")
             print(f"Debug: Temperature: {temperature}")
 
-        try:
-            # Get model info with fallback
-            model_key_to_use = get_model_info_with_fallback(model_key, debug)
-            
+        def do_the_work():
             with lms.Client() as client:
+                # Get model info with fallback
+                model_key_to_use = get_model_info_with_fallback(model_key, debug)
+
                 # Get model with proper context management
                 if model_key_to_use:
                     if auto_unload == "True" and unload_delay > 0:
@@ -737,19 +749,12 @@ class ExpoLmstudioTextGeneration:
 
                 if debug:
                     print(f"Debug: Sending request to LM Studio")
-                # --- Timeout logic ---
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(model_obj.respond, chat, config=config)
-                    try:
-                        result = future.result(timeout=timeout_seconds)
-                    except concurrent.futures.TimeoutError:
-                        error_message = f"Error: LM Studio model response timed out after {timeout_seconds} seconds."
-                        print(error_message)
-                        return (error_message,)
+
+                result = model_obj.respond(chat, config=config)
 
                 if debug:
                     print(f"Debug: Response received: {result.content[:100]}...")  # Print first 100 characters
-                
+
                 # Extract and log stats information
                 stats_info = safe_get_stats_info(result, debug)
                 if debug:
@@ -766,10 +771,20 @@ class ExpoLmstudioTextGeneration:
 
                 return (result.content,)
 
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            future = executor.submit(do_the_work)
+            return future.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError:
+            error_message = f"Error: LM Studio operation timed out after {timeout_seconds} seconds. The connection may be unstable."
+            print(error_message)
+            return (error_message,)
         except Exception as e:
             error_message = f"LM Studio error (Text Generation node): {str(e)}"
             print(error_message)
             raise Exception(error_message) from e
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
 
     def _generate_text_legacy_http(self, prompt, system_prompt, model, ip_address, port, seed, max_tokens=1000, temperature=0.7, debug=False):
         """Legacy HTTP-based text generation for backward compatibility"""
@@ -929,11 +944,13 @@ class ExpoLmstudioStructuredOutput:
             print(f"Debug: [StructuredOutput] model={model_key}, keys={keys}")
             print(f"Debug: [StructuredOutput] schema={_json.dumps(parsed_schema, indent=2)}")
 
-        temp_path = None
-        try:
-            model_key_to_use = get_model_info_with_fallback(model_key, debug)
+        managed_temp_path = [None]
+        timed_out = [False]
 
+        def do_the_work():
             with lms.Client() as client:
+                model_key_to_use = get_model_info_with_fallback(model_key, debug)
+
                 if model_key_to_use:
                     if auto_unload == "True" and unload_delay > 0:
                         model_obj = client.llm.model(model_key_to_use, ttl=unload_delay)
@@ -947,9 +964,9 @@ class ExpoLmstudioStructuredOutput:
                 if image is not None:
                     pil_image = Image.fromarray(np.uint8(image[0] * 255))
                     with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
-                        temp_path = tmp.name
-                        pil_image.save(temp_path, format='JPEG')
-                    image_handle = client.files.prepare_image(temp_path)
+                        managed_temp_path[0] = tmp.name
+                        pil_image.save(managed_temp_path[0], format='JPEG')
+                    image_handle = client.files.prepare_image(managed_temp_path[0])
                     chat.add_user_message(text_input, images=[image_handle])
                     if debug:
                         print(f"Debug: [StructuredOutput] added image + text to chat")
@@ -970,15 +987,7 @@ class ExpoLmstudioStructuredOutput:
                 if debug:
                     print(f"Debug: [StructuredOutput] sending request with structured config")
 
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(model_obj.respond, chat, config=config)
-                    try:
-                        result = future.result(timeout=timeout_seconds)
-                    except concurrent.futures.TimeoutError:
-                        err = f"Error: LM Studio model response timed out after {timeout_seconds} seconds."
-                        print(err)
-                        empty = ("",) * 6
-                        return (err,) + empty
+                result = model_obj.respond(chat, config=config)
 
                 json_string = result.content.strip()
 
@@ -989,7 +998,7 @@ class ExpoLmstudioStructuredOutput:
                 try:
                     parsed = _json.loads(json_string)
                 except _json.JSONDecodeError:
-                    # Model may have wrapped JSON in a code fence — strip it
+                    # Model may have wrapped JSON in a code fence -- strip it
                     cleaned = json_string
                     if cleaned.startswith("```"):
                         cleaned = cleaned.split("\n", 1)[-1]
@@ -1032,12 +1041,26 @@ class ExpoLmstudioStructuredOutput:
 
                 return (json_string, values[0], values[1], values[2], values[3], values[4], values[5])
 
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            future = executor.submit(do_the_work)
+            return future.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError:
+            timed_out[0] = True
+            err = f"Error: LM Studio operation timed out after {timeout_seconds} seconds. The connection may be unstable."
+            print(err)
+            empty = ("",) * 6
+            return (err,) + empty
         except Exception as e:
             error_message = f"LM Studio error (Structured Output node): {str(e)}"
             print(error_message)
             raise Exception(error_message) from e
         finally:
-            if temp_path and os.path.exists(temp_path):
+            executor.shutdown(wait=False, cancel_futures=True)
+
+            # Clean up the temporary image file if it was created
+            temp_path = managed_temp_path[0]
+            if not timed_out[0] and temp_path and os.path.exists(temp_path):
                 try:
                     os.unlink(temp_path)
                 except Exception as cleanup_err:

@@ -1,10 +1,15 @@
+"""Pure helpers around the ControlNet residual inputs of the Core ML UNet.
+
+Re-exported by coreml_suite.controlnet. Characterization tests cover
+shapes, dtype (fp16), and zero-fill fallback.
+"""
 from itertools import chain
 from math import ceil
 
 import numpy as np
 import torch
 
-from coreml_suite.latents import chunk_batch
+from coreml_suite.core.latents import chunk_batch
 
 
 def expand_inputs(inputs):

@@ -1,0 +1,6 @@
+playground/
+__pycache__/
+models/
+.venv/
+test_results/
+tests/m2/_latest_generated.png

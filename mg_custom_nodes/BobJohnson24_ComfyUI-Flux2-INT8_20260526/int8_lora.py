@@ -30,7 +30,20 @@ class INT8GroupedLora:
 
     def apply_loras(self, model, **kwargs):
         model_patcher = model.clone()
-        
+
+        # ComfyUI's ModelPatcher.clone() builds a fresh patcher object and does
+        # NOT carry over arbitrary attributes set on the source patcher (e.g.
+        # the _safetensors_metadata stash from UNetLoaderINTW8A8). Without this,
+        # downstream nodes like INT8ModelSave lose the source safetensors
+        # metadata (int8_quantized flag, model_type, LTX2 'config', etc.) and
+        # produce a corrupted/unloadable checkpoint.
+        for attr in ("_safetensors_metadata", "_int8_source_metadata"):
+            if hasattr(model, attr) and not hasattr(model_patcher, attr):
+                try:
+                    setattr(model_patcher, attr, getattr(model, attr))
+                except Exception:
+                    pass
+
         # Get key mappings from ComfyUI's framework
         key_map = {}
         if model_patcher.model.model_type.name != "ModelType.CLIP":

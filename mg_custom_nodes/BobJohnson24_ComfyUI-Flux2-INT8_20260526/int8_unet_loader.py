@@ -222,8 +222,18 @@ class UNetLoaderINTW8A8:
         # Wrap in custom patcher for unified LoRA support
         from .int8_quant import INT8ModelPatcher
         model = INT8ModelPatcher.clone(model)
-        model._safetensors_metadata = metadata  # stash for save node
-        
+        # Stash metadata in two places so it survives ModelPatcher.clone()
+        # (which is invoked by INT8GroupedLora and other downstream nodes).
+        # ModelPatcher.clone() returns a fresh patcher and does NOT carry over
+        # arbitrary attributes, but the inner `model.model` object is shared
+        # by reference, so attributes attached to it survive cloning.
+        model._safetensors_metadata = metadata  # legacy attribute
+        try:
+            if model.model is not None:
+                model.model._int8_source_metadata = metadata
+        except Exception:
+            pass
+
         return (model,)
 
 

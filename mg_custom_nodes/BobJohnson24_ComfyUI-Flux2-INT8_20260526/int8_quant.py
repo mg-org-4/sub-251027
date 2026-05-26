@@ -286,6 +286,9 @@ if _COMFY_OPS_AVAILABLE:
                             H = build_hadamard(CONVROT_GROUP_SIZE, device=w_gpu.device, dtype=w_gpu.dtype)
                             w_gpu = rotate_weight(w_gpu, H, group_size=CONVROT_GROUP_SIZE)
                             self._use_convrot = True
+                            # Stamp the active groupsize so INT8ModelSave can
+                            # round-trip it deterministically.
+                            self._convrot_groupsize = CONVROT_GROUP_SIZE
                         except ImportError as e:
                             logging.warning(f"INT8 Fast: ConvRot enabled but convrot module error: {e}")
 
@@ -371,15 +374,16 @@ if _COMFY_OPS_AVAILABLE:
                 # Pop input_scale to clean state_dict, but ignore it
                 _ = state_dict.pop(input_scale_key, None)
                 
+                quant_conf_parsed = None
                 if comfy_quant_tensor is not None:
                     try:
                         import json
-                        quant_conf = json.loads(bytes(comfy_quant_tensor.tolist()).decode('utf-8'))
-                        if quant_conf.get("convrot", False):
+                        quant_conf_parsed = json.loads(bytes(comfy_quant_tensor.tolist()).decode('utf-8'))
+                        if quant_conf_parsed.get("convrot", False):
                             self._use_convrot = True
                             Int8TensorwiseOps.enable_convrot = True  # Propagate globally for LoRA
-                            if "convrot_groupsize" in quant_conf:
-                                self._convrot_groupsize = quant_conf["convrot_groupsize"]
+                            if "convrot_groupsize" in quant_conf_parsed:
+                                self._convrot_groupsize = int(quant_conf_parsed["convrot_groupsize"])
                                 Int8TensorwiseOps._global_convrot_groupsize = self._convrot_groupsize
                     except Exception:
                         pass
@@ -407,25 +411,30 @@ if _COMFY_OPS_AVAILABLE:
                         self._is_quantized = True
                         self.weight = nn.Parameter(weight_tensor, requires_grad=False)
                         Int8TensorwiseOps._is_prequantized = True # Found a quantized layer
-                        
+
+                        # Optional explicit hint from saved comfy_quant
+                        per_row_hint = None
+                        if isinstance(quant_conf_parsed, dict) and "per_row" in quant_conf_parsed:
+                            per_row_hint = bool(quant_conf_parsed["per_row"])
+
                         if isinstance(weight_scale, torch.Tensor):
                             if weight_scale.numel() == 1:
                                 # Scalar scale — store as float for speed
                                 self._weight_scale_scalar = weight_scale.float().item()
                                 self.weight_scale = None
-                                self._is_per_row = False
+                                self._is_per_row = False if per_row_hint is None else per_row_hint
                             elif weight_scale.dim() == 2 and weight_scale.shape[1] == 1:
                                 self.register_buffer('weight_scale', weight_scale.float())
                                 self._weight_scale_scalar = None
-                                self._is_per_row = True
+                                self._is_per_row = True if per_row_hint is None else per_row_hint
                             else:
                                 self.register_buffer('weight_scale', weight_scale.float())
                                 self._weight_scale_scalar = None
-                                self._is_per_row = False
+                                self._is_per_row = False if per_row_hint is None else per_row_hint
                         else:
                             self._weight_scale_scalar = float(weight_scale)
                             self.weight_scale = None
-                            self._is_per_row = False
+                            self._is_per_row = False if per_row_hint is None else per_row_hint
                             
                     elif weight_tensor.dtype in (torch.float16, torch.bfloat16, torch.float32, torch.float8_e4m3fn):
                         # Load High-Precision
@@ -476,6 +485,10 @@ if _COMFY_OPS_AVAILABLE:
                                     H = build_hadamard(CONVROT_GROUP_SIZE, device=w_gpu.device, dtype=w_gpu.dtype)
                                     w_gpu = rotate_weight(w_gpu, H, group_size=CONVROT_GROUP_SIZE)
                                     self._use_convrot = True
+                                    # Stamp the active groupsize on the module so
+                                    # INT8ModelSave can serialize it deterministically
+                                    # (instead of relying on the loader's default).
+                                    self._convrot_groupsize = CONVROT_GROUP_SIZE
                                 except ImportError as e:
                                     import logging
                                     logging.warning(f"INT8 Fast: ConvRot enabled but convrot module error: {e}")
@@ -925,7 +938,9 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
     def load(self, *args, **kwargs):
         self.finalize_pending_int8()
 
-        if not Int8TensorwiseOps.dynamic_lora:
+        save_materialized = bool(getattr(self, "_int8_save_materialized_lora", False))
+
+        if not Int8TensorwiseOps.dynamic_lora and not save_materialized:
             for k in list(self.backup):
                 if k in self.patches:
                     try:
@@ -968,7 +983,12 @@ class INT8ModelPatcher(comfy.model_patcher.ModelPatcher):
                 weight_key = name + ".weight"
                 
                 if weight_key in self.patches:
-                    if Int8TensorwiseOps.dynamic_lora:
+                    if save_materialized:
+                        if hasattr(module, "weight_lowvram_function"):
+                            module.weight_lowvram_function = None
+                        if hasattr(module, "weight_function"):
+                            module.weight_function = [f for f in getattr(module, "weight_function", []) if type(f).__name__ != "LowVramPatch"]
+                    elif Int8TensorwiseOps.dynamic_lora:
                         if hasattr(module, "weight_lowvram_function"):
                             module.weight_lowvram_function = None
                         if hasattr(module, "weight_function"):

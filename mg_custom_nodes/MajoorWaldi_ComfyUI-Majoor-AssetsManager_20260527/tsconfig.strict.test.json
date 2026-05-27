@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.json","compilerOptions":{"strict":true,"noEmit":true},"include":["ui/features/viewer/**/*.ts","ui/components/**/*.ts","ui/types/**/*.d.ts"],"exclude":["dist","node_modules","vendor","ui/tests"]}

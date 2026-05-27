@@ -2,77 +2,51 @@ from __future__ import annotations
 
 from typing import Any
 
-ARCHITECTURE = "zimage_nextdit"
-DISPLAY_NAME = "Z-Image/NextDiT"
+ARCHITECTURE = "zimage"
+DISPLAY_NAME = "Z-Image"
 CONFIG_KEY = "untwisting_rope"
 
-# Paths commonly used by ComfyUI model patcher wrappers to reach the diffusion object.
+# ComfyUI declares Z-Image Turbo as comfy.supported_models.ZImage.
+# Pixel-space Z-Image is a different ComfyUI class and should get its own adapter
+# if/when this patch supports its diffusion object explicitly.
+COMFY_MODEL_CONFIG_CLASS = "ZImage"
 DIFFUSION_ATTR_PATHS = (
-    "diffusion_model",
     "model.diffusion_model",
     "model.model.diffusion_model",
     "inner_model.diffusion_model",
     "model.inner_model.diffusion_model",
+    "diffusion_model",
 )
 
-SEARCH_CHILD_ATTRS = ("model", "inner_model", "diffusion_model", "unet", "wrapped")
 
-
-def looks_like_diffusion_model(obj: Any) -> bool:
-    """Return True for the Z-Image/NextDiT diffusion object used by this patch."""
-    return (
-        obj is not None
-        and hasattr(obj, "patchify_and_embed")
-        and hasattr(obj, "layers")
-    )
-
-
-def _roots(model_patcher: Any) -> list[Any]:
-    roots: list[Any] = []
-    if hasattr(model_patcher, "model"):
-        roots.append(model_patcher.model)
-    roots.append(model_patcher)
-    return roots
+def matches_model(model_info: dict[str, Any]) -> bool:
+    """Select Z-Image only from ComfyUI's explicit MODEL metadata."""
+    return str(model_info.get("model_config_class", "")) == COMFY_MODEL_CONFIG_CLASS
 
 
 def _get_attr_path(root: Any, attr_path: str) -> tuple[Any, bool]:
     obj = root
     for part in attr_path.split("."):
-        if not hasattr(obj, part):
+        if obj is None or not hasattr(obj, part):
             return None, False
-        obj = getattr(obj, part)
+        try:
+            obj = getattr(obj, part)
+        except Exception:
+            return None, False
     return obj, True
 
 
 def find_diffusion_model(model_patcher: Any) -> Any:
-    """Best-effort lookup for the Z-Image/NextDiT diffusion model inside ComfyUI wrappers."""
-    roots = _roots(model_patcher)
-    for root in roots:
-        for path in DIFFUSION_ATTR_PATHS:
-            obj, ok = _get_attr_path(root, path)
-            if ok and looks_like_diffusion_model(obj):
-                return obj
-
-    seen: set[int] = set()
-    stack = roots[:]
-    while stack and len(seen) < 256:
-        obj = stack.pop()
-        if id(obj) in seen:
-            continue
-        seen.add(id(obj))
-        if looks_like_diffusion_model(obj):
+    """Return ComfyUI BaseModel.diffusion_model after metadata selected this adapter."""
+    for path in DIFFUSION_ATTR_PATHS:
+        obj, ok = _get_attr_path(model_patcher, path)
+        if ok and obj is not None:
             return obj
-        for name in SEARCH_CHILD_ATTRS:
-            if hasattr(obj, name):
-                try:
-                    stack.append(getattr(obj, name))
-                except Exception:
-                    pass
-    raise RuntimeError("Could not find Z-Image/NextDiT diffusion model.")
+    raise RuntimeError("Could not find ComfyUI BaseModel.diffusion_model for Z-Image.")
 
 
 def is_joint_attention(module: Any) -> bool:
-    """Return True for the Z-Image/NextDiT joint-attention module shape."""
+    """Return True for the Z-Image joint-attention module shape."""
     return (
         hasattr(module, "qkv") and hasattr(module, "out")
         and hasattr(module, "q_norm") and hasattr(module, "k_norm")
@@ -83,7 +57,7 @@ def is_joint_attention(module: Any) -> bool:
 
 
 def is_main_layers_attention_name(name: str, min_layer: int = 0, max_layer: int = 29) -> bool:
-    """Z-Image/NextDiT attention modules are named layers.N.attention."""
+    """Z-Image attention modules are named layers.N.attention."""
     parts = str(name).split(".")
     if len(parts) != 3:
         return False
@@ -99,11 +73,6 @@ def is_main_layers_attention_name(name: str, min_layer: int = 0, max_layer: int 
 def default_runtime_cfg(dm: Any | None = None) -> dict[str, Any]:
     """Architecture-specific cfg fields merged into the main runtime cfg."""
     return {"architecture": ARCHITECTURE}
-
-
-def matches_model(model_info: dict[str, Any]) -> bool:
-    """This adapter is normally selected by structural diffusion-model lookup."""
-    return False
 
 
 def is_attention_name(name: str, min_layer: int = 0, max_layer: int = 29) -> bool:

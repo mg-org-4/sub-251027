@@ -9,10 +9,7 @@ from . import models as model_adapters
 import torch
 import comfy.utils
 import comfy.patcher_extension
-try:
-    import latent_preview
-except Exception:
-    latent_preview = None
+import latent_preview
 from comfy.ldm.flux.math import apply_rope
 from comfy.ldm.modules.attention import optimized_attention_masked
 
@@ -20,7 +17,7 @@ from . import verbose_prints as vp
 
 _TRANSFORMER_CONFIG_KEY = model_adapters.CONFIG_KEY
 
-# Module-level fallback store. Comfy/KSampler may clone or pass model objects
+# Module-level debug store. Comfy/KSampler may clone or pass model objects
 # through different instances, so the export node reads this if the model-local
 _RF_LAST_DEBUG_STORE: Dict[str, Any] = {
     'cache': {},
@@ -167,10 +164,10 @@ def _coerce_gamma_curve(value: Any = 0.0) -> float:
     """Clamp gamma_curve to the supported range."""
     try:
         curve = float(value)
-    except Exception:
-        curve = 0.0
+    except Exception as exc:
+        raise ValueError(f'Invalid gamma_curve value: {value!r}.') from exc
     if not math.isfinite(curve):
-        curve = 0.0
+        raise ValueError(f'Invalid gamma_curve value: {value!r} is not finite.')
     return max(0.0, min(8.0, curve))
 
 def _normalize_rf_mode_and_gamma_curve(
@@ -184,20 +181,60 @@ def _normalize_rf_mode_and_gamma_curve(
 def _coerce_norm_strength(norm_strength: float) -> float:
     try:
         strength = float(norm_strength)
-    except Exception:
-        strength = 0.0
+    except Exception as exc:
+        raise ValueError(f'Invalid norm_strength value: {norm_strength!r}.') from exc
     if not math.isfinite(strength):
-        strength = 0.0
+        raise ValueError(f'Invalid norm_strength value: {norm_strength!r} is not finite.')
     return max(0.0, min(1.0, strength))
 
 def _coerce_strength01(value: Any, default: float = 0.0) -> float:
     try:
         strength = float(value)
-    except Exception:
-        strength = float(default)
+    except Exception as exc:
+        raise ValueError(f'Invalid strength value: {value!r}.') from exc
     if not math.isfinite(strength):
-        strength = float(default)
+        raise ValueError(f'Invalid strength value: {value!r} is not finite.')
     return max(0.0, min(1.0, strength))
+
+_AXIS0_ROPE_MODES = {'default', 'match_axes', 'constant'}
+
+def _coerce_axis0_rope_mode(value: Any = None, legacy_scale: Any = None) -> str:
+    """Normalize the axis-0 RoPE behavior selector."""
+    if value is None:
+        if legacy_scale is not None:
+            try:
+                return 'default' if float(legacy_scale) < 0.0 else 'constant'
+            except Exception as exc:
+                raise ValueError(f'Invalid legacy axis0_rope_scale value: {legacy_scale!r}.') from exc
+        return 'default'
+
+    mode = str(value or 'default').strip().lower().replace('-', '_').replace(' ', '_')
+    aliases = {
+        'legacy': 'default',
+        'low': 'default',
+        'low_scale': 'default',
+        'match_axis1': 'match_axes',
+        'match_axis_1': 'match_axes',
+        'match_axis_1_plus': 'match_axes',
+        'match_axes_1plus': 'match_axes',
+        'same_as_axes': 'match_axes',
+        'same_as_axis1': 'match_axes',
+        'override': 'constant',
+        'fixed': 'constant',
+    }
+    mode = aliases.get(mode, mode)
+    if mode not in _AXIS0_ROPE_MODES:
+        raise ValueError(f'Invalid axis0_rope_mode={value!r}. Expected one of {sorted(_AXIS0_ROPE_MODES)}.')
+    return mode
+
+def _coerce_axis0_rope_scale(value: Any, default: float = 0.0) -> float:
+    try:
+        v = float(value)
+    except Exception as exc:
+        raise ValueError(f'Invalid axis0_rope_scale value: {value!r}.') from exc
+    if not math.isfinite(v):
+        raise ValueError(f'Invalid axis0_rope_scale value: {value!r} is not finite.')
+    return max(0.0, v)
 
 def _rf_gamma_for_mode(
     mode: str,
@@ -326,8 +363,9 @@ def _rf_build_cache_from_sampler_sigmas(
     mode, gamma_curve = _normalize_rf_mode_and_gamma_curve(rf_mode, gamma_curve)
     valid_modes = {'linear', 'rf_gamma', 'rf_gamma_rk2', 'fireflow'}
     if mode not in valid_modes:
-        print(f'{vp._rf_prefix(stats)}   ⚠ Unknown rf_mode={mode!r}; falling back to rf_gamma')
-        mode = 'rf_gamma'
+        raise ValueError(
+            f"Invalid rf_mode={mode!r}. Expected one of {sorted(valid_modes)}."
+        )
 
     parameterization = getattr(stats, 'parameterization', 'unknown') if stats else 'unknown'
 
@@ -339,16 +377,30 @@ def _rf_build_cache_from_sampler_sigmas(
         rng.manual_seed(seed)
         eps = torch.randn(ref_clean.shape, device=device, dtype=dtype, generator=rng)
 
-    # Build sorted unique sigma grid starting from 0.
+    if sampler_sigmas is None:
+        raise RuntimeError('RF trajectory build failed: sampler_sigmas is missing.')
+
+    # Build sorted unique sigma grid starting from 0. Invalid entries are fatal.
     sigmas: List[float] = [0.0]
-    for s in sampler_sigmas:
+    for idx, s in enumerate(sampler_sigmas):
         try:
-            sf = max(0.0, min(1.0, float(s)))
-        except Exception:
-            continue
+            sf = float(s)
+        except Exception as exc:
+            raise RuntimeError(
+                f'RF trajectory build failed: sampler sigma at index {idx} is not numeric: {s!r}.'
+            ) from exc
+        if not math.isfinite(sf):
+            raise RuntimeError(
+                f'RF trajectory build failed: sampler sigma at index {idx} is not finite: {s!r}.'
+            )
+        sf = max(0.0, min(1.0, sf))
         if all(abs(sf - existing) > 1e-6 for existing in sigmas):
             sigmas.append(sf)
     sigmas = sorted(sigmas)
+    if len(sigmas) <= 1:
+        raise RuntimeError(
+            'RF trajectory build failed: sampler sigma schedule did not contain any usable non-zero steps.'
+        )
 
     z = ref_clean.clone()
     prev = 0.0
@@ -405,19 +457,21 @@ def _rf_build_cache_from_sampler_sigmas(
 
         # ── Helper: run model and convert output to velocity ─────────────────
         def _call_model_as_velocity(z_in, sigma_val, label=''):
-            nonlocal model_ok, failures, vm_sum
+            nonlocal model_ok, vm_sum
             t_tensor = torch.full((z_in.shape[0],), sigma_val, device=device, dtype=dtype)
             with torch.no_grad():
                 try:
                     raw = apply_model_fn(z_in, t_tensor, **base_model_kwargs)
-                    model_ok += 1
-                    v = _velocity_from_pred(z_in, raw, sigma_val, parameterization)
-                    vm_sum += float(v.abs().mean().item())
-                    return v, True, raw
                 except Exception as exc:
-                    failures += 1
-                    print(f'{vp._rf_prefix(stats)}   [WARNING {mode}{label}] model failed at σ={sigma_val:.6f}: {exc}')
-                    return torch.zeros_like(z_in), False, None
+                    raise RuntimeError(
+                        f'RF trajectory build failed during model call at σ={sigma_val:.6f} '
+                        f'mode={mode}{label}.'
+                    ) from exc
+
+            model_ok += 1
+            v = _velocity_from_pred(z_in, raw, sigma_val, parameterization)
+            vm_sum += float(v.abs().mean().item())
+            return v, True, raw
 
         def _apply_pmi_if_enabled(v: torch.Tensor) -> torch.Tensor:
             if not use_pmi:
@@ -530,77 +584,13 @@ def _rf_build_cache_from_sampler_sigmas(
         f'|model|={vm_sum/max(1, model_ok):.5f}  |prior|={vp_sum/steps:.5f}  '
         f'z_final std={z.std().item():.4f}  parameterization={parameterization}'
     )
-    if failures > 0:
-        print(f'{vp._rf_prefix(stats)}   ⚠ RF schedule warning: {failures} model call(s) failed.')
-
     return cache, eps, sigmas
 
-def _rf_increment_reference_one_step(
-    z_prev:         torch.Tensor,
-    sigma_prev:     float,
-    sigma_cur:      float,
-    apply_model_fn: Callable,
-    base_model_kwargs: Dict[str, Any],
-    gamma:          float = 0.5,
-    seed:           int   = 0,
-    stats:          Optional[vp._RuntimeStats] = None,
-    eps:            Optional[torch.Tensor] = None,
-    rf_mode:        str   = 'rf_gamma',
-    gamma_curve: float = 0.0,
-    norm_strength: float = 0.0,
-    preview_callback: Optional[Callable[[int, torch.Tensor, torch.Tensor, int], None]] = None,
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    """
-    Stable direct one-step RF reference latent for the CURRENT sampler sigma.
-    Used as a fallback when the sampler wrapper didn't capture the full sigma schedule.
-    """
-    sigma_cur = max(0.0, min(1.0, float(sigma_cur)))
-    delta_sigma = sigma_cur
-
-    device = z_prev.device
-    dtype  = z_prev.dtype
-    parameterization = getattr(stats, 'parameterization', 'unknown') if stats else 'unknown'
-
-    if eps is None:
-        rng = torch.Generator(device=device)
-        rng.manual_seed(seed)
-        eps = torch.randn(z_prev.shape, device=device, dtype=dtype, generator=rng)
-
-    t_tensor = torch.zeros((z_prev.shape[0],), device=device, dtype=dtype)
-    raw = None
-    with torch.no_grad():
-        try:
-            raw     = apply_model_fn(z_prev, t_tensor, **base_model_kwargs)
-            v_model = _velocity_from_pred(z_prev, raw, 0.0, parameterization)
-            v_model_abs = float(v_model.abs().mean().item())
-            model_ok = True
-        except Exception as exc:
-            print(f'{vp._rf_prefix(stats)}   [WARNING direct RF] model call failed at σ=0.000000: {exc}')
-            v_model = torch.zeros_like(z_prev)
-            v_model_abs = 0.0
-            model_ok = False
-
-    v_prior = eps - z_prev
-    v_prior_abs = float(v_prior.abs().mean().item())
-    gamma_eff = _rf_gamma_for_mode(rf_mode, gamma, sigma_prev, sigma_cur, gamma_curve)
-    v_total = gamma_eff * v_model + (1.0 - gamma_eff) * v_prior
-    z_cur   = z_prev + delta_sigma * v_total
-    norm_strength = max(0.0, min(1.0, float(norm_strength)))
-    if norm_strength > 0.0:
-        target = _rf_linear_target(z_prev, eps, sigma_cur)
-        z_cur = _rf_match_mean_std(z_cur, target, strength=norm_strength)
-
-    _rf_emit_preview(preview_callback, 0, raw, z_cur, 1)
-
-    vp._rf_vprint(stats,
-        f'{vp._rf_prefix(stats)}   RF direct σ_base=0.000000 -> σ={sigma_cur:.6f}  '
-        f'Δσ={delta_sigma:.6f}  gamma_eff={gamma_eff:.4f}  '
-        f'norm_strength={norm_strength:.3f}  '
-        f'model_ok={model_ok}  parameterization={parameterization}\n'
-        f'{vp._rf_prefix(stats)}     |v_model|={v_model_abs:.5f}  |v_prior|={v_prior_abs:.5f}  '
-        f'z_cur std={z_cur.std().item():.4f}'
+def _rf_increment_reference_one_step(*args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
+    raise RuntimeError(
+        'RF direct one-step path is disabled in strict mode. '
+        'The sampler sigma schedule must be captured and the full RF trajectory must be built.'
     )
-    return z_cur, eps
 
 def _find_sigma_schedule(obj: Any, depth: int = 0) -> Optional[List[float]]:
     if depth > 6 or obj is None:
@@ -654,17 +644,22 @@ def _parse_active_blocks(blocks_str):
         return active
     for part in blocks_str.split(','):
         part = part.strip()
+        if not part:
+            continue
         if '-' in part:
             try:
-                start, end = part.split('-')
-                active.update(range(int(start), int(end) + 1))
-            except ValueError:
-                pass
+                start, end = part.split('-', 1)
+                start_i, end_i = int(start), int(end)
+            except ValueError as exc:
+                raise ValueError(f'Invalid active block range {part!r}.') from exc
+            if end_i < start_i:
+                raise ValueError(f'Invalid active block range {part!r}: end is smaller than start.')
+            active.update(range(start_i, end_i + 1))
         else:
             try:
                 active.add(int(part))
-            except ValueError:
-                pass
+            except ValueError as exc:
+                raise ValueError(f'Invalid active block index {part!r}.') from exc
     return active
 
 def _select_model_adapter(model_patcher: Any, model_info: Optional[Dict[str, Any]] = None) -> Any:
@@ -706,8 +701,8 @@ def _slice_conditioning_batch(obj: Any, start: int, end: int) -> Any:
         try:
             if obj.ndim > 0 and int(obj.shape[0]) >= end:
                 return obj[start:end]
-        except Exception:
-            pass
+        except Exception as exc:
+            raise RuntimeError('Conditioning batch slice failed.') from exc
         return obj
     if isinstance(obj, dict):
         return {
@@ -725,26 +720,35 @@ def _build_rf_conditioning_kwargs(
     ref_conditioning: Any,
     target_b: int,
 ) -> Tuple[Dict[str, Any], str]:
+    if ref_conditioning is None:
+        raise RuntimeError(
+            'RF conditioning failed: ref_conditioning is required when RFInversion uses a reference latent.'
+        )
+    if target_b <= 0:
+        raise RuntimeError(f'RF conditioning failed: invalid target batch size {target_b}.')
+
     try:
-        if ref_conditioning is not None and target_b > 0:
-            merged, _forced = _merge_reference_conditioning_into_c(c, ref_conditioning, target_b)
-            ref_only = _slice_conditioning_batch(merged, target_b, target_b * 2)
-            return _clone_conditioning_for_rf(ref_only), 'reference'
+        merged, _forced = _merge_reference_conditioning_into_c(c, ref_conditioning, target_b)
+        ref_only = _slice_conditioning_batch(merged, target_b, target_b * 2)
     except Exception as exc:
-        print(f'{vp._RF_PREFIX}   ⚠ RF conditioning fallback: {exc}')
-    return _clone_conditioning_for_rf(c), 'target-fallback'
+        raise RuntimeError('RF conditioning failed while merging reference conditioning.') from exc
+
+    return _clone_conditioning_for_rf(ref_only), 'reference'
 
 def _sigma_from_timestep(timestep: torch.Tensor) -> float:
+    if not torch.is_tensor(timestep):
+        raise RuntimeError('Sigma conversion failed: timestep is not a tensor.')
     try:
         val = float(timestep.detach().float().mean().item())
-        if math.isfinite(val):
-            if 0.0 <= val <= 1.0:
-                return max(0.0, min(1.0, val))
-            if 1.0 < val <= 1000.0:
-                return max(0.0, min(1.0, val / 1000.0))
-    except Exception:
-        pass
-    return 1.0
+    except Exception as exc:
+        raise RuntimeError('Sigma conversion failed: timestep could not be converted to float.') from exc
+    if not math.isfinite(val):
+        raise RuntimeError(f'Sigma conversion failed: timestep is not finite: {val!r}.')
+    if 0.0 <= val <= 1.0:
+        return max(0.0, min(1.0, val))
+    if 1.0 < val <= 1000.0:
+        return max(0.0, min(1.0, val / 1000.0))
+    raise RuntimeError(f'Sigma conversion failed: unsupported timestep value {val!r}.')
 
 def _sigma_to_progress(timestep: torch.Tensor) -> float:
     return max(0.0, min(1.0, 1.0 - _sigma_from_timestep(timestep)))
@@ -757,8 +761,8 @@ def _repeat_conditioning_tree(obj: Any, src: int, tgt: int) -> Any:
         try:
             if obj.ndim > 0 and int(obj.shape[0]) == src:
                 return _repeat_to_batch(obj, tgt)
-        except Exception:
-            pass
+        except Exception as exc:
+            raise RuntimeError('Conditioning tree repeat failed.') from exc
         return obj
     if isinstance(obj, dict):
         return {
@@ -866,8 +870,8 @@ def _as_tensor_like(value: Any, like: torch.Tensor) -> Optional[torch.Tensor]:
         )
     try:
         return torch.as_tensor(value, device=like.device)
-    except Exception:
-        return None
+    except Exception as exc:
+        raise RuntimeError(f'Could not convert reference metadata value to tensor: {value!r}.') from exc
 
 def _coerce_ref_tensor_like_target(ref_value, target_value, target_b):
     ref = ref_value.to(
@@ -913,12 +917,12 @@ def _conditioning_mask_from_source(source, batch, padded_tokens, device):
             return _conditioning_mask_from_source(
                 torch.as_tensor(source, device=device), batch, padded_tokens, device
             )
-        except Exception:
-            return None
+        except Exception as exc:
+            raise RuntimeError('Conditioning mask conversion failed for list/tuple source.') from exc
     try:
         return _num_tokens_to_valid_mask(int(source), batch, padded_tokens, device)
-    except Exception:
-        return None
+    except Exception as exc:
+        raise RuntimeError(f'Conditioning mask conversion failed for source={source!r}.') from exc
 
 def _target_valid_mask_from_c(c, target_b, padded_tokens, device):
     for key in ('attention_mask', 'crossattn_mask', 'c_crossattn_mask', 'cap_mask', 'mask'):
@@ -970,8 +974,8 @@ def _concat_batch_conditioning_value(key, value, ref_cond, ref_meta, target_b, f
                     forced_cap_mask[target_b:target_b * 2]
                 )
                 return torch.cat([target_counts, ref_counts], dim=0)
-            except Exception:
-                return _repeat_conditioning_tree(value, target_b, target_b * 2)
+            except Exception as exc:
+                raise RuntimeError(f'Conditioning num-token merge failed for key={key!r}.') from exc
         if key in _MASK_CONDITIONING_KEYS:
             return forced_cap_mask
         return _repeat_conditioning_tree(value, target_b, target_b * 2)
@@ -979,8 +983,8 @@ def _concat_batch_conditioning_value(key, value, ref_cond, ref_meta, target_b, f
     try:
         if value.ndim == 0 or int(value.shape[0]) != target_b:
             return value
-    except Exception:
-        return value
+    except Exception as exc:
+        raise RuntimeError(f'Conditioning batch compatibility check failed for key={key!r}.') from exc
 
     ref_value: Optional[torch.Tensor] = None
 
@@ -1156,29 +1160,60 @@ def _build_joint_additive_mask_from_cap_mask(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _build_frequency_scale_vector(
-    head_dim, axes_dims, high_scale, low_scale, beta, device, dtype
+    head_dim, axes_dims, high_scale, low_scale, beta, device, dtype,
+    axis0_rope_scale: Any = None,
+    axis0_rope_mode: Any = None,
+    runtime_cfg: Optional[Dict[str, Any]] = None,
 ):
     if not axes_dims or sum(int(x) for x in axes_dims) != head_dim:
         axes_dims = [head_dim]
     axes_dims = [int(x) for x in axes_dims]
-    is_3axis  = len(axes_dims) == 3
+
+    has_separate_axis0 = len(axes_dims) >= 2
+
+    legacy_axis0_scale = None
+    if isinstance(runtime_cfg, dict):
+        legacy_axis0_scale = runtime_cfg.get('axis0_rope_scale', None)
+        if axis0_rope_mode is None:
+            axis0_rope_mode = runtime_cfg.get('axis0_rope_mode', None)
+        if axis0_rope_scale is None:
+            axis0_rope_scale = legacy_axis0_scale
+
+    axis0_rope_mode = _coerce_axis0_rope_mode(
+        axis0_rope_mode, legacy_scale=legacy_axis0_scale
+    )
+    axis0_rope_scale = _coerce_axis0_rope_scale(axis0_rope_scale, default=0.0)
+
+    def _curve_scales(n_pairs: int) -> torch.Tensor:
+        d_tilde = (
+            torch.zeros(1, device=device, dtype=torch.float32)
+            if n_pairs == 1
+            else torch.linspace(0.0, 1.0, n_pairs, device=device, dtype=torch.float32)
+        )
+        return high_scale + (low_scale - high_scale) * d_tilde.pow(float(beta))
+
     pieces: List[torch.Tensor] = []
     for axis_idx, axis_dim in enumerate(axes_dims):
         n_pairs = axis_dim // 2
         if n_pairs <= 0:
             pieces.append(torch.ones(axis_dim, device=device, dtype=dtype))
             continue
-        if is_3axis and axis_idx == 0:
-            pair_scales = torch.full(
-                (n_pairs,), float(low_scale), device=device, dtype=torch.float32
-            )
+        if has_separate_axis0 and axis_idx == 0:
+            if axis0_rope_mode == 'match_axes':
+                # Axis 0 uses the same per-pair curve as axes 1+.
+                pair_scales = _curve_scales(n_pairs)
+            elif axis0_rope_mode == 'constant':
+                # Axis 0 uses the explicit non-negative override.
+                pair_scales = torch.full(
+                    (n_pairs,), float(axis0_rope_scale), device=device, dtype=torch.float32
+                )
+            else:
+                # Default/legacy behavior: axis 0 is flat at low_scale.
+                pair_scales = torch.full(
+                    (n_pairs,), float(low_scale), device=device, dtype=torch.float32
+                )
         else:
-            d_tilde = (
-                torch.zeros(1, device=device, dtype=torch.float32)
-                if n_pairs == 1
-                else torch.linspace(0.0, 1.0, n_pairs, device=device, dtype=torch.float32)
-            )
-            pair_scales = high_scale + (low_scale - high_scale) * d_tilde.pow(float(beta))
+            pair_scales = _curve_scales(n_pairs)
         pieces.append(pair_scales.to(dtype=dtype).repeat_interleave(2))
         if axis_dim % 2:
             pieces.append(torch.ones(1, device=device, dtype=dtype))
@@ -1221,6 +1256,122 @@ def _cross_batch_adain_qk(xq, xk, cfg, target_bsz, strength, eps=1e-6, xv=None):
             xv[:target_bsz, s:e] = v_t * (1 - a) + _adain(v_t, v_r, eps) * a
     return (xq, xk, xv) if return_v else (xq, xk)
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Shared Q/K/V effects
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _normalize_token_ranges(ranges: Any, seqlen: int) -> List[Tuple[int, int]]:
+    """Clamp token ranges to the current sequence length and drop empty ranges."""
+    out: List[Tuple[int, int]] = []
+    for item in ranges or []:
+        if not isinstance(item, (list, tuple)) or len(item) < 2:
+            continue
+        s = max(0, min(int(item[0]), int(seqlen)))
+        e = max(s, min(int(item[1]), int(seqlen)))
+        if e > s:
+            out.append((s, e))
+    return out
+
+def _shared_effect_ranges(
+    cfg: Dict[str, Any],
+    seqlen: int,
+    token_ranges: Any = None,
+) -> List[Tuple[int, int]]:
+    """
+    Resolve the token ranges used by shared Q/K/V effects.
+
+    Adapters should pass the architecture-specific image/latent range when they
+    know it. Otherwise this falls back to cfg-provided ranges and finally to the
+    whole sequence.
+    """
+    ranges = _normalize_token_ranges(token_ranges, seqlen)
+    if ranges:
+        return ranges
+
+    ranges = _normalize_token_ranges(cfg.get('target_v_injection_ranges', None), seqlen)
+    if ranges:
+        return ranges
+
+    ranges = _normalize_token_ranges(cfg.get('target_qk_adain_ranges', None), seqlen)
+    if ranges:
+        return ranges
+
+    return [(0, int(seqlen))]
+
+def _apply_qkv_shared_effects(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    cfg: Dict[str, Any],
+    target_bsz: int,
+    module_name: str,
+    *,
+    layout: str = 'BSHD',
+    token_ranges: Any = None,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Shared core Q/K/V effect stack for adapter-owned attention patches.
+
+    Adapters expose where Q/K/V exist, their layout, and the applicable token
+    range. This function owns shared user-facing features such as
+    ``v_injection_strength`` so new shared parameters do not need to be copied
+    into every adapter.
+
+    Supported layouts:
+      - BSHD: [batch, sequence, heads, head_dim]
+      - BHSD: [batch, heads, sequence, head_dim]
+    """
+    if not isinstance(cfg, dict) or not cfg.get('enabled', False):
+        return q, k, v
+    if not (torch.is_tensor(q) and torch.is_tensor(k) and torch.is_tensor(v)):
+        return q, k, v
+    if int(target_bsz) <= 0 or int(v.shape[0]) < int(target_bsz) * 2:
+        return q, k, v
+
+    layout_u = str(layout or 'BSHD').upper()
+    if layout_u == 'BSHD':
+        q_bshd, k_bshd, v_bshd = q, k, v
+        restore = lambda qq, kk, vv: (qq, kk, vv)
+    elif layout_u == 'BHSD':
+        q_bshd, k_bshd, v_bshd = q.movedim(1, 2), k.movedim(1, 2), v.movedim(1, 2)
+        restore = lambda qq, kk, vv: (qq.movedim(1, 2), kk.movedim(1, 2), vv.movedim(1, 2))
+    else:
+        raise RuntimeError(
+            f'{vp._PREFIX} shared QKV effects failed in {module_name}: '
+            f'unsupported layout={layout!r}.'
+        )
+
+    if v_bshd.ndim != 4:
+        raise RuntimeError(
+            f'{vp._PREFIX} shared QKV effects failed in {module_name}: '
+            f'expected V as rank-4 after layout normalization, got shape={tuple(v_bshd.shape)}.'
+        )
+
+    seqlen = int(v_bshd.shape[1])
+    ranges = _shared_effect_ranges(cfg, seqlen, token_ranges)
+
+    # Shared V injection: interpolate target V toward paired reference V.
+    # This intentionally lives in the core, not in individual adapters.
+    v_inj = _coerce_strength01(cfg.get('v_injection_strength', 0.0))
+    if v_inj > 0.0:
+        v_bshd = v_bshd.clone()
+        for s, e in ranges:
+            v_t = v_bshd[:target_bsz, s:e]
+            v_r = v_bshd[target_bsz:target_bsz * 2, s:e]
+            if v_t.shape != v_r.shape:
+                raise RuntimeError(
+                    f'{vp._PREFIX} shared V injection failed in {module_name}: '
+                    f'target/ref V range shape mismatch: target={tuple(v_t.shape)} ref={tuple(v_r.shape)}.'
+                )
+            v_bshd[:target_bsz, s:e] = v_t * (1.0 - v_inj) + v_r * v_inj
+
+        cfg['_debug_v_injection_strength'] = float(v_inj)
+        cfg['_debug_v_injection_module'] = str(module_name)
+        cfg['_debug_v_injection_ranges'] = list(ranges)
+
+    return restore(q_bshd, k_bshd, v_bshd)
+
 def _repeat_kv_heads_if_needed(k, v, q_heads):
     kv = k.shape[2]
     if kv == q_heads:
@@ -1256,9 +1407,9 @@ def _patch_context_refiner_mask_modules(dm, stats):
     refiner = getattr(dm, 'context_refiner', None)
     if refiner is None:
         return 0, 0, 0
-    try:
+    if isinstance(refiner, (list, tuple, torch.nn.ModuleList)):
         modules = list(refiner)
-    except Exception:
+    else:
         modules = [refiner]
     matched = installed = restored = 0
     for idx, module in enumerate(modules):
@@ -1302,8 +1453,11 @@ def _patch_context_refiner_mask_modules(dm, stats):
                             if torch.is_tensor(orig_m):
                                 try:
                                     return replacement_mask.view(orig_m.shape)
-                                except Exception:
-                                    pass
+                                except Exception as exc:
+                                    raise RuntimeError(
+                                        f'Context-refiner mask alignment failed: replacement={tuple(replacement_mask.shape)} '
+                                        f'expected={tuple(orig_m.shape)}.'
+                                    ) from exc
                             if replacement_mask.ndim == 2:
                                 return replacement_mask.unsqueeze(1).unsqueeze(1)
                             return replacement_mask
@@ -1387,8 +1541,8 @@ def _patch_patchify_and_embed(dm, stats):
                 cfg['rope_theta'] = float(
                     getattr(getattr(self, 'rope_embedder', None), 'theta', 10000.0)
                 )
-            except Exception:
-                cfg['rope_theta'] = 10000.0
+            except Exception as exc:
+                raise RuntimeError('patchify_and_embed failed: rope_theta could not be read.') from exc
 
             p = cfg['patch_size']
             target_range = target_text_range = None
@@ -1402,8 +1556,8 @@ def _patch_patchify_and_embed(dm, stats):
             else:
                 try:
                     cap0 = int(cap_size[0]) if isinstance(cap_size, (list, tuple)) else int(cap_size)
-                except Exception:
-                    cap0 = 0
+                except Exception as exc:
+                    raise RuntimeError('patchify_and_embed failed: cap_size could not be converted to int.') from exc
                 target_text_range = (0, cap0) if cap0 > 0 else None
                 target_range = (max(0, cap0), int(img.shape[1]))
 
@@ -1413,8 +1567,8 @@ def _patch_patchify_and_embed(dm, stats):
                 try:
                     real_tok   = (x.shape[-2] // p) * (x.shape[-1] // p)
                     real_range = (ts, min(ts + real_tok, te))
-                except Exception:
-                    real_range = target_range
+                except Exception as exc:
+                    raise RuntimeError('patchify_and_embed failed: target real token range could not be computed.') from exc
                 cfg['target_real_range'] = real_range
                 ref_ranges.append((ts, te))
                 ref_real_ranges.append(real_range)
@@ -1441,8 +1595,8 @@ def _patch_patchify_and_embed(dm, stats):
                         result = (img, mask, img_size, cap_size, freqs_cis, timestep_zero_index)
 
             transformer_options[_TRANSFORMER_CONFIG_KEY] = cfg
-        except Exception:
-            pass
+        except Exception as exc:
+            raise RuntimeError('patchify_and_embed strict metadata patch failed.') from exc
 
         return result
 
@@ -1518,8 +1672,8 @@ def _patch_joint_attention_modules(dm, stats):
                                 )
                                 fjm = torch.cat([fjm, pad], dim=-1)
                         x_mask = fjm
-                    except Exception:
-                        x_mask = None
+                    except Exception as exc:
+                        raise RuntimeError('Untwisting attention failed while applying forced joint mask.') from exc
 
                 stats.attn_calls += 1
 
@@ -1538,6 +1692,8 @@ def _patch_joint_attention_modules(dm, stats):
                 high_scale = _lerp(cfg['high_scale_start'], cfg['high_scale_end'], progress)
                 low_scale  = _lerp(cfg['low_scale_start'],  cfg['low_scale_end'],  progress)
                 beta       = float(cfg.get('beta', 2.0))
+                cfg['_debug_high_scale'] = float(high_scale)
+                cfg['_debug_low_scale'] = float(low_scale)
 
                 if cfg.get('apply_adain') and float(cfg.get('adain_strength', 0)) > 0:
                     xq, xk = xq.clone(), xk.clone()
@@ -1553,7 +1709,10 @@ def _patch_joint_attention_modules(dm, stats):
                     self.head_dim, cfg.get('axes_dims') or [],
                     high_scale, low_scale, beta,
                     xk.device, xk.dtype,
+                    runtime_cfg=cfg,
                 ).view(1, 1, 1, self.head_dim)
+
+                vp._untwist_print_rope_scale_debug(stats, cfg, module_name, scale_vec)
 
                 ref_k_pieces, ref_v_pieces = [], []
                 for s, e in ref_ranges:
@@ -1564,8 +1723,26 @@ def _patch_joint_attention_modules(dm, stats):
                     ref_v_pieces.append(xv[target_bsz:target_bsz*2, s:e])
 
                 if not ref_k_pieces:
-                    return orig(x, x_mask, freqs_cis,
-                                transformer_options=transformer_options)
+                    raise RuntimeError(
+                        f'Untwisting attention failed in {module_name}: no reference K/V token ranges were available.'
+                    )
+
+                # Value tensor injection / interpolation: push the target content/texture
+                # stream toward the paired reference stream before reference K/V concat.
+                v_inj = _coerce_strength01(cfg.get('v_injection_strength', 0.0))
+                if v_inj > 0.0:
+                    try:
+                        xv = xv.clone()
+                        xv_r_aligned = xv[target_bsz:target_bsz * 2, :seqlen]
+                        xv[:target_bsz, :seqlen] = (
+                            xv[:target_bsz, :seqlen] * (1.0 - v_inj)
+                            + xv_r_aligned * v_inj
+                        )
+                        cfg['_debug_v_injection_strength'] = float(v_inj)
+                    except Exception as exc:
+                        raise RuntimeError(
+                            f'Untwisting attention failed in {module_name}: V tensor injection shape alignment failed.'
+                        ) from exc
 
                 xq_t = xq[:target_bsz]
                 xk_t = torch.cat([xk[:target_bsz]] + ref_k_pieces, dim=1)
@@ -1583,8 +1760,8 @@ def _patch_joint_attention_modules(dm, stats):
                                 device=mask_t.device, dtype=mask_t.dtype,
                             )
                             mask_t = torch.cat([mask_t, padding], dim=-1)
-                    except Exception:
-                        mask_t = None
+                    except Exception as exc:
+                        raise RuntimeError('Untwisting attention failed while building target mask.') from exc
 
                 out_t = optimized_attention_masked(
                     xq_t.movedim(1,2), xk_t.movedim(1,2), xv_t.movedim(1,2),
@@ -1602,8 +1779,8 @@ def _patch_joint_attention_modules(dm, stats):
                 try:
                     if x_mask is not None and int(x_mask.shape[0]) >= target_bsz * 2:
                         mask_r = x_mask[target_bsz:target_bsz*2]
-                except Exception:
-                    pass
+                except Exception as exc:
+                    raise RuntimeError('Untwisting attention failed while slicing reference mask.') from exc
                 out_r = optimized_attention_masked(
                     xq_r.movedim(1,2), xk_r.movedim(1,2), xv_r.movedim(1,2),
                     self.n_local_heads, mask_r,
@@ -1679,19 +1856,10 @@ def _rf_new_debug_store() -> Dict[str, Any]:
 def _rf_make_preview_callback(model_for_preview: Any, total_steps: int) -> Optional[Callable[[int, torch.Tensor, torch.Tensor, int], None]]:
     """Create a ComfyUI-style latent preview callback for RF raw predictions."""
     total_steps = max(1, int(total_steps))
-    if latent_preview is not None:
-        try:
-            return latent_preview.prepare_callback(model_for_preview, total_steps)
-        except Exception as exc:
-            print(f'{vp._RF_PREFIX} ⚠ RF preview callback disabled: {exc}')
     try:
-        pbar = comfy.utils.ProgressBar(total_steps)
-        def _progress_only(step: int, x0: torch.Tensor, x: torch.Tensor, steps: int) -> None:
-            pbar.update_absolute(step + 1, steps)
-        return _progress_only
+        return latent_preview.prepare_callback(model_for_preview, total_steps)
     except Exception as exc:
-        print(f'{vp._RF_PREFIX} ⚠ RF progress callback disabled: {exc}')
-        return None
+        raise RuntimeError('RF preview callback creation failed in strict mode.') from exc
 
 def _rf_emit_preview(
     callback: Optional[Callable[[int, torch.Tensor, torch.Tensor, int], None]],
@@ -1700,15 +1868,17 @@ def _rf_emit_preview(
     x_current: Optional[torch.Tensor],
     total_steps: int,
 ) -> None:
-    """Emit one RF raw-pred preview frame without breaking sampling if preview decoding fails."""
-    if callback is None or not torch.is_tensor(raw_pred):
-        return
+    """Emit one RF raw-pred preview frame."""
+    if callback is None:
+        raise RuntimeError('RF preview failed: callback is missing.')
+    if not torch.is_tensor(raw_pred):
+        raise RuntimeError('RF preview failed: raw_pred is not a tensor.')
     try:
         preview_latent = raw_pred[:1].detach()
         current = x_current[:1].detach() if torch.is_tensor(x_current) else preview_latent
         callback(int(step), preview_latent, current, int(total_steps))
     except Exception as exc:
-        print(f'{vp._RF_PREFIX} ⚠ RF preview frame failed at step {int(step) + 1}: {exc}')
+        raise RuntimeError(f'RF preview frame failed at step {int(step) + 1}.') from exc
 
 def _rf_latent_get_config(rf_inversion: Optional[Dict[str, Any]]) -> Tuple[bool, Dict[str, Any], Dict[str, Any], Optional[torch.Tensor], Optional[Any], str]:
     """Read RFInversion's LATENT metadata without exposing a custom Comfy type."""
@@ -1734,6 +1904,15 @@ def _adapter_helpers() -> Dict[str, Any]:
         'lerp': _lerp,
         'cross_batch_adain_qk': _cross_batch_adain_qk,
         'build_frequency_scale_vector': _build_frequency_scale_vector,
+        'apply_qkv_shared_effects': _apply_qkv_shared_effects,
+        'print_rope_scale_debug': vp._untwist_print_rope_scale_debug,
+        'print_rope_scale_debug_from_cfg': (
+            lambda stats, cfg, module_name, device, dtype:
+                vp._untwist_print_rope_scale_debug_from_cfg(
+                    stats, cfg, module_name, device, dtype,
+                    _build_frequency_scale_vector,
+                )
+        ),
         'patch_context_refiner_mask_modules': _patch_context_refiner_mask_modules,
         'patch_patchify_and_embed': _patch_patchify_and_embed,
         'patch_joint_attention_modules': _patch_joint_attention_modules,
@@ -1781,7 +1960,7 @@ class RFInversion:
                     ),
                 }),
                 'gamma': ('FLOAT', {
-                    'default': 0.1,
+                    'default': 0.5,
                     'min': 0.0,
                     'max': 1.0,
                     'step': 0.01,
@@ -1850,8 +2029,9 @@ class RFInversion:
         try:
             dm_for_ref = _safe_get_diffusion_model(model, adapter)
         except Exception as exc:
-            if verbose_flag:
-                print(f'{vp._RF_PREFIX} ⚠ Could not access diffusion model for reference conditioning preprocessing: {exc}')
+            raise RuntimeError(
+                'RFInversion failed: could not access diffusion model for reference conditioning preprocessing.'
+            ) from exc
 
         cfg: Dict[str, Any] = {
             'rf_mode': str(rf_mode),
@@ -1920,10 +2100,7 @@ class RFInversion:
                 state['cache'] = {0.0: ref_clean.detach().to(device='cpu').clone()}
                 state['eps'] = None
                 state['run_count'] = int(state.get('run_count', 0)) + 1
-                try:
-                    state['preview_callback'] = _rf_make_preview_callback(model_clone, max(1, len(found) - 1))
-                except Exception:
-                    state['preview_callback'] = None
+                state['preview_callback'] = _rf_make_preview_callback(model_clone, max(1, len(found) - 1))
 
                 rf_latent['untwist_rf_cache'] = state['cache']
                 rf_latent['untwist_rf_sigmas'] = list(found)
@@ -2072,69 +2249,27 @@ class RFInversion:
                     vp._rf_print_build_complete(verbose_flag, built_cache, sorted_sigmas, eps, rf_sanity)
 
                 elif not state.get('schedule_built', False) and sampler_sigmas is None:
-                    # This should be rare because SAMPLER_SAMPLE normally runs before
-                    # model calls. Keep it as an explicit diagnostic fallback.
-                    effective_ref_conditioning, adapter_ref_status = _prepare_reference_conditioning_for_adapter(
-                        adapter, ref_conditioning, dm_for_ref, input_x.device,
-                        c.get('c_crossattn').dtype if torch.is_tensor(c.get('c_crossattn', None)) else input_x.dtype,
-                        rf_runtime_stats, label='RFInversionFallback',
+                    raise RuntimeError(
+                        'RFInversion failed: sampler sigma schedule was not captured. '
+                        'SAMPLER_SAMPLE did not run before the RF model wrapper was called.'
                     )
-                    rf_kwargs, rf_cond_mode = _build_rf_conditioning_kwargs(c, effective_ref_conditioning, target_b)
-                    rf_cond_mode = _append_conditioning_status(rf_cond_mode, adapter_ref_status)
-                    state['last_cond_mode'] = rf_cond_mode
-                    debug_store['last_cond_mode'] = rf_cond_mode
-                    vp._rf_print_direct_fallback(verbose_flag, sigma)
-                    z_sigma, eps = _rf_increment_reference_one_step(
-                        z_prev=rf_ref_clean,
-                        sigma_prev=0.0,
-                        sigma_cur=sigma,
-                        apply_model_fn=apply_model,
-                        base_model_kwargs=rf_kwargs,
-                        gamma=gamma,
-                        seed=42,
-                        stats=rf_runtime_stats,
-                        eps=state['eps'].to(device=input_x.device, dtype=input_x.dtype)
-                            if torch.is_tensor(state.get('eps', None)) else None,
-                        rf_mode=rf_mode,
-                        gamma_curve=gamma_curve,
-                        norm_strength=norm_strength,
-                        preview_callback=state.get('preview_callback', None),
-                    )
-                    cache = state.get('cache') if isinstance(state.get('cache'), dict) else {}
-                    cache[sigma_key] = z_sigma.detach().clone()
-                    state['cache'] = cache
-                    state['eps'] = eps.detach().clone()
-                    rf_latent['untwist_rf_cache'] = _cache_to_cpu(cache)
-                    rf_latent['untwist_rf_eps'] = eps.detach().to(device='cpu').clone()
-                    debug_store['cache'] = state['cache']
-                    if torch.is_tensor(state.get('eps', None)):
-                        rf_sanity = vp._rf_stability_summary(rf_ref_clean, state['eps'], cache, sorted(cache.keys()))
-                        state['last_stability_summary'] = rf_sanity
-                        rf_latent['untwist_rf_stability_summary'] = rf_sanity
-                        debug_store['stability_summary'] = rf_sanity
-                        if verbose_flag:
-                            vp._rf_print_stability_summary(rf_sanity)
 
                 cache = state.get('cache') if isinstance(state.get('cache'), dict) else {}
                 cached = cache.get(sigma_key, None)
                 cache_lookup = 'exact' if cached is not None else 'missing'
                 if cached is None:
-                    keys = [k for k in cache.keys() if isinstance(k, float)]
-                    if keys:
-                        nearest = min(keys, key=lambda k: abs(k - sigma_key))
-                        cached = cache.get(nearest)
-                        cache_lookup = f'nearest:{nearest:.6f}:absdiff={abs(nearest - sigma_key):.6f}'
+                    raise RuntimeError(
+                        f'RFInversion failed: no exact RF cache entry for sigma={sigma_key:.6f}.'
+                    )
                 state['last_cache_lookup'] = cache_lookup
                 debug_store['last_cache_lookup'] = cache_lookup
 
-                if verbose_flag:
-                    pass
 
             except Exception as exc:
                 state['last_error'] = repr(exc)
                 debug_store['last_error'] = repr(exc)
-                print(f'{vp._RF_PREFIX} ⚠ RFInversion standalone wrapper failed; sampling will continue unchanged: {exc}')
-                vp._rf_print_traceback(verbose_flag, traceback.format_exc())
+                vp._rf_print_traceback(True, traceback.format_exc())
+                raise RuntimeError('RFInversion standalone wrapper failed in strict mode.') from exc
 
             if old_model_function_wrapper is not None:
                 return old_model_function_wrapper(apply_model, args)
@@ -2174,13 +2309,46 @@ class UnofficialExtensions:
                     'step': 0.01,
                     'tooltip': 'Blend strength for matching the target attention output to the reference attention output. 0 disables it.',
                 }),
+                'axis0_rope_mode': (['default', 'match_axes', 'constant'], {
+                    'default': 'match_axes',
+                    'tooltip': (
+                        'Axis-0 RoPE behavior.\n'
+                        'default -> Its values are equal to low_scale;\n'
+                        'match_axes -> makes axis 0 use the same curve as axes 1+;\n'
+                        'constant -> uses axis0_rope_scale.'
+                    ),
+                }),
+                'axis0_rope_scale': ('FLOAT', {
+                    'default': 1.0,
+                    'min': 0.0,
+                    'max': 8.0,
+                    'step': 0.01,
+                    'tooltip': 'Non-negative Axis-0 RoPE scale used only when axis0_rope_mode is constant.',
+                }),
+                'v_injection_strength': ('FLOAT', {
+                    'default': 0.0,
+                    'min': 0.0,
+                    'max': 1.0,
+                    'step': 0.01,
+                    'tooltip': 'Linearly blends the target V tensor with the reference V tensor.',
+                }),
             },
         }
 
-    def build(self, adain_on_v: bool = False, post_attention_adain_strength: float = 0.0):
+    def build(
+        self,
+        adain_on_v: bool = False,
+        v_injection_strength: float = 0.0,
+        post_attention_adain_strength: float = 0.0,
+        axis0_rope_mode: str = 'default',
+        axis0_rope_scale: float = 0.0,
+    ):
         return ({
             'adain_on_v': vp._coerce_bool(adain_on_v),
+            'v_injection_strength': _coerce_strength01(v_injection_strength),
             'post_attention_adain_strength': _coerce_strength01(post_attention_adain_strength),
+            'axis0_rope_mode': _coerce_axis0_rope_mode(axis0_rope_mode),
+            'axis0_rope_scale': _coerce_axis0_rope_scale(axis0_rope_scale, default=0.0),
         },)
 
 class UntwistingRoPE:
@@ -2285,7 +2453,13 @@ class UntwistingRoPE:
 
         ext_cfg = unofficial_extensions if isinstance(unofficial_extensions, dict) else {}
         adain_on_v = vp._coerce_bool(ext_cfg.get('adain_on_v', False))
+        v_injection_strength = _coerce_strength01(ext_cfg.get('v_injection_strength', 0.0))
         post_attention_adain_strength = _coerce_strength01(ext_cfg.get('post_attention_adain_strength', 0.0))
+        axis0_rope_mode = _coerce_axis0_rope_mode(
+            ext_cfg.get('axis0_rope_mode', None),
+            legacy_scale=ext_cfg.get('axis0_rope_scale', None),
+        )
+        axis0_rope_scale = _coerce_axis0_rope_scale(ext_cfg.get('axis0_rope_scale', 0.0), default=0.0)
 
         if rf_active:
             stats.rf_sigma_cache = rf_state.get('cache', {}) if isinstance(rf_state.get('cache', {}), dict) else {}
@@ -2306,7 +2480,10 @@ class UntwistingRoPE:
             f'{vp._PREFIX} blocks: {blocks if blocks.strip() else "all"}  '
             f'adain={adain_strength:.2f}  '
             f'unofficial: adain_on_v={adain_on_v}  '
-            f'post_attention_adain_strength={post_attention_adain_strength:.2f}'
+            f'v_injection_strength={v_injection_strength:.2f}  '
+            f'post_attention_adain_strength={post_attention_adain_strength:.2f}  '
+            f'axis0_rope_mode={axis0_rope_mode}  '
+            f'axis0_rope_scale={axis0_rope_scale:.3f}'
         )
         vp._vprint(stats, f'{vp._PREFIX} RF latent connected: {rf_active}  source={rf_source}')
         if rf_active:
@@ -2334,7 +2511,29 @@ class UntwistingRoPE:
         try:
             patch_fn = getattr(adapter, 'patch_attention_modules', None)
             if callable(patch_fn):
-                patch_fn(dm, stats, _adapter_helpers())
+                result = patch_fn(dm, stats, _adapter_helpers())
+                
+                # Standardize adapter returns: unpack and log centrally
+                if isinstance(result, tuple):
+                    if len(result) == 4:
+                        matched, installed, restored, patched_names = result
+                    elif len(result) == 3:
+                        matched, installed, restored = result
+                        patched_names = []
+                    else:
+                        raise RuntimeError(
+                            f'Unexpected adapter patch return from {type(adapter).__name__}: {result!r}'
+                        )
+                        
+                    disp_name = getattr(adapter, 'DISPLAY_NAME', type(adapter).__name__)
+                    
+                    vp._vprint(stats, f'{vp._PREFIX} {disp_name} attention patch: matched={matched} installed={installed} restored={restored}')
+                    for n in patched_names:
+                        vp._vprint(stats, f'{vp._PREFIX}   - {n}')
+                    
+                    if installed == 0:
+                        raise RuntimeError(f'{vp._PREFIX} No {disp_name} attention blocks were patched.')
+
             else:
                 _patch_context_refiner_mask_modules(dm, stats)
                 _patch_patchify_and_embed(dm, stats)
@@ -2371,9 +2570,14 @@ class UntwistingRoPE:
                 'apply_adain': True,
                 'adain_strength': float(adain_strength),
                 'adain_on_v': adain_on_v,
+                'v_injection_strength': v_injection_strength,
                 'post_attention_adain_strength': post_attention_adain_strength,
+                'axis0_rope_mode': axis0_rope_mode,
+                'axis0_rope_scale': axis0_rope_scale,
                 'cross_batch_target_batch': target_b if rf_active else 0,
                 'progress': progress,
+                'sigma': sigma,
+                'wrapper_call': call_n,
             }
             default_cfg = getattr(adapter, 'default_runtime_cfg', lambda _dm=None: {})
             cfg.update(default_cfg(dm))
@@ -2386,8 +2590,6 @@ class UntwistingRoPE:
             rf_cache_hit = False
             rf_cond_mode = 'not-connected'
             ref_mode = 'target-only'
-            # These input/ref-noisy lines belong to the UntwistingRoPE node,
-            # so they must follow the UntwistingRoPE verbose toggle, not RFInversion's.
             should_print = vp._coerce_bool(getattr(stats, 'verbose', False))
 
             if rf_active and torch.is_tensor(ref_clean_cpu):
@@ -2481,60 +2683,20 @@ class UntwistingRoPE:
                     elif rf_state.get('schedule_built', False):
                         ref_mode = 'RF sampler-sigma trajectory (cached)'
                     else:
-                        # Fallback: no sampler wrapper triggered. This preserves original behavior.
-                        effective_ref_conditioning, adapter_ref_status = _prepare_reference_conditioning_for_adapter(
-                            adapter, ref_conditioning, dm, input_x.device,
-                            c.get('c_crossattn').dtype if torch.is_tensor(c.get('c_crossattn', None)) else input_x.dtype,
-                            stats, label='UntwistingRoPEFallback',
+                        raise RuntimeError(
+                            'UntwistingRoPE failed: sampler sigma schedule was not captured and no RF trajectory was built. '
+                            'SAMPLER_SAMPLE must run before UntwistingRoPE model calls.'
                         )
-                        rf_kwargs, rf_cond_mode = _build_rf_conditioning_kwargs(c, effective_ref_conditioning, target_b)
-                        rf_cond_mode = _append_conditioning_status(rf_cond_mode, adapter_ref_status)
-                        rf_ref_clean = _repeat_to_batch(ref_clean, target_b)
-                        preview_callback = rf_state.get('preview_callback', None)
-                        if preview_callback is None:
-                            preview_callback = _rf_make_preview_callback(model_clone, 1)
-                            rf_state['preview_callback'] = preview_callback
-                        z_sigma, eps = _rf_increment_reference_one_step(
-                            z_prev=rf_ref_clean,
-                            sigma_prev=0.0,
-                            sigma_cur=sigma,
-                            apply_model_fn=apply_model,
-                            base_model_kwargs=rf_kwargs,
-                            gamma=gamma,
-                            seed=seed,
-                            stats=stats,
-                            eps=rf_state['eps'].to(device=input_x.device, dtype=input_x.dtype)
-                                if torch.is_tensor(rf_state.get('eps', None)) else None,
-                            rf_mode=rf_mode,
-                            gamma_curve=gamma_curve,
-                            norm_strength=norm_strength,
-                            preview_callback=preview_callback,
-                        )
-                        rf_state['eps'] = eps.detach().clone()
-                        cache = rf_state.get('cache') if isinstance(rf_state.get('cache'), dict) else {}
-                        cache[sigma_key] = z_sigma.detach().clone()
-                        rf_state['cache'] = cache
-                        stats.rf_eps = rf_state['eps']
-                        stats.rf_sigma_cache = rf_state['cache']
-                        ref_mode = 'RF direct fallback (no sampler wrapper)'
 
                     cache = rf_state.get('cache') if isinstance(rf_state.get('cache'), dict) else {}
                     cached = cache.get(sigma_key, None)
                     if cached is None:
-                        keys = [k for k in cache.keys() if isinstance(k, float)]
-                        if keys:
-                            nearest = min(keys, key=lambda k: abs(k - sigma_key))
-                            cached = cache[nearest]
-                            ref_mode += f' nearest({nearest:.6f})'
-                        else:
-                            cached = ref
-                    else:
-                        rf_cache_hit = True
+                        raise RuntimeError(
+                            f'UntwistingRoPE failed: no exact RF cache entry for sigma={sigma_key:.6f}.'
+                        )
+                    rf_cache_hit = True
 
                     ref_noisy = _repeat_to_batch(cached.to(device=input_x.device, dtype=input_x.dtype), target_b)
-
-                    if should_print:
-                        vp._untwist_print_input_ref(stats, input_x, ref_noisy)
 
                     if ref_noisy.shape[-2:] == input_x.shape[-2:]:
                         input_for_model = torch.cat([input_x, ref_noisy], dim=0)
@@ -2545,8 +2707,8 @@ class UntwistingRoPE:
                                 timestep_for_model = torch.cat([timestep, timestep], dim=0)
                             else:
                                 timestep_for_model = _repeat_to_batch(timestep, target_b * 2)
-                        except Exception:
-                            timestep_for_model = timestep
+                        except Exception as exc:
+                            raise RuntimeError('UntwistingRoPE failed while duplicating timestep for reference batch.') from exc
 
                         effective_ref_conditioning, adapter_ref_status = _prepare_reference_conditioning_for_adapter(
                             adapter, ref_conditioning, dm, input_x.device,
@@ -2561,23 +2723,15 @@ class UntwistingRoPE:
                         try:
                             if isinstance(cond_or_uncond, list):
                                 cond_or_uncond = cond_or_uncond + cond_or_uncond
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            raise RuntimeError('UntwistingRoPE failed while duplicating cond_or_uncond metadata.') from exc
                     else:
-                        print(
-                            f'{vp._PREFIX} ⚠ [call={call_n}] Spatial mismatch '
-                            f'input_x={tuple(input_x.shape[-2:])} '
-                            f'ref_noisy={tuple(ref_noisy.shape[-2:])} '
-                            f'→ target-only fallback'
+                        raise RuntimeError(
+                            f'UntwistingRoPE failed: spatial mismatch input_x={tuple(input_x.shape[-2:])} '
+                            f'ref_noisy={tuple(ref_noisy.shape[-2:])}.'
                         )
-                        cfg['enabled'] = False
-                        cfg['cross_batch_target_batch'] = 0
-                        ref_noisy = None
                 except Exception as exc:
-                    print(f'{vp._PREFIX} ⚠ UntwistingRoPE RF latent fallback to target-only: {exc}')
-                    cfg['enabled'] = False
-                    cfg['cross_batch_target_batch'] = 0
-                    ref_noisy = None
+                    raise RuntimeError('UntwistingRoPE RF latent preparation failed in strict mode.') from exc
 
             c['transformer_options'] = to
 
@@ -2590,6 +2744,12 @@ class UntwistingRoPE:
                 })
             else:
                 raw_result = apply_model(input_for_model, timestep_for_model, **c)
+
+            if should_print:
+                vp._untwist_print_rope_scale_debug_from_cfg(
+                    stats, cfg, 'model_wrapper', input_x.device, input_x.dtype,
+                    _build_frequency_scale_vector,
+                )
 
             if (rf_active
                     and ref_noisy is not None
@@ -2604,10 +2764,10 @@ class UntwistingRoPE:
                     debug_store['xhat_cache'][sigma_key] = (ref_xsigma - float(sigma) * ref_pred)[:1].detach().clone()
                     debug_store['xhat_plus_cache'][sigma_key] = (ref_xsigma + float(sigma) * ref_pred)[:1].detach().clone()
                 except Exception as exc:
-                    print(f'{vp._PREFIX} ⚠ Failed to cache RF debug latents at σ={float(sigma):.6f}: {exc}')
+                    raise RuntimeError(
+                        f'UntwistingRoPE failed while caching RF debug latents at σ={float(sigma):.6f}.'
+                    ) from exc
 
-                if should_print:
-                    pass
                 return target_pred
 
             return raw_result

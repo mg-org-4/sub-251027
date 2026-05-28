@@ -267,6 +267,18 @@
           "name": "image",
           "type": "IMAGE",
           "link": 1560
+        },
+        {
+          "name": "width",
+          "shape": 7,
+          "type": "INT",
+          "link": null
+        },
+        {
+          "name": "height",
+          "shape": 7,
+          "type": "INT",
+          "link": null
         }
       ],
       "outputs": [
@@ -1027,11 +1039,11 @@
       ],
       "size": [
         332.76171875,
-        82
+        130
       ],
       "flags": {},
       "order": 13,
-      "mode": 4,
+      "mode": 0,
       "inputs": [],
       "outputs": [
         {
@@ -1049,7 +1061,9 @@
       },
       "widgets_values": [
         false,
-        0.5
+        0.5,
+        "match_axes",
+        1
       ]
     }
   ],
@@ -1259,10 +1273,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.5054470284993381,
+      "scale": 0.5559917313492722,
       "offset": [
-        -17.881694872136705,
-        -261.27390195795283
+        -62.29068115768874,
+        -429.91256004902806
       ]
     },
     "frontendVersion": "1.44.19",

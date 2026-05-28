@@ -1,7 +1,7 @@
 {
   "id": "44259803-f9d6-4eb1-a94a-75b8213649d0",
   "revision": 0,
-  "last_node_id": 626,
+  "last_node_id": 627,
   "last_link_id": 1553,
   "nodes": [
     {
@@ -729,6 +729,18 @@
           "name": "image",
           "type": "IMAGE",
           "link": 1539
+        },
+        {
+          "name": "width",
+          "shape": 7,
+          "type": "INT",
+          "link": null
+        },
+        {
+          "name": "height",
+          "shape": 7,
+          "type": "INT",
+          "link": null
         }
       ],
       "outputs": [
@@ -853,38 +865,27 @@
       "bgcolor": "rgba(24,24,27,.9)"
     },
     {
-      "id": 625,
-      "type": "UnofficialExtensions",
+      "id": 611,
+      "type": "Note",
       "pos": [
-        751.7264207977231,
-        678.844885774481
+        1133.528142202805,
+        986.688469823161
       ],
       "size": [
-        332.76171875,
-        82
+        289.0740052806825,
+        112.57343506692268
       ],
       "flags": {},
       "order": 11,
       "mode": 0,
       "inputs": [],
-      "outputs": [
-        {
-          "name": "unofficial_extensions",
-          "type": "UNTWISTING_ROPE_EXTENSIONS",
-          "links": [
-            1553
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "untwistingrope",
-        "ver": "ec08050c160633dc890972120598e2912ce26870",
-        "Node name for S&R": "UnofficialExtensions"
-      },
+      "outputs": [],
+      "properties": {},
       "widgets_values": [
-        false,
-        0.5
-      ]
+        "The only relevant values to change are :\n\n- beta: between 10 and 50\n- high_scale_start: (between 1.0 and 1.15) \n- low_scale_end: (between 3.0 and 4.0)"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
     },
     {
       "id": 623,
@@ -935,7 +936,7 @@
         "Node name for S&R": "UntwistingRoPE"
       },
       "widgets_values": [
-        15,
+        25,
         1,
         0,
         1,
@@ -946,27 +947,41 @@
       ]
     },
     {
-      "id": 611,
-      "type": "Note",
+      "id": 625,
+      "type": "UnofficialExtensions",
       "pos": [
-        1133.528142202805,
-        986.688469823161
+        751.7264207977231,
+        678.844885774481
       ],
       "size": [
-        289.0740052806825,
-        112.57343506692268
+        332.76171875,
+        154
       ],
       "flags": {},
       "order": 12,
       "mode": 0,
       "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "The only relevant values to change are :\n\n- beta: between 10 and 50\n- high_scale_start: (between 1.0 and 1.15) \n- low_scale_end: (between 3.0 and 4.0)"
+      "outputs": [
+        {
+          "name": "unofficial_extensions",
+          "type": "UNTWISTING_ROPE_EXTENSIONS",
+          "links": [
+            1553
+          ]
+        }
       ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
+      "properties": {
+        "cnr_id": "untwistingrope",
+        "ver": "ec08050c160633dc890972120598e2912ce26870",
+        "Node name for S&R": "UnofficialExtensions"
+      },
+      "widgets_values": [
+        false,
+        0.5,
+        "match_axes",
+        1,
+        0.2
+      ]
     }
   ],
   "links": [
@@ -1175,10 +1190,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7400249944258226,
+      "scale": 0.6115909044841509,
       "offset": [
-        -572.5401596060037,
-        -804.0052684700847
+        -320.44513158759315,
+        -425.76575846359304
       ]
     },
     "frontendVersion": "1.44.19",

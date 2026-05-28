@@ -72,11 +72,13 @@ def _coerce_bool(value: Any) -> bool:
 def _coerce_strength01(value: Any, default: float = 0.0) -> float:
     try:
         strength = float(value)
-    except Exception:
-        strength = float(default)
+    except Exception as exc:
+        raise ValueError(f"Invalid strength value {value!r}; expected a finite float in [0, 1].") from exc
     if not torch.isfinite(torch.tensor(strength)):
-        strength = float(default)
-    return max(0.0, min(1.0, strength))
+        raise ValueError(f"Invalid strength value {value!r}; expected a finite float in [0, 1].")
+    if not 0.0 <= strength <= 1.0:
+        raise ValueError(f"Invalid strength value {strength!r}; expected value in [0, 1].")
+    return strength
 
 
 def _lerp(a: float, b: float, t: float) -> float:
@@ -113,25 +115,29 @@ def find_diffusion_model(model_patcher: Any) -> Any:
 def axes_dims_from_dm(dm: Any | None) -> list[int]:
     """Read FLUX.2 RoPE axes from the already-selected ComfyUI diffusion module."""
     if dm is None:
-        return []
+        raise RuntimeError("FLUX.2 axes_dims lookup failed: diffusion module is None.")
     params = getattr(dm, "params", None)
+    if params is None:
+        raise RuntimeError("FLUX.2 axes_dims lookup failed: dm.params is missing.")
     axes = _sequence_of_ints(getattr(params, "axes_dim", None))
-    if axes:
-        return axes
-    return []
+    if not axes:
+        raise RuntimeError("FLUX.2 axes_dims lookup failed: dm.params.axes_dim is missing or invalid.")
+    return axes
 
 
-def head_dim_from_dm(dm: Any | None) -> int | None:
+def head_dim_from_dm(dm: Any | None) -> int:
     """Read FLUX.2 head_dim from explicit diffusion-module params after selection."""
     if dm is None:
-        return None
+        raise RuntimeError("FLUX.2 head_dim lookup failed: diffusion module is None.")
     params = getattr(dm, "params", None)
+    if params is None:
+        raise RuntimeError("FLUX.2 head_dim lookup failed: dm.params is missing.")
     hidden = _safe_int(getattr(params, "hidden_size", None))
     heads = _safe_int(getattr(params, "num_heads", None))
     if hidden is None or heads is None or heads <= 0:
-        return None
+        raise RuntimeError(f"FLUX.2 head_dim lookup failed: hidden_size={hidden}, num_heads={heads}.")
     if hidden % heads != 0:
-        return None
+        raise RuntimeError(f"FLUX.2 head_dim lookup failed: hidden_size={hidden} is not divisible by num_heads={heads}.")
     return hidden // heads
 
 
@@ -139,13 +145,8 @@ def default_runtime_cfg(dm: Any | None = None) -> dict[str, Any]:
     """Architecture-specific config merged into transformer_options."""
     cfg: dict[str, Any] = {"architecture": ARCHITECTURE}
 
-    axes = axes_dims_from_dm(dm)
-    if axes:
-        cfg["axes_dims"] = axes
-
-    head_dim = head_dim_from_dm(dm)
-    if head_dim is not None:
-        cfg["head_dim"] = head_dim
+    cfg["axes_dims"] = axes_dims_from_dm(dm)
+    cfg["head_dim"] = head_dim_from_dm(dm)
 
     return cfg
 
@@ -250,54 +251,12 @@ def _adain(target: torch.Tensor, style: torch.Tensor, eps: float = 1e-6) -> torc
     return (target - t_mean) / t_std * s_std + s_mean
 
 
-def _local_cross_batch_adain_qk(xq, xk, cfg, target_bsz, strength, eps=1e-6, xv=None):
-    """Fallback copy of the model-neutral helper; tensors are [B,S,H,D]."""
-    return_v = xv is not None
-    if target_bsz <= 0 or xq.shape[0] < target_bsz * 2:
-        return (xq, xk, xv) if return_v else (xq, xk)
-    a = max(0.0, min(1.0, float(strength)))
-    if a <= 0.0:
-        return (xq, xk, xv) if return_v else (xq, xk)
-    seqlen = int(xq.shape[1])
-    apply_v = return_v and _coerce_bool(cfg.get("adain_on_v", False))
-    for s, e in (cfg.get("target_qk_adain_ranges") or []):
-        s, e = max(0, int(s)), min(int(e), seqlen)
-        if e <= s:
-            continue
-        q_t, k_t = xq[:target_bsz, s:e], xk[:target_bsz, s:e]
-        q_r, k_r = xq[target_bsz:target_bsz * 2, s:e], xk[target_bsz:target_bsz * 2, s:e]
-        xq[:target_bsz, s:e] = q_t * (1 - a) + _adain(q_t, q_r, eps) * a
-        xk[:target_bsz, s:e] = k_t * (1 - a) + _adain(k_t, k_r, eps) * a
-        if apply_v:
-            v_t = xv[:target_bsz, s:e]
-            v_r = xv[target_bsz:target_bsz * 2, s:e]
-            xv[:target_bsz, s:e] = v_t * (1 - a) + _adain(v_t, v_r, eps) * a
-    return (xq, xk, xv) if return_v else (xq, xk)
+def _local_cross_batch_adain_qk(*_args, **_kwargs):
+    raise RuntimeError("FLUX.2 missing required helper cross_batch_adain_qk; strict mode requires the top-level helper.")
 
 
-def _local_build_frequency_scale_vector(head_dim, axes_dims, high_scale, low_scale, beta, device, dtype):
-    if not axes_dims or sum(int(x) for x in axes_dims) != int(head_dim):
-        axes_dims = [int(head_dim)]
-    axes_dims = [int(x) for x in axes_dims]
-    pieces: list[torch.Tensor] = []
-    for axis_dim in axes_dims:
-        n_pairs = axis_dim // 2
-        if n_pairs <= 0:
-            pieces.append(torch.ones(axis_dim, device=device, dtype=dtype))
-            continue
-        d_tilde = (
-            torch.zeros(1, device=device, dtype=torch.float32)
-            if n_pairs == 1 else
-            torch.linspace(0.0, 1.0, n_pairs, device=device, dtype=torch.float32)
-        )
-        pair_scales = float(high_scale) + (float(low_scale) - float(high_scale)) * d_tilde.pow(float(beta))
-        pieces.append(pair_scales.to(dtype=dtype).repeat_interleave(2))
-        if axis_dim % 2:
-            pieces.append(torch.ones(1, device=device, dtype=dtype))
-    out = torch.cat(pieces, dim=0)
-    if out.numel() >= int(head_dim):
-        return out[: int(head_dim)]
-    return torch.nn.functional.pad(out, (0, int(head_dim) - out.numel()), value=1.0)
+def _local_build_frequency_scale_vector(*_args, **_kwargs):
+    raise RuntimeError("FLUX.2 missing required helper build_frequency_scale_vector; strict mode requires the top-level helper.")
 
 
 def _flux_kv_heads_if_needed(k: torch.Tensor, v: torch.Tensor, q_heads: int) -> tuple[torch.Tensor, torch.Tensor]:
@@ -316,29 +275,25 @@ def _flux_kv_heads_if_needed(k: torch.Tensor, v: torch.Tensor, q_heads: int) -> 
 
 def _flux_append_ref_padding_to_mask(mask: Any, target_bsz: int, ref_len: int):
     """Append valid additive-mask slots for injected reference K/V tokens."""
-    if mask is None or ref_len <= 0:
+    if mask is None:
         return None
-    try:
-        mask_t = mask[:target_bsz]
-        if mask_t.ndim >= 2:
-            padding = torch.zeros(
-                (*mask_t.shape[:-1], int(ref_len)),
-                device=mask_t.device,
-                dtype=mask_t.dtype,
-            )
-            return torch.cat([mask_t, padding], dim=-1)
-    except Exception:
-        return None
-    return None
+    if ref_len <= 0:
+        raise RuntimeError(f"Cannot append FLUX reference padding: ref_len={ref_len}.")
+    mask_t = mask[:target_bsz]
+    if mask_t.ndim < 2:
+        raise RuntimeError(f"Cannot append FLUX reference padding: mask ndim={mask_t.ndim}, expected >=2.")
+    padding = torch.zeros(
+        (*mask_t.shape[:-1], int(ref_len)),
+        device=mask_t.device,
+        dtype=mask_t.dtype,
+    )
+    return torch.cat([mask_t, padding], dim=-1)
 
 
 def _flux_slice_mask(mask: Any, start: int, end: int):
     if mask is None:
         return None
-    try:
-        return mask[int(start): int(end)]
-    except Exception:
-        return None
+    return mask[int(start): int(end)]
 
 
 def _flux_adain_qkv_for_image_range(q, k, v, cfg, target_bsz: int, image_range, cross_batch_adain_qk):
@@ -390,7 +345,7 @@ def patch_attention_modules(
     dm: Any,
     stats: Any,
     helpers: dict[str, Any] | None = None,
-) -> tuple[int, int, int]:
+) -> tuple[int, int, int, list[str]]:
     """Patch ComfyUI FLUX/FLUX.2 DoubleStreamBlock and SingleStreamBlock forwards.
 
     This architecture-specific implementation intentionally lives in the adapter
@@ -399,17 +354,16 @@ def patch_attention_modules(
     helpers = helpers or {}
     prefix = str(helpers.get("prefix", "[UntwistingRoPE]"))
     config_key = str(helpers.get("config_key", "untwisting_rope"))
-    lerp = helpers.get("lerp") if callable(helpers.get("lerp")) else _lerp
-    cross_batch_adain_qk = (
-        helpers.get("cross_batch_adain_qk")
-        if callable(helpers.get("cross_batch_adain_qk")) else
-        _local_cross_batch_adain_qk
-    )
-    build_frequency_scale_vector = (
-        helpers.get("build_frequency_scale_vector")
-        if callable(helpers.get("build_frequency_scale_vector")) else
-        _local_build_frequency_scale_vector
-    )
+
+    required_helpers = ("lerp", "cross_batch_adain_qk", "build_frequency_scale_vector", "apply_qkv_shared_effects")
+    missing = [name for name in required_helpers if not callable(helpers.get(name))]
+    if missing:
+        raise RuntimeError(f"{DISPLAY_NAME} adapter missing required helper(s): {missing}")
+
+    lerp = helpers["lerp"]
+    cross_batch_adain_qk = helpers["cross_batch_adain_qk"]
+    build_frequency_scale_vector = helpers["build_frequency_scale_vector"]
+    apply_qkv_shared_effects = helpers["apply_qkv_shared_effects"]
 
     try:
         from comfy.ldm.flux.layers import apply_mod
@@ -439,12 +393,14 @@ def patch_attention_modules(
                 return flux_attention(q, k, v, pe=pe, mask=attn_mask, transformer_options=transformer_options)
 
             target_bsz = int(cfg.get("cross_batch_target_batch", 0))
-            if target_bsz <= 0 or q.ndim != 4 or k.ndim != 4 or v.ndim != 4:
-                return flux_attention(q, k, v, pe=pe, mask=attn_mask, transformer_options=transformer_options)
+            if target_bsz <= 0:
+                raise RuntimeError(f"{DISPLAY_NAME} Untwisting enabled in {module_name}, but cross_batch_target_batch={target_bsz}.")
+            if q.ndim != 4 or k.ndim != 4 or v.ndim != 4:
+                raise RuntimeError(f"{DISPLAY_NAME} Untwisting expected q/k/v as [B,H,S,D] tensors in {module_name}; got q.ndim={q.ndim}, k.ndim={k.ndim}, v.ndim={v.ndim}.")
 
             bsz, q_heads, seqlen, head_dim = q.shape
             if bsz < target_bsz * 2:
-                return flux_attention(q, k, v, pe=pe, mask=attn_mask, transformer_options=transformer_options)
+                raise RuntimeError(f"{DISPLAY_NAME} Untwisting expected at least target+reference batches in {module_name}; bsz={bsz}, target_bsz={target_bsz}.")
 
             block_idx = int(transformer_options.get("block_index", -1))
             active_blocks = cfg.get("active_blocks", set())
@@ -455,7 +411,7 @@ def patch_attention_modules(
             img_s = max(0, min(img_s, int(seqlen)))
             img_e = max(img_s, min(img_e, int(seqlen)))
             if img_e <= img_s:
-                return flux_attention(q, k, v, pe=pe, mask=attn_mask, transformer_options=transformer_options)
+                raise RuntimeError(f"{DISPLAY_NAME} Untwisting has an empty image token range in {module_name}: {(img_s, img_e)} for seqlen={seqlen}.")
 
             if hasattr(stats, "attn_calls"):
                 stats.attn_calls += 1
@@ -464,6 +420,15 @@ def patch_attention_modules(
 
             q, k, v = _flux_adain_qkv_for_image_range(
                 q, k, v, cfg, target_bsz, (img_s, img_e), cross_batch_adain_qk
+            )
+
+            q, k, v = apply_qkv_shared_effects(
+                q, k, v,
+                cfg,
+                target_bsz,
+                module_name,
+                layout="BHSD",
+                token_ranges=[(img_s, img_e)],
             )
 
             # Apply RoPE before appending reference K/V, matching ComfyUI's FLUX attention path.
@@ -481,13 +446,14 @@ def patch_attention_modules(
                 beta,
                 k.device,
                 k.dtype,
+                runtime_cfg=cfg,
             ).view(1, 1, 1, int(head_dim))
 
             ref_k = k[target_bsz:target_bsz * 2, :, img_s:img_e, :] * scale_vec
             ref_v = v[target_bsz:target_bsz * 2, :, img_s:img_e, :]
             ref_len = int(ref_k.shape[2])
             if ref_len <= 0:
-                return flux_attention(q, k, v, pe=None, mask=attn_mask, transformer_options=transformer_options)
+                raise RuntimeError(f"{DISPLAY_NAME} Untwisting produced empty reference K/V in {module_name}; image_range={(img_s, img_e)}.")
 
             q_t = q[:target_bsz]
             k_t = torch.cat([k[:target_bsz], ref_k], dim=2)
@@ -531,10 +497,7 @@ def patch_attention_modules(
         except Exception as exc:
             if hasattr(stats, "adapter_attn_failures"):
                 stats.adapter_attn_failures += 1
-            print(f"{prefix} ⚠ {DISPLAY_NAME} attention patch failed in {module_name}: {exc}")
-            if _verbose_enabled():
-                traceback.print_exc()
-            return flux_attention(q, k, v, pe=pe, mask=attn_mask, transformer_options=transformer_options)
+            raise RuntimeError(f"{DISPLAY_NAME} attention patch failed in {module_name}; strict mode refuses to call original attention after patch failure: {exc}") from exc
 
     matched = installed = restored = 0
     patched_names: List[str] = []
@@ -646,26 +609,14 @@ def patch_attention_modules(
                         modulation_dims_txt,
                     )
 
-                    if txt.dtype == torch.float16:
-                        txt = torch.nan_to_num(txt, nan=0.0, posinf=65504, neginf=-65504)
+                    if txt.dtype == torch.float16 and not torch.isfinite(txt).all():
+                        raise RuntimeError(f"{DISPLAY_NAME} double block produced non-finite txt tensor in {module_name}; strict mode refuses nan_to_num repair.")
 
                     return img, txt
                 except Exception as exc:
                     if hasattr(stats, "adapter_attn_failures"):
                         stats.adapter_attn_failures += 1
-                    print(f"{prefix} ⚠ {DISPLAY_NAME} double block patch failed in {module_name}: {exc}")
-                    if _verbose_enabled():
-                        traceback.print_exc()
-                    return orig(
-                        img,
-                        txt,
-                        vec,
-                        pe,
-                        attn_mask=attn_mask,
-                        modulation_dims_img=modulation_dims_img,
-                        modulation_dims_txt=modulation_dims_txt,
-                        transformer_options=transformer_options,
-                    )
+                    raise RuntimeError(f"{DISPLAY_NAME} double block patch failed in {module_name}; strict mode refuses to call original forward after patch failure: {exc}") from exc
             return patched_double_forward
 
         block.forward = types.MethodType(make_double_forward(original_forward, name), block)
@@ -750,43 +701,23 @@ def patch_attention_modules(
                     output = self.linear2(torch.cat((attn, mlp), 2))
                     x += apply_mod(output, mod.gate, None, modulation_dims)
 
-                    if x.dtype == torch.float16:
-                        x = torch.nan_to_num(x, nan=0.0, posinf=65504, neginf=-65504)
+                    if x.dtype == torch.float16 and not torch.isfinite(x).all():
+                        raise RuntimeError(f"{DISPLAY_NAME} single block produced non-finite tensor in {module_name}; strict mode refuses nan_to_num repair.")
 
                     return x
                 except Exception as exc:
                     if hasattr(stats, "adapter_attn_failures"):
                         stats.adapter_attn_failures += 1
-                    print(f"{prefix} ⚠ {DISPLAY_NAME} single block patch failed in {module_name}: {exc}")
-                    if _verbose_enabled():
-                        traceback.print_exc()
-                    return orig(
-                        x,
-                        vec,
-                        pe,
-                        attn_mask=attn_mask,
-                        modulation_dims=modulation_dims,
-                        transformer_options=transformer_options,
-                    )
+                    raise RuntimeError(f"{DISPLAY_NAME} single block patch failed in {module_name}; strict mode refuses to call original forward after patch failure: {exc}") from exc
             return patched_single_forward
 
         block.forward = types.MethodType(make_single_forward(original_forward, name), block)
         setattr(block, "_untwist_flux2_active", True)
         installed += 1
 
-    # Keep logs generic enough that only this adapter mentions the architecture.
-    try:
-        verbose_print = getattr(__import__("builtins"), "print")
-        # ``vp._vprint`` is not passed through helpers, so use normal print only for fatal/no-op.
-        if _verbose_enabled():
-            print(f"{prefix} {DISPLAY_NAME} attention patch: matched={matched} installed={installed} restored={restored}")
-            for n in patched_names:
-                print(f"{prefix}   - {n}")
-    except Exception:
-        pass
-
-    assert installed > 0, f"{prefix} FATAL: No {DISPLAY_NAME} double/single blocks patched."
-    return matched, installed, restored
+    if installed <= 0:
+        raise RuntimeError(f"{DISPLAY_NAME} adapter patch failed: no compatible double/single stream modules were installed.")
+    return matched, installed, restored, patched_names
 
 
 def uses_reference_branch_kv() -> bool:

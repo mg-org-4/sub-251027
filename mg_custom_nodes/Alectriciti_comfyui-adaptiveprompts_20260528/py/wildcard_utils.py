@@ -42,6 +42,31 @@ def _normalize_input_context(ctx):
         normalized[var] = _ensure_bucket_dict(bucket)
     return normalized
 
+def _snapshot_context(context: dict) -> dict:
+    """
+    Creates a snapshot of the current keys in the context.
+    Used in conjunction with `_apply_context_override` to support "override" logic.
+    """
+    snapshot = {}
+    for k, v in context.items():
+        if isinstance(v, dict):
+            snapshot[k] = list(v.keys())
+    return snapshot
+
+def _apply_context_override(context: dict, snapshot: dict) -> None:
+    """
+    Compares the current context against a snapshot. If a variable had new origins added
+    since the snapshot, the old origins are deleted, effectively "overriding" the old values.
+    Modifies the context in-place.
+    """
+    for k, old_keys in snapshot.items():
+        if k in context and isinstance(context[k], dict):
+            current_keys = list(context[k].keys())
+            new_keys = [key for key in current_keys if key not in old_keys]
+            if new_keys:
+                for old_k in old_keys:
+                    del context[k][old_k]
+
 
 def _default_package_root():
     # package root is one directory above the module file

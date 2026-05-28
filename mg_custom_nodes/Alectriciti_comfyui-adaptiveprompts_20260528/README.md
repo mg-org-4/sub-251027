@@ -3,13 +3,21 @@
 
 <img src="images/adaptive_prompts_logo.png">
 
-> - **13/01/26** Happy New Year! v0.0.3 released! Added a new bracket selection mode. see releases page for change-log.
-> - **16/09/25** Prompt Sequencer added: Generates every possible combination of wildcards sequentially.
-> - **15/09/25** Prompt Generator (Advanced) added: Allows specifying a /wildcards/ folder (if the folder starts with "wildcard").
-> - **12/09/25** Context is now chainable, allowing for variables to be instantiated separately. Newline/Whitespace stripping fixed.
-> - **06/09/25** Adaptive Prompts Release!
-> - **17/08/25** Variables and Comments have been added. All nodes passed main stress-tests. Things are looking good so far!
-> - **15/08/25** Established a somewhat working version of these nodes. It's stable enough to use.
+
+# News
+> - **27/05/26** *v0.1.0 released:* Powerful New RNG mode: Adaptive (with Legacy support), Prompt Repack upgrade, and more! See newest release for more details.
+> - **14/01/26** *v0.0.4 released:* fixed a major bracket bug
+
+[See More](#Update-History)
+
+## Planned Features
+
+Please see the Issues tab to request or support new features. *High demand = High priority*
+
+> - **Wildcard Implicit/Explicit Calls & BFS support** (High Priority)
+> - **Prompt Context Loading** to effectively load "profiles" for variable prompts
+> - **Switches / Conditionals**
+> - **YAML Wildcards** allowing for legacy support of existing wildcard formats
 
 ## Introduction
 
@@ -28,9 +36,9 @@ In these descriptions, a "phrase" can be defined as the space between two commas
 | Node | Description | Note |
 |------|---------|-------|
 | 💡 Prompt Generator | Creates dynamic prompts based on your input. Use {brackets} or \_\_wildcards\_\_ | Originally "Random Prompts" |
-| 💡 Prompt Generator (Advanced) | Includes option to Hide Comments and specify Wildcard Category folder | New |
-| 🎞️ Prompt Sequencer | Cycles through every possible combination of {brackets} or \_\_wildcards\_\_ sequentially, no randomness. | New |
-| 📦 Prompt Repack | A powerful inverse of Prompt Generator. It converts natural words, tags, or phrases back into wildcards. | |
+| 💡 Prompt Generator (Advanced) | Includes config override settings, such as RNG Mode, or specify Wildcard Category folder | Provides finer control |
+| 🎞️ Prompt Sequencer | Cycles through every possible combination of {brackets} or \_\_wildcards\_\_, sequential and deterministic | Perfect for iterating through long lists|
+| 📦 Prompt Repack | A powerful inverse of Prompt Generator. It converts natural words, tags, or phrases back into wildcards. | Now supports immediate Prompt Generation output |
 | 🔁 Prompt Replace | Search & Replace, but on steroids. Both inputs support dynamic prompts, then apply procedurally. | |
 | 📚 Prompt Alias Swap | Utilizes a tag_alias.txt file, tags separated by commas in this file will be automatically swapped out randomly. | does not currently support .csv  |
 | Prompt Context Merge | Combines the context of Prompt Generator, merging the created dictionaries. |  |
@@ -167,9 +175,11 @@ Yes, the possibilities are endless. And these are just the basics of what can be
 
 ## 💡 Prompt Generator
 
->9/16/2025 UPDATED: Advanced version now included. Allows for specifying a category /wildcards/ folder, which falls back to default if a ```__wildcard__``` cannot be resolved. Workflow.json file now included showing examples.
+>**27/5/2026:** RNG Modes added!
 
->9/12/2025 UPDATED: Added context input and output. This allows for chaining prompt generators to preserve variable context. See [variables](#⚡variables) below.
+>**16/9/2025:** Advanced version now included. Allows for specifying finger details, such as RNG Mode, or a category /wildcards/ folder, which falls back to default if a ```__wildcard__``` cannot be resolved. [AdaptivePromptsExamples.json](workflow/AdaptivePromptsExamples.json) workflow file now included showing examples.
+
+>12/9/2025: Added context input and output. This allows for chaining prompt generators to preserve variable context. See [variables](#⚡variables) below.
 
 >Reminder: wildcards must be placed at: ```comfyui-adaptiveprompts/wildcards/```
 
@@ -178,6 +188,17 @@ Yes, the possibilities are endless. And these are just the basics of what can be
 Formerly known as **Random Prompts**. **Prompt Generator** is the essential node of adaptive prompts.
 
 It works mostly like you remember, but there are a few twists...
+
+### RNG Modes (NEW)
+
+As of 27/05/2026, you may now select an RNG Mode either within the configuration (implicit) or in the `Prompt Generator Advanced` node (explicit). **Adaptive** is the new default.
+
+**Legacy:** The traditional way of generating prompts. Re-arranging prompts will completely change the result of each wildcard.
+
+**Adaptive:** Prompts are generated based on their signature. For example `__color__ __fruit__` can be re-arranged to preserve the resulting prompt.
+
+<img src="images/rng_modes_example.png">
+
 
 ### Wildcards Refresh Instantly
 
@@ -484,6 +505,7 @@ This can be useful for applying subtle emphasis or de-emphasis weighting to your
 >Note: The mix-in string supports dynamic prompting.
 
 
+
 # 🛠️ Extra Utilities
 
 These are simple but useful nodes that can apply to most comfy workflow, and can serve as powerful post-processing nodes for adaptive prompts.
@@ -517,6 +539,16 @@ A simple prompt swiss-army knife. Sometimes, dynamic prompts get messy. This lit
 
 
 
+# ⚙ Configuration
+
+
+A menu for Adaptive Prompts can can be found within ComfyUI's Settings.
+
+
+<img src="images/adaptive_prompts_configuration.png">
+
+
+Default settings are applied to nodes that support prompt generation, such as `Prompt Generator`. For explicit control to override these settings, use `Prompt Generator (Advanced)`.
 
 # 💡 Tricks & Tips
 
@@ -544,7 +576,10 @@ Then I run this through the prompt generator:
 This allows for wildcards and prompts to handle loras for you.
 Consider combining this with the Lora Tag Normalizer.
 
+# Extensions
 
+  ### 🥞 [Prompt Stack Loader](https://github.com/Adios/comfyui-adaptiveprompts-extensions) by Adios
+  Serves as a companion to Adaptive Prompts, providing additional specialized nodes and experimental features, including a PromptStackLoader, a powerful profile-based system allowing you to create prompts with templates, and much more.
 
 # Links
 
@@ -558,14 +593,20 @@ Consider combining this with the Lora Tag Normalizer.
 
 # Installation
 
-Install like any other ComfyUI Node pack, dropping it into:
- ```/ComfyUI/custom_nodes/```
+Install like any other ComfyUI Node pack, by cloning the project into:  ```/ComfyUI/custom_nodes/```
 
-## Disclaimers
+Alternatively, use the [ComfyUI Manager](https://github.com/Comfy-Org/ComfyUI-Manager)
 
-This project took me awhile. If you have any optimizations or suggestions, please feel free to contribute by creating a new issue.
+# Update-History
+> - **13/01/26** Happy New Year! v0.0.3 released! Added a new bracket selection mode. see releases page for change-log.
+> - **16/09/25** Prompt Sequencer added: Generates every possible combination of wildcards sequentially.
+> - **15/09/25** Prompt Generator (Advanced) added: Allows specifying a /wildcards/ folder (if the folder starts with "wildcard").
+> - **12/09/25** Context is now chainable, allowing for variables to be instantiated separately. Newline/Whitespace stripping fixed.
+> - **06/09/25** Adaptive Prompts Release!
+> - **17/08/25** Variables and Comments have been added. All nodes passed main stress-tests. Things are looking good so far!
+> - **15/08/25** Established a somewhat working version of these nodes. It's stable enough to use.
 
-I have no plans to adapt this to any other UI, as dynamic-prompts for A1111. It didn't need it. It's far more efficient and useful than ComfyUI's implementation.
+
 
 ---
 
@@ -574,5 +615,7 @@ I have no plans to adapt this to any other UI, as dynamic-prompts for A1111. It 
 
 
 ---
+
+
 
 Created by **Alectriciti** ⚡ | 🎵 [Listen to my music](https://open.spotify.com/artist/1gjzBsWjtl4yBmVYWB8vbc) 

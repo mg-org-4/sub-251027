@@ -1396,6 +1396,8 @@ function videoSettingsToggleHandler(settingsNode) {
     const draftWidget = settingsNode.widgets.find(w => w && w.name === "draft");
     const useAudioWidget = settingsNode.widgets.find(w => w && w.name === "useAudio");
     const audioWidget = settingsNode.widgets.find(w => w && w.name === "audio");
+    const usePreserveAudioWidget = settingsNode.widgets.find(w => w && w.name === "usePreserveAudio");
+    const preserveAudioWidget = settingsNode.widgets.find(w => w && w.name === "preserveAudio");
     const useVoicePromptWidget = settingsNode.widgets.find(w => w && w.name === "useVoicePrompt");
     const voicePromptWidget = settingsNode.widgets.find(w => w && w.name === "voicePrompt");
     const useSafetyFilterWidget = settingsNode.widgets.find(w => w && w.name === "useSafetyFilter");
@@ -1455,6 +1457,7 @@ function videoSettingsToggleHandler(settingsNode) {
 
     if (useDraftWidget && draftWidget) toggleWidgetState(useDraftWidget, draftWidget, "draft");
     if (useAudioWidget && audioWidget) toggleWidgetState(useAudioWidget, audioWidget, "audio");
+    if (usePreserveAudioWidget && preserveAudioWidget) toggleWidgetState(usePreserveAudioWidget, preserveAudioWidget, "preserveAudio");
     if (useVoicePromptWidget && voicePromptWidget) toggleWidgetState(useVoicePromptWidget, voicePromptWidget, "voicePrompt");
     if (useSafetyFilterWidget && safetyFilterWidget) toggleWidgetState(useSafetyFilterWidget, safetyFilterWidget, "safetyFilter");
     if (usePromptUpsamplingWidget && promptUpsamplingWidget) toggleWidgetState(usePromptUpsamplingWidget, promptUpsamplingWidget, "promptUpsampling");
@@ -2879,6 +2882,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "Pruna": [
             "prunaai:p-video@0 (P-Video)",
             "prunaai:p-video@avatar (P-Video Avatar)",
+            "prunaai:p-video@animate (P-Video Animate)",
         ],
         "SkyReels": [
             "skywork:skyreels@v4 (SkyReels V4)",
@@ -2978,6 +2982,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "veed:fabric@1.0": {"width": 1280, "height": 720},
         "prunaai:p-video@0": {"width": 1280, "height": 720},
         "prunaai:p-video@avatar": {"width": 1280, "height": 720},
+        "prunaai:p-video@animate": {"width": 1280, "height": 720},
         "heygen:avatar@4": {"width": 1280, "height": 720},
         "heygen:video-agent@0": {"width": 1280, "height": 720},
         "heygen:avatar@5": {"width": 1280, "height": 720},
@@ -3077,6 +3082,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "veed:fabric@1.0": "720p",
         "prunaai:p-video@0": "720p",
         "prunaai:p-video@avatar": "720p",
+        "prunaai:p-video@animate": "720p",
         "heygen:avatar@4": "720p",
         "heygen:video-agent@0": "720p",
         "heygen:avatar@5": "720p",
@@ -5053,6 +5059,7 @@ export {
     outpaintSettingsToggleHandler,
     safetyInputsToggleHandler,
     imageInferenceSettingsColorPaletteToggleHandler,
+    imageInferenceSettingsMoodboardsToggleHandler,
     audioInputToggleHandler,
     speechInputToggleHandler,
     briaProviderMaskToggleHandler,
@@ -5169,6 +5176,8 @@ function settingsToggleHandler(settingsNode) {
     const autoCropWidget = settingsNode.widgets.find(w => w.name === "autoCrop");
     const useDilatePixelsWidget = settingsNode.widgets.find(w => w.name === "useDilatePixels");
     const dilatePixelsWidget = settingsNode.widgets.find(w => w.name === "dilatePixels");
+    const useCreativityWidget = settingsNode.widgets.find(w => w.name === "useCreativity");
+    const creativityWidget = settingsNode.widgets.find(w => w.name === "creativity");
     
     // Helper function to toggle widget enabled state
     function toggleWidgetState(useWidget, paramWidget, paramName) {
@@ -5266,6 +5275,9 @@ function settingsToggleHandler(settingsNode) {
     }
     if (useDilatePixelsWidget && dilatePixelsWidget) {
         toggleWidgetState(useDilatePixelsWidget, dilatePixelsWidget, "dilatePixels");
+    }
+    if (useCreativityWidget && creativityWidget) {
+        toggleWidgetState(useCreativityWidget, creativityWidget, "creativity");
     }
 }
 
@@ -5444,6 +5456,25 @@ function imageInferenceSettingsColorPaletteToggleHandler(paletteNode) {
     for (let i = 1; i <= 8; i++) {
         bindSlot(i);
     }
+}
+
+function imageInferenceSettingsMoodboardsToggleHandler(moodboardsNode) {
+    if (!moodboardsNode?.widgets) return;
+
+    const useStrengthWidget = moodboardsNode.widgets.find((w) => w && w.name === "useStrength");
+    const strengthWidget = moodboardsNode.widgets.find((w) => w && w.name === "strength");
+    if (!useStrengthWidget || !strengthWidget) return;
+
+    function toggleStrengthState() {
+        const enabled = useStrengthWidget.value === true;
+        toggleWidgetEnabled(strengthWidget, enabled, moodboardsNode);
+        moodboardsNode.setDirtyCanvas(true);
+    }
+
+    appendWidgetCB(useStrengthWidget, () => {
+        setTimeout(toggleStrengthState, 50);
+    });
+    setTimeout(toggleStrengthState, 100);
 }
 
 function syncProviderSettingsToggleHandler(syncNode) {

@@ -81,17 +81,6 @@ def _adain(target: torch.Tensor, style: torch.Tensor, eps: float = 1e-6) -> torc
     s_std = style.float().var(dim=1, keepdim=True, unbiased=False).add(eps).sqrt().to(target.dtype)
     return (target - t_mean) / t_std * s_std + s_mean
 
-def _coerce_strength01(value: Any, default: float = 0.0) -> float:
-    try:
-        strength = float(value)
-    except Exception as exc:
-        raise ValueError(f"Invalid strength value {value!r}; expected a finite float in [0, 1].") from exc
-    if not torch.isfinite(torch.tensor(strength)):
-        raise ValueError(f"Invalid strength value {value!r}; expected a finite float in [0, 1].")
-    if not 0.0 <= strength <= 1.0:
-        raise ValueError(f"Invalid strength value {strength!r}; expected value in [0, 1].")
-    return strength
-
 def _lerp(a: float, b: float, t: float) -> float:
     return float(a + (b - a) * t)
 
@@ -103,6 +92,7 @@ def patch_attention_modules(dm: Any, stats: Any, helpers: dict[str, Any] | None 
         "patch_patchify_and_embed",
         "build_frequency_scale_vector",
         "apply_qkv_shared_effects",
+        "apply_attention_output_shared_effects",
     )
     missing = [name for name in required_helpers if not callable(helpers.get(name))]
     if missing:
@@ -114,6 +104,7 @@ def patch_attention_modules(dm: Any, stats: Any, helpers: dict[str, Any] | None 
 
     build_frequency_scale_vector = helpers["build_frequency_scale_vector"]
     apply_qkv_shared_effects = helpers["apply_qkv_shared_effects"]
+    apply_attention_output_shared_effects = helpers["apply_attention_output_shared_effects"]
     
     matched = installed = restored = 0
     patched_names = []
@@ -192,23 +183,6 @@ def patch_attention_modules(dm: Any, stats: Any, helpers: dict[str, Any] | None 
                 xq = self.q_norm(xq)
                 xk = self.k_norm(xk)
 
-                # Pre-RoPE AdaIN 
-                a = float(cfg.get("adain_strength", 0.0))
-                apply_adain = cfg.get("apply_adain", False) and a > 0.0
-                if apply_adain:
-                    q_t = xq[:target_bsz, img_s:img_e]
-                    k_t = xk[:target_bsz, img_s:img_e]
-                    q_r = xq[target_bsz:target_bsz*2, img_s:img_e]
-                    k_r = xk[target_bsz:target_bsz*2, img_s:img_e]
-                    
-                    xq[:target_bsz, img_s:img_e] = q_t * (1 - a) + _adain(q_t, q_r) * a
-                    xk[:target_bsz, img_s:img_e] = k_t * (1 - a) + _adain(k_t, k_r) * a
-                    
-                    if cfg.get("adain_on_v", False):
-                        v_t = xv[:target_bsz, img_s:img_e]
-                        v_r = xv[target_bsz:target_bsz*2, img_s:img_e]
-                        xv[:target_bsz, img_s:img_e] = v_t * (1 - a) + _adain(v_t, v_r) * a
-
                 xq, xk, xv = apply_qkv_shared_effects(
                     xq, xk, xv,
                     cfg,
@@ -280,11 +254,14 @@ def patch_attention_modules(dm: Any, stats: Any, helpers: dict[str, Any] | None 
                     self.n_local_heads, mask_r, skip_reshape=True, transformer_options=transformer_options
                 )
 
-                # POST-ATTENTION AdaIN
-                post_a = _coerce_strength01(cfg.get("post_attention_adain_strength", 0.0))
-                if post_a > 0.0:
-                    out_t_adain = _adain(out_t[:, img_s:img_e], out_r[:, img_s:img_e], eps=1e-6)
-                    out_t[:, img_s:img_e] = out_t[:, img_s:img_e] * (1.0 - post_a) + out_t_adain * post_a
+                out_t, out_r = apply_attention_output_shared_effects(
+                    out_t, out_r,
+                    cfg,
+                    target_bsz,
+                    module_name,
+                    layout="BSD",
+                    token_ranges=[(img_s, img_e)],
+                )
 
                 outs = [out_t, out_r]
 

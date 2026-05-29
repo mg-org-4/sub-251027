@@ -133,17 +133,9 @@ def default_runtime_cfg(dm: Any | None = None) -> dict[str, Any]:
 # Adapter-owned optional reference-conditioning preprocessing and attention patch.
 # Keeping this here is what lets the top-level __init__.py stay model-neutral.
 
-import traceback
 import types
 import torch
 from typing import Optional, Tuple
-
-
-def _coerce_bool(value: Any) -> bool:
-    if isinstance(value, str):
-        return value.strip().lower() in ("1", "true", "yes", "on", "y", "t")
-    return bool(value)
-
 
 def _first_tensor_in_conditioning_entry(entry: Any) -> Tuple[Optional[torch.Tensor], dict[str, Any]]:
     meta: dict[str, Any] = {}
@@ -285,9 +277,9 @@ def patch_attention_modules(dm: Any, stats: Any, helpers: dict[str, Any] | None 
     prefix = helpers.get("prefix", "[UntwistingRoPE]")
     config_key = helpers.get("config_key", "untwisting_rope")
     lerp = helpers["lerp"]
-    cross_batch_adain_qk = helpers["cross_batch_adain_qk"]
     build_frequency_scale_vector = helpers["build_frequency_scale_vector"]
     apply_qkv_shared_effects = helpers["apply_qkv_shared_effects"]
+    apply_attention_output_shared_effects = helpers["apply_attention_output_shared_effects"]
 
     matched = installed = restored = 0
     patched_names: list[str] = []
@@ -349,10 +341,6 @@ def patch_attention_modules(dm: Any, stats: Any, helpers: dict[str, Any] | None 
                     low_scale = lerp(cfg["low_scale_start"], cfg["low_scale_end"], progress)
                     beta = float(cfg.get("beta", 2.0))
 
-                    if cfg.get("apply_adain") and float(cfg.get("adain_strength", 0)) > 0:
-                        q, k = q.clone(), k.clone()
-                        q, k = cross_batch_adain_qk(q, k, cfg, target_bsz, float(cfg["adain_strength"]))
-
                     q, k, v = apply_qkv_shared_effects(
                         q, k, v,
                         cfg,
@@ -405,6 +393,15 @@ def patch_attention_modules(dm: Any, stats: Any, helpers: dict[str, Any] | None 
                     k_r = k[target_bsz:target_bsz * 2]
                     v_r = v[target_bsz:target_bsz * 2]
                     out_r = self.attn_op(q_r, k_r, v_r, transformer_options=transformer_options)
+
+                    out_t, out_r = apply_attention_output_shared_effects(
+                        out_t, out_r,
+                        cfg,
+                        target_bsz,
+                        module_name,
+                        layout="BSD",
+                        token_ranges=cfg.get("target_qk_adain_ranges", None),
+                    )
 
                     outs = [out_t, out_r]
                     if bsz > target_bsz * 2:

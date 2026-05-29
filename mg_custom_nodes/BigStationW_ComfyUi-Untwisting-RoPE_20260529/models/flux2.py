@@ -68,23 +68,6 @@ def _coerce_bool(value: Any) -> bool:
         return value.strip().lower() in ("1", "true", "yes", "on", "y", "t")
     return bool(value)
 
-
-def _coerce_strength01(value: Any, default: float = 0.0) -> float:
-    try:
-        strength = float(value)
-    except Exception as exc:
-        raise ValueError(f"Invalid strength value {value!r}; expected a finite float in [0, 1].") from exc
-    if not torch.isfinite(torch.tensor(strength)):
-        raise ValueError(f"Invalid strength value {value!r}; expected a finite float in [0, 1].")
-    if not 0.0 <= strength <= 1.0:
-        raise ValueError(f"Invalid strength value {strength!r}; expected value in [0, 1].")
-    return strength
-
-
-def _lerp(a: float, b: float, t: float) -> float:
-    return float(a + (b - a) * t)
-
-
 # ---------------------------------------------------------------------------
 # Required hooks
 # ---------------------------------------------------------------------------
@@ -243,22 +226,6 @@ def iter_flux2_patch_targets(dm: Any, min_layer: int = 0, max_layer: int = 999):
 # Local reusable math/AdaIN helpers for the adapter-owned patch
 # ---------------------------------------------------------------------------
 
-def _adain(target: torch.Tensor, style: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
-    t_mean = target.mean(dim=1, keepdim=True)
-    s_mean = style.mean(dim=1, keepdim=True)
-    t_std = target.float().var(dim=1, keepdim=True, unbiased=False).add(eps).sqrt().to(target.dtype)
-    s_std = style.float().var(dim=1, keepdim=True, unbiased=False).add(eps).sqrt().to(target.dtype)
-    return (target - t_mean) / t_std * s_std + s_mean
-
-
-def _local_cross_batch_adain_qk(*_args, **_kwargs):
-    raise RuntimeError("FLUX.2 missing required helper cross_batch_adain_qk; strict mode requires the top-level helper.")
-
-
-def _local_build_frequency_scale_vector(*_args, **_kwargs):
-    raise RuntimeError("FLUX.2 missing required helper build_frequency_scale_vector; strict mode requires the top-level helper.")
-
-
 def _flux_kv_heads_if_needed(k: torch.Tensor, v: torch.Tensor, q_heads: int) -> tuple[torch.Tensor, torch.Tensor]:
     """Expand KV heads for FLUX tensors in [B,H,S,D] layout."""
     kv = int(k.shape[1])
@@ -295,35 +262,6 @@ def _flux_slice_mask(mask: Any, start: int, end: int):
         return None
     return mask[int(start): int(end)]
 
-
-def _flux_adain_qkv_for_image_range(q, k, v, cfg, target_bsz: int, image_range, cross_batch_adain_qk):
-    """Run AdaIN on FLUX [B,H,S,D] tensors over image tokens."""
-    if not cfg.get("apply_adain") or float(cfg.get("adain_strength", 0.0)) <= 0.0:
-        return q, k, v
-
-    s, e = int(image_range[0]), int(image_range[1])
-    if e <= s:
-        return q, k, v
-
-    # Existing helper expects [B,S,H,D]. FLUX attention uses [B,H,S,D].
-    q_sh = q.movedim(1, 2).clone()
-    k_sh = k.movedim(1, 2).clone()
-    v_sh = v.movedim(1, 2).clone() if _coerce_bool(cfg.get("adain_on_v", False)) else None
-
-    cfg_local = dict(cfg)
-    cfg_local["target_qk_adain_ranges"] = [(s, e)]
-    out = cross_batch_adain_qk(
-        q_sh, k_sh, cfg_local, target_bsz, float(cfg["adain_strength"]), xv=v_sh
-    )
-
-    if v_sh is not None:
-        q_sh, k_sh, v_sh = out
-        v = v_sh.movedim(1, 2)
-    else:
-        q_sh, k_sh = out
-    return q_sh.movedim(1, 2), k_sh.movedim(1, 2), v
-
-
 # ---------------------------------------------------------------------------
 # Optional conditioning / patch hooks
 # ---------------------------------------------------------------------------
@@ -355,23 +293,20 @@ def patch_attention_modules(
     prefix = str(helpers.get("prefix", "[UntwistingRoPE]"))
     config_key = str(helpers.get("config_key", "untwisting_rope"))
 
-    required_helpers = ("lerp", "cross_batch_adain_qk", "build_frequency_scale_vector", "apply_qkv_shared_effects")
+    required_helpers = ("lerp", "build_frequency_scale_vector", "apply_qkv_shared_effects", "apply_attention_output_shared_effects")
     missing = [name for name in required_helpers if not callable(helpers.get(name))]
     if missing:
         raise RuntimeError(f"{DISPLAY_NAME} adapter missing required helper(s): {missing}")
 
     lerp = helpers["lerp"]
-    cross_batch_adain_qk = helpers["cross_batch_adain_qk"]
     build_frequency_scale_vector = helpers["build_frequency_scale_vector"]
     apply_qkv_shared_effects = helpers["apply_qkv_shared_effects"]
+    apply_attention_output_shared_effects = helpers["apply_attention_output_shared_effects"]
 
     try:
         from comfy.ldm.flux.layers import apply_mod
     except Exception as exc:
         raise RuntimeError(f"{prefix} Could not import FLUX layers.apply_mod: {exc}")
-
-    def _verbose_enabled() -> bool:
-        return _coerce_bool(getattr(stats, "verbose", False)) or _coerce_bool(getattr(stats, "rf_verbose", False))
 
     def _reference_attention(
         q: torch.Tensor,
@@ -417,10 +352,6 @@ def patch_attention_modules(
                 stats.attn_calls += 1
             if hasattr(stats, "adapter_attn_calls"):
                 stats.adapter_attn_calls += 1
-
-            q, k, v = _flux_adain_qkv_for_image_range(
-                q, k, v, cfg, target_bsz, (img_s, img_e), cross_batch_adain_qk
-            )
 
             q, k, v = apply_qkv_shared_effects(
                 q, k, v,
@@ -476,10 +407,14 @@ def patch_attention_modules(
                 skip_reshape=True, transformer_options=transformer_options,
             )
 
-            post_a = _coerce_strength01(cfg.get("post_attention_adain_strength", 0.0))
-            if post_a > 0.0:
-                out_t_adain = _adain(out_t, out_r, eps=1e-6)
-                out_t = out_t * (1.0 - post_a) + out_t_adain * post_a
+            out_t, out_r = apply_attention_output_shared_effects(
+                out_t, out_r,
+                cfg,
+                target_bsz,
+                module_name,
+                layout="BSD",
+                token_ranges=[(img_s, img_e)],
+            )
 
             outs = [out_t, out_r]
             if bsz > target_bsz * 2:

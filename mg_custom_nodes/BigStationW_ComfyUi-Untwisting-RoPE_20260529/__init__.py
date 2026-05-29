@@ -1203,7 +1203,6 @@ def _build_frequency_scale_vector(
                 # Axis 0 uses the same per-pair curve as axes 1+.
                 pair_scales = _curve_scales(n_pairs)
             elif axis0_rope_mode == 'constant':
-                # Axis 0 uses the explicit non-negative override.
                 pair_scales = torch.full(
                     (n_pairs,), float(axis0_rope_scale), device=device, dtype=torch.float32
                 )
@@ -1278,26 +1277,14 @@ def _shared_effect_ranges(
     seqlen: int,
     token_ranges: Any = None,
 ) -> List[Tuple[int, int]]:
-    """
-    Resolve the token ranges used by shared Q/K/V effects.
-
-    Adapters should pass the architecture-specific image/latent range when they
-    know it. Otherwise this falls back to cfg-provided ranges and finally to the
-    whole sequence.
+    """Resolve explicit token ranges used by shared Q/K/V effects.
     """
     ranges = _normalize_token_ranges(token_ranges, seqlen)
     if ranges:
         return ranges
-
-    ranges = _normalize_token_ranges(cfg.get('target_v_injection_ranges', None), seqlen)
-    if ranges:
-        return ranges
-
-    ranges = _normalize_token_ranges(cfg.get('target_qk_adain_ranges', None), seqlen)
-    if ranges:
-        return ranges
-
-    return [(0, int(seqlen))]
+    raise RuntimeError(
+        f'{vp._PREFIX} shared Q/K/V effects require explicit token_ranges; '
+    )
 
 def _apply_qkv_shared_effects(
     q: torch.Tensor,
@@ -1314,9 +1301,7 @@ def _apply_qkv_shared_effects(
     Shared core Q/K/V effect stack for adapter-owned attention patches.
 
     Adapters expose where Q/K/V exist, their layout, and the applicable token
-    range. This function owns shared user-facing features such as
-    ``v_injection_strength`` so new shared parameters do not need to be copied
-    into every adapter.
+    range. This function owns shared user-facing Q/K/V features.
 
     Supported layouts:
       - BSHD: [batch, sequence, heads, head_dim]
@@ -1342,35 +1327,130 @@ def _apply_qkv_shared_effects(
             f'unsupported layout={layout!r}.'
         )
 
-    if v_bshd.ndim != 4:
+    if q_bshd.ndim != 4 or k_bshd.ndim != 4 or v_bshd.ndim != 4:
         raise RuntimeError(
             f'{vp._PREFIX} shared QKV effects failed in {module_name}: '
-            f'expected V as rank-4 after layout normalization, got shape={tuple(v_bshd.shape)}.'
+            f'expected Q/K/V as rank-4 after layout normalization, got '
+            f'q={tuple(q_bshd.shape)}, k={tuple(k_bshd.shape)}, v={tuple(v_bshd.shape)}.'
         )
 
     seqlen = int(v_bshd.shape[1])
     ranges = _shared_effect_ranges(cfg, seqlen, token_ranges)
 
-    # Shared V injection: interpolate target V toward paired reference V.
-    # This intentionally lives in the core, not in individual adapters.
-    v_inj = _coerce_strength01(cfg.get('v_injection_strength', 0.0))
-    if v_inj > 0.0:
+    # Shared pre-RoPE Q/K AdaIN.
+    adain_strength = _coerce_strength01(cfg.get('adain_strength', 0.0)) if cfg.get('apply_adain') else 0.0
+    if adain_strength > 0.0:
+        cfg_for_adain = dict(cfg)
+        cfg_for_adain['target_qk_adain_ranges'] = list(ranges)
+        q_bshd = q_bshd.clone()
+        k_bshd = k_bshd.clone()
+        v_for_adain = v_bshd.clone() if vp._coerce_bool(cfg.get('adain_on_v', False)) else None
+        out = _cross_batch_adain_qk(
+            q_bshd, k_bshd, cfg_for_adain, int(target_bsz), float(adain_strength), xv=v_for_adain
+        )
+        if v_for_adain is not None:
+            q_bshd, k_bshd, v_bshd = out
+        else:
+            q_bshd, k_bshd = out
+        cfg['_debug_qk_adain_strength'] = float(adain_strength)
+        cfg['_debug_qk_adain_module'] = str(module_name)
+        cfg['_debug_qk_adain_ranges'] = list(ranges)
+
+    # Shared orthogonal V injection:
+    ortho_v_inj = _coerce_strength01(cfg.get('orthogonal_v_injection', 0.0))
+    if ortho_v_inj > 0.0:
         v_bshd = v_bshd.clone()
         for s, e in ranges:
             v_t = v_bshd[:target_bsz, s:e]
             v_r = v_bshd[target_bsz:target_bsz * 2, s:e]
             if v_t.shape != v_r.shape:
                 raise RuntimeError(
-                    f'{vp._PREFIX} shared V injection failed in {module_name}: '
+                    f'{vp._PREFIX} shared orthogonal V injection failed in {module_name}: '
                     f'target/ref V range shape mismatch: target={tuple(v_t.shape)} ref={tuple(v_r.shape)}.'
                 )
-            v_bshd[:target_bsz, s:e] = v_t * (1.0 - v_inj) + v_r * v_inj
 
-        cfg['_debug_v_injection_strength'] = float(v_inj)
-        cfg['_debug_v_injection_module'] = str(module_name)
-        cfg['_debug_v_injection_ranges'] = list(ranges)
+            # Gram-Schmidt projection over the feature/head-dim axis. Use fp32
+            # for the dot products to avoid fp16/bf16 cancellation, then cast
+            # back to the model dtype for the in-place replacement.
+            v_t_proj = v_t.float()
+            v_r_proj = v_r.float()
+            dot_tr = (v_t_proj * v_r_proj).sum(dim=-1, keepdim=True)
+            dot_tt = (v_t_proj * v_t_proj).sum(dim=-1, keepdim=True).clamp_min(1e-6)
+            v_r_collinear = (dot_tr / dot_tt) * v_t_proj
+            v_r_orthogonal = (v_r_proj - v_r_collinear).to(dtype=v_t.dtype)
+            v_bshd[:target_bsz, s:e] = v_t + (v_r_orthogonal * ortho_v_inj)
+
+        cfg['_debug_orthogonal_v_injection_strength'] = float(ortho_v_inj)
+        cfg['_debug_orthogonal_v_injection_module'] = str(module_name)
+        cfg['_debug_orthogonal_v_injection_ranges'] = list(ranges)
 
     return restore(q_bshd, k_bshd, v_bshd)
+
+
+def _apply_attention_output_shared_effects(
+    out_t: torch.Tensor,
+    out_r: torch.Tensor,
+    cfg: Dict[str, Any],
+    target_bsz: int,
+    module_name: str,
+    *,
+    layout: str = 'BSD',
+    token_ranges: Any = None,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Shared post-attention output effect stack for adapter-owned attention patches.
+
+    Adapters expose the target/reference attention outputs, layout, and optional
+    architecture-specific token ranges.
+
+    Supported layouts:
+      - BSD/BSC: [batch, sequence, channels]
+    """
+    if not isinstance(cfg, dict) or not cfg.get('enabled', False):
+        return out_t, out_r
+    if not (torch.is_tensor(out_t) and torch.is_tensor(out_r)):
+        return out_t, out_r
+    if int(target_bsz) <= 0:
+        return out_t, out_r
+
+    layout_u = str(layout or 'BSD').upper()
+    if layout_u not in ('BSD', 'BSC'):
+        raise RuntimeError(
+            f'{vp._PREFIX} shared attention-output effects failed in {module_name}: '
+            f'unsupported layout={layout!r}.'
+        )
+    if out_t.ndim != 3 or out_r.ndim != 3:
+        raise RuntimeError(
+            f'{vp._PREFIX} shared attention-output effects failed in {module_name}: '
+            f'expected target/ref outputs as rank-3, got target={tuple(out_t.shape)} ref={tuple(out_r.shape)}.'
+        )
+    if out_t.shape[0] != out_r.shape[0] or out_t.shape[2:] != out_r.shape[2:]:
+        raise RuntimeError(
+            f'{vp._PREFIX} shared attention-output effects failed in {module_name}: '
+            f'target/ref output shape mismatch: target={tuple(out_t.shape)} ref={tuple(out_r.shape)}.'
+        )
+
+    seqlen = int(out_t.shape[1])
+    ranges = _shared_effect_ranges(cfg, seqlen, token_ranges)
+
+    post_a = _coerce_strength01(cfg.get('post_attention_adain_strength', 0.0))
+    if post_a > 0.0:
+        out_t = out_t.clone()
+        for s, e in ranges:
+            t_slice = out_t[:, s:e]
+            r_slice = out_r[:, s:e]
+            if t_slice.shape != r_slice.shape:
+                raise RuntimeError(
+                    f'{vp._PREFIX} shared post-attention AdaIN failed in {module_name}: '
+                    f'target/ref range shape mismatch: target={tuple(t_slice.shape)} ref={tuple(r_slice.shape)}.'
+                )
+            out_t[:, s:e] = t_slice * (1.0 - post_a) + _adain(t_slice, r_slice, eps=1e-6) * post_a
+
+        cfg['_debug_post_attention_adain_strength'] = float(post_a)
+        cfg['_debug_post_attention_adain_module'] = str(module_name)
+        cfg['_debug_post_attention_adain_ranges'] = list(ranges)
+
+    return out_t, out_r
 
 def _repeat_kv_heads_if_needed(k, v, q_heads):
     kv = k.shape[2]
@@ -1388,16 +1468,6 @@ def _repeat_kv_heads_if_needed(k, v, q_heads):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _ACTIVE_MODEL_ADAPTER: Any = None
-
-def _is_joint_attention(m):
-    adapter = _ACTIVE_MODEL_ADAPTER
-    fn = getattr(adapter, 'is_joint_attention', None)
-    return bool(callable(fn) and fn(m))
-
-def _is_main_layers_attention_name(name, min_layer=0, max_layer=29):
-    adapter = _ACTIVE_MODEL_ADAPTER
-    fn = getattr(adapter, 'is_attention_name', None)
-    return bool(callable(fn) and fn(name, min_layer, max_layer))
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Context-refiner cap_mask patch
@@ -1604,227 +1674,6 @@ def _patch_patchify_and_embed(dm, stats):
     vp._vprint(stats, f'{vp._PREFIX} patchify_and_embed patched.')
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Attention module patch
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _patch_joint_attention_modules(dm, stats):
-    matched = installed = restored = 0
-    patched_names: List[str] = []
-
-    for name, module in dm.named_modules():
-        if not _is_main_layers_attention_name(name, 0, 29):
-            continue
-        if not _is_joint_attention(module):
-            vp._vprint(stats, f'{vp._PREFIX} SKIP {name} ({type(module).__name__})')
-            continue
-
-        matched += 1
-        patched_names.append(name)
-
-        if hasattr(module, '_untwist_orig_forward'):
-            module.forward = module._untwist_orig_forward
-            restored += 1
-        else:
-            module._untwist_orig_forward = module.forward
-        original_forward = module._untwist_orig_forward
-
-        def make_forward(orig, module_name):
-            def patched_forward(self, x, x_mask, freqs_cis, transformer_options={}):
-                cfg = (
-                    transformer_options.get(_TRANSFORMER_CONFIG_KEY)
-                    if isinstance(transformer_options, dict) else None
-                )
-                if not cfg or not cfg.get('enabled'):
-                    return orig(x, x_mask, freqs_cis,
-                                transformer_options=transformer_options)
-
-                block_idx = int(transformer_options.get('block_index', -1))
-                active_blocks = cfg.get('active_blocks', set())
-                # If active_blocks is not empty, restrict patching to those indices
-                if active_blocks and block_idx not in active_blocks:
-                    return orig(x, x_mask, freqs_cis,
-                                transformer_options=transformer_options)
-
-                ref_ranges  = cfg.get('ref_real_ranges') or cfg.get('ref_k_ranges') or []
-                target_bsz  = int(cfg.get('cross_batch_target_batch', 0))
-                if not ref_ranges or target_bsz <= 0:
-                    return orig(x, x_mask, freqs_cis,
-                                transformer_options=transformer_options)
-
-                bsz, seqlen, _ = x.shape
-                if bsz < target_bsz * 2:
-                    return orig(x, x_mask, freqs_cis,
-                                transformer_options=transformer_options)
-
-                if x_mask is None and torch.is_tensor(cfg.get('forced_joint_x_mask', None)):
-                    try:
-                        fjm = cfg['forced_joint_x_mask'].to(device=x.device)
-                        if int(fjm.shape[0]) != bsz:
-                            fjm = _repeat_to_batch(fjm, bsz)
-                        if int(fjm.shape[-1]) != seqlen:
-                            cur = int(fjm.shape[-1])
-                            if cur > seqlen:
-                                fjm = fjm[..., :seqlen]
-                            else:
-                                pad = torch.zeros(
-                                    (*fjm.shape[:-1], seqlen - cur),
-                                    device=fjm.device, dtype=fjm.dtype,
-                                )
-                                fjm = torch.cat([fjm, pad], dim=-1)
-                        x_mask = fjm
-                    except Exception as exc:
-                        raise RuntimeError('Untwisting attention failed while applying forced joint mask.') from exc
-
-                stats.attn_calls += 1
-
-                xq, xk, xv = torch.split(
-                    self.qkv(x),
-                    [self.n_local_heads    * self.head_dim,
-                     self.n_local_kv_heads * self.head_dim,
-                     self.n_local_kv_heads * self.head_dim],
-                    dim=-1,
-                )
-                xq = self.q_norm(xq.view(bsz, seqlen, self.n_local_heads,    self.head_dim))
-                xk = self.k_norm(xk.view(bsz, seqlen, self.n_local_kv_heads, self.head_dim))
-                xv =             xv.view(bsz, seqlen, self.n_local_kv_heads, self.head_dim)
-
-                progress   = float(cfg.get('progress', 0.0))
-                high_scale = _lerp(cfg['high_scale_start'], cfg['high_scale_end'], progress)
-                low_scale  = _lerp(cfg['low_scale_start'],  cfg['low_scale_end'],  progress)
-                beta       = float(cfg.get('beta', 2.0))
-                cfg['_debug_high_scale'] = float(high_scale)
-                cfg['_debug_low_scale'] = float(low_scale)
-
-                if cfg.get('apply_adain') and float(cfg.get('adain_strength', 0)) > 0:
-                    xq, xk = xq.clone(), xk.clone()
-                    if vp._coerce_bool(cfg.get('adain_on_v', False)):
-                        xv = xv.clone()
-                    xq, xk, xv = _cross_batch_adain_qk(
-                        xq, xk, cfg, target_bsz, float(cfg['adain_strength']), xv=xv
-                    )
-
-                xq, xk = apply_rope(xq, xk, freqs_cis)
-
-                scale_vec = _build_frequency_scale_vector(
-                    self.head_dim, cfg.get('axes_dims') or [],
-                    high_scale, low_scale, beta,
-                    xk.device, xk.dtype,
-                    runtime_cfg=cfg,
-                ).view(1, 1, 1, self.head_dim)
-
-                vp._untwist_print_rope_scale_debug(stats, cfg, module_name, scale_vec)
-
-                ref_k_pieces, ref_v_pieces = [], []
-                for s, e in ref_ranges:
-                    s, e = max(0, int(s)), min(int(e), seqlen)
-                    if e <= s:
-                        continue
-                    ref_k_pieces.append(xk[target_bsz:target_bsz*2, s:e] * scale_vec)
-                    ref_v_pieces.append(xv[target_bsz:target_bsz*2, s:e])
-
-                if not ref_k_pieces:
-                    raise RuntimeError(
-                        f'Untwisting attention failed in {module_name}: no reference K/V token ranges were available.'
-                    )
-
-                # Value tensor injection / interpolation: push the target content/texture
-                # stream toward the paired reference stream before reference K/V concat.
-                v_inj = _coerce_strength01(cfg.get('v_injection_strength', 0.0))
-                if v_inj > 0.0:
-                    try:
-                        xv = xv.clone()
-                        xv_r_aligned = xv[target_bsz:target_bsz * 2, :seqlen]
-                        xv[:target_bsz, :seqlen] = (
-                            xv[:target_bsz, :seqlen] * (1.0 - v_inj)
-                            + xv_r_aligned * v_inj
-                        )
-                        cfg['_debug_v_injection_strength'] = float(v_inj)
-                    except Exception as exc:
-                        raise RuntimeError(
-                            f'Untwisting attention failed in {module_name}: V tensor injection shape alignment failed.'
-                        ) from exc
-
-                xq_t = xq[:target_bsz]
-                xk_t = torch.cat([xk[:target_bsz]] + ref_k_pieces, dim=1)
-                xv_t = torch.cat([xv[:target_bsz]] + ref_v_pieces, dim=1)
-                xk_t, xv_t = _repeat_kv_heads_if_needed(xk_t, xv_t, self.n_local_heads)
-
-                mask_t = None
-                if x_mask is not None:
-                    try:
-                        mask_t  = x_mask[:target_bsz]
-                        ref_len = sum(int(pc.shape[1]) for pc in ref_k_pieces)
-                        if mask_t.ndim >= 2:
-                            padding = torch.zeros(
-                                (*mask_t.shape[:-1], ref_len),
-                                device=mask_t.device, dtype=mask_t.dtype,
-                            )
-                            mask_t = torch.cat([mask_t, padding], dim=-1)
-                    except Exception as exc:
-                        raise RuntimeError('Untwisting attention failed while building target mask.') from exc
-
-                out_t = optimized_attention_masked(
-                    xq_t.movedim(1,2), xk_t.movedim(1,2), xv_t.movedim(1,2),
-                    self.n_local_heads, mask_t,
-                    skip_reshape=True, transformer_options=transformer_options,
-                )
-
-                xq_r = xq[target_bsz:target_bsz*2]
-                xk_r, xv_r = _repeat_kv_heads_if_needed(
-                    xk[target_bsz:target_bsz*2],
-                    xv[target_bsz:target_bsz*2],
-                    self.n_local_heads,
-                )
-                mask_r = None
-                try:
-                    if x_mask is not None and int(x_mask.shape[0]) >= target_bsz * 2:
-                        mask_r = x_mask[target_bsz:target_bsz*2]
-                except Exception as exc:
-                    raise RuntimeError('Untwisting attention failed while slicing reference mask.') from exc
-                out_r = optimized_attention_masked(
-                    xq_r.movedim(1,2), xk_r.movedim(1,2), xv_r.movedim(1,2),
-                    self.n_local_heads, mask_r,
-                    skip_reshape=True, transformer_options=transformer_options,
-                )
-
-                # Post-Attention AdaIN
-                post_a = _coerce_strength01(cfg.get('post_attention_adain_strength', 0.0))
-                if post_a > 0.0:
-                    # Directly match the target's attention output to the reference's attention output.
-                    out_t_adain = _adain(out_t, out_r, eps=1e-6)
-                    out_t = out_t * (1.0 - post_a) + out_t_adain * post_a
-
-                outs = [out_t, out_r]
-                if bsz > target_bsz * 2:
-                    xq_e = xq[target_bsz*2:]
-                    xk_e, xv_e = _repeat_kv_heads_if_needed(
-                        xk[target_bsz*2:], xv[target_bsz*2:], self.n_local_heads
-                    )
-                    outs.append(optimized_attention_masked(
-                        xq_e.movedim(1,2), xk_e.movedim(1,2), xv_e.movedim(1,2),
-                        self.n_local_heads, None,
-                        skip_reshape=True, transformer_options=transformer_options,
-                    ))
-
-                return self.out(torch.cat(outs, dim=0))
-            return patched_forward
-
-        module.forward = types.MethodType(make_forward(original_forward, name), module)
-        setattr(module, '_untwist_v652_active', True)
-        installed += 1
-
-    vp._vprint(stats,
-        f'{vp._PREFIX} Attention patch: matched={matched} '
-        f'installed={installed} restored={restored}')
-    for n in patched_names:
-        vp._vprint(stats, f'{vp._PREFIX}   - {n}')
-
-    assert installed > 0, (
-        f'{vp._PREFIX} FATAL: No layers.0..29 attention modules patched.'
-    )
-    return matched, installed, restored
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # ComfyUI Nodes — split RF inversion from Untwisting RoPE
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1905,6 +1754,7 @@ def _adapter_helpers() -> Dict[str, Any]:
         'cross_batch_adain_qk': _cross_batch_adain_qk,
         'build_frequency_scale_vector': _build_frequency_scale_vector,
         'apply_qkv_shared_effects': _apply_qkv_shared_effects,
+        'apply_attention_output_shared_effects': _apply_attention_output_shared_effects,
         'print_rope_scale_debug': vp._untwist_print_rope_scale_debug,
         'print_rope_scale_debug_from_cfg': (
             lambda stats, cfg, module_name, device, dtype:
@@ -1915,7 +1765,6 @@ def _adapter_helpers() -> Dict[str, Any]:
         ),
         'patch_context_refiner_mask_modules': _patch_context_refiner_mask_modules,
         'patch_patchify_and_embed': _patch_patchify_and_embed,
-        'patch_joint_attention_modules': _patch_joint_attention_modules,
     }
 
 def _prepare_reference_conditioning_for_adapter(
@@ -1929,7 +1778,10 @@ def _prepare_reference_conditioning_for_adapter(
 ) -> Tuple[Any, str]:
     fn = getattr(adapter, 'prepare_reference_conditioning', None)
     if not callable(fn):
-        return ref_conditioning, 'not-applicable'
+        raise RuntimeError(
+            f'{vp._PREFIX} Adapter {type(adapter).__name__} does not implement '
+            'prepare_reference_conditioning.'
+        )
     return fn(ref_conditioning, dm, device, dtype, stats, label=label, helpers=_adapter_helpers())
 
 def _append_conditioning_status(mode: str, status: str) -> str:
@@ -1953,6 +1805,7 @@ class RFInversion:
             'required': {
                 'model': ('MODEL',),
                 'reference_latent': ('LATENT',),
+                'ref_conditioning': ('CONDITIONING',),
                 'rf_mode': (['linear', 'rf_gamma', 'rf_gamma_rk2', 'fireflow'], {
                     'default': 'rf_gamma',
                     'tooltip': (
@@ -1991,9 +1844,6 @@ class RFInversion:
                     'default': False,
                     'tooltip': 'Enable verbose logging.'
                 }),
-            },
-            'optional': {
-                'ref_conditioning': ('CONDITIONING',),
             },
         }
 
@@ -2323,14 +2173,14 @@ class UnofficialExtensions:
                     'min': 0.0,
                     'max': 8.0,
                     'step': 0.01,
-                    'tooltip': 'Non-negative Axis-0 RoPE scale used only when axis0_rope_mode is constant.',
+                    'tooltip': 'RoPE scale used only when axis0_rope_mode = constant.',
                 }),
-                'v_injection_strength': ('FLOAT', {
+                'orthogonal_v_injection': ('FLOAT', {
                     'default': 0.0,
                     'min': 0.0,
                     'max': 1.0,
-                    'step': 0.01,
-                    'tooltip': 'Linearly blends the target V tensor with the reference V tensor.',
+                    'step': 0.05,
+                    'tooltip': 'Injects the reference V tensor strictly in the orthogonal null-space of the target V tensor.',
                 }),
             },
         }
@@ -2338,14 +2188,14 @@ class UnofficialExtensions:
     def build(
         self,
         adain_on_v: bool = False,
-        v_injection_strength: float = 0.0,
+        orthogonal_v_injection: float = 0.0,
         post_attention_adain_strength: float = 0.0,
         axis0_rope_mode: str = 'default',
         axis0_rope_scale: float = 0.0,
     ):
         return ({
             'adain_on_v': vp._coerce_bool(adain_on_v),
-            'v_injection_strength': _coerce_strength01(v_injection_strength),
+            'orthogonal_v_injection': _coerce_strength01(orthogonal_v_injection),
             'post_attention_adain_strength': _coerce_strength01(post_attention_adain_strength),
             'axis0_rope_mode': _coerce_axis0_rope_mode(axis0_rope_mode),
             'axis0_rope_scale': _coerce_axis0_rope_scale(axis0_rope_scale, default=0.0),
@@ -2366,6 +2216,7 @@ class UntwistingRoPE:
         return {
             'required': {
                 'model': ('MODEL',),
+                'rf_inversion': ('LATENT',),
                 'beta': ('FLOAT', {
                     'default': 50.0,
                     'min': 0.01,
@@ -2418,7 +2269,6 @@ class UntwistingRoPE:
                 }),
             },
             'optional': {
-                'rf_inversion': ('LATENT',),
                 'unofficial_extensions': ('UNTWISTING_ROPE_EXTENSIONS',),
             },
         }
@@ -2453,7 +2303,7 @@ class UntwistingRoPE:
 
         ext_cfg = unofficial_extensions if isinstance(unofficial_extensions, dict) else {}
         adain_on_v = vp._coerce_bool(ext_cfg.get('adain_on_v', False))
-        v_injection_strength = _coerce_strength01(ext_cfg.get('v_injection_strength', 0.0))
+        orthogonal_v_injection = _coerce_strength01(ext_cfg.get('orthogonal_v_injection', 0.0))
         post_attention_adain_strength = _coerce_strength01(ext_cfg.get('post_attention_adain_strength', 0.0))
         axis0_rope_mode = _coerce_axis0_rope_mode(
             ext_cfg.get('axis0_rope_mode', None),
@@ -2480,7 +2330,7 @@ class UntwistingRoPE:
             f'{vp._PREFIX} blocks: {blocks if blocks.strip() else "all"}  '
             f'adain={adain_strength:.2f}  '
             f'unofficial: adain_on_v={adain_on_v}  '
-            f'v_injection_strength={v_injection_strength:.2f}  '
+            f'orthogonal_v_injection={orthogonal_v_injection:.2f}  '
             f'post_attention_adain_strength={post_attention_adain_strength:.2f}  '
             f'axis0_rope_mode={axis0_rope_mode}  '
             f'axis0_rope_scale={axis0_rope_scale:.3f}'
@@ -2510,34 +2360,35 @@ class UntwistingRoPE:
         _ACTIVE_MODEL_ADAPTER = adapter
         try:
             patch_fn = getattr(adapter, 'patch_attention_modules', None)
-            if callable(patch_fn):
-                result = patch_fn(dm, stats, _adapter_helpers())
-                
-                # Standardize adapter returns: unpack and log centrally
-                if isinstance(result, tuple):
-                    if len(result) == 4:
-                        matched, installed, restored, patched_names = result
-                    elif len(result) == 3:
-                        matched, installed, restored = result
-                        patched_names = []
-                    else:
-                        raise RuntimeError(
-                            f'Unexpected adapter patch return from {type(adapter).__name__}: {result!r}'
-                        )
-                        
-                    disp_name = getattr(adapter, 'DISPLAY_NAME', type(adapter).__name__)
-                    
-                    vp._vprint(stats, f'{vp._PREFIX} {disp_name} attention patch: matched={matched} installed={installed} restored={restored}')
-                    for n in patched_names:
-                        vp._vprint(stats, f'{vp._PREFIX}   - {n}')
-                    
-                    if installed == 0:
-                        raise RuntimeError(f'{vp._PREFIX} No {disp_name} attention blocks were patched.')
+            if not callable(patch_fn):
+                raise RuntimeError(
+                    f'{vp._PREFIX} Adapter {type(adapter).__name__} does not implement '
+                    'patch_attention_modules.'
+                )
 
+            result = patch_fn(dm, stats, _adapter_helpers())
+            if not isinstance(result, tuple):
+                raise RuntimeError(
+                    f'Unexpected adapter patch return from {type(adapter).__name__}: {result!r}'
+                )
+            if len(result) == 4:
+                matched, installed, restored, patched_names = result
+            elif len(result) == 3:
+                matched, installed, restored = result
+                patched_names = []
             else:
-                _patch_context_refiner_mask_modules(dm, stats)
-                _patch_patchify_and_embed(dm, stats)
-                _patch_joint_attention_modules(dm, stats)
+                raise RuntimeError(
+                    f'Unexpected adapter patch return from {type(adapter).__name__}: {result!r}'
+                )
+
+            disp_name = getattr(adapter, 'DISPLAY_NAME', type(adapter).__name__)
+
+            vp._vprint(stats, f'{vp._PREFIX} {disp_name} attention patch: matched={matched} installed={installed} restored={restored}')
+            for n in patched_names:
+                vp._vprint(stats, f'{vp._PREFIX}   - {n}')
+
+            if installed == 0:
+                raise RuntimeError(f'{vp._PREFIX} No {disp_name} attention blocks were patched.')
         finally:
             _ACTIVE_MODEL_ADAPTER = previous_adapter
 
@@ -2570,7 +2421,7 @@ class UntwistingRoPE:
                 'apply_adain': True,
                 'adain_strength': float(adain_strength),
                 'adain_on_v': adain_on_v,
-                'v_injection_strength': v_injection_strength,
+                'orthogonal_v_injection': orthogonal_v_injection,
                 'post_attention_adain_strength': post_attention_adain_strength,
                 'axis0_rope_mode': axis0_rope_mode,
                 'axis0_rope_scale': axis0_rope_scale,
@@ -2579,7 +2430,12 @@ class UntwistingRoPE:
                 'sigma': sigma,
                 'wrapper_call': call_n,
             }
-            default_cfg = getattr(adapter, 'default_runtime_cfg', lambda _dm=None: {})
+            default_cfg = getattr(adapter, 'default_runtime_cfg', None)
+            if not callable(default_cfg):
+                raise RuntimeError(
+                    f'{vp._PREFIX} Adapter {type(adapter).__name__} does not implement '
+                    'default_runtime_cfg.'
+                )
             cfg.update(default_cfg(dm))
             to[_TRANSFORMER_CONFIG_KEY] = cfg
 

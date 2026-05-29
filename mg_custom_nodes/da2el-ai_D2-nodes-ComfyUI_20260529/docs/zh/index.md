@@ -76,6 +76,8 @@
   - 將 ModelMergeSDXL 和 CLIPMergeSimple 結合的節點
 - <a href="node.md#D2-Any-Delivery">`D2 Any Delivery`</a>
   - 用於傳遞多個元素的節點。與 ComfyUI-0246 的 Highway 向下兼容
+- <a href="node.md#D2-Preset-Selector">`D2 Preset Selector`</a>
+  - 以文字定義多個參數的預設組合，從下拉選單整組輸出
 - <a href="node.md#D2-Save-Audio-Eagle">`D2 Save Audio Eagle`</a>
   - 將音頻文件保存到 Eagle
 
@@ -178,6 +180,11 @@
 
 
 ## :blossom: 更新日誌
+
+**2026.05.29**
+
+- `D2_PresetSelector`: 新增
+- `D2_PresetSelector`：新增 `preset_name` 輸入（可從外部切換預設），並為 `preset_text` 加入範例預設值
 
 **2026.04.13**
 

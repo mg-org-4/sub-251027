@@ -22,7 +22,7 @@ from nodes import NODE_CLASS_MAPPINGS as nodes_NODE_CLASS_MAPPINGS
 from nodes import UNETLoader
 
 from .modules import util
-from .modules.util import D2_TD2Pipe, D2_TDelivery, AnyType
+from .modules.util import D2_TD2Pipe, D2_TDelivery, AnyType, AnyTypeTuple
 from .modules import checkpoint_util
 from .modules.template_util import replace_template
 
@@ -639,19 +639,6 @@ class D2_Pipe:
 D2 Any Delivery
 
 """
-class D2_PackageTuple(tuple):
-    def __new__(cls, types):
-        return super().__new__(cls, types)
-        
-    def __getitem__(self, index):
-        if index >= len(self):
-            return AnyType("")
-        item = super().__getitem__(index)
-        if isinstance(item, str):
-            return AnyType(item)
-        return item
-
-
 class D2_AnyDelivery:
     @classmethod
     def INPUT_TYPES(cls):
@@ -664,8 +651,8 @@ class D2_AnyDelivery:
             "hidden": {"_prompt": "PROMPT"},
         }
 
-    RETURN_TYPES = D2_PackageTuple(("D2_TDelivery", ))
-    RETURN_NAMES = D2_PackageTuple(("_package", ))
+    RETURN_TYPES = AnyTypeTuple(("D2_TDelivery", ))
+    RETURN_NAMES = AnyTypeTuple(("_package", ))
     FUNCTION = "run"
     CATEGORY = "D2"
 
@@ -697,6 +684,96 @@ class D2_AnyDelivery:
 
 
 
+"""
+
+D2 Preset Selector
+複数パラメータのプリセットをテキストで定義し、プルダウンで1つ選ぶとまとめて出力する
+
+"""
+class D2_PresetSelector:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                # 選択肢は JS が options.values へ動的に流し込む（サーバー側は空のまま）
+                "preset": ([],),
+                "preset_text": ("STRING", {"multiline": True, "default": "cfg;steps\nFLOAT;INT\nAnima;2;15\nIllustrious;5;20"}),
+            },
+            "optional": {
+                "preset_name": ("STRING", {"forceInput":True},),
+                "_update": ("D2_BUTTON", {}),
+            },
+        }
+
+    # 出力は preset_text の解析で決まる動的スロット。型検証で IndexError にならないよう AnyTypeTuple を使う
+    RETURN_TYPES = AnyTypeTuple(())
+    RETURN_NAMES = AnyTypeTuple(())
+    FUNCTION = "run"
+    CATEGORY = "D2"
+
+    # preset は動的 COMBO のため、登録済みリスト（空）との照合をスキップする
+    @classmethod
+    def VALIDATE_INPUTS(cls, preset):
+        return True
+
+    """
+    型名に応じて値をキャストする。INT/FLOAT 変換失敗時は、どのプリセット・列かが分かるエラーを出す
+    """
+    @staticmethod
+    def _cast_value(type_name, raw, preset_title, col_name):
+        if type_name == "BOOLEAN":
+            return raw.strip().lower() in ("true", "1", "yes", "on")
+        try:
+            if type_name == "INT":
+                return int(raw)
+            if type_name == "FLOAT":
+                return float(raw)
+            return str(raw)
+        except (ValueError, TypeError):
+            raise ValueError(
+                f"D2 Preset Selector: プリセット '{preset_title}' の '{col_name}' 列の値 '{raw}' を {type_name} に変換できません"
+            )
+
+    def run(self, preset="", preset_text="", preset_name=None, _update=None, **kwargs):
+        # 空行を除いた行を取得
+        lines = [line for line in preset_text.splitlines() if line.strip() != ""]
+
+        # 名前行・型行・プリセット行が揃っていなければ出力なし
+        if len(lines) < 3:
+            return ()
+
+        names = [n.strip() for n in lines[0].split(";")]
+        types = [t.strip() for t in lines[1].split(";")]
+        preset_rows = lines[2:]
+
+        # 外部からpreset_nameが指定されていたらそちらを優先する（空文字列は未指定扱い）
+        target_name = preset_name if preset_name else preset
+
+        # 選択中のプリセット行を探す（先頭セル＝タイトル）
+        target = None
+        for row in preset_rows:
+            cells = [c.strip() for c in row.split(";")]
+            # 先頭セル（タイトル）が空の行はマッチ対象にしない
+            if cells and cells[0] and cells[0] == target_name:
+                target = cells
+                break
+
+        # 一致するプリセットがない（テキスト変更後など）→ 出力なし
+        if target is None:
+            return ()
+
+        values = target[1:]
+
+        result = []
+        for i, name in enumerate(names):
+            type_name = types[i] if i < len(types) else "STRING"
+            raw = values[i] if i < len(values) else ""
+            result.append(self._cast_value(type_name, raw, target_name, name))
+
+        return tuple(result)
+
+
+
 NODE_CLASS_MAPPINGS = {
     "D2 KSampler": D2_KSampler,
     "D2 KSampler(Advanced)": D2_KSamplerAdvanced,
@@ -706,4 +783,5 @@ NODE_CLASS_MAPPINGS = {
     "D2 Load Lora": D2_LoadLora,
     "D2 Pipe": D2_Pipe,
     "D2 Any Delivery": D2_AnyDelivery,
+    "D2 Preset Selector": D2_PresetSelector,
 }

@@ -2,12 +2,6 @@
 
 These options are experimental and are not part of the original Untwisting RoPE paper.
 
-## `adain_on_v`
-
-Extends AdaIN alignment from attention `Q/K` to also include `V`.
-
-This can help ensure that the final image has a color scheme similar to that of the reference image.
-
 ## `post_attention_adain`
 
  Matches the target attention output statistics to the reference attention output.
@@ -33,3 +27,15 @@ You have three choices:
 Uses Gram-Schmidt projection to inject only the orthogonal component of the reference V tensor to the target V tensor, transferring texture/color/style while reducing semantic bleed.
 
 Gives pretty good results at low strength (~0.2).
+
+## `attention_entropy_scaling`
+
+Scales the target's variance of the attention-score `QKᵀ` towards the reference's. It does not compute the full Shannon entropy and uses a Gram-matrix approximation as a cheaper entropy-like signal.
+
+Can work well at full strength for making images look cleaner.
+
+## `variance_gated_v_adain`
+
+Applies AdaIN to the target V tensor but only on reference channels with high variance.
+
+This makes the image even cleaner and further enhances the transfer style.

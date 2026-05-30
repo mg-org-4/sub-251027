@@ -1,8 +1,8 @@
 {
   "id": "44259803-f9d6-4eb1-a94a-75b8213649d0",
   "revision": 0,
-  "last_node_id": 636,
-  "last_link_id": 1567,
+  "last_node_id": 637,
+  "last_link_id": 1568,
   "nodes": [
     {
       "id": 333,
@@ -855,7 +855,7 @@
           "name": "unofficial_extensions",
           "shape": 7,
           "type": "UNTWISTING_ROPE_EXTENSIONS",
-          "link": 1553
+          "link": 1568
         }
       ],
       "outputs": [
@@ -885,43 +885,6 @@
       ]
     },
     {
-      "id": 625,
-      "type": "UnofficialExtensions",
-      "pos": [
-        756.9930458838446,
-        752.5776369801828
-      ],
-      "size": [
-        332.76171875,
-        154
-      ],
-      "flags": {},
-      "order": 8,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "unofficial_extensions",
-          "type": "UNTWISTING_ROPE_EXTENSIONS",
-          "links": [
-            1553
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "untwistingrope",
-        "ver": "ec08050c160633dc890972120598e2912ce26870",
-        "Node name for S&R": "UnofficialExtensions"
-      },
-      "widgets_values": [
-        false,
-        0.5,
-        "constant",
-        1,
-        0.2
-      ]
-    },
-    {
       "id": 634,
       "type": "Note",
       "pos": [
@@ -933,7 +896,7 @@
         112.57343506692268
       ],
       "flags": {},
-      "order": 9,
+      "order": 8,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -1021,7 +984,7 @@
         314.0000000000001
       ],
       "flags": {},
-      "order": 10,
+      "order": 9,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1101,7 +1064,7 @@
         111.67533752711438
       ],
       "flags": {},
-      "order": 11,
+      "order": 10,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -1124,7 +1087,7 @@
         102.39426790580865
       ],
       "flags": {},
-      "order": 12,
+      "order": 11,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1158,7 +1121,7 @@
         106
       ],
       "flags": {},
-      "order": 13,
+      "order": 12,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1194,7 +1157,7 @@
         58
       ],
       "flags": {},
-      "order": 14,
+      "order": 13,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1229,7 +1192,7 @@
         112.57343506692268
       ],
       "flags": {},
-      "order": 15,
+      "order": 14,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -1239,6 +1202,44 @@
       ],
       "color": "#c09430",
       "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 637,
+      "type": "UnofficialExtensions",
+      "pos": [
+        752.5144423306588,
+        744.8146642908163
+      ],
+      "size": [
+        332.76171875,
+        178
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "unofficial_extensions",
+          "type": "UNTWISTING_ROPE_EXTENSIONS",
+          "links": [
+            1568
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "untwistingrope",
+        "ver": "ec08050c160633dc890972120598e2912ce26870",
+        "Node name for S&R": "UnofficialExtensions"
+      },
+      "widgets_values": [
+        0.5,
+        "match_axes",
+        1,
+        0.2,
+        1,
+        1
+      ]
     }
   ],
   "links": [
@@ -1395,14 +1396,6 @@
       "MODEL"
     ],
     [
-      1553,
-      625,
-      0,
-      623,
-      2,
-      "UNTWISTING_ROPE_EXTENSIONS"
-    ],
-    [
       1555,
       629,
       0,
@@ -1497,16 +1490,24 @@
       603,
       0,
       "MODEL"
+    ],
+    [
+      1568,
+      637,
+      0,
+      623,
+      2,
+      "UNTWISTING_ROPE_EXTENSIONS"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.2853116706110039,
+      "scale": 0.5559917313492311,
       "offset": [
-        932.1018822403444,
-        -428.4134690808139
+        -260.3009055752996,
+        -334.73662329781456
       ]
     },
     "frontendVersion": "1.44.19",

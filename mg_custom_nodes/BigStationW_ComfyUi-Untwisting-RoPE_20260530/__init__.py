@@ -10,10 +10,8 @@ import torch
 import comfy.utils
 import comfy.patcher_extension
 import latent_preview
-from comfy.ldm.flux.math import apply_rope
-from comfy.ldm.modules.attention import optimized_attention_masked
-
 from . import verbose_prints as vp
+from .sdpa_fix import install_optimized_attention_override as _maybe_install_untwist_attention_override
 
 _TRANSFORMER_CONFIG_KEY = model_adapters.CONFIG_KEY
 
@@ -585,12 +583,6 @@ def _rf_build_cache_from_sampler_sigmas(
         f'z_final std={z.std().item():.4f}  parameterization={parameterization}'
     )
     return cache, eps, sigmas
-
-def _rf_increment_reference_one_step(*args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
-    raise RuntimeError(
-        'RF direct one-step path is disabled in strict mode. '
-        'The sampler sigma schedule must be captured and the full RF trajectory must be built.'
-    )
 
 def _find_sigma_schedule(obj: Any, depth: int = 0) -> Optional[List[float]]:
     if depth > 6 or obj is None:
@@ -1232,6 +1224,23 @@ def _adain(target, style, eps=1e-6):
     s_std  = style.float().var(dim=1, keepdim=True, unbiased=False).add(eps).sqrt().to(target.dtype)
     return (target - t_mean) / t_std * s_std + s_mean
 
+def _reference_variance_channel_mask(style: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
+    """
+    Build a [B, 1, H, D] mask from reference/style V variance across sequence.
+
+    High mask values indicate channels whose reference activations vary strongly
+    over tokens, which tends to correspond to texture/color/style-bearing
+    features.
+    """
+    if not torch.is_tensor(style) or style.ndim != 4:
+        raise RuntimeError(
+            f'{vp._PREFIX} variance-gated V effects expected reference V as rank-4 BSHD, '
+            f'got {tuple(style.shape) if torch.is_tensor(style) else type(style).__name__}.'
+        )
+    style_var = style.float().var(dim=1, keepdim=True, unbiased=False)
+    style_var_max = style_var.amax(dim=-1, keepdim=True).clamp_min(eps)
+    return (style_var / style_var_max).clamp(0.0, 1.0).detach()
+
 def _cross_batch_adain_qk(xq, xk, cfg, target_bsz, strength, eps=1e-6, xv=None):
     return_v = xv is not None
     if target_bsz <= 0 or xq.shape[0] < target_bsz * 2:
@@ -1240,7 +1249,6 @@ def _cross_batch_adain_qk(xq, xk, cfg, target_bsz, strength, eps=1e-6, xv=None):
     if a <= 0.0:
         return (xq, xk, xv) if return_v else (xq, xk)
     seqlen = xq.shape[1]
-    apply_v = return_v and vp._coerce_bool(cfg.get('adain_on_v', False))
     for s, e in (cfg.get('target_qk_adain_ranges') or []):
         s, e = max(0, int(s)), min(int(e), seqlen)
         if e <= s:
@@ -1249,12 +1257,7 @@ def _cross_batch_adain_qk(xq, xk, cfg, target_bsz, strength, eps=1e-6, xv=None):
         q_r, k_r = xq[target_bsz:target_bsz*2, s:e], xk[target_bsz:target_bsz*2, s:e]
         xq[:target_bsz, s:e] = q_t * (1 - a) + _adain(q_t, q_r, eps) * a
         xk[:target_bsz, s:e] = k_t * (1 - a) + _adain(k_t, k_r, eps) * a
-        if apply_v:
-            v_t = xv[:target_bsz, s:e]
-            v_r = xv[target_bsz:target_bsz*2, s:e]
-            xv[:target_bsz, s:e] = v_t * (1 - a) + _adain(v_t, v_r, eps) * a
     return (xq, xk, xv) if return_v else (xq, xk)
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Shared Q/K/V effects
@@ -1344,14 +1347,9 @@ def _apply_qkv_shared_effects(
         cfg_for_adain['target_qk_adain_ranges'] = list(ranges)
         q_bshd = q_bshd.clone()
         k_bshd = k_bshd.clone()
-        v_for_adain = v_bshd.clone() if vp._coerce_bool(cfg.get('adain_on_v', False)) else None
-        out = _cross_batch_adain_qk(
-            q_bshd, k_bshd, cfg_for_adain, int(target_bsz), float(adain_strength), xv=v_for_adain
+        q_bshd, k_bshd = _cross_batch_adain_qk(
+            q_bshd, k_bshd, cfg_for_adain, int(target_bsz), float(adain_strength)
         )
-        if v_for_adain is not None:
-            q_bshd, k_bshd, v_bshd = out
-        else:
-            q_bshd, k_bshd = out
         cfg['_debug_qk_adain_strength'] = float(adain_strength)
         cfg['_debug_qk_adain_module'] = str(module_name)
         cfg['_debug_qk_adain_ranges'] = list(ranges)
@@ -1384,8 +1382,41 @@ def _apply_qkv_shared_effects(
         cfg['_debug_orthogonal_v_injection_module'] = str(module_name)
         cfg['_debug_orthogonal_v_injection_ranges'] = list(ranges)
 
-    return restore(q_bshd, k_bshd, v_bshd)
+    # Shared variance-gated V-AdaIN:
+    var_v_adain = _coerce_strength01(cfg.get('variance_gated_v_adain', 0.0))
+    if var_v_adain > 0.0:
+        v_bshd = v_bshd.clone()
+        eps = 1e-6
 
+        for s, e in ranges:
+            v_t = v_bshd[:target_bsz, s:e]
+            v_r = v_bshd[target_bsz:target_bsz * 2, s:e]
+            if v_t.shape != v_r.shape:
+                raise RuntimeError(
+                    f'{vp._PREFIX} shared variance-gated V-AdaIN failed in {module_name}: '
+                    f'target/ref V range shape mismatch: target={tuple(v_t.shape)} ref={tuple(v_r.shape)}.'
+                )
+
+            # [B, 1, H, D], normalized per head over the head-dim/channel axis.
+            v_r_mask = _reference_variance_channel_mask(v_r, eps=eps)
+            v_t_adain = _adain(v_t, v_r, eps=eps)
+            alpha = (v_r_mask * var_v_adain).to(v_t.dtype)
+
+            v_bshd[:target_bsz, s:e] = v_t * (1.0 - alpha) + v_t_adain * alpha
+
+        cfg['_debug_variance_gated_v_adain'] = float(var_v_adain)
+        cfg['_debug_variance_gated_v_adain_module'] = str(module_name)
+        cfg['_debug_variance_gated_v_adain_ranges'] = list(ranges)
+
+    q_bshd = _apply_implicit_attention_entropy_scaling(
+        q_bshd, k_bshd,
+        cfg,
+        int(target_bsz),
+        str(module_name),
+        ranges,
+    )
+
+    return restore(q_bshd, k_bshd, v_bshd)
 
 def _apply_attention_output_shared_effects(
     out_t: torch.Tensor,
@@ -1462,6 +1493,189 @@ def _repeat_kv_heads_if_needed(k, v, q_heads):
     k = k.unsqueeze(3).repeat(1, 1, 1, n, 1).flatten(2, 3)
     v = v.unsqueeze(3).repeat(1, 1, 1, n, 1).flatten(2, 3)
     return k, v
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Gram Attention-Entropy Scaling
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _expand_k_to_q_heads_for_logit_stats(k: torch.Tensor, q_heads: int) -> torch.Tensor:
+    """Map KV heads to Q heads for grouped-query attention logit statistics."""
+    if not torch.is_tensor(k) or k.ndim != 4:
+        return k
+    kv_heads = int(k.shape[2])
+    q_heads = int(q_heads)
+    if kv_heads == q_heads:
+        return k
+    if kv_heads <= 0 or q_heads % kv_heads != 0:
+        raise RuntimeError(
+            f'{vp._PREFIX} Gram attention entropy scaling cannot expand KV heads: '
+            f'q_heads={q_heads}, kv_heads={kv_heads}.'
+        )
+    return k.repeat_interleave(q_heads // kv_heads, dim=2)
+
+def _exact_global_logit_variance_gram(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    *,
+    eps: float = 1e-6,
+) -> torch.Tensor:
+    """
+    Uses:
+      ||QKᵀ||²_F = Tr((QᵀQ)(KᵀK))
+
+    It is not exact Shannon entropy; it is a VRAM-safe inverse-temperature
+    control signal that preserves the downstream optimized attention backend.
+    """
+    if q.ndim != 4 or k.ndim != 4:
+        raise RuntimeError(
+            f'{vp._PREFIX} Gram attention entropy scaling expected rank-4 Q/K, '
+            f'got q={tuple(q.shape)}, k={tuple(k.shape)}.'
+        )
+
+    bq, s, q_heads, d = q.shape
+    bk, t, k_heads, kd = k.shape
+    if bq != bk or d != kd:
+        raise RuntimeError(
+            f'{vp._PREFIX} Gram attention entropy scaling Q/K shape mismatch: '
+            f'q={tuple(q.shape)}, k={tuple(k.shape)}.'
+        )
+    if s <= 0 or t <= 0:
+        return torch.ones((int(bq), int(q_heads)), device=q.device, dtype=torch.float32)
+
+    k = _expand_k_to_q_heads_for_logit_stats(k, int(q_heads))
+    if int(k.shape[2]) != int(q_heads):
+        raise RuntimeError(
+            f'{vp._PREFIX} Gram attention entropy scaling head mismatch after KV expansion: '
+            f'q_heads={q_heads}, k_heads={int(k.shape[2])}.'
+        )
+
+    qf = q.float()
+    kf = k.float()
+    denom = float(max(1, int(s) * int(t)))
+
+    # Mean of all logits per batch/head:
+    #   E[QKᵀ] = dot(sum_i Q_i, sum_j K_j) / (S*T)
+    sum_q = qf.sum(dim=1)  # [B,H,D]
+    sum_k = kf.sum(dim=1)  # [B,H,D]
+    mean = torch.einsum('bhd,bhd->bh', sum_q, sum_k) / denom
+
+    # Second moment via Gram matrices:
+    #   E[(QKᵀ)^2] = Tr((QᵀQ)(KᵀK)) / (S*T)
+    gram_q = torch.einsum('bshd,bshe->bhde', qf, qf)  # [B,H,D,D]
+    gram_k = torch.einsum('bthd,bthe->bhde', kf, kf)  # [B,H,D,D]
+    second = torch.einsum('bhde,bhde->bh', gram_q, gram_k) / denom
+
+    return (second - mean.pow(2)).clamp_min(float(eps))
+
+def _apply_implicit_attention_entropy_scaling(
+    q_bshd: torch.Tensor,
+    k_bshd: torch.Tensor,
+    cfg: Dict[str, Any],
+    target_bsz: int,
+    module_name: str,
+    ranges: List[Tuple[int, int]],
+) -> torch.Tensor:
+    """
+    Thermodynamic Attention-style inverse-temperature control without materializing
+    B×S×T attention logits.
+
+    This version uses the Gram identity to compute the exact global variance of
+    the supplied pre-softmax QKᵀ logits per batch/head. Scaling target Q by
+    sqrt(var_ref / var_target) makes the target's global logit variance match
+    the reference while preserving optimized_attention_masked / FlashAttention.
+    """
+    if not isinstance(cfg, dict) or not cfg.get('enabled', False):
+        return q_bshd
+    entropy_scale = _coerce_strength01(cfg.get('attention_entropy_scaling', 0.0))
+    if entropy_scale <= 0.0:
+        return q_bshd
+    if not (torch.is_tensor(q_bshd) and torch.is_tensor(k_bshd)):
+        return q_bshd
+    if q_bshd.ndim != 4 or k_bshd.ndim != 4:
+        return q_bshd
+
+    target_bsz = int(target_bsz)
+    if target_bsz <= 0:
+        return q_bshd
+    if int(q_bshd.shape[0]) < target_bsz * 2 or int(k_bshd.shape[0]) < target_bsz * 2:
+        return q_bshd
+
+    try:
+        scale_min = float(cfg.get('attention_entropy_scale_min', 0.35))
+        scale_max = float(cfg.get('attention_entropy_scale_max', 3.0))
+    except Exception as exc:
+        raise ValueError('Invalid attention entropy scale clamp value.') from exc
+    if not (math.isfinite(scale_min) and math.isfinite(scale_max)):
+        raise ValueError('Invalid attention entropy scale clamp value: expected finite numbers.')
+    scale_min = max(1e-3, min(scale_min, scale_max))
+    scale_max = max(scale_min, scale_max)
+
+    eps = 1e-6
+    # Mutate the local Q tensor in place to avoid a full extra Q-sized clone.
+    # Only the target image-token slices are changed.
+    q_out = q_bshd
+    applied_ranges: List[Tuple[int, int]] = []
+    scale_means: List[float] = []
+    var_t_means: List[float] = []
+    var_r_means: List[float] = []
+
+    q_seqlen = int(q_bshd.shape[1])
+    k_seqlen = int(k_bshd.shape[1])
+
+    for s, e in ranges or []:
+        s_q = max(0, min(int(s), q_seqlen))
+        e_q = max(s_q, min(int(e), q_seqlen))
+        s_k = max(0, min(int(s), k_seqlen))
+        e_k = max(s_k, min(int(e), k_seqlen))
+        if e_q <= s_q or e_k <= s_k:
+            continue
+
+        q_t = q_bshd[:target_bsz, s_q:e_q]
+        q_r = q_bshd[target_bsz:target_bsz * 2, s_q:e_q]
+        k_t = k_bshd[:target_bsz, s_k:e_k]
+        k_r = k_bshd[target_bsz:target_bsz * 2, s_k:e_k]
+
+        if q_t.shape != q_r.shape:
+            raise RuntimeError(
+                f'{vp._PREFIX} Gram attention entropy scaling failed in {module_name}: '
+                f'target/ref Q range shape mismatch: target={tuple(q_t.shape)} ref={tuple(q_r.shape)}.'
+            )
+
+        var_t = _exact_global_logit_variance_gram(q_t, k_t, eps=eps)
+        var_r = _exact_global_logit_variance_gram(q_r, k_r, eps=eps)
+
+        # Scaling Q by s scales logits by s and global logit variance by s².
+        inv_temp = torch.sqrt(var_r / var_t.clamp_min(eps))
+        inv_temp = inv_temp.clamp(scale_min, scale_max)
+        inv_temp = 1.0 + entropy_scale * (inv_temp - 1.0)
+
+        q_out[:target_bsz, s_q:e_q] = q_t * inv_temp.view(
+            int(inv_temp.shape[0]), 1, int(inv_temp.shape[1]), 1
+        ).to(dtype=q_bshd.dtype)
+
+        applied_ranges.append((s_q, e_q))
+        scale_means.append(float(inv_temp.detach().float().mean().cpu().item()))
+        var_t_means.append(float(var_t.detach().float().mean().cpu().item()))
+        var_r_means.append(float(var_r.detach().float().mean().cpu().item()))
+
+    if applied_ranges:
+        cfg['_debug_attention_entropy_scaling_strength'] = float(entropy_scale)
+        cfg['_debug_attention_entropy_scaling_module'] = str(module_name)
+        cfg['_debug_attention_entropy_scaling_ranges'] = list(applied_ranges)
+        cfg['_debug_attention_entropy_method'] = 'gram_global_logit_variance'
+        cfg['_debug_attention_entropy_inverse_temperature_mean'] = (
+            sum(scale_means) / max(1, len(scale_means))
+        )
+        cfg['_debug_attention_entropy_target_variance_mean'] = (
+            sum(var_t_means) / max(1, len(var_t_means))
+        )
+        cfg['_debug_attention_entropy_reference_variance_mean'] = (
+            sum(var_r_means) / max(1, len(var_r_means))
+        )
+        cfg['_debug_attention_entropy_scale_min'] = float(scale_min)
+        cfg['_debug_attention_entropy_scale_max'] = float(scale_max)
+
+    return q_out
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Architecture detection
@@ -1708,7 +1922,7 @@ def _rf_make_preview_callback(model_for_preview: Any, total_steps: int) -> Optio
     try:
         return latent_preview.prepare_callback(model_for_preview, total_steps)
     except Exception as exc:
-        raise RuntimeError('RF preview callback creation failed in strict mode.') from exc
+        raise RuntimeError('RF preview callback creation failed.') from exc
 
 def _rf_emit_preview(
     callback: Optional[Callable[[int, torch.Tensor, torch.Tensor, int], None]],
@@ -1993,6 +2207,9 @@ class RFInversion:
             timestep = args.get('timestep', None)
             c_in = args.get('c', {})
             c = c_in.copy() if isinstance(c_in, dict) else {}
+            to = c.get('transformer_options', {}).copy()
+            _maybe_install_untwist_attention_override(to)
+            c['transformer_options'] = to
             sigma = _sigma_from_timestep(timestep) if torch.is_tensor(timestep) else 1.0
             sigma_key = round(float(sigma), 6)
             state['last_sigma'] = sigma_key
@@ -2119,7 +2336,7 @@ class RFInversion:
                 state['last_error'] = repr(exc)
                 debug_store['last_error'] = repr(exc)
                 vp._rf_print_traceback(True, traceback.format_exc())
-                raise RuntimeError('RFInversion standalone wrapper failed in strict mode.') from exc
+                raise RuntimeError('RFInversion standalone wrapper failed in.') from exc
 
             if old_model_function_wrapper is not None:
                 return old_model_function_wrapper(apply_model, args)
@@ -2148,16 +2365,12 @@ class UnofficialExtensions:
     def INPUT_TYPES(cls):
         return {
             'required': {
-                'adain_on_v': ('BOOLEAN', {
-                    'default': False,
-                    'tooltip': 'Also apply AdaIN to value/V activations. Off keeps Q/K-only AdaIN.',
-                }),
                 'post_attention_adain_strength': ('FLOAT', {
                     'default': 0.5,
                     'min': 0.0,
                     'max': 1.0,
                     'step': 0.01,
-                    'tooltip': 'Blend strength for matching the target attention output to the reference attention output. 0 disables it.',
+                    'tooltip': 'Blend strength for matching the target attention output to the reference attention output.',
                 }),
                 'axis0_rope_mode': (['default', 'match_axes', 'constant'], {
                     'default': 'match_axes',
@@ -2182,23 +2395,41 @@ class UnofficialExtensions:
                     'step': 0.05,
                     'tooltip': 'Injects the reference V tensor strictly in the orthogonal null-space of the target V tensor.',
                 }),
+                'attention_entropy_scaling': ('FLOAT', {
+                    'default': 0.0,
+                    'min': 0.0,
+                    'max': 1.0,
+                    'step': 0.01,
+                    'tooltip': 'Matches target attention sharpness/diffuseness to the reference attention entropy.',
+                }),
+                'variance_gated_v_adain': ('FLOAT', {
+                    'default': 0.0,
+                    'min': 0.0,
+                    'max': 1.0,
+                    'step': 0.01,
+                    'tooltip': (
+                        'Applies V AdaIN only on high-reference-variance channels. '
+                    ),
+                }),
             },
         }
 
     def build(
         self,
-        adain_on_v: bool = False,
-        orthogonal_v_injection: float = 0.0,
         post_attention_adain_strength: float = 0.0,
         axis0_rope_mode: str = 'default',
         axis0_rope_scale: float = 0.0,
+        orthogonal_v_injection: float = 0.0,
+        attention_entropy_scaling: float = 0.0,
+        variance_gated_v_adain: float = 0.0,
     ):
         return ({
-            'adain_on_v': vp._coerce_bool(adain_on_v),
-            'orthogonal_v_injection': _coerce_strength01(orthogonal_v_injection),
             'post_attention_adain_strength': _coerce_strength01(post_attention_adain_strength),
             'axis0_rope_mode': _coerce_axis0_rope_mode(axis0_rope_mode),
             'axis0_rope_scale': _coerce_axis0_rope_scale(axis0_rope_scale, default=0.0),
+            'orthogonal_v_injection': _coerce_strength01(orthogonal_v_injection),
+            'attention_entropy_scaling': _coerce_strength01(attention_entropy_scaling),
+            'variance_gated_v_adain': _coerce_strength01(variance_gated_v_adain),
         },)
 
 class UntwistingRoPE:
@@ -2302,14 +2533,15 @@ class UntwistingRoPE:
         seed = int(rf_cfg.get('seed', 42))
 
         ext_cfg = unofficial_extensions if isinstance(unofficial_extensions, dict) else {}
-        adain_on_v = vp._coerce_bool(ext_cfg.get('adain_on_v', False))
         orthogonal_v_injection = _coerce_strength01(ext_cfg.get('orthogonal_v_injection', 0.0))
+        variance_gated_v_adain = _coerce_strength01(ext_cfg.get('variance_gated_v_adain', 0.0))
         post_attention_adain_strength = _coerce_strength01(ext_cfg.get('post_attention_adain_strength', 0.0))
         axis0_rope_mode = _coerce_axis0_rope_mode(
             ext_cfg.get('axis0_rope_mode', None),
             legacy_scale=ext_cfg.get('axis0_rope_scale', None),
         )
         axis0_rope_scale = _coerce_axis0_rope_scale(ext_cfg.get('axis0_rope_scale', 0.0), default=0.0)
+        attention_entropy_scaling = _coerce_strength01(ext_cfg.get('attention_entropy_scaling', 0.0))
 
         if rf_active:
             stats.rf_sigma_cache = rf_state.get('cache', {}) if isinstance(rf_state.get('cache', {}), dict) else {}
@@ -2329,11 +2561,13 @@ class UntwistingRoPE:
         vp._vprint(stats,
             f'{vp._PREFIX} blocks: {blocks if blocks.strip() else "all"}  '
             f'adain={adain_strength:.2f}  '
-            f'unofficial: adain_on_v={adain_on_v}  '
+            f'unofficial: '
             f'orthogonal_v_injection={orthogonal_v_injection:.2f}  '
+            f'variance_gated_v_adain={variance_gated_v_adain:.2f}  '
             f'post_attention_adain_strength={post_attention_adain_strength:.2f}  '
             f'axis0_rope_mode={axis0_rope_mode}  '
-            f'axis0_rope_scale={axis0_rope_scale:.3f}'
+            f'axis0_rope_scale={axis0_rope_scale:.3f}  '
+            f'attention_entropy_scaling={attention_entropy_scaling:.2f}'
         )
         vp._vprint(stats, f'{vp._PREFIX} RF latent connected: {rf_active}  source={rf_source}')
         if rf_active:
@@ -2405,6 +2639,7 @@ class UntwistingRoPE:
             c = args['c'].copy()
             cond_or_uncond = args.get('cond_or_uncond', None)
             to = c.get('transformer_options', {}).copy()
+            _maybe_install_untwist_attention_override(to)
 
             sigma = _sigma_from_timestep(timestep)
             progress = _sigma_to_progress(timestep)
@@ -2420,11 +2655,12 @@ class UntwistingRoPE:
                 'active_blocks': parsed_blocks,
                 'apply_adain': True,
                 'adain_strength': float(adain_strength),
-                'adain_on_v': adain_on_v,
                 'orthogonal_v_injection': orthogonal_v_injection,
+                'variance_gated_v_adain': variance_gated_v_adain,
                 'post_attention_adain_strength': post_attention_adain_strength,
                 'axis0_rope_mode': axis0_rope_mode,
                 'axis0_rope_scale': axis0_rope_scale,
+                'attention_entropy_scaling': attention_entropy_scaling,
                 'cross_batch_target_batch': target_b if rf_active else 0,
                 'progress': progress,
                 'sigma': sigma,
@@ -2584,10 +2820,13 @@ class UntwistingRoPE:
                     else:
                         raise RuntimeError(
                             f'UntwistingRoPE failed: spatial mismatch input_x={tuple(input_x.shape[-2:])} '
-                            f'ref_noisy={tuple(ref_noisy.shape[-2:])}.'
+                            f'ref_noisy={tuple(ref_noisy.shape[-2:])}. '
+                            f'Make sure the resolution of the reference image fed into the RF inversion node matches the final image resolution (same width and height).'
                         )
+                except RuntimeError:
+                    raise
                 except Exception as exc:
-                    raise RuntimeError('UntwistingRoPE RF latent preparation failed in strict mode.') from exc
+                    raise RuntimeError('UntwistingRoPE RF latent preparation failed.') from exc
 
             c['transformer_options'] = to
 

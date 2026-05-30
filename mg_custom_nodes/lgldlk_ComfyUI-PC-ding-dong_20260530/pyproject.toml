@@ -1,0 +1,14 @@
+[project]
+name = "comfyui-pc-ding-dong"
+description = "Just like when your pizza is ready and the oven goes 'Ding! 🍕', this plugin lets your ComfyUI notify you when your AI creations are done baking!\nA ComfyUI custom node that sends you a friendly 'ding-dong' notification when your workflows are fully cooked and ready to serve. No more staring at the screen waiting - let the AI kitchen tell you when dinner's ready! 👨‍🍳"
+version = "1.0.0"
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/lgldlk/ComfyUI-PC-ding-dong"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "lgldl"
+DisplayName = "ComfyUI-PC-ding-dong"
+Icon = "https://tikolu.net/emojimix/emojis/231a.svg"

@@ -31,6 +31,70 @@ git clone https://github.com/Raykosan/ComfyUI_RaykoStudio.git
 ---
 ---
 
+# 🦊 RS Collage Node  
+**An interactive compositor node for ComfyUI that enables real-time positioning, scaling, rotation, and edge feathering of an overlay image onto a background directly within the node canvas.**  
+
+<img width="1613" height="846" alt="Screenshot_3" src="https://github.com/user-attachments/assets/0afb04ed-3595-4ecb-8e71-1807394d5aef" />  
+
+### 🔥 Features  
+- **Interactive Canvas** — Drag, resize, and rotate overlays with visual handles  
+- **Center-Anchored Scaling** — Corner handles scale proportionally; edge handles scale along a single axis, both expanding/contracting from the geometric center  
+- **Real-Time Feathering Preview** — Supports Radial In, Radial Out, Edge, and Shape blur modes with adjustable radius  
+- **Non-Blocking Session** — Waits indefinitely for ✔️Apply or Cancel input without hard timeouts or queue interruption  
+- **Precise Coordinate Mapping** — Maintains a frozen viewport matrix during interaction to prevent drift; converts relative normalized coordinates to absolute pixel transforms for the backend  
+- **Integrated Controls** — Opacity slider, flip toggles, and feather parameters accessible via node widgets  
+
+### 🪛 Usage  
+For the overlay, it is better to use images with transparency (PNG, WebP, and TIFF files containing transparency) or images coming from the background removal node (RMBG). If you want to use a regular image or an RGB image with transparency for the overlay, but not RGBA, upload it via the RS rgb2rgba node. Node will make or correct the Alpha channel correctly.  
+Connect the tensors `background_image` and `overlay_image` to the node and start the generation.  
+Adjust the overlay using the markers on the canvas:  
+- **Corners** - Proportional scaling from the center  
+- **Edges** - Scaling on one axis from the center  
+- **Center** - Free movement on the canvas  
+- **Top yellow marker** - Rotate around the center  
+Adjust the type of shading, radius, and opacity using widgets. After selecting the type of shading, a blue cross will appear on the overlay, which can be used to specify the center of the shading or blur.  
+Click "APPLY" to complete the transformations and continue plotting, or "CANCEL" to interrupt the generation process.  
+You can create a chain of these nodes by connecting the Image output to the Background input of the next node.
+
+### 🛠️ Parameters
+| Input/Widget | Type | Range | Default | Description |
+|--------------|------|-------|---------|-------------|
+| `overlay_image` | IMAGE | - | - | Foreground layer to composite |
+| `background_image` | IMAGE | - | - | Base canvas layer |
+| `overlay_mask` | MASK | - | `None` | Optional alpha mask (inverted on apply) |
+| `opacity` | FLOAT | 0.0 – 1.0 | 1.0 | Global transparency multiplier |
+| `feather_type` | COMBO | None / Radial In / Radial Out / Edge / Shape | None | Edge softening algorithm |
+| `edge_radius` | INT | 0 – 300 | 150 | Feather intensity/blur radius |
+| `shape_radius` | INT | 0 – 5 | 0 | Gaussian blur radius for Shape mode |
+
+---
+---
+
+# 🦊 RS rgb2rgba  
+**A lightweight ComfyUI custom node that loads images while preserving the alpha channel (RGBA). Ideal for workflows that require transparency handling in PNG, WebP, and TIFF formats.**  
+
+<img width="1042" height="345" alt="Screenshot_3" src="https://github.com/user-attachments/assets/6159bcd5-2c65-4df8-8106-21c9b75669bd" />  
+
+### 🔥 Features  
+**Alpha Channel Preservation** - Loads and outputs images with full RGBA support.  
+**Automatic Conversion** - Forces `RGBA` mode if the source image uses a different color mode.  
+**Format Support** - Works seamlessly with `PNG`, `WebP`, and `TIFF` files containing transparency.  
+**ComfyUI Compatible** - Returns a properly formatted `[1, H, W, 4]` float32 tensor normalized to `0.0–1.0`.  
+**Change Detection** - Automatically refreshes the node output when the source file is modified.  
+
+### 🪛 Usage  
+Add the **`🦊 RS rgb2rgba`** node to your workflow.  
+Upload an image or select one from your `ComfyUI/input` directory.  
+Connect the `rgba` output to any node that accepts ComfyUI image tensors (e.g., `VAE Encode`, `PreviewImage`, mask processors, etc.).  
+
+### 📝 Notes  
+- Images without an existing alpha channel will be automatically converted to RGBA (alpha will be set to `1.0` / fully opaque).  
+- The node expects images to be located in ComfyUI's standard `input` folder.  
+- Designed to match ComfyUI's native `IMAGE` tensor format, ensuring drop-in compatibility with most custom nodes.  
+
+---
+---
+
 # 🦊 RS Outpaint  
 **Interactive outpainting mask node with visual crop controls, preset management, and batch workflow support** 
 
@@ -88,14 +152,14 @@ The folder is created automatically the first time you save the preset.
 
 <details>
   <summary>✅ Update v0.16.3</summary>
-  
+
  The logic of the RS Outpaint node interface has been changed.
 1. The default borders of the mask frame are strictly along the borders of the incoming image
 2. All node buttons are inactive until the process queue reaches the node and is paused. The buttons become inactive immediately after the generation continues or is canceled.
 3. All snapping presets (aspect ratio) now work without crop and without resizing the output resolution. The frame is closely adjacent to two opposite sides or to one of the sides of the image (why one? since the mask works on a 16px grid, small margins of the mask are possible, which are visually visible. This is done so that the output always results in an image with side sizes that are multiples of 16. These errors will still be masked.)
 4. By default, the Lock/Unlock aspect ratio button is unlocked (🔓) and you can immediately start working with the mask frame without saving the aspect ratio.
 5. When you press any snap preset button, the Lock/Unlock button is automatically locked (🔒) and all further actions with the mask frame will be performed while maintaining the selected aspect ratio until you unlock the button again.
-  
+
 </details>  
 
 💡Tip: For precise positioning, use the arrow keys on your keyboard (hold Shift to move faster)  
@@ -207,7 +271,7 @@ Choose from 50+ common resolutions including:
 
 **Custom**  
 Manually enter width and height (must be multiples of 8).  
- 
+
 **Megapixels**  
 Set target megapixels with specific aspect ratio. Perfect for controlling VRAM usage.  
 
@@ -638,7 +702,7 @@ If new problem, create new Issue describing:
 
 ## 📜 License  
 
-MIT License. Use node at your own risk without any warranties.  
+Apache License 2.0. Use at your own risk without any warranties. See the [LICENSE](LICENSE) file for details  
 
 ---
 

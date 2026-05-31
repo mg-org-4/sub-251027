@@ -1,39 +1,40 @@
 from __future__ import annotations
+
 from typing import Any
+
+import comfy.lora
+import comfy.utils
+import folder_paths
 import kornia
 import numpy as np
 import torch
 import torch.jit
 import torch.nn.functional as F
-
+from comfy import model_management
+from comfy.model_base import BaseModel
+from comfy.model_management import cast_to_device, get_torch_device
+from comfy.model_patcher import ModelPatcher
+from comfy.utils import ProgressBar
+from comfy_api.latest import io
 from torch import Tensor
 from tqdm import trange
 
-from comfy.utils import ProgressBar
-from comfy.model_patcher import ModelPatcher
-from comfy.model_base import BaseModel
-from comfy.model_management import cast_to_device, get_torch_device
-from comfy import model_management
-from comfy_api.latest import io
-import comfy.utils
-import comfy.lora
-import folder_paths
 import nodes
 
 from . import mat
 from .util import (
     BlurKernel,
-    image_to_torch,
-    mask_blur,
-    gaussian_blur,
-    binary_erosion,
     binary_dilation,
+    binary_erosion,
+    gaussian_blur,
+    image_to_torch,
     make_odd,
+    mask_blur,
     mask_floor,
     mask_to_torch,
-    to_torch,
-    to_comfy,
     resize_square,
+    to_comfy,
+    to_torch,
     undo_resize_square,
 )
 
@@ -541,6 +542,9 @@ class ColorMatch(io.ComfyNode):
             ref_std = ref_std.expand(Bs, -1, -1)
 
         corrected_lab_flat = (src_lab_flat - src_mean) * (ref_std / src_std) + ref_mean
+        # Don't apply correction to channels where reference is uniform (eg. solid white background)
+        # it usually means there just isn't any information, rather than a desire to make the output monochrome
+        corrected_lab_flat = torch.where(ref_std >= 1.0, corrected_lab_flat, src_lab_flat)
         corrected_lab = corrected_lab_flat.view(Bs, Cs, Hs, Ws)
 
         out = kornia.color.lab_to_rgb(corrected_lab)

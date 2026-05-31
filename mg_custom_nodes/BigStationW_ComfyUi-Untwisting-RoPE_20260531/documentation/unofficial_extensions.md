@@ -2,6 +2,8 @@
 
 These options are experimental and are not part of the original Untwisting RoPE paper.
 
+You can see the difference it makes [here](https://github.com/BigStationW/ComfyUi-Untwisting-RoPE/tree/main/Examples/with_vs_without).
+
 ## `post_attention_adain`
 
  Matches the target attention output statistics to the reference attention output.
@@ -22,11 +24,13 @@ You have three choices:
 - `match_axes` -> axis0 ends up behaving exactly like the other axes (best results).
 - `constant` -> You set up your own `axis0_rope_scale` value 
 
-## `orthogonal_v_injection`
+## `cosine_gated_v_injection`
 
-Uses Gram-Schmidt projection to inject only the orthogonal component of the reference V tensor to the target V tensor, transferring texture/color/style while reducing semantic bleed.
+Injects reference V into target V only where their cosine similarity is positive.
 
-Gives pretty good results at low strength (~0.2).
+This makes V injection less aggressive than a plain blend and reduces artifacts from pushing reference features into unrelated target regions.
+
+Conceptually inspired by [CACTIF's similarity-filtered attention](https://arxiv.org/abs/2505.16360), but implemented here as a lightweight token-local V-space gate.
 
 ## `attention_entropy_scaling`
 
@@ -39,3 +43,9 @@ Can work well at full strength for making images look cleaner.
 Applies AdaIN to the target V tensor but only on reference channels with high variance.
 
 This makes the image even cleaner and further enhances the transfer style.
+
+## `key_subspace_alignment`
+
+Projects the target K tensor onto the reference K direction.
+
+It's really effective at intensifying style transfer at low strength values (~0.1). 

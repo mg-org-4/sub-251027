@@ -1,8 +1,8 @@
 {
   "id": "44259803-f9d6-4eb1-a94a-75b8213649d0",
   "revision": 0,
-  "last_node_id": 634,
-  "last_link_id": 1566,
+  "last_node_id": 633,
+  "last_link_id": 1565,
   "nodes": [
     {
       "id": 333,
@@ -376,7 +376,7 @@
         168
       ],
       "flags": {},
-      "order": 19,
+      "order": 20,
       "mode": 0,
       "inputs": [
         {
@@ -487,6 +487,76 @@
       ]
     },
     {
+      "id": 618,
+      "type": "CLIPLoader",
+      "pos": [
+        455.9699324836801,
+        1791.462131053674
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1541,
+            1542
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.21.1",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen_3_8b.safetensors",
+        "flux2",
+        "default"
+      ]
+    },
+    {
+      "id": 601,
+      "type": "UNETLoader",
+      "pos": [
+        318.4707979380336,
+        1596.0524486504232
+      ],
+      "size": [
+        420.10165345254075,
+        102.39426790580865
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1528
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.22.0",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "Flux Klein\\flux-2-klein-9b.safetensors",
+        "default"
+      ]
+    },
+    {
       "id": 31,
       "type": "BasicScheduler",
       "pos": [
@@ -528,6 +598,29 @@
       ]
     },
     {
+      "id": 611,
+      "type": "Note",
+      "pos": [
+        1145.1572733432688,
+        902.1563553466156
+      ],
+      "size": [
+        279.1044491449052,
+        190.5600226272877
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "The untwisting RoPE paper suggests patching only the single blocks on flux 1.\n\nFor flux 2 (e.g Klein 9b), the blocks are:\n- Double blocks: 0-7\n- Single blocks: 8-31\n\nPersonally, I find that it works best when all the blocks are enabled, therefore the default values range is 0-999"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
       "id": 626,
       "type": "Note",
       "pos": [
@@ -539,7 +632,7 @@
         126.58960944919556
       ],
       "flags": {},
-      "order": 5,
+      "order": 8,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -549,6 +642,71 @@
       ],
       "color": "#c09430",
       "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 265,
+      "type": "ImageScaleToTotalPixelsX",
+      "pos": [
+        246.99230874069832,
+        1164.5446997368606
+      ],
+      "size": [
+        306.5982421875,
+        220.0000000000001
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1539
+        },
+        {
+          "name": "width",
+          "shape": 7,
+          "type": "INT",
+          "link": 1556
+        },
+        {
+          "name": "height",
+          "shape": 7,
+          "type": "INT",
+          "link": 1557
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            749
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "scale-image-to-total-pixels-advanced",
+        "ver": "dd4135f4ee6dcd71443e2935ceb5c037e3f23230",
+        "Node name for S&R": "ImageScaleToTotalPixelsX",
+        "aux_id": "BigStationW/ComfyUi-Scale-Image-to-Total-Pixels-Advanced"
+      },
+      "widgets_values": [
+        1.05,
+        16,
+        "crop",
+        "lanczos"
+      ]
     },
     {
       "id": 630,
@@ -562,7 +720,7 @@
         220.0000000000001
       ],
       "flags": {},
-      "order": 15,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
@@ -633,7 +791,7 @@
         58
       ],
       "flags": {},
-      "order": 6,
+      "order": 9,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -668,7 +826,7 @@
         314.00000000000006
       ],
       "flags": {},
-      "order": 7,
+      "order": 10,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -708,7 +866,7 @@
         314.00000000000006
       ],
       "flags": {},
-      "order": 8,
+      "order": 11,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -748,7 +906,7 @@
         200
       ],
       "flags": {},
-      "order": 17,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
@@ -787,7 +945,7 @@
         200
       ],
       "flags": {},
-      "order": 16,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
@@ -826,7 +984,7 @@
         112.57343506692268
       ],
       "flags": {},
-      "order": 9,
+      "order": 12,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -849,7 +1007,7 @@
         138
       ],
       "flags": {},
-      "order": 20,
+      "order": 18,
       "mode": 0,
       "inputs": [
         {
@@ -913,7 +1071,7 @@
         112.57343506692268
       ],
       "flags": {},
-      "order": 10,
+      "order": 13,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -923,99 +1081,6 @@
       ],
       "color": "#c09430",
       "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 611,
-      "type": "Note",
-      "pos": [
-        1145.1572733432688,
-        902.1563553466156
-      ],
-      "size": [
-        279.1044491449052,
-        190.5600226272877
-      ],
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "The untwisting RoPE paper suggests patching only the single blocks on flux 1.\n\nFor flux 2 (e.g Klein 4b), the blocks are:\n- Double blocks: 0-4\n- Single blocks: 5-24\n\nPersonally, I find that it works best when all the blocks are enabled, therefore the default values range is 0-999"
-      ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 601,
-      "type": "UNETLoader",
-      "pos": [
-        318.4707979380336,
-        1596.0524486504232
-      ],
-      "size": [
-        420.10165345254075,
-        102.39426790580865
-      ],
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            1528
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.22.0",
-        "Node name for S&R": "UNETLoader"
-      },
-      "widgets_values": [
-        "Flux Klein\\flux-2-klein-4b.safetensors",
-        "default"
-      ]
-    },
-    {
-      "id": 618,
-      "type": "CLIPLoader",
-      "pos": [
-        455.9699324836801,
-        1791.462131053674
-      ],
-      "size": [
-        270,
-        106
-      ],
-      "flags": {},
-      "order": 13,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            1541,
-            1542
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.21.1",
-        "Node name for S&R": "CLIPLoader"
-      },
-      "widgets_values": [
-        "qwen_3_4b.safetensors",
-        "flux2",
-        "default"
-      ]
     },
     {
       "id": 623,
@@ -1046,7 +1111,7 @@
           "name": "unofficial_extensions",
           "shape": 7,
           "type": "UNTWISTING_ROPE_EXTENSIONS",
-          "link": 1566
+          "link": 1565
         }
       ],
       "outputs": [
@@ -1076,76 +1141,11 @@
       ]
     },
     {
-      "id": 265,
-      "type": "ImageScaleToTotalPixelsX",
-      "pos": [
-        246.99230874069832,
-        1164.5446997368606
-      ],
-      "size": [
-        306.5982421875,
-        220.0000000000001
-      ],
-      "flags": {},
-      "order": 18,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 1539
-        },
-        {
-          "name": "width",
-          "shape": 7,
-          "type": "INT",
-          "link": 1556
-        },
-        {
-          "name": "height",
-          "shape": 7,
-          "type": "INT",
-          "link": 1557
-        }
-      ],
-      "outputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "links": [
-            749
-          ]
-        },
-        {
-          "name": "width",
-          "type": "INT",
-          "links": []
-        },
-        {
-          "name": "height",
-          "type": "INT",
-          "links": []
-        }
-      ],
-      "properties": {
-        "cnr_id": "scale-image-to-total-pixels-advanced",
-        "ver": "dd4135f4ee6dcd71443e2935ceb5c037e3f23230",
-        "Node name for S&R": "ImageScaleToTotalPixelsX",
-        "aux_id": "BigStationW/ComfyUi-Scale-Image-to-Total-Pixels-Advanced"
-      },
-      "widgets_values": [
-        1.05,
-        16,
-        "crop",
-        "lanczos"
-      ]
-    },
-    {
-      "id": 634,
+      "id": 633,
       "type": "UnofficialExtensions",
       "pos": [
-        763.7844174962596,
-        733.5375741453837
+        753.4727968732204,
+        735.4289354061756
       ],
       "size": [
         332.76171875,
@@ -1160,7 +1160,7 @@
           "name": "unofficial_extensions",
           "type": "UNTWISTING_ROPE_EXTENSIONS",
           "links": [
-            1566
+            1565
           ]
         }
       ],
@@ -1173,7 +1173,7 @@
         0.5,
         "match_axes",
         1,
-        0.2,
+        0.5,
         1,
         1
       ]
@@ -1421,8 +1421,8 @@
       "CONDITIONING"
     ],
     [
-      1566,
-      634,
+      1565,
+      633,
       0,
       623,
       2,
@@ -1433,10 +1433,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.5054470284993001,
+      "scale": 0.6727499949325685,
       "offset": [
-        -226.30623931116173,
-        -226.39571940557653
+        -310.51478536127786,
+        -424.26825895482676
       ]
     },
     "frontendVersion": "1.44.19",

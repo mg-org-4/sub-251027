@@ -742,8 +742,39 @@ def _sigma_from_timestep(timestep: torch.Tensor) -> float:
         return max(0.0, min(1.0, val / 1000.0))
     raise RuntimeError(f'Sigma conversion failed: unsupported timestep value {val!r}.')
 
-def _sigma_to_progress(timestep: torch.Tensor) -> float:
-    return max(0.0, min(1.0, 1.0 - _sigma_from_timestep(timestep)))
+def _sigma_to_progress(timestep: torch.Tensor, sampler_sigmas: List[float]) -> float:
+    sigma = _sigma_from_timestep(timestep)
+
+    if sampler_sigmas is None:
+        raise RuntimeError('Progress conversion failed: sampler_sigmas is missing.')
+
+    active: List[float] = []
+    for idx, s in enumerate(sampler_sigmas):
+        try:
+            sf = float(s)
+        except Exception as exc:
+            raise RuntimeError(
+                f'Progress conversion failed: sampler sigma at index {idx} is not numeric: {s!r}.'
+            ) from exc
+        if not math.isfinite(sf):
+            raise RuntimeError(
+                f'Progress conversion failed: sampler sigma at index {idx} is not finite: {s!r}.'
+            )
+        active.append(max(0.0, min(1.0, sf)))
+
+    # The sampler schedule normally contains a terminal sigma=0 endpoint, but
+    # the model is not evaluated there. Progress must span only real model calls
+    # so *_end values are reached on the last denoising call.
+    while active and active[-1] <= 1e-8:
+        active.pop()
+
+    if len(active) < 2:
+        raise RuntimeError(
+            'Progress conversion failed: sampler_sigmas did not contain at least two active model-call sigmas.'
+        )
+
+    idx = min(range(len(active)), key=lambda i: abs(active[i] - sigma))
+    return max(0.0, min(1.0, idx / max(1, len(active) - 1)))
 
 def _lerp(a: float, b: float, t: float) -> float:
     return float(a + (b - a) * t)
@@ -1241,6 +1272,34 @@ def _reference_variance_channel_mask(style: torch.Tensor, eps: float = 1e-6) -> 
     style_var_max = style_var.amax(dim=-1, keepdim=True).clamp_min(eps)
     return (style_var / style_var_max).clamp(0.0, 1.0).detach()
 
+def _cosine_gated_v_injection(
+    v_t: torch.Tensor,
+    v_r: torch.Tensor,
+    strength: float,
+    eps: float = 1e-6,
+) -> torch.Tensor:
+    """
+    Cosine-similarity-gated V injection.
+    Only injects V_ref into V_target where they are semantically aligned
+    (positive cosine similarity). Mismatched regions receive no injection.
+    """
+    strength = max(0.0, min(1.0, float(strength)))
+    if strength <= 0.0:
+        return v_t
+
+    v_tf = v_t.float()
+    v_rf = v_r.float()
+
+    t_u = v_tf / v_tf.norm(dim=-1, keepdim=True).clamp_min(eps)
+    r_u = v_rf / v_rf.norm(dim=-1, keepdim=True).clamp_min(eps)
+
+    # Per-token per-head cosine similarity -> gate in [0, 1].
+    gate = (t_u * r_u).sum(dim=-1, keepdim=True).clamp(0.0, 1.0)  # [B,S,H,1]
+
+    # Gated delta: only aligned positions receive injection.
+    delta = (v_rf - v_tf) * gate * strength
+    return (v_tf + delta).to(dtype=v_t.dtype)
+
 def _cross_batch_adain_qk(xq, xk, cfg, target_bsz, strength, eps=1e-6, xv=None):
     return_v = xv is not None
     if target_bsz <= 0 or xq.shape[0] < target_bsz * 2:
@@ -1354,33 +1413,55 @@ def _apply_qkv_shared_effects(
         cfg['_debug_qk_adain_module'] = str(module_name)
         cfg['_debug_qk_adain_ranges'] = list(ranges)
 
-    # Shared orthogonal V injection:
-    ortho_v_inj = _coerce_strength01(cfg.get('orthogonal_v_injection', 0.0))
-    if ortho_v_inj > 0.0:
+    # Shared key-subspace Gram-Schmidt alignment.
+    key_subspace_target = _coerce_strength01(cfg.get('key_subspace_alignment', 0.0))
+    key_subspace_progress = _coerce_strength01(cfg.get('progress', 1.0))
+    key_subspace = _lerp(0.0, key_subspace_target, key_subspace_progress)
+    if key_subspace > 0.0:
+        k_bshd = k_bshd.clone()
+        for s, e in ranges:
+            k_t = k_bshd[:target_bsz, s:e]
+            k_r = k_bshd[target_bsz:target_bsz * 2, s:e]
+            if k_t.shape != k_r.shape:
+                raise RuntimeError(
+                    f'{vp._PREFIX} shared key-subspace alignment failed in {module_name}: '
+                    f'target/ref K range shape mismatch: target={tuple(k_t.shape)} ref={tuple(k_r.shape)}.'
+                )
+
+            k_tf = k_t.float()
+            k_rf = k_r.float()
+            dot_num = (k_tf * k_rf).sum(dim=-1, keepdim=True)
+            dot_den = (k_rf * k_rf).sum(dim=-1, keepdim=True).clamp_min(1e-6)
+            proj = k_rf * (dot_num / dot_den)
+            aligned = k_tf * (1.0 - key_subspace) + proj * key_subspace
+            k_bshd[:target_bsz, s:e] = aligned.to(dtype=k_bshd.dtype)
+
+        cfg['_debug_key_subspace_alignment_strength'] = float(key_subspace)
+        cfg['_debug_key_subspace_alignment_target'] = float(key_subspace_target)
+        cfg['_debug_key_subspace_alignment_progress'] = float(key_subspace_progress)
+        cfg['_debug_key_subspace_alignment_module'] = str(module_name)
+        cfg['_debug_key_subspace_alignment_ranges'] = list(ranges)
+
+    # Shared cosine-gated V injection:
+    cosine_v_inj = _coerce_strength01(cfg.get('cosine_gated_v_injection', 0.0))
+    if cosine_v_inj > 0.0:
         v_bshd = v_bshd.clone()
         for s, e in ranges:
             v_t = v_bshd[:target_bsz, s:e]
             v_r = v_bshd[target_bsz:target_bsz * 2, s:e]
             if v_t.shape != v_r.shape:
                 raise RuntimeError(
-                    f'{vp._PREFIX} shared orthogonal V injection failed in {module_name}: '
+                    f'{vp._PREFIX} shared cosine-gated V injection failed in {module_name}: '
                     f'target/ref V range shape mismatch: target={tuple(v_t.shape)} ref={tuple(v_r.shape)}.'
                 )
 
-            # Gram-Schmidt projection over the feature/head-dim axis. Use fp32
-            # for the dot products to avoid fp16/bf16 cancellation, then cast
-            # back to the model dtype for the in-place replacement.
-            v_t_proj = v_t.float()
-            v_r_proj = v_r.float()
-            dot_tr = (v_t_proj * v_r_proj).sum(dim=-1, keepdim=True)
-            dot_tt = (v_t_proj * v_t_proj).sum(dim=-1, keepdim=True).clamp_min(1e-6)
-            v_r_collinear = (dot_tr / dot_tt) * v_t_proj
-            v_r_orthogonal = (v_r_proj - v_r_collinear).to(dtype=v_t.dtype)
-            v_bshd[:target_bsz, s:e] = v_t + (v_r_orthogonal * ortho_v_inj)
+            v_bshd[:target_bsz, s:e] = _cosine_gated_v_injection(
+                v_t, v_r, strength=cosine_v_inj
+            )
 
-        cfg['_debug_orthogonal_v_injection_strength'] = float(ortho_v_inj)
-        cfg['_debug_orthogonal_v_injection_module'] = str(module_name)
-        cfg['_debug_orthogonal_v_injection_ranges'] = list(ranges)
+        cfg['_debug_cosine_gated_v_injection_strength'] = float(cosine_v_inj)
+        cfg['_debug_cosine_gated_v_injection_module'] = str(module_name)
+        cfg['_debug_cosine_gated_v_injection_ranges'] = list(ranges)
 
     # Shared variance-gated V-AdaIN:
     var_v_adain = _coerce_strength01(cfg.get('variance_gated_v_adain', 0.0))
@@ -2388,12 +2469,12 @@ class UnofficialExtensions:
                     'step': 0.01,
                     'tooltip': 'RoPE scale used only when axis0_rope_mode = constant.',
                 }),
-                'orthogonal_v_injection': ('FLOAT', {
+                'cosine_gated_v_injection': ('FLOAT', {
                     'default': 0.0,
                     'min': 0.0,
                     'max': 1.0,
-                    'step': 0.05,
-                    'tooltip': 'Injects the reference V tensor strictly in the orthogonal null-space of the target V tensor.',
+                    'step': 0.01,
+                    'tooltip': 'Only aligned target/reference V tokens receive reference injection.',
                 }),
                 'attention_entropy_scaling': ('FLOAT', {
                     'default': 0.0,
@@ -2411,6 +2492,16 @@ class UnofficialExtensions:
                         'Applies V AdaIN only on high-reference-variance channels. '
                     ),
                 }),
+                'key_subspace_alignment': ('FLOAT', {
+                    'default': 0.0,
+                    'min': 0.0,
+                    'max': 1.0,
+                    'step': 0.01,
+                    'tooltip': (
+                        'Projects target keys onto reference keys to restrict routing '
+                        'towards the reference key subspace.'
+                    ),
+                }),
             },
         }
 
@@ -2419,17 +2510,19 @@ class UnofficialExtensions:
         post_attention_adain_strength: float = 0.0,
         axis0_rope_mode: str = 'default',
         axis0_rope_scale: float = 0.0,
-        orthogonal_v_injection: float = 0.0,
+        cosine_gated_v_injection: float = 0.0,
         attention_entropy_scaling: float = 0.0,
         variance_gated_v_adain: float = 0.0,
+        key_subspace_alignment: float = 0.0,
     ):
         return ({
             'post_attention_adain_strength': _coerce_strength01(post_attention_adain_strength),
             'axis0_rope_mode': _coerce_axis0_rope_mode(axis0_rope_mode),
             'axis0_rope_scale': _coerce_axis0_rope_scale(axis0_rope_scale, default=0.0),
-            'orthogonal_v_injection': _coerce_strength01(orthogonal_v_injection),
+            'cosine_gated_v_injection': _coerce_strength01(cosine_gated_v_injection),
             'attention_entropy_scaling': _coerce_strength01(attention_entropy_scaling),
             'variance_gated_v_adain': _coerce_strength01(variance_gated_v_adain),
+            'key_subspace_alignment': _coerce_strength01(key_subspace_alignment),
         },)
 
 class UntwistingRoPE:
@@ -2533,7 +2626,7 @@ class UntwistingRoPE:
         seed = int(rf_cfg.get('seed', 42))
 
         ext_cfg = unofficial_extensions if isinstance(unofficial_extensions, dict) else {}
-        orthogonal_v_injection = _coerce_strength01(ext_cfg.get('orthogonal_v_injection', 0.0))
+        cosine_gated_v_injection = _coerce_strength01(ext_cfg.get('cosine_gated_v_injection', 0.0))
         variance_gated_v_adain = _coerce_strength01(ext_cfg.get('variance_gated_v_adain', 0.0))
         post_attention_adain_strength = _coerce_strength01(ext_cfg.get('post_attention_adain_strength', 0.0))
         axis0_rope_mode = _coerce_axis0_rope_mode(
@@ -2542,6 +2635,7 @@ class UntwistingRoPE:
         )
         axis0_rope_scale = _coerce_axis0_rope_scale(ext_cfg.get('axis0_rope_scale', 0.0), default=0.0)
         attention_entropy_scaling = _coerce_strength01(ext_cfg.get('attention_entropy_scaling', 0.0))
+        key_subspace_alignment = _coerce_strength01(ext_cfg.get('key_subspace_alignment', 0.0))
 
         if rf_active:
             stats.rf_sigma_cache = rf_state.get('cache', {}) if isinstance(rf_state.get('cache', {}), dict) else {}
@@ -2562,12 +2656,13 @@ class UntwistingRoPE:
             f'{vp._PREFIX} blocks: {blocks if blocks.strip() else "all"}  '
             f'adain={adain_strength:.2f}  '
             f'unofficial: '
-            f'orthogonal_v_injection={orthogonal_v_injection:.2f}  '
+            f'cosine_gated_v_injection={cosine_gated_v_injection:.2f}  '
             f'variance_gated_v_adain={variance_gated_v_adain:.2f}  '
             f'post_attention_adain_strength={post_attention_adain_strength:.2f}  '
             f'axis0_rope_mode={axis0_rope_mode}  '
             f'axis0_rope_scale={axis0_rope_scale:.3f}  '
-            f'attention_entropy_scaling={attention_entropy_scaling:.2f}'
+            f'attention_entropy_scaling={attention_entropy_scaling:.2f}  '
+            f'key_subspace_alignment={key_subspace_alignment:.2f}'
         )
         vp._vprint(stats, f'{vp._PREFIX} RF latent connected: {rf_active}  source={rf_source}')
         if rf_active:
@@ -2642,7 +2737,7 @@ class UntwistingRoPE:
             _maybe_install_untwist_attention_override(to)
 
             sigma = _sigma_from_timestep(timestep)
-            progress = _sigma_to_progress(timestep)
+            progress = _sigma_to_progress(timestep, list(rf_state['sampler_sigmas']))
             target_b = int(input_x.shape[0])
 
             cfg: Dict[str, Any] = {
@@ -2655,12 +2750,13 @@ class UntwistingRoPE:
                 'active_blocks': parsed_blocks,
                 'apply_adain': True,
                 'adain_strength': float(adain_strength),
-                'orthogonal_v_injection': orthogonal_v_injection,
+                'cosine_gated_v_injection': cosine_gated_v_injection,
                 'variance_gated_v_adain': variance_gated_v_adain,
                 'post_attention_adain_strength': post_attention_adain_strength,
                 'axis0_rope_mode': axis0_rope_mode,
                 'axis0_rope_scale': axis0_rope_scale,
                 'attention_entropy_scaling': attention_entropy_scaling,
+                'key_subspace_alignment': key_subspace_alignment,
                 'cross_batch_target_batch': target_b if rf_active else 0,
                 'progress': progress,
                 'sigma': sigma,

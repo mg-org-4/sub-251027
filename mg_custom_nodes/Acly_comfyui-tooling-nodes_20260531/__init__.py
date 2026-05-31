@@ -1,10 +1,12 @@
 from comfy_api.latest import ComfyExtension, io
-from . import api as api, nodes, tile, region, nsfw, translation, krita
+
+from . import api as api
+from . import control, krita, nodes, region, tile, translation
 
 
 class ExternalToolingNodes(ComfyExtension):
     async def get_node_list(self) -> list[type[io.ComfyNode]]:
-        return [
+        node_list = [
             nodes.LoadImageCache,
             nodes.SaveImageCache,
             nodes.LoadImageBase64,
@@ -22,7 +24,6 @@ class ExternalToolingNodes(ComfyExtension):
             region.DefineRegion,
             region.ListRegionMasks,
             region.AttentionMask,
-            nsfw.NSFWFilter,
             translation.Translate,
             krita.KritaOutput,
             krita.KritaSendText,
@@ -33,7 +34,20 @@ class ExternalToolingNodes(ComfyExtension):
             krita.Parameter,
             krita.KritaStyle,
             krita.KritaStyleAndPrompt,
+            control.ControlApply,
+            control.ControlLoad,
         ]
+        try:  # see #66
+            from . import nsfw
+
+            node_list.append(nsfw.NSFWFilter)
+        except (ImportError, ModuleNotFoundError):
+            import traceback
+
+            print("[comfyui-tooling-nodes] WARNING: Could not import all nodes.")
+            traceback.print_exc()
+
+        return node_list
 
 
 async def comfy_entrypoint():

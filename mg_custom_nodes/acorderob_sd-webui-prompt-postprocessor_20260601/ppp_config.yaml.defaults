@@ -1,0 +1,339 @@
+# Prompt Post-Processor configuration file.
+
+# If you want to change any of these options make first a copy of this file as "ppp_config.yaml" and edit that file.
+# In ComfyUI the file should be in the user folder.
+# This defaults file will be overwritten when updating the extension, but your custom "ppp_config.yaml" should not be affected.
+
+# Options for supported host applications
+hosts:
+    # For each host, define how to handle some operations:
+    #   attention: how to handle attention operators
+    #     - ok: leave as is
+    #     - parentheses: convert to parentheses-based attention
+    #     - disable: remove attention operators
+    #     - remove: remove the whole block, including the text inside
+    #     - error: raise an error
+    #   scheduling: how to handle scheduling operators
+    #     - ok: leave as is
+    #     - before: replace with the first scheduling text
+    #     - after: replace with the second scheduling text
+    #     - first: replace with the first scheduling text if present, otherwise with the second scheduling text
+    #     - remove: remove the whole block, including the text inside
+    #     - error: raise an error
+    #   alternation: how to handle alternation operators
+    #     - ok: leave as is
+    #     - first: replace with the first alternation text
+    #     - remove: remove the whole block, including the text inside
+    #     - error: raise an error
+    #   and: how to handle "AND" operators
+    #     - ok: leave as is
+    #     - eol: replace with end-of-line (newline)
+    #     - comma: replace with comma
+    #     - remove: remove the operator
+    #     - error: raise an error
+    #   break: how to handle "BREAK" operators
+    #     - ok: leave as is
+    #     - eol: replace with end-of-line (newline)
+    #     - comma: replace with comma
+    #     - remove: remove the operator
+    #     - error: raise an error
+    #   seed_bits: number of bits to use for the seed; if not specified, it defaults to 64 bits
+    # Options in the user file override all these options by host (individual options are not inherited and if missing will use defaults in code).
+    a1111:
+        attention: ok
+        scheduling: ok
+        alternation: ok
+        and: ok
+        break: ok
+        seed_bits: 32
+    forge:
+        attention: ok
+        scheduling: ok
+        alternation: ok
+        and: ok
+        break: ok
+        seed_bits: 32
+    forgeneo:
+        attention: ok
+        scheduling: ok
+        alternation: ok
+        and: ok
+        break: ok
+        seed_bits: 32
+    reforge:
+        attention: ok
+        scheduling: ok
+        alternation: ok
+        and: ok
+        break: ok
+        seed_bits: 32
+    sdnext:
+        attention: ok
+        scheduling: ok
+        alternation: ok
+        and: ok
+        break: ok
+        seed_bits: 32
+    comfyui:
+        # ComfyUI only supports parentheses-based attention
+        attention: parentheses
+        # by default ComfyUI does not support scheduling, alternation, AND or BREAK operators, but you may be able to use them with a custom text encoder node
+        scheduling: error
+        alternation: error
+        and: comma
+        break: comma
+        seed_bits: 64
+
+# Supported base models, variants, and options
+# Check supported models for each host in:
+#   a1111:
+#   forge: repositories\huggingface_guess\huggingface_guess\model_list.py
+#   forgeneo: modules_forge\packages\huggingface_guess\model_list.py
+#   reforge: ldm_patched\modules\supported_models.py
+#   sdnext: modules\shared_items.py
+#   comfyui: ComfyUI\comfy\supported_models.py
+models:
+    # We define supported models and how we detect them in each host application (by class or by a known boolean property, or null for not supported).
+    # We can also define here variants and some options.
+    # For each model, detect options in the user file replace these ones by host, and variants are fully replaced (so if you want to add to the default ones you need to copy them to your file).
+    sd1: # Stable Diffusion 1
+        detect:
+            a1111: { property: "is_sd1" }
+            forge: { property: "is_sd1", class: ["SD15", "SD15_instructpix2pix"] }
+            forgeneo: { property: "is_sd1", class: ["SD15"] }
+            reforge: { property: "is_sd1" }
+            sdnext: { class: ["LatentDiffusion", "StableDiffusionPipeline", "StableDiffusionInpaintPipeline", "StableDiffusionInstructPix2PixPipeline", "StableDiffusionUpscalePipeline"] } # LatentDiffusion is for the original backend, StableDiffusionPipeline is for the diffusers backend; cannot differentiate SD1 and SD2, we set both to True
+            comfyui: { class: ["SD15", "SD15_instructpix2pix"] }
+    sd2: # Stable Diffusion 2
+        detect:
+            a1111: { property: "is_sd2" }
+            forge: { property: "is_sd2", class: ["SD20", "SD21UnclipL", "SD21UnclipH"] }
+            forgeneo: null
+            reforge: { property: "is_sd2" }
+            sdnext: { class: ["LatentDiffusion", "StableDiffusionPipeline", "StableDiffusionInpaintPipeline", "StableDiffusionInstructPix2PixPipeline", "StableDiffusionUpscalePipeline"] } # cannot differentiate SD1 and SD2, we set both to True; LatentDiffusion is for the original backend, StableDiffusionPipeline is for the diffusers backend
+            comfyui: { class: ["SD20", "SD21UnclipL", "SD21UnclipH", "LotusD"] }
+    ssd: # Segmind Stable Diffusion 1B
+        detect:
+            a1111: { property: "is_ssd" }
+            forge: { class: ["SSD1B"] }
+            forgeneo: null
+            reforge: { property: "is_ssd" }
+            sdnext: null
+            comfyui: { class: ["SSD1B"]}
+    sdxl: # Stable Diffusion XL
+        detect:
+            a1111: { property: "is_sdxl" }
+            forge: { property: "is_sdxl", class: ["SDXL", "SDXLRefiner", "SDXL_instructpix2pix", "Segmind_Vega", "KOALA_700M", "KOALA_1B"] }
+            forgeneo: { property: "is_sdxl", class: ["SDXL", "SDXLRefiner"] }
+            reforge: { property: "is_sdxl" }
+            sdnext: { class: ["StableDiffusionXLPipeline", "StableDiffusionXLImg2ImgPipeline", "StableDiffusionXLInpaintPipeline", "StableDiffusionXLInstructPix2PixPipeline"] }
+            comfyui: { class: ["SDXL", "SDXLRefiner", "SDXL_instructpix2pix", "Segmind_Vega", "KOALA_700M", "KOALA_1B"] }
+        variants:
+            # At this level goes the name of the defined variants
+            #   find_in_filename: regex patterns as a str or regex/flags dict or list of them to identify the variant in the model filename.
+            #                     If specified as a string, it is considered a regex with the IGNORECASE flag;
+            #                     If specified as a dict, it should have "regex" and optional "flags" keys;
+            #                     If specified as a list, it should be a list of dicts or strings
+            pony: { find_in_filename: "(?:pony|pny|pdxl)" }
+            illustrious: { find_in_filename: { regex: "(?:illustrious|illust|ilxl)", flags: ["IGNORECASE"] } }
+            noobai: { find_in_filename: "(?:noob|nai)" }
+    sd3: # Stable Diffusion 3
+        detect:
+            a1111: { property: "is_sd3" }
+            forge: { property: "is_sd3", class: ["SD3"] }
+            forgeneo: null
+            reforge: { property: "is_sd3" }
+            sdnext: { class: ["StableDiffusion3Pipeline"] }
+            comfyui: { class: ["SD3"] }
+    flux: # Flux 1
+        detect:
+            a1111: null
+            forge: { class: ["Flux", "FluxSchnell"] }
+            forgeneo: { class: ["Flux", "FluxSchnell"] }
+            reforge: { class: ["Flux", "FluxInpaint", "FluxSchnell"] }
+            sdnext: { class: ["FluxPipeline"] }
+            comfyui: { class: ["Flux", "FluxInpaint", "FluxSchnell"] }
+    auraflow: # AuraFlow
+        detect:
+            a1111: null
+            forge: { class: ["AuraFlow"] }
+            forgeneo: null
+            reforge: { class: ["AuraFlow"] }
+            sdnext: { class: ["AuraFlowPipeline"] }
+            comfyui: { class: ["AuraFlow"] }
+    pixart: # PixArt
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: { class: ["PixArtAlpha", "PixArtSigma"] }
+            sdnext: { class: ["PixArtAlphaPipeline", "PixArtSigmaPipeline"] }
+            comfyui: { class: ["PixArtAlpha", "PixArtSigma"] }
+    lumina2: # Lumina2
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: { class: ["Lumina2"] }
+            reforge: { class: ["Lumina2"] }
+            sdnext: { class: ["Lumina2Pipeline"] }
+            comfyui: { class: ["Lumina2"] }
+    zimage: # ZImage
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: { class: ["ZImage"] }
+            reforge: { class: ["ZImage"] }
+            sdnext: { class: ["ZImagePipeline"] }
+            comfyui: { class: ["ZImage"] }
+    ltxv: # LTXV
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: null
+            sdnext: null
+            comfyui: { class: ["LTXV", "LTXAV"] }
+    cosmos: # Cosmos
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: { class: ["CosmosT2V", "CosmosI2V"] }
+            sdnext: { class: ["Cosmos2TextToImagePipeline"] }
+            comfyui: { class: ["CosmosT2V", "CosmosI2V"] }
+    cosmospredict2: # CosmosPredict2
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: { class: ["CosmosT2IPredict2", "CosmosI2VPredict2"] }
+            sdnext: null
+            comfyui: { class: ["CosmosT2IPredict2", "CosmosI2VPredict2"] }
+    genmomochi: # GenmoMochi
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: { class: ["GenmoMochi"] }
+            sdnext: null
+            comfyui: { class: ["GenmoMochi"] }
+    hunyuan: # Hunyuan
+        detect:
+            a1111: null
+            forge: { class: ["HunyuanDiT", "HunyuanDiT1"] }
+            forgeneo: null
+            reforge: { class: ["HunyuanDiT", "HunyuanDiT1"] }
+            sdnext: { class: ["HunyuanDiTPipeline", "HunyuanImagePipeline"] }
+            comfyui: { class: ["HunyuanDiT", "HunyuanDiT1"] }
+    hunyuanvideo: # HunyuanVideo
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: { class: ["HunyuanVideo", "HunyuanVideoI2V", "HunyuanVideoSkyreelsI2V", "HunyuanImage21", "HunyuanImage21Refiner", "HunyuanVideo15", "HunyuanVideo15_SR_Distilled"] }
+            sdnext: null
+            comfyui: { class: ["HunyuanVideo", "HunyuanVideoI2V", "HunyuanVideoSkyreelsI2V", "HunyuanImage21", "HunyuanImage21Refiner", "HunyuanVideo15", "HunyuanVideo15_SR_Distilled"] }
+    hunyuan3d: # Hunyuan3D
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: { class: ["Hunyuan3Dv2", "Hunyuan3Dv2_1", "Hunyuan3Dv2mini"] }
+            sdnext: null
+            comfyui: { class: ["Hunyuan3Dv2", "Hunyuan3Dv2_1", "Hunyuan3Dv2mini"] }
+    wan: # Wan21 & Wan22
+        detect:
+            a1111: null
+            forge: { class: ["WAN21_T2V", "WAN21_I2V"] }
+            forgeneo: { class: ["WAN21_T2V", "WAN21_I2V"] }
+            reforge: { class: ["WAN21_T2V", "WAN21_I2V", "WAN21_FunControl2V", "WAN21_Camera", "WAN22_Camera", "WAN21_Vace", "WAN21_HuMo", "WAN22_S2V", "WAN22_Animate", "WAN22_T2V"] }
+            sdnext: { class: ["WanPipeline"] }
+            comfyui: { class: ["WAN21_T2V", "WAN21_I2V", "WAN21_FunControl2V", "WAN21_Camera", "WAN22_Camera", "WAN21_Vace", "WAN21_HuMo", "WAN22_S2V", "WAN22_Animate", "WAN22_T2V", "WAN21_FlowRVS", "WAN21_SCAIL", "WAN22_WanDancer"] }
+    hidream: # HiDream
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: { class: ["HiDream"] }
+            sdnext: { class: ["HiDreamImagePipeline"] }
+            comfyui: { class: ["HiDream", "HiDreamO1"] }
+    qwenimage: # QwenImage & QwenImageEdit
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: { class: ["QwenImage"] }
+            reforge: null
+            sdnext: { class: ["QwenImagePipeline"] }
+            comfyui: { class: ["QwenImage"] }
+    chroma: # Chroma
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: { class: ["Chroma"] }
+            reforge: { class: ["Chroma", "ChromaRadiance"] }
+            sdnext: { class: ["ChromaPipeline"] }
+            comfyui: { class: ["Chroma", "ChromaRadiance"] }
+    omnigen2: # Omnigen 2
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: { class: ["Omnigen2"] }
+            sdnext: { class: ["OmniGen2Pipeline"] }
+            comfyui: { class: ["Omnigen2"] }
+    flux2: # Flux 2
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: { class: ["Flux2K4B", "Flux2K9B"] }
+            reforge: null
+            sdnext: { class: ["Flux2Pipeline", "Flux2KleinPipeline"] }
+            comfyui: { class: ["Flux2", "Flux2K4B", "Flux2K9B"] }
+    kandinsky5: # Kandinsky 5
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: null
+            sdnext: { class: ["Kandinsky5T2IPipeline"] }
+            comfyui: { class: ["Kandinsky5", "Kandinsky5Image"] }
+    anima: # Anima
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: { class: ["Anima"] }
+            reforge: null
+            sdnext: { class: ["AnimaText2ImagePipeline"] }
+            comfyui: { class: ["Anima"] }
+    longcatimage: # LongCatImage
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: null
+            sdnext: { class: ["LongCatImagePipeline"] }
+            comfyui: { class: ["LongCatImage"] }
+    ernieimage: # ErnieImage
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: { class: ["ErnieImage"] }
+            reforge: null
+            sdnext: { class: ["ErnieImagePipeline"] }
+            comfyui: { class: ["ErnieImage"] }
+    mugen: # Mugen
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: { class: ["Mugen"] }
+            reforge: null
+            sdnext: null
+            comfyui: { class: ["Mugen"] }
+    cogvideox: # CogVideoX
+        detect:
+            a1111: null
+            forge: null
+            forgeneo: null
+            reforge: null
+            sdnext: null
+            comfyui: { class: ["CogVideoX_T2V", "CogVideoX_I2V", "CogVideoX_Inpaint"] }

@@ -1,0 +1,39 @@
+{
+  "name": "comfyui-doctor",
+  "version": "1.9.0",
+  "description": "A real-time runtime diagnostics suite for ComfyUI",
+  "private": true,
+  "scripts": {
+    "pretest": "node scripts/preflight-js.mjs",
+    "pretest:integration": "node scripts/preflight-js.mjs",
+    "test": "node scripts/run-playwright.mjs",
+    "test:integration": "node scripts/run-playwright.mjs --include-integration --grep @integration --workers=1",
+    "test:stress": "node scripts/run-playwright.mjs --include-stress --grep @stress --workers=1",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report",
+    "test:unit": "vitest run tests/unit",
+    "install-browsers": "playwright install chromium",
+    "preflight:js": "node scripts/preflight-js.mjs",
+    "supply-chain:check": "python scripts/check_supply_chain.py --skip-install-trees"
+  },
+  "keywords": [
+    "comfyui",
+    "diagnostics",
+    "testing"
+  ],
+  "author": "rookiestar",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "acorn": "^8.15.0",
+    "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "vite": "6.4.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

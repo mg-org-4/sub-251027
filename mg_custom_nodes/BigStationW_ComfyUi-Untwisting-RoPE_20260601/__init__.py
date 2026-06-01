@@ -156,7 +156,7 @@ def _velocity_from_pred(
 # RF utility helpers
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_GAMMA_RF_MODES = {'rf_gamma', 'rf_gamma_rk2'}
+_GAMMA_RF_MODES = {'rf_gamma', 'rf_gamma_rk2', 'gnri'}
 
 def _coerce_gamma_curve(value: Any = 0.0) -> float:
     """Clamp gamma_curve to the supported range."""
@@ -274,66 +274,91 @@ def _rf_match_mean_std(x: torch.Tensor, target: torch.Tensor, strength: float = 
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class _PMIState:
-    """Carries running velocity mean across steps for PMI inversion."""
-    def __init__(self) -> None:
-        self.v_mean: Optional[torch.Tensor] = None
+    def __init__(self, pmi_dim: int = 22, eps: float = 1e-12) -> None:
+        self.mean_velocity: Optional[torch.Tensor] = None
+        self.prev_corrected_velocity: Optional[torch.Tensor] = None
         self.step_count: int = 0
-        self.v_norm_sq_mean: float = 0.0
+        self.pmi_dim: int = max(1, int(pmi_dim))
+        self.eps: float = float(eps)
 
     def reset(self) -> None:
-        self.v_mean = None
+        self.mean_velocity = None
+        self.prev_corrected_velocity = None
         self.step_count = 0
+
+    def _grad_norm(self, grad: torch.Tensor) -> torch.Tensor:
+        dims = tuple(range(1, grad.ndim))
+        if not dims:
+            return grad.detach().abs().clamp_min(self.eps)
+        return torch.linalg.vector_norm(
+            grad.detach().float(), ord=2, dim=dims, keepdim=True
+        ).to(dtype=grad.dtype).clamp_min(self.eps)
 
     def update_and_correct(
         self,
         v_model: torch.Tensor,
-        alpha: float = 0.5,
+        delta_t: float,
+        t_next: float,
+        strength: float = 1.0,
+        post_update_corrected: bool = False,
     ) -> torch.Tensor:
         """
-        Update the running mean and return the PMI-corrected velocity.
+        Apply the PMI proximal-gradient velocity correction.
 
-        alpha: blend weight toward the running mean (0 = pure model, 1 = pure mean).
-               Paper suggests ~0.3–0.5 gives best stability without loss of fidelity.
+        strength is a radius multiplier: 0 disables the correction, 1 matches the
+        official radius. Values between 0 and 1 are useful as a conservative UI
+        control while preserving the official update form.
         """
-        alpha = max(0.0, min(1.0, float(alpha)))
-
-        k = self.step_count  # steps seen so far, 0-indexed before update
-
-        # ── Cumulative arithmetic mean (paper eq.) ───────────────────────
-        if self.v_mean is None:
-            self.v_mean = v_model.detach().clone()
-            self.v_norm_sq_mean = float(v_model.detach().float().pow(2).mean().item())
-            self.step_count = 1
+        strength = max(0.0, min(1.0, float(strength)))
+        if strength <= 0.0:
             return v_model
 
-        # incremental update: v̄_k = v̄_{k-1} * (k-1)/k + v_k / k
-        k_new = k + 1
-        self.v_mean = (self.v_mean * (k / k_new)
-                    + v_model.detach() * (1.0 / k_new)).to(
-                        device=v_model.device, dtype=v_model.dtype)
-        self.v_norm_sq_mean = (
-            self.v_norm_sq_mean * (k / k_new)
-            + float(v_model.detach().float().pow(2).mean().item()) * (1.0 / k_new)
-        )
-        self.step_count = k_new
+        dt = float(delta_t)
+        if not math.isfinite(dt) or abs(dt) <= self.eps:
+            return v_model
 
-        # ── Linear blend toward mean ─────────────────────────────────────
-        v_corrected = (1.0 - alpha) * v_model + alpha * self.v_mean
+        t_next_f = float(t_next)
+        if not math.isfinite(t_next_f):
+            return v_model
 
-        # ── Spherical Gaussian projection (paper constraint) ─────────────
-        # The paper keeps v_corrected within a ball of radius = ||v_model - v̄||
-        # centred on v̄, so the blend never overshoots the model velocity.
-        delta_model = v_model - self.v_mean
-        delta_corr  = v_corrected - self.v_mean
+        device = v_model.device
+        dtype = v_model.dtype
+        v_detached = v_model.detach()
 
-        r_sq = float(delta_model.detach().float().pow(2).mean().item())
-        c_sq = float(delta_corr.detach().float().pow(2).mean().item())
+        # Official PMI accumulates the time-weighted velocity, then normalizes it
+        # by the next inverse-time value to get the mean-flow velocity.
+        increment = (dt * v_detached).to(device=device, dtype=dtype)
+        if self.mean_velocity is None:
+            self.mean_velocity = increment.clone()
+        else:
+            self.mean_velocity = self.mean_velocity.to(device=device, dtype=dtype) + increment
 
-        if c_sq > r_sq and r_sq > 0.0:
-            scale = math.sqrt(r_sq / c_sq)
-            v_corrected = self.v_mean + scale * delta_corr
+        denom = t_next_f if abs(t_next_f) > self.eps else (self.eps if t_next_f >= 0.0 else -self.eps)
+        pred_mean = (self.mean_velocity.to(device=device, dtype=dtype) / denom).detach()
 
-        return v_corrected
+        # ComfyUI samplers usually run under torch.no_grad(), and some setups use
+        # inference-mode-style wrappers. Do not call autograd here. The official
+        # PMI objective has a closed-form gradient:
+        #   grad 0.5||v - v_mean||_2^2 = v - v_mean
+        #   grad ||v - v_prev||_1       = sign(v - v_prev)
+        # Computing it analytically keeps the official PMI update usable inside
+        # Comfy's no-grad sampling path without adding any model evaluations.
+        pred = v_detached
+        grad = (pred.float() - pred_mean.float()).to(dtype=dtype)
+        if self.prev_corrected_velocity is not None:
+            prev = self.prev_corrected_velocity.to(device=device, dtype=dtype).detach()
+            grad = grad + (pred.float() - prev.float()).sign().to(dtype=dtype)
+
+        radius = math.sqrt(2.0 * self.pmi_dim + 3.0 * math.sqrt(2.0 * self.pmi_dim)) * abs(dt) * strength
+        corrected = (pred - radius * (grad / self._grad_norm(grad))).to(dtype=dtype)
+
+        self.prev_corrected_velocity = corrected.detach().clone()
+        self.step_count += 1
+
+        if post_update_corrected:
+            self.mean_velocity = self.mean_velocity.to(device=device, dtype=dtype) + dt * corrected.detach()
+
+        return corrected
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Main RF trajectory builder
@@ -359,7 +384,7 @@ def _rf_build_cache_from_sampler_sigmas(
     """
     norm_strength = _coerce_norm_strength(norm_strength)
     mode, gamma_curve = _normalize_rf_mode_and_gamma_curve(rf_mode, gamma_curve)
-    valid_modes = {'linear', 'rf_gamma', 'rf_gamma_rk2', 'fireflow'}
+    valid_modes = {'linear', 'rf_gamma', 'rf_gamma_rk2', 'fireflow', 'gnri'}
     if mode not in valid_modes:
         raise ValueError(
             f"Invalid rf_mode={mode!r}. Expected one of {sorted(valid_modes)}."
@@ -440,6 +465,9 @@ def _rf_build_cache_from_sampler_sigmas(
     rf_total_steps = max(1, len(sigmas) - 1)
     rf_progress_start_time = time.time()
 
+    # RF step quality diagnostics.
+    path_prev_speed: Optional[float] = None
+
     for step_index in vp._rf_step_iterator(rf_total_steps):
         step_i = int(step_index) + 1
         s = sigmas[step_i]
@@ -471,14 +499,45 @@ def _rf_build_cache_from_sampler_sigmas(
             vm_sum += float(v.abs().mean().item())
             return v, True, raw
 
-        def _apply_pmi_if_enabled(v: torch.Tensor) -> torch.Tensor:
+        def _apply_pmi_if_enabled(
+            v: torch.Tensor,
+            pmi_time: float,
+            *,
+            post_update_corrected: bool = False,
+        ) -> torch.Tensor:
             if not use_pmi:
                 return v
-            return pmi_state.update_and_correct(v, alpha=pmi_alpha_eff)
+            return pmi_state.update_and_correct(
+                v,
+                delta_t=delta,
+                t_next=pmi_time,
+                strength=pmi_alpha_eff,
+                post_update_corrected=post_update_corrected,
+            )
 
         if mode == 'linear':
             z = _rf_linear_target(ref_clean, eps, sigma_cur)
             extra = 'linear_target'
+
+        elif mode == 'gnri':
+            # Official-style GNRI single-pass mode.
+            # With a single iteration, the official GNRI code returns the first
+            # detached candidate; no Newton refinement is re-evaluated by the model.
+            denom_prev = max(1.0 - sigma_prev, 1e-7)
+            v_model, ok, raw_preview = _call_model_as_velocity(z.detach(), sigma_prev, ' gnri')
+            vm_abs = float(v_model.detach().abs().mean().item())
+
+            v_prior = (eps - z.detach()) / denom_prev
+            vp_abs = float(v_prior.detach().abs().mean().item())
+            vp_sum += vp_abs
+
+            v_total = gamma_eff * v_model + (1.0 - gamma_eff) * v_prior
+            v_total = _apply_pmi_if_enabled(v_total, sigma_cur, post_update_corrected=True)
+            z = (z.detach() + delta * v_total).detach()
+            _preview_once(step_i - 1, raw_preview, z)
+            extra = 'GNRI i=1'
+            if use_pmi:
+                extra += f'  PMI step={pmi_state.step_count}'
 
         elif mode == 'fireflow':
             # ── (Deng et al., ICML 2025) ─────────
@@ -496,7 +555,7 @@ def _rf_build_cache_from_sampler_sigmas(
             v_mid, ok, raw_preview_mid = _call_model_as_velocity(z_mid, sigma_mid, ' mid')
             vm_abs_mid = float(v_mid.abs().mean().item())
 
-            v_mid_total = _apply_pmi_if_enabled(v_mid)
+            v_mid_total = _apply_pmi_if_enabled(v_mid, sigma_cur, post_update_corrected=False)
             next_step_velocity = v_mid_total.detach().clone()
             z = z + delta * v_mid_total
             _preview_once(step_i - 1, raw_preview_mid, z)
@@ -530,7 +589,7 @@ def _rf_build_cache_from_sampler_sigmas(
                 vp_sum += vp_abs_mid
 
                 v_total = gamma_eff * v_model_mid + (1.0 - gamma_eff) * v_prior_mid
-                v_total = _apply_pmi_if_enabled(v_total)
+                v_total = _apply_pmi_if_enabled(v_total, sigma_cur, post_update_corrected=True)
                 z = z + delta * v_total
                 _preview_once(step_i - 1, raw_preview_mid, z)
                 extra = f'mid |v_model_mid|={vm_abs_mid:.5f}'
@@ -538,7 +597,7 @@ def _rf_build_cache_from_sampler_sigmas(
                     extra += f'  PMI step={pmi_state.step_count}'
             else:
                 v_total = gamma_eff * v_model + (1.0 - gamma_eff) * v_prior
-                v_total = _apply_pmi_if_enabled(v_total)
+                v_total = _apply_pmi_if_enabled(v_total, sigma_cur, post_update_corrected=True)
                 z = z + delta * v_total
                 _preview_once(step_i - 1, raw_preview, z)
                 if use_pmi:
@@ -555,6 +614,7 @@ def _rf_build_cache_from_sampler_sigmas(
         z_min  = float(z.min().item())
         z_max  = float(z.max().item())
         dz_abs = float((z - z_prev).abs().mean().item())
+
         cache[round(sigma_cur, 6)] = z.detach().clone()
 
         vp._rf_vprint(stats,
@@ -564,6 +624,16 @@ def _rf_build_cache_from_sampler_sigmas(
             f'|model|={vm_abs:.5f}  |prior|={vp_abs:.5f}  |Δz|={dz_abs:.5f}  {extra}\n'
             f'{vp._rf_prefix(stats)}       z_σ mean={z_mean:.4f}  std={z_std:.4f}  '
             f'min={z_min:.4f}  max={z_max:.4f}'
+        )
+        path_prev_speed = vp._rf_print_step_quality(
+            stats,
+            ref_clean=ref_clean,
+            eps=eps,
+            z=z,
+            sigma_cur=sigma_cur,
+            delta=delta,
+            dz_abs=dz_abs,
+            path_prev_speed=path_prev_speed,
         )
 
         vp._rf_progress_snapshot(
@@ -778,6 +848,14 @@ def _sigma_to_progress(timestep: torch.Tensor, sampler_sigmas: List[float]) -> f
 
 def _lerp(a: float, b: float, t: float) -> float:
     return float(a + (b - a) * t)
+
+def _triangle_ramp01(progress: Any) -> float:
+    """0→1 from progress 0→0.5, then 1→0 from progress 0.5→1."""
+    p = _coerce_strength01(progress)
+    return max(0.0, min(1.0, 1.0 - abs((2.0 * p) - 1.0)))
+
+def _triangle_ramp_to_target(target: float, progress: Any) -> float:
+    return _lerp(0.0, _coerce_strength01(target), _triangle_ramp01(progress))
 
 def _repeat_conditioning_tree(obj: Any, src: int, tgt: int) -> Any:
     if torch.is_tensor(obj):
@@ -1414,9 +1492,11 @@ def _apply_qkv_shared_effects(
         cfg['_debug_qk_adain_ranges'] = list(ranges)
 
     # Shared key-subspace Gram-Schmidt alignment.
+    # Triangular ramp: 0.0 at progress=0, target at progress=0.5, back to 0.0 at progress=1.
     key_subspace_target = _coerce_strength01(cfg.get('key_subspace_alignment', 0.0))
-    key_subspace_progress = _coerce_strength01(cfg.get('progress', 1.0))
-    key_subspace = _lerp(0.0, key_subspace_target, key_subspace_progress)
+    key_subspace_progress = _coerce_strength01(cfg.get('progress', 0.0))
+    key_subspace_ramp = _triangle_ramp01(key_subspace_progress)
+    key_subspace = _lerp(0.0, key_subspace_target, key_subspace_ramp)
     if key_subspace > 0.0:
         k_bshd = k_bshd.clone()
         for s, e in ranges:
@@ -1439,11 +1519,16 @@ def _apply_qkv_shared_effects(
         cfg['_debug_key_subspace_alignment_strength'] = float(key_subspace)
         cfg['_debug_key_subspace_alignment_target'] = float(key_subspace_target)
         cfg['_debug_key_subspace_alignment_progress'] = float(key_subspace_progress)
+        cfg['_debug_key_subspace_alignment_ramp'] = float(key_subspace_ramp)
         cfg['_debug_key_subspace_alignment_module'] = str(module_name)
         cfg['_debug_key_subspace_alignment_ranges'] = list(ranges)
 
-    # Shared cosine-gated V injection:
-    cosine_v_inj = _coerce_strength01(cfg.get('cosine_gated_v_injection', 0.0))
+    # Shared cosine-gated V injection.
+    # Triangular ramp: 0.0 at progress=0, target at progress=0.5, back to 0.0 at progress=1.
+    cosine_v_inj_target = _coerce_strength01(cfg.get('cosine_gated_v_injection', 0.0))
+    cosine_v_inj_progress = _coerce_strength01(cfg.get('progress', 0.0))
+    cosine_v_inj_ramp = _triangle_ramp01(cosine_v_inj_progress)
+    cosine_v_inj = _lerp(0.0, cosine_v_inj_target, cosine_v_inj_ramp)
     if cosine_v_inj > 0.0:
         v_bshd = v_bshd.clone()
         for s, e in ranges:
@@ -1460,11 +1545,18 @@ def _apply_qkv_shared_effects(
             )
 
         cfg['_debug_cosine_gated_v_injection_strength'] = float(cosine_v_inj)
+        cfg['_debug_cosine_gated_v_injection_target'] = float(cosine_v_inj_target)
+        cfg['_debug_cosine_gated_v_injection_progress'] = float(cosine_v_inj_progress)
+        cfg['_debug_cosine_gated_v_injection_ramp'] = float(cosine_v_inj_ramp)
         cfg['_debug_cosine_gated_v_injection_module'] = str(module_name)
         cfg['_debug_cosine_gated_v_injection_ranges'] = list(ranges)
 
-    # Shared variance-gated V-AdaIN:
-    var_v_adain = _coerce_strength01(cfg.get('variance_gated_v_adain', 0.0))
+    # Shared variance-gated V-AdaIN.
+    # Triangular ramp: 0.0 at progress=0, target at progress=0.5, back to 0.0 at progress=1.
+    var_v_adain_target = _coerce_strength01(cfg.get('variance_gated_v_adain', 0.0))
+    var_v_adain_progress = _coerce_strength01(cfg.get('progress', 0.0))
+    var_v_adain_ramp = _triangle_ramp01(var_v_adain_progress)
+    var_v_adain = _lerp(0.0, var_v_adain_target, var_v_adain_ramp)
     if var_v_adain > 0.0:
         v_bshd = v_bshd.clone()
         eps = 1e-6
@@ -1486,6 +1578,9 @@ def _apply_qkv_shared_effects(
             v_bshd[:target_bsz, s:e] = v_t * (1.0 - alpha) + v_t_adain * alpha
 
         cfg['_debug_variance_gated_v_adain'] = float(var_v_adain)
+        cfg['_debug_variance_gated_v_adain_target'] = float(var_v_adain_target)
+        cfg['_debug_variance_gated_v_adain_progress'] = float(var_v_adain_progress)
+        cfg['_debug_variance_gated_v_adain_ramp'] = float(var_v_adain_ramp)
         cfg['_debug_variance_gated_v_adain_module'] = str(module_name)
         cfg['_debug_variance_gated_v_adain_ranges'] = list(ranges)
 
@@ -1545,7 +1640,11 @@ def _apply_attention_output_shared_effects(
     seqlen = int(out_t.shape[1])
     ranges = _shared_effect_ranges(cfg, seqlen, token_ranges)
 
-    post_a = _coerce_strength01(cfg.get('post_attention_adain_strength', 0.0))
+    # Triangular ramp: 0.0 at progress=0, target at progress=0.5, back to 0.0 at progress=1.
+    post_a_target = _coerce_strength01(cfg.get('post_attention_adain_strength', 0.0))
+    post_a_progress = _coerce_strength01(cfg.get('progress', 0.0))
+    post_a_ramp = _triangle_ramp01(post_a_progress)
+    post_a = _lerp(0.0, post_a_target, post_a_ramp)
     if post_a > 0.0:
         out_t = out_t.clone()
         for s, e in ranges:
@@ -1559,6 +1658,9 @@ def _apply_attention_output_shared_effects(
             out_t[:, s:e] = t_slice * (1.0 - post_a) + _adain(t_slice, r_slice, eps=1e-6) * post_a
 
         cfg['_debug_post_attention_adain_strength'] = float(post_a)
+        cfg['_debug_post_attention_adain_target'] = float(post_a_target)
+        cfg['_debug_post_attention_adain_progress'] = float(post_a_progress)
+        cfg['_debug_post_attention_adain_ramp'] = float(post_a_ramp)
         cfg['_debug_post_attention_adain_module'] = str(module_name)
         cfg['_debug_post_attention_adain_ranges'] = list(ranges)
 
@@ -2101,10 +2203,10 @@ class RFInversion:
                 'model': ('MODEL',),
                 'reference_latent': ('LATENT',),
                 'ref_conditioning': ('CONDITIONING',),
-                'rf_mode': (['linear', 'rf_gamma', 'rf_gamma_rk2', 'fireflow'], {
-                    'default': 'rf_gamma',
+                'rf_mode': (['linear', 'rf_gamma', 'rf_gamma_rk2', 'fireflow', 'gnri'], {
+                    'default': 'gnri',
                     'tooltip': (
-                        'Selects the ODE solver used to build the noisy reference trajectory: linear (no model calls -> random noise), rf_gamma (Euler), rf_gamma_rk2 (Runge-Kutta midpoint), or fireflow (FireFlow recurrence).'
+                        'Selects the ODE solver used to build the noisy reference trajectory: linear (no model calls -> random noise), rf_gamma (Euler), rf_gamma_rk2 (Runge-Kutta midpoint), fireflow (FireFlow recurrence), or gnri (single-pass guided Newton-Raphson inversion step).'
                     ),
                 }),
                 'gamma': ('FLOAT', {
@@ -2129,11 +2231,11 @@ class RFInversion:
                     'tooltip': "After each RF step, blends the latent's mean/std toward the linear target to prevent feature drift; 0 = off, 1 = full correction."
                 }),
                 'pmi_alpha': ('FLOAT', {
-                    'default': 0.5,
+                    'default': 0.0,
                     'min': 0.0,
                     'max': 1.0,
                     'step': 0.05,
-                    'tooltip': 'PMI (Proximal-Mean Inversion) smooths out the velocity estimation by using a running mean across steps, 0 disables PMI.'
+                    'tooltip': 'Proximal-Mean Inversion: 0 disables PMI; 1.0 matches the official radius. Applies to GNRI, RF gamma, RK2, and FireFlow.'
                 }),
                 'verbose': ('BOOLEAN', {
                     'default': False,
@@ -2150,7 +2252,7 @@ class RFInversion:
         gamma=0.3,
         gamma_curve=0.0,
         norm_strength=0.0,
-        pmi_alpha=0.4,
+        pmi_alpha=0.0,
         verbose=False,
         ref_conditioning=None,
     ):
@@ -2669,7 +2771,8 @@ class UntwistingRoPE:
             vp._vprint(stats,
                 f'{vp._PREFIX} RF trajectory: mode={rf_mode}  gamma={gamma}  '
                 f'gamma_curve={gamma_curve:.3f}  '
-                f'norm_strength={norm_strength}  pmi_alpha={pmi_alpha}  seed={seed}'
+                f'norm_strength={norm_strength}  pmi_alpha={pmi_alpha}  '
+                f'seed={seed}'
             )
             vp._vprint(stats, f'{vp._PREFIX} RF schedule: captured from sampler at runtime; no SIGMAS input')
 

@@ -1,0 +1,211 @@
+%import common (CNAME, INT, SIGNED_NUMBER, NUMBER)
+
+_WHITESPACE:         /\s+/
+STRING:              /("(?!"").*?(?<!\\)(\\\\)*?"|'(?!'').*?(?<!\\)(\\\\)*?')/i // string with single or double quotes
+BOOLEAN:             /true|false/i
+WC_NAME_PLAIN_START: /(?:(?!__|\$\$|\$\{|<ppp:|[('"])[a-zA-Z0-9\-.\\\/\*\?\[!\]])+/u // starting characters, excluding end and other inside constructs
+WC_NAME_PLAIN:       /(?:(?!__|\$\$|\$\{|<ppp:|[('"])[a-zA-Z0-9\-.\\\/\*\?\[!\]_#])+/u // continuing characters, including globbing characters and anonymous wildcard mark, excluding end and other inside constructs
+INDEX:               INT
+IDENTIFIER:          CNAME
+SIMPLEVALUE:         STRING | SIGNED_NUMBER | BOOLEAN
+VARNAME:             /(?!__)[a-zA-Z_][a-zA-Z0-9_]*/
+
+// plain text and weights
+?plain:                  /((?!__|\bAND\b|\${|\x1d)[^\\()\[\]:<>${]|\\.)+/s // exclude only the starting ones
+?plain_choice:           /((?!__|\bAND\b|\${|\$\$)[^\\()\[\]:<>${|}~@]|\\.)+/s // add the specific internal choice ones
+?plain_alternate:        /((?!__|\bAND\b|\${)[^\\()\[\]:<>${|]|\\.)+/s // add the specific internal alternate ones
+?plain_var:              /((?!__|\bAND\b|\${)[^\\()\[\]:<>${}]|\\.)+/s  // add the specific internal var ones
+?specialchars:           /[_{()\[\]:<>]|\$(?![{$])/ // include only the starting ones
+?specialchars_negtag:    /[_{()\[\]:<>!|}]|\$(?![{$])/ // add the internal negtag ones
+?specialchars_alternate: /[_{()\[\]:<>|]|\$(?![{$])/ // add the internal alternate ones
+?specialchars_choice:    /[_{()\[\]:<>|}]|\$(?![{$])/ // add the internal choice ones
+?specialchars_var:       /[_{()\[\]:<>}]|\$(?![{$])/ // add the internal var ones
+?numpar: _WHITESPACE? SIGNED_NUMBER _WHITESPACE?
+
+start: prompt negative_sep prompt
+?prompt: promptcomp | content
+negative_sep: /\x1d/
+
+// prompt composition with AND
+promptcomp.5: promptcomppart ( [ ":" numpar ] ( /\bAND\b/ promptcomppart [ ":" numpar ] )+ )+
+promptcomppart: content
+
+// simple prompts
+
+?old_content.3: ( attention | scheduled | alternate | extranetworktag )+
+//#if ALLOW_NEW_CONTENT
+    ?content.3: ( old_content | new_content | plain | specialchars )*
+    ?content_choice.3: ( old_content | new_content | plain_choice | specialchars_choice )*
+    ?content_var.3: ( old_content | new_content | plain_var | specialchars_var )*
+    ?content_negtag.3: ( old_content | new_content_negtag | plain | specialchars_negtag )*
+    ?content_alternate.3: ( old_content | new_content | plain_alternate | specialchars_alternate )*
+    ?content_en.3: (new_content_en | plain | specialchars )*
+    //#if ALLOW_WILDCARDS and ALLOW_CHOICES and ALLOW_COMMVARS
+        ?new_content.4: ( variableset | variableuse | commandstn | commandstni | commandset | commandecho | commandif | commandext | commandsetwcdeffilter | wildcard | choices )+
+        ?new_content_negtag.4: ( variableset | variableuse | commandset | commandecho | commandif | commandext | commandsetwcdeffilter | wildcard | choices )+
+        ?new_content_en.4: ( variableset | variableuse | commandset | commandecho | commandif | choices )+
+    //#elif ALLOW_WILDCARDS and not ALLOW_CHOICES and ALLOW_COMMVARS
+        ?new_content.4: ( variableset | variableuse | commandstn | commandstni | commandset | commandecho | commandif | commandext | commandsetwcdeffilter | wildcard )+
+        ?new_content_negtag.4: ( variableset | variableuse | commandset | commandecho | commandif | commandext | commandsetwcdeffilter | wildcard )+
+        ?new_content_en.4: ( variableset | variableuse | commandset | commandecho | commandif )+
+    //#elif not ALLOW_WILDCARDS and ALLOW_CHOICES and ALLOW_COMMVARS
+        ?new_content.4: ( variableset | variableuse | commandstn | commandstni | commandset | commandecho | commandif | commandext | choices )+
+        ?new_content_negtag.4: ( variableset | variableuse | commandset | commandecho | commandif | commandext | choices )+
+        ?new_content_en.4: ( variableset | variableuse | commandset | commandecho | commandif | choices )+
+    //#elif ALLOW_WILDCARDS and ALLOW_CHOICES and not ALLOW_COMMVARS
+        ?new_content.4: ( wildcard | choices )+
+        ?new_content_negtag.4: ( wildcard | choices )+
+        ?new_content_en.4: ( choices )+
+    //#elif ALLOW_WILDCARDS and not ALLOW_CHOICES and not ALLOW_COMMVARS
+        ?new_content.4: ( wildcard )+
+        ?new_content_negtag.4: ( wildcard )+
+        ?new_content_en.4: /(?!)./ // never matches
+    //#elif not ALLOW_WILDCARDS and ALLOW_CHOICES and not ALLOW_COMMVARS
+        ?new_content.4: ( choices )+
+        ?new_content_negtag.4: ( choices )+
+        ?new_content_en.4: ( choices )+
+    //#elif not ALLOW_WILDCARDS and not ALLOW_CHOICES and ALLOW_COMMVARS
+        ?new_content.4: ( variableset | variableuse | commandstn | commandstni | commandset | commandecho | commandif | commandext )+
+        ?new_content_negtag.4: ( variableset | variableuse | commandset | commandecho | commandif | commandext )+
+        ?new_content_en.4: ( variableset | variableuse | commandset | commandecho | commandif )+
+    //#else
+        ?new_content.4: ( variableset | variableuse | commandstn | commandstni | commandset | commandecho | commandif | commandext | commandsetwcdeffilter | wildcard | choices )+
+        ?new_content_negtag.4: ( variableset | variableuse | commandset | commandecho | commandif | commandext | commandsetwcdeffilter | wildcard | choices )+
+        ?new_content_en.4: ( variableset | variableuse | commandset | commandecho | commandif | choices )+
+    //#endif
+//#else
+    ?content.3: ( old_content | plain | specialchars )*
+    ?content_choice.3: ( old_content | plain_choice | specialchars_choice )*
+    ?content_var.3: ( old_content | plain_var | specialchars_var )*
+    ?content_negtag.3: ( old_content | plain | specialchars_negtag )*
+    ?content_alternate.3: ( old_content | plain_alternate | specialchars_alternate )*
+    ?content_en.3: (plain | specialchars )*
+//#endif
+
+// attention modifiers
+attention: ( "(" content [ ":" numpar ] ")" ) | ( "[" content "]" )
+
+// prompt scheduling and alternation
+alternate: "[" alternateoption ( "|" alternateoption )+ "]"
+alternateoption: content_alternate
+scheduled: "[" [ content ":" ] content ":" numpar "]"
+
+// extra network tags
+extranetworktag: "<" /(?!ppp:)\w+:/ encontent ">"
+?encontent.4: content_en
+
+//#if ALLOW_COMMVARS or ALLOW_CHOICES or ALLOW_WILDCARDS
+    vardescriptor_get.8: VARNAME [ /\[/ [ SIGNED_NUMBER | IDENTIFIER | separator_descriptor | /#/ ] /\]/ ]
+    separator_descriptor: /&/ STRING
+    vardescriptor_set.9: VARNAME [ /\[/ [ SIGNED_NUMBER | IDENTIFIER ] /\]/ ]
+
+    // conditions
+    ?condition:    operation_or
+    ?operation_or:  operation_and | operation_or _WHITESPACE "or"  _WHITESPACE operation_and
+    ?operation_and: atom_cond    | operation_and _WHITESPACE "and" _WHITESPACE atom_cond
+    ?atom_cond:    operation_not | grouped_condition | basic_condition
+    operation_not: "not" ( ( _WHITESPACE atom_cond ) | ( _WHITESPACE? grouped_condition ) )
+    ?grouped_condition.8: "(" _WHITESPACE? condition _WHITESPACE? ")"
+    ?basic_condition: comparison | truthy_operand
+    ?complexvalue: vardescriptor_get | SIMPLEVALUE
+    truthy_operand: vardescriptor_get
+    comparison: ( complexvalue | listvalue ) _WHITESPACE ( /not/ _WHITESPACE )? /eq|ne|lt|gt|le|ge|contains|in|any_in|contains_any/ _WHITESPACE ( complexvalue | listvalue )
+    listvalue.9: "(" ( _WHITESPACE? complexvalue ( _WHITESPACE? "," _WHITESPACE? complexvalue )* )? _WHITESPACE? ")"
+    varvalue: content_var
+//#endif
+
+//#if ALLOW_COMMVARS
+    // command: stn (send to negative)
+    commandstn: "<ppp:stn" [ _WHITESPACE /s|e|p\d/ ] _WHITESPACE? ">" content_negtag "<ppp:/stn>"
+    commandstni: "<ppp:stn" _WHITESPACE /i\d/ _WHITESPACE? ( "/>" | ">" ) // ">" ending for backward compatibility
+
+    // command: if
+    commandif: commandif_if commandif_elif* commandif_else? "<ppp:/if>"
+    commandif_if: "<ppp:if" _WHITESPACE condition _WHITESPACE? ">" ifvalue
+    commandif_elif: "<ppp:elif" _WHITESPACE condition _WHITESPACE? ">" ifvalue
+    commandif_else: "<ppp:else" _WHITESPACE? ">" ifvalue
+    ifvalue: content
+
+    // command: set
+    commandset: "<ppp:set" _WHITESPACE vardescriptor_set [ commandsetmodifiers ] _WHITESPACE? ">" ( starredvalue | commandsetcontent ) "<ppp:/set>"
+    commandsetmodifiers: (_WHITESPACE /evaluate|ifundefined|add/ )+
+    ?commandsetcontent: content
+
+    // variable set
+    //#if ALLOW_WILDCARDS
+    starredvalue.9: "*" ( wildcard | vardescriptor_get | listvalue )
+    //#else
+    starredvalue.9: "*" ( vardescriptor_get | listvalue )
+    //#endif
+    variableset: "${" _WHITESPACE? vardescriptor_set [ variablesetmodifiers ] _WHITESPACE? "=" [ /!/ ] ( starredvalue | varvalue ) "}"
+    variablesetmodifiers: /[+?!]+/
+
+    // command: echo
+    commandecho: "<ppp:echo" _WHITESPACE vardescriptor_get _WHITESPACE? ( ">" [ commandechodefault "<ppp:/echo>" ] | "/>" )
+    ?commandechodefault: content
+
+    // variable use
+    variableuse: "${" _WHITESPACE? vardescriptor_get _WHITESPACE? [ ":" varvalue ] "}"
+
+    // command: ext
+    commandext: "<ppp:ext" _WHITESPACE commandexttype _WHITESPACE commandextid [ _WHITESPACE? commandextparams ] [ _WHITESPACE? commandextif ] _WHITESPACE? ( ">" [ commandexttriggers "<ppp:/ext>" ] | "/>" )
+    commandexttype: [/\$/] IDENTIFIER
+    ?commandextid.3: STRING | CNAME
+    ?commandextparams: STRING | SIGNED_NUMBER
+    ?commandextif: "if" _WHITESPACE condition
+    ?commandexttriggers.4: content
+//#endif
+
+//#if ALLOW_CHOICES or ALLOW_WILDCARDS
+    // choices parameters (for choices and wildcards)
+    choicesoptions: [ choicesoptions_sampler ] [ _WHITESPACE? choicesoptions_flags ] [ _WHITESPACE? choicesoptions_range ] [ _WHITESPACE? choicesoptions_sep ]
+    choicesoptions_sampler: /[~@]/ // ~ for random, @ for cyclical
+    choicesoptions_flags: /[ro]{1,2}/ // r for repeating, o for optional
+    choicesoptions_range: INT | ( [ INT ] _WHITESPACE? "-" _WHITESPACE? [ INT ] )
+    choicesoptions_sep: "$$" plain
+
+    // choice options
+    choice: [ [ _WHITESPACE? choiceiscmd ] [ _WHITESPACE? choicelabels ] [ _WHITESPACE? choiceweight ] [ _WHITESPACE? choiceif ] _WHITESPACE? "::" ] choicevalue
+    choiceiscmd: /%/ // the option text is a special command
+    choicelabels: ( /"/ IDENTIFIER ( _WHITESPACE? "," _WHITESPACE? IDENTIFIER )* /"/ )
+                | ( /'/ IDENTIFIER ( _WHITESPACE? "," _WHITESPACE? IDENTIFIER )* /'/ )
+    choiceweight: NUMBER
+    choiceif: "if" _WHITESPACE condition
+    choicevalue: content_choice
+//#endif
+
+//#if ALLOW_CHOICES
+    // choices construct
+    choices: "{" [ choicesoptions_sampler | ( choicesoptions _WHITESPACE? "$$" ) ] choice ( "|" choice )* "}"
+//#endif
+
+//#if ALLOW_WILDCARDS
+    // wildcard definition options
+    wcdefoptions: [ choicesoptions_sampler ] [ _WHITESPACE? choicesoptions_flags ] [ _WHITESPACE? choicesoptions_range ] [ _WHITESPACE? wcdescription ] [ _WHITESPACE? choicesoptions_sep ]
+    wcdescription: STRING
+
+    // wildcards construct
+    wildcard: "__" [ choicesoptions_sampler | ( choicesoptions _WHITESPACE? "$$" ) ] wildcard_name [ wc_filter ] [ wildcardvar ] "__"
+    wc_filter_nums: IDENTIFIER | INDEX | (INDEX /-/ INDEX)
+    //#if ALLOW_COMMVARS
+        wildcard_name.2: ( WC_NAME_PLAIN_START | variableuse | commandecho ) ( WC_NAME_PLAIN | variableuse | commandecho )*
+        wc_filter_simple: wc_filter_nums | variableuse
+    //#else
+        wildcard_name.2: ( WC_NAME_PLAIN_START) WC_NAME_PLAIN*
+        wc_filter_simple: wc_filter_nums
+    //#endif
+    wc_filter: ( /"/ ( [ /#/ ] wc_filter_or | ( /#?\^/ wildcard_name ) ) /"/ )
+             | ( /'/ ( [ /#/ ] wc_filter_or | ( /#?\^/ wildcard_name ) ) /'/ )
+    wc_filter_or: wc_filter_and ( _WHITESPACE? "," _WHITESPACE? wc_filter_and )*
+    wc_filter_and: wc_filter_simple ( _WHITESPACE? "+" _WHITESPACE? wc_filter_simple )*
+    wildcardvar: "(" _WHITESPACE? vardescriptor_get _WHITESPACE? "=" varvalue ")"
+
+    //#if ALLOW_COMMVARS
+        // command: setwcdeffilter
+        commandsetwcdeffilter: "<ppp:setwcdeffilter" _WHITESPACE wc_name_str [_WHITESPACE wc_filter_limited ] _WHITESPACE? "/>"
+        wc_name_str: ( /"/ wildcard_name /"/ )
+                   | ( /'/ wildcard_name /'/ )
+        wc_filter_limited: ( /"/ wc_filter_or /"/ )
+                         | ( /'/ wc_filter_or /'/ )
+    //#endif
+//#endif

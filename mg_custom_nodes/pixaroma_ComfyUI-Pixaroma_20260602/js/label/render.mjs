@@ -104,6 +104,122 @@ export function renderLabelToCanvas(ctx, cfg, m, w, h) {
   ctx.globalAlpha = 1;
 }
 
+// ─── DOM rendering (Nodes 2.0 node body) ─────────────────────
+// The crisp-HTML mirror of renderLabelToCanvas. Maps the SAME cfg to CSS, so
+// the Nodes 2.0 label matches the Legacy canvas paint closely (and stays sharp
+// at any zoom / large font). white-space:pre preserves the \n line breaks +
+// spaces; the background pill is the element background + border-radius.
+export function applyLabelToDom(el, cfg) {
+  el.textContent = cfg.text || "";
+  el.style.fontFamily = `'${cfg.fontFamily}', 'Segoe UI Emoji', 'Noto Color Emoji', system-ui, sans-serif`;
+  el.style.fontSize = `${cfg.fontSize}px`;
+  el.style.fontWeight = cfg.fontWeight === "bold" ? "bold" : "normal";
+  el.style.lineHeight = String(cfg.lineHeight);
+  el.style.color = cfg.fontColor;
+  el.style.textAlign = cfg.textAlign;
+  el.style.padding = `${cfg.padding}px`;
+  el.style.opacity = String(cfg.opacity);
+  if (cfg.backgroundColor && cfg.backgroundColor !== "transparent") {
+    el.style.background = cfg.backgroundColor;
+    el.style.borderRadius = `${cfg.borderRadius}px`;
+  } else {
+    el.style.background = "transparent";
+    el.style.borderRadius = "0";
+  }
+}
+
+// CSS for the Nodes 2.0 label box + the node-frame hide (once).
+let _vueCssInjected = false;
+export function injectVueLabelCSS() {
+  if (_vueCssInjected) return;
+  _vueCssInjected = true;
+  const s = document.createElement("style");
+  s.id = "pix-lbl-vue-css";
+  s.textContent = `
+.pix-lbl-vue {
+    display: inline-block; box-sizing: border-box; white-space: pre;
+    user-select: none;
+    /* ComfyUI's widget host is a flex column; without these the element gets
+       STRETCHED to the node's (too-narrow) width, so the background pill ends at
+       the node edge while the text overflows past it. align-self + flex:none
+       make it size to the TEXT, so the pill always wraps the full text. */
+    align-self: flex-start; flex: 0 0 auto;
+    /* pointer-events:none is CRITICAL: Label is a title-less node, so its whole
+       body is this element. If it captured the mouse, the place-on-canvas click
+       (and node dragging) would land on it instead of the node, and the node
+       would get stuck to the cursor. With none, clicks pass through to the node;
+       editing is via double-click (legacy) / right-click "Edit Label". */
+    pointer-events: none;
+}
+/* Make the Label node read as FLOATING TEXT in Nodes 2.0: hide the Vue node
+   card/frame at rest so only the label shows (the hover toolbar + resize
+   handles are a separate Vue overlay and stay). Scoped via :has() so it only
+   touches Label nodes; no-op in legacy (no .lg-node there). */
+.lg-node:has(.pix-lbl-vue) {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+.lg-node:has(.pix-lbl-vue) .lg-node-content { padding: 0 !important; }
+/* THE PLACEMENT FIX: ComfyUI wraps our label in widget containers
+   (.lg-node-widgets > .lg-node-widget > a flex host) that are ALL
+   pointer-events:auto, so they eat the place-on-canvas / drag click (the node
+   itself is pointer-events:none - all node interaction goes through the canvas
+   by hit-test). Make the ENTIRE widget subtree of a Label node click-through so
+   placement / drag / right-click reach the canvas. Safe because a Label has no
+   interactive controls in its body - it's display-only text. Verified via the
+   ancestor-chain console diagnostic (2026-06-01). */
+.lg-node:has(.pix-lbl-vue) .lg-node-widgets,
+.lg-node:has(.pix-lbl-vue) .lg-node-widgets * {
+    pointer-events: none !important;
+    /* overflow:visible so the widget wrappers never clip the label text when
+       the node is momentarily a hair narrower than the rendered text (the node
+       is resized to the real text width a frame later by _pixLblFit). */
+    overflow: visible !important;
+}
+/* Tighten the selection / resize box to HUG the label. Every floor below was
+   found by reading the compiled frontend (agent investigation 2026-06-01):
+   a hardcoded 225px node min-width, a widget grid that forces 80px+125px
+   columns, a 12px reorder-handle gutter + 12px right padding, ~20px of body
+   padding (pt-1 pb-3 gap-1), and a selection outline drawn 7px OUTSIDE the node.
+   Combined with _pixLblFit writing node.size = the real label size, this makes
+   the box wrap the label. */
+/* 1. Kill the min-WIDTH (225px) AND min-HEIGHT (node.size[1] + ~30px title
+   height) on the node + its frame wrappers, so the box shrinks to the label in
+   both dimensions. The min-height is what left the bottom handles low. */
+.lg-node:has(.pix-lbl-vue),
+.lg-node:has(.pix-lbl-vue) > div,
+.lg-node:has(.pix-lbl-vue) > div > div { min-width: 0 !important; min-height: 0 !important; }
+/* 2. Collapse the widget grid to a single content-sized column (drops the
+   80px+125px column minimums, the right padding, row gaps, and the gutter). */
+.lg-node:has(.pix-lbl-vue) .lg-node-widgets {
+    grid-template-columns: max-content !important;
+    padding-right: 0 !important;
+    row-gap: 0 !important;
+    gap: 0 !important;
+}
+.lg-node:has(.pix-lbl-vue) .lg-node-widget { gap: 0 !important; }
+.lg-node:has(.pix-lbl-vue) .lg-node-widget > *:first-child { display: none !important; }
+/* 3. Remove the node body's vertical padding + gap (pt-1 pb-3 gap-1) that adds
+   space below the label. Broad substring match in case the class prefix varies. */
+.lg-node:has(.pix-lbl-vue) [class*="component-node-background"] {
+    padding: 0 !important;
+    gap: 0 !important;
+}
+/* 4. Pull the selection outline in from -7px so the handles hug the box. */
+.lg-node:has(.pix-lbl-vue) [data-testid="node-state-outline-overlay"],
+.lg-node:has(.pix-lbl-vue) > div.absolute.outline-none { inset: -2px !important; }
+/* 5. Hide the resize handles. The label auto-sizes to its text (_pixLblFit), so
+   manual resize is a no-op (it snaps back) - the grips are just clutter. They're
+   the only direct-child divs of the node that hold an icon <svg>; the size
+   fallback (.h-5.w-5) catches them if the markup shifts. Selecting / moving /
+   deleting / double-click-to-edit all still work (those aren't these handles). */
+.lg-node:has(.pix-lbl-vue) > div:has(> svg),
+.lg-node:has(.pix-lbl-vue) > div.h-5.w-5 { display: none !important; }
+`;
+  document.head.appendChild(s);
+}
+
 // ─── CSS injection (once) ────────────────────────────────────
 let _cssInjected = false;
 export function injectCSS() {

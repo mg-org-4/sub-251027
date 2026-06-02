@@ -1,16 +1,19 @@
 import { app } from "/scripts/app.js";
 import { isGraphLoading } from "../shared/graph_loading.mjs";
+import { isVueNodes } from "../shared/nodes2.mjs";
 import {
   setupNode, restoreFromProperties,
   handleConnect, handleDisconnect,
   togglePillRow, setSelectMode, setMuteMode,
   setAllRowsEnabled, restoreAllOnRemove,
+  computeNodeHeight,
 } from "./core.mjs";
 import {
   drawMuteSwitch, hideTooltip,
   hitSelectModePill, hitMutePill, hitRowPill, hitLabel, labelScreenRect,
 } from "./render.mjs";
 import { openLabelEditor, cancelEditorForNode } from "./editor.mjs";
+import { buildMuteSwitchVueList } from "./vue_list.mjs";
 
 // Mute Switch Pixaroma - dynamic N-row mute control. See:
 //   js/switch/index.js     for the structural reference
@@ -33,6 +36,10 @@ app.registerExtension({
     nodeType.prototype.onNodeCreated = function () {
       _origCreated?.apply(this, arguments);
       setupNode(this);
+      // Nodes 2.0 only: build the DOM body (mode bar + scene rows). It wires
+      // itself as node._pixMsRefresh, which core.mjs calls on every state/slot
+      // change. Legacy paints the body on the canvas instead (onDrawForeground).
+      if (isVueNodes()) buildMuteSwitchVueList(this);
       queueMicrotask(() => restoreFromProperties(this));
     };
 
@@ -72,25 +79,35 @@ app.registerExtension({
     // Draw
     const _origDraw = nodeType.prototype.onDrawForeground;
     nodeType.prototype.onDrawForeground = function (ctx) {
+      if (_origDraw) _origDraw.call(this, ctx);
+      if (this.flags?.collapsed) return;
+      // Nodes 2.0 renders the body via the DOM widget (mode bar + rows), not
+      // the canvas. Skip the canvas paint AND the legacy min-size self-heal -
+      // there the DOM widget drives the body size.
+      if (isVueNodes()) return;
+
       // Self-heal min width / height (Vue Compat #13 + Preview Image #11).
       // MIN_W = 260 leaves clear horizontal headroom between the right-side
-      // pill and the phantom output dot at the right edge.
+      // pill and the phantom output dot at the right edge. MIN_H tracks the
+      // ACTUAL row count (mode bar + N rows + pad) so the node can never be
+      // dragged shorter than its content - which let the bottom rows + their
+      // toggles spill below the frame.
       const MIN_W = 260;
-      const MIN_H = 80;
+      const MIN_H = computeNodeHeight(this.inputs?.length || 1);
       let changed = false;
       if (this.size[0] < MIN_W) { this.size[0] = MIN_W; changed = true; }
       if (this.size[1] < MIN_H) { this.size[1] = MIN_H; changed = true; }
       if (changed) this.graph?.setDirtyCanvas?.(true, true);
 
-      if (_origDraw) _origDraw.call(this, ctx);
-      if (this.flags?.collapsed) return;
       drawMuteSwitch(this, ctx);
     };
 
     // Mouse clicks
+    // Canvas hit-testing is legacy-only: in Nodes 2.0 the mode bar + rows are a
+    // DOM widget (clicks handled there) and these painted rects don't exist.
     const _origDown = nodeType.prototype.onMouseDown;
     nodeType.prototype.onMouseDown = function (e, pos) {
-      if (!this.flags?.collapsed) {
+      if (!this.flags?.collapsed && !isVueNodes()) {
         const w = this.size[0];
 
         // Mode bar pills first.
@@ -129,6 +146,23 @@ app.registerExtension({
         }
       }
       if (_origDown) return _origDown.call(this, e, pos);
+    };
+
+    // Resize clamp (legacy only) - belt-and-braces with the onDrawForeground
+    // self-heal (Pixaroma UI convention #7). Clamping here stops the resize-
+    // handle drag at the minimum, so the node FRAME is never drawn narrower
+    // than the mode-bar content (which let the pills spill past the frame for a
+    // frame during an active drag). In Nodes 2.0 the DOM widget drives the
+    // body size, so leave it alone there.
+    const _origResize = nodeType.prototype.onResize;
+    nodeType.prototype.onResize = function (size) {
+      if (!isVueNodes()) {
+        const MIN_W = 260;
+        const MIN_H = computeNodeHeight(this.inputs?.length || 1);
+        if (this.size[0] < MIN_W) this.size[0] = MIN_W;
+        if (this.size[1] < MIN_H) this.size[1] = MIN_H;
+      }
+      return _origResize?.apply(this, arguments);
     };
 
     // Removal - hide tooltip + restore muted nodes + cancel editor + clear pending.

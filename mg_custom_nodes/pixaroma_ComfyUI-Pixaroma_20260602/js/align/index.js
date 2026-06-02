@@ -1,5 +1,6 @@
 import { app } from "/scripts/app.js";
 import { BRAND } from "../shared/index.mjs";
+import { isVueNodes } from "../shared/nodes2.mjs";
 
 // =============================================================================
 // Align Pixaroma - toggleable snap & alignment guides for the node canvas.
@@ -379,35 +380,94 @@ function resetDrag() {
   }
 }
 
+// Apply a snap correction to a node's position (and optionally size). LEGACY:
+// synchronous index mutation (node.pos[0]=x), as it always did. NODES 2.0: the
+// on-screen position comes from a reactive layout store, NOT node._pos directly;
+// an index mutation does NOT trigger the `pos` setter that updates that store -
+// only an ARRAY REPLACEMENT (node.pos = [x,y]) does. AND the Vue drag queues its
+// own rAF that recomputes the position from the raw cursor and would overwrite
+// ours, so we queue OUR write in a rAF too: our window-bubble handler runs AFTER
+// the node element's pointermove (which queued Vue's rAF), so our rAF is later
+// in the FIFO queue and runs after Vue's, winning. Only correct when a snap is
+// actually engaged (snapActive) - otherwise leave Vue to position from the
+// cursor. Agent-verified against the compiled frontend (2026-06-01).
+function applyNodePos(node, x, y, snapActive) {
+  if (isVueNodes()) {
+    if (snapActive) requestAnimationFrame(() => { node.pos = [x, y]; });
+  } else {
+    node.pos[0] = x;
+    node.pos[1] = y;
+  }
+}
+function applyNodeRect(node, x, y, w, h, snapActive) {
+  if (isVueNodes()) {
+    if (snapActive) requestAnimationFrame(() => { node.pos = [x, y]; node.size = [w, h]; });
+  } else {
+    node.pos[0] = x; node.pos[1] = y;
+    node.size[0] = w; node.size[1] = h;
+  }
+}
+
 function onWindowPointerMove(e) {
   if (!state.enabled) { resetDrag(); return; }
   // Shift bypasses snap (Alt is taken by ComfyUI for "duplicate during drag").
   if (e.shiftKey) { resetDrag(); return; }
-  const c = app.canvas;
-  if (!c?.last_mouse_dragging) { resetDrag(); return; }
   if (!(e.buttons & 1)) { resetDrag(); return; }
-  // Bail when LiteGraph is drawing a marquee or panning the canvas - those
-  // are not node drags and the snap math must not run. (Don't gate on
-  // isDragging: LiteGraph sets it after a 6px/150ms drag threshold, so the
-  // first ticks of a legit multi-node drag would be wrongly bailed.)
+  const c = app.canvas;
+  if (!c) { resetDrag(); return; }
+  // Marquee / canvas-pan are not node drags. (Present in both renderers; in
+  // Nodes 2.0 these may be unset, but the change-detection below still excludes
+  // them since neither moves a node.)
   if (c.dragging_rectangle != null) { resetDrag(); return; }
   if (c.dragging_canvas) { resetDrag(); return; }
-  // Also bail during the pre-threshold dead zone (the ~6px / 150ms window
-  // BEFORE LiteGraph commits to a drag mode). dragging_rectangle is still
-  // null in that window even though the user is starting a marquee, so the
-  // fallback chain below would pick a previously-selected node and leak
-  // cursor delta into its position. pointer.dragStarted flips true at the
-  // exact threshold crossing for any drag type. Use === false so undefined
-  // (older builds) falls through to existing behaviour.
-  if (c.pointer && c.pointer.dragStarted === false) { resetDrag(); return; }
+  // LEGACY-ONLY drag gates. Nodes 2.0 moves nodes WITHOUT setting
+  // last_mouse_dragging (undefined) or pointer.dragStarted (stays false) -
+  // verified via console diagnostic 2026-06-01 - so gating on them would bail
+  // EVERY Vue drag. In Vue the drag is detected purely by node.pos change below,
+  // which is the universal signal and inherently excludes marquee/pan (no node
+  // moves). The pre-threshold dead-zone protection (dragStarted) is a legacy
+  // concern only; in Vue the change-detection is the dead-zone guard (nothing
+  // moves until the drag actually commits).
+  const vue = isVueNodes();
+  if (!vue) {
+    if (!c.last_mouse_dragging) { resetDrag(); return; }
+    if (c.pointer && c.pointer.dragStarted === false) { resetDrag(); return; }
+  }
 
-  // Find the dragged/resized node. The MOST reliable signal is "which node
-  // did LiteGraph just modify this tick?" - found by comparing pos/size to
-  // the previous-tick cache. We try that first because selected_nodes can
-  // point to the wrong node (e.g. user has node B selected but is resizing
-  // an unselected node A; the resize handle click doesn't update selection).
+  // Find the node being dragged.
+  //  LEGACY: "which node did LiteGraph just move this tick?" via the change-
+  //    detection cache (selected_nodes can point at the wrong node, e.g. resizing
+  //    an unselected node, so change-detect is primary).
+  //  NODES 2.0: the Vue drag moves the node through a reactive LAYOUT STORE and
+  //    NEVER mutates node._pos - only OUR snap write does. So change-detection
+  //    (which reads node.pos) fires only on the odd tick where _pos happens to
+  //    differ, making the snap engage then fall off = the VIBRATION the user saw.
+  //    Instead, once the drag session exists, look the node up directly by its
+  //    stored id (keeps the session alive EVERY frame); on tick 0 use
+  //    selected_nodes (marquee/pan already bailed above). Agent-verified 2026-06-01.
   let draggedNode = null;
-  if (state._prevNodeStates && c.graph?._nodes) {
+  if (vue) {
+    // Use the existing session's node, but VALIDATE it's still the one being
+    // dragged: it must still be SELECTED. Otherwise the session is stale - a
+    // previous drag whose pointerup we missed (the Vue node's captured pointer
+    // can swallow the release) - and the by-id lookup would keep moving that OLD
+    // node while the user drags a new one (the "move one node, another moves
+    // too" leak). A stale session is dropped and we re-pick from the current
+    // selection.
+    if (state.dragInfo?.nodeId != null) {
+      const id = state.dragInfo.nodeId;
+      const node = c.graph?._nodes?.find((n) => n.id === id) || null;
+      const stillSelected = node && c.selected_nodes &&
+        Object.values(c.selected_nodes).some((s) => s && s.id === id);
+      if (stillSelected) draggedNode = node;
+      else state.dragInfo = null;
+    }
+    if (!draggedNode) {
+      const sel = c.selected_nodes;
+      const keys = sel ? Object.keys(sel) : [];
+      if (keys.length >= 1) draggedNode = sel[keys[0]];
+    }
+  } else if (state._prevNodeStates && c.graph?._nodes) {
     for (const n of c.graph._nodes) {
       const p = state._prevNodeStates.get(n.id);
       if (p && (p.x !== n.pos[0] || p.y !== n.pos[1] || p.w !== n.size[0] || p.h !== n.size[1])) {
@@ -416,9 +476,8 @@ function onWindowPointerMove(e) {
       }
     }
   }
-  // Fallbacks for the first tick (no cache yet) or for very-slow drags
-  // where no measurable change happened this tick.
-  if (!draggedNode) {
+  // Legacy-only fallbacks for tick 0 (no cache yet) / very-slow drags.
+  if (!draggedNode && !vue) {
     const sel = c.selected_nodes;
     const selKeys = sel ? Object.keys(sel) : [];
     if (selKeys.length === 1) {
@@ -435,7 +494,8 @@ function onWindowPointerMove(e) {
       draggedNode = c.graph.getNodeOnPos(c.graph_mouse[0], c.graph_mouse[1]);
     }
   }
-  // Refresh the per-node cache for next tick BEFORE we possibly bail.
+  // Refresh the per-node cache for next tick. Done on EVERY tick (even the
+  // no-node ones below) so the next tick always has a fresh baseline to diff.
   if (c.graph?._nodes) {
     if (!state._prevNodeStates) state._prevNodeStates = new Map();
     state._prevNodeStates.clear();
@@ -443,7 +503,14 @@ function onWindowPointerMove(e) {
       state._prevNodeStates.set(n.id, { x: n.pos[0], y: n.pos[1], w: n.size[0], h: n.size[1] });
     }
   }
-  if (!draggedNode || draggedNode.flags?.collapsed) { resetDrag(); return; }
+  // No node moved this tick (tick-0 warm-up, a stationary pause, or a Vue
+  // marquee/pan). Clear any guides but DON'T resetDrag - that wipes the cache we
+  // just refreshed, and the next tick could then never detect movement (the
+  // bug that broke Align entirely in Nodes 2.0: every tick-0 cleared the cache).
+  if (!draggedNode || draggedNode.flags?.collapsed) {
+    if (state.activeGuides.length) { state.activeGuides = []; c.setDirty?.(true, true); }
+    return;
+  }
 
   // Multi-select detection. If 2+ uncollapsed nodes are selected AND the
   // identified draggedNode is in that selection, the drag is treated as a
@@ -535,10 +602,19 @@ function onWindowPointerMove(e) {
   // Classify the drag once, lock that classification for the rest of the drag.
   if (!state.dragInfo.lockType) {
     const sizeChanged = draggedNode.size[0] !== state.dragInfo.sizeW || draggedNode.size[1] !== state.dragInfo.sizeH;
-    const posChanged = draggedNode.pos[0] !== state.dragInfo.posX || draggedNode.pos[1] !== state.dragInfo.posY;
-    if (sizeChanged)         state.dragInfo.lockType = "resize";
-    else if (posChanged)     state.dragInfo.lockType = "move";
-    // else: neither has changed yet; wait
+    if (vue) {
+      // Vue's MOVE drag doesn't mutate node._pos (it writes the reactive layout
+      // store), so the posChanged test can never fire. Lock to "move" unless
+      // node._size changed (a RESIZE does update _size) - then leave it null so
+      // we never move a node mid-resize. (Vue resize uses a separate mechanism
+      // Align doesn't snap; move is the supported case.)
+      if (!sizeChanged) state.dragInfo.lockType = "move";
+    } else {
+      const posChanged = draggedNode.pos[0] !== state.dragInfo.posX || draggedNode.pos[1] !== state.dragInfo.posY;
+      if (sizeChanged)         state.dragInfo.lockType = "resize";
+      else if (posChanged)     state.dragInfo.lockType = "move";
+      // else: neither has changed yet; wait
+    }
   }
 
   if (state.dragInfo.lockType === null) return;
@@ -645,11 +721,13 @@ function onWindowPointerMove(e) {
       else            fBot = fTop + visualMinH;
     }
 
-    // Convert visual top back to body top by adding titleH.
-    draggedNode.pos[0] = fLeft;
-    draggedNode.pos[1] = fTop + titleH;
-    draggedNode.size[0] = fRight - fLeft;
-    draggedNode.size[1] = fBot - (fTop + titleH);
+    // Convert visual top back to body top by adding titleH. Legacy writes every
+    // tick; Nodes 2.0 only corrects when an edge is snapped (applyNodeRect).
+    applyNodeRect(
+      draggedNode,
+      fLeft, fTop + titleH, fRight - fLeft, fBot - (fTop + titleH),
+      !!(snapLeft || snapRight || snapTop || snapBot),
+    );
 
     // Push one guide per engaged edge. fLeft/fRight/fTop/fBot are visual
     // coords; matched rects (snapXxx.rect) are also visual via nodeRect().
@@ -723,12 +801,12 @@ function onWindowPointerMove(e) {
     di.stickyMoveY = bestY ? bestY.target : null;
     const finalDx = dxGraph + (bestX ? bestX.delta : 0);
     const finalDy = dyGraph + (bestY ? bestY.delta : 0);
+    const multiSnapActive = !!(bestX || bestY);
     for (const n of allNodes) {
       if (!di.origIds.has(n.id)) continue;
       const orig = di.origPositions.get(n.id);
       if (!orig) continue;
-      n.pos[0] = orig.x + finalDx;
-      n.pos[1] = orig.y + finalDy;
+      applyNodePos(n, orig.x + finalDx, orig.y + finalDy, multiSnapActive);
     }
 
     // Guides span the moved bbox plus the rect that produced the matching
@@ -797,17 +875,18 @@ function onWindowPointerMove(e) {
   state.dragInfo.stickyMoveX = bestX ? bestX.target : null;
   state.dragInfo.stickyMoveY = bestY ? bestY.target : null;
 
-  // Set node.pos directly: snap target if found, else desired position.
-  // This OVERWRITES whatever LiteGraph set this tick, so the cursor and node
-  // never drift apart by more than snapGraph.
-  draggedNode.pos[0] = bestX ? desiredX + bestX.delta : desiredX;
-  draggedNode.pos[1] = bestY ? desiredY + bestY.delta : desiredY;
+  // Set node.pos: snap target if found, else desired position. In legacy this
+  // OVERWRITES whatever LiteGraph set this tick (so cursor and node never drift
+  // apart); in Nodes 2.0 we only correct when a snap is engaged (applyNodePos).
+  const fx = bestX ? desiredX + bestX.delta : desiredX;
+  const fy = bestY ? desiredY + bestY.delta : desiredY;
+  applyNodePos(draggedNode, fx, fy, !!(bestX || bestY));
 
-  // Build the visual rect at the FINAL (post-snap) position so the guide
-  // line spans accurately along the perp axis. Then extend over every other
-  // rect that shares the matched edge so a column/row of 3+ shows one full
-  // guide instead of a short segment.
-  const finalRect = { x: draggedNode.pos[0], y: draggedNode.pos[1] - titleH, w, h: h + titleH };
+  // Build the visual rect at the FINAL (post-snap) position so the guide line
+  // spans accurately. Use fx/fy (not draggedNode.pos, which in Nodes 2.0 is only
+  // updated by the deferred rAF). Then extend over every other rect that shares
+  // the matched edge so a column/row of 3+ shows one full guide.
+  const finalRect = { x: fx, y: fy - titleH, w, h: h + titleH };
   state.activeGuides = [];
   if (bestX && bestXRect) {
     const range = extendGuideRange(

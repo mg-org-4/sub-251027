@@ -197,8 +197,8 @@ export async function resetAndReloadWithVirtualScroll(options = {}) {
         // Reset page counter
         pageState.currentPage = 1;
 
-        // Fetch the first page
-        const result = await fetchPageFunction(1, pageState.pageSize || 50);
+        const pageSize = state.virtualScroller?.pageSize || pageState.pageSize || 100;
+        const result = await fetchPageFunction(1, pageSize);
 
         // Update the virtual scroller
         state.virtualScroller.refreshWithData(
@@ -251,8 +251,8 @@ export async function loadMoreWithVirtualScroll(options = {}) {
             pageState.currentPage = 1;
         }
 
-        // Fetch the first page of data
-        const result = await fetchPageFunction(pageState.currentPage, pageState.pageSize || 50);
+        const pageSize = state.virtualScroller?.pageSize || pageState.pageSize || 100;
+        const result = await fetchPageFunction(pageState.currentPage, pageSize);
 
         // Update virtual scroller with the new data
         state.virtualScroller.refreshWithData(
@@ -294,47 +294,41 @@ export async function resetAndReload(updateFolders = false, options = {}) {
 }
 
 /**
- * Sync changes - quick refresh without rebuilding cache (similar to models page)
+ * Refreshes the recipe list by triggering a backend scan, then reloading.
+ * @param {boolean} fullRebuild - If true, fully rebuild the cache; if false, incremental scan
  */
 export async function syncChanges() {
-    try {
-        state.loadingManager.showSimpleLoading('Syncing changes...');
-
-        // Simply reload the recipes without rebuilding cache
-        await resetAndReload(false, { preserveScroll: true });
-
-        showToast('toast.recipes.syncComplete', {}, 'success');
-    } catch (error) {
-        console.error('Error syncing recipes:', error);
-        showToast('toast.recipes.syncFailed', { message: error.message }, 'error');
-    } finally {
-        state.loadingManager.hide();
-        state.loadingManager.restoreProgressBar();
-    }
+    return refreshRecipes(false);
 }
 
-/**
- * Refreshes the recipe list by first rebuilding the cache and then loading recipes
- */
-export async function refreshRecipes() {
-    try {
-        state.loadingManager.showSimpleLoading('Refreshing recipes...');
+export async function refreshRecipes(fullRebuild = true) {
+    const actionLabel = fullRebuild ? 'Rebuilding recipe cache' : 'Refreshing recipes';
+    const actionToast = fullRebuild ? 'Full rebuild' : 'Refresh';
 
-        // Call the API endpoint to rebuild the recipe cache
-        const response = await fetch(RECIPE_ENDPOINTS.scan);
+    try {
+        state.loadingManager.show(`${actionLabel}...`, 0);
+
+        const url = new URL(RECIPE_ENDPOINTS.scan, window.location.origin);
+        url.searchParams.append('full_rebuild', fullRebuild);
+
+        const response = await fetch(url);
 
         if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Failed to refresh recipe cache');
+            throw new Error(`Failed to refresh recipe cache: ${response.status} ${response.statusText}`);
         }
 
-        // After successful cache rebuild, reload the recipes
-        await resetAndReload(false, { preserveScroll: true });
+        const data = await response.json();
+        if (data.status === 'cancelled') {
+            showToast('toast.api.operationCancelled', {}, 'info');
+            return;
+        }
 
-        showToast('toast.recipes.refreshComplete', {}, 'success');
+        await resetAndReload(false);
+
+        showToast('toast.api.refreshComplete', { action: actionToast }, 'success');
     } catch (error) {
         console.error('Error refreshing recipes:', error);
-        showToast('toast.recipes.refreshFailed', { message: error.message }, 'error');
+        showToast('toast.api.refreshFailed', { action: fullRebuild ? 'rebuild' : 'refresh', type: 'recipe' }, 'error');
     } finally {
         state.loadingManager.hide();
         state.loadingManager.restoreProgressBar();

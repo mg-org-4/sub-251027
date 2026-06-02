@@ -8,7 +8,7 @@ import { getSessionItem, removeSessionItem } from './utils/storageHelpers.js';
 import { RecipeContextMenu } from './components/ContextMenu/index.js';
 import { DuplicatesManager } from './components/DuplicatesManager.js';
 import { refreshVirtualScroll } from './utils/infiniteScroll.js';
-import { refreshRecipes, syncChanges, RecipeSidebarApiClient } from './api/recipeApi.js';
+import { refreshRecipes, RecipeSidebarApiClient } from './api/recipeApi.js';
 import { sidebarManager } from './components/SidebarManager.js';
 
 class RecipePageControls {
@@ -19,16 +19,13 @@ class RecipePageControls {
     }
 
     async resetAndReload() {
-        await refreshVirtualScroll({ preserveScroll: true });
+        await refreshVirtualScroll();
     }
 
     async refreshModels(fullRebuild = false) {
-        if (fullRebuild) {
-            await refreshRecipes();
-            return;
-        }
+        await refreshRecipes(fullRebuild);
 
-        await syncChanges();
+        await sidebarManager.refresh();
     }
 
     getSidebarApiClient() {

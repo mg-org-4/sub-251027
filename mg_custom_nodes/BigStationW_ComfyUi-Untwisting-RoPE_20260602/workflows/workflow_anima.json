@@ -1,8 +1,8 @@
 {
   "id": "44259803-f9d6-4eb1-a94a-75b8213649d0",
   "revision": 0,
-  "last_node_id": 634,
-  "last_link_id": 1566,
+  "last_node_id": 635,
+  "last_link_id": 1561,
   "nodes": [
     {
       "id": 333,
@@ -16,7 +16,7 @@
         46
       ],
       "flags": {},
-      "order": 21,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
@@ -27,7 +27,7 @@
         {
           "name": "vae",
           "type": "VAE",
-          "link": 750
+          "link": 1550
         }
       ],
       "outputs": [
@@ -47,64 +47,15 @@
       "widgets_values": []
     },
     {
-      "id": 559,
-      "type": "CFGGuider",
-      "pos": [
-        1509.2008112031247,
-        1315.8267637570477
-      ],
-      "size": [
-        270,
-        98
-      ],
-      "flags": {},
-      "order": 24,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 1551
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 1564
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 1400
-        }
-      ],
-      "outputs": [
-        {
-          "name": "GUIDER",
-          "type": "GUIDER",
-          "links": [
-            1544
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.21.1",
-        "Node name for S&R": "CFGGuider"
-      },
-      "widgets_values": [
-        1
-      ]
-    },
-    {
-      "id": 616,
+      "id": 619,
       "type": "Note",
       "pos": [
-        1472.1181965831133,
-        1506.4408653175178
+        261.6234944497743,
+        980.8806213289101
       ],
       "size": [
-        303.65604311050856,
-        116.00450279158758
+        289.0740052806825,
+        112.57343506692268
       ],
       "flags": {},
       "order": 0,
@@ -113,77 +64,10 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "I strongly recommend using only ancestral samplers, adding noise during the process really helps eliminate some transfer style artifacts."
+        "https://github.com/BigStationW/ComfyUi-Scale-Image-to-Total-Pixels-Advanced"
       ],
       "color": "#c09430",
       "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 229,
-      "type": "KSamplerSelect",
-      "pos": [
-        1465.8802446070147,
-        1668.9757189509317
-      ],
-      "size": [
-        315,
-        58
-      ],
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "SAMPLER",
-          "type": "SAMPLER",
-          "links": [
-            1545
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.5.0",
-        "Node name for S&R": "KSamplerSelect"
-      },
-      "widgets_values": [
-        "euler_ancestral"
-      ]
-    },
-    {
-      "id": 167,
-      "type": "RandomNoise",
-      "pos": [
-        1462.0009592796698,
-        1802.4795320303917
-      ],
-      "size": [
-        302.7450866699219,
-        82
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "NOISE",
-          "type": "NOISE",
-          "links": [
-            1543
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.76",
-        "Node name for S&R": "RandomNoise"
-      },
-      "widgets_values": [
-        42,
-        "fixed"
-      ]
     },
     {
       "id": 614,
@@ -197,7 +81,7 @@
         116.00450279158758
       ],
       "flags": {},
-      "order": 3,
+      "order": 1,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -220,7 +104,7 @@
         456.72464032296625
       ],
       "flags": {},
-      "order": 26,
+      "order": 23,
       "mode": 0,
       "inputs": [
         {
@@ -282,7 +166,7 @@
         515.9512940840721
       ],
       "flags": {},
-      "order": 28,
+      "order": 25,
       "mode": 0,
       "inputs": [
         {
@@ -311,7 +195,7 @@
         62.2083101328426
       ],
       "flags": {},
-      "order": 27,
+      "order": 24,
       "mode": 0,
       "inputs": [
         {
@@ -322,7 +206,7 @@
         {
           "name": "vae",
           "type": "VAE",
-          "link": 507
+          "link": 1551
         }
       ],
       "outputs": [
@@ -353,7 +237,7 @@
         112.57343506692268
       ],
       "flags": {},
-      "order": 4,
+      "order": 2,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -365,148 +249,24 @@
       "bgcolor": "rgba(24,24,27,.9)"
     },
     {
-      "id": 282,
-      "type": "EmptySD3LatentImage",
-      "pos": [
-        1495.1427323629832,
-        2118.3711928088187
-      ],
-      "size": [
-        260,
-        168
-      ],
-      "flags": {},
-      "order": 19,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "width",
-          "type": "INT",
-          "widget": {
-            "name": "width"
-          },
-          "link": 1558
-        },
-        {
-          "name": "height",
-          "type": "INT",
-          "widget": {
-            "name": "height"
-          },
-          "link": 1559
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "slot_index": 0,
-          "links": [
-            1547
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.64",
-        "Node name for S&R": "EmptySD3LatentImage",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65
-      },
-      "widgets_values": [
-        1024,
-        1024,
-        1
-      ]
-    },
-    {
-      "id": 31,
-      "type": "BasicScheduler",
-      "pos": [
-        1485.7528126778984,
-        1963.3681052602142
-      ],
-      "size": [
-        270,
-        106
-      ],
-      "flags": {},
-      "order": 25,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 1552
-        }
-      ],
-      "outputs": [
-        {
-          "name": "SIGMAS",
-          "type": "SIGMAS",
-          "links": [
-            1546
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.75",
-        "Node name for S&R": "BasicScheduler"
-      },
-      "widgets_values": [
-        "simple",
-        8,
-        1
-      ]
-    },
-    {
-      "id": 626,
-      "type": "Note",
-      "pos": [
-        790.77580514417,
-        563.2699666343891
-      ],
-      "size": [
-        285.24835336919455,
-        126.58960944919556
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "Some additional methods not included in the paper, intended to further improve the results. These can be bypassed/removed."
-      ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 630,
+      "id": 265,
       "type": "ImageScaleToTotalPixelsX",
       "pos": [
-        207.89817918424777,
-        2011.1821978225
+        246.99230874069832,
+        1164.5446997368606
       ],
       "size": [
         306.5982421875,
         220.0000000000001
       ],
       "flags": {},
-      "order": 15,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 1555
+          "link": 1560
         },
         {
           "name": "width",
@@ -526,31 +286,28 @@
           "name": "image",
           "type": "IMAGE",
           "links": [
-            1560
+            749
           ]
         },
         {
           "name": "width",
           "type": "INT",
           "links": [
-            1556,
-            1558
+            566
           ]
         },
         {
           "name": "height",
           "type": "INT",
           "links": [
-            1557,
-            1559
+            567
           ]
         }
       ],
       "properties": {
         "cnr_id": "scale-image-to-total-pixels-advanced",
         "ver": "dd4135f4ee6dcd71443e2935ceb5c037e3f23230",
-        "Node name for S&R": "ImageScaleToTotalPixelsX",
-        "aux_id": "BigStationW/ComfyUi-Scale-Image-to-Total-Pixels-Advanced"
+        "Node name for S&R": "ImageScaleToTotalPixelsX"
       },
       "widgets_values": [
         1.05,
@@ -560,18 +317,18 @@
       ]
     },
     {
-      "id": 261,
+      "id": 624,
       "type": "VAELoader",
       "pos": [
-        401.8293929216277,
-        1468.6068452940938
+        343.5487552133242,
+        1455.5114014578749
       ],
       "size": [
-        270,
-        58
+        307.59114583333337,
+        88.88020833333334
       ],
       "flags": {},
-      "order": 6,
+      "order": 3,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -579,120 +336,137 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            507,
-            750,
-            1561
+            1550,
+            1551
           ]
         }
       ],
       "properties": {
         "cnr_id": "comfy-core",
-        "ver": "0.21.0",
-        "Node name for S&R": "VAELoader"
+        "ver": "0.3.40",
+        "Node name for S&R": "VAELoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "models": [
+          {
+            "name": "qwen_image_vae.safetensors",
+            "url": "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/vae/qwen_image_vae.safetensors",
+            "directory": "vae"
+          }
+        ]
       },
       "widgets_values": [
-        "flux2-vae.safetensors"
+        "Qwen2D_VAE.safetensors"
       ]
     },
     {
-      "id": 612,
-      "type": "LoadImage",
+      "id": 623,
+      "type": "UNETLoader",
       "pos": [
-        -102.84151691065208,
-        1161.3938579968244
+        333.6339242269637,
+        1611.902839934744
       ],
       "size": [
-        282.798828125,
-        314.00000000000006
+        307.59114583333337,
+        117.76041666666667
       ],
       "flags": {},
-      "order": 7,
+      "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
-          "name": "IMAGE",
-          "type": "IMAGE",
+          "name": "MODEL",
+          "type": "MODEL",
           "links": [
-            1539
+            1549
           ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": null
         }
       ],
-      "title": "STYLE IMAGE",
       "properties": {
         "cnr_id": "comfy-core",
-        "ver": "0.21.1",
-        "Node name for S&R": "LoadImage"
+        "ver": "0.11.0",
+        "Node name for S&R": "UNETLoader",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "models": [
+          {
+            "name": "anima-preview2.safetensors",
+            "url": "https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files/diffusion_models/anima-preview2.safetensors",
+            "directory": "diffusion_models"
+          }
+        ]
       },
       "widgets_values": [
-        "image (13).png",
-        "image"
+        "Anima\\anima_baseV10.safetensors",
+        "default"
       ]
     },
     {
-      "id": 629,
-      "type": "LoadImage",
+      "id": 625,
+      "type": "CLIPLoader",
       "pos": [
-        -140.0907890196538,
-        1973.6047431935674
+        479.6000939299869,
+        1819.195312232384
       ],
       "size": [
-        282.798828125,
-        314.00000000000006
+        270,
+        106
       ],
       "flags": {},
-      "order": 8,
+      "order": 5,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
-          "name": "IMAGE",
-          "type": "IMAGE",
+          "name": "CLIP",
+          "type": "CLIP",
           "links": [
-            1555
+            1552,
+            1553
           ]
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": null
         }
       ],
-      "title": "IMAGE INPUT",
       "properties": {
         "cnr_id": "comfy-core",
-        "ver": "0.21.1",
-        "Node name for S&R": "LoadImage"
+        "ver": "0.19.5",
+        "Node name for S&R": "CLIPLoader"
       },
       "widgets_values": [
-        "image (23).png",
-        "image"
+        "qwen_3_06b_base.safetensors",
+        "stable_diffusion",
+        "default"
       ]
     },
     {
       "id": 259,
       "type": "CLIPTextEncode",
       "pos": [
-        863.7412348286646,
-        1921.0253244980258
+        884.8078958977934,
+        1934.8940610315733
       ],
       "size": [
         400,
         200
       ],
       "flags": {},
-      "order": 17,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 1542
+          "link": 1553
         }
       ],
       "outputs": [
@@ -725,13 +499,13 @@
         200
       ],
       "flags": {},
-      "order": 16,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 1541
+          "link": 1552
         }
       ],
       "outputs": [
@@ -739,7 +513,8 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            1562
+            1534,
+            1535
           ]
         }
       ],
@@ -749,19 +524,234 @@
         "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
-        "Turn this image into an anime-style drawing."
+        "a woman with blonde hair and blue eyes plays piano. "
       ]
     },
     {
-      "id": 619,
-      "type": "Note",
+      "id": 167,
+      "type": "RandomNoise",
       "pos": [
-        261.6234944497743,
-        980.8806213289101
+        1453.8112402046313,
+        1759.8929403547274
       ],
       "size": [
-        289.0740052806825,
-        112.57343506692268
+        302.7450866699219,
+        82
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            1543
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.76",
+        "Node name for S&R": "RandomNoise"
+      },
+      "widgets_values": [
+        42,
+        "fixed"
+      ]
+    },
+    {
+      "id": 282,
+      "type": "EmptySD3LatentImage",
+      "pos": [
+        1466.2563372831864,
+        2087.849767719435
+      ],
+      "size": [
+        260,
+        168
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 566
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 567
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            1547
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.64",
+        "Node name for S&R": "EmptySD3LatentImage",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        1
+      ]
+    },
+    {
+      "id": 229,
+      "type": "KSamplerSelect",
+      "pos": [
+        1456.4620283066233,
+        1616.1519503142572
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            1545
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.5.0",
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler_ancestral"
+      ]
+    },
+    {
+      "id": 632,
+      "type": "LoadImage",
+      "pos": [
+        -151.78054847035042,
+        1170.4638609274066
+      ],
+      "size": [
+        282.798828125,
+        314.00000000000006
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1560
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.21.1",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "pasted_image_20260523_071531.png",
+        "image"
+      ]
+    },
+    {
+      "id": 559,
+      "type": "CFGGuider",
+      "pos": [
+        1488.7568419576453,
+        1274.0013593262165
+      ],
+      "size": [
+        270,
+        98
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1556
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 1534
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 1400
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            1544
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.21.1",
+        "Node name for S&R": "CFGGuider"
+      },
+      "widgets_values": [
+        3.5
+      ]
+    },
+    {
+      "id": 633,
+      "type": "Note",
+      "pos": [
+        1461.3244363397027,
+        1438.0275721087457
+      ],
+      "size": [
+        303.65604311050856,
+        116.00450279158758
       ],
       "flags": {},
       "order": 9,
@@ -770,221 +760,41 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "https://github.com/BigStationW/ComfyUi-Scale-Image-to-Total-Pixels-Advanced"
+        "I strongly recommend using only ancestral samplers, adding noise during the process really helps eliminate some transfer style artifacts."
       ],
       "color": "#c09430",
       "bgcolor": "rgba(24,24,27,.9)"
     },
     {
-      "id": 631,
-      "type": "ConditioningAddImageReference",
-      "pos": [
-        892.3358430516128,
-        2359.6616107399786
-      ],
-      "size": [
-        330.421484375,
-        138
-      ],
-      "flags": {},
-      "order": 20,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "conditioning",
-          "type": "CONDITIONING",
-          "link": 1562
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": 1561
-        },
-        {
-          "name": "image1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 1560
-        },
-        {
-          "name": "image2",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "image3",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            1563,
-            1564
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "textencodeeditadvanced",
-        "ver": "1.0.1",
-        "Node name for S&R": "ConditioningAddImageReference"
-      },
-      "widgets_values": [
-        "1"
-      ]
-    },
-    {
-      "id": 632,
-      "type": "Note",
-      "pos": [
-        912.6467429880594,
-        2186.9547075194696
-      ],
-      "size": [
-        289.0740052806825,
-        112.57343506692268
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "https://github.com/BigStationW/ComfyUi-TextEncodeEditAdvanced\n\nTo get a regular text to image framework, set max_images_allowed = 0"
-      ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 611,
-      "type": "Note",
-      "pos": [
-        1145.1572733432688,
-        902.1563553466156
-      ],
-      "size": [
-        279.1044491449052,
-        190.5600226272877
-      ],
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "The untwisting RoPE paper suggests patching only the single blocks on flux 1.\n\nFor flux 2 (e.g Klein 4b), the blocks are:\n- Double blocks: 0-4\n- Single blocks: 5-24\n\nPersonally, I find that it works best when all the blocks are enabled, therefore the default values range is 0-999"
-      ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 601,
-      "type": "UNETLoader",
-      "pos": [
-        318.4707979380336,
-        1596.0524486504232
-      ],
-      "size": [
-        420.10165345254075,
-        102.39426790580865
-      ],
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            1528
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.22.0",
-        "Node name for S&R": "UNETLoader"
-      },
-      "widgets_values": [
-        "Flux Klein\\flux-2-klein-4b.safetensors",
-        "default"
-      ]
-    },
-    {
-      "id": 618,
-      "type": "CLIPLoader",
-      "pos": [
-        455.9699324836801,
-        1791.462131053674
-      ],
-      "size": [
-        270,
-        106
-      ],
-      "flags": {},
-      "order": 13,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            1541,
-            1542
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.21.1",
-        "Node name for S&R": "CLIPLoader"
-      },
-      "widgets_values": [
-        "qwen_3_4b.safetensors",
-        "flux2",
-        "default"
-      ]
-    },
-    {
-      "id": 623,
+      "id": 628,
       "type": "UntwistingRoPE",
       "pos": [
-        1136.956054943152,
-        1171.7011951213472
+        1140.890297847114,
+        1138.3888731422762
       ],
       "size": [
         270,
         270
       ],
       "flags": {},
-      "order": 23,
+      "order": 20,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 1549
+          "link": 1554
         },
         {
           "name": "rf_inversion",
           "type": "LATENT",
-          "link": 1550
+          "link": 1555
         },
         {
           "name": "unofficial_extensions",
           "shape": 7,
           "type": "UNTWISTING_ROPE_EXTENSIONS",
-          "link": 1566
+          "link": 1561
         }
       ],
       "outputs": [
@@ -992,8 +802,8 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            1551,
-            1552
+            1556,
+            1557
           ]
         }
       ],
@@ -1003,94 +813,172 @@
         "Node name for S&R": "UntwistingRoPE"
       },
       "widgets_values": [
-        10,
-        0.9,
+        25,
         0,
-        1,
-        5,
+        0.5,
+        0.9,
+        1.5,
         0.5,
         "0-999",
         true
       ]
     },
     {
-      "id": 265,
-      "type": "ImageScaleToTotalPixelsX",
+      "id": 31,
+      "type": "BasicScheduler",
       "pos": [
-        246.99230874069832,
-        1164.5446997368606
+        1452.58439981301,
+        1915.0486390017527
       ],
       "size": [
-        306.5982421875,
-        220.0000000000001
+        270,
+        106
       ],
       "flags": {},
-      "order": 18,
+      "order": 22,
       "mode": 0,
       "inputs": [
         {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 1539
-        },
-        {
-          "name": "width",
-          "shape": 7,
-          "type": "INT",
-          "link": 1556
-        },
-        {
-          "name": "height",
-          "shape": 7,
-          "type": "INT",
+          "name": "model",
+          "type": "MODEL",
           "link": 1557
         }
       ],
       "outputs": [
         {
-          "name": "image",
-          "type": "IMAGE",
+          "name": "SIGMAS",
+          "type": "SIGMAS",
           "links": [
-            749
+            1546
           ]
-        },
-        {
-          "name": "width",
-          "type": "INT",
-          "links": []
-        },
-        {
-          "name": "height",
-          "type": "INT",
-          "links": []
         }
       ],
       "properties": {
-        "cnr_id": "scale-image-to-total-pixels-advanced",
-        "ver": "dd4135f4ee6dcd71443e2935ceb5c037e3f23230",
-        "Node name for S&R": "ImageScaleToTotalPixelsX",
-        "aux_id": "BigStationW/ComfyUi-Scale-Image-to-Total-Pixels-Advanced"
+        "cnr_id": "comfy-core",
+        "ver": "0.3.75",
+        "Node name for S&R": "BasicScheduler"
       },
       "widgets_values": [
-        1.05,
-        16,
-        "crop",
-        "lanczos"
+        "simple",
+        35,
+        1
       ]
+    },
+    {
+      "id": 630,
+      "type": "UntwistingRoPE",
+      "pos": [
+        1734.581064872837,
+        907.5607111277825
+      ],
+      "size": [
+        350.3369627518091,
+        270
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "rf_inversion",
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "unofficial_extensions",
+          "shape": 7,
+          "type": "UNTWISTING_ROPE_EXTENSIONS",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        }
+      ],
+      "title": "Untwisting RoPE (Settings for Anima Turbo)",
+      "properties": {
+        "cnr_id": "untwistingrope",
+        "ver": "9fb6a19e82077dc54ddb120f202d474d01497cf7",
+        "Node name for S&R": "UntwistingRoPE"
+      },
+      "widgets_values": [
+        50,
+        1,
+        0,
+        1,
+        1.5,
+        0.5,
+        "0-999",
+        true
+      ]
+    },
+    {
+      "id": 635,
+      "type": "Note",
+      "pos": [
+        753.1231290811004,
+        573.9575664535129
+      ],
+      "size": [
+        285.24835336919455,
+        126.58960944919556
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Some additional methods not included in the paper, intended to further improve the results. These can be bypassed/removed."
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 611,
+      "type": "Note",
+      "pos": [
+        1135.9170901232549,
+        950.1203098736455
+      ],
+      "size": [
+        285.24835336919455,
+        126.58960944919556
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "The only relevant values to change are :\n\n- high_scale: \n- low_scale_end: (between 1.0 and 1.5)"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
     },
     {
       "id": 634,
       "type": "UnofficialExtensions",
       "pos": [
-        763.7844174962596,
-        733.5375741453837
+        736.8516248256913,
+        739.6052727743137
       ],
       "size": [
         332.76171875,
         202
       ],
       "flags": {},
-      "order": 14,
+      "order": 13,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1098,7 +986,7 @@
           "name": "unofficial_extensions",
           "type": "UNTWISTING_ROPE_EXTENSIONS",
           "links": [
-            1566
+            1561
           ]
         }
       ],
@@ -1129,13 +1017,13 @@
         240.5904011287812
       ],
       "flags": {},
-      "order": 22,
+      "order": 19,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 1528
+          "link": 1549
         },
         {
           "name": "reference_latent",
@@ -1145,7 +1033,7 @@
         {
           "name": "ref_conditioning",
           "type": "CONDITIONING",
-          "link": 1563
+          "link": 1535
         }
       ],
       "outputs": [
@@ -1153,25 +1041,24 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            1549
+            1554
           ]
         },
         {
           "name": "rf_inversion",
           "type": "LATENT",
           "links": [
-            1550
+            1555
           ]
         }
       ],
       "properties": {
         "cnr_id": "untwistingrope",
         "ver": "c9136fcced444ea84778a25a37a2b45371ea06a5",
-        "Node name for S&R": "RFInversion",
-        "aux_id": "BigStationW/ComfyUi-Untwisting-RoPE"
+        "Node name for S&R": "RFInversion"
       },
       "widgets_values": [
-        "gnri",
+        "rf_solver_2",
         0.5,
         1,
         1,
@@ -1182,12 +1069,20 @@
   ],
   "links": [
     [
-      507,
-      261,
-      0,
-      262,
+      566,
+      265,
       1,
-      "VAE"
+      282,
+      0,
+      "INT"
+    ],
+    [
+      567,
+      265,
+      2,
+      282,
+      1,
+      "INT"
     ],
     [
       749,
@@ -1196,14 +1091,6 @@
       333,
       0,
       "IMAGE"
-    ],
-    [
-      750,
-      261,
-      0,
-      333,
-      1,
-      "VAE"
     ],
     [
       1400,
@@ -1222,20 +1109,20 @@
       "LATENT"
     ],
     [
-      1528,
-      601,
+      1534,
+      607,
       0,
-      603,
-      0,
-      "MODEL"
+      559,
+      1,
+      "CONDITIONING"
     ],
     [
-      1539,
-      612,
+      1535,
+      607,
       0,
-      265,
-      0,
-      "IMAGE"
+      603,
+      2,
+      "CONDITIONING"
     ],
     [
       1540,
@@ -1244,22 +1131,6 @@
       617,
       0,
       "IMAGE"
-    ],
-    [
-      1541,
-      618,
-      0,
-      607,
-      0,
-      "CLIP"
-    ],
-    [
-      1542,
-      618,
-      0,
-      259,
-      0,
-      "CLIP"
     ],
     [
       1543,
@@ -1311,121 +1182,89 @@
     ],
     [
       1549,
-      603,
-      0,
       623,
+      0,
+      603,
       0,
       "MODEL"
     ],
     [
       1550,
+      624,
+      0,
+      333,
+      1,
+      "VAE"
+    ],
+    [
+      1551,
+      624,
+      0,
+      262,
+      1,
+      "VAE"
+    ],
+    [
+      1552,
+      625,
+      0,
+      607,
+      0,
+      "CLIP"
+    ],
+    [
+      1553,
+      625,
+      0,
+      259,
+      0,
+      "CLIP"
+    ],
+    [
+      1554,
+      603,
+      0,
+      628,
+      0,
+      "MODEL"
+    ],
+    [
+      1555,
       603,
       1,
-      623,
+      628,
       1,
       "LATENT"
     ],
     [
-      1551,
-      623,
+      1556,
+      628,
       0,
       559,
       0,
       "MODEL"
     ],
     [
-      1552,
-      623,
+      1557,
+      628,
       0,
       31,
       0,
       "MODEL"
     ],
     [
-      1555,
-      629,
-      0,
-      630,
-      0,
-      "IMAGE"
-    ],
-    [
-      1556,
-      630,
-      1,
-      265,
-      1,
-      "INT"
-    ],
-    [
-      1557,
-      630,
-      2,
-      265,
-      2,
-      "INT"
-    ],
-    [
-      1558,
-      630,
-      1,
-      282,
-      0,
-      "INT"
-    ],
-    [
-      1559,
-      630,
-      2,
-      282,
-      1,
-      "INT"
-    ],
-    [
       1560,
-      630,
+      632,
       0,
-      631,
-      2,
+      265,
+      0,
       "IMAGE"
     ],
     [
       1561,
-      261,
-      0,
-      631,
-      1,
-      "VAE"
-    ],
-    [
-      1562,
-      607,
-      0,
-      631,
-      0,
-      "CONDITIONING"
-    ],
-    [
-      1563,
-      631,
-      0,
-      603,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      1564,
-      631,
-      0,
-      559,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      1566,
       634,
       0,
-      623,
+      628,
       2,
       "UNTWISTING_ROPE_EXTENSIONS"
     ]
@@ -1434,10 +1273,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.5054470284993001,
+      "scale": 0.6115909044841994,
       "offset": [
-        -207.18133515401743,
-        -395.8826926816246
+        -195.25007235177566,
+        -490.7847054903549
       ]
     },
     "frontendVersion": "1.44.19",

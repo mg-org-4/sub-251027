@@ -8,10 +8,7 @@ This repository provides custom nodes for ComfyUI, enabling direct access to **B
 
 BRIA's APIs and models are built for commercial use and trained on 100% licensed data and does not contain copyrighted materials, such as fictional characters, logos, trademarks, public figures, harmful content, or privacy-infringing content.
 
-An API token is required to use the nodes in your workflows. Get started quickly here
-<a href="https://bria.ai/api/" style="text-decoration:none; vertical-align:middle;">
-  <img src="https://img.shields.io/badge/GET%20YOUR%20TOKEN-1000%20Free%20Calls-blue?style=flat-square" alt="Get Your Token" height="20">
-</a>.
+An API token is required to use the nodes in your workflows. Get yours at the [BRIA Platform](https://platform.bria.ai/organization-management/api-keys).
 
 for direct API endpoint use, you can find our APIs through partners like [**fal.ai**](https://fal.ai/models?keywords=bria).  
 For source code and weigths access, go to our [**Hugging Face**](https://huggingface.co/briaai) space.
@@ -122,6 +119,7 @@ These nodes perform high-quality edits for a given video.
 | **Bria Video Mask By Prompt** | Generates a mask video using a text prompt describing what to mask. |
 | **Bria Video Mask By Key Points** | Generates a mask video using key-points guidance |
 
+  Check out the example workflow in the workflows/ folder to see how the nodes should be wired together for loading and previewing a video end-to-end.
 
 ## Attribution Node
 

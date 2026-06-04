@@ -27,8 +27,17 @@ export { injectLabelCSS } from "./label_css.mjs";
 
 export { isVueNodes, applyAdaptiveCanvasOnly, canvasBackingScale, installZoomRepaint } from "./nodes2.mjs";
 
+export { installResizeFloor, measureRootContent } from "./resize_floor.mjs";
+
 export {
   createPixaromaColorPicker,
   openPixaromaColorPickerPopup,
   PIXAROMA_PALETTE,
 } from "./color_picker.mjs";
+
+export {
+  createHelpButton,
+  openHelpPopup,
+  closeHelpPopup,
+  injectHelpCSS,
+} from "./help.mjs";

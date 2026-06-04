@@ -172,6 +172,7 @@ const CSS = `
    same overlay default, same full BRAND hover. */
 .pix-pm-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   align-self: flex-start;
   margin-top: 4px;
@@ -297,7 +298,10 @@ export function measureContentHeight(root) {
   if (count > 1) h += gap * (count - 1);
   h += parseFloat(cs.paddingTop) || 0;
   h += parseFloat(cs.paddingBottom) || 0;
-  return Math.max(120, h);
+  // Round to a 4px grid so sub-pixel/font jitter can't creep node.size bigger
+  // on every workflow switch (getMinHeight feeds Nodes 2.0 grow-to-content,
+  // which is grow-only and accumulates - Vue Compat #18).
+  return Math.max(120, Math.round(h / 4) * 4);
 }
 
 // renderRows clears root.innerHTML and rebuilds every row.

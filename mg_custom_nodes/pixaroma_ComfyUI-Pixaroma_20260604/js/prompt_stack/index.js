@@ -10,7 +10,7 @@ import {
   resetToDefault,
 } from "./core.mjs";
 import { injectCSS, buildRoot, renderRows, measureContentHeight } from "./render.mjs";
-import { applyAdaptiveCanvasOnly } from "../shared/index.mjs";
+import { applyAdaptiveCanvasOnly, installResizeFloor, isVueNodes } from "../shared/index.mjs";
 import { pixConfirm } from "./interaction.mjs";
 
 const DEFAULT_W = 400;
@@ -214,6 +214,9 @@ app.registerExtension({
           getMinHeight: () => measureContentHeight(root),
         });
         applyAdaptiveCanvasOnly(_psWidget);
+        // Floor the node at its content height while a resize handle is dragged
+        // (Nodes 2.0) so the bottom button row can't be squished out of frame.
+        node._pixPsFloorOff = installResizeFloor(root, measureContentHeight);
 
         // Expose a tiny grow helper so interaction handlers (textarea
         // autogrow) can ask the node to expand without doing a full rerender.
@@ -224,14 +227,21 @@ app.registerExtension({
 
         node._pixPsRenderOnly();
 
-        if (node.size[0] < DEFAULT_W) node.size[0] = DEFAULT_W;
-        if (node.size[1] < DEFAULT_H) node.size[1] = DEFAULT_H;
+        // Default size on FRESH placement only. onConfigure sets _pixPsConfigured
+        // for a loaded workflow (runs before this microtask), so a saved size -
+        // even one the user shrank below DEFAULT - is kept and doesn't jump back
+        // to default on a workflow switch.
+        if (!node._pixPsConfigured) {
+          if (node.size[0] < DEFAULT_W) node.size[0] = DEFAULT_W;
+          if (node.size[1] < DEFAULT_H) node.size[1] = DEFAULT_H;
+        }
         node.setDirtyCanvas(true, true);
       });
     };
 
     const origConfigure = nodeType.prototype.onConfigure;
     nodeType.prototype.onConfigure = function (info) {
+      this._pixPsConfigured = true;
       const r = origConfigure ? origConfigure.apply(this, arguments) : undefined;
       stripLegacyWireSlots(this);
       restoreFromProperties(this);
@@ -246,27 +256,34 @@ app.registerExtension({
     // (some LiteGraph forks treat the param as the new size).
     const origOnResize = nodeType.prototype.onResize;
     nodeType.prototype.onResize = function (size) {
-      if (size[0] < MIN_W) size[0] = MIN_W;
-      if (size[1] < MIN_H) size[1] = MIN_H;
-      if (this.size[0] < MIN_W) this.size[0] = MIN_W;
-      if (this.size[1] < MIN_H) this.size[1] = MIN_H;
+      // LEGACY ONLY - in Nodes 2.0 the rendered size lives in the Vue layout
+      // store, not node.size; clamping node.size here desyncs them and the node
+      // jumps to the clamped size on a workflow switch. Nodes 2.0 floors via
+      // MIN_NODE_WIDTH + the resize-floor helper.
+      if (!isVueNodes()) {
+        if (size[0] < MIN_W) size[0] = MIN_W;
+        if (size[1] < MIN_H) size[1] = MIN_H;
+        if (this.size[0] < MIN_W) this.size[0] = MIN_W;
+        if (this.size[1] < MIN_H) this.size[1] = MIN_H;
+      }
       if (origOnResize) return origOnResize.apply(this, arguments);
     };
 
-    // Self-heal min size on every paint (Preview Image Pattern #11).
-    // Catches resize paths that bypass onResize per Vue Compat #13 -
-    // some DOM-widget resizes never fire onResize, and Align Pixaroma
-    // can write node.size directly via cursor delta.
+    // Self-heal min size on every paint (Preview Image Pattern #11). LEGACY
+    // ONLY (see onResize) - it would desync node.size from the Vue layout.
     const origDraw = nodeType.prototype.onDrawForeground;
     nodeType.prototype.onDrawForeground = function (ctx) {
       if (origDraw) origDraw.call(this, ctx);
       if (this.flags?.collapsed) return;
+      if (isVueNodes()) return;
       if (this.size[0] < MIN_W) this.size[0] = MIN_W;
       if (this.size[1] < MIN_H) this.size[1] = MIN_H;
     };
 
     const origRemoved = nodeType.prototype.onRemoved;
     nodeType.prototype.onRemoved = function () {
+      this._pixPsFloorOff?.();
+      this._pixPsFloorOff = null;
       this._pixPsRoot = null;
       this._pixPsRerender = null;
       this._pixPsRenderOnly = null;
@@ -280,6 +297,34 @@ app.registerExtension({
 // app.graphToPrompt hook - injects state + resolved separator into the hidden
 // PromptStackState input at workflow-submit time. Pattern #9 (Vue Frontend
 // Compatibility). Subgraph-safe via tail-id matching.
+// Subgraph-safe node lookup: ComfyUI flattens subgraph-contained nodes into the
+// prompt with composite IDs ("5:12") that app.graph.getNodeById (top-level only)
+// can't resolve, so a plain parseInt(tail)+getNodeById silently missed any node
+// inside a subgraph (state never injected). Walk every nested subgraph instead
+// (mirrors js/text_overlay/index.js + js/find_replace/index.js).
+function buildPixPsNodeIndex() {
+  const index = new Map();
+  const visit = (graph) => {
+    if (!graph) return;
+    const nodes = graph._nodes || graph.nodes || [];
+    for (const n of nodes) {
+      if (!n) continue;
+      if (n.comfyClass === "PixaromaPromptStack" || n.type === "PixaromaPromptStack") index.set(String(n.id), n);
+      const inner = n.subgraph || n.graph || n._graph;
+      if (inner && inner !== graph) visit(inner);
+    }
+  };
+  visit(app.graph);
+  return index;
+}
+function findPixPsNode(index, promptId) {
+  const sId = String(promptId);
+  if (index.has(sId)) return index.get(sId);
+  const tail = sId.includes(":") ? sId.slice(sId.lastIndexOf(":") + 1) : null;
+  if (tail && index.has(tail)) return index.get(tail);
+  return null;
+}
+
 const _origGraphToPrompt = app.graphToPrompt;
 app.graphToPrompt = async function (...args) {
   const result = await _origGraphToPrompt.apply(this, args);
@@ -287,12 +332,12 @@ app.graphToPrompt = async function (...args) {
     const sep = resolveSeparator();
     const prompt = result?.output;
     if (prompt && typeof prompt === "object") {
+      let index = null;
       for (const key of Object.keys(prompt)) {
         const entry = prompt[key];
         if (!entry || entry.class_type !== "PixaromaPromptStack") continue;
-        // Tail-id matching: find the node by id suffix (subgraphs prefix the id with "x:y:")
-        const nodeId = parseInt(String(key).split(":").pop(), 10);
-        const node = app.graph?.getNodeById?.(nodeId);
+        if (!index) index = buildPixPsNodeIndex();
+        const node = findPixPsNode(index, key);
         if (!node) continue;
         const state = node.properties?.promptStackState;
         if (!state || !Array.isArray(state.rows)) continue;

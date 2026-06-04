@@ -29,7 +29,11 @@ export function injectCSS() {
       gap: 6px;
       padding: 6px;
       width: 100%;
-      height: 100%;
+      /* NO height:100% - it collapses to 0 under the Nodes 2.0 resize-floor
+         measurement and lets the bottom button row spill outside the node when
+         squished. The .pix-pp-tawrap min-height:100px gives the root a real
+         natural floor instead. The host wrapper still flex:1-fills the body in
+         Nodes 2.0, and legacy sizes the element, so the textarea still fills. */
       box-sizing: border-box;
       color: #e0e0e0;
       font: 12px sans-serif;
@@ -81,6 +85,7 @@ export function injectCSS() {
     .pix-pp-ta:focus { border-color: ${BRAND}; }
     .pix-pp-bottombar {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       flex: 0 0 auto;
@@ -93,8 +98,14 @@ export function injectCSS() {
        orange border) so the click target is unambiguous. */
     .pix-pp-actions {
       display: flex;
+      flex-wrap: wrap;
       gap: 4px;
-      flex: 0 0 auto;
+      /* 0 1 auto + min-width:0 so this button group can SHRINK below its
+         content width when the node is narrow - that's what forces the buttons
+         to wrap instead of the last one (Clear) spilling out the right edge.
+         flex:0 0 auto sized it to content (no wrap). */
+      flex: 0 1 auto;
+      min-width: 0;
       /* Stop text selection bleeding from the textarea into the button
          labels when the user drag-selects to the edge of the field. */
       user-select: none;

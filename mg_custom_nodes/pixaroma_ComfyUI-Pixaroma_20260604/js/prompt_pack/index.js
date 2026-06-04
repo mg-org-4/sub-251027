@@ -13,7 +13,7 @@ import {
 import { injectCSS, buildRoot, applyState, updateCounter } from "./render.mjs";
 import { wireEvents, showNoPromptsToast } from "./interaction.mjs";
 import { isQueueLoopActive, beginQueueLoop, endQueueLoop } from "../shared/queue_drivers.mjs";
-import { applyAdaptiveCanvasOnly } from "../shared/index.mjs";
+import { applyAdaptiveCanvasOnly, installResizeFloor, measureRootContent, isVueNodes } from "../shared/index.mjs";
 
 const BRAND = "#f66744";
 
@@ -82,6 +82,9 @@ app.registerExtension({
           getMinHeight: () => WIDGET_MIN_H,
         });
         applyAdaptiveCanvasOnly(_ppWidget);
+        // Floor the node at its content height while a resize handle is dragged
+        // (Nodes 2.0) so the bottom button row can't be squished out of frame.
+        node._pixPpFloorOff = installResizeFloor(root, measureRootContent);
 
         wireEvents(node, root);
 
@@ -110,25 +113,32 @@ app.registerExtension({
     // already wrote it to this.size by the time the hook fires.
     const origOnResize = nodeType.prototype.onResize;
     nodeType.prototype.onResize = function (size) {
-      if (size[0] < MIN_W) size[0] = MIN_W;
-      if (size[1] < MIN_H) size[1] = MIN_H;
-      if (this.size[0] < MIN_W) this.size[0] = MIN_W;
-      if (this.size[1] < MIN_H) this.size[1] = MIN_H;
+      // LEGACY ONLY - in Nodes 2.0 the rendered size lives in the Vue layout
+      // store, not node.size; clamping node.size here desyncs them and the node
+      // jumps to the clamped size on a workflow switch.
+      if (!isVueNodes()) {
+        if (size[0] < MIN_W) size[0] = MIN_W;
+        if (size[1] < MIN_H) size[1] = MIN_H;
+        if (this.size[0] < MIN_W) this.size[0] = MIN_W;
+        if (this.size[1] < MIN_H) this.size[1] = MIN_H;
+      }
       if (origOnResize) return origOnResize.apply(this, arguments);
     };
 
-    // Min-width self-heal so the body controls never overflow the node
-    // frame. (The Paragraph/Line pills are DOM now — see render.mjs — so
-    // there's no canvas painting or click hit-testing here anymore.)
+    // Min-width self-heal so the body controls never overflow the node frame.
+    // LEGACY ONLY (see onResize) - it would desync node.size from the Vue layout.
     const origDraw = nodeType.prototype.onDrawForeground;
     nodeType.prototype.onDrawForeground = function (ctx) {
       if (origDraw) origDraw.call(this, ctx);
       if (this.flags?.collapsed) return;
+      if (isVueNodes()) return;
       if (this.size[0] < MIN_W) this.size[0] = MIN_W;
     };
 
     const origRemoved = nodeType.prototype.onRemoved;
     nodeType.prototype.onRemoved = function () {
+      this._pixPpFloorOff?.();
+      this._pixPpFloorOff = null;
       this._pixPpRoot = null;
       if (origRemoved) return origRemoved.apply(this, arguments);
     };
@@ -140,17 +150,46 @@ app.registerExtension({
 // Compatibility). Subgraph-safe via tail-id matching. Called once per
 // queuePrompt() - the queuePrompt patch below is what changes activePrompt
 // between calls so each enqueue sees a different value.
+// Subgraph-safe node lookup: ComfyUI flattens subgraph-contained nodes into the
+// prompt with composite IDs ("5:12") that app.graph.getNodeById (top-level only)
+// can't resolve, so a plain parseInt(tail)+getNodeById silently missed any node
+// inside a subgraph (state never injected). Walk every nested subgraph instead
+// (mirrors js/text_overlay/index.js + js/find_replace/index.js).
+function buildPixPpNodeIndex() {
+  const index = new Map();
+  const visit = (graph) => {
+    if (!graph) return;
+    const nodes = graph._nodes || graph.nodes || [];
+    for (const n of nodes) {
+      if (!n) continue;
+      if (n.comfyClass === "PixaromaPromptPack" || n.type === "PixaromaPromptPack") index.set(String(n.id), n);
+      const inner = n.subgraph || n.graph || n._graph;
+      if (inner && inner !== graph) visit(inner);
+    }
+  };
+  visit(app.graph);
+  return index;
+}
+function findPixPpNode(index, promptId) {
+  const sId = String(promptId);
+  if (index.has(sId)) return index.get(sId);
+  const tail = sId.includes(":") ? sId.slice(sId.lastIndexOf(":") + 1) : null;
+  if (tail && index.has(tail)) return index.get(tail);
+  return null;
+}
+
 const _origGraphToPrompt = app.graphToPrompt;
 app.graphToPrompt = async function (...args) {
   const result = await _origGraphToPrompt.apply(this, args);
   try {
     const prompt = result?.output;
     if (prompt && typeof prompt === "object") {
+      let index = null;
       for (const key of Object.keys(prompt)) {
         const entry = prompt[key];
         if (!entry || entry.class_type !== "PixaromaPromptPack") continue;
-        const nodeId = parseInt(String(key).split(":").pop(), 10);
-        const node = app.graph?.getNodeById?.(nodeId);
+        if (!index) index = buildPixPpNodeIndex();
+        const node = findPixPpNode(index, key);
         if (!node) continue;
         const state = node.properties?.[STATE_PROP];
         if (!state) continue;

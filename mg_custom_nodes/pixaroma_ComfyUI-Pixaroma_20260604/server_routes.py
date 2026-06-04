@@ -941,6 +941,119 @@ async def api_preview_prepare(request):
     })
 
 
+@PromptServer.instance.routes.post("/pixaroma/api/xy_plot/save")
+async def api_xy_plot_save(request):
+    """Save an XY Plot grid (already written to temp/ during the plot) to
+    output/ with embedded workflow metadata. Optionally also write each
+    individual cell into a <name>_cells/ subfolder.
+
+    Request JSON: {
+        grid_filename:   temp PNG filename of the assembled grid (required),
+        session_id:      plot session id (only needed for save_cells),
+        filename_prefix: output stem (default "xy_plot"),
+        save_cells:      bool - also write each cell image,
+        workflow/prompt: optional metadata to embed in the grid PNG,
+    }
+    Response JSON: { status, filename, subfolder, saved_cells } or { error }.
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "invalid JSON"}, status=400)
+
+    grid_filename = data.get("grid_filename")
+    if not isinstance(grid_filename, str) or not grid_filename:
+        return web.json_response({"error": "missing grid_filename"}, status=400)
+    session_id = data.get("session_id")
+    save_cells = data.get("save_cells") is True
+    workflow = data.get("workflow")
+    prompt = data.get("prompt")
+    prefix = _safe_prefix(data.get("filename_prefix", "xy_plot")) or "xy_plot"
+
+    temp_dir = folder_paths.get_temp_directory()
+    safe_name = os.path.basename(grid_filename)
+    grid_path = os.path.join(temp_dir, safe_name)
+    if not safe_name or not os.path.isfile(grid_path) or not _is_path_under(grid_path, temp_dir):
+        return web.json_response({"error": "grid image not found - re-run the plot, then Save"}, status=400)
+    try:
+        grid_pil = Image.open(grid_path).convert("RGB")
+    except Exception as e:
+        return web.json_response({"error": f"could not read grid: {e}"}, status=500)
+
+    try:
+        output_dir = folder_paths.get_output_directory()
+        full_folder, name, counter, subfolder, _ = folder_paths.get_save_image_path(
+            prefix, output_dir, grid_pil.width, grid_pil.height
+        )
+        os.makedirs(full_folder, exist_ok=True)
+        fname = f"{name}_{counter:05}_.png"
+        pnginfo = _build_pnginfo(prompt=prompt, workflow=workflow)
+        grid_pil.save(os.path.join(full_folder, fname), "PNG", pnginfo=pnginfo)
+    except Exception as e:
+        return web.json_response({"error": f"save failed: {e}"}, status=500)
+
+    saved_cells = 0
+    # Only attempt cells when explicitly requested AND the session id is a valid,
+    # bounded token (it keys an in-memory dict; reject oversized/odd input).
+    valid_sid = isinstance(session_id, str) and bool(_SAFE_ID_RE.match(session_id)) and len(session_id) <= _MAX_ID_LEN
+    if save_cells and valid_sid:
+        try:
+            from .nodes.node_xy_plot import snapshot_session_cells
+            cells, _ = snapshot_session_cells(session_id)   # copied under the node's lock
+            if cells:
+                # Include the grid's counter in the folder name so saving the
+                # same plot twice doesn't overwrite the first save's cells.
+                cells_folder = os.path.join(full_folder, f"{name}_{counter:05}_cells")
+                # Defense-in-depth: never write the cells subfolder outside output/.
+                if _is_path_under(cells_folder, output_dir) or _is_path_under(os.path.dirname(cells_folder), output_dir):
+                    os.makedirs(cells_folder, exist_ok=True)
+                    for (xi, yi), cell in cells:
+                        cell_name = f"{name}_x{xi}_y{yi}.png"
+                        try:
+                            cell.convert("RGB").save(os.path.join(cells_folder, cell_name), "PNG")
+                            saved_cells += 1
+                        except Exception:
+                            pass
+        except Exception as e:
+            print(f"[Pixaroma] XY Plot: save cells failed: {e}")
+
+    return web.json_response({
+        "status": "success",
+        "filename": fname,
+        "subfolder": subfolder,
+        "saved_cells": saved_cells,
+    })
+
+
+@PromptServer.instance.routes.post("/pixaroma/api/xy_plot/restyle")
+async def api_xy_plot_restyle(request):
+    """Re-render the current XY Plot grid with a new color theme, without
+    re-running the workflow (the cells are cached server-side). Used for the
+    instant Grid theme switch.
+
+    Request JSON: { session_id: str, theme: "dark"|"light"|"mono" }
+    Response JSON: { status, filename } or { error } (404 if session expired).
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "invalid JSON"}, status=400)
+    session_id = data.get("session_id")
+    theme = data.get("theme") or "dark"
+    if not isinstance(session_id, str) or not _SAFE_ID_RE.match(session_id) or len(session_id) > _MAX_ID_LEN:
+        return web.json_response({"error": "invalid session id"}, status=400)
+    if theme not in ("dark", "light", "mono"):
+        return web.json_response({"error": "invalid theme"}, status=400)
+    try:
+        from .nodes.node_xy_plot import restyle_session
+        name = restyle_session(session_id, theme)
+    except Exception as e:
+        return web.json_response({"error": f"restyle failed: {e}"}, status=500)
+    if not name:
+        return web.json_response({"error": "session expired - run the plot again"}, status=404)
+    return web.json_response({"status": "success", "filename": name})
+
+
 def _is_path_under(child: str, *parents: str) -> bool:
     """Return True iff `child` is inside ANY of the given parent directories.
 

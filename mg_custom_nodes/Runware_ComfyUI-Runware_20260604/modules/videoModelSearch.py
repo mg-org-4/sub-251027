@@ -97,6 +97,7 @@ class videoModelSearch:
             "runware:190@1 (Ovi)",
         ],
         "Runway": [
+            "runway:aleph@2.0 (Runway Aleph 2.0)",
             "runway:2@1 (Runway Aleph)",
             "runway:1@1 (Runway Gen-4 Turbo)",
             "runway:1@2 (Runway Gen-4.5)",
@@ -131,6 +132,7 @@ class videoModelSearch:
             "runware:210@1 (Kandinsky 5.0 Lite)",
         ],
         "xAI": [
+            "xai:grok-imagine@video-1.5-preview (Grok Imagine Video 1.5 Preview)",
             "xai:grok-imagine@video (Grok Imagine Video)",
         ],
         "VEED": [
@@ -242,6 +244,7 @@ class videoModelSearch:
         "runware:190@1": {"width": 0, "height": 0},
         
         # Runway Models
+        "runway:aleph@2.0": {"width": 0, "height": 0},
         "runway:2@1": {"width": 1280, "height": 720},
         "runway:1@1": {"width": 1280, "height": 720},
         "runway:1@2": {"width": 1280, "height": 720},
@@ -271,6 +274,7 @@ class videoModelSearch:
         "runware:210@1": {"width": 512, "height": 512},
 
         # xAI Models
+        "xai:grok-imagine@video-1.5-preview": {"width": 480, "height": 480},
         "xai:grok-imagine@video": {"width": 480, "height": 480},
 
         # VEED Models (preserves input aspect ratio; resolution = shorter side)
@@ -386,6 +390,7 @@ class videoModelSearch:
         "runware:190@1": None,  # No resolution support
         
         # Runway Models
+        "runway:aleph@2.0": None,  # Output ratio matches input video
         "runway:2@1": "720p",
         "runway:1@1": "720p",
         "runway:1@2": "720p",
@@ -415,6 +420,7 @@ class videoModelSearch:
         "runware:210@1": None,  # No resolution support (fixed 512x512)
 
         # xAI Models
+        "xai:grok-imagine@video-1.5-preview": "480p",
         "xai:grok-imagine@video": "480p",
 
         # VEED Models

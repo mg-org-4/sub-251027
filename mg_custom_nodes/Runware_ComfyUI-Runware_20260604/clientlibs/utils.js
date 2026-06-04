@@ -1298,6 +1298,26 @@ function audioSettingsToggleHandler(settingsNode) {
     const cfgIntervalStartWidget = settingsNode.widgets.find(w => w && w.name === "cfgIntervalStart");
     const useCfgIntervalEndWidget = settingsNode.widgets.find(w => w && w.name === "useCfgIntervalEnd");
     const cfgIntervalEndWidget = settingsNode.widgets.find(w => w && w.name === "cfgIntervalEnd");
+    const useNormalizeLoudnessWidget = settingsNode.widgets.find(w => w && w.name === "useNormalizeLoudness");
+    const normalizeLoudnessWidget = settingsNode.widgets.find(w => w && w.name === "normalizeLoudness");
+    const useTopPWidget = settingsNode.widgets.find(w => w && w.name === "useTopP");
+    const topPWidget = settingsNode.widgets.find(w => w && w.name === "topP");
+    const useChunkLengthWidget = settingsNode.widgets.find(w => w && w.name === "useChunkLength");
+    const chunkLengthWidget = settingsNode.widgets.find(w => w && w.name === "chunkLength");
+    const useMinChunkLengthWidget = settingsNode.widgets.find(w => w && w.name === "useMinChunkLength");
+    const minChunkLengthWidget = settingsNode.widgets.find(w => w && w.name === "minChunkLength");
+    const useNormalizeWidget = settingsNode.widgets.find(w => w && w.name === "useNormalize");
+    const normalizeWidget = settingsNode.widgets.find(w => w && w.name === "normalize");
+    const useLatencyWidget = settingsNode.widgets.find(w => w && w.name === "useLatency");
+    const latencyWidget = settingsNode.widgets.find(w => w && w.name === "latency");
+    const useMaxTokensWidget = settingsNode.widgets.find(w => w && w.name === "useMaxTokens");
+    const maxTokensWidget = settingsNode.widgets.find(w => w && w.name === "maxTokens");
+    const useRepetitionPenaltyWidget = settingsNode.widgets.find(w => w && w.name === "useRepetitionPenalty");
+    const repetitionPenaltyWidget = settingsNode.widgets.find(w => w && w.name === "repetitionPenalty");
+    const useConditionOnPreviousChunksWidget = settingsNode.widgets.find(w => w && w.name === "useConditionOnPreviousChunks");
+    const conditionOnPreviousChunksWidget = settingsNode.widgets.find(w => w && w.name === "conditionOnPreviousChunks");
+    const useEarlyStopThresholdWidget = settingsNode.widgets.find(w => w && w.name === "useEarlyStopThreshold");
+    const earlyStopThresholdWidget = settingsNode.widgets.find(w => w && w.name === "earlyStopThreshold");
 
     function toggleWidgetState(useWidget, paramWidget, paramName) {
         if (!useWidget || !paramWidget) return;
@@ -1338,6 +1358,16 @@ function audioSettingsToggleHandler(settingsNode) {
     if (useTranscriptWidget && transcriptWidget) toggleWidgetState(useTranscriptWidget, transcriptWidget, "transcript");
     if (useCfgIntervalStartWidget && cfgIntervalStartWidget) toggleWidgetState(useCfgIntervalStartWidget, cfgIntervalStartWidget, "cfgIntervalStart");
     if (useCfgIntervalEndWidget && cfgIntervalEndWidget) toggleWidgetState(useCfgIntervalEndWidget, cfgIntervalEndWidget, "cfgIntervalEnd");
+    if (useNormalizeLoudnessWidget && normalizeLoudnessWidget) toggleWidgetState(useNormalizeLoudnessWidget, normalizeLoudnessWidget, "normalizeLoudness");
+    if (useTopPWidget && topPWidget) toggleWidgetState(useTopPWidget, topPWidget, "topP");
+    if (useChunkLengthWidget && chunkLengthWidget) toggleWidgetState(useChunkLengthWidget, chunkLengthWidget, "chunkLength");
+    if (useMinChunkLengthWidget && minChunkLengthWidget) toggleWidgetState(useMinChunkLengthWidget, minChunkLengthWidget, "minChunkLength");
+    if (useNormalizeWidget && normalizeWidget) toggleWidgetState(useNormalizeWidget, normalizeWidget, "normalize");
+    if (useLatencyWidget && latencyWidget) toggleWidgetState(useLatencyWidget, latencyWidget, "latency");
+    if (useMaxTokensWidget && maxTokensWidget) toggleWidgetState(useMaxTokensWidget, maxTokensWidget, "maxTokens");
+    if (useRepetitionPenaltyWidget && repetitionPenaltyWidget) toggleWidgetState(useRepetitionPenaltyWidget, repetitionPenaltyWidget, "repetitionPenalty");
+    if (useConditionOnPreviousChunksWidget && conditionOnPreviousChunksWidget) toggleWidgetState(useConditionOnPreviousChunksWidget, conditionOnPreviousChunksWidget, "conditionOnPreviousChunks");
+    if (useEarlyStopThresholdWidget && earlyStopThresholdWidget) toggleWidgetState(useEarlyStopThresholdWidget, earlyStopThresholdWidget, "earlyStopThreshold");
 }
 
 function textInferenceSettingsToggleHandler(settingsNode) {
@@ -2869,6 +2899,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
             "runware:190@1 (Ovi)",
         ],
         "Runway": [
+            "runway:aleph@2.0 (Runway Aleph 2.0)",
             "runway:2@1 (Runway Aleph)",
             "runway:1@1 (Runway Gen-4 Turbo)",
             "runway:1@2 (Runway Gen-4.5)",
@@ -2903,6 +2934,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
             "runware:210@1 (Kandinsky 5.0 Lite)",
         ],
         "xAI": [
+            "xai:grok-imagine@video-1.5-preview (Grok Imagine Video 1.5 Preview)",
             "xai:grok-imagine@video (Grok Imagine Video)",
         ],
         "VEED": [
@@ -2992,6 +3024,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "lightricks:ltx@2.3": {"width": 1920, "height": 1080},
         "lightricks:ltx@2.3-fast": {"width": 1920, "height": 1080},
         "runware:190@1": {"width": 0, "height": 0},
+        "runway:aleph@2.0": {"width": 0, "height": 0},
         "runway:2@1": {"width": 1280, "height": 720},
         "runway:1@1": {"width": 1280, "height": 720},
         "runway:1@2": {"width": 1280, "height": 720},
@@ -3007,6 +3040,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "creatify:aurora@0": {"width": 1280, "height": 720},
         "runware:hunyuanvideo@1.5": {"width": 848, "height": 480},
         "runware:210@1": {"width": 512, "height": 512},
+        "xai:grok-imagine@video-1.5-preview": {"width": 480, "height": 480},
         "xai:grok-imagine@video": {"width": 480, "height": 480},
         "veed:fabric@1.0": {"width": 1280, "height": 720},
         "prunaai:p-video@0": {"width": 1280, "height": 720},
@@ -3092,6 +3126,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "lightricks:ltx@2.3": "1080p",
         "lightricks:ltx@2.3-fast": "1080p",
         "runware:190@1": null,  // No resolution support
+        "runway:aleph@2.0": null,  // Output ratio matches input video
         "runway:2@1": "720p",
         "runway:1@1": "720p",
         "runway:1@2": "720p",
@@ -3107,6 +3142,7 @@ function videoModelSearchFilterHandler(videoModelSearchNode) {
         "creatify:aurora@0": "720p",
         "runware:hunyuanvideo@1.5": "480p",
         "runware:210@1": null,  // No resolution support (fixed 512x512)
+        "xai:grok-imagine@video-1.5-preview": "480p",
         "xai:grok-imagine@video": "480p",
         "veed:fabric@1.0": "720p",
         "prunaai:p-video@0": "720p",
@@ -3422,6 +3458,9 @@ function audioModelSearchFilterHandler(audioModelSearchNode) {
         ],
         "Google": [
             "google:gemini@3.1-flash-tts (Gemini 3.1 Flash TTS)",
+        ],
+        "Fish": [
+            "fishaudio:s2.1@pro (Fish Audio S2.1 Pro)",
         ],
     };
 
@@ -4727,6 +4766,43 @@ function regionalPromptingRegionsToggleHandler(regionsNode) {
     }
 }
 
+function audioInferenceReferenceVoiceToggleHandler(referenceVoiceNode) {
+    if (!referenceVoiceNode?.widgets) return;
+    if (referenceVoiceNode._audioInferenceReferenceVoiceToggleHandlerRegistered) return;
+    referenceVoiceNode._audioInferenceReferenceVoiceToggleHandlerRegistered = true;
+
+    function toggleWidgetState(useWidget, paramWidget, paramName) {
+        if (!useWidget || !paramWidget) return;
+
+        function applyState() {
+            const enabled = useWidget.value === true;
+            toggleWidgetEnabled(paramWidget, enabled, referenceVoiceNode);
+            if (paramWidget.options && paramWidget.options.element) {
+                paramWidget.options.element.disabled = !enabled;
+                paramWidget.options.element.style.opacity = enabled ? "1" : "0.5";
+                paramWidget.options.element.style.pointerEvents = enabled ? "auto" : "none";
+            }
+            referenceVoiceNode.setDirtyCanvas(true);
+        }
+
+        appendWidgetCB(useWidget, () => setTimeout(applyState, 50));
+        setTimeout(applyState, 100);
+    }
+
+    for (let i = 1; i <= 4; i++) {
+        const useReferenceVoiceWidget = referenceVoiceNode.widgets.find((w) => w && w.name === `useReferenceVoice${i}`);
+        const audioWidget = referenceVoiceNode.widgets.find((w) => w && w.name === `audio${i}`);
+        const textWidget = referenceVoiceNode.widgets.find((w) => w && w.name === `text${i}`);
+
+        if (useReferenceVoiceWidget && audioWidget) {
+            toggleWidgetState(useReferenceVoiceWidget, audioWidget, `audio${i}`);
+        }
+        if (useReferenceVoiceWidget && textWidget) {
+            toggleWidgetState(useReferenceVoiceWidget, textWidget, `text${i}`);
+        }
+    }
+}
+
 function audioInferenceInputsToggleHandler(audioInputsNode) {
     if (!audioInputsNode?.widgets) return;
 
@@ -4958,6 +5034,89 @@ function audioInferenceSpeechVoicesToggleHandler(voicesNode) {
     }
 }
 
+function videoInputsFrameToggleHandler(frameImagesNode) {
+    if (!frameImagesNode?.widgets) return;
+    if (frameImagesNode._videoInputsFrameToggleHandlerRegistered) return;
+    frameImagesNode._videoInputsFrameToggleHandlerRegistered = true;
+
+    function toggleWidgetState(useWidget, paramWidget, paramName) {
+        if (!useWidget || !paramWidget) return;
+
+        function toggleEnabled() {
+            const enabled = useWidget.value === true;
+
+            // FLOAT timestamp widgets: avoid '' on disabled slots (ComfyUI validation error)
+            if (!enabled && paramName && paramName.startsWith("timestamp")) {
+                if (paramWidget.value === "" || paramWidget.value == null) {
+                    paramWidget.value = 0.0;
+                }
+            }
+
+            if (paramWidget.inputEl) {
+                paramWidget.inputEl.disabled = !enabled;
+                paramWidget.inputEl.style.opacity = enabled ? "1" : "0.5";
+                paramWidget.inputEl.style.cursor = enabled ? "text" : "not-allowed";
+                paramWidget.inputEl.readOnly = !enabled;
+            }
+
+            if (paramWidget.options && paramWidget.options.element) {
+                paramWidget.options.element.disabled = !enabled;
+                paramWidget.options.element.style.opacity = enabled ? "1" : "0.5";
+                paramWidget.options.element.style.pointerEvents = enabled ? "auto" : "none";
+            }
+
+            paramWidget.disabled = !enabled;
+
+            if (!paramWidget.inputEl && paramName) {
+                const nodeElement = frameImagesNode.htmlElements?.widgetsContainer || frameImagesNode.htmlElements;
+                if (nodeElement) {
+                    const input = nodeElement.querySelector(`input[name="${paramName}"], textarea[name="${paramName}"], select[name="${paramName}"]`);
+                    if (input) {
+                        input.disabled = !enabled;
+                        input.style.opacity = enabled ? "1" : "0.5";
+                        input.style.cursor = enabled ? "text" : "not-allowed";
+                        input.readOnly = !enabled;
+                        if (input.tagName === "SELECT") {
+                            input.style.pointerEvents = enabled ? "auto" : "none";
+                        }
+                    }
+                }
+            }
+
+            frameImagesNode.setDirtyCanvas(true);
+        }
+
+        appendWidgetCB(useWidget, () => {
+            setTimeout(toggleEnabled, 50);
+        });
+
+        setTimeout(toggleEnabled, 100);
+    }
+
+    function initializeHandler() {
+        if (!frameImagesNode.widgets || frameImagesNode.widgets.length === 0) {
+            setTimeout(initializeHandler, 100);
+            return;
+        }
+
+        for (let i = 1; i <= 4; i++) {
+            const useFrameWidget = frameImagesNode.widgets.find((w) => w && w.name === `useFrame${i}`);
+            const frameWidget = frameImagesNode.widgets.find((w) => w && w.name === `frame${i} position`);
+            const useTimestampWidget = frameImagesNode.widgets.find((w) => w && w.name === `useTimestamp${i}`);
+            const timestampWidget = frameImagesNode.widgets.find((w) => w && w.name === `timestamp${i}`);
+
+            if (useFrameWidget && frameWidget) {
+                toggleWidgetState(useFrameWidget, frameWidget, `frame${i} position`);
+            }
+            if (useTimestampWidget && timestampWidget) {
+                toggleWidgetState(useTimestampWidget, timestampWidget, `timestamp${i}`);
+            }
+        }
+    }
+
+    initializeHandler();
+}
+
 function referenceVideosToggleHandler(referenceVideosNode) {
     if (!referenceVideosNode?.widgets) return;
 
@@ -5096,7 +5255,9 @@ export {
     wanAnimateAdvancedFeatureSettingsToggleHandler,
     videoAdvancedFeatureInputsToggleHandler,
     audioInferenceInputsToggleHandler,
+    audioInferenceReferenceVoiceToggleHandler,
     audioInferenceSpeechVoicesToggleHandler,
+    videoInputsFrameToggleHandler,
     referenceVideosToggleHandler,
 };
 

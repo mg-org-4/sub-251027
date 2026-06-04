@@ -15,6 +15,7 @@ try:
         _resolve_pid_model_dir,
         _migrate_legacy_checkpoints,
         _ensure_pid_source,
+        _required_pid_source_files_for_backbone,
         _ensure_checkpoint,
         _ensure_backbone_assets,
         _latent_samples,
@@ -32,6 +33,7 @@ except ImportError:  # pragma: no cover
         _resolve_pid_model_dir,
         _migrate_legacy_checkpoints,
         _ensure_pid_source,
+        _required_pid_source_files_for_backbone,
         _ensure_checkpoint,
         _ensure_backbone_assets,
         _latent_samples,
@@ -111,7 +113,11 @@ class PiDPrepare:
 
         pid_dir = _resolve_pid_dir(pid_source_dir)
         model_dir = _resolve_pid_model_dir()
-        _ensure_pid_source(pid_dir, allow_download=bool(auto_download))
+        _ensure_pid_source(
+            pid_dir,
+            allow_download=bool(auto_download),
+            required_files=_required_pid_source_files_for_backbone(backbone),
+        )
         _migrate_legacy_checkpoints(model_dir)
         checkpoint_path = _ensure_checkpoint(model_dir, backbone, pid_ckpt_type, allow_download=bool(auto_download))
         _ensure_backbone_assets(model_dir, backbone, allow_download=bool(auto_download))

@@ -13693,7 +13693,7 @@ class WAS_CLIP_Vision_Input_Switch:
         if boolean:
             return (clip_vision_a, )
         else:
-            return (clip_vision_b)
+            return (clip_vision_b,)
 
 # TEXT INPUT SWITCH
 

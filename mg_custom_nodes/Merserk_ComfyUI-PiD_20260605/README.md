@@ -6,13 +6,13 @@
 
 <img width="4096" height="2048" alt="1111111111111111" src="https://github.com/user-attachments/assets/7ccd55ee-e571-4996-9c9c-4b5cecbb4418" />
 
-PiD is not a normal ComfyUI `VAE`. It needs a latent, a prompt/caption, a sigma value, and optionally a native decoder baseline image:
+PiD is not a normal ComfyUI `VAE`. For the official NVIDIA latent-conditioned checkpoints, it needs only a latent, a prompt/caption, and a sigma value:
 
 ```text
-LATENT + caption + sigma + optional baseline IMAGE -> PiD -> IMAGE
+LATENT + caption + sigma -> PiD -> IMAGE
 ```
 
-For the official latent-conditioned PiD checkpoints, this node can infer the baseline size from the latent and skip the extra VAE/baseline image path to reduce VRAM use.
+Image-conditioning inputs were removed because they are not part of the released latent-conditioned PiD path. Output size is inferred from the latent grid and selected PiD scale.
 
 ## Features
 
@@ -60,8 +60,11 @@ Requirements:
 | Value | Backbone | Latent channels | Checkpoints |
 | --- | --- | ---: | --- |
 | `zimage` | Z-Image / Flux-compatible | 16 | `2k`, `2kto4k` |
+| `zimage-turbo` | Z-Image-Turbo / Flux-compatible | 16 | `2k`, `2kto4k` |
 | `flux` | Flux | 16 | `2k`, `2kto4k` |
 | `flux2` | Flux2 | 128 | `2k`, `2kto4k` |
+| `flux2-klein-4b` | Flux2-Klein-4B | 128 | `2k`, `2kto4k` |
+| `flux2-klein-9b` | Flux2-Klein-9B | 128 | `2k`, `2kto4k` |
 | `sd3` | Stable Diffusion 3 | 16 | `2k`, `2kto4k` |
 | `sdxl` | Stable Diffusion XL | 4 | `2kto4k` |
 | `qwenimage` | Qwen-Image | 16 | `2kto4k` |
@@ -69,10 +72,10 @@ Requirements:
 | `dinov2` | DINOv2 RAE | 768 | `2k` |
 | `siglip` | SigLIP Scale-RAE | 1152 | `2k` |
 
-`scale=0` uses NVIDIA's default scale for the selected checkpoint: usually `4x`, or `8x` for SigLIP Scale-RAE.
-SDXL and Qwen-Image only ship NVIDIA's `2kto4k` PiD checkpoint. Flux2 `2kto4k`
-uses the newer `_2606` checkpoint, which replaces the older color-drifting
-release.
+`scale=0` uses NVIDIA's default scale for the selected checkpoint: `4x` for Flux / Flux2 / SD3 / SDXL / Qwen-Image / Z-Image / Z-Image-Turbo / DINOv2, and `8x` for SigLIP Scale-RAE.
+SDXL and Qwen-Image only ship NVIDIA's `2kto4k` PiD checkpoint. Flux2 and Flux2-Klein `2kto4k` use the newer `_2606` checkpoint, which replaces the older color-drifting release.
+
+All currently released NVIDIA PiD checkpoints are 4-step distilled. The UI still allows other `pid_steps` and manual `scale` values for testing / low-VRAM debugging, but the official default is `pid_steps=4` and the checkpoint's native scale.
 
 ## Basic workflow
 
@@ -102,8 +105,6 @@ pid_weight_precision = fp32_compatible
 pixel_chunk_patches = 0
 ```
 
-For official latent-conditioned checkpoints, leave `vae` and `baseline_image` disconnected unless you specifically need an external baseline size.
-
 ## Lowest-VRAM staged workflow
 
 Use the staged nodes when VRAM is tight:
@@ -121,9 +122,28 @@ Recommended Z-Image capture settings:
 ```text
 steps = 50
 sampler_name = euler
-scheduler = beta
+scheduler = flowmatch_euler_discrete
+flowmatch_shift = 3.0
 capture_step = 46
 ```
+
+`flowmatch_euler_discrete` is the PiD node's built-in Diffusers-style FlowMatch Euler Discrete sigma schedule. NVIDIA's PiD `from_ldm` path loads the Hugging Face Diffusers backbone defaults, and Z-Image / Z-Image-Turbo ship a `FlowMatchEulerDiscreteScheduler` config with `shift=3.0`. `euler + beta` still remains available as a community/experimental ComfyUI setting, but it is not the exact official Diffusers-style schedule.
+
+`PiD KSampler Capture` now counts `capture_step` like NVIDIA's `save_xt_steps`: the number of completed LDM denoising passes. For example, `capture_step=46` captures the latent at `sigmas[46]`. If `capture_step` is equal to or greater than the effective sampler step count, the node returns the final clean latent with `sigma=0`.
+
+Suggested capture settings by backbone:
+
+| Backbone | LDM steps | Suggested capture | Recommended latent | Suggested KSampler combo |
+| --- | ---: | --- | --- | --- |
+| `flux`, `sd3` | 28 | 24 | captured latent | `euler` + `flowmatch_euler_discrete` |
+| `sdxl` | 30 | 26 | captured latent | `euler` + Comfy SDXL scheduler (`normal`/model default) |
+| `flux2` | 50 | 46 | captured latent | `euler` + `flowmatch_euler_discrete` |
+| `flux2-klein-4b`, `flux2-klein-9b` | 4 | 2 or 3 | final `x0` | `euler` + `flowmatch_euler_discrete` |
+| `qwenimage`, `qwenimage-2512` | 50 | 44 | captured latent | `euler` + `flowmatch_euler_discrete` |
+| `zimage` | 50 | 46 | captured latent | `euler` + `flowmatch_euler_discrete`, `flowmatch_shift=3.0` |
+| `zimage-turbo` | 9 | 7 optional | final `x0` | `euler` + `flowmatch_euler_discrete`, `flowmatch_shift=3.0` |
+
+`PiD Prepare` accepts only the PiD latent and caption as graph inputs; sigma comes from the captured latent when available or from the manual sigma widget.
 
 `PiD Sample` runs in a separate Python process, so its CUDA context is destroyed after the sample is finished.
 
@@ -233,22 +253,45 @@ The final two commands are optional unless you use their backbones.
 files. With `auto_download=true`, existing complete local folders are used
 without network calls; missing snapshots are downloaded lazily.
 
-## Example workflow
-
-A template workflow is included in:
-
-```text
-example_workflows/image_z_image_pid.json
-```
-
-After restart, open it from ComfyUI workflow templates or load the JSON manually.
-
 ## Notes
 
 - This is a community wrapper around NVIDIA's public PiD code, not an official NVIDIA or ComfyUI project.
-- PiD outputs `IMAGE`, not a ComfyUI `VAE`.
+- PiD outputs `IMAGE`, not a ComfyUI `VAE`; no separate image-conditioning input is required for the supported latent-conditioned checkpoints.
 - NVIDIA's PiD weights may have separate license/usage terms. Check the model card before commercial use.
-- Final latents with `sigma=0.0` can work, but captured intermediate latents usually better match the official PiD recipe.
+- Final latents with `sigma=0.0` can work. For Z-Image-Turbo and Flux2-Klein, final `x0` is the recommended latent; for normal Z-Image / Flux2 / Qwen-Image, captured intermediate latents usually better match the official PiD recipe.
+- SDXL captured latents are automatically converted from Comfy/k-diffusion's variance-exploding frame to the VP frame expected by PiD.
+
+## Example workflows
+
+Complete backbone-specific workflows are included in `example_workflows/`. They include the generation side plus PiD decode side: model loader, text encoder loader, prompt encode, empty latent, `PiD KSampler Capture`, `PiD Prepare`, `PiD Sample`, `PiD Finalize`, and `Save Image`.
+
+Included complete workflows:
+
+```
+pid_flux_complete.json
+pid_flux2_complete.json
+pid_flux2_klein_4b_complete.json
+pid_flux2_klein_9b_complete.json
+pid_qwenimage_complete.json
+pid_qwenimage_2512_complete.json
+pid_sd3_complete.json
+pid_sdxl_complete.json
+pid_zimage_complete.json
+pid_zimage_turbo_complete.json
+pid_image_to_image_2k_complete.json
+pid_image_to_image_2kto4k_complete.json
+```
+
+DINOv2 and SigLIP are intentionally not included as complete ComfyUI text-to-image workflows because their upstream RAE / Scale-RAE LDM paths are not normal Diffusers-style ComfyUI generation graphs.
+
+These workflows output PiD images directly; no VAE baseline image is used.
+
+
+Additional clean-image workflows are also included:
+- `pid_image_to_image_2k_complete.json`
+- `pid_image_to_image_2kto4k_complete.json`
+
+These use `LoadImage -> ResizeImagesByLongerEdge -> VAEEncode -> PiDPrepare -> PiDSample -> PiDFinalize`.
 
 ## License
 

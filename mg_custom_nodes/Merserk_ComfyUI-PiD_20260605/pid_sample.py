@@ -16,10 +16,17 @@ try:
         SEQUENTIAL_OFFLOAD_CHOICES,
         PiDNodeError,
         _free_cuda_memory,
+        _warn_if_non_distilled_step_count,
     )
     from .pid_prepare import PID_PREP_TYPE, PiDPreparedBatch
 except ImportError:  # pragma: no cover
-    from pid_decode import PID_WEIGHT_PRECISION_CHOICES, SEQUENTIAL_OFFLOAD_CHOICES, PiDNodeError, _free_cuda_memory
+    from pid_decode import (
+        PID_WEIGHT_PRECISION_CHOICES,
+        SEQUENTIAL_OFFLOAD_CHOICES,
+        PiDNodeError,
+        _free_cuda_memory,
+        _warn_if_non_distilled_step_count,
+    )
     from pid_prepare import PID_PREP_TYPE, PiDPreparedBatch
 
 
@@ -140,17 +147,12 @@ class PiDSample:
                 "scale": int(prepared.scale),
                 "infer_image_size": tuple(int(x) for x in prepared.infer_image_size),
                 "latent_cpu": prepared.latent_cpu.detach().to("cpu").contiguous(),
-                "baseline_cpu": (
-                    prepared.baseline_cpu.detach().to("cpu").contiguous()
-                    if prepared.baseline_cpu is not None
-                    else None
-                ),
-                "baseline_size": tuple(int(x) for x in prepared.baseline_size),
             }
             torch.save(payload, str(input_path))
             del payload
             _free_cuda_memory(aggressive=True)
 
+            _warn_if_non_distilled_step_count(pid_steps)
             cmd = _build_pid_subprocess_command(
                 runner=runner,
                 input_path=input_path,

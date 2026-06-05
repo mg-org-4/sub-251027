@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Tuple
 
 import torch
 
@@ -20,8 +20,10 @@ try:
         _ensure_backbone_assets,
         _latent_samples,
         _latent_pid_sigma,
-        _baseline_cpu_and_size,
+        _infer_lq_size_from_latent,
         _free_cuda_memory,
+        _normalize_scale_for_checkpoint,
+        _prepare_latent_for_pid_backbone,
     )
 except ImportError:  # pragma: no cover
     from pid_decode import (
@@ -38,8 +40,10 @@ except ImportError:  # pragma: no cover
         _ensure_backbone_assets,
         _latent_samples,
         _latent_pid_sigma,
-        _baseline_cpu_and_size,
+        _infer_lq_size_from_latent,
         _free_cuda_memory,
+        _normalize_scale_for_checkpoint,
+        _prepare_latent_for_pid_backbone,
     )
 
 
@@ -58,8 +62,6 @@ class PiDPreparedBatch:
     scale: int
     infer_image_size: Tuple[int, int]
     latent_cpu: torch.Tensor
-    baseline_cpu: Optional[torch.Tensor]
-    baseline_size: Tuple[int, int]
 
 
 class PiDPrepare:
@@ -77,9 +79,7 @@ class PiDPrepare:
                 "cleanup_after_prepare": ("BOOLEAN", {"default": True}),
             },
             "optional": {
-                "vae": ("VAE",),
                 "pid_source_dir": ("STRING", {"default": "", "multiline": False}),
-                "baseline_image": ("IMAGE",),
             },
         }
 
@@ -98,9 +98,7 @@ class PiDPrepare:
         sigma: float,
         auto_download: bool,
         cleanup_after_prepare: bool = True,
-        vae=None,
         pid_source_dir: str = "",
-        baseline_image=None,
     ):
         backbone = str(backbone).strip()
         pid_ckpt_type = str(pid_ckpt_type).strip()
@@ -108,8 +106,7 @@ class PiDPrepare:
             raise PiDNodeError(f"Unknown backbone={backbone!r}; expected one of {BACKBONE_CHOICES}")
         backbone_info = PID_BACKBONES[backbone]
         ckpt = _checkpoint_for(backbone, pid_ckpt_type)
-        if int(scale) <= 0:
-            scale = int(ckpt.scale or backbone_info.default_scale)
+        scale = _normalize_scale_for_checkpoint(backbone, ckpt, int(scale))
 
         pid_dir = _resolve_pid_dir(pid_source_dir)
         model_dir = _resolve_pid_model_dir()
@@ -131,13 +128,8 @@ class PiDPrepare:
             )
 
         samples_cpu = samples.detach().to("cpu").contiguous()
-        baseline_cpu, baseline_size = _baseline_cpu_and_size(
-            samples,
-            backbone,
-            vae=vae,
-            baseline_image=baseline_image,
-        )
-        h, w = baseline_size
+        samples_cpu, sigma = _prepare_latent_for_pid_backbone(samples_cpu, sigma, backbone)
+        h, w = _infer_lq_size_from_latent(samples, backbone)
         infer_image_size = (int(h) * int(scale), int(w) * int(scale))
 
         if cleanup_after_prepare:
@@ -154,8 +146,6 @@ class PiDPrepare:
             scale=int(scale),
             infer_image_size=infer_image_size,
             latent_cpu=samples_cpu,
-            baseline_cpu=baseline_cpu,
-            baseline_size=baseline_size,
         )
         return (prepared,)
 

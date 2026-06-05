@@ -80,7 +80,6 @@ def main() -> int:
             str(payload.get("caption", "")),
             float(payload["sigma"]),
             payload["latent_cpu"],
-            payload.get("baseline_cpu"),
             device,
         )
         offloader = configure_pid_runtime(model, plan, device=device)

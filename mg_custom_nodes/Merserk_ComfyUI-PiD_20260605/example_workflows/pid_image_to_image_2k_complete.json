@@ -1,0 +1,464 @@
+{
+  "id": "pid_image_to_image_2k_complete.json",
+  "revision": 0,
+  "last_node_id": 10,
+  "last_link_id": 8,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Note",
+      "pos": [
+        -760,
+        -180
+      ],
+      "size": [
+        360,
+        210
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Image to Image (2K)\nSimple clean-image PiD workflow.\nLoad image -> resize -> VAE encode -> PiD decode.\nBackbone: flux (Flux AE / ae.safetensors).\nSet caption if you want text guidance; empty also works.\nLong edge: 512. PiD checkpoint: 2k. Scale: 4."
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        -360,
+        -220
+      ],
+      "size": [
+        350,
+        420
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.22.2",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "ResizeImagesByLongerEdge",
+      "pos": [
+        20,
+        -220
+      ],
+      "size": [
+        300,
+        103
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.22.2",
+        "Node name for S&R": "ResizeImagesByLongerEdge"
+      },
+      "widgets_values": [
+        512
+      ]
+    },
+    {
+      "id": 4,
+      "type": "VAELoader",
+      "pos": [
+        20,
+        -60
+      ],
+      "size": [
+        306,
+        91
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.73",
+        "Node name for S&R": "VAELoader",
+        "models": [
+          {
+            "name": "ae.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors",
+            "directory": "vae"
+          }
+        ]
+      },
+      "widgets_values": [
+        "ae.safetensors"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "VAEEncode",
+      "pos": [
+        360,
+        -220
+      ],
+      "size": [
+        225,
+        71
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 2
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.22.2",
+        "Node name for S&R": "VAEEncode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "type": "PiDTextPrompt",
+      "pos": [
+        360,
+        -30
+      ],
+      "size": [
+        310,
+        170
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "caption",
+          "type": "STRING",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-pid",
+        "ver": "0.2.3",
+        "Node name for S&R": "PiDTextPrompt",
+        "aux_id": "Merserk/ComfyUI-PiD"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 7,
+      "type": "PiDPrepare",
+      "pos": [
+        720,
+        -220
+      ],
+      "size": [
+        370,
+        386
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": 4
+        },
+        {
+          "name": "caption",
+          "type": "STRING",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prepared",
+          "type": "PID_PREP",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-pid",
+        "ver": "0.2.3",
+        "Node name for S&R": "PiDPrepare"
+      },
+      "widgets_values": [
+        "flux",
+        "2k",
+        4,
+        0.0,
+        true,
+        true,
+        ""
+      ]
+    },
+    {
+      "id": 8,
+      "type": "PiDSample",
+      "pos": [
+        1120,
+        -200
+      ],
+      "size": [
+        426,
+        232
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prepared",
+          "type": "PID_PREP",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "sampled",
+          "type": "PID_SAMPLES",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-pid",
+        "ver": "0.2.3",
+        "Node name for S&R": "PiDSample"
+      },
+      "widgets_values": [
+        4,
+        1.0,
+        0,
+        "randomize",
+        true,
+        "auto_low_vram",
+        "fp32_compatible",
+        0
+      ]
+    },
+    {
+      "id": 9,
+      "type": "PiDFinalize",
+      "pos": [
+        1580,
+        -205
+      ],
+      "size": [
+        225,
+        71
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "sampled",
+          "type": "PID_SAMPLES",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-pid",
+        "ver": "0.2.3",
+        "Node name for S&R": "PiDFinalize"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 10,
+      "type": "SaveImage",
+      "pos": [
+        1860,
+        -290
+      ],
+      "size": [
+        430,
+        360
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 8
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.64",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "pid_image_to_image_2k_complete"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      3,
+      0,
+      5,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      4,
+      0,
+      5,
+      1,
+      "VAE"
+    ],
+    [
+      4,
+      5,
+      0,
+      7,
+      0,
+      "LATENT"
+    ],
+    [
+      5,
+      6,
+      1,
+      7,
+      1,
+      "STRING"
+    ],
+    [
+      6,
+      7,
+      0,
+      8,
+      0,
+      "PID_PREP"
+    ],
+    [
+      7,
+      8,
+      0,
+      9,
+      0,
+      "PID_SAMPLES"
+    ],
+    [
+      8,
+      9,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.43.18"
+  },
+  "version": 0.4
+}

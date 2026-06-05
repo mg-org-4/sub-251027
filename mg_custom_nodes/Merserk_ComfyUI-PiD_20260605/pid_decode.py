@@ -3,10 +3,9 @@ ComfyUI-PiD
 
 Experimental ComfyUI nodes for NVIDIA PiD (Pixel Diffusion Decoder).
 
-PiD is not a native ComfyUI VAE object. NVIDIA's inference path needs:
-    latent + native decoder/baseline image + sigma + caption -> PiD -> final image
-So the decode node accepts a LATENT plus either a matching ComfyUI VAE or a
-pre-decoded baseline IMAGE, then returns IMAGE.
+PiD is not a native ComfyUI VAE object. NVIDIA's released latent-conditioned
+checkpoints primarily need:
+    latent + sigma + caption -> PiD -> final image
 """
 
 from __future__ import annotations
@@ -147,9 +146,30 @@ PID_CKPTS: Dict[Tuple[str, str], PiDCheckpoint] = {
 
 PID_BACKBONES: Dict[str, PiDBackbone] = {
     "zimage": PiDBackbone("Z-Image", "zimage", 16, 4, 8, ("2k", "2kto4k"), needs_flux_ae=True),
+    "zimage-turbo": PiDBackbone(
+        "Z-Image-Turbo", "zimage", 16, 4, 8, ("2k", "2kto4k"), needs_flux_ae=True
+    ),
     "flux": PiDBackbone("Flux", "flux", 16, 4, 8, ("2k", "2kto4k"), needs_flux_ae=True),
     "flux2": PiDBackbone(
         "Flux2",
+        "flux2",
+        128,
+        4,
+        16,
+        ("2k", "2kto4k"),
+        aux_files=("checkpoints/flux2_ae.safetensors",),
+    ),
+    "flux2-klein-4b": PiDBackbone(
+        "Flux2-Klein-4B",
+        "flux2",
+        128,
+        4,
+        16,
+        ("2k", "2kto4k"),
+        aux_files=("checkpoints/flux2_ae.safetensors",),
+    ),
+    "flux2-klein-9b": PiDBackbone(
+        "Flux2-Klein-9B",
         "flux2",
         128,
         4,
@@ -315,7 +335,7 @@ def _free_cuda_memory(aggressive: bool = False) -> None:
 
     ComfyUI often keeps the Z-Image UNet/TE/VAE staged for dynamic VRAM. PiD is
     another 1.36B parameter model, so on 16GB cards it helps to decode the native
-    baseline image first, then release Comfy's loaded models before PiD inference.
+    latent to CPU first, then release Comfy's loaded models before PiD inference.
     """
     try:
         gc.collect()
@@ -648,7 +668,7 @@ def _ensure_hf_download_available() -> None:
         raise PiDNodeError(
             "Missing dependency: huggingface_hub.\n"
             "Install this custom node's requirements, or manually run:\n"
-            f"{_python_executable()} -m pip install \"huggingface-hub>=1.0\""
+            f"{_python_executable()} -m pip install \"huggingface-hub>=0.36,<1.0\""
         ) from exc
 
 
@@ -906,6 +926,56 @@ def _checkpoint_for(backbone: str, ckpt_type: str) -> PiDCheckpoint:
         raise PiDNodeError(f"No PiD checkpoint registered for backbone={backbone!r}, pid_ckpt_type={ckpt_type!r}") from exc
 
 
+def _normalize_scale_for_checkpoint(backbone: str, ckpt: PiDCheckpoint, scale: int) -> int:
+    """Return a safe scale value while preserving manual low-VRAM overrides."""
+    if int(scale) <= 0:
+        info = PID_BACKBONES.get(backbone)
+        return int(ckpt.scale or (info.default_scale if info is not None else 4))
+    scale = int(scale)
+    info = PID_BACKBONES.get(backbone)
+    expected = int(ckpt.scale or (info.default_scale if info is not None else scale))
+    if scale != expected:
+        label = info.label if info is not None else backbone
+        print(
+            f"[ComfyUI-PiD] warning: {label} {ckpt.experiment} was trained for scale={expected}; "
+            f"using manual scale={scale}. This can be useful for VRAM tests but is out-of-distribution.",
+            flush=True,
+        )
+    return scale
+
+
+def _warn_if_non_distilled_step_count(pid_steps: int) -> None:
+    try:
+        steps = int(pid_steps)
+    except Exception:
+        return
+    if steps != 4:
+        print(
+            "[ComfyUI-PiD] warning: NVIDIA's released PiD checkpoints are 4-step distilled; "
+            f"pid_steps={steps} is experimental/out-of-distribution.",
+            flush=True,
+        )
+
+
+def _sdxl_vp_from_ve_latent(samples: torch.Tensor, sigma: float) -> Tuple[torch.Tensor, float]:
+    """Convert SDXL Comfy/k-diffusion x_t from VE frame to PiD's VP frame.
+
+    NVIDIA's PiD SDXL capture path rescales both x_t and sigma by
+    sqrt(sigma**2 + 1). For sigma=0 this is an exact no-op.
+    """
+    sigma_f = float(sigma)
+    if abs(sigma_f) < 1e-12:
+        return samples, sigma_f
+    denom = float((sigma_f * sigma_f + 1.0) ** 0.5)
+    return samples / denom, sigma_f / denom
+
+
+def _prepare_latent_for_pid_backbone(samples: torch.Tensor, sigma: float, backbone: str) -> Tuple[torch.Tensor, float]:
+    if str(backbone).strip() == "sdxl":
+        return _sdxl_vp_from_ve_latent(samples, sigma)
+    return samples, float(sigma)
+
+
 def _ensure_checkpoint(model_dir: Path, backbone: str, ckpt_type: str, allow_download: bool = True) -> Path:
     ckpt = _checkpoint_for(backbone, ckpt_type)
     ckpt_path = model_dir / ckpt.relpath
@@ -957,9 +1027,9 @@ def _pid_asset_experiment_opts(model_dir: Path, backbone: str) -> List[str]:
     def override(field: str, relpath: str) -> str:
         return f"++model.config.tokenizer.{field}={_hydra_path(model_dir / relpath)}"
 
-    if backbone in ("zimage", "flux"):
+    if backbone in ("zimage", "zimage-turbo", "flux"):
         return [override("vae_pth", AE_REL_PATH)]
-    if backbone == "flux2":
+    if backbone in ("flux2", "flux2-klein-4b", "flux2-klein-9b"):
         return [override("vae_pth", "checkpoints/flux2_ae.safetensors")]
     if backbone == "sd3":
         return [override("vae_pth", "checkpoints/sd3_vae/vae/diffusion_pytorch_model.safetensors")]
@@ -1248,51 +1318,27 @@ def _make_pid_data_batch(
     caption: str,
     sigma: float,
     latent_cpu: torch.Tensor,
-    baseline_cpu: Optional[torch.Tensor],
     device: str,
 ) -> dict:
     # Free heavyweight PiD conditioners before moving LQ inputs onto CUDA. The
     # text encoder is moved back only for caption encoding inside the sampler.
-    _offload_unused_pid_conditioners(model, include_vae=_pid_uses_lq_latent(model))
+    if _pid_uses_lq_image(model) or not _pid_uses_lq_latent(model):
+        raise PiDNodeError(
+            "This ComfyUI-PiD build only supports NVIDIA latent-conditioned PiD checkpoints. "
+            "The loaded checkpoint is configured for image LQ conditioning, which this node no longer exposes."
+        )
+    _offload_unused_pid_conditioners(model, include_vae=True)
     batch = int(latent_cpu.shape[0])
-    data_batch = {
+    return {
         getattr(model.config, "input_caption_key", "caption"): [caption or ""] * batch,
         "degrade_sigma": torch.full((batch,), float(sigma), device=device, dtype=torch.float32),
+        "LQ_latent": latent_cpu.to(device=device, dtype=torch.bfloat16),
     }
-    if _pid_uses_lq_latent(model):
-        data_batch["LQ_latent"] = latent_cpu.to(device=device, dtype=torch.bfloat16)
-    if _pid_uses_lq_image(model):
-        if baseline_cpu is None:
-            raise PiDNodeError(
-                "This PiD checkpoint requires LQ image conditioning. Connect baseline_image or a matching VAE."
-            )
-        data_batch["LQ_video_or_image"] = (baseline_cpu.to(device=device, dtype=torch.bfloat16) * 2.0) - 1.0
-    return data_batch
 
 
-def _infer_baseline_size_from_latent(samples: torch.Tensor, backbone: str) -> Tuple[int, int]:
+def _infer_lq_size_from_latent(samples: torch.Tensor, backbone: str) -> Tuple[int, int]:
     info = PID_BACKBONES.get(backbone, PID_BACKBONES["zimage"])
     return int(samples.shape[-2]) * int(info.latent_downscale), int(samples.shape[-1]) * int(info.latent_downscale)
-
-
-def _baseline_cpu_and_size(
-    samples: torch.Tensor,
-    backbone: str,
-    vae=None,
-    baseline_image=None,
-) -> Tuple[Optional[torch.Tensor], Tuple[int, int]]:
-    if baseline_image is None and vae is None:
-        return None, _infer_baseline_size_from_latent(samples, backbone)
-    if baseline_image is None:
-        baseline_01 = _decode_baseline_with_comfy_vae(vae, samples, backbone)
-    else:
-        baseline_01 = _comfy_image_to_bchw_01(baseline_image)
-    if baseline_01.shape[0] != samples.shape[0]:
-        raise PiDNodeError(
-            f"Batch mismatch: latent batch={samples.shape[0]}, baseline batch={baseline_01.shape[0]}"
-        )
-    baseline_cpu = baseline_01.detach().to("cpu").contiguous()
-    return baseline_cpu, (int(baseline_cpu.shape[-2]), int(baseline_cpu.shape[-1]))
 
 
 def _apply_adaln(x: torch.Tensor, shift: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
@@ -1627,17 +1673,6 @@ def _latent_pid_sigma(latent: dict, fallback: float) -> float:
     return float(fallback)
 
 
-def _comfy_image_to_bchw_01(image: torch.Tensor) -> torch.Tensor:
-    # Comfy IMAGE is [B,H,W,C] float 0..1.
-    if image.ndim != 4 or image.shape[-1] not in (1, 3, 4):
-        raise PiDNodeError(f"Expected ComfyUI IMAGE [B,H,W,C], got shape {list(image.shape)}")
-    if image.shape[-1] == 4:
-        image = image[..., :3]
-    if image.shape[-1] == 1:
-        image = image.repeat(1, 1, 1, 3)
-    return image.permute(0, 3, 1, 2).contiguous().clamp(0, 1)
-
-
 def _bchw_neg1_to_comfy_image(image: torch.Tensor) -> torch.Tensor:
     # PiD output is normally [B,C,H,W] in [-1,1]. Some PiD builds return a
     # single-frame video tensor [B,C,1,H,W] or [B,1,C,H,W]. Convert all of
@@ -1684,18 +1719,6 @@ def _normalize_pid_samples(samples):
     raise PiDNodeError(f"Unsupported PiD output type: {type(samples)}")
 
 
-def _decode_baseline_with_comfy_vae(vae, samples: torch.Tensor, backbone: str) -> torch.Tensor:
-    try:
-        image = vae.decode(samples)
-    except Exception as exc:
-        label = PID_BACKBONES.get(backbone, PID_BACKBONES["zimage"]).label
-        raise PiDNodeError(
-            f"ComfyUI VAE decode failed. Make sure the connected VAE can decode {label} "
-            "latents, or connect a pre-decoded baseline_image instead."
-        ) from exc
-    return _comfy_image_to_bchw_01(image)
-
-
 class PiDDecode:
     @classmethod
     def INPUT_TYPES(cls):
@@ -1719,12 +1742,10 @@ class PiDDecode:
                 "aggressive_cleanup": ("BOOLEAN", {"default": True}),
             },
             "optional": {
-                "vae": ("VAE",),
                 "pid_source_dir": ("STRING", {"default": "", "multiline": False}),
                 "sequential_offload": (SEQUENTIAL_OFFLOAD_CHOICES, {"default": "auto_low_vram"}),
                 "pid_weight_precision": (PID_WEIGHT_PRECISION_CHOICES, {"default": "fp32_compatible"}),
                 "pixel_chunk_patches": ("INT", {"default": 0, "min": 0, "max": 65536, "step": 1024}),
-                "baseline_image": ("IMAGE",),
             },
         }
 
@@ -1747,12 +1768,10 @@ class PiDDecode:
         auto_download: bool,
         unload_comfy_before_pid: bool = True,
         aggressive_cleanup: bool = True,
-        vae=None,
         pid_source_dir: str = "",
         sequential_offload: str = "auto_low_vram",
         pid_weight_precision: str = "fp32_compatible",
         pixel_chunk_patches: int = 0,
-        baseline_image=None,
     ):
         backbone = str(backbone).strip()
         pid_ckpt_type = str(pid_ckpt_type).strip()
@@ -1767,8 +1786,7 @@ class PiDDecode:
             raise PiDNodeError(f"Unknown backbone={backbone!r}; expected one of {BACKBONE_CHOICES}")
         backbone_info = PID_BACKBONES[backbone]
         ckpt = _checkpoint_for(backbone, pid_ckpt_type)
-        if int(scale) <= 0:
-            scale = int(ckpt.scale or backbone_info.default_scale)
+        scale = _normalize_scale_for_checkpoint(backbone, ckpt, int(scale))
 
         pid_dir = _resolve_pid_dir(pid_source_dir)
         model_dir = _resolve_pid_model_dir()
@@ -1789,21 +1807,13 @@ class PiDDecode:
                 f"Got {samples.shape[1]} channels."
             )
 
-        # Keep only CPU copies before unloading Z-Image / CLIP / VAE.
-        # This prevents upstream CUDA tensors or a connected ComfyUI VAE object from
-        # keeping VRAM alive during the PiD-only stage.
+        # Keep only a CPU latent copy before unloading Z-Image / CLIP / VAE.
+        # PiD's released latent-conditioned checkpoints do not need any image input.
         samples_cpu = samples.detach().to("cpu").contiguous()
-        baseline_cpu, baseline_size = _baseline_cpu_and_size(
-            samples,
-            backbone,
-            vae=vae,
-            baseline_image=baseline_image,
-        )
+        samples_cpu, sigma = _prepare_latent_for_pid_backbone(samples_cpu, sigma, backbone)
+        h, w = _infer_lq_size_from_latent(samples, backbone)
         del samples
-        vae = None
-        baseline_image = None
         latent = None
-        h, w = baseline_size
         infer_image_size = (int(h) * int(scale), int(w) * int(scale))
         plan = resolve_pid_memory_plan(
             sequential_offload=sequential_offload,
@@ -1813,8 +1823,7 @@ class PiDDecode:
         )
         _log_pid_memory_plan(plan)
 
-        # Decode or receive the low-res baseline first, then release Comfy's
-        # Z-Image/TE/VAE models before loading/running PiD.
+        # Release Comfy's Z-Image/TE/VAE models before loading/running PiD.
         if unload_comfy_before_pid:
             _free_cuda_memory(aggressive=bool(aggressive_cleanup))
 
@@ -1836,9 +1845,8 @@ class PiDDecode:
         device = "cuda"
 
         caption = caption or ""
-        data_batch = _make_pid_data_batch(model, caption, float(sigma), samples_cpu, baseline_cpu, device)
+        data_batch = _make_pid_data_batch(model, caption, float(sigma), samples_cpu, device)
         del samples_cpu
-        del baseline_cpu
 
         if model_management is not None:
             try:
@@ -1850,6 +1858,7 @@ class PiDDecode:
         offloader = configure_pid_runtime(model, plan, device=device)
         _reset_cuda_peak_memory_stats()
         try:
+            _warn_if_non_distilled_step_count(pid_steps)
             with torch.inference_mode():
                 out = _generate_samples_low_vram(
                     model,

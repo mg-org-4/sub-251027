@@ -1735,14 +1735,16 @@ app.registerExtension({
 
       // 把json往里 拖
       document.addEventListener('drop', async event => {
-        event.preventDefault()
-        event.stopPropagation()
-
-        // Dragging from Chrome->Firefox there is a file but its a bmp, so ignore that
+        // Only intercept the JSON files handled here. Calling preventDefault()
+        // unconditionally swallowed every drop, so ComfyUI's native drag&drop
+        // (guarded by event.defaultPrevented) never loaded dropped workflows
+        // (PNG / JSON / etc.). Keep preventDefault scoped to the handled case.
         if (
           event.dataTransfer.files.length &&
           event.dataTransfer.files[0].type == 'application/json'
         ) {
+          event.preventDefault()
+          event.stopPropagation()
           const reader = new FileReader()
           reader.onload = async () => {
             loadAppJson(reader.result)

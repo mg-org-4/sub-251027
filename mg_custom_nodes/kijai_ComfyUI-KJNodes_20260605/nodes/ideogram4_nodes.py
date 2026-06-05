@@ -68,7 +68,8 @@ def _render_preview(boxes, width, height):
     for i, box in enumerate(boxes):
         if not isinstance(box, dict) or box.get("nobbox"):
             continue                                        # skip unplaced elements (no real location)
-        r, g, b = _hex_rgb(PREVIEW_PALETTE[i % len(PREVIEW_PALETTE)])
+        palette = [c for c in (box.get("palette") or []) if c]
+        r, g, b = _hex_rgb(palette[0]) if palette else (140, 140, 140)   # box = first palette color, else grey
         x1 = max(0, min(rw, round(box.get("x", 0) * rw)))
         y1 = max(0, min(rh, round(box.get("y", 0) * rh)))
         x2 = max(0, min(rw, round((box.get("x", 0) + box.get("w", 0)) * rw)))
@@ -80,11 +81,20 @@ def _render_preview(boxes, width, height):
 
         draw.rectangle([x1, y1, x2, y2], outline=(r, g, b, 255), width=2)
 
+        pal5 = palette[:5]                                   # palette shown as a strip along the top edge
+        if pal5 and (x2 - x1) > 2:
+            sh = max(5, fs // 2)
+            seg = (x2 - x1) / len(pal5)
+            for p, hexc in enumerate(pal5):
+                sx = x1 + round(p * seg)
+                draw.rectangle([sx, y1, x1 + round((p + 1) * seg), y1 + sh], fill=_hex_rgb(hexc))
+
         etype = "text" if box.get("type") == "text" else "obj"
-        tag = ("T" if etype == "text" else "O") + str(i + 1)
+        tag = str(i + 1).zfill(2)
         tw = draw.textlength(tag, font=tag_font)
-        draw.rectangle([x1, y1, x1 + tw + 6, y1 + fs + 2], fill=(r, g, b, 255))
-        draw.text((x1 + 3, y1 + 1), tag, fill=(0, 0, 0, 255), font=tag_font)
+        draw.rectangle([x1, y1, x1 + tw + 6, y1 + fs + 2], fill=(r, g, b, 255))  # tag chip = box color
+        tagfill = (0, 0, 0, 255) if (0.299 * r + 0.587 * g + 0.114 * b) > 140 else (255, 255, 255, 255)
+        draw.text((x1 + 3, y1 + 1), tag, fill=tagfill, font=tag_font)
 
         body = box.get("desc", "") or ""
         if etype == "text" and box.get("text"):
@@ -94,16 +104,8 @@ def _render_preview(boxes, width, height):
             for line in _wrap(draw, body, font, x2 - x1 - 8):
                 if ty > y2:
                     break
-                draw.text((x1 + 4, ty), line, fill=(255, 255, 255, 255), font=font)
+                draw.text((x1 + 4, ty), line, fill=(212, 212, 212, 255), font=font)
                 ty += lh
-
-        palette = [c for c in (box.get("palette") or []) if c]
-        ds = max(5, fs - 2)
-        for p, hexc in enumerate(palette[:5]):
-            dx = x1 + 2 + p * (ds + 2)
-            if dx + ds > x2:
-                break
-            draw.rectangle([dx, y2 - ds - 2, dx + ds, y2 - 2], fill=_hex_rgb(hexc), outline=(0, 0, 0, 255))
 
     img = Image.alpha_composite(img, overlay).convert("RGB")
     arr = np.asarray(img, dtype=np.float32) / 255.0
@@ -160,28 +162,6 @@ def _parse_json_list(s):
     return []
 
 
-def _caption_to_boxes(caption):
-    # A parsed caption's elements -> editor box dicts (for the preview render).
-    cd = caption.get("compositional_deconstruction", {}) if isinstance(caption, dict) else {}
-    boxes = []
-    for idx, el in enumerate(cd.get("elements", []) or []):
-        if not isinstance(el, dict):
-            continue
-        box = {"type": "text" if el.get("type") == "text" else "obj",
-               "text": el.get("text", ""), "desc": el.get("desc", ""),
-               "palette": el.get("color_palette", []) or []}
-        bb = el.get("bbox")
-        if isinstance(bb, list) and len(bb) == 4:
-            ymin, xmin, ymax, xmax = bb
-            box.update(x=xmin / 1000.0, y=ymin / 1000.0,
-                       w=(xmax - xmin) / 1000.0, h=(ymax - ymin) / 1000.0)
-        else:                                               # unplaced — small placeholder
-            k = idx % 6
-            box.update(x=0.03 + k * 0.035, y=0.03 + k * 0.035, w=0.22, h=0.14, nobbox=True)
-        boxes.append(box)
-    return boxes
-
-
 class Ideogram4PromptBuilderKJ(io.ComfyNode):
     @classmethod
     def define_schema(cls):
@@ -222,8 +202,8 @@ the canvas aspect ratio.""",
                 io.String.Input("lighting", default="", tooltip="Style descriptor (blank = omitted)."),
                 io.String.Input("medium", default="", tooltip="Style descriptor (blank = omitted)."),
                 io.String.Input("import_json", default="", optional=True, force_input=True,
-                                tooltip="Optional: a full caption JSON. When connected, it overrides the "
-                                        "editor and the node emits this caption (and its preview) directly."),
+                                tooltip="Optional: a full caption JSON. When connected, it loads into the "
+                                        "editor on run; the output always reflects the editor, never the raw input."),
                 io.String.Input("style_palette_data", default="", socketless=True, advanced=True,
                                 tooltip="Serialized style color palette from the editor (managed by the node UI)."),
                 io.String.Input("elements_data", default="", socketless=True, advanced=True,
@@ -239,16 +219,6 @@ the canvas aspect ratio.""",
     def execute(cls, width, height, background, style,
                 high_level_description="", aesthetics="", lighting="", medium="",
                 style_palette_data="", elements_data="", import_json="") -> io.NodeOutput:
-        # Override: a full caption JSON wired in is emitted (and previewed) as-is.
-        if import_json and import_json.strip():
-            try:
-                cap = json.loads(import_json)
-                if isinstance(cap, dict):
-                    preview = _render_preview(_caption_to_boxes(cap), width, height)
-                    return io.NodeOutput(_dumps(cap), preview)
-            except json.JSONDecodeError:
-                pass
-
         boxes = _parse_json_list(elements_data)
 
         caption = {}
@@ -293,4 +263,16 @@ the canvas aspect ratio.""",
             "elements": elements,
         }
         preview = _render_preview(boxes, width, height)
+        # import_json (if wired) only loads into the editor via ui — the output and
+        # preview always reflect the editor state, never the raw input.
+        ui = {}
+        if import_json and import_json.strip():
+            try:
+                cap = json.loads(import_json)
+                if isinstance(cap, dict):
+                    ui["caption"] = [_dumps(cap)]
+            except json.JSONDecodeError:
+                pass
+        if ui:
+            return io.NodeOutput(_dumps(caption), preview, ui=ui)
         return io.NodeOutput(_dumps(caption), preview)

@@ -73,8 +73,7 @@ from .nodes.model_optimization_nodes import (
     SkipLayerGuidanceWanVideo, CFGZeroStarAndInit, GGUFLoaderKJ, NABLA_AttentionKJ,
     StartRecordCUDAMemoryHistory, EndRecordCUDAMemoryHistory, VisualizeCUDAMemoryHistory,
     ModelMemoryUseReportPatch, ModelMemoryUsageFactorOverride, WanChunkFeedForward,
-    SamplerSelfRefineVideo,
-    SamplerSelfRefineVideo, PiDColorBiasCorrection,
+    SamplerSelfRefineVideo, PiDColorBiasCorrection, Ideogram4OptimizationsKJ,
 )
 from .nodes.lora_nodes import LoraExtractKJ, LoraReduceRank
 from .nodes.image_transform_node import ImageTransformKJ
@@ -306,6 +305,7 @@ NODE_CONFIG = {
     "ModelMemoryUseReportPatch": {"class": ModelMemoryUseReportPatch, "name": "Model Memory Use Report Patch"},
     "ModelMemoryUsageFactorOverride": {"class": ModelMemoryUsageFactorOverride, "name": "Model Memory Usage Factor Override"},
     "WanChunkFeedForward": {"class": WanChunkFeedForward, "name": "Wan ChunkFeedForward"},
+    "Ideogram4OptimizationsKJ": {"class": Ideogram4OptimizationsKJ, "name": "Ideogram4 Optimizations KJ"},
     "SamplerSelfRefineVideo": {"class": SamplerSelfRefineVideo, "name": "Sampler SelfRefineVideo"},
     "PlaySoundKJ": {"class": PlaySoundKJ, "name": "Play Sound KJ"},
 

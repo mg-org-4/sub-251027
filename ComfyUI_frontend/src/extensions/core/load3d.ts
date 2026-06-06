@@ -270,8 +270,16 @@ useExtensionService().registerExtension({
     }
   ],
   getCustomWidgets() {
+    const VIEWPORT_STATE_NODES = new Set([
+      'Preview3DAdvanced',
+      'PreviewGaussianSplat',
+      'PreviewPointCloud'
+    ])
     return {
       LOAD_3D(node) {
+        const inputName = VIEWPORT_STATE_NODES.has(node.constructor.comfyClass)
+          ? 'viewport_state'
+          : 'image'
         const hasModelFileWidget = node.widgets?.some(
           (w) => w.name === 'model_file'
         )
@@ -316,9 +324,9 @@ useExtensionService().registerExtension({
 
         const widget = new ComponentWidgetImpl({
           node: node,
-          name: 'image',
+          name: inputName,
           component: Load3D,
-          inputSpec: inputSpecLoad3D,
+          inputSpec: { ...inputSpecLoad3D, name: inputName },
           options: {}
         })
 
@@ -688,7 +696,7 @@ useExtensionService().registerExtension({
       if (!lastTimeModelFile) return
 
       const config = new Load3DConfiguration(load3d, node.properties)
-      config.configureForSaveMesh('output', lastTimeModelFile as string, {
+      config.configureForSaveMesh('temp', lastTimeModelFile as string, {
         silentOnNotFound: true
       })
 
@@ -715,7 +723,7 @@ useExtensionService().registerExtension({
     })
 
     useLoad3d(node).waitForLoad3d((load3d) => {
-      const sceneWidget = node.widgets?.find((w) => w.name === 'image')
+      const sceneWidget = node.widgets?.find((w) => w.name === 'viewport_state')
       if (!sceneWidget) return
 
       const resolveLoad3d = () => nodeToLoad3dMap.get(node) ?? load3d
@@ -782,7 +790,7 @@ useExtensionService().registerExtension({
 
         const currentLoad3d = resolveLoad3d()
         const config = new Load3DConfiguration(currentLoad3d, node.properties)
-        config.configureForSaveMesh('output', normalizedPath, {
+        config.configureForSaveMesh('temp', normalizedPath, {
           silentOnNotFound: true
         })
 

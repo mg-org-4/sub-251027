@@ -32,12 +32,6 @@ This makes V injection less aggressive than a plain blend and reduces artifacts 
 
 Conceptually inspired by [CACTIF's similarity-filtered attention](https://arxiv.org/abs/2505.16360), but implemented here as a lightweight token-local V-space gate.
 
-## `attention_entropy_scaling`
-
-Scales the target's variance of the attention-score `QKᵀ` towards the reference's. It does not compute the full Shannon entropy and uses a Gram-matrix approximation as a cheaper entropy-like signal.
-
-Can work well at full strength for making images look cleaner.
-
 ## `variance_gated_v_adain`
 
 Applies AdaIN to the target V tensor but only on reference channels with high variance.

@@ -108,16 +108,15 @@ def _coerce_unit_interval(value: Any, default: float = 0.0) -> float:
 def _rf_trajectory_config_for_cache(rf_cfg: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """Return the RF parameters that affect the trajectory/cache."""
     src = dict(rf_cfg or {})
-    mode, gamma_curve = _normalize_rf_mode_and_gamma_curve(
-        src.get('rf_mode', 'rf_gamma'),
-        src.get('gamma_curve', 0.0),
-    )
+    mode = str(src.get('rf_mode', 'rf_gamma') or 'rf_gamma')
     return {
         'rf_mode': mode,
-        'gamma_curve': float(gamma_curve),
         'gamma': float(src.get('gamma', 0.5)),
-        'norm_strength': _coerce_norm_strength(src.get('norm_strength', 0.0)),
         'pmi_alpha': _coerce_unit_interval(src.get('pmi_alpha', 0.4), 0.4),
+        'otip_strength': _coerce_otip_strength(src.get('otip_strength', 0.0)),
+        'otip_phase': _coerce_otip_phase(src.get('otip_phase', 1.0)),
+        'otip_clip_norm': _coerce_otip_clip_norm(src.get('otip_clip_norm', 10.0)),
+        'otip_respect_model_norm': False,
         'seed': int(src.get('seed', 42)),
     }
 
@@ -455,68 +454,185 @@ def _flow_denoised_preview_from_raw_velocity(
 # RF utility helpers
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_GAMMA_RF_MODES = {'rf_gamma', 'rf_gamma_rk2', 'fireflow', 'rf_solver_2'}
+def _rf_base_mode(mode: str) -> str:
+    """Return the actual RF solver mode.
 
-def _coerce_gamma_curve(value: Any = 0.0) -> float:
-    """Clamp gamma_curve to the supported range."""
+    OTIP is no longer encoded in rf_mode names. Select one of the normal RF
+    solvers and set otip_strength > 0 to add OTIP transport guidance.
+    """
+    return str(mode or 'rf_gamma')
+
+
+def _coerce_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return bool(default)
+    if isinstance(value, (int, float)):
+        return bool(value)
+    value_l = str(value).strip().lower()
+    if value_l in {'1', 'true', 'yes', 'y', 'on'}:
+        return True
+    if value_l in {'0', 'false', 'no', 'n', 'off'}:
+        return False
+    return bool(default)
+
+
+def _coerce_otip_strength(value: Any, default: float = 0.0) -> float:
     try:
-        curve = float(value)
+        v = float(value)
     except Exception as exc:
-        raise ValueError(f'Invalid gamma_curve value: {value!r}.') from exc
-    if not math.isfinite(curve):
-        raise ValueError(f'Invalid gamma_curve value: {value!r} is not finite.')
-    return max(0.0, min(8.0, curve))
+        raise ValueError(f'Invalid otip_strength value: {value!r}.') from exc
+    if not math.isfinite(v):
+        raise ValueError(f'Invalid otip_strength value: {value!r} is not finite.')
+    # The official repo documents a practical range around 0.1–1.2.
+    return max(0.0, min(2.0, v))
 
-def _normalize_rf_mode_and_gamma_curve(
-    mode: str,
-    gamma_curve: float = 0.0,
-) -> Tuple[str, float]:
-    """Normalize the RF mode string and clamp gamma_curve."""
-    mode = str(mode or 'rf_gamma')
-    return mode, _coerce_gamma_curve(gamma_curve)
-
-def _coerce_norm_strength(norm_strength: float) -> float:
+def _coerce_otip_phase(value: Any, default: float = 1.0) -> float:
     try:
-        strength = float(norm_strength)
+        v = float(value)
     except Exception as exc:
-        raise ValueError(f'Invalid norm_strength value: {norm_strength!r}.') from exc
-    if not math.isfinite(strength):
-        raise ValueError(f'Invalid norm_strength value: {norm_strength!r} is not finite.')
-    return max(0.0, min(1.0, strength))
+        raise ValueError(f'Invalid otip_phase value: {value!r}.') from exc
+    if not math.isfinite(v):
+        raise ValueError(f'Invalid otip_phase value: {value!r} is not finite.')
+    return max(1e-6, min(1.0, v))
+
+def _coerce_otip_clip_norm(value: Any, default: float = 10.0) -> float:
+    try:
+        v = float(value)
+    except Exception as exc:
+        raise ValueError(f'Invalid otip_clip_norm value: {value!r}.') from exc
+    if not math.isfinite(v):
+        raise ValueError(f'Invalid otip_clip_norm value: {value!r} is not finite.')
+    return max(1e-6, min(1e4, v))
+
+
+def _otip_feature_norm(x: torch.Tensor) -> torch.Tensor:
+    """Feature-wise norm matching the official OT-RF implementation.
+
+    The official Flux pipeline operates on packed latents shaped [B, tokens, C]
+    and clips with torch.norm(..., dim=-1, keepdim=True). Comfy latent tensors
+    here are normally [B, C, H, W], so the feature dimension is channel dim=1.
+    """
+    if x.ndim == 3:
+        return torch.linalg.vector_norm(x.float(), ord=2, dim=-1, keepdim=True).to(dtype=x.dtype)
+    if x.ndim >= 4:
+        return torch.linalg.vector_norm(x.float(), ord=2, dim=1, keepdim=True).to(dtype=x.dtype)
+    dims = tuple(range(1, x.ndim))
+    if not dims:
+        return x.detach().abs().clamp_min(1e-8)
+    return torch.linalg.vector_norm(x.float(), ord=2, dim=dims, keepdim=True).to(dtype=x.dtype)
+
+
+def _otip_compute_transport_direction(
+    current_state: torch.Tensor,
+    target_state: torch.Tensor,
+    timestep: float,
+    clip_norm: float = 10.0,
+    denom_eps: float = 0.01,
+) -> torch.Tensor:
+    """Closed-form OT-RF/W2 displacement direction.
+
+    This is the official OT-RF direction adapted to Comfy latents:
+        direction = (target_state - current_state) / max(1 - timestep, 0.01)
+    followed by feature-wise norm clipping.
+    """
+    denom = max(1.0 - float(timestep), float(denom_eps))
+    direction = (target_state.to(device=current_state.device, dtype=current_state.dtype) - current_state) / denom
+    direction_norm = _otip_feature_norm(direction).clamp_min(1e-8)
+    max_norm = torch.as_tensor(float(clip_norm), device=direction.device, dtype=direction.dtype)
+    scale_factor = torch.minimum(torch.ones_like(direction_norm), max_norm / direction_norm)
+    return direction * scale_factor
+
+
+def _otip_adaptive_transport_strength(
+    step_index: int,
+    total_steps: int,
+    base_strength: float,
+    timestep_value: float,
+    phase_shift: float = 1.0,
+) -> float:
+    """Return the OTIP transport strength for one inversion step.
+
+    ``base_strength`` remains the main OTIP on/off and magnitude control.
+    The ComfyUI node hardcodes phase to 1.0, so OTIP is applied on every RF
+    step whenever ``otip_strength > 0``. The ``phase_shift`` argument remains
+    for backward-compatible metadata/config loading only.
+    """
+    strength = max(0.0, float(base_strength))
+    if strength <= 0.0:
+        return 0.0
+
+    phase = max(0.0, min(1.0, float(phase_shift)))
+    if phase >= 0.999:
+        return strength
+
+    sigma = max(0.0, min(1.0, float(timestep_value)))
+    start_sigma = max(0.0, 1.0 - phase)
+    if sigma <= start_sigma:
+        return 0.0
+
+    u = (sigma - start_sigma) / max(phase, 1e-8)
+    u = max(0.0, min(1.0, u))
+    smooth = 0.5 - 0.5 * math.cos(math.pi * u)
+    return strength * smooth
+
+
+def _otip_apply_velocity_guidance(
+    v_base: torch.Tensor,
+    current_state: torch.Tensor,
+    target_state: torch.Tensor,
+    timestep: float,
+    step_index: int,
+    total_steps: int,
+    base_strength: float,
+    phase_shift: float,
+    clip_norm: float,
+    respect_model_norm: bool = True,
+) -> Tuple[torch.Tensor, float, float]:
+    """Apply OTIP's additive velocity-field correction.
+
+    The official code computes ot_contribution = strength * (ot_direction - v_t)
+    and adds it to v_t. With respect_model_norm=True it rescales the correction
+    by ||v_t|| / ||ot_direction|| so OT does not swamp the RF velocity field.
+    """
+    strength = _otip_adaptive_transport_strength(
+        step_index=step_index,
+        total_steps=total_steps,
+        base_strength=base_strength,
+        timestep_value=timestep,
+        phase_shift=phase_shift,
+    )
+    if strength <= 0.0:
+        return v_base, 0.0, 0.0
+
+    ot_direction = _otip_compute_transport_direction(
+        current_state=current_state,
+        target_state=target_state,
+        timestep=timestep,
+        clip_norm=clip_norm,
+    )
+    ot_contribution = float(strength) * (ot_direction - v_base)
+    if respect_model_norm:
+        v_norm = _otip_feature_norm(v_base).clamp_min(1e-8)
+        ot_norm = _otip_feature_norm(ot_direction).clamp_min(1e-8)
+        ot_contribution = ot_contribution * (v_norm / ot_norm)
+    guided = v_base + ot_contribution
+    return guided.to(dtype=v_base.dtype), float(strength), float(ot_direction.detach().abs().mean().item())
 def _rf_gamma_for_mode(
     mode: str,
     gamma: float,
     sigma_prev: float,
     sigma_cur: float,
-    gamma_curve: float = 0.0,
 ) -> float:
-    mode, gamma_curve = _normalize_rf_mode_and_gamma_curve(mode, gamma_curve)
-    if mode == 'linear':
+    base_mode = _rf_base_mode(mode)
+    if base_mode == 'linear':
         return 0.0
-    if gamma_curve > 0.0 and mode in _GAMMA_RF_MODES:
-        s = max(0.0, min(1.0, 0.5 * (float(sigma_prev) + float(sigma_cur))))
-        bell = max(0.0, min(1.0, 4.0 * s * (1.0 - s)))
-        return float(gamma) * (bell ** gamma_curve)
     return float(gamma)
 
 def _rf_linear_target(ref_clean: torch.Tensor, eps: torch.Tensor, sigma: float) -> torch.Tensor:
     sigma = max(0.0, min(1.0, float(sigma)))
     return (1.0 - sigma) * ref_clean + sigma * eps
-
-def _rf_match_mean_std(x: torch.Tensor, target: torch.Tensor, strength: float = 1.0) -> torch.Tensor:
-    """Blend x toward target's per-sample mean/std. Prevents RF feature drift."""
-    strength = max(0.0, min(1.0, float(strength)))
-    if strength <= 0.0:
-        return x
-    dims = tuple(range(1, x.ndim))
-    x_mean = x.mean(dim=dims, keepdim=True)
-    x_std = x.std(dim=dims, keepdim=True).clamp_min(1e-6)
-    t_mean = target.mean(dim=dims, keepdim=True)
-    t_std = target.std(dim=dims, keepdim=True).clamp_min(1e-6)
-    matched = (x - x_mean) / x_std * t_std + t_mean
-    return (1.0 - strength) * x + strength * matched
-
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PMI — Proximal-Mean Inversion (Wang et al., ICLR 2026)
@@ -554,11 +670,16 @@ class _PMIState:
         post_update_corrected: bool = False,
     ) -> torch.Tensor:
         """
-        Apply the PMI proximal-gradient velocity correction.
+        Paper Algorithm 1 uses xdist as a running sum of the *raw predicted*
+        velocities up to the current step:
 
-        strength is a radius multiplier: 0 disables the correction, 1 matches the
-        official radius. Values between 0 and 1 are useful as a conservative UI
-        control while preserving the official update form.
+            xdist += Δt * v_t
+            v_mean = xdist / (t_next - t0)
+            v_hat = v_t - r_t * grad F(v_t) / ||grad F(v_t)||
+            z_next = z + Δt * v_hat
+
+        The corrected velocity is used for the RF state update and the
+        previous-velocity consistency term.
         """
         strength = max(0.0, min(1.0, float(strength)))
         if strength <= 0.0:
@@ -576,23 +697,18 @@ class _PMIState:
         dtype = v_model.dtype
         v_detached = v_model.detach()
 
-        # Official PMI accumulates the time-weighted velocity, then normalizes it
-        # by the next inverse-time value to get the mean-flow velocity.
-        increment = (dt * v_detached).to(device=device, dtype=dtype)
+        raw_increment = (dt * v_detached).to(device=device, dtype=dtype)
         if self.mean_velocity is None:
-            self.mean_velocity = increment.clone()
+            self.mean_velocity = raw_increment.clone()
         else:
-            self.mean_velocity = self.mean_velocity.to(device=device, dtype=dtype) + increment
+            self.mean_velocity = self.mean_velocity.to(device=device, dtype=dtype) + raw_increment
 
         denom = t_next_f if abs(t_next_f) > self.eps else (self.eps if t_next_f >= 0.0 else -self.eps)
         pred_mean = (self.mean_velocity.to(device=device, dtype=dtype) / denom).detach()
 
-
-        # The official PMI objective has a closed-form gradient:
+        # PMI objective gradient:
         #   grad 0.5||v - v_mean||_2^2 = v - v_mean
         #   grad ||v - v_prev||_1       = sign(v - v_prev)
-        # Computing it analytically keeps the official PMI update usable inside
-        # Comfy's no-grad sampling path without adding any model evaluations.
         pred = v_detached
         grad = (pred.float() - pred_mean.float()).to(dtype=dtype)
         if self.prev_corrected_velocity is not None:
@@ -604,9 +720,6 @@ class _PMIState:
 
         self.prev_corrected_velocity = corrected.detach().clone()
         self.step_count += 1
-
-        if post_update_corrected:
-            self.mean_velocity = self.mean_velocity.to(device=device, dtype=dtype) + dt * corrected.detach()
 
         return corrected
 
@@ -624,21 +737,29 @@ def _rf_build_cache_from_sampler_sigmas(
     stats:          Optional[vp._RuntimeStats] = None,
     eps:            Optional[torch.Tensor] = None,
     rf_mode:        str   = 'rf_gamma',
-    norm_strength:  float = 0.0,
     pmi_alpha:      float = 0.4,
-    gamma_curve:     float = 0.0,
+    otip_strength:   float = 0.0,
+    otip_phase:      float = 1.0,
+    otip_clip_norm:  float = 10.0,
+    otip_respect_model_norm: bool = False,
     preview_callback: Optional[Callable[[int, torch.Tensor, torch.Tensor, int], None]] = None,
 ) -> Tuple[Dict[float, torch.Tensor], torch.Tensor, List[float]]:
     """
     Build reference x_sigma latents on the actual sampler sigma grid.
     """
-    norm_strength = _coerce_norm_strength(norm_strength)
-    mode, gamma_curve = _normalize_rf_mode_and_gamma_curve(rf_mode, gamma_curve)
+    mode = str(rf_mode or 'rf_gamma')
     valid_modes = {'linear', 'rf_gamma', 'rf_gamma_rk2', 'fireflow', 'rf_solver_2'}
     if mode not in valid_modes:
         raise ValueError(
             f"Invalid rf_mode={mode!r}. Expected one of {sorted(valid_modes)}."
         )
+    base_mode = _rf_base_mode(mode)
+    otip_strength_eff = _coerce_otip_strength(otip_strength)
+    otip_phase_eff = _coerce_otip_phase(otip_phase)
+    otip_clip_norm_eff = _coerce_otip_clip_norm(otip_clip_norm)
+    # OTIP respect_model_norm is intentionally hardcoded off.
+    otip_respect_model_norm_eff = False
+    use_otip = otip_strength_eff > 0.0
 
     parameterization = getattr(stats, 'parameterization', 'unknown') if stats else 'unknown'
 
@@ -703,13 +824,15 @@ def _rf_build_cache_from_sampler_sigmas(
         _rf_emit_preview(preview_callback, step_index, denoised_preview, x_current, total_preview_steps)
 
     vp._rf_vprint(stats,
-        f'{vp._rf_prefix(stats)}   RF trajectory mode: {mode}  gamma={gamma:.4f}  '
-        f'gamma_curve={gamma_curve:.3f}  '
-        f'norm_strength={norm_strength:.3f}  '
-        f'norm={"on" if norm_strength > 0.0 else "off"}  '
+        f'{vp._rf_prefix(stats)}   RF trajectory mode: {mode}'
+        f'{f"  base={base_mode}" if use_otip else ""}  gamma={gamma:.4f}  '
         f'parameterization={parameterization}\n'
         f'{vp._rf_prefix(stats)}   pmi_alpha={pmi_alpha_eff:.3f}  '
-        f'PMI={"on" if use_pmi else "off"}'
+        f'PMI={"on" if use_pmi else "off"}  '
+        f'OTIP={"on" if use_otip else "off"}  '
+        f'otip_strength={otip_strength_eff:.3f}  '
+        f'otip_phase={otip_phase_eff:.3f}  '
+        f'otip_clip={otip_clip_norm_eff:.3f}'
     )
 
     # Print persistent RF inversion progress snapshots. This keeps every RF step
@@ -726,7 +849,9 @@ def _rf_build_cache_from_sampler_sigmas(
         sigma_cur  = float(s)
         delta      = float(sigma_cur - sigma_prev)
         z_prev     = z.detach().clone()
-        gamma_eff  = _rf_gamma_for_mode(mode, gamma, sigma_prev, sigma_cur, gamma_curve)
+        gamma_eff  = _rf_gamma_for_mode(mode, gamma, sigma_prev, sigma_cur)
+        otip_extra = ''
+        otip_schedule_index = max(0, rf_total_steps - step_i)
 
         vm_abs = 0.0
         vp_abs = 0.0
@@ -772,7 +897,7 @@ def _rf_build_cache_from_sampler_sigmas(
             z = _rf_linear_target(ref_clean, eps, sigma_cur)
             extra = 'linear_target'
 
-        elif mode == 'fireflow':
+        elif base_mode == 'fireflow':
             # ── (Deng et al., ICML 2025) ─────────
             if next_step_velocity is None:
                 v_model_pred, ok, raw_preview = _call_model_as_velocity(z, sigma_prev, ' fresh')
@@ -797,6 +922,13 @@ def _rf_build_cache_from_sampler_sigmas(
             vp_sum += vp_abs
 
             v_mid_total = gamma_eff * v_mid + (1.0 - gamma_eff) * v_prior_mid
+            if use_otip:
+                v_mid_total, ot_strength, ot_abs = _otip_apply_velocity_guidance(
+                    v_mid_total, z, eps, sigma_prev, otip_schedule_index, rf_total_steps,
+                    otip_strength_eff, otip_phase_eff, otip_clip_norm_eff,
+                    respect_model_norm=otip_respect_model_norm_eff,
+                )
+                otip_extra = f'  OTIP λ={ot_strength:.4f} |ot|={ot_abs:.5f}'
             v_mid_total = _apply_pmi_if_enabled(v_mid_total, sigma_cur, post_update_corrected=False)
             next_step_velocity = v_mid_total.detach().clone()
             z = z + delta * v_mid_total
@@ -805,6 +937,8 @@ def _rf_build_cache_from_sampler_sigmas(
                 f'FireFlow pred={pred_source}  σ_mid={sigma_mid:.6f}  '
                 f'|v_pred|={vm_abs:.5f}  |v_mid|={vm_abs_mid:.5f}  |prior_mid|={vp_abs:.5f}'
             )
+            if otip_extra:
+                extra += otip_extra
             if use_pmi:
                 extra += f'  PMI step={pmi_state.step_count}'
 
@@ -818,7 +952,7 @@ def _rf_build_cache_from_sampler_sigmas(
             vp_abs  = float(v_prior.abs().mean().item())
             vp_sum += vp_abs
 
-            if mode == 'rf_solver_2':
+            if base_mode == 'rf_solver_2':
                 # ── RF-Solver-2 second-order Taylor step ───────────────
                 z_mid = z + 0.5 * delta * v_model
                 sigma_mid = sigma_prev + 0.5 * delta
@@ -839,6 +973,13 @@ def _rf_build_cache_from_sampler_sigmas(
                 z_solver_next = gamma_eff * z_model_next + (1.0 - gamma_eff) * z_prior_next
                 if abs(delta) > 1e-12:
                     v_total = (z_solver_next - z) / delta
+                    if use_otip:
+                        v_total, ot_strength, ot_abs = _otip_apply_velocity_guidance(
+                            v_total, z, eps, sigma_prev, otip_schedule_index, rf_total_steps,
+                            otip_strength_eff, otip_phase_eff, otip_clip_norm_eff,
+                            respect_model_norm=otip_respect_model_norm_eff,
+                        )
+                        otip_extra = f'  OTIP λ={ot_strength:.4f} |ot|={ot_abs:.5f}'
                     v_total = _apply_pmi_if_enabled(v_total, sigma_cur, post_update_corrected=True)
                     z = z + delta * v_total
                 else:
@@ -848,10 +989,12 @@ def _rf_build_cache_from_sampler_sigmas(
                     f'RF-Solver-2 exact  |v_model_mid|={vm_abs_mid:.5f}  '
                     f'|prior_target|={vp_abs_target:.5f}'
                 )
+                if otip_extra:
+                    extra += otip_extra
                 if use_pmi:
                     extra += f'  PMI step={pmi_state.step_count}'
 
-            elif mode == 'rf_gamma_rk2':
+            elif base_mode == 'rf_gamma_rk2':
                 v1    = gamma_eff * v_model + (1.0 - gamma_eff) * v_prior
                 z_mid = z + 0.5 * delta * v1
                 sigma_mid = sigma_prev + 0.5 * delta
@@ -864,25 +1007,38 @@ def _rf_build_cache_from_sampler_sigmas(
                 vp_sum += vp_abs_mid
 
                 v_total = gamma_eff * v_model_mid + (1.0 - gamma_eff) * v_prior_mid
+                if use_otip:
+                    v_total, ot_strength, ot_abs = _otip_apply_velocity_guidance(
+                        v_total, z, eps, sigma_prev, otip_schedule_index, rf_total_steps,
+                        otip_strength_eff, otip_phase_eff, otip_clip_norm_eff,
+                        respect_model_norm=otip_respect_model_norm_eff,
+                    )
+                    otip_extra = f'  OTIP λ={ot_strength:.4f} |ot|={ot_abs:.5f}'
                 v_total = _apply_pmi_if_enabled(v_total, sigma_cur, post_update_corrected=True)
                 z = z + delta * v_total
                 _preview_once(step_i - 1, raw_preview_mid, z)
                 extra = f'mid |v_model_mid|={vm_abs_mid:.5f}'
+                if otip_extra:
+                    extra += otip_extra
                 if use_pmi:
                     extra += f'  PMI step={pmi_state.step_count}'
             else:
                 v_total = gamma_eff * v_model + (1.0 - gamma_eff) * v_prior
+                if use_otip:
+                    v_total, ot_strength, ot_abs = _otip_apply_velocity_guidance(
+                        v_total, z, eps, sigma_prev, otip_schedule_index, rf_total_steps,
+                        otip_strength_eff, otip_phase_eff, otip_clip_norm_eff,
+                        respect_model_norm=otip_respect_model_norm_eff,
+                    )
+                    otip_extra = f'OTIP λ={ot_strength:.4f} |ot|={ot_abs:.5f}'
                 v_total = _apply_pmi_if_enabled(v_total, sigma_cur, post_update_corrected=True)
                 z = z + delta * v_total
                 _preview_once(step_i - 1, raw_preview, z)
+                if otip_extra:
+                    extra = otip_extra
                 if use_pmi:
-                    extra = f'PMI step={pmi_state.step_count}'
+                    extra = (extra + '  ' if extra else '') + f'PMI step={pmi_state.step_count}'
 
-
-        if norm_strength > 0.0:
-            target = _rf_linear_target(ref_clean, eps, sigma_cur)
-            z = _rf_match_mean_std(z, target, strength=norm_strength)
-            extra = (extra + '  ' if extra else '') + f'norm={norm_strength:.2f}'
 
         prev  = sigma_cur
         z_mean = float(z.mean().item())
@@ -1153,7 +1309,8 @@ class RFInversion:
                 'rf_mode': (['linear', 'rf_gamma', 'rf_gamma_rk2', 'rf_solver_2', 'fireflow'], {
                     'default': 'rf_gamma',
                     'tooltip': (
-                        'Selects the ODE solver used to build the noisy reference trajectory.'
+                        'Selects the ODE solver used to build the noisy reference trajectory. '
+                        'Set otip_strength > 0 to add OTIP transport guidance to the selected solver.'
                     ),
                 }),
                 'gamma': ('FLOAT', {
@@ -1163,26 +1320,26 @@ class RFInversion:
                     'step': 0.01,
                     'tooltip': 'Blends weight between model velocity and prior velocity (0 = pure prior / straight path, 1 = pure model).'
                 }),
-                'gamma_curve': ('FLOAT', {
-                    'default': 2.0,
-                    'min': 0.0,
-                    'max': 8.0,
-                    'step': 0.05,
-                    'tooltip': 'Applies a bell-shaped schedule to gamma across the sigma range, concentrating model influence toward mid-noise levels; 0 disables the curve.'
-                }),
-                'norm_strength': ('FLOAT', {
-                    'default': 1.0,
-                    'min': 0.0,
-                    'max': 1.0,
-                    'step': 0.05,
-                    'tooltip': "After each RF step, blends the latent's mean/std toward the linear target to prevent feature drift; 0 = off, 1 = full correction."
-                }),
                 'pmi_alpha': ('FLOAT', {
                     'default': 0.0,
                     'min': 0.0,
                     'max': 1.0,
-                    'step': 0.05,
-                    'tooltip': 'Proximal-Mean Inversion: 0 disables PMI; 1.0 matches the official radius. Applies to RF gamma, RK2, and FireFlow.'
+                    'step': 0.01,
+                    'tooltip': 'Proximal-Mean Inversion: 0 disables PMI, 1.0 matches the official radius. Applies to RF gamma, RK2, and FireFlow.'
+                }),
+                'otip_strength': ('FLOAT', {
+                    'default': 0.35,
+                    'min': 0.0,
+                    'max': 1.0,
+                    'step': 0.01,
+                    'tooltip': 'Optimal Transport for Rectified Flow Image Editing. 0 disables it.'
+                }),
+                'otip_clip_norm': ('FLOAT', {
+                    'default': 20.0,
+                    'min': 0.0,
+                    'max': 100.0,
+                    'step': 0.01,
+                    'tooltip': 'OTIP Clipping threshold for the closed-form Wasserstein-2 transport direction.'
                 }),
                 'verbose': ('BOOLEAN', {
                     'default': False,
@@ -1197,14 +1354,19 @@ class RFInversion:
         reference_latent,
         rf_mode='rf_gamma_rk2',
         gamma=0.5,
-        gamma_curve=2.0,
-        norm_strength=1.0,
         pmi_alpha=0.0,
+        otip_strength=0.0,
+        otip_clip_norm=10.0,
         verbose=False,
         ref_conditioning=None,
     ):
-        rf_mode, gamma_curve = _normalize_rf_mode_and_gamma_curve(rf_mode, gamma_curve)
-        norm_strength = _coerce_norm_strength(norm_strength)
+        rf_mode = str(rf_mode or 'rf_gamma')
+        otip_strength = _coerce_otip_strength(otip_strength)
+        # OTIP phase is intentionally hardcoded to 1.0.
+        otip_phase = 1.0
+        otip_clip_norm = _coerce_otip_clip_norm(otip_clip_norm)
+        # OTIP respect_model_norm is intentionally hardcoded off.
+        otip_respect_model_norm = False
         verbose_flag = vp._coerce_bool(verbose)
 
         if not isinstance(reference_latent, dict) or 'samples' not in reference_latent:
@@ -1227,9 +1389,11 @@ class RFInversion:
         cfg: Dict[str, Any] = {
             'rf_mode': str(rf_mode),
             'gamma': float(gamma),
-            'gamma_curve': float(gamma_curve),
-            'norm_strength': float(norm_strength),
             'pmi_alpha': float(pmi_alpha),
+            'otip_strength': float(otip_strength),
+            'otip_phase': float(otip_phase),
+            'otip_clip_norm': float(otip_clip_norm),
+            'otip_respect_model_norm': False,
             'seed': 42,
             'verbose': verbose_flag,
             'apply_model_output': 'raw_transformer_velocity',
@@ -1464,9 +1628,5 @@ class RFInversion:
 
         model_clone.set_model_unet_function_wrapper(rf_model_function_wrapper)
 
-        vp._rf_print_prepared(
-            verbose_flag, rf_mode, gamma, gamma_curve,
-            norm_strength, pmi_alpha, model_info,
-        )
 
         return (model_clone, rf_latent)

@@ -320,7 +320,7 @@
         168
       ],
       "flags": {},
-      "order": 20,
+      "order": 19,
       "mode": 0,
       "inputs": [
         {
@@ -444,7 +444,7 @@
         214
       ],
       "flags": {},
-      "order": 17,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
@@ -550,7 +550,7 @@
         200
       ],
       "flags": {},
-      "order": 16,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
@@ -589,7 +589,7 @@
         200
       ],
       "flags": {},
-      "order": 15,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
@@ -651,7 +651,7 @@
         138
       ],
       "flags": {},
-      "order": 18,
+      "order": 20,
       "mode": 0,
       "inputs": [
         {
@@ -727,99 +727,6 @@
       "bgcolor": "rgba(24,24,27,.9)"
     },
     {
-      "id": 611,
-      "type": "Note",
-      "pos": [
-        1145.1572733432688,
-        902.1563553466156
-      ],
-      "size": [
-        279.1044491449052,
-        190.5600226272877
-      ],
-      "flags": {},
-      "order": 7,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": [
-        "The untwisting RoPE paper suggests patching only the single blocks on flux 1.\n\nFor flux 2 (e.g Klein 4b), the blocks are:\n- Double blocks: 0-4\n- Single blocks: 5-24\n\nPersonally, I find that it works best when all the blocks are enabled, therefore the default values range is 0-999"
-      ],
-      "color": "#c09430",
-      "bgcolor": "rgba(24,24,27,.9)"
-    },
-    {
-      "id": 601,
-      "type": "UNETLoader",
-      "pos": [
-        318.4707979380336,
-        1596.0524486504232
-      ],
-      "size": [
-        420.10165345254075,
-        102.39426790580865
-      ],
-      "flags": {},
-      "order": 8,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            1528
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.22.0",
-        "Node name for S&R": "UNETLoader"
-      },
-      "widgets_values": [
-        "Flux Klein\\flux-2-klein-4b.safetensors",
-        "default"
-      ]
-    },
-    {
-      "id": 618,
-      "type": "CLIPLoader",
-      "pos": [
-        455.9699324836801,
-        1791.462131053674
-      ],
-      "size": [
-        270,
-        106
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            1541,
-            1542
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.21.1",
-        "Node name for S&R": "CLIPLoader"
-      },
-      "widgets_values": [
-        "qwen_3_4b.safetensors",
-        "flux2",
-        "default"
-      ]
-    },
-    {
       "id": 265,
       "type": "ImageScaleToTotalPixelsX",
       "pos": [
@@ -831,7 +738,7 @@
         214
       ],
       "flags": {},
-      "order": 19,
+      "order": 18,
       "mode": 0,
       "inputs": [
         {
@@ -885,45 +792,6 @@
       ]
     },
     {
-      "id": 634,
-      "type": "UnofficialExtensions",
-      "pos": [
-        763.7844174962596,
-        733.5375741453837
-      ],
-      "size": [
-        332.76171875,
-        202
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "unofficial_extensions",
-          "type": "UNTWISTING_ROPE_EXTENSIONS",
-          "links": [
-            1566
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "untwistingrope",
-        "ver": "ec08050c160633dc890972120598e2912ce26870",
-        "Node name for S&R": "UnofficialExtensions"
-      },
-      "widgets_values": [
-        0.5,
-        "match_axes",
-        1,
-        0.5,
-        1,
-        1,
-        0.1
-      ]
-    },
-    {
       "id": 629,
       "type": "LoadImage",
       "pos": [
@@ -935,7 +803,7 @@
         314.00000000000006
       ],
       "flags": {},
-      "order": 11,
+      "order": 7,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -961,68 +829,6 @@
       "widgets_values": [
         "image (59).png",
         "image"
-      ]
-    },
-    {
-      "id": 603,
-      "type": "RFInversion",
-      "pos": [
-        812.2907721832939,
-        1175.3247940381746
-      ],
-      "size": [
-        273.3614812972471,
-        240.5904011287812
-      ],
-      "flags": {},
-      "order": 22,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 1528
-        },
-        {
-          "name": "reference_latent",
-          "type": "LATENT",
-          "link": 1526
-        },
-        {
-          "name": "ref_conditioning",
-          "type": "CONDITIONING",
-          "link": 1563
-        }
-      ],
-      "outputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "links": [
-            1549
-          ]
-        },
-        {
-          "name": "rf_inversion",
-          "type": "LATENT",
-          "links": [
-            1550
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "untwistingrope",
-        "ver": "c9136fcced444ea84778a25a37a2b45371ea06a5",
-        "Node name for S&R": "RFInversion",
-        "aux_id": "BigStationW/ComfyUi-Untwisting-RoPE"
-      },
-      "widgets_values": [
-        "rf_solver_2",
-        0.5,
-        0,
-        0.5,
-        0,
-        true
       ]
     },
     {
@@ -1095,7 +901,7 @@
         314.00000000000006
       ],
       "flags": {},
-      "order": 12,
+      "order": 8,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1135,7 +941,7 @@
         116.00450279158758
       ],
       "flags": {},
-      "order": 13,
+      "order": 9,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -1158,7 +964,7 @@
         58
       ],
       "flags": {},
-      "order": 14,
+      "order": 10,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1177,6 +983,199 @@
       },
       "widgets_values": [
         "euler_ancestral"
+      ]
+    },
+    {
+      "id": 601,
+      "type": "UNETLoader",
+      "pos": [
+        318.4707979380336,
+        1596.0524486504232
+      ],
+      "size": [
+        420.10165345254075,
+        102.39426790580865
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1528
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.22.0",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "Flux Klein\\flux-2-klein-9b.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 618,
+      "type": "CLIPLoader",
+      "pos": [
+        455.9699324836801,
+        1791.462131053674
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1541,
+            1542
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.21.1",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen_3_8b.safetensors",
+        "flux2",
+        "default"
+      ]
+    },
+    {
+      "id": 611,
+      "type": "Note",
+      "pos": [
+        1145.1572733432688,
+        902.1563553466156
+      ],
+      "size": [
+        279.1044491449052,
+        190.5600226272877
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "The untwisting RoPE paper suggests patching only the single blocks on flux 1.\n\nFor flux 2 (e.g Klein 9b), the blocks are:\n- Double blocks: 0-7\n- Single blocks: 8-31\n\nPersonally, I find that it works best when all the blocks are enabled, therefore the default values range is 0-999"
+      ],
+      "color": "#c09430",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 634,
+      "type": "UnofficialExtensions",
+      "pos": [
+        763.7844174962596,
+        733.5375741453837
+      ],
+      "size": [
+        332.76171875,
+        202
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "unofficial_extensions",
+          "type": "UNTWISTING_ROPE_EXTENSIONS",
+          "links": [
+            1566
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "untwistingrope",
+        "ver": "ec08050c160633dc890972120598e2912ce26870",
+        "Node name for S&R": "UnofficialExtensions"
+      },
+      "widgets_values": [
+        0.5,
+        "match_axes",
+        1,
+        0.5,
+        1,
+        0.1
+      ]
+    },
+    {
+      "id": 603,
+      "type": "RFInversion",
+      "pos": [
+        812.2907721832939,
+        1175.3247940381746
+      ],
+      "size": [
+        273.3614812972471,
+        266
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1528
+        },
+        {
+          "name": "reference_latent",
+          "type": "LATENT",
+          "link": 1526
+        },
+        {
+          "name": "ref_conditioning",
+          "type": "CONDITIONING",
+          "link": 1563
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            1549
+          ]
+        },
+        {
+          "name": "rf_inversion",
+          "type": "LATENT",
+          "links": [
+            1550
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "untwistingrope",
+        "ver": "c9136fcced444ea84778a25a37a2b45371ea06a5",
+        "Node name for S&R": "RFInversion",
+        "aux_id": "BigStationW/ComfyUi-Untwisting-RoPE"
+      },
+      "widgets_values": [
+        "rf_solver_2",
+        0.5,
+        0,
+        0.35,
+        20,
+        true
       ]
     }
   ],
@@ -1434,13 +1433,13 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.4594972986357316,
+      "scale": 0.8140274938684168,
       "offset": [
-        -324.97231311721714,
-        -724.4284510524819
+        -495.75807549032083,
+        -874.4674330704073
       ]
     },
-    "frontendVersion": "1.44.19",
+    "frontendVersion": "1.45.15",
     "workflowRendererVersion": "LG",
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,

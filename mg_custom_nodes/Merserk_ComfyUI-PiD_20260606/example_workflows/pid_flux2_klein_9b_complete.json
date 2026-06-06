@@ -304,14 +304,14 @@
     },
     {
       "id": 8,
-      "type": "EmptySD3LatentImage",
+      "type": "PiDEmptyLatentImage",
       "pos": [
         -690,
         360
       ],
       "size": [
-        338,
-        143
+        390,
+        166
       ],
       "flags": {},
       "order": 7,
@@ -319,7 +319,7 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "LATENT",
+          "name": "latent",
           "type": "LATENT",
           "slot_index": 0,
           "links": [
@@ -328,20 +328,13 @@
         }
       ],
       "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.73",
-        "Node name for S&R": "EmptySD3LatentImage",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65
+        "cnr_id": "comfyui-pid",
+        "ver": "0.6.4",
+        "Node name for S&R": "PiDEmptyLatentImage"
       },
       "widgets_values": [
-        512,
-        512,
+        "2k",
+        "512x512 (1:1)",
         1
       ]
     },

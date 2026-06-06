@@ -77,34 +77,6 @@ SDXL and Qwen-Image only ship NVIDIA's `2kto4k` PiD checkpoint. Flux2 and Flux2-
 
 All currently released NVIDIA PiD checkpoints are 4-step distilled. The UI still allows other `pid_steps` and manual `scale` values for testing / low-VRAM debugging, but the official default is `pid_steps=4` and the checkpoint's native scale.
 
-## Basic workflow
-
-For Z-Image / Flux-style workflows:
-
-```text
-PiD Text Prompt text    -> CLIP Text Encode
-PiD Text Prompt caption -> PiD Decode caption
-KSampler latent         -> PiD Decode latent
-PiD Decode image        -> Save Image
-```
-
-Recommended first test settings:
-
-```text
-backbone = zimage
-pid_ckpt_type = 2k
-pid_steps = 4
-scale = 1 or 2
-cfg_scale = 1.0
-sigma = 0.0
-auto_download = true
-unload_comfy_before_pid = true
-aggressive_cleanup = true
-sequential_offload = auto_low_vram
-pid_weight_precision = fp32_compatible
-pixel_chunk_patches = 0
-```
-
 ## Lowest-VRAM staged workflow
 
 Use the staged nodes when VRAM is tight:
@@ -142,6 +114,11 @@ Suggested capture settings by backbone:
 | `qwenimage`, `qwenimage-2512` | 50 | 44 | captured latent | `euler` + `flowmatch_euler_discrete` |
 | `zimage` | 50 | 46 | captured latent | `euler` + `flowmatch_euler_discrete`, `flowmatch_shift=3.0` |
 | `zimage-turbo` | 9 | 7 optional | final `x0` | `euler` + `flowmatch_euler_discrete`, `flowmatch_shift=3.0` |
+
+For Qwen-Image workflows, keep the diffusion model `UNETLoader` `weight_dtype`
+set to `default`. ComfyUI's `fp8_e4m3fn_fast` path can produce speckled Qwen
+latents before PiD runs; `PiD KSampler Capture` rejects that combination with a
+clear error.
 
 `PiD Prepare` accepts only the PiD latent and caption as graph inputs; sigma comes from the captured latent when available or from the manual sigma widget.
 
@@ -260,6 +237,17 @@ without network calls; missing snapshots are downloaded lazily.
 - NVIDIA's PiD weights may have separate license/usage terms. Check the model card before commercial use.
 - Final latents with `sigma=0.0` can work. For Z-Image-Turbo and Flux2-Klein, final `x0` is the recommended latent; for normal Z-Image / Flux2 / Qwen-Image, captured intermediate latents usually better match the official PiD recipe.
 - SDXL captured latents are automatically converted from Comfy/k-diffusion's variance-exploding frame to the VP frame expected by PiD.
+
+## PiD Empty Latent Image
+
+`PiD Empty Latent Image` is a lightweight preset wrapper for PiD-friendly base resolutions.
+It intentionally mirrors `EmptySD3LatentImage` output and creates SD3-style empty latents with shape:
+
+```
+[batch, 16, height / 8, width / 8]
+```
+
+It does **not** expose a backbone selector. The node only provides the `2k` / `2kto4k` switch, a dynamic resolution preset list, and `batch_size`. Backbone selection stays in the PiD processing nodes.
 
 ## Example workflows
 

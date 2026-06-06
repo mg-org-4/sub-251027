@@ -1,5 +1,5 @@
 {
-  "id": "pid_zimage_turbo_complete.json",
+  "id": "pid_flux2_complete.json",
   "revision": 0,
   "last_node_id": 13,
   "last_link_id": 13,
@@ -22,7 +22,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "Z-Image-Turbo PiD complete workflow\nModels: z_image_turbo + qwen_3_4b.\nRecommended latent is final x0: 9 steps, capture 9, CFG 0.\nOptional compare: capture 7.\nUse 2kto4k and 1024 latent for 4K."
+        "Flux2 PiD complete workflow\nModels: flux2_dev + mistral_3_small_flux2.\nRecommended PiD capture: 50 steps, capture 46.\nPiD output: 512 latent -> 2048 image with 2k/scale 4.\nUse 2kto4k and 1024 latent for 4K."
       ]
     },
     {
@@ -62,20 +62,20 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "z_image_turbo_bf16.safetensors",
+        "flux2_dev_fp8mixed.safetensors",
         "default"
       ]
     },
     {
       "id": 3,
-      "type": "ModelSamplingAuraFlow",
+      "type": "ModelSamplingFlux",
       "pos": [
         -720,
         -130
       ],
       "size": [
-        260,
-        92
+        340,
+        150
       ],
       "flags": {},
       "order": 3,
@@ -99,10 +99,13 @@
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.73",
-        "Node name for S&R": "ModelSamplingAuraFlow"
+        "Node name for S&R": "ModelSamplingFlux"
       },
       "widgets_values": [
-        3.0
+        1.15,
+        0.5,
+        512,
+        512
       ]
     },
     {
@@ -143,8 +146,8 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "qwen_3_4b.safetensors",
-        "lumina2",
+        "mistral_3_small_flux2_bf16.safetensors",
+        "flux2",
         "default"
       ]
     },
@@ -301,14 +304,14 @@
     },
     {
       "id": 8,
-      "type": "EmptySD3LatentImage",
+      "type": "PiDEmptyLatentImage",
       "pos": [
         -690,
         360
       ],
       "size": [
-        338,
-        143
+        390,
+        166
       ],
       "flags": {},
       "order": 7,
@@ -316,7 +319,7 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "LATENT",
+          "name": "latent",
           "type": "LATENT",
           "slot_index": 0,
           "links": [
@@ -325,20 +328,13 @@
         }
       ],
       "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.73",
-        "Node name for S&R": "EmptySD3LatentImage",
-        "enableTabs": false,
-        "tabWidth": 65,
-        "tabXOffset": 10,
-        "hasSecondTab": false,
-        "secondTabText": "Send Back",
-        "secondTabOffset": 80,
-        "secondTabWidth": 65
+        "cnr_id": "comfyui-pid",
+        "ver": "0.6.4",
+        "Node name for S&R": "PiDEmptyLatentImage"
       },
       "widgets_values": [
-        512,
-        512,
+        "2k",
+        "512x512 (1:1)",
         1
       ]
     },
@@ -405,12 +401,12 @@
       "widgets_values": [
         0,
         "randomize",
-        9,
-        0.0,
+        50,
+        4.0,
         "euler",
         "flowmatch_euler_discrete",
         1.0,
-        9,
+        46,
         3.0
       ]
     },
@@ -455,7 +451,7 @@
         "Node name for S&R": "PiDPrepare"
       },
       "widgets_values": [
-        "zimage-turbo",
+        "flux2",
         "2k",
         4,
         0.0,
@@ -582,7 +578,7 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "pid-zimage-turbo"
+        "pid-flux2"
       ]
     }
   ],

@@ -1,0 +1,4 @@
+lark==1.*
+numpy==2.*
+ruamel.yaml==0.*
+pydantic==2.*

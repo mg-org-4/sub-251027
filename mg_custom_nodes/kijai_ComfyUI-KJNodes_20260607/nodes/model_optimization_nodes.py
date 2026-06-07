@@ -132,15 +132,37 @@ class PathchSageAttentionKJ():
 
 
 def get_flash_func(allow_compile=False, cast_dtype=torch.float16):
-    from flash_attn import flash_attn_func
-    logging.info(f"Using flash attention: cast_dtype={cast_dtype}")
+    # Prefer FA2 (broad arch support, plain tensor return); fall back to FA3
+    # (flash_attn_interface), which has no dropout arg and returns (out, lse).
+    is_fa3 = False
+    try:
+        from flash_attn import flash_attn_func
+    except ImportError:
+        try:
+            from flash_attn_interface import flash_attn_func
+            is_fa3 = True
+        except ImportError:
+            raise ImportError(
+                "Flash attention not found. Install either FA2 ('flash_attn') or "
+                "FA3 ('flash_attn_interface', pip package 'flash-attn-3')."
+            )
+    logging.info(f"Using flash attention {'3' if is_fa3 else '2'}: cast_dtype={cast_dtype}")
 
     # q, k, v in NHD layout (b, seq, heads, dim_head)
     def flash_func(q, k, v):
-        return flash_attn_func(q, k, v, dropout_p=0.0, causal=False)
+        if is_fa3:
+            out = flash_attn_func(q, k, v, causal=False)
+        else:
+            out = flash_attn_func(q, k, v, dropout_p=0.0, causal=False)
+        # FA3 returns (out, softmax_lse); FA2 returns the tensor directly
+        return out[0] if isinstance(out, tuple) else out
 
     if not allow_compile:
         flash_func = torch.compiler.disable()(flash_func)
+
+    if torch.cuda.is_available():
+        probe = torch.zeros(1, 8, 2, 64, dtype=cast_dtype, device="cuda")
+        flash_func(probe, probe, probe)
 
     @wrap_attn
     def attention_flash(q, k, v, heads, mask=None, attn_precision=None, skip_reshape=False, skip_output_reshape=False, **kwargs):
@@ -185,8 +207,6 @@ class PatchFlashAttentionKJ():
     CATEGORY = "KJNodes/experimental"
 
     def patch(self, model, allow_compile=False):
-        model_clone = model.clone()
-
         # match the model's compute dtype for the fp32 downcast, fall back to fp16
         inference_dtype = model.model.get_dtype_inference() if hasattr(model.model, "get_dtype_inference") else torch.float16
         cast_dtype = inference_dtype if inference_dtype in (torch.float16, torch.bfloat16) else torch.float16
@@ -195,6 +215,8 @@ class PatchFlashAttentionKJ():
             allow_compile=allow_compile,
             cast_dtype=cast_dtype,
         )
+
+        model_clone = model.clone()
         def attention_override_flash(func, *args, **kwargs):
             return new_attention.__wrapped__(*args, **kwargs)
 

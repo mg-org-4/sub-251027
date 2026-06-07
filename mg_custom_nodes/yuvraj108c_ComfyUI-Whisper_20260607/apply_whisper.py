@@ -2,9 +2,9 @@ import whisper
 import os
 import folder_paths
 import uuid
-import torchaudio
 import torch
 import logging
+import soundfile
 
 import comfy.model_management as mm
 import comfy.model_patcher
@@ -106,13 +106,47 @@ class ApplyWhisperNode:
         temp_dir = folder_paths.get_temp_directory()
         os.makedirs(temp_dir, exist_ok=True)
         audio_save_path = os.path.join(temp_dir, f"{uuid.uuid1()}.wav")
-        torchaudio.save(audio_save_path, audio['waveform'].squeeze(
-            0), audio["sample_rate"])
+        waveform = audio['waveform'].squeeze(0).cpu().numpy()
+
+        if waveform.ndim == 2:
+            waveform = waveform.T
+
+        soundfile.write(
+            audio_save_path,
+            waveform,
+            int(audio["sample_rate"])
+        )
 
         cache_key = model
         if cache_key not in WHISPER_PATCHER_CACHE:
             load_device = mm.get_torch_device()
-            download_root = os.path.join(folder_paths.models_dir, WHISPER_MODEL_SUBDIR)
+            # Determine appropriate location to download models
+            download_root = None
+    
+            # Option A: user defines a direct key to the whisper folder (recommended)
+            for key in ("stt_whisper", "whisper"):
+             try:
+                paths = folder_paths.get_folder_paths(key)
+                if paths:
+                    download_root = paths[0]
+                    break
+             except Exception:
+                pass
+
+            # Option B: user defines "stt" as a base folder and we use /whisper under it
+            if download_root is None:
+             try:
+                paths = folder_paths.get_folder_paths("stt")
+                if paths:
+                    download_root = os.path.join(paths[0], "whisper")
+             except Exception:
+                pass
+
+            # Fallback: ComfyUI default location
+            if download_root is None:
+             download_root = os.path.join(folder_paths.models_dir, WHISPER_MODEL_SUBDIR)
+
+            os.makedirs(download_root, exist_ok=True)
             logger.info(f"Creating Whisper ModelPatcher for {model} on device {load_device}")
             
             model_wrapper = WhisperModelWrapper(model, download_root)

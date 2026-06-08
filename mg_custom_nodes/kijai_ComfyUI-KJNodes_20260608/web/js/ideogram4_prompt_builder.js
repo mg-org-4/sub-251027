@@ -4,7 +4,7 @@ const { app } = window.comfyAPI.app;
 const HANDLE = 8;            // hit radius (canvas px) for corners/edges
 const MAX_ELEM_COLORS = 5;   // Ideogram 4 per-element palette cap
 const MAX_STYLE_COLORS = 16; // Ideogram 4 style palette cap
-let copiedBox = null;        // internal clipboard for copy/paste of regions (shared across nodes)
+let copiedBoxes = null;      // internal clipboard for copy/paste of regions (array; shared across nodes)
 
 // Track the most recent generated image so it can be grabbed as a background.
 let lastResultImage = null;
@@ -66,6 +66,45 @@ function textOn(hex) {
   return luminance(c) > 140 ? "#000" : "#fff";
 }
 
+// Parse a clipboard string into a normalized #rrggbb, or null if it isn't a color.
+function parseColorString(s) {
+  if (!s) return null;
+  s = s.trim();
+  let m = s.match(/^#?([0-9a-fA-F]{6})$/);
+  if (m) return "#" + m[1].toLowerCase();
+  m = s.match(/^#?([0-9a-fA-F]{3})$/);
+  if (m) { const h = m[1]; return ("#" + h[0] + h[0] + h[1] + h[1] + h[2] + h[2]).toLowerCase(); }
+  m = s.match(/^rgba?\(\s*(\d+)\s*[, ]\s*(\d+)\s*[, ]\s*(\d+)/i);
+  if (m) {
+    const h2 = (n) => Math.max(0, Math.min(255, parseInt(n, 10))).toString(16).padStart(2, "0");
+    return "#" + h2(m[1]) + h2(m[2]) + h2(m[3]);
+  }
+  return null;
+}
+// The palette swatch under the cursor + a setter, so Ctrl+V pastes a color onto it
+// and Ctrl+C copies its hex.
+let hoveredSwatch = null;
+document.addEventListener("keydown", (e) => {
+  if (!hoveredSwatch) return;
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (!ctrl) return;
+  const key = e.key.toLowerCase();
+  if (key !== "v" && key !== "c") return;
+  const ae = document.activeElement;          // don't steal copy/paste from a focused text field
+  if (ae && (ae.tagName === "TEXTAREA" || ae.tagName === "INPUT" || ae.isContentEditable)) return;
+  const target = hoveredSwatch;
+  if (!target.sw || !target.sw.isConnected) return;
+  e.preventDefault(); e.stopPropagation();
+  if (key === "c") {
+    navigator.clipboard?.writeText?.(target.sw.dataset.hex || "").catch(() => {});
+  } else {
+    navigator.clipboard?.readText?.().then((txt) => {
+      const c = parseColorString(txt);
+      if (c && target.sw && target.sw.isConnected) target.setColor(c);
+    }).catch(() => {});
+  }
+}, true);
+
 function injectStyle() {
   if (document.getElementById("kjideo-style")) return;
   const s = document.createElement("style");
@@ -86,6 +125,8 @@ function injectStyle() {
     body.kjideo-dragging, body.kjideo-dragging * { cursor:move !important; }
     .kjideo-sw input { position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
     .kjideo-inline { position:absolute; box-sizing:border-box; background:rgba(18,18,18,0.92); border:2px solid #46b4e6; border-radius:3px; color:#fff; font:13px monospace; padding:3px 4px; resize:none; outline:none; z-index:10; }
+    .kjideo-bbox { width:128px; box-sizing:border-box; background:#1d1d1d; border:1px solid #444; border-radius:4px; color:#bbb; font:11px monospace; padding:2px 5px; }
+    .kjideo-bbox:focus { border-color:#46b4e6; outline:none; color:#fff; }
     .kjideo-menu { position:fixed; z-index:10000; background:#262626; border:1px solid #555; border-radius:6px; padding:4px; box-shadow:0 6px 20px rgba(0,0,0,0.55); font:12px sans-serif; color:#ddd; max-height:60vh; overflow-y:auto; min-width:210px; max-width:340px; }
     .kjideo-mhdr { font:11px sans-serif; color:#888; padding:2px 6px 4px; user-select:none; }
     .kjideo-lrow { display:flex; align-items:center; gap:6px; padding:3px 5px; border-radius:4px; cursor:move; user-select:none; transition:transform .18s ease, box-shadow .12s ease, opacity .12s ease, background .12s; }
@@ -140,6 +181,10 @@ app.registerExtension({
       node._dragMode = null;
       node._dragStartN = null; // mouse-down point, normalized
       node._boxAtStart = null; // active box snapshot at drag start
+      node._selection = new Set();   // selected box indices (multi-select); always contains _activeIdx
+      node._groupStart = null;       // {idx: {x,y,w,h}} snapshot of all selected boxes at drag start
+      node._pendingCollapse = -1;    // box to collapse selection to if a click (not drag) on a multi-selection
+      node._marquee = null;          // {x0,y0,x,y} rubber-band selection rect (shift-drag), normalized
       node._hoverTitle = null; // index of the title chip under the cursor
       node._hoverBox = null;   // index of the box under the cursor
       node._focused = false;   // editor (DOM) focused — gates the active-box highlight
@@ -214,8 +259,9 @@ app.registerExtension({
       const canvasEl = document.createElement("canvas");
       canvasEl.className = "kjideo-canvas";
       canvasEl.tabIndex = 0;                                  // focusable, so it can receive key events
-      canvasEl.title = "Drag to draw · click to select · alt-click overlap · dbl-click edit · " +
-        "right-click region list · Del remove · Ctrl/Cmd+C/V/D copy/paste/duplicate";
+      canvasEl.title = "Drag to draw · Ctrl-drag force-draw over a box · click to select · shift-drag marquee-select · " +
+        "shift-click toggle · drag a group to move all · alt-click overlap · dbl-click edit · right-click region list · " +
+        "Del remove (all selected) · Ctrl/Cmd+C/V/D copy/paste/duplicate";
       const ctx = canvasEl.getContext("2d");
       addWheelPassthrough(wrap);
       addMiddleClickPan(canvasEl);
@@ -233,6 +279,19 @@ app.registerExtension({
         getMinHeight: () => node._widgetHeight,
       });
       node.resizable = true;
+
+      // DOM widgets are HTML layered over the canvas; ComfyUI only repositions/clips them
+      // during a foreground draw. When the node returns from off-screen the element can
+      // briefly float over the canvas until the next draw — force one when it re-enters view.
+      try {
+        node._visObserver = new IntersectionObserver((entries) => {
+          if (entries.some((en) => en.isIntersecting)) {
+            app.canvas?.setDirtyCanvas?.(true, true);
+            drawCanvas();
+          }
+        });
+        node._visObserver.observe(wrap);
+      } catch (e) {}
 
       // ── canvas sizing ──
       // The display size is CSS-driven (width:100% + aspect-ratio); the backing store
@@ -427,30 +486,42 @@ app.registerExtension({
           const g = Math.round(bri / 100 * 128);
           ctx.fillStyle = `rgb(${g},${g},${g})`; ctx.fillRect(0, 0, W, H);
         }
-        // active box only when the editor is focused or the node is selected
-        const aIdx = (node._focused || node._selected) ? node._activeIdx : -1;
-        // index 0 = front (drawn last among non-active) so it matches the layers list (01 on top)
-        const order = node._boxes.map((_, i) => i).filter((i) => i !== aIdx).reverse();
-        if (aIdx >= 0 && aIdx < node._boxes.length) order.push(aIdx);  // active drawn last (on top)
+        // selection highlight only when the editor is focused or the node is selected
+        const showSel = node._focused || node._selected;
+        const aIdx = showSel ? node._activeIdx : -1;
+        const selSet = new Set(showSel ? node._selection : []);
+        if (aIdx >= 0) selSet.add(aIdx);
+        // index 0 = front (drawn last); selected drawn above non-selected, active last of all
+        const nonSel = node._boxes.map((_, i) => i).filter((i) => !selSet.has(i)).reverse();
+        const selOthers = node._boxes.map((_, i) => i).filter((i) => selSet.has(i) && i !== aIdx).reverse();
+        const order = [...nonSel, ...selOthers];
+        if (aIdx >= 0 && aIdx < node._boxes.length) order.push(aIdx);
         const tagR = tagRects();                              // collision-avoided tag positions
         for (const i of order) {
-          const b = node._boxes[i], active = i === aIdx;
+          const b = node._boxes[i], active = i === aIdx, selected = selSet.has(i);
           const pal = (b.palette || []).filter(Boolean);
           const col = pal.length ? pal[0] : "#8c8c8c";       // box color = first palette color, else neutral grey
           const { x1, y1, x2, y2 } = toPx(b);
           const w = x2 - x1, h = y2 - y1;
-          const hovered = i === node._hoverBox || active;    // active box stays highlighted (on top)
-          if (active) {                                      // opaque backing so contents read clearly over boxes behind
+          const hovered = i === node._hoverBox || selected;  // selected boxes stay highlighted
+          if (selected) {                                    // opaque backing so contents read clearly over boxes behind
             ctx.fillStyle = "rgba(26,26,26,0.88)";
             ctx.fillRect(x1, y1, w, h);
           }
           ctx.fillStyle = col + (hovered ? "3a" : "22");     // tint of the box color
           ctx.fillRect(x1, y1, w, h);
           if (b.nobbox) ctx.setLineDash([6, 4]);             // unplaced (no bbox in source)
-          const lw = active ? 2 : (hovered ? 1.5 : 1);
+          const lw = selected ? 2 : (hovered ? 1.5 : 1);
           ctx.strokeStyle = col; ctx.lineWidth = lw;
           ctx.strokeRect(x1 + lw / 2, y1 + lw / 2, w - lw, h - lw);  // inside the box so strip/badge align at y1
           ctx.setLineDash([]);
+          if (selected) {                                    // orange selection ring outside the box: solid = primary, dashed = others
+            const off = 3;
+            ctx.strokeStyle = "#ff8c00"; ctx.lineWidth = active ? 3 : 2;
+            if (!active) ctx.setLineDash([5, 3]);
+            ctx.strokeRect(x1 - off, y1 - off, w + off * 2, h + off * 2);
+            ctx.setLineDash([]);
+          }
           if (pal.length) {                                  // palette shown as a strip along the top edge
             const sw = w / pal.length, n = pal.length, sh = 7;
             for (let p = 0; p < n; p++) {
@@ -465,7 +536,7 @@ app.registerExtension({
 
           let body = b.desc || "";
           if (b.type === "text" && b.text) body = `"${b.text}"` + (body ? " — " + body : "");
-          if (body) {
+          if (body && node.properties.showBoxText !== false) {  // toggle: show text in boxes
             ctx.font = "12px monospace";
             ctx.fillStyle = readableText(col);              // box color, lightened if too dark
             const pad = 4, lh = 14;
@@ -489,6 +560,15 @@ app.registerExtension({
           ctx.fillText(tr.tag, tr.x + 4, tr.y + 11);
           ctx.restore();
         }
+        if (node._marquee && node._marqueeActive) {           // rubber-band selection rectangle
+          const r = marqueeRect();
+          const mx = r.x * W, my = r.y * H, mw = r.w * W, mh = r.h * H;
+          ctx.fillStyle = "rgba(70,180,230,0.12)";
+          ctx.fillRect(mx, my, mw, mh);
+          ctx.strokeStyle = "#46b4e6"; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+          ctx.strokeRect(mx + 0.5, my + 0.5, mw - 1, mh - 1);
+          ctx.setLineDash([]);
+        }
       }
 
       // ── serialization ──
@@ -503,8 +583,25 @@ app.registerExtension({
 
       function removeBox(i) {
         node._boxes.splice(i, 1);
+        node._selection = new Set();
         if (node._boxes.length === 0) node._activeIdx = -1;
         else if (i <= node._activeIdx) node._activeIdx = Math.max(0, node._activeIdx - 1);
+        if (node._activeIdx >= 0) node._selection.add(node._activeIdx);
+      }
+      // Delete every selected box (or the active one) and reset the selection.
+      function removeSelected() {
+        const idxs = [...node._selection].sort((a, b) => b - a);
+        if (!idxs.length && node._activeIdx >= 0) idxs.push(node._activeIdx);
+        if (!idxs.length) return;
+        for (const i of idxs) node._boxes.splice(i, 1);
+        node._selection = new Set();
+        node._activeIdx = node._boxes.length ? Math.min(idxs[idxs.length - 1], node._boxes.length - 1) : -1;
+        if (node._activeIdx >= 0) node._selection.add(node._activeIdx);
+      }
+      // Replace the selection with a single box (used by clicks / programmatic selects).
+      function selectOnly(idx) {
+        node._activeIdx = idx;
+        node._selection = idx >= 0 ? new Set([idx]) : new Set();
       }
 
       // ── pointer interaction ──
@@ -519,16 +616,31 @@ app.registerExtension({
         canvasEl.focus();                // so Delete/Backspace targets this editor
         node._hoverTitle = null; node._hoverBox = null;  // clear hover highlight while interacting
         const mN = mouseN(e);
-        const hit = pickForSelection(mN, e.altKey);
+        // Ctrl/Cmd forces drawing a new box even when starting over an existing one.
+        const hit = (e.ctrlKey || e.metaKey) ? null : pickForSelection(mN, e.altKey);
+        node._pendingCollapse = -1;
+        node._groupStart = null;
+        if (e.shiftKey) {                              // shift-drag = marquee select; shift-click = toggle
+          startMarquee(mN, hit ? hit.index : -1);
+          e.preventDefault(); e.stopPropagation();
+          return;
+        }
         if (hit) {
+          if (!node._selection.has(hit.index)) node._selection = new Set([hit.index]);  // outside selection → pick it
+          else if (node._selection.size > 1) node._pendingCollapse = hit.index;          // click (no drag) collapses
           node._activeIdx = hit.index;
           node._dragMode = hit.mode;
           node._boxAtStart = { ...node._boxes[hit.index] };
+          if (node._selection.size > 1) {                  // snapshot the whole group for group move/resize
+            node._groupStart = {};
+            for (const i of node._selection) node._groupStart[i] = { ...node._boxes[i] };
+          }
         } else {
           node._dragMode = "draw";
           const nb = { x: mN.x, y: mN.y, w: 0, h: 0, type: "obj", text: "", desc: "", palette: [] };
           node._boxes.push(nb);
           node._activeIdx = node._boxes.length - 1;
+          node._selection = new Set([node._activeIdx]);
           node._boxAtStart = { ...nb };
         }
         node._drawing = true;
@@ -540,11 +652,13 @@ app.registerExtension({
       });
 
       canvasEl.addEventListener("mousemove", (e) => {
-        if (node._placing) { placeFollower(mouseN(e)); return; }
-        if (node._drawing) return;
+        node._lastMouseN = mouseN(e);                        // track cursor for paste-under-cursor
+        if (node._placing) { placeFollower(node._lastMouseN); return; }
+        if (node._drawing || node._marquee) return;
         const mN = mouseN(e);
-        const ti = titleAt(mN);
-        const hit = hitTest(mN);
+        const force = e.ctrlKey || e.metaKey;               // Ctrl/Cmd = force-draw
+        const ti = force ? null : titleAt(mN);
+        const hit = force ? null : hitTest(mN);
         const hb = ti != null ? ti : (hit ? hit.index : null);
         if (ti !== node._hoverTitle || hb !== node._hoverBox) {
           node._hoverTitle = ti; node._hoverBox = hb; drawCanvas();
@@ -566,7 +680,7 @@ app.registerExtension({
         closeInlineEditor();
         const b = node._boxes[idx];
         if (!b) return;
-        node._activeIdx = idx;
+        selectOnly(idx);
         const dw = canvasEl.offsetWidth, dh = canvasEl.offsetHeight;       // CSS display size
         const ox = canvasEl.offsetLeft, oy = canvasEl.offsetTop;
         const w = Math.min(dw, Math.max(70, b.w * dw));
@@ -607,14 +721,36 @@ app.registerExtension({
         if (target) openInlineEditor(target.index);
       });
 
-      // Paste a clone of the clipboard box, offset slightly and clamped into the canvas.
-      function pasteBox() {
-        if (!copiedBox) return;
-        const nb = JSON.parse(JSON.stringify(copiedBox));
-        nb.x = Math.max(0, Math.min(clamp01(nb.x + 0.03), 1 - nb.w));
-        nb.y = Math.max(0, Math.min(clamp01(nb.y + 0.03), 1 - nb.h));
-        delete nb.nobbox;                              // a pasted box is placed
-        node._boxes.push(nb);
+      // Snapshot the current selection (or the active box) for the clipboard.
+      function copySelection() {
+        const idxs = node._selection.size ? [...node._selection].sort((a, b) => a - b)
+          : (node._activeIdx >= 0 ? [node._activeIdx] : []);
+        return idxs.map((i) => JSON.parse(JSON.stringify(node._boxes[i])));
+      }
+      // Paste the clipboard regions as a group, centered under the cursor, keeping their layout.
+      function pasteBoxes() {
+        if (!copiedBoxes || !copiedBoxes.length) return;
+        const clones = copiedBoxes.map((b) => JSON.parse(JSON.stringify(b)));
+        let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+        for (const b of clones) {
+          minx = Math.min(minx, b.x); miny = Math.min(miny, b.y);
+          maxx = Math.max(maxx, b.x + b.w); maxy = Math.max(maxy, b.y + b.h);
+        }
+        const gw = maxx - minx, gh = maxy - miny;
+        const m = node._lastMouseN;
+        let tx = m ? m.x - gw / 2 : minx + 0.03;       // target group top-left
+        let ty = m ? m.y - gh / 2 : miny + 0.03;
+        tx = Math.max(0, Math.min(tx, 1 - gw));         // clamp group into the canvas
+        ty = Math.max(0, Math.min(ty, 1 - gh));
+        const dx = tx - minx, dy = ty - miny;
+        const start = node._boxes.length;
+        for (const b of clones) {
+          b.x = clamp01(b.x + dx); b.y = clamp01(b.y + dy);
+          delete b.nobbox;                              // pasted boxes are placed
+          node._boxes.push(b);
+        }
+        node._selection = new Set();
+        for (let i = start; i < node._boxes.length; i++) node._selection.add(i);
         node._activeIdx = node._boxes.length - 1;
         commit(); fitNode();
       }
@@ -629,17 +765,17 @@ app.registerExtension({
         const ctrl = e.ctrlKey || e.metaKey;
         if ((e.key === "Delete" || e.key === "Backspace") && node._activeIdx >= 0) {
           e.preventDefault(); e.stopPropagation();
-          removeBox(node._activeIdx); commit(); fitNode();
+          removeSelected(); commit(); fitNode();      // removes all selected (or the active one)
         } else if (ctrl && e.key === "c" && node._activeIdx >= 0) {
           e.preventDefault(); e.stopPropagation();
-          copiedBox = JSON.parse(JSON.stringify(node._boxes[node._activeIdx]));
-        } else if (ctrl && e.key === "v" && copiedBox) {
+          copiedBoxes = copySelection();
+        } else if (ctrl && e.key === "v" && copiedBoxes) {
           e.preventDefault(); e.stopPropagation();
-          pasteBox();
+          pasteBoxes();
         } else if (ctrl && e.key === "d" && node._activeIdx >= 0) {
           e.preventDefault(); e.stopPropagation();
-          copiedBox = JSON.parse(JSON.stringify(node._boxes[node._activeIdx]));
-          pasteBox();
+          copiedBoxes = copySelection();
+          pasteBoxes();
         }
       });
 
@@ -647,20 +783,111 @@ app.registerExtension({
         if (!node._drawing) return;
         const mN = mouseN(e);
         const dN = { x: mN.x - node._dragStartN.x, y: mN.y - node._dragStartN.y };
+        if (Math.abs(dN.x) + Math.abs(dN.y) > 0.001) node._pendingCollapse = -1;  // it's a drag, not a click
+        if (node._dragMode === "move" && node._groupStart) {
+          let dx = dN.x, dy = dN.y;                   // clamp delta so the whole group stays in bounds
+          for (const i in node._groupStart) {
+            const s = node._groupStart[i];
+            dx = Math.min(Math.max(dx, -s.x), 1 - s.w - s.x);
+            dy = Math.min(Math.max(dy, -s.y), 1 - s.h - s.y);
+          }
+          for (const i in node._groupStart) {
+            const s = node._groupStart[i];
+            node._boxes[i] = { ...s, x: s.x + dx, y: s.y + dy };
+            delete node._boxes[i].nobbox;
+          }
+          drawCanvas(); updateBboxLabel();
+          return;
+        }
+        if (node._groupStart && node._dragMode.startsWith("resize")) {
+          // Scale every selected box by the primary's resize, about the handle's fixed edge.
+          const a = node._boxAtStart, na = applyDrag(node._dragMode, a, dN);
+          const suf = node._dragMode.slice(7);       // "tl"|"tr"|"bl"|"br"|"t"|"b"|"l"|"r"
+          const scaleX = (suf.includes("l") || suf.includes("r")) && a.w > 0 ? Math.max(0.02, na.w / a.w) : 1;
+          const scaleY = (suf.includes("t") || suf.includes("b")) && a.h > 0 ? Math.max(0.02, na.h / a.h) : 1;
+          const ax = suf.includes("l") ? a.x + a.w : a.x;   // fixed (anchor) edges
+          const ay = suf.includes("t") ? a.y + a.h : a.y;
+          for (const i in node._groupStart) {
+            const s = node._groupStart[i];
+            node._boxes[i] = normalizeBox({
+              ...s, x: ax + (s.x - ax) * scaleX, y: ay + (s.y - ay) * scaleY,
+              w: s.w * scaleX, h: s.h * scaleY,
+            });
+            delete node._boxes[i].nobbox;
+          }
+          drawCanvas(); updateBboxLabel();
+          return;
+        }
         const nb = applyDrag(node._dragMode, node._boxAtStart, dN);
         delete nb.nobbox;            // moving/resizing places the element (gives it a bbox)
         node._boxes[node._activeIdx] = nb;
-        drawCanvas();
+        drawCanvas(); updateBboxLabel();
       }
       function onUp() {
         if (!node._drawing) return;
         node._drawing = false;
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup", onUp);
-        // drop zero-size boxes created by an accidental click
+        // a click (no drag) on empty space drops the placeholder box and deselects everything
         const b = node._boxes[node._activeIdx];
         if (b && (b.w < 0.005 || b.h < 0.005) && node._dragMode === "draw") {
-          removeBox(node._activeIdx);
+          node._boxes.splice(node._activeIdx, 1);
+          selectOnly(-1);
+        } else if (node._pendingCollapse >= 0) {     // click (no drag) on a group member → keep only it
+          selectOnly(node._pendingCollapse);
+        }
+        node._pendingCollapse = -1; node._groupStart = null;
+        commit();
+      }
+
+      // ── marquee (rubber-band) selection: shift-drag ──
+      function marqueeRect() {
+        const m = node._marquee;
+        return { x: Math.min(m.x0, m.x), y: Math.min(m.y0, m.y),
+                 w: Math.abs(m.x - m.x0), h: Math.abs(m.y - m.y0) };
+      }
+      function rectsOverlap(r, b) {
+        return r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y;
+      }
+      function startMarquee(mN, startHit) {
+        node._marquee = { x0: mN.x, y0: mN.y, x: mN.x, y: mN.y };
+        node._marqueeBase = new Set(node._selection);   // additive: marquee unions with what's selected
+        node._marqueeStartHit = startHit;               // for the shift-click (no drag) toggle fallback
+        node._marqueeActive = false;
+        canvasEl.focus();
+        document.addEventListener("mousemove", onMarqueeMove);
+        document.addEventListener("mouseup", onMarqueeUp);
+        drawCanvas();
+      }
+      function onMarqueeMove(e) {
+        if (!node._marquee) return;
+        const mN = mouseN(e);
+        node._marquee.x = mN.x; node._marquee.y = mN.y;
+        if (Math.abs(mN.x - node._marquee.x0) + Math.abs(mN.y - node._marquee.y0) > 0.01) node._marqueeActive = true;
+        if (node._marqueeActive) {
+          const r = marqueeRect();
+          const sel = new Set(node._marqueeBase);
+          node._boxes.forEach((b, i) => { if (rectsOverlap(r, b)) sel.add(i); });
+          node._selection = sel;
+          if (node._activeIdx < 0 || !sel.has(node._activeIdx)) node._activeIdx = sel.size ? [...sel][0] : node._activeIdx;
+        }
+        drawCanvas();
+      }
+      function onMarqueeUp() {
+        document.removeEventListener("mousemove", onMarqueeMove);
+        document.removeEventListener("mouseup", onMarqueeUp);
+        if (!node._marqueeActive && node._marqueeStartHit >= 0) {   // shift-click on a box → toggle it
+          const idx = node._marqueeStartHit;
+          if (node._selection.has(idx) && node._selection.size > 1) {
+            node._selection.delete(idx);
+            if (node._activeIdx === idx) node._activeIdx = node._selection.values().next().value;
+          } else {
+            node._selection.add(idx); node._activeIdx = idx;
+          }
+        }
+        node._marquee = null; node._marqueeActive = false;
+        if (node._activeIdx >= 0 && !node._selection.has(node._activeIdx)) {
+          node._activeIdx = node._selection.size ? [...node._selection][0] : -1;
         }
         commit();
       }
@@ -672,7 +899,7 @@ app.registerExtension({
         b.x = clamp01(Math.min(mN.x - b.w / 2, 1 - b.w));
         b.y = clamp01(Math.min(mN.y - b.h / 2, 1 - b.h));
         delete b.nobbox;
-        drawCanvas();
+        drawCanvas(); updateBboxLabel();
       }
       function startPlacing(srcIdx) {
         const src = node._boxes[srcIdx];
@@ -680,7 +907,7 @@ app.registerExtension({
         const nb = JSON.parse(JSON.stringify(src));
         delete nb.nobbox;
         node._boxes.push(nb);
-        node._activeIdx = node._boxes.length - 1;
+        selectOnly(node._boxes.length - 1);
         node._placing = true;
         canvasEl.focus();
         canvasEl.style.cursor = "move";
@@ -765,7 +992,7 @@ app.registerExtension({
 
             row.addEventListener("click", () => {
               if (row._dragged) { row._dragged = false; return; }
-              node._activeIdx = node._boxes.indexOf(b);
+              selectOnly(node._boxes.indexOf(b));
               commit();
               for (const r of list.querySelectorAll(".kjideo-lrow")) r.classList.toggle("active", r._box === b);
             });
@@ -825,7 +1052,7 @@ app.registerExtension({
                   const active = node._boxes[node._activeIdx];
                   const order = Array.from(list.querySelectorAll(".kjideo-lrow")).map((el) => el._box);
                   if (order.length === node._boxes.length) node._boxes = order;
-                  node._activeIdx = active ? node._boxes.indexOf(active) : -1;
+                  selectOnly(active ? node._boxes.indexOf(active) : -1);  // reorder invalidates multi-select indices
                   renumber();
                   commit();
                 }
@@ -861,8 +1088,14 @@ app.registerExtension({
       stopProp(clearBtn);
       clearBtn.addEventListener("click", () => {
         closeInlineEditor();
-        node._boxes = []; node._activeIdx = -1; node._stylePalette = [];
+        node._boxes = []; node._activeIdx = -1; node._selection = new Set(); node._stylePalette = [];
+        node._lastImported = "";
         commit(); rebuildStylePalette(); fitNode();
+        // Write a unique "empty" marker into elements_data so the next run isn't cache-skipped
+        // (ComfyUI caches on the input signature; an empty value would match the prior run and the
+        // node wouldn't re-execute). The server treats a non-list value as empty, then re-pulls the
+        // wired import per import_mode and repopulates the editor via ui.
+        if (elementsWidget) elementsWidget.value = JSON.stringify({ _cleared: (node._clearSeq = (node._clearSeq || 0) + 1) });
       });
 
       // ── build caption JSON (mirrors Python key order) ──
@@ -958,7 +1191,7 @@ app.registerExtension({
         const cd = (cap && cap.compositional_deconstruction) || {};
         const els = Array.isArray(cd.elements) ? cd.elements : [];
         node._boxes = els.map((el, i) => bboxElemToBox(el, i)).filter(Boolean);
-        node._activeIdx = node._boxes.length ? 0 : -1;
+        selectOnly(node._boxes.length ? 0 : -1);
         setWidgetVal("high_level_description", cap.high_level_description || "");
         setWidgetVal("background", cd.background || "");
         const sd = cap.style_description || {};
@@ -998,7 +1231,11 @@ app.registerExtension({
       // Populate the editor from a caption pushed back by execute() when import_json
       // is connected (a connected socket can't be read in the frontend directly).
       function applyImported(capStr) {
-        if (!capStr || capStr === node._lastImported) return;
+        if (!capStr) return;
+        // "always" mode re-applies even an unchanged import so the editor snaps back to the
+        // authoritative JSON after edits; "when empty" keeps the guard so edits stick.
+        const always = findW("import_mode")?.value === "always";
+        if (capStr === node._lastImported && !always) return;
         const cap = tryParseCaption(capStr);
         if (!cap) return;
         node._lastImported = capStr;
@@ -1006,6 +1243,16 @@ app.registerExtension({
       }
       chainCallback(node, "onExecuted", function (message) {
         if (message?.caption) applyImported(message.caption[0]);
+        // Seed regions from the bboxes input only when the editor is empty, so user-drawn/edited
+        // regions are never overwritten.
+        if (message?.boxes && !node._boxes.length) {
+          const seeded = JSON.parse(message.boxes[0]);
+          if (Array.isArray(seeded) && seeded.length) {
+            node._boxes = seeded.filter((b) => b && typeof b.x === "number" && typeof b.w === "number");
+            selectOnly(node._boxes.length ? 0 : -1);
+            commit(); fitNode();
+          }
+        }
         // Reflect resolved width/height (e.g. from connected inputs) in the canvas aspect.
         // A connected background image governs the aspect itself, so skip then.
         if (message?.dims && !node._bgImg) {
@@ -1028,12 +1275,15 @@ app.registerExtension({
           sw.className = "kjideo-sw";
           sw.style.background = hex;
           sw.dataset.hex = hex;
-          sw.title = "Click edit · drag reorder · right-click remove";
+          sw.title = "Click edit · drag reorder · Ctrl+C/V copy/paste hex · right-click remove";
           const inp = document.createElement("input");
           inp.type = "color"; inp.value = hex;
           sw.appendChild(inp);
           container.appendChild(sw);
-          inp.addEventListener("input", () => { arr[i] = inp.value; sw.style.background = inp.value; sw.dataset.hex = inp.value; onEdit(); });
+          const setColor = (hex2) => { arr[i] = hex2; inp.value = hex2; sw.style.background = hex2; sw.dataset.hex = hex2; onEdit(); };
+          inp.addEventListener("input", () => setColor(inp.value));
+          sw.addEventListener("mouseenter", () => { hoveredSwatch = { sw, setColor }; });
+          sw.addEventListener("mouseleave", () => { if (hoveredSwatch && hoveredSwatch.sw === sw) hoveredSwatch = null; });
           sw.addEventListener("wheel", (e) => e.stopPropagation());
           sw.addEventListener("contextmenu", (e) => { e.preventDefault(); e.stopPropagation(); arr.splice(i, 1); onStruct(); });
           sw.addEventListener("mousedown", (e) => {
@@ -1087,8 +1337,13 @@ app.registerExtension({
         if (arr.length < max) {
           const add = document.createElement("button");
           add.className = "kjideo-btn"; add.textContent = "+";
+          add.title = "Add a color (uses the clipboard color if it is one)";
           stopProp(add);
-          add.addEventListener("click", () => { arr.push("#ffffff"); onStruct(); });
+          add.addEventListener("click", async () => {
+            let col = "#ffffff";
+            try { const c = parseColorString(await navigator.clipboard.readText()); if (c) col = c; } catch (e) {}
+            arr.push(col); onStruct();
+          });
           container.appendChild(add);
         }
       }
@@ -1120,6 +1375,59 @@ app.registerExtension({
         node._areaObservers.push(ro);
         return ta;
       }
+      let bboxPx = null, bboxGrid = null;   // editable bbox fields: pixels and 0–1000 grid
+      function dims() { return [wWidget ? wWidget.value : 1024, hWidget ? hWidget.value : 1024]; }
+      function boxToPx(b) {                                   // same order as the grid: ymin, xmin, ymax, xmax
+        const [W, H] = dims();
+        return [Math.round(b.y * H), Math.round(b.x * W), Math.round((b.y + b.h) * H), Math.round((b.x + b.w) * W)];
+      }
+      function setField(inp, b, fn) {                          // skip while the field is being edited
+        if (!inp || document.activeElement === inp) return;
+        inp.value = (!b || b.nobbox) ? "" : fn(b).join(", ");
+      }
+      function updateBboxLabel() {
+        const b = node._boxes[node._activeIdx];
+        setField(bboxPx, b, boxToPx);
+        setField(bboxGrid, b, normBboxJS);
+      }
+      function parse4(inp) {
+        const nums = inp.value.split(/[,\s]+/).map(Number).filter((n) => !isNaN(n));
+        return nums.length === 4 ? nums : null;
+      }
+      function commitPxEdit() {
+        const b = node._boxes[node._activeIdx]; if (!b || !bboxPx) return;
+        const nums = parse4(bboxPx); if (!nums) { updateBboxLabel(); return; }
+        const [W, H] = dims();
+        let [ymin, xmin, ymax, xmax] = nums;                  // ymin, xmin, ymax, xmax (matches grid)
+        ymin = Math.max(0, Math.min(H, ymin)); ymax = Math.max(0, Math.min(H, ymax));
+        xmin = Math.max(0, Math.min(W, xmin)); xmax = Math.max(0, Math.min(W, xmax));
+        if (ymin > ymax) [ymin, ymax] = [ymax, ymin];
+        if (xmin > xmax) [xmin, xmax] = [xmax, xmin];
+        b.y = ymin / H; b.x = xmin / W; b.h = (ymax - ymin) / H; b.w = (xmax - xmin) / W;
+        delete b.nobbox; commit(); fitNode();
+      }
+      function commitGridEdit() {
+        const b = node._boxes[node._activeIdx]; if (!b || !bboxGrid) return;
+        const nums = parse4(bboxGrid); if (!nums) { updateBboxLabel(); return; }
+        let [ymin, xmin, ymax, xmax] = nums.map((n) => Math.max(0, Math.min(1000, n)));
+        if (ymin > ymax) [ymin, ymax] = [ymax, ymin];
+        if (xmin > xmax) [xmin, xmax] = [xmax, xmin];
+        b.y = ymin / 1000; b.x = xmin / 1000; b.h = (ymax - ymin) / 1000; b.w = (xmax - xmin) / 1000;
+        delete b.nobbox; commit(); fitNode();
+      }
+      function makeBboxField(placeholder, title, onCommit) {
+        const inp = document.createElement("input");
+        inp.type = "text"; inp.className = "kjideo-bbox";
+        inp.placeholder = placeholder; inp.title = title;
+        stopProp(inp);
+        inp.addEventListener("keydown", (e) => {
+          e.stopPropagation();
+          if (e.key === "Enter") inp.blur();
+          else if (e.key === "Escape") { updateBboxLabel(); inp.blur(); }
+        });
+        inp.addEventListener("change", onCommit);
+        return inp;
+      }
       function renderPanel() {
         for (const ro of node._areaObservers) ro.disconnect();
         node._areaObservers = [];
@@ -1131,11 +1439,15 @@ app.registerExtension({
           p.style.color = "#888";
           p.textContent = node._boxes.length ? "Click a region to edit it." : "No regions yet.";
           panel.appendChild(p);
+          if (node._panelH) panel.style.minHeight = node._panelH + "px";  // reserve height so it doesn't pop
           requestAnimationFrame(fitNode);
           return;
         }
+        panel.style.minHeight = "";
         const col = (b.palette || []).find(Boolean) || "#bbb";
-        hint.innerHTML = `<b style="color:${col}">region ${node._activeIdx + 1}</b> · dbl-click edit · alt-click overlap · del remove`;
+        const selN = node._selection.size;
+        hint.innerHTML = `<b style="color:${col}">region ${node._activeIdx + 1}</b>` +
+          (selN > 1 ? ` <span style="color:#888">(${selN} selected)</span>` : "");
 
         // type toggle
         const typeRow = document.createElement("div");
@@ -1149,6 +1461,26 @@ app.registerExtension({
           btn.addEventListener("click", () => { b.type = t; commit(); });
           typeRow.appendChild(btn);
         }
+        const txtChk = document.createElement("label");
+        txtChk.style.cssText = "display:flex; align-items:center; gap:3px; cursor:pointer;";
+        txtChk.title = "Show each region's text inside its box on the canvas";
+        const cb = document.createElement("input");
+        cb.type = "checkbox"; cb.checked = node.properties.showBoxText !== false;
+        stopProp(cb);
+        cb.addEventListener("change", () => { node.properties.showBoxText = cb.checked; drawCanvas(); });
+        txtChk.appendChild(cb); txtChk.appendChild(document.createTextNode("show text"));
+        typeRow.appendChild(txtChk);
+        const pxLbl = document.createElement("span");
+        pxLbl.textContent = "px:"; pxLbl.style.cssText = "margin-left:auto; color:#888;";
+        typeRow.appendChild(pxLbl);
+        bboxPx = makeBboxField("ymin, xmin, ymax, xmax", "Pixel bbox (of the node's width/height): ymin, xmin, ymax, xmax — editable", commitPxEdit);
+        typeRow.appendChild(bboxPx);
+        const gl = document.createElement("span");
+        gl.textContent = "out:"; gl.style.color = "#888";
+        typeRow.appendChild(gl);
+        bboxGrid = makeBboxField("ymin, xmin, ymax, xmax", "Exported bbox on the 0–1000 grid: ymin, xmin, ymax, xmax — editable", commitGridEdit);
+        typeRow.appendChild(bboxGrid);
+        updateBboxLabel();
         panel.appendChild(typeRow);
 
         // text (only for text type)
@@ -1169,7 +1501,7 @@ app.registerExtension({
         buildSwatchRow(palRow, b.palette, MAX_ELEM_COLORS, swatchEdit, commit);
         panel.appendChild(palRow);
 
-        requestAnimationFrame(fitNode);
+        requestAnimationFrame(() => { node._panelH = panel.offsetHeight; fitNode(); });  // remember height for the deselected placeholder
       }
 
       // ── width/height widget callbacks ──
@@ -1251,6 +1583,7 @@ app.registerExtension({
 
       chainCallback(node, "onRemoved", function () {
         livePreviewNodes.delete(node);
+        node._visObserver?.disconnect();
         closeInlineEditor();
         closeLayersMenu();
         for (const ro of node._areaObservers) ro.disconnect();
@@ -1278,7 +1611,7 @@ app.registerExtension({
         if (!boxes) { for (const w of node.widgets || []) { const b = _parseBoxes(w?.value); if (b) { boxes = b; break; } } }
         if (boxes) {
           node._boxes = boxes.filter((b) => b && typeof b.x === "number");
-          node._activeIdx = node._boxes.length ? 0 : -1;
+          selectOnly(node._boxes.length ? 0 : -1);
         }
         const isPal = (p) => Array.isArray(p) && p.length && p.every((c) => typeof c === "string" && c[0] === "#");
         let pal = (o && o.ideo && isPal(o.ideo.palette)) ? o.ideo.palette : null;

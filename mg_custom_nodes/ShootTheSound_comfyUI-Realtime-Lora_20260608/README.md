@@ -17,36 +17,15 @@
 | **Musubi Tuner** | Z-Image, Z-Image Base, FLUX Klein 4B/9B, Qwen Image, Qwen Image Edit, Wan 2.2 | Cutting-edge models, smaller LoRAs, excellent VRAM efficiency |
 | **AI-Toolkit** | FLUX.1-dev, Z-Image, Wan 2.2 alternative training pipeline |
 
-**8 architectures. 3 training backends. 34 nodes total. **
+**8 architectures. 3 training backends. 31 nodes total. **
 
 - 10 trainer nodes
 - 13 selective loaders (5 V1 + 8 V2 combined)
 - 2 analyzers (V1 + V2)
 - 6 model layer editors
-- 4 utility nodes
+- 1 utility node
 
 ## What's New
-
-### Model Diff to LoRA (LoRA Extraction & Merging)
-
-Extract the combined effect of multiple LoRAs into a single distributable file:
-
-- **LoRA Merging** - Chain multiple LoRAs through V2 Analyzers, then extract the combined effect into one file
-- **LoRA Compression** - Re-extract a LoRA at a lower rank to reduce file size while preserving most of the effect
-- **Selective Baking** - Use V2 Analyzers to disable certain layers, then extract only the effects you want
-
-**Features:**
-- Works with all architectures (FLUX, FLUX Klein, Z-Image, SDXL, SD 1.5, Wan, Qwen)
-- Configurable output rank (4-256) - higher = more accurate, larger file
-- GPU-accelerated SVD decomposition for fast extraction
-- Progress bar in ComfyUI UI and console
-- Auto-disables after successful save to prevent accidental re-runs
-- Remembers save path and filename between sessions
-
-**How it works:**
-1. Connect your base model (before LoRAs) to `model_before`
-2. Connect your modified model (after LoRA chain) to `model_after`
-3. The node calculates the difference and saves it as a new LoRA file
 
 ### FLUX Klein 4B/9B Training & Editing
 
@@ -95,9 +74,6 @@ Scale individual blocks of your **base model** before applying LoRAs:
 
 | Node | Description |
 |------|-------------|
-| **Model Diff to LoRA** | Extract combined LoRA effects into a single file - merge, compress, or selectively bake LoRAs |
-| **Clippy Reloaded** | Load images directly from clipboard - copy from browser/screenshot/editor, queue, done |
-| **Image of the Day** | 8 sources (Bing, NASA, Unsplash, Pexels, Wikimedia, Lorem Picsum, Random Dog/Cat) with API key persistence |
 | **Scheduled LoRA Loader** | Standalone strength scheduling for any LoRA |
 
 See [Utility Nodes](#utility-nodes) section below for full details.
@@ -343,9 +319,6 @@ Search for these in ComfyUI:
 
 **Utility Nodes:**
 
-- **Model Diff to LoRA** - Extract combined LoRA effects into a single file (merge, compress, or selectively bake)
-- **Clippy Reloaded (Load Image from Clipboard)** - Paste images directly into ComfyUI
-- **Image of the Day** - Random inspiration images from Unsplash, Pexels, or NASA APOD
 - **LoRA Loader (Scheduled)** - Standalone strength scheduling for any LoRA
 
 ## Getting Started
@@ -394,10 +367,6 @@ Workflows are included in the `workflows/` folder, organized by category.
 - `Scheduled Lora Loader Demo - zimage.json` - Standalone strength scheduling
 - `Model Layer Editor - Zimage.json` - Base model editing demo
 - `Save Lora from Multiple Editors Demo.json` - LoRA extraction, merging, and compression
-
-**Utility Workflows** (root `workflows/` folder):
-- `Clippy Reloaded - image from clipboard - zimage.json` - Clipboard loading demo
-- `Image of the Day Node - Z-Image.json` - Random image inspiration demo
 
 ## Features
 
@@ -481,95 +450,15 @@ The V2 nodes support strength scheduling - varying LoRA strength during generati
 
 - **Trainer → Selective Loader**: The `lora_path` output from any trainer node is compatible with the Selective Loader's path input. Train a LoRA and immediately load it with per-block control - useful for testing which blocks matter for your freshly trained subject.
 
-- **Save combined LoRAs with Model Diff to LoRA**: Chain multiple V2 Analyzers (or mix with standard LoRA loaders), fine-tune each one's blocks and strengths, then use the **Model Diff to LoRA** node to extract the combined effect into a single distributable LoRA file. Connect your base model to `model_before` and the final model (after your LoRA chain) to `model_after`. This is perfect for creating merged LoRAs, compressing existing LoRAs to smaller file sizes, or baking selective block configurations into a standalone file. See `Save Lora from Multiple Editors Demo.json` for an example workflow.
-
 ## Utility Nodes
 
-### Model Diff to LoRA
+### Clippy Reloaded, Image of the Day & Model Diff to LoRA — now standalone
 
-Extract the combined effect of multiple LoRAs into a single distributable LoRA file.
+These three utility nodes used to ship inside this pack. They're now maintained as their own nodes — install them from **ComfyUI Manager** or the **Comfy Registry**:
 
-**How to connect the inputs:**
-- **model_before**: Connect your original base model here (before any LoRAs are applied). This is your "clean" reference point.
-- **model_after**: Connect the model output from the end of your LoRA chain here (after all analysers/selective loaders). This is your "modified" model with all the LoRA effects you want to capture.
-
-The node calculates the difference between these two models and saves it as a new LoRA file using SVD decomposition.
-
-**Choosing the right rank:**
-- **Rank 64 (default)**: Good balance of quality and file size for most use cases.
-- **Rank 128-256**: Use when combining multiple complex LoRAs or when quality is critical. Larger file size.
-- **Rank 16-32**: Use for compression or when you only need the broad strokes of the effect. Smaller file size.
-
-**Use cases:**
-- **LoRA Merging** - Chain multiple LoRAs through V2 Analyzers and extract their combined effect into one file
-- **LoRA Compression** - Load a single high-rank LoRA and extract at a lower rank to create a smaller file
-- **Selective Baking** - Use V2 Analyzers to disable certain layers before extraction, creating a LoRA with only the effects you want
-
-**Features:**
-- Works with all architectures (FLUX, FLUX Klein 4B/9B, Z-Image, SDXL, SD 1.5, Wan, Qwen)
-- GPU-accelerated SVD for fast extraction
-- Progress bar in ComfyUI UI and console
-- Auto-disables after successful save to prevent accidental re-runs
-- Remembers save path and filename between sessions
-- Timestamp appended to filenames to prevent overwrites
-
-It can take several minutes to save - this is normal as complex math (SVD decomposition) is happening.
-
-See `workflows/Lora Analysis, Block and Model Editing/Save Lora from Multiple Editors Demo.json` for an example.
-
-### Clippy Reloaded (Load Image from Clipboard)
-
-*Resurrected from a graveyard near Seattle, Clippy returns to help with your image loading needs.*
-
-Load images directly from your system clipboard - no file saving required.
-
-**How to use:**
-1. Copy an image from anywhere (browser right-click → Copy Image, screenshot, image editor)
-2. Queue the workflow
-3. Image loads directly into ComfyUI
-
-**Features:**
-- Works with browser images, screenshots, image editors, any app that copies to clipboard
-- Handles RGBA images (composites onto white background)
-- Handles file paths copied to clipboard (opens the file)
-- Shows image preview in the node
-- Clippy provides... commentary on your image choices
-
-**Works with:**
-- Right-click → Copy Image from browsers
-- Screenshots (Win+Shift+S, Cmd+Shift+4, PrtScn)
-- Copy from Photoshop, GIMP, etc.
-- Any app that copies images to clipboard
-
-### Image of the Day
-
-Fetch random or daily images from various online sources for inspiration or testing.
-
-**Sources (5 no-key required, 3 need free API key):**
-
-| Source | API Key | Notes |
-|--------|---------|-------|
-| Lorem Picsum | No | Random photos, customizable size, seed for reproducibility |
-| Bing Daily | No | Microsoft's daily wallpaper |
-| Wikimedia POTD | No | Wikipedia's Picture of the Day |
-| Random Dog | No | Random dog photos by breed |
-| Random Cat | No | Random cat photos |
-| NASA APOD | Yes (free) | Astronomy Picture of the Day - get key at api.nasa.gov |
-| Unsplash | Yes (free) | High-quality random photos - get key at unsplash.com/developers |
-| Pexels | Yes (free) | Curated stock photos - get key at pexels.com/api |
-
-**Features:**
-- **API key persistence** - Enter your key once, it's saved for future sessions
-- **1-hour caching** - Avoids hammering APIs, respects rate limits
-- **Width/height control** - For Lorem Picsum source
-- **Seed option** - Get reproducible "random" images
-
-**Outputs:**
-- `image` - The loaded image
-- `title` - Image title/name
-- `description` - Image description (when available)
-- `source_url` - Link to original source
-- `copyright` - Attribution/copyright info
+- **Model Diff to LoRA** — bake a chain of LoRAs / model edits into one `.safetensors` LoRA. [GitHub](https://github.com/shootthesound/comfyui-model-diff-to-lora) · Registry: `comfyui-model-diff-to-lora`
+- **Clippy Reloaded** — load an image straight from your clipboard. [GitHub](https://github.com/shootthesound/comfyui-clippy-reloaded) · Registry: `comfyui-clippy-reloaded`
+- **Image of the Day** — fetch a daily/random image from 8 sources. [GitHub](https://github.com/shootthesound/comfyui-image-of-the-day) · Registry: `comfyui-image-of-the-day`
 
 ### Scheduled LoRA Loader
 

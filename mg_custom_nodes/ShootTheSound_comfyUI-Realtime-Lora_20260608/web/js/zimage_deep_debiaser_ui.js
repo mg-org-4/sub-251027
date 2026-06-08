@@ -1,9 +1,8 @@
 import { app } from "../../../scripts/app.js";
 
 // ============================================================================
-// QWEN3-8B TEXT ENCODER DEEP DEBIASER — Sub-Component UI Extension
-// For Flux 2 Klein 9B
-// 182 combined checkbox+slider widgets with functional-group presets.
+// Z-IMAGE TURBO DEEP DEBIASER — Sub-Component UI Extension
+// 174 combined checkbox+slider widgets with functional-group presets.
 // ============================================================================
 
 function getImpactColor(score) {
@@ -19,45 +18,62 @@ function getImpactColor(score) {
     return "#ff3300";
 }
 
+// Sub-component type colors
 const SUB_COLORS = {
-    "input_norm": "#88cc88",
-    "attn":       "#4488ff",
-    "attn_norm":  "#66aacc",
-    "mlp":        "#ff8844",
-    "post_norm":  "#cccc88",
+    "adaLN":     "#cc88cc",  // purple = conditioning modulation
+    "attn":      "#4488ff",  // blue = attention
+    "attn_norm": "#88cc88",  // green = attention norm
+    "ffn":       "#ff8844",  // orange = feed-forward
+    "ffn_norm":  "#cccc88",  // yellow = FFN norm
 };
 
 function getSubColor(blockName) {
     for (const [sub, color] of Object.entries(SUB_COLORS)) {
         if (blockName.endsWith("_" + sub)) return color;
     }
-    if (blockName === "embed_tokens") return "#cc88cc";
-    if (blockName === "final_norm") return "#88cccc";
     return "#5599ff";
 }
 
+// Background tints by sub-type
 function getSubBg(blockName, enabled) {
     if (!enabled) return "#1e1e1e";
     if (blockName.endsWith("_attn")) return "#28282d";
-    if (blockName.endsWith("_mlp")) return "#2d2828";
-    if (blockName.endsWith("_input_norm") || blockName.endsWith("_post_norm")) return "#282d28";
-    if (blockName.endsWith("_attn_norm")) return "#282d2d";
+    if (blockName.endsWith("_ffn")) return "#2d2828";
+    if (blockName.endsWith("_adaLN")) return "#2d282d";
     return "#2a2a2a";
 }
 
-const NUM_LAYERS = 36;
+// ============================================================================
+// BLOCK LIST (must match Python exactly)
+// ============================================================================
 
-const EMBED_BLOCKS = ["embed_tokens"];
+const EMBED_BLOCKS = [
+    "cap_embedder", "t_embedder", "x_embedder", "cap_pad_token", "x_pad_token",
+];
 
-const LAYER_SUBS = ["input_norm", "attn", "attn_norm", "mlp", "post_norm"];
+const CR_SUBS = ["attn", "attn_norm", "ffn", "ffn_norm"];
+const CR_BLOCKS = [];
+for (let i = 0; i < 2; i++) {
+    for (const sub of CR_SUBS) CR_BLOCKS.push(`cr${i}_${sub}`);
+}
+
+const LAYER_SUBS = ["adaLN", "attn", "attn_norm", "ffn", "ffn_norm"];
 const LAYER_BLOCKS = [];
-for (let i = 0; i < NUM_LAYERS; i++) {
+for (let i = 0; i < 30; i++) {
     for (const sub of LAYER_SUBS) LAYER_BLOCKS.push(`l${i}_${sub}`);
 }
 
-const FINAL_BLOCKS = ["final_norm"];
+const NR_SUBS = ["adaLN", "attn", "attn_norm", "ffn", "ffn_norm"];
+const NR_BLOCKS = [];
+for (let i = 0; i < 2; i++) {
+    for (const sub of NR_SUBS) NR_BLOCKS.push(`nr${i}_${sub}`);
+}
 
-const ALL_BLOCKS = [...EMBED_BLOCKS, ...LAYER_BLOCKS, ...FINAL_BLOCKS];
+const ALL_BLOCKS = [...EMBED_BLOCKS, ...CR_BLOCKS, ...LAYER_BLOCKS, ...NR_BLOCKS, "final_layer"];
+
+// ============================================================================
+// PRESETS
+// ============================================================================
 
 function makePreset(enabled, strength, overrideFn) {
     const overrides = {};
@@ -76,29 +92,35 @@ const DEEP_PRESETS = {
     "Weaken ALL attn 90%": makePreset("ALL", 1.0, b => b.endsWith("_attn") ? 0.90 : null),
     "Weaken ALL attn 85%": makePreset("ALL", 1.0, b => b.endsWith("_attn") ? 0.85 : null),
     "Weaken ALL attn 80%": makePreset("ALL", 1.0, b => b.endsWith("_attn") ? 0.80 : null),
-    "Weaken ALL mlp 90%": makePreset("ALL", 1.0, b => b.endsWith("_mlp") ? 0.90 : null),
-    "Weaken ALL mlp 85%": makePreset("ALL", 1.0, b => b.endsWith("_mlp") ? 0.85 : null),
-    "Weaken ALL attn+mlp 90%": makePreset("ALL", 1.0, b => (b.endsWith("_attn") || b.endsWith("_mlp")) ? 0.90 : null),
-    "Weaken ALL attn+mlp 85%": makePreset("ALL", 1.0, b => (b.endsWith("_attn") || b.endsWith("_mlp")) ? 0.85 : null),
-    "Weaken ALL norms 90%": makePreset("ALL", 1.0, b => (b.endsWith("_input_norm") || b.endsWith("_post_norm") || b.endsWith("_attn_norm") || b === "final_norm") ? 0.90 : null),
+    "Weaken ALL ffn 90%": makePreset("ALL", 1.0, b => b.endsWith("_ffn") ? 0.90 : null),
+    "Weaken ALL ffn 85%": makePreset("ALL", 1.0, b => b.endsWith("_ffn") ? 0.85 : null),
+    "Weaken ALL adaLN 90%": makePreset("ALL", 1.0, b => b.endsWith("_adaLN") ? 0.90 : null),
+    "Weaken ALL adaLN 85%": makePreset("ALL", 1.0, b => b.endsWith("_adaLN") ? 0.85 : null),
+    "Weaken ALL attn+ffn 90%": makePreset("ALL", 1.0, b => (b.endsWith("_attn") || b.endsWith("_ffn")) ? 0.90 : null),
+    "Weaken ALL attn+ffn 85%": makePreset("ALL", 1.0, b => (b.endsWith("_attn") || b.endsWith("_ffn")) ? 0.85 : null),
+    "Weaken ALL attn_norm+ffn_norm 90%": makePreset("ALL", 1.0, b => (b.endsWith("_attn_norm") || b.endsWith("_ffn_norm")) ? 0.90 : null),
     "Global 95%": makePreset("ALL", 0.95, null),
     "Global 90%": makePreset("ALL", 0.90, null),
     "Global 85%": makePreset("ALL", 0.85, null),
 };
 
+// ============================================================================
+// MAIN EXTENSION
+// ============================================================================
+
 app.registerExtension({
-    name: "Qwen3_8BTextEncoderDebiaser.SubComponentControl",
+    name: "ZImageDeepDebiaser.SubComponentControl",
 
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name !== "Qwen3_8BTextEncoderDebiaser") return;
+        if (nodeData.name !== "ZImageDeepDebiaser") return;
 
         const origOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
             if (origOnNodeCreated) origOnNodeCreated.apply(this, arguments);
             const node = this;
             setTimeout(() => {
-                if (node._qwen3_8bDeepInit) return;
-                node._qwen3_8bDeepInit = true;
+                if (node._zimgDeepInit) return;
+                node._zimgDeepInit = true;
                 node.combineBlockWidgets();
                 node.setupPresetWidget();
                 if (node.size[0] < 520) {
@@ -138,6 +160,7 @@ app.registerExtension({
             }
         };
 
+        // combineBlockWidgets
         nodeType.prototype.combineBlockWidgets = function() {
             const widgetPairs = [];
             const strWidgetNames = new Set();
@@ -158,6 +181,7 @@ app.registerExtension({
             this.setDirtyCanvas(true);
         };
 
+        // createCombinedWidget
         nodeType.prototype.createCombinedWidget = function(pair) {
             const { toggle, strength, name } = pair;
 
@@ -241,7 +265,7 @@ app.registerExtension({
 
             toggle.sliderInfo = {
                 margin: 10, checkboxSize: 14, labelWidth: 115, valueWidth: 38, gap: 6,
-                min: -2.0, max: 2.0, step: 0.01,
+                min: -5.0, max: 5.0, step: 0.01,
                 getLayout: function(widgetWidth) {
                     const sliderWidth = widgetWidth - this.margin - this.checkboxSize - this.gap - this.labelWidth - this.gap - this.valueWidth - this.margin - this.gap;
                     const checkboxX = this.margin;
@@ -279,16 +303,29 @@ app.registerExtension({
                     return true;
                 }
 
-                if (localX >= layout.sliderX - 5 && localX <= layout.sliderX + layout.sliderWidth + 5) {
-                    if (event.type === "pointerdown" || event.type === "pointermove") {
-                        let normalized = Math.max(0, Math.min(1, (localX - layout.sliderX) / layout.sliderWidth));
-                        let newStr = toggle.sliderInfo.min + normalized * (toggle.sliderInfo.max - toggle.sliderInfo.min);
+                // Slider drag — RELATIVE / anchored (matches the flux_klein debiaser, #42).
+                // Grab at the current value instead of jumping to the cursor; adjust from
+                // the grab point so small drags give fine control and you never have to
+                // drag to the track edge to reach min/max.
+                if (event.type === "pointerdown" && localX >= layout.sliderX - 5 && localX <= layout.sliderX + layout.sliderWidth + 5) {
+                    toggle._strDrag = { x: localX, v: parseFloat(strength.value) || 0 };
+                    return true;
+                }
+                if (event.type === "pointermove" && toggle._strDrag) {
+                    if (event.buttons === 0) {
+                        toggle._strDrag = null;
+                    } else {
+                        let newStr = toggle._strDrag.v + ((localX - toggle._strDrag.x) / layout.sliderWidth) * (toggle.sliderInfo.max - toggle.sliderInfo.min);
                         newStr = Math.round(newStr / toggle.sliderInfo.step) * toggle.sliderInfo.step;
                         newStr = Math.max(toggle.sliderInfo.min, Math.min(toggle.sliderInfo.max, newStr));
                         strength.value = newStr;
                         node.setDirtyCanvas(true);
                         return true;
                     }
+                }
+                if (event.type === "pointerup" && toggle._strDrag) {
+                    toggle._strDrag = null;
+                    return true;
                 }
                 if (originalMouse) return originalMouse(event, pos, node);
                 return false;
@@ -298,6 +335,7 @@ app.registerExtension({
             strength.computeSize = function() { return [0, -4]; };
         };
 
+        // setupPresetWidget
         nodeType.prototype.setupPresetWidget = function() {
             const node = this;
             const presetWidget = this.widgets.find(w => w.name === "preset");
@@ -317,6 +355,7 @@ app.registerExtension({
             this.setDirtyCanvas(true);
         };
 
+        // applyPreset
         nodeType.prototype.applyPreset = function(presetName) {
             const preset = DEEP_PRESETS[presetName];
             if (!preset) return;

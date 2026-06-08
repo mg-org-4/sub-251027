@@ -20,10 +20,7 @@ from .lora_analyzer import LoRALoaderWithAnalysis
 from .lora_analyzer_v2 import NODE_CLASS_MAPPINGS as V2_NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as V2_NODE_DISPLAY_NAME_MAPPINGS
 from .selective_lora_loader import SDXLSelectiveLoRALoader, ZImageSelectiveLoRALoader, FLUXSelectiveLoRALoader, WanSelectiveLoRALoader, QwenSelectiveLoRALoader
 from .scheduled_lora_loader import ScheduledLoRALoader
-from .clipboard_image_loader import ClippyRebornImageLoader
-from .image_of_day import ImageOfDayLoader
 from .model_layer_analyzer import NODE_CLASS_MAPPINGS as MODEL_LAYER_NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as MODEL_LAYER_NODE_DISPLAY_NAME_MAPPINGS
-from .model_diff_to_lora import NODE_CLASS_MAPPINGS as MODEL_DIFF_NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as MODEL_DIFF_NODE_DISPLAY_NAME_MAPPINGS
 
 # Flux Klein Debiaser Pack
 from .flux_klein_debiaser_node import NODE_CLASS_MAPPINGS as FK_NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as FK_NODE_DISPLAY_NAME_MAPPINGS
@@ -60,8 +57,6 @@ NODE_CLASS_MAPPINGS = {
     "WanSelectiveLoRALoader": WanSelectiveLoRALoader,
     "QwenSelectiveLoRALoader": QwenSelectiveLoRALoader,
     "ScheduledLoRALoader": ScheduledLoRALoader,
-    "ClippyRebornImageLoader": ClippyRebornImageLoader,
-    "ImageOfDayLoader": ImageOfDayLoader,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -82,8 +77,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "WanSelectiveLoRALoader": "Selective LoRA Loader (Wan)",
     "QwenSelectiveLoRALoader": "Selective LoRA Loader (Qwen)",
     "ScheduledLoRALoader": "LoRA Loader (Scheduled)",
-    "ClippyRebornImageLoader": "Clippy Reloaded (Load Image from Clipboard)",
-    "ImageOfDayLoader": "Image of the Day",
 }
 
 # Merge V2 analyzer nodes (includes combined analyzer+selective loaders)
@@ -92,9 +85,6 @@ NODE_DISPLAY_NAME_MAPPINGS.update(V2_NODE_DISPLAY_NAME_MAPPINGS)
 # Merge Model Layer Analyzer/Editor nodes
 NODE_CLASS_MAPPINGS.update(MODEL_LAYER_NODE_CLASS_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(MODEL_LAYER_NODE_DISPLAY_NAME_MAPPINGS)
-# Merge Model Diff to LoRA node
-NODE_CLASS_MAPPINGS.update(MODEL_DIFF_NODE_CLASS_MAPPINGS)
-NODE_DISPLAY_NAME_MAPPINGS.update(MODEL_DIFF_NODE_DISPLAY_NAME_MAPPINGS)
 
 # Flux Klein / VAE / Qwen3-8B debiaser & inspector nodes
 NODE_CLASS_MAPPINGS.update(FK_NODE_CLASS_MAPPINGS)

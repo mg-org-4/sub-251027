@@ -28,6 +28,8 @@ import comfy.utils
 from safetensors.torch import load_file, save_file
 from safetensors import safe_open
 
+from .quant_utils import is_quantized_model
+
 # Path to store per-node config (last used save paths)
 _NODE_CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
 _SAVE_PATHS_CONFIG = os.path.join(_NODE_CONFIG_DIR, ".v2_save_paths.json")
@@ -393,10 +395,12 @@ def _detect_from_metadata(metadata: dict) -> str:
     # Check modelspec.architecture (newer LoRAs)
     arch = metadata.get('modelspec.architecture', '').lower()
 
-    # Check for FLUX Klein variants first (before generic FLUX)
-    if 'klein-4b' in arch or 'klein_4b' in arch:
+    # Check for FLUX Klein variants first (before generic FLUX). Match loosely on
+    # "klein" + size so the distilled and base variants both resolve, e.g.
+    # flux-2-klein-9b AND flux-2-klein-base-9b.
+    if 'klein' in arch and '4b' in arch:
         return 'FLUX_KLEIN_4B'
-    if 'klein-9b' in arch or 'klein_9b' in arch:
+    if 'klein' in arch and '9b' in arch:
         return 'FLUX_KLEIN_9B'
     if 'flux' in arch:
         return 'FLUX'
@@ -407,10 +411,10 @@ def _detect_from_metadata(metadata: dict) -> str:
 
     # Check ss_base_model_version (Kohya format)
     base_model = metadata.get('ss_base_model_version', '').lower()
-    # Check Klein variants first
-    if 'flux_2_klein_4b' in base_model or 'flux-2-klein-4b' in base_model:
+    # Check Klein variants first (loose match catches *-klein-base-9b etc.)
+    if 'klein' in base_model and '4b' in base_model:
         return 'FLUX_KLEIN_4B'
-    if 'flux_2_klein_9b' in base_model or 'flux-2-klein-9b' in base_model:
+    if 'klein' in base_model and '9b' in base_model:
         return 'FLUX_KLEIN_9B'
     if 'sdxl' in base_model:
         return 'SDXL'
@@ -782,7 +786,10 @@ def _extract_block_id_v2(key: str, architecture: str) -> str:
         if double:
             return f"double_{double.group(1)}"
 
-        return 'other_weights'
+        # Catch-all bucket. Must be 'other' (not 'other_weights') so it matches the
+        # `if block_id == 'other'` branch in _filter_lora_by_blocks and is gated by the
+        # 'other_weights' toggle/strength — same as every other architecture.
+        return 'other'
 
     elif architecture in ['SDXL', 'SD15']:
         # Text encoders. Both kohya-style (`lora_te1_*`/`lora_te2_*`) and
@@ -856,20 +863,21 @@ def _sdxl_diffusers_to_comfy_bucket(key_lower: str):
     if m:
         level, idx = int(m.group(1)), int(m.group(2))
         if level == 0:
-            # Level 0 has no attention; resnets map to input_1/2.
-            # The UI doesn't expose input_1/2 toggles for SDXL → these end up
-            # in 'other_weights', which is fine (they're rare in real LoRAs).
-            return f"input_{1 + idx}" if idx in (0, 1) else None
+            # Level 0 has no attention and no exposed toggle (would be input_1/2).
+            # Return None so these fall through to the 'other' bucket (kept /
+            # controlled by the other_weights toggle) instead of being DROPPED by
+            # _filter_lora_by_blocks (which only keeps 'other' or enabled toggles).
+            return None
         if level == 1:
             return f"input_{4 + idx}" if idx in (0, 1) else None
         if level == 2:
             return f"input_{7 + idx}" if idx in (0, 1) else None
 
-    # Down blocks — downsamplers
+    # Down blocks — downsamplers (would be input_3/input_6 — not exposed as
+    # toggles). Return None so they land in 'other' rather than being dropped.
     m = re.search(r'down_blocks?[._](\d+)[._]?downsamplers', key_lower)
     if m:
-        level = int(m.group(1))
-        return {0: 'input_3', 1: 'input_6'}.get(level)
+        return None
 
     # Mid block — single attention + resnets
     if 'mid_block' in key_lower:
@@ -884,7 +892,9 @@ def _sdxl_diffusers_to_comfy_bucket(key_lower: str):
         if level == 1:
             return f"output_{3 + idx}" if idx in (0, 1, 2) else None
         if level == 2:
-            return f"output_{6 + idx}" if idx in (0, 1, 2) else None
+            # up level 2 = output_6/7/8 (resnets only, no exposed toggle).
+            # None -> 'other' bucket rather than being dropped by the filter.
+            return None
 
     # Up blocks — upsamplers (fold into the last block at each level)
     m = re.search(r'up_blocks?[._](\d+)[._]?upsamplers', key_lower)
@@ -1086,6 +1096,12 @@ class LoRALoaderWithAnalysisV2:
                     "tooltip": "LoRA strength for CLIP text encoder"
                 }),
             },
+            "optional": {
+                "lora_path_opt": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "Optional: override the LoRA dropdown with a file path (e.g. from a LoRA-manager / lora-stack node that outputs a path)."
+                }),
+            },
         }
 
     RETURN_TYPES = ("MODEL", "CLIP", "STRING", "STRING", "STRING")
@@ -1102,8 +1118,11 @@ class LoRALoaderWithAnalysisV2:
     OUTPUT_NODE = True
     DESCRIPTION = "V2 analyzer with improved detection using metadata, scoring, and block counting."
 
-    def load_lora_with_analysis(self, model, clip, lora_name, strength_model, strength_clip):
-        lora_path = folder_paths.get_full_path("loras", lora_name)
+    def load_lora_with_analysis(self, model, clip, lora_name, strength_model, strength_clip, lora_path_opt=None):
+        if lora_path_opt and os.path.exists(lora_path_opt):
+            lora_path = lora_path_opt
+        else:
+            lora_path = folder_paths.get_full_path("loras", lora_name)
         if not lora_path or not os.path.exists(lora_path):
             return (model, clip, "Error: LoRA file not found", "{}", "")
 
@@ -1547,7 +1566,7 @@ def _create_combined_node_class(config: dict):
             else:
                 lora_path = folder_paths.get_full_path("loras", lora_name)
             if not lora_path or not os.path.exists(lora_path):
-                return {"ui": {"analysis_json": ["{}"]}, "result": (model, clip, "Error: LoRA file not found", "{}", None)}
+                return {"ui": {"analysis_json": ["{}"]}, "result": (model, positive, negative, "Error: LoRA file not found", "{}")}
 
             print(f"[{cfg['display_name']}] Loading: {lora_name}")
 
@@ -1627,7 +1646,21 @@ def _create_combined_node_class(config: dict):
             positive_out = positive
             negative_out = negative
 
+            # Strength scheduling uses ComfyUI's hook system, which is incompatible
+            # with GGUF / fp8 quantized models (the hook path trips over quantized
+            # Linear layers at sample time and crashes). Detect those up front and
+            # fall back to a flat-strength apply so the node still works. See
+            # issues #26, #41, #51, #33.
+            schedule_skipped_reason = ""
             if schedule:
+                quantized, quant_label = is_quantized_model(model)
+                if quantized:
+                    schedule_skipped_reason = quant_label
+                    print(f"[{cfg['display_name']}] WARNING: strength scheduling is not supported "
+                          f"on {quant_label} models (hooks crash on quantized layers) - applying "
+                          f"the LoRA at flat strength 1.0 instead.")
+
+            if schedule and not schedule_skipped_reason:
                 # Use hook system for scheduling
                 # Base strength is 1.0 so keyframe values ARE the actual strengths
                 # Schedule format: "0:.2,.8:.6,1:.4" means:
@@ -1651,8 +1684,15 @@ def _create_combined_node_class(config: dict):
                 positive_out = comfy.hooks.set_hooks_for_conditioning(positive, hooks)
                 negative_out = comfy.hooks.set_hooks_for_conditioning(negative, hooks)
                 print(f"[{cfg['display_name']}] Hooks attached to conditioning")
+            elif schedule_skipped_reason:
+                # Schedule requested but skipped on a quantized model: apply at a
+                # flat strength of 1.0 (the schedule's base strength, matching the
+                # hook path's strength_model=1.0) rather than the (ignored) widget.
+                model_out, _ = comfy.sd.load_lora_for_models(
+                    model, None, filtered_lora, 1.0, 0.0
+                )
             else:
-                # Standard loading (no schedule) - apply LoRA directly to model
+                # Standard loading (no schedule) - honor the strength widget.
                 model_out, _ = comfy.sd.load_lora_for_models(
                     model, None, filtered_lora, strength, 0.0
                 )
@@ -1678,6 +1718,9 @@ def _create_combined_node_class(config: dict):
             info_lines = [analysis_text, "", f"Enabled: {layer_blocks_enabled}/{len(layer_blocks)} layers (other: {other_status})"]
             if using_schedule:
                 info_lines.append(f"Schedule: {len(schedule)} keyframes (attached to conditioning)")
+            elif schedule_skipped_reason:
+                info_lines.append(f"WARNING: strength schedule skipped - not supported on "
+                                  f"{schedule_skipped_reason} models; applied at flat strength 1.0")
             if saved_path:
                 info_lines.append(f"Saved: {os.path.basename(saved_path)}")
 

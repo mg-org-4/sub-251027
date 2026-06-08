@@ -17,6 +17,8 @@ import comfy.sd
 import comfy.hooks
 import comfy.utils
 
+from .quant_utils import is_quantized_model
+
 
 # ============================================================================
 # STRENGTH SCHEDULE PRESETS
@@ -266,6 +268,10 @@ class ScheduledLoRALoader:
                 }),
             },
             "optional": {
+                "lora_path_opt": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "Optional: override the LoRA dropdown with a file path (e.g. from a LoRA-manager / lora-stack node that outputs a path)."
+                }),
                 "schedule_in": ("STRING", {
                     "forceInput": True,
                     "tooltip": "Schedule input from another node (overrides preset/text field)"
@@ -298,12 +304,15 @@ Chain multiple loaders using schedule_out → schedule_in.
 Use schedule_inv for complementary LoRA pairs (crossfade effect)."""
 
     def load_lora(self, model, positive, negative, lora_name, strength,
-                  schedule_preset="Custom", strength_schedule="", schedule_in=None):
+                  schedule_preset="Custom", strength_schedule="", schedule_in=None, lora_path_opt=None):
 
-        # Get LoRA path
-        lora_path = folder_paths.get_full_path("loras", lora_name)
+        # Get LoRA path (an optional path override takes precedence over the dropdown)
+        if lora_path_opt and os.path.exists(lora_path_opt):
+            lora_path = lora_path_opt
+        else:
+            lora_path = folder_paths.get_full_path("loras", lora_name)
         if not lora_path or not os.path.exists(lora_path):
-            print(f"[ScheduledLoRALoader] Error: LoRA not found: {lora_name}")
+            print(f"[ScheduledLoRALoader] Error: LoRA not found: {lora_name or lora_path_opt}")
             return (model, positive, negative, "", "")
 
         print(f"[ScheduledLoRALoader] Loading: {lora_name}")
@@ -327,6 +336,19 @@ Use schedule_inv for complementary LoRA pairs (crossfade effect)."""
         schedule_inv = _invert_schedule(effective_schedule)
 
         schedule = _parse_strength_schedule(effective_schedule)
+
+        # Strength scheduling uses ComfyUI's hook system, which crashes on GGUF /
+        # fp8 quantized models (the hook path trips over quantized Linear layers at
+        # sample time). Detect those and fall back to a flat-strength apply instead
+        # of crashing mid-sample. See issues #26, #41, #51.
+        if schedule:
+            quantized, quant_label = is_quantized_model(model)
+            if quantized:
+                print(f"[ScheduledLoRALoader] WARNING: strength scheduling is not supported on "
+                      f"{quant_label} models (hooks crash on quantized layers) - applying the LoRA "
+                      f"at flat strength 1.0 instead.")
+                model_out, _ = comfy.sd.load_lora_for_models(model, None, lora, 1.0, 0.0)
+                return (model_out, positive, negative, effective_schedule, schedule_inv)
 
         if schedule:
             # Use hook system for scheduling
